@@ -16,7 +16,14 @@ export const POST: RequestHandler = async ({ platform, params, request }) => {
 		return json({ error: 'policial_id e data_plantao são obrigatórios' }, { status: 400 });
 	}
 
-	await adicionarPolicialEscala(db, Number(params.id), data.policial_id, data.data_plantao, data.horario || '');
+	await adicionarPolicialEscala(
+		db,
+		Number(params.id),
+		data.policial_id,
+		data.data_plantao,
+		data.hora_entrada || '',
+		data.hora_saida || ''
+	);
 	return json({ success: true }, { status: 201 });
 };
 
@@ -24,11 +31,11 @@ export const PATCH: RequestHandler = async ({ platform, request }) => {
 	const db = getDB(platform);
 	const data = await request.json();
 
-	if (!data.item_id || data.horario === undefined) {
-		return json({ error: 'item_id e horario são obrigatórios' }, { status: 400 });
+	if (!data.item_id) {
+		return json({ error: 'item_id é obrigatório' }, { status: 400 });
 	}
 
-	await atualizarHorarioEscalaPolicial(db, data.item_id, data.horario);
+	await atualizarHorarioEscalaPolicial(db, data.item_id, data.hora_entrada || '', data.hora_saida || '');
 	return json({ success: true });
 };
 

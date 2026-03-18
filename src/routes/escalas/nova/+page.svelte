@@ -2,11 +2,14 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
+	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+
 	let titulo = $state('');
 	let cidade = $state('');
 	let dataInicio = $state('');
 	let dataFim = $state('');
-	let horario = $state('08H A 08H');
+	let horaEntrada = $state('08');
+	let horaSaida = $state('08');
 	let error = $state('');
 	let saving = $state(false);
 	let lotacoes = $state<string[]>([]);
@@ -22,6 +25,10 @@
 		}
 	});
 
+	function horarioLabel(): string {
+		return `${horaEntrada}H A ${horaSaida}H`;
+	}
+
 	async function salvar(e: Event) {
 		e.preventDefault();
 		saving = true;
@@ -35,7 +42,9 @@
 				cidade,
 				data_inicio: dataInicio,
 				data_fim: dataFim,
-				horario
+				horario: horarioLabel(),
+				hora_entrada: horaEntrada,
+				hora_saida: horaSaida
 			})
 		});
 
@@ -97,10 +106,32 @@
 				<input id="data_fim" type="date" bind:value={dataFim} required />
 			</div>
 		</div>
-		<div class="form-group">
-			<label for="horario">Horário do plantão</label>
-			<input id="horario" type="text" bind:value={horario} placeholder="08H A 08H" />
+		<div class="form-row">
+			<div class="form-group">
+				<label for="hora_entrada">Hora de entrada (padrão)</label>
+				<select id="hora_entrada" bind:value={horaEntrada}>
+					{#each horas as h}
+						<option value={h}>{h}h</option>
+					{/each}
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="hora_saida">Hora de saída (padrão)</label>
+				<select id="hora_saida" bind:value={horaSaida}>
+					{#each horas as h}
+						<option value={h}>{h}h</option>
+					{/each}
+				</select>
+			</div>
 		</div>
+		<p class="horario-preview">
+			Horário do plantão: <strong>{horarioLabel()}</strong>
+			{#if Number(horaSaida) <= Number(horaEntrada) && horaEntrada !== horaSaida}
+				<span class="hint"> (cruza para o dia seguinte)</span>
+			{:else if horaEntrada === horaSaida}
+				<span class="hint"> (plantão de 24h)</span>
+			{/if}
+		</p>
 		<div class="form-group">
 			<label for="titulo">Título (gerado automaticamente)</label>
 			<input id="titulo" type="text" bind:value={titulo} required />
@@ -113,3 +144,16 @@
 		</div>
 	</form>
 </div>
+
+<style>
+	.horario-preview {
+		margin: 0 0 1rem;
+		font-size: 0.9rem;
+		color: var(--text-light, #64748b);
+	}
+
+	.hint {
+		font-size: 0.8rem;
+		font-style: italic;
+	}
+</style>

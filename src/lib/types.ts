@@ -17,6 +17,8 @@ export interface Escala {
 	data_inicio: string;
 	data_fim: string;
 	horario: string;
+	hora_entrada: string;
+	hora_saida: string;
 	created_at: string;
 }
 
@@ -26,6 +28,8 @@ export interface EscalaPolicial {
 	policial_id: number;
 	data_plantao: string;
 	horario: string;
+	hora_entrada: string;
+	hora_saida: string;
 }
 
 export interface EscalaPolicialComDados extends EscalaPolicial {

@@ -16,12 +16,17 @@ export const POST: RequestHandler = async ({ platform, request }) => {
 		return json({ error: 'Campos obrigatórios: titulo, cidade, data_inicio, data_fim' }, { status: 400 });
 	}
 
+	const horaEntrada = data.hora_entrada || '08';
+	const horaSaida = data.hora_saida || '08';
+
 	const result = await criarEscala(db, {
 		titulo: data.titulo,
 		cidade: data.cidade,
 		data_inicio: data.data_inicio,
 		data_fim: data.data_fim,
-		horario: data.horario || '08H A 08H'
+		horario: data.horario || `${horaEntrada}H A ${horaSaida}H`,
+		hora_entrada: horaEntrada,
+		hora_saida: horaSaida
 	});
 
 	return json({ success: true, id: result.meta?.last_row_id }, { status: 201 });

@@ -17,6 +17,37 @@ function formatarData(dateStr: string): string {
 	return `${day}/${month}/${year}`;
 }
 
+function proximoDia(dateStr: string): string {
+	const d = new Date(dateStr + 'T00:00:00');
+	d.setDate(d.getDate() + 1);
+	return d.toISOString().split('T')[0];
+}
+
+function getHoraEntrada(p: EscalaPolicialComDados, escala: Escala): string {
+	return p.hora_entrada || escala.hora_entrada || '08';
+}
+
+function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string {
+	return p.hora_saida || escala.hora_saida || '08';
+}
+
+function formatarHorario(p: EscalaPolicialComDados, escala: Escala): string {
+	const entrada = getHoraEntrada(p, escala);
+	const saida = getHoraSaida(p, escala);
+	return `${entrada}H A ${saida}H`;
+}
+
+function formatarDataPlantao(p: EscalaPolicialComDados, escala: Escala): string {
+	const entrada = Number(getHoraEntrada(p, escala));
+	const saida = Number(getHoraSaida(p, escala));
+	const dataFormatada = formatarData(p.data_plantao);
+	if (saida <= entrada) {
+		const proxDia = formatarData(proximoDia(p.data_plantao));
+		return `${dataFormatada} à ${proxDia}`;
+	}
+	return dataFormatada;
+}
+
 function agruparPorData(policiais: EscalaPolicialComDados[]): DiaPlantao[] {
 	const map = new Map<string, EscalaPolicialComDados[]>();
 	for (const p of policiais) {
@@ -61,6 +92,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					shading: { fill: '1a5c57' },
 					width: text === 'EQUIPE DE PLANTÃO DA DP' ? { size: 3000, type: WidthType.DXA } :
 						text === 'LOTAÇÃO' ? { size: 2500, type: WidthType.DXA } :
+						text === 'DATA' ? { size: 2000, type: WidthType.DXA } :
 							{ size: 1200, type: WidthType.DXA }
 				})
 			)
@@ -74,8 +106,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					p.cargo,
 					p.telefone,
 					p.lotacao,
-					formatarData(dia.data),
-					p.horario || escala.horario
+					formatarDataPlantao(p, escala),
+					formatarHorario(p, escala)
 				].map((text, i) =>
 					new TableCell({
 						children: [new Paragraph({
@@ -132,8 +164,8 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 				p.cargo,
 				p.telefone,
 				p.lotacao,
-				formatarData(dia.data),
-				p.horario || escala.horario
+				formatarDataPlantao(p, escala),
+				formatarHorario(p, escala)
 			]);
 		}
 		rows.push([]);
@@ -141,7 +173,7 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [
-		{ wch: 35 }, { wch: 15 }, { wch: 8 }, { wch: 18 }, { wch: 35 }, { wch: 12 }, { wch: 12 }
+		{ wch: 35 }, { wch: 15 }, { wch: 8 }, { wch: 18 }, { wch: 35 }, { wch: 22 }, { wch: 12 }
 	];
 	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
 
@@ -168,8 +200,8 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 			p.cargo,
 			p.telefone,
 			p.lotacao,
-			formatarData(dia.data),
-			p.horario || escala.horario
+			formatarDataPlantao(p, escala),
+			formatarHorario(p, escala)
 		]);
 
 		autoTable(doc, {
@@ -186,8 +218,8 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 			},
 			bodyStyles: { fontSize: 8 },
 			columnStyles: {
-				0: { cellWidth: 55 },
-				5: { halign: 'center' },
+				0: { cellWidth: 50 },
+				5: { halign: 'center', cellWidth: 35 },
 				6: { halign: 'center' }
 			},
 			margin: { left: 10, right: 10 }
@@ -219,8 +251,8 @@ export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): U
 				p.cargo,
 				p.telefone,
 				p.lotacao,
-				formatarData(dia.data),
-				p.horario || escala.horario
+				formatarDataPlantao(p, escala),
+				formatarHorario(p, escala)
 			]);
 		}
 		rows.push([]);
