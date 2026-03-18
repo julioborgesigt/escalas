@@ -149,7 +149,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 		}]
 	});
 
-	return Packer.toBuffer(doc);
+	const blob = await Packer.toBlob(doc);
+	return new Uint8Array(await blob.arrayBuffer());
 }
 
 // ---- XLSX ----
