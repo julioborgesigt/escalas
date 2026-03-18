@@ -1,6 +1,6 @@
 import {
 	Document, Packer, Paragraph, Table, TableRow, TableCell,
-	TextRun, WidthType, AlignmentType, BorderStyle, HeadingLevel
+	TextRun, WidthType, AlignmentType, BorderStyle, HeadingLevel, PageOrientation
 } from 'docx';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -142,6 +142,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 		sections: [{
 			properties: {
 				page: {
+					size: { orientation: PageOrientation.PORTRAIT },
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
 			},
