@@ -75,7 +75,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					p.telefone,
 					p.lotacao,
 					formatarData(dia.data),
-					escala.horario
+					p.horario || escala.horario
 				].map((text, i) =>
 					new TableCell({
 						children: [new Paragraph({
@@ -133,7 +133,7 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 				p.telefone,
 				p.lotacao,
 				formatarData(dia.data),
-				escala.horario
+				p.horario || escala.horario
 			]);
 		}
 		rows.push([]);
@@ -169,7 +169,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 			p.telefone,
 			p.lotacao,
 			formatarData(dia.data),
-			escala.horario
+			p.horario || escala.horario
 		]);
 
 		autoTable(doc, {
@@ -220,7 +220,7 @@ export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): U
 				p.telefone,
 				p.lotacao,
 				formatarData(dia.data),
-				escala.horario
+				p.horario || escala.horario
 			]);
 		}
 		rows.push([]);

@@ -25,6 +25,7 @@ export interface EscalaPolicial {
 	escala_id: number;
 	policial_id: number;
 	data_plantao: string;
+	horario: string;
 }
 
 export interface EscalaPolicialComDados extends EscalaPolicial {

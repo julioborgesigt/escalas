@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala } from '$lib/db';
+import { getDB, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarHorarioEscalaPolicial } from '$lib/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, params }) => {
@@ -16,8 +16,20 @@ export const POST: RequestHandler = async ({ platform, params, request }) => {
 		return json({ error: 'policial_id e data_plantao são obrigatórios' }, { status: 400 });
 	}
 
-	await adicionarPolicialEscala(db, Number(params.id), data.policial_id, data.data_plantao);
+	await adicionarPolicialEscala(db, Number(params.id), data.policial_id, data.data_plantao, data.horario || '');
 	return json({ success: true }, { status: 201 });
+};
+
+export const PATCH: RequestHandler = async ({ platform, request }) => {
+	const db = getDB(platform);
+	const data = await request.json();
+
+	if (!data.item_id || data.horario === undefined) {
+		return json({ error: 'item_id e horario são obrigatórios' }, { status: 400 });
+	}
+
+	await atualizarHorarioEscalaPolicial(db, data.item_id, data.horario);
+	return json({ success: true });
 };
 
 export const DELETE: RequestHandler = async ({ platform, url }) => {
