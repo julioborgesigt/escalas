@@ -142,7 +142,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 		sections: [{
 			properties: {
 				page: {
-					size: { orientation: PageOrientation.PORTRAIT },
+					size: { orientation: PageOrientation.LANDSCAPE },
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
 			},
