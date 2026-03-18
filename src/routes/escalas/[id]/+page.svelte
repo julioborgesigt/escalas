@@ -16,13 +16,15 @@
 	let dataPlantao = $state('');
 	let adding = $state(false);
 
-	// Edição inline (data + horário)
+	// Edição inline
 	let editingId = $state<number | null>(null);
-	let editData = $state('');
+	let editDataEntrada = $state('');
+	let editDataSaida = $state('');
 	let editEntrada = $state('');
 	let editSaida = $state('');
 
 	function formatarData(dateStr: string): string {
+		if (!dateStr) return '';
 		const [year, month, day] = dateStr.split('-');
 		return `${day}/${month}/${year}`;
 	}
@@ -41,35 +43,26 @@
 		return p.hora_saida || escala?.hora_saida || '08';
 	}
 
-	function formatarHorario(p: EscalaPolicialComDados): string {
-		const entrada = getHoraEntrada(p);
-		const saida = getHoraSaida(p);
-		return `${entrada}H A ${saida}H`;
+	function getDataSaida(p: EscalaPolicialComDados): string {
+		if (p.data_saida) return p.data_saida;
+		// Fallback: calcular a partir do horário
+		const he = Number(getHoraEntrada(p));
+		const hs = Number(getHoraSaida(p));
+		if (hs <= he) return proximoDia(p.data_plantao);
+		return p.data_plantao;
 	}
 
-	function cruzaDia(entrada: string, saida: string): boolean {
-		return Number(saida) <= Number(entrada);
+	function formatarHorario(p: EscalaPolicialComDados): string {
+		return `${getHoraEntrada(p)}H A ${getHoraSaida(p)}H`;
 	}
 
 	function formatarDataPlantao(p: EscalaPolicialComDados): string {
-		const he = getHoraEntrada(p);
-		const hs = getHoraSaida(p);
-		const dataFormatada = formatarData(p.data_plantao);
-		if (cruzaDia(he, hs)) {
-			const proxDia = formatarData(proximoDia(p.data_plantao));
-			return `${dataFormatada} à ${proxDia}`;
+		const dataEntrada = formatarData(p.data_plantao);
+		const dataSaida = getDataSaida(p);
+		if (dataSaida !== p.data_plantao) {
+			return `${dataEntrada} à ${formatarData(dataSaida)}`;
 		}
-		return dataFormatada;
-	}
-
-	function editDataPreview(): string {
-		if (!editData) return '';
-		const dataFormatada = formatarData(editData);
-		if (cruzaDia(editEntrada, editSaida)) {
-			const proxDia = formatarData(proximoDia(editData));
-			return `${dataFormatada} à ${proxDia}`;
-		}
-		return dataFormatada;
+		return dataEntrada;
 	}
 
 	function datasDoPlantao(escala: Escala): string[] {
@@ -82,6 +75,13 @@
 			current.setDate(current.getDate() + 1);
 		}
 		return datas;
+	}
+
+	function calcularDataSaidaInicial(dataEntrada: string, horaEntrada: string, horaSaida: string): string {
+		const he = Number(horaEntrada);
+		const hs = Number(horaSaida);
+		if (hs <= he) return proximoDia(dataEntrada);
+		return dataEntrada;
 	}
 
 	async function carregar() {
@@ -109,14 +109,19 @@
 		if (!policialId || !dataPlantao) return;
 		adding = true;
 
+		const he = escala?.hora_entrada || '08';
+		const hs = escala?.hora_saida || '08';
+		const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
+
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				policial_id: Number(policialId),
 				data_plantao: dataPlantao,
-				hora_entrada: escala?.hora_entrada || '08',
-				hora_saida: escala?.hora_saida || '08'
+				data_saida: ds,
+				hora_entrada: he,
+				hora_saida: hs
 			})
 		});
 
@@ -134,9 +139,19 @@
 
 	function startEdit(p: EscalaPolicialComDados) {
 		editingId = p.id;
-		editData = p.data_plantao;
+		editDataEntrada = p.data_plantao;
+		editDataSaida = getDataSaida(p);
 		editEntrada = getHoraEntrada(p);
 		editSaida = getHoraSaida(p);
+	}
+
+	function editPreviewData(): string {
+		if (!editDataEntrada) return '';
+		const de = formatarData(editDataEntrada);
+		if (editDataSaida && editDataSaida !== editDataEntrada) {
+			return `${de} à ${formatarData(editDataSaida)}`;
+		}
+		return de;
 	}
 
 	async function salvarEdicao(itemId: number) {
@@ -145,7 +160,8 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				item_id: itemId,
-				data_plantao: editData,
+				data_plantao: editDataEntrada,
+				data_saida: editDataSaida,
 				hora_entrada: editEntrada,
 				hora_saida: editSaida
 			})
@@ -175,7 +191,6 @@
 		window.open(`/api/escalas/${$page.params.id}/download?format=${format}`, '_blank');
 	}
 
-	// Group by date for display
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
 		const map = new Map<string, EscalaPolicialComDados[]>();
 		for (const item of items) {
@@ -208,7 +223,6 @@
 		<div class="alert alert-{messageType}">{message}</div>
 	{/if}
 
-	<!-- Download buttons -->
 	{#if policiaisEscala.length > 0}
 		<div class="card">
 			<h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Exportar Escala</h3>
@@ -222,7 +236,6 @@
 		</div>
 	{/if}
 
-	<!-- Add policial to escala -->
 	<div class="card">
 		<h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Adicionar Policial à Escala</h3>
 		<form onsubmit={adicionar}>
@@ -253,7 +266,6 @@
 		</form>
 	</div>
 
-	<!-- Schedule preview -->
 	{#if policiaisEscala.length === 0}
 		<div class="card empty-state">
 			<p>Nenhum policial na escala. Adicione policiais acima.</p>
@@ -287,17 +299,17 @@
 										<td class="edit-cell" colspan="2">
 											<div class="edit-inline">
 												<div class="edit-row">
-													<label class="edit-label">Data:</label>
-													<input type="date" bind:value={editData} class="edit-date" />
-												</div>
-												<div class="edit-row">
 													<label class="edit-label">Entrada:</label>
+													<input type="date" bind:value={editDataEntrada} class="edit-date" />
 													<select bind:value={editEntrada} class="hora-select">
 														{#each horas as h}
 															<option value={h}>{h}h</option>
 														{/each}
 													</select>
+												</div>
+												<div class="edit-row">
 													<label class="edit-label">Saída:</label>
+													<input type="date" bind:value={editDataSaida} class="edit-date" />
 													<select bind:value={editSaida} class="hora-select">
 														{#each horas as h}
 															<option value={h}>{h}h</option>
@@ -305,7 +317,7 @@
 													</select>
 												</div>
 												<div class="edit-preview">
-													{editDataPreview()} &bull; {editEntrada}H A {editSaida}H
+													{editPreviewData()} &bull; {editEntrada}H A {editSaida}H
 												</div>
 												<div class="edit-actions">
 													<button class="btn btn-primary btn-xs" onclick={() => salvarEdicao(p.id)}>Salvar</button>
@@ -315,12 +327,12 @@
 										</td>
 									{:else}
 										<td class="data-cell">
-											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar data e horário">
+											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar">
 												{formatarDataPlantao(p)}
 											</button>
 										</td>
 										<td class="horario-cell">
-											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar data e horário">
+											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar">
 												{formatarHorario(p)}
 											</button>
 										</td>
@@ -345,11 +357,7 @@
 		}
 	}
 
-	.data-cell {
-		white-space: nowrap;
-	}
-
-	.horario-cell {
+	.data-cell, .horario-cell {
 		white-space: nowrap;
 	}
 
@@ -392,7 +400,7 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--text-light, #64748b);
-		min-width: 48px;
+		min-width: 52px;
 	}
 
 	.edit-date {
@@ -401,6 +409,7 @@
 		border: 1px solid var(--primary, #1a365d);
 		border-radius: 4px;
 		flex: 1;
+		min-width: 120px;
 	}
 
 	.hora-select {

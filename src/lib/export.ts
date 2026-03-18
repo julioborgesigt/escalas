@@ -31,6 +31,14 @@ function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	return p.hora_saida || escala.hora_saida || '08';
 }
 
+function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
+	if (p.data_saida) return p.data_saida;
+	const he = Number(getHoraEntrada(p, escala));
+	const hs = Number(getHoraSaida(p, escala));
+	if (hs <= he) return proximoDia(p.data_plantao);
+	return p.data_plantao;
+}
+
 function formatarHorario(p: EscalaPolicialComDados, escala: Escala): string {
 	const entrada = getHoraEntrada(p, escala);
 	const saida = getHoraSaida(p, escala);
@@ -38,14 +46,12 @@ function formatarHorario(p: EscalaPolicialComDados, escala: Escala): string {
 }
 
 function formatarDataPlantao(p: EscalaPolicialComDados, escala: Escala): string {
-	const entrada = Number(getHoraEntrada(p, escala));
-	const saida = Number(getHoraSaida(p, escala));
-	const dataFormatada = formatarData(p.data_plantao);
-	if (saida <= entrada) {
-		const proxDia = formatarData(proximoDia(p.data_plantao));
-		return `${dataFormatada} à ${proxDia}`;
+	const dataEntrada = formatarData(p.data_plantao);
+	const dataSaida = getDataSaida(p, escala);
+	if (dataSaida !== p.data_plantao) {
+		return `${dataEntrada} à ${formatarData(dataSaida)}`;
 	}
-	return dataFormatada;
+	return dataEntrada;
 }
 
 function agruparPorData(policiais: EscalaPolicialComDados[]): DiaPlantao[] {

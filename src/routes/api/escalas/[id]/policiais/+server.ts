@@ -21,6 +21,7 @@ export const POST: RequestHandler = async ({ platform, params, request }) => {
 		Number(params.id),
 		data.policial_id,
 		data.data_plantao,
+		data.data_saida || data.data_plantao,
 		data.hora_entrada || '',
 		data.hora_saida || ''
 	);
@@ -39,6 +40,7 @@ export const PATCH: RequestHandler = async ({ platform, request }) => {
 		db,
 		data.item_id,
 		data.data_plantao || '',
+		data.data_saida || '',
 		data.hora_entrada || '',
 		data.hora_saida || ''
 	);
