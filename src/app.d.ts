@@ -4,7 +4,7 @@ declare global {
 	namespace App {
 		interface Platform {
 			env: {
-				DB: D1Database;
+				escalas_db: D1Database;
 			};
 		}
 	}
