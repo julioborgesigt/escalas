@@ -1,0 +1,36 @@
+import { json } from '@sveltejs/kit';
+import { getDB, listarEscalas, criarEscala, excluirEscala } from '$lib/db';
+import type { RequestHandler } from './$types';
+
+export const GET: RequestHandler = async ({ platform }) => {
+	const db = getDB(platform);
+	const escalas = await listarEscalas(db);
+	return json(escalas);
+};
+
+export const POST: RequestHandler = async ({ platform, request }) => {
+	const db = getDB(platform);
+	const data = await request.json();
+
+	if (!data.titulo || !data.cidade || !data.data_inicio || !data.data_fim) {
+		return json({ error: 'Campos obrigatórios: titulo, cidade, data_inicio, data_fim' }, { status: 400 });
+	}
+
+	const result = await criarEscala(db, {
+		titulo: data.titulo,
+		cidade: data.cidade,
+		data_inicio: data.data_inicio,
+		data_fim: data.data_fim,
+		horario: data.horario || '08H A 08H'
+	});
+
+	return json({ success: true, id: result.meta?.last_row_id }, { status: 201 });
+};
+
+export const DELETE: RequestHandler = async ({ platform, url }) => {
+	const db = getDB(platform);
+	const id = url.searchParams.get('id');
+	if (!id) return json({ error: 'ID obrigatório' }, { status: 400 });
+	await excluirEscala(db, Number(id));
+	return json({ success: true });
+};
