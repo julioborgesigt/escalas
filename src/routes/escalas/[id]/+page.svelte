@@ -16,8 +16,9 @@
 	let dataPlantao = $state('');
 	let adding = $state(false);
 
-	// Horário em edição
+	// Edição inline (data + horário)
 	let editingId = $state<number | null>(null);
+	let editData = $state('');
 	let editEntrada = $state('');
 	let editSaida = $state('');
 
@@ -46,16 +47,26 @@
 		return `${entrada}H A ${saida}H`;
 	}
 
-	function cruzaDia(p: EscalaPolicialComDados): boolean {
-		const entrada = Number(getHoraEntrada(p));
-		const saida = Number(getHoraSaida(p));
-		return saida <= entrada;
+	function cruzaDia(entrada: string, saida: string): boolean {
+		return Number(saida) <= Number(entrada);
 	}
 
 	function formatarDataPlantao(p: EscalaPolicialComDados): string {
+		const he = getHoraEntrada(p);
+		const hs = getHoraSaida(p);
 		const dataFormatada = formatarData(p.data_plantao);
-		if (cruzaDia(p)) {
+		if (cruzaDia(he, hs)) {
 			const proxDia = formatarData(proximoDia(p.data_plantao));
+			return `${dataFormatada} à ${proxDia}`;
+		}
+		return dataFormatada;
+	}
+
+	function editDataPreview(): string {
+		if (!editData) return '';
+		const dataFormatada = formatarData(editData);
+		if (cruzaDia(editEntrada, editSaida)) {
+			const proxDia = formatarData(proximoDia(editData));
 			return `${dataFormatada} à ${proxDia}`;
 		}
 		return dataFormatada;
@@ -123,16 +134,18 @@
 
 	function startEdit(p: EscalaPolicialComDados) {
 		editingId = p.id;
+		editData = p.data_plantao;
 		editEntrada = getHoraEntrada(p);
 		editSaida = getHoraSaida(p);
 	}
 
-	async function salvarHorario(itemId: number) {
+	async function salvarEdicao(itemId: number) {
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				item_id: itemId,
+				data_plantao: editData,
 				hora_entrada: editEntrada,
 				hora_saida: editSaida
 			})
@@ -270,30 +283,48 @@
 									<td><span class="badge badge-{p.cargo.toLowerCase()}">{p.cargo}</span></td>
 									<td>{p.telefone}</td>
 									<td>{p.lotacao}</td>
-									<td class="data-cell">{formatarDataPlantao(p)}</td>
-									<td class="horario-cell">
-										{#if editingId === p.id}
-											<div class="horario-edit">
-												<select bind:value={editEntrada} class="hora-select">
-													{#each horas as h}
-														<option value={h}>{h}h</option>
-													{/each}
-												</select>
-												<span>a</span>
-												<select bind:value={editSaida} class="hora-select">
-													{#each horas as h}
-														<option value={h}>{h}h</option>
-													{/each}
-												</select>
-												<button class="btn btn-primary btn-xs" onclick={() => salvarHorario(p.id)} title="Salvar">OK</button>
-												<button class="btn btn-outline btn-xs" onclick={cancelEdit} title="Cancelar">X</button>
+									{#if editingId === p.id}
+										<td class="edit-cell" colspan="2">
+											<div class="edit-inline">
+												<div class="edit-row">
+													<label class="edit-label">Data:</label>
+													<input type="date" bind:value={editData} class="edit-date" />
+												</div>
+												<div class="edit-row">
+													<label class="edit-label">Entrada:</label>
+													<select bind:value={editEntrada} class="hora-select">
+														{#each horas as h}
+															<option value={h}>{h}h</option>
+														{/each}
+													</select>
+													<label class="edit-label">Saída:</label>
+													<select bind:value={editSaida} class="hora-select">
+														{#each horas as h}
+															<option value={h}>{h}h</option>
+														{/each}
+													</select>
+												</div>
+												<div class="edit-preview">
+													{editDataPreview()} &bull; {editEntrada}H A {editSaida}H
+												</div>
+												<div class="edit-actions">
+													<button class="btn btn-primary btn-xs" onclick={() => salvarEdicao(p.id)}>Salvar</button>
+													<button class="btn btn-outline btn-xs" onclick={cancelEdit}>Cancelar</button>
+												</div>
 											</div>
-										{:else}
-											<button class="horario-btn" onclick={() => startEdit(p)} title="Clique para editar o horário">
+										</td>
+									{:else}
+										<td class="data-cell">
+											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar data e horário">
+												{formatarDataPlantao(p)}
+											</button>
+										</td>
+										<td class="horario-cell">
+											<button class="editable-btn" onclick={() => startEdit(p)} title="Clique para editar data e horário">
 												{formatarHorario(p)}
 											</button>
-										{/if}
-									</td>
+										</td>
+									{/if}
 									<td>
 										<button class="btn btn-danger btn-sm" onclick={() => remover(p.id, p.nome)}>Remover</button>
 									</td>
@@ -316,14 +347,13 @@
 
 	.data-cell {
 		white-space: nowrap;
-		font-size: 0.85rem;
 	}
 
 	.horario-cell {
-		min-width: 160px;
+		white-space: nowrap;
 	}
 
-	.horario-btn {
+	.editable-btn {
 		background: none;
 		border: 1px dashed var(--border, #cbd5e1);
 		border-radius: 4px;
@@ -336,15 +366,41 @@
 		text-align: center;
 	}
 
-	.horario-btn:hover {
+	.editable-btn:hover {
 		border-color: var(--primary, #1a365d);
 		background: var(--bg-light, #f1f5f9);
 	}
 
-	.horario-edit {
+	.edit-cell {
+		background: var(--bg-light, #f8fafc);
+	}
+
+	.edit-inline {
 		display: flex;
-		gap: 0.25rem;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 0.25rem 0;
+	}
+
+	.edit-row {
+		display: flex;
 		align-items: center;
+		gap: 0.35rem;
+	}
+
+	.edit-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-light, #64748b);
+		min-width: 48px;
+	}
+
+	.edit-date {
+		padding: 0.2rem 0.3rem;
+		font-size: 0.8rem;
+		border: 1px solid var(--primary, #1a365d);
+		border-radius: 4px;
+		flex: 1;
 	}
 
 	.hora-select {
@@ -355,13 +411,20 @@
 		border-radius: 4px;
 	}
 
-	.horario-edit span {
-		font-size: 0.8rem;
+	.edit-preview {
+		font-size: 0.75rem;
 		color: var(--text-light, #64748b);
+		font-style: italic;
+		padding: 0.15rem 0;
+	}
+
+	.edit-actions {
+		display: flex;
+		gap: 0.25rem;
 	}
 
 	:global(.btn-xs) {
-		padding: 0.15rem 0.4rem !important;
+		padding: 0.2rem 0.5rem !important;
 		font-size: 0.75rem !important;
 		line-height: 1.2 !important;
 	}

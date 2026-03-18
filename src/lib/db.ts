@@ -86,8 +86,8 @@ export async function adicionarPolicialEscala(db: D1Database, escalaId: number, 
 	).bind(escalaId, policialId, dataPlantao, horaEntrada, horaSaida).run();
 }
 
-export async function atualizarHorarioEscalaPolicial(db: D1Database, id: number, horaEntrada: string, horaSaida: string): Promise<D1Result> {
-	return db.prepare('UPDATE escala_policiais SET hora_entrada = ?, hora_saida = ? WHERE id = ?').bind(horaEntrada, horaSaida, id).run();
+export async function atualizarEscalaPolicial(db: D1Database, id: number, dataPlantao: string, horaEntrada: string, horaSaida: string): Promise<D1Result> {
+	return db.prepare('UPDATE escala_policiais SET data_plantao = ?, hora_entrada = ?, hora_saida = ? WHERE id = ?').bind(dataPlantao, horaEntrada, horaSaida, id).run();
 }
 
 export async function removerPolicialEscala(db: D1Database, id: number): Promise<D1Result> {
