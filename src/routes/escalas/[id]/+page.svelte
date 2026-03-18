@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 
+	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+
 	let escala = $state<Escala | null>(null);
 	let policiaisEscala = $state<EscalaPolicialComDados[]>([]);
 	let todosOsPoliciais = $state<Policial[]>([]);
@@ -15,12 +17,48 @@
 	let adding = $state(false);
 
 	// Horário em edição
-	let editingHorarioId = $state<number | null>(null);
-	let editingHorarioValue = $state('');
+	let editingId = $state<number | null>(null);
+	let editEntrada = $state('');
+	let editSaida = $state('');
 
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
 		return `${day}/${month}/${year}`;
+	}
+
+	function proximoDia(dateStr: string): string {
+		const d = new Date(dateStr + 'T00:00:00');
+		d.setDate(d.getDate() + 1);
+		return d.toISOString().split('T')[0];
+	}
+
+	function getHoraEntrada(p: EscalaPolicialComDados): string {
+		return p.hora_entrada || escala?.hora_entrada || '08';
+	}
+
+	function getHoraSaida(p: EscalaPolicialComDados): string {
+		return p.hora_saida || escala?.hora_saida || '08';
+	}
+
+	function formatarHorario(p: EscalaPolicialComDados): string {
+		const entrada = getHoraEntrada(p);
+		const saida = getHoraSaida(p);
+		return `${entrada}H A ${saida}H`;
+	}
+
+	function cruzaDia(p: EscalaPolicialComDados): boolean {
+		const entrada = Number(getHoraEntrada(p));
+		const saida = Number(getHoraSaida(p));
+		return saida <= entrada;
+	}
+
+	function formatarDataPlantao(p: EscalaPolicialComDados): string {
+		const dataFormatada = formatarData(p.data_plantao);
+		if (cruzaDia(p)) {
+			const proxDia = formatarData(proximoDia(p.data_plantao));
+			return `${dataFormatada} à ${proxDia}`;
+		}
+		return dataFormatada;
 	}
 
 	function datasDoPlantao(escala: Escala): string[] {
@@ -33,10 +71,6 @@
 			current.setDate(current.getDate() + 1);
 		}
 		return datas;
-	}
-
-	function getHorarioDisplay(p: EscalaPolicialComDados): string {
-		return p.horario || escala?.horario || '';
 	}
 
 	async function carregar() {
@@ -70,7 +104,8 @@
 			body: JSON.stringify({
 				policial_id: Number(policialId),
 				data_plantao: dataPlantao,
-				horario: escala?.horario || ''
+				hora_entrada: escala?.hora_entrada || '08',
+				hora_saida: escala?.hora_saida || '08'
 			})
 		});
 
@@ -86,35 +121,31 @@
 		adding = false;
 	}
 
-	function startEditHorario(item: EscalaPolicialComDados) {
-		editingHorarioId = item.id;
-		editingHorarioValue = item.horario || escala?.horario || '';
+	function startEdit(p: EscalaPolicialComDados) {
+		editingId = p.id;
+		editEntrada = getHoraEntrada(p);
+		editSaida = getHoraSaida(p);
 	}
 
 	async function salvarHorario(itemId: number) {
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ item_id: itemId, horario: editingHorarioValue })
+			body: JSON.stringify({
+				item_id: itemId,
+				hora_entrada: editEntrada,
+				hora_saida: editSaida
+			})
 		});
 
 		if (res.ok) {
-			editingHorarioId = null;
+			editingId = null;
 			carregar();
 		}
 	}
 
-	function cancelEditHorario() {
-		editingHorarioId = null;
-	}
-
-	function handleHorarioKeydown(e: KeyboardEvent, itemId: number) {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			salvarHorario(itemId);
-		} else if (e.key === 'Escape') {
-			cancelEditHorario();
-		}
+	function cancelEdit() {
+		editingId = null;
 	}
 
 	async function remover(itemId: number, nome: string) {
@@ -154,7 +185,7 @@
 		<div>
 			<h1>{escala.titulo}</h1>
 			<p style="color: var(--text-light); font-size: 0.9rem;">
-				{escala.cidade} &bull; {formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)} &bull; {escala.horario}
+				{escala.cidade} &bull; {formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)} &bull; {escala.hora_entrada || '08'}H a {escala.hora_saida || '08'}H
 			</p>
 		</div>
 		<a href="/escalas" class="btn btn-outline">Voltar</a>
@@ -215,7 +246,7 @@
 			<p>Nenhum policial na escala. Adicione policiais acima.</p>
 		</div>
 	{:else}
-		{#each [...agruparPorData(policiaisEscala)] as [data, policiais]}
+		{#each [...agruparPorData(policiaisEscala)] as [, policiais]}
 			<div class="card" style="padding: 0; overflow: hidden;">
 				<div style="overflow-x: auto;">
 					<table>
@@ -239,23 +270,27 @@
 									<td><span class="badge badge-{p.cargo.toLowerCase()}">{p.cargo}</span></td>
 									<td>{p.telefone}</td>
 									<td>{p.lotacao}</td>
-									<td>{formatarData(data)}</td>
+									<td class="data-cell">{formatarDataPlantao(p)}</td>
 									<td class="horario-cell">
-										{#if editingHorarioId === p.id}
+										{#if editingId === p.id}
 											<div class="horario-edit">
-												<input
-													type="text"
-													bind:value={editingHorarioValue}
-													onkeydown={(e) => handleHorarioKeydown(e, p.id)}
-													class="horario-input"
-													autofocus
-												/>
+												<select bind:value={editEntrada} class="hora-select">
+													{#each horas as h}
+														<option value={h}>{h}h</option>
+													{/each}
+												</select>
+												<span>a</span>
+												<select bind:value={editSaida} class="hora-select">
+													{#each horas as h}
+														<option value={h}>{h}h</option>
+													{/each}
+												</select>
 												<button class="btn btn-primary btn-xs" onclick={() => salvarHorario(p.id)} title="Salvar">OK</button>
-												<button class="btn btn-outline btn-xs" onclick={cancelEditHorario} title="Cancelar">X</button>
+												<button class="btn btn-outline btn-xs" onclick={cancelEdit} title="Cancelar">X</button>
 											</div>
 										{:else}
-											<button class="horario-btn" onclick={() => startEditHorario(p)} title="Clique para editar o horário">
-												{getHorarioDisplay(p)}
+											<button class="horario-btn" onclick={() => startEdit(p)} title="Clique para editar o horário">
+												{formatarHorario(p)}
 											</button>
 										{/if}
 									</td>
@@ -279,8 +314,13 @@
 		}
 	}
 
+	.data-cell {
+		white-space: nowrap;
+		font-size: 0.85rem;
+	}
+
 	.horario-cell {
-		min-width: 140px;
+		min-width: 160px;
 	}
 
 	.horario-btn {
@@ -307,12 +347,17 @@
 		align-items: center;
 	}
 
-	.horario-input {
-		width: 100px;
-		padding: 0.2rem 0.4rem;
-		font-size: 0.85rem;
+	.hora-select {
+		width: 60px;
+		padding: 0.2rem;
+		font-size: 0.8rem;
 		border: 1px solid var(--primary, #1a365d);
 		border-radius: 4px;
+	}
+
+	.horario-edit span {
+		font-size: 0.8rem;
+		color: var(--text-light, #64748b);
 	}
 
 	:global(.btn-xs) {

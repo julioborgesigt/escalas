@@ -70,8 +70,8 @@ export async function buscarEscala(db: D1Database, id: number): Promise<Escala |
 
 export async function criarEscala(db: D1Database, data: Omit<Escala, 'id' | 'created_at'>): Promise<D1Result> {
 	return db.prepare(
-		'INSERT INTO escalas (titulo, cidade, data_inicio, data_fim, horario) VALUES (?, ?, ?, ?, ?)'
-	).bind(data.titulo, data.cidade, data.data_inicio, data.data_fim, data.horario).run();
+		'INSERT INTO escalas (titulo, cidade, data_inicio, data_fim, horario, hora_entrada, hora_saida) VALUES (?, ?, ?, ?, ?, ?, ?)'
+	).bind(data.titulo, data.cidade, data.data_inicio, data.data_fim, data.horario, data.hora_entrada, data.hora_saida).run();
 }
 
 export async function excluirEscala(db: D1Database, id: number): Promise<D1Result> {
@@ -80,14 +80,14 @@ export async function excluirEscala(db: D1Database, id: number): Promise<D1Resul
 
 // ---- Escala Policiais ----
 
-export async function adicionarPolicialEscala(db: D1Database, escalaId: number, policialId: number, dataPlantao: string, horario: string): Promise<D1Result> {
+export async function adicionarPolicialEscala(db: D1Database, escalaId: number, policialId: number, dataPlantao: string, horaEntrada: string, horaSaida: string): Promise<D1Result> {
 	return db.prepare(
-		'INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, horario) VALUES (?, ?, ?, ?)'
-	).bind(escalaId, policialId, dataPlantao, horario).run();
+		'INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, hora_entrada, hora_saida) VALUES (?, ?, ?, ?, ?)'
+	).bind(escalaId, policialId, dataPlantao, horaEntrada, horaSaida).run();
 }
 
-export async function atualizarHorarioEscalaPolicial(db: D1Database, id: number, horario: string): Promise<D1Result> {
-	return db.prepare('UPDATE escala_policiais SET horario = ? WHERE id = ?').bind(horario, id).run();
+export async function atualizarHorarioEscalaPolicial(db: D1Database, id: number, horaEntrada: string, horaSaida: string): Promise<D1Result> {
+	return db.prepare('UPDATE escala_policiais SET hora_entrada = ?, hora_saida = ? WHERE id = ?').bind(horaEntrada, horaSaida, id).run();
 }
 
 export async function removerPolicialEscala(db: D1Database, id: number): Promise<D1Result> {
