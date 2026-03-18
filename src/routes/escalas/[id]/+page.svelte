@@ -14,6 +14,10 @@
 	let dataPlantao = $state('');
 	let adding = $state(false);
 
+	// Horário em edição
+	let editingHorarioId = $state<number | null>(null);
+	let editingHorarioValue = $state('');
+
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
 		return `${day}/${month}/${year}`;
@@ -29,6 +33,10 @@
 			current.setDate(current.getDate() + 1);
 		}
 		return datas;
+	}
+
+	function getHorarioDisplay(p: EscalaPolicialComDados): string {
+		return p.horario || escala?.horario || '';
 	}
 
 	async function carregar() {
@@ -59,7 +67,11 @@
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ policial_id: Number(policialId), data_plantao: dataPlantao })
+			body: JSON.stringify({
+				policial_id: Number(policialId),
+				data_plantao: dataPlantao,
+				horario: escala?.horario || ''
+			})
 		});
 
 		if (res.ok) {
@@ -72,6 +84,37 @@
 			messageType = 'error';
 		}
 		adding = false;
+	}
+
+	function startEditHorario(item: EscalaPolicialComDados) {
+		editingHorarioId = item.id;
+		editingHorarioValue = item.horario || escala?.horario || '';
+	}
+
+	async function salvarHorario(itemId: number) {
+		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ item_id: itemId, horario: editingHorarioValue })
+		});
+
+		if (res.ok) {
+			editingHorarioId = null;
+			carregar();
+		}
+	}
+
+	function cancelEditHorario() {
+		editingHorarioId = null;
+	}
+
+	function handleHorarioKeydown(e: KeyboardEvent, itemId: number) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			salvarHorario(itemId);
+		} else if (e.key === 'Escape') {
+			cancelEditHorario();
+		}
 	}
 
 	async function remover(itemId: number, nome: string) {
@@ -197,7 +240,25 @@
 									<td>{p.telefone}</td>
 									<td>{p.lotacao}</td>
 									<td>{formatarData(data)}</td>
-									<td>{escala.horario}</td>
+									<td class="horario-cell">
+										{#if editingHorarioId === p.id}
+											<div class="horario-edit">
+												<input
+													type="text"
+													bind:value={editingHorarioValue}
+													onkeydown={(e) => handleHorarioKeydown(e, p.id)}
+													class="horario-input"
+													autofocus
+												/>
+												<button class="btn btn-primary btn-xs" onclick={() => salvarHorario(p.id)} title="Salvar">OK</button>
+												<button class="btn btn-outline btn-xs" onclick={cancelEditHorario} title="Cancelar">X</button>
+											</div>
+										{:else}
+											<button class="horario-btn" onclick={() => startEditHorario(p)} title="Clique para editar o horário">
+												{getHorarioDisplay(p)}
+											</button>
+										{/if}
+									</td>
 									<td>
 										<button class="btn btn-danger btn-sm" onclick={() => remover(p.id, p.nome)}>Remover</button>
 									</td>
@@ -216,5 +277,47 @@
 		.form-row {
 			grid-template-columns: 1fr !important;
 		}
+	}
+
+	.horario-cell {
+		min-width: 140px;
+	}
+
+	.horario-btn {
+		background: none;
+		border: 1px dashed var(--border, #cbd5e1);
+		border-radius: 4px;
+		padding: 0.25rem 0.5rem;
+		cursor: pointer;
+		font-size: 0.85rem;
+		color: var(--text, #1e293b);
+		transition: all 0.15s;
+		width: 100%;
+		text-align: center;
+	}
+
+	.horario-btn:hover {
+		border-color: var(--primary, #1a365d);
+		background: var(--bg-light, #f1f5f9);
+	}
+
+	.horario-edit {
+		display: flex;
+		gap: 0.25rem;
+		align-items: center;
+	}
+
+	.horario-input {
+		width: 100px;
+		padding: 0.2rem 0.4rem;
+		font-size: 0.85rem;
+		border: 1px solid var(--primary, #1a365d);
+		border-radius: 4px;
+	}
+
+	:global(.btn-xs) {
+		padding: 0.15rem 0.4rem !important;
+		font-size: 0.75rem !important;
+		line-height: 1.2 !important;
 	}
 </style>

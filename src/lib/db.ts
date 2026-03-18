@@ -80,10 +80,14 @@ export async function excluirEscala(db: D1Database, id: number): Promise<D1Resul
 
 // ---- Escala Policiais ----
 
-export async function adicionarPolicialEscala(db: D1Database, escalaId: number, policialId: number, dataPlantao: string): Promise<D1Result> {
+export async function adicionarPolicialEscala(db: D1Database, escalaId: number, policialId: number, dataPlantao: string, horario: string): Promise<D1Result> {
 	return db.prepare(
-		'INSERT INTO escala_policiais (escala_id, policial_id, data_plantao) VALUES (?, ?, ?)'
-	).bind(escalaId, policialId, dataPlantao).run();
+		'INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, horario) VALUES (?, ?, ?, ?)'
+	).bind(escalaId, policialId, dataPlantao, horario).run();
+}
+
+export async function atualizarHorarioEscalaPolicial(db: D1Database, id: number, horario: string): Promise<D1Result> {
+	return db.prepare('UPDATE escala_policiais SET horario = ? WHERE id = ?').bind(horario, id).run();
 }
 
 export async function removerPolicialEscala(db: D1Database, id: number): Promise<D1Result> {
