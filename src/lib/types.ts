@@ -27,6 +27,7 @@ export interface EscalaPolicial {
 	escala_id: number;
 	policial_id: number;
 	data_plantao: string;
+	data_saida: string;
 	horario: string;
 	hora_entrada: string;
 	hora_saida: string;
