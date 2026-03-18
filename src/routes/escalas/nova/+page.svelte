@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	let titulo = $state('');
 	let cidade = $state('');
@@ -8,6 +9,18 @@
 	let horario = $state('08H A 08H');
 	let error = $state('');
 	let saving = $state(false);
+	let lotacoes = $state<string[]>([]);
+
+	onMount(async () => {
+		try {
+			const res = await fetch('/api/lotacoes');
+			if (res.ok) {
+				lotacoes = await res.json();
+			}
+		} catch {
+			// Silently fail — user can still type manually
+		}
+	});
 
 	async function salvar(e: Event) {
 		e.preventDefault();
@@ -63,7 +76,16 @@
 	<form onsubmit={salvar}>
 		<div class="form-group">
 			<label for="cidade">Cidade</label>
-			<input id="cidade" type="text" bind:value={cidade} required placeholder="Ex: ICÓ" />
+			{#if lotacoes.length > 0}
+				<select id="cidade" bind:value={cidade} required>
+					<option value="" disabled selected>Selecione a lotação</option>
+					{#each lotacoes as lotacao}
+						<option value={lotacao}>{lotacao}</option>
+					{/each}
+				</select>
+			{:else}
+				<input id="cidade" type="text" bind:value={cidade} required placeholder="Ex: ICÓ" />
+			{/if}
 		</div>
 		<div class="form-row">
 			<div class="form-group">
