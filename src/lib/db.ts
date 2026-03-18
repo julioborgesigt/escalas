@@ -1,10 +1,10 @@
 import type { Policial, Escala, EscalaPolicialComDados } from './types';
 
 export function getDB(platform: App.Platform | undefined): D1Database {
-	if (!platform?.env?.DB) {
+	if (!platform?.env?.escalas_db) {
 		throw new Error('Database not available. Make sure D1 is configured.');
 	}
-	return platform.env.DB;
+	return platform.env.escalas_db;
 }
 
 // ---- Policiais ----
