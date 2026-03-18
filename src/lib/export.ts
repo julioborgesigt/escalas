@@ -144,8 +144,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 				page: {
 					size: {
 						orientation: PageOrientation.LANDSCAPE,
-						width: 16838,
-						height: 11906
+						width: 11906,
+						height: 16838
 					},
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
