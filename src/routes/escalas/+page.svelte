@@ -114,12 +114,10 @@
 {/if}
 
 <style>
-	table tbody tr {
-		height: 3.5rem;
-	}
-
 	table tbody td {
-		vertical-align: middle;
+		vertical-align: top;
+		padding-top: 0.75rem;
+		padding-bottom: 0.75rem;
 	}
 
 	.export-wrapper {
