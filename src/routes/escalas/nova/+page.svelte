@@ -26,7 +26,7 @@
 				lotacoes = await res.json();
 			}
 		} catch {
-			// Silently fail — user can still type manually
+			// Silently fail
 		}
 	});
 
@@ -78,99 +78,92 @@
 	});
 </script>
 
-<div class="page-header">
-	<h1>Nova Escala</h1>
-	<a href="/escalas" class="btn btn-outline">Voltar</a>
+<div class="flex items-center justify-between mb-6">
+	<h1 class="h1 text-xl font-bold">Nova Escala</h1>
+	<a href="/escalas" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
 {#if error}
-	<div class="alert alert-error">{error}</div>
+	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
 {/if}
 
-<div class="card">
-	<form onsubmit={salvar}>
+<div class="card p-6">
+	<form onsubmit={salvar} class="space-y-4">
 		{#if isAdmin}
-			<div class="form-group">
-				<label for="lotacao_escala">Lotação (unidade policial)</label>
-				<select id="lotacao_escala" bind:value={lotacaoEscala} required>
+			<label class="label">
+				<span class="label-text">Lotação (unidade policial)</span>
+				<select class="select" bind:value={lotacaoEscala} required>
 					<option value="" disabled selected>Selecione a lotação</option>
 					{#each lotacoes as lot}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
-			</div>
+			</label>
 		{/if}
-		<div class="form-group">
-			<label for="cidade">Cidade</label>
+
+		<label class="label">
+			<span class="label-text">Cidade</span>
 			{#if lotacoes.length > 0}
-				<select id="cidade" bind:value={cidade} required>
+				<select class="select" bind:value={cidade} required>
 					<option value="" disabled selected>Selecione a lotação</option>
 					{#each lotacoes as lotacao}
 						<option value={lotacao}>{lotacao}</option>
 					{/each}
 				</select>
 			{:else}
-				<input id="cidade" type="text" bind:value={cidade} required placeholder="Ex: ICÓ" />
+				<input class="input" type="text" bind:value={cidade} required placeholder="Ex: ICÓ" />
 			{/if}
+		</label>
+
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<label class="label">
+				<span class="label-text">Data início</span>
+				<input class="input" type="date" bind:value={dataInicio} required />
+			</label>
+			<label class="label">
+				<span class="label-text">Data fim</span>
+				<input class="input" type="date" bind:value={dataFim} required />
+			</label>
 		</div>
-		<div class="form-row">
-			<div class="form-group">
-				<label for="data_inicio">Data início</label>
-				<input id="data_inicio" type="date" bind:value={dataInicio} required />
-			</div>
-			<div class="form-group">
-				<label for="data_fim">Data fim</label>
-				<input id="data_fim" type="date" bind:value={dataFim} required />
-			</div>
-		</div>
-		<div class="form-row">
-			<div class="form-group">
-				<label for="hora_entrada">Hora de entrada (padrão)</label>
-				<select id="hora_entrada" bind:value={horaEntrada}>
+
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<label class="label">
+				<span class="label-text">Hora de entrada (padrão)</span>
+				<select class="select" bind:value={horaEntrada}>
 					{#each horas as h}
 						<option value={h}>{h}h</option>
 					{/each}
 				</select>
-			</div>
-			<div class="form-group">
-				<label for="hora_saida">Hora de saída (padrão)</label>
-				<select id="hora_saida" bind:value={horaSaida}>
+			</label>
+			<label class="label">
+				<span class="label-text">Hora de saída (padrão)</span>
+				<select class="select" bind:value={horaSaida}>
 					{#each horas as h}
 						<option value={h}>{h}h</option>
 					{/each}
 				</select>
-			</div>
+			</label>
 		</div>
-		<p class="horario-preview">
+
+		<p class="text-sm text-surface-500">
 			Horário do plantão: <strong>{horarioLabel()}</strong>
 			{#if Number(horaSaida) <= Number(horaEntrada) && horaEntrada !== horaSaida}
-				<span class="hint"> (cruza para o dia seguinte)</span>
+				<span class="italic"> (cruza para o dia seguinte)</span>
 			{:else if horaEntrada === horaSaida}
-				<span class="hint"> (plantão de 24h)</span>
+				<span class="italic"> (plantão de 24h)</span>
 			{/if}
 		</p>
-		<div class="form-group">
-			<label for="titulo">Título (gerado automaticamente)</label>
-			<input id="titulo" type="text" bind:value={titulo} required />
-		</div>
-		<div class="actions" style="margin-top: 1rem;">
-			<button type="submit" class="btn btn-primary" disabled={saving}>
+
+		<label class="label">
+			<span class="label-text">Título (gerado automaticamente)</span>
+			<input class="input" type="text" bind:value={titulo} required />
+		</label>
+
+		<div class="flex gap-3 pt-2">
+			<button type="submit" class="btn preset-filled-primary-500" disabled={saving}>
 				{saving ? 'Criando...' : 'Criar Escala'}
 			</button>
-			<a href="/escalas" class="btn btn-outline">Cancelar</a>
+			<a href="/escalas" class="btn preset-outlined-primary-500">Cancelar</a>
 		</div>
 	</form>
 </div>
-
-<style>
-	.horario-preview {
-		margin: 0 0 1rem;
-		font-size: 0.9rem;
-		color: var(--text-light, #64748b);
-	}
-
-	.hint {
-		font-size: 0.8rem;
-		font-style: italic;
-	}
-</style>
