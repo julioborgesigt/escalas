@@ -37,14 +37,14 @@
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
-	<div class="w-full max-w-sm p-8 rounded-3xl bg-surface-900/60 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50">
+	<div class="w-full max-w-sm p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50">
 		<div class="text-center mb-6">
 			<h1 class="h1 text-xl font-bold mb-1">Escalas de Plantão</h1>
-			<p class="text-surface-500 text-sm">Faça login para acessar o sistema</p>
+			<p class="text-surface-600 dark:text-surface-500 text-sm">Faça login para acessar o sistema</p>
 		</div>
 
 		<!-- Toggle Policial/Admin -->
-		<div class="flex mb-8 bg-surface-900/50 p-1 rounded-xl border border-white/5">
+		<div class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5">
 			<button
 				class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
 				onclick={() => { tipo = 'policial'; }}

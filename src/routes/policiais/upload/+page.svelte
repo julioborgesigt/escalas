@@ -55,9 +55,9 @@
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
-<div class="card p-4 sm:p-6">
+<div class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 	<!-- Format instructions -->
-	<div class="bg-surface-100 border border-surface-200 rounded-lg p-4 mb-6">
+	<div class="bg-surface-100/50 dark:bg-surface-800 border border-surface-200 dark:border-white/10 rounded-lg p-4 mb-6">
 		<p class="font-medium text-sm mb-2">Formato esperado da planilha:</p>
 		<div class="table-wrap">
 			<table class="table">

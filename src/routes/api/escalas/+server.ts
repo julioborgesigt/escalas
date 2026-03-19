@@ -2,12 +2,17 @@ import { json } from '@sveltejs/kit';
 import { getDB, listarEscalas, criarEscala, excluirEscala } from '$lib/db';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ platform, locals }) => {
+export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	const db = getDB(platform);
 	const usuario = locals.usuario;
 
-	// Policial só vê escalas da sua lotação
-	const lotacao = usuario?.tipo === 'policial' ? usuario.lotacao : undefined;
+	// Se for policial, filtra obrigatoriamente pela sua lotação.
+	// Se for admin, usa o filtro vindo da query string (se houver).
+	let lotacao = url.searchParams.get('lotacao') || undefined;
+	if (usuario?.tipo === 'policial') {
+		lotacao = usuario.lotacao;
+	}
+
 	const escalas = await listarEscalas(db, lotacao);
 	return json(escalas);
 };

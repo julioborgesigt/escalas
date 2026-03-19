@@ -84,7 +84,7 @@
 	<a href="/escalas" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
-<div class="card p-6">
+<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mt-6">
 	<form onsubmit={salvar} class="space-y-4">
 		{#if isAdmin}
 			<label class="label">

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import * as XLSX from 'xlsx';
+import { limparMatricula } from '$lib/utils';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ platform, request, locals }) => {
@@ -99,6 +100,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		}
 
 		const lotacaoRow = String(row.lotacao).trim();
+		const matriculaLimpa = limparMatricula(String(row.matricula));
 
 		// Policial só pode importar da sua lotação
 		if (locals.usuario?.tipo === 'policial' && lotacaoRow !== locals.usuario.lotacao) {
@@ -115,7 +117,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 				'INSERT OR IGNORE INTO policiais (nome, matricula, cargo, telefone, lotacao) VALUES (?, ?, ?, ?, ?)'
 			).bind(
 				nome,
-				String(row.matricula).trim(),
+				matriculaLimpa,
 				cargo,
 				row.telefone ? String(row.telefone).trim() : '',
 				lotacaoRow
@@ -126,7 +128,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 				errors.push({
 					row: rowNum,
 					nome,
-					message: `Matrícula "${String(row.matricula).trim()}" já cadastrada — registro ignorado.`
+					message: `Matrícula "${matriculaLimpa}" já cadastrada — registro ignorado.`
 				});
 			} else {
 				imported++;

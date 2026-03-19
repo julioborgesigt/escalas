@@ -60,6 +60,7 @@
 </Toast.Group>
 
 <!-- Navbar Glassmorphism -->
+{#if $page.url.pathname !== '/login' && $page.url.pathname !== '/alterar-senha'}
 <header class="sticky top-0 z-50 bg-surface-50/70 dark:bg-surface-950/70 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/20">
 	<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2 text-surface-900 dark:text-surface-50 font-extrabold text-xl tracking-tight no-underline group">
@@ -67,35 +68,35 @@
 			<span class="bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">Escalas</span>
 		</a>
 
-		<!-- Mobile toggle -->
-		<button
-			class="md:hidden text-surface-200 hover:text-primary-400 transition-colors p-1"
-			onclick={() => menuOpen = !menuOpen}
-			aria-label="Menu"
-		>
-			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				{#if menuOpen}
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-				{:else}
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-				{/if}
-			</svg>
-		</button>
-
-		<!-- Desktop nav -->
-		<nav class="hidden md:flex items-center gap-6">
-			<a href="/policiais" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm font-medium no-underline">Policiais</a>
-			<a href="/escalas" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm font-medium no-underline">Escalas</a>
-			
-			<button class="btn-icon p-1 hover:bg-surface-500/10 rounded-full text-surface-600 dark:text-surface-300 transition-colors" onclick={toggleTheme} aria-label="Alternar Tema">
-				{#if isDark}
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-				{:else}
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-				{/if}
+		{#if usuario}
+			<!-- Mobile toggle -->
+			<button
+				class="md:hidden text-surface-200 hover:text-primary-400 transition-colors p-1"
+				onclick={() => menuOpen = !menuOpen}
+				aria-label="Menu"
+			>
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{#if menuOpen}
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					{:else}
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+					{/if}
+				</svg>
 			</button>
 
-			{#if usuario}
+			<!-- Desktop nav -->
+			<nav class="hidden md:flex items-center gap-6">
+				<a href="/policiais" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm font-medium no-underline">Policiais</a>
+				<a href="/escalas" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors text-sm font-medium no-underline">Escalas</a>
+				
+				<button class="btn-icon p-1 hover:bg-surface-500/10 rounded-full text-surface-600 dark:text-surface-300 transition-colors" onclick={toggleTheme} aria-label="Alternar Tema">
+					{#if isDark}
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+					{:else}
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+					{/if}
+				</button>
+
 				<div class="w-px h-5 bg-surface-200 dark:bg-white/10 mx-2"></div> <!-- Divider -->
 				<span class="text-surface-600 dark:text-surface-300 text-xs flex items-center gap-2">
 					{usuario.nome}
@@ -113,12 +114,12 @@
 				>
 					Sair
 				</button>
-			{/if}
-		</nav>
+			</nav>
+		{/if}
 	</div>
 
 	<!-- Mobile nav -->
-	{#if menuOpen}
+	{#if menuOpen && usuario}
 		<nav class="md:hidden px-4 pb-4 flex flex-col gap-3 border-t border-surface-200 dark:border-white/5 pt-3 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-xl">
 			<div class="flex items-center justify-between pb-2 border-b border-surface-200 dark:border-white/5">
 				<span class="text-xs font-semibold text-surface-500">Alternar Tema</span>
@@ -132,25 +133,24 @@
 			</div>
 			<a href="/policiais" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 text-sm font-medium py-1 no-underline" onclick={() => menuOpen = false}>Policiais</a>
 			<a href="/escalas" class="text-surface-600 dark:text-surface-300 hover:text-primary-600 dark:hover:text-primary-400 text-sm font-medium py-1 no-underline" onclick={() => menuOpen = false}>Escalas</a>
-			{#if usuario}
-				<div class="flex items-center gap-2 pt-3 mt-1 border-t border-white/5">
-					<span class="text-surface-300 text-xs font-medium">
-						{usuario.nome}
-						{#if usuario.tipo === 'admin'}
-							<span class="badge preset-filled-primary-500 text-[0.65rem] ml-1">ADMIN</span>
-						{/if}
-					</span>
-					<button
-						class="btn btn-sm bg-surface-800 hover:bg-surface-700 text-surface-50 text-xs border border-white/10 ml-auto"
-						onclick={logout}
-					>
-						Sair
-					</button>
-				</div>
-			{/if}
+			<div class="flex items-center gap-2 pt-3 mt-1 border-t border-white/5">
+				<span class="text-surface-300 text-xs font-medium">
+					{usuario.nome}
+					{#if usuario.tipo === 'admin'}
+						<span class="badge preset-filled-primary-500 text-[0.65rem] ml-1">ADMIN</span>
+					{/if}
+				</span>
+				<button
+					class="btn btn-sm bg-surface-800 hover:bg-surface-700 text-surface-50 text-xs border border-white/10 ml-auto"
+					onclick={logout}
+				>
+					Sair
+				</button>
+			</div>
 		</nav>
 	{/if}
 </header>
+{/if}
 
 <main class="max-w-6xl mx-auto px-4 pt-8 pb-12 min-h-[calc(100vh-80px)]">
 	<div class="animate-in fade-in duration-500">

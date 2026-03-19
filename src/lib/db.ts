@@ -1,4 +1,5 @@
 import type { Policial, Escala, EscalaPolicialComDados } from './types';
+import { limparMatricula } from './utils';
 
 export function getDB(platform: App.Platform | undefined): D1Database {
 	if (!platform?.env?.escalas_db) {
@@ -26,9 +27,10 @@ export async function buscarPolicial(db: D1Database, id: number): Promise<Polici
 }
 
 export async function criarPolicial(db: D1Database, data: Omit<Policial, 'id' | 'ativo' | 'created_at' | 'updated_at'>): Promise<D1Result> {
+	const matriculaLimpa = limparMatricula(data.matricula);
 	return db.prepare(
 		'INSERT INTO policiais (nome, matricula, cargo, telefone, lotacao) VALUES (?, ?, ?, ?, ?)'
-	).bind(data.nome, data.matricula, data.cargo, data.telefone, data.lotacao).run();
+	).bind(data.nome, matriculaLimpa, data.cargo, data.telefone, data.lotacao).run();
 }
 
 export async function atualizarPolicial(db: D1Database, id: number, data: Partial<Omit<Policial, 'id' | 'created_at' | 'updated_at'>>): Promise<D1Result> {
@@ -36,7 +38,7 @@ export async function atualizarPolicial(db: D1Database, id: number, data: Partia
 	const values: (string | number)[] = [];
 
 	if (data.nome !== undefined) { fields.push('nome = ?'); values.push(data.nome); }
-	if (data.matricula !== undefined) { fields.push('matricula = ?'); values.push(data.matricula); }
+	if (data.matricula !== undefined) { fields.push('matricula = ?'); values.push(limparMatricula(data.matricula)); }
 	if (data.cargo !== undefined) { fields.push('cargo = ?'); values.push(data.cargo); }
 	if (data.telefone !== undefined) { fields.push('telefone = ?'); values.push(data.telefone); }
 	if (data.lotacao !== undefined) { fields.push('lotacao = ?'); values.push(data.lotacao); }
