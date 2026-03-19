@@ -60,7 +60,7 @@
 	<aside class="preset-tonal-success p-3 rounded-lg text-sm mb-4">{message}</aside>
 {/if}
 
-<div class="card p-4 sm:p-6">
+<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
 	{#if loading}
 		<p class="text-center py-8 text-surface-500">Carregando...</p>
 	{:else if escalas.length === 0}
@@ -106,28 +106,28 @@
 		<!-- Mobile: cards -->
 		<div class="md:hidden space-y-3">
 			{#each escalas as esc}
-				<div class="card border border-surface-200 p-4">
-					<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block mb-3">{esc.titulo}</a>
+				<div class="p-4 rounded-2xl bg-surface-800/50 border border-white/10 hover:border-primary-500/30 transition-colors">
+					<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block mb-3 text-primary-400 no-underline hover:text-primary-300">{esc.titulo}</a>
 					<div class="space-y-1 mb-3 text-sm">
 						<div class="flex justify-between">
 							<span class="text-surface-500 font-medium">Cidade</span>
-							<span>{esc.cidade}</span>
+							<span class="text-surface-100">{esc.cidade}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500 font-medium">Período</span>
-							<span>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span>
+							<span class="text-surface-100">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500 font-medium">Horário</span>
-							<span>{esc.horario}</span>
+							<span class="text-surface-100">{esc.horario}</span>
 						</div>
 					</div>
-					<div class="flex gap-2 flex-wrap pt-3 border-t border-surface-200">
-						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Gerenciar</a>
+					<div class="flex gap-2 flex-wrap pt-3 border-t border-white/5">
+						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 hover:-translate-y-0.5 transition-all">Gerenciar</a>
 						<div class="export-wrapper relative inline-block">
-							<button class="btn btn-sm preset-outlined-primary-500" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+							<button class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
 						</div>
-						<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 					</div>
 				</div>
 			{/each}
@@ -137,11 +137,11 @@
 
 {#if exportMenuId !== null}
 	{@const escId = exportMenuId}
-	<div class="fixed z-50 bg-surface-50 border border-surface-200 rounded-lg shadow-xl min-w-[150px]" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
-		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary rounded-t-lg" onclick={() => download(escId, 'docx')}>Word (.docx)</button>
-		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
-		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
-		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
-		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary rounded-b-lg" onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
+	<div class="fixed z-50 bg-surface-900 border border-white/10 rounded-xl shadow-2xl shadow-black/50 min-w-[150px] overflow-hidden backdrop-blur-xl" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
+		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors" onclick={() => download(escId, 'docx')}>Word (.docx)</button>
+		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
+		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
+		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
+		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
 	</div>
 {/if}

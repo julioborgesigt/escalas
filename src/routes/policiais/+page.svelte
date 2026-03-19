@@ -62,7 +62,7 @@
 	<aside class="p-3 rounded-lg text-sm mb-4 {messageType === 'success' ? 'preset-tonal-success' : 'preset-filled-error-500'}">{message}</aside>
 {/if}
 
-<div class="card p-4 sm:p-6">
+<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
 	{#if isAdmin}
 		<label class="label max-w-xs mb-4">
 			<span class="label-text">Filtrar por lotação</span>
@@ -121,7 +121,7 @@
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
 			{#each policiais as p}
-				<div class="card border border-surface-200 p-4">
+				<div class="p-4 rounded-2xl bg-surface-800/50 border border-white/10 hover:border-primary-500/30 transition-colors">
 					<div class="flex items-center justify-between mb-2">
 						<span class="font-semibold text-sm">{p.nome}</span>
 						<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
@@ -129,20 +129,20 @@
 					<div class="space-y-1 text-sm mb-3">
 						<div class="flex justify-between">
 							<span class="text-surface-500">Matrícula</span>
-							<span>{p.matricula}</span>
+							<span class="text-surface-100">{p.matricula}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Telefone</span>
-							<span>{p.telefone}</span>
+							<span class="text-surface-100">{p.telefone}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Lotação</span>
-							<span class="text-right">{p.lotacao}</span>
+							<span class="text-right text-surface-100">{p.lotacao}</span>
 						</div>
 					</div>
-					<div class="flex gap-2 pt-3 border-t border-surface-200">
-						<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500">Editar</a>
-						<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(p.id, p.nome)}>Excluir</button>
+					<div class="flex gap-2 pt-3 border-t border-white/5">
+						<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 hover:-translate-y-0.5 transition-all">Editar</a>
+						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => excluir(p.id, p.nome)}>Excluir</button>
 					</div>
 				</div>
 			{/each}
