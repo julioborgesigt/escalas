@@ -3,6 +3,9 @@
 	import { page } from '$app/stores';
 	import type { Policial } from '$lib/types';
 
+	const usuario = $derived($page.data.usuario);
+	const isAdmin = $derived(usuario?.tipo === 'admin');
+
 	let policial = $state<Policial | null>(null);
 	let nome = $state('');
 	let matricula = $state('');
@@ -88,7 +91,11 @@
 			</div>
 			<div class="form-group">
 				<label for="lotacao">Lotação</label>
-				<input id="lotacao" type="text" bind:value={lotacao} required />
+				{#if isAdmin}
+					<input id="lotacao" type="text" bind:value={lotacao} required />
+				{:else}
+					<input id="lotacao" type="text" value={lotacao} readonly style="background: #f3f4f6; cursor: not-allowed;" />
+				{/if}
 			</div>
 			<div class="actions" style="margin-top: 1rem;">
 				<button type="submit" class="btn btn-primary" disabled={saving}>

@@ -3,12 +3,17 @@ import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import { gerarDocx, gerarXlsx, gerarPdf, gerarOds } from '$lib/export';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ platform, params, url }) => {
+export const GET: RequestHandler = async ({ platform, params, url, locals }) => {
 	const db = getDB(platform);
 	const format = url.searchParams.get('format') || 'docx';
 	const escala = await buscarEscala(db, Number(params.id));
 
 	if (!escala) throw error(404, 'Escala não encontrada');
+
+	// Policial só pode baixar escalas da sua lotação
+	if (locals.usuario?.tipo === 'policial' && escala.lotacao !== locals.usuario.lotacao) {
+		throw error(403, 'Sem permissão');
+	}
 
 	const policiais = await listarPoliciaisEscala(db, escala.id);
 

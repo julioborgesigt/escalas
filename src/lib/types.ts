@@ -19,6 +19,7 @@ export interface Escala {
 	horario: string;
 	hora_entrada: string;
 	hora_saida: string;
+	lotacao: string;
 	created_at: string;
 }
 

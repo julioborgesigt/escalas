@@ -2,18 +2,44 @@ import { json } from '@sveltejs/kit';
 import { getDB, buscarPolicial, atualizarPolicial, excluirPolicial } from '$lib/db';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ platform, params }) => {
+async function verificarPermissao(db: D1Database, policialId: number, locals: App.Locals): Promise<Response | null> {
+	if (locals.usuario?.tipo === 'policial') {
+		const policial = await buscarPolicial(db, policialId);
+		if (policial && policial.lotacao !== locals.usuario.lotacao) {
+			return json({ error: 'Sem permissão' }, { status: 403 }) as Response;
+		}
+	}
+	return null;
+}
+
+export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
-	const policial = await buscarPolicial(db, Number(params.id));
+	const id = Number(params.id);
+
+	const bloqueio = await verificarPermissao(db, id, locals);
+	if (bloqueio) return bloqueio;
+
+	const policial = await buscarPolicial(db, id);
 	if (!policial) return json({ error: 'Policial não encontrado' }, { status: 404 });
 	return json(policial);
 };
 
-export const PUT: RequestHandler = async ({ platform, params, request }) => {
+export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
 	const db = getDB(platform);
+	const id = Number(params.id);
+
+	const bloqueio = await verificarPermissao(db, id, locals);
+	if (bloqueio) return bloqueio;
+
 	const data = await request.json();
+
+	// Policial não pode mudar lotação
+	if (locals.usuario?.tipo === 'policial' && data.lotacao && data.lotacao !== locals.usuario.lotacao) {
+		return json({ error: 'Você não pode alterar a lotação' }, { status: 403 });
+	}
+
 	try {
-		await atualizarPolicial(db, Number(params.id), data);
+		await atualizarPolicial(db, id, data);
 		return json({ success: true });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';
@@ -24,8 +50,13 @@ export const PUT: RequestHandler = async ({ platform, params, request }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ platform, params }) => {
+export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
-	await excluirPolicial(db, Number(params.id));
+	const id = Number(params.id);
+
+	const bloqueio = await verificarPermissao(db, id, locals);
+	if (bloqueio) return bloqueio;
+
+	await excluirPolicial(db, id);
 	return json({ success: true });
 };

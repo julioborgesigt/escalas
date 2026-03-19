@@ -1,5 +1,9 @@
 <script lang="ts">
 	import type { Policial } from '$lib/types';
+	import { page } from '$app/stores';
+
+	const usuario = $derived($page.data.usuario);
+	const isAdmin = $derived(usuario?.tipo === 'admin');
 
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
@@ -59,15 +63,17 @@
 {/if}
 
 <div class="card">
-	<div class="form-group" style="max-width: 300px; margin-bottom: 1rem;">
-		<label for="filtro">Filtrar por lotação</label>
-		<select id="filtro" bind:value={filtroLotacao}>
-			<option value="">Todas</option>
-			{#each lotacoes as lot}
-				<option value={lot}>{lot}</option>
-			{/each}
-		</select>
-	</div>
+	{#if isAdmin}
+		<div class="form-group" style="max-width: 300px; margin-bottom: 1rem;">
+			<label for="filtro">Filtrar por lotação</label>
+			<select id="filtro" bind:value={filtroLotacao}>
+				<option value="">Todas</option>
+				{#each lotacoes as lot}
+					<option value={lot}>{lot}</option>
+				{/each}
+			</select>
+		</div>
+	{/if}
 
 	{#if loading}
 		<p style="text-align: center; padding: 2rem; color: var(--text-light);">Carregando...</p>
