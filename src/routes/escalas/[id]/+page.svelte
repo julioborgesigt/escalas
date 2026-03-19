@@ -311,7 +311,7 @@
 									<td>{p.telefone}</td>
 									<td>{p.lotacao}</td>
 									{#if editingId === p.id}
-										<td colspan="2" class="bg-surface-100">
+										<td colspan="2" class="bg-surface-200 dark:bg-surface-800 rounded-lg">
 											<div class="flex flex-col gap-2 py-1">
 												<div class="flex items-center gap-2">
 													<span class="text-xs font-semibold text-surface-500 w-14">Entrada:</span>
@@ -380,7 +380,7 @@
 						</div>
 
 						{#if editingId === p.id}
-							<div class="bg-surface-100 rounded-lg p-3 space-y-2 mb-3">
+							<div class="bg-surface-200 dark:bg-surface-800 rounded-lg p-3 space-y-2 mb-3">
 								<div class="grid grid-cols-2 gap-2">
 									<label class="label">
 										<span class="label-text text-xs">Data entrada</span>

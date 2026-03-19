@@ -49,7 +49,7 @@
 	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
 {/if}
 
-<div class="card p-6">
+<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
 	<form onsubmit={salvar} class="space-y-4">
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<label class="label">
@@ -79,7 +79,7 @@
 			{#if isAdmin}
 				<input class="input" type="text" bind:value={lotacao} required placeholder="Ex: DELEGACIA DE POLÍCIA CIVIL DE ICÓ" />
 			{:else}
-				<input class="input bg-surface-100 cursor-not-allowed" type="text" value={lotacao} readonly />
+				<input class="input bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75" type="text" value={lotacao} readonly />
 			{/if}
 		</label>
 		<div class="flex gap-3 pt-2">
