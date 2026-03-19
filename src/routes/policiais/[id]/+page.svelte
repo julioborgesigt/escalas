@@ -60,7 +60,7 @@
 {#if loading}
 	<p class="text-center py-8">Carregando...</p>
 {:else}
-	<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
+	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 		<form onsubmit={salvar} class="space-y-4">
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<label class="label">

@@ -247,7 +247,7 @@
 
 	<!-- Export buttons -->
 	{#if policiaisEscala.length > 0}
-		<div class="card p-4 mb-4">
+		<div class="p-4 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 			<h3 class="font-semibold text-sm mb-3">Exportar Escala</h3>
 			<div class="flex gap-2 flex-wrap">
 				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('docx')}>Word (.docx)</button>
@@ -260,7 +260,7 @@
 	{/if}
 
 	<!-- Add form -->
-	<div class="card p-4 sm:p-6 mb-4">
+	<div class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 		<form onsubmit={adicionar}>
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -307,7 +307,7 @@
 	{:else}
 		{#each [...agruparPorData(policiaisEscala)] as [, policiais]}
 			<!-- Desktop table -->
-			<div class="card p-0 overflow-hidden mb-4 hidden md:block">
+			<div class="p-0 overflow-hidden mb-4 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 				<div class="table-wrap">
 					<table class="table">
 						<thead>
@@ -381,7 +381,7 @@
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3 mb-4">
 				{#each policiais as p}
-					<div class="card border border-surface-200 p-4">
+				<div class="p-4 mb-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 						<div class="flex items-center justify-between mb-2">
 							<span class="font-semibold text-sm">{p.nome}</span>
 							<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>

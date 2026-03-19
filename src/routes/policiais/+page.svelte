@@ -16,6 +16,12 @@
 	let policialParaExcluir = $state<{id: number, nome: string} | null>(null);
 
 	async function carregarPoliciais() {
+		if (isAdmin && !filtroLotacao) {
+			policiais = [];
+			loading = false;
+			return;
+		}
+
 		loading = true;
 		const params = filtroLotacao ? `?lotacao=${encodeURIComponent(filtroLotacao)}` : '';
 		const res = await fetch(`/api/policiais${params}`);
@@ -24,9 +30,8 @@
 	}
 
 	async function carregarLotacoes() {
-		const res = await fetch('/api/policiais');
-		const todos: Policial[] = await res.json();
-		lotacoes = [...new Set(todos.map(p => p.lotacao))].sort();
+		const res = await fetch('/api/lotacoes');
+		lotacoes = await res.json();
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -88,21 +93,31 @@
 	</Dialog.Content>
 </Dialog>
 
-<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20 overflow-hidden mt-6">
+<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
 	{#if isAdmin}
-		<label class="label max-w-xs mb-4">
-			<span class="label-text">Filtrar por lotação</span>
-			<select class="select" bind:value={filtroLotacao}>
-				<option value="">Todas</option>
-				{#each lotacoes as lot}
-					<option value={lot}>{lot}</option>
-				{/each}
-			</select>
-		</label>
+		<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10">
+			<label class="label flex-1 max-w-sm">
+				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
+				<select class="select" bind:value={filtroLotacao}>
+					<option value="">Selecione uma unidade...</option>
+					{#each lotacoes as lot}
+						<option value={lot}>{lot}</option>
+					{/each}
+				</select>
+			</label>
+			<p class="text-xs text-surface-500 mb-2 italic">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
+		</div>
 	{/if}
 
 	{#if loading}
-		<p class="text-center py-8 text-surface-500">Carregando...</p>
+		<p class="text-center py-12 text-surface-500">Carregando...</p>
+	{:else if isAdmin && !filtroLotacao}
+		<div class="text-center py-20">
+			<div class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">
+				<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+			</div>
+			<p class="text-surface-600 dark:text-surface-400 text-lg">Escolha uma unidade para exibir os dados.</p>
+		</div>
 	{:else if policiais.length === 0}
 		<div class="text-center py-12 text-surface-500">
 			<p class="mb-4">Nenhum policial cadastrado.</p>
@@ -147,7 +162,7 @@
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
 			{#each policiais as p}
-				<div class="p-4 rounded-2xl bg-surface-800/50 border border-white/10 hover:border-primary-500/30 transition-colors">
+				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 					<div class="flex items-center justify-between mb-2">
 						<span class="font-semibold text-sm">{p.nome}</span>
 						<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
@@ -155,18 +170,18 @@
 					<div class="space-y-1 text-sm mb-3">
 						<div class="flex justify-between">
 							<span class="text-surface-500">Matrícula</span>
-							<span class="text-surface-100">{p.matricula}</span>
+							<span class="text-surface-900 dark:text-surface-100">{p.matricula}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Telefone</span>
-							<span class="text-surface-100">{p.telefone}</span>
+							<span class="text-surface-900 dark:text-surface-100">{p.telefone}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Lotação</span>
-							<span class="text-right text-surface-100">{p.lotacao}</span>
+							<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
 						</div>
 					</div>
-					<div class="flex gap-2 pt-3 border-t border-white/5">
+					<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
 						<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 hover:-translate-y-0.5 transition-all">Editar</a>
 						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
 					</div>
