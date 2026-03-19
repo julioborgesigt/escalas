@@ -1,6 +1,15 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/stores';
+
 	let { children } = $props();
+
+	const usuario = $derived($page.data.usuario);
+
+	async function logout() {
+		await fetch('/api/auth/logout', { method: 'POST' });
+		window.location.href = '/login';
+	}
 </script>
 
 <svelte:head>
@@ -13,6 +22,17 @@
 		<div class="nav-links">
 			<a href="/policiais">Policiais</a>
 			<a href="/escalas">Escalas</a>
+			{#if usuario}
+				<span class="nav-user">
+					{usuario.nome}
+					{#if usuario.tipo === 'admin'}
+						<span class="badge-admin">Admin</span>
+					{:else}
+						<span class="badge-lotacao">{usuario.lotacao}</span>
+					{/if}
+				</span>
+				<button class="nav-logout" onclick={logout}>Sair</button>
+			{/if}
 		</div>
 	</div>
 </nav>
@@ -44,6 +64,7 @@
 	.nav-links {
 		display: flex;
 		gap: 1.5rem;
+		align-items: center;
 	}
 	.nav-links a {
 		color: rgba(255,255,255,0.85);
@@ -53,5 +74,52 @@
 	.nav-links a:hover {
 		color: white;
 		text-decoration: none;
+	}
+	.nav-user {
+		color: rgba(255,255,255,0.7);
+		font-size: 0.8rem;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.badge-admin {
+		background: #f59e0b;
+		color: #1a1a2e;
+		font-size: 0.65rem;
+		font-weight: 700;
+		padding: 0.1rem 0.4rem;
+		border-radius: 999px;
+	}
+	.badge-lotacao {
+		background: rgba(255,255,255,0.15);
+		font-size: 0.65rem;
+		padding: 0.1rem 0.4rem;
+		border-radius: 999px;
+		color: rgba(255,255,255,0.8);
+	}
+	.nav-logout {
+		background: rgba(255,255,255,0.15);
+		border: none;
+		color: white;
+		padding: 0.3rem 0.75rem;
+		border-radius: 4px;
+		font-size: 0.8rem;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+	.nav-logout:hover {
+		background: rgba(255,255,255,0.25);
+	}
+
+	@media (max-width: 768px) {
+		.nav-content {
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+		.nav-links {
+			gap: 0.75rem;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
 	}
 </style>

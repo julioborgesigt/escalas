@@ -59,8 +59,15 @@ export async function listarLotacoes(db: D1Database): Promise<string[]> {
 
 // ---- Escalas ----
 
-export async function listarEscalas(db: D1Database): Promise<Escala[]> {
-	const result = await db.prepare('SELECT * FROM escalas ORDER BY data_inicio DESC').all<Escala>();
+export async function listarEscalas(db: D1Database, lotacao?: string): Promise<Escala[]> {
+	let query = 'SELECT * FROM escalas';
+	const params: string[] = [];
+	if (lotacao) {
+		query += ' WHERE lotacao = ?';
+		params.push(lotacao);
+	}
+	query += ' ORDER BY data_inicio DESC';
+	const result = await db.prepare(query).bind(...params).all<Escala>();
 	return result.results;
 }
 
@@ -70,8 +77,8 @@ export async function buscarEscala(db: D1Database, id: number): Promise<Escala |
 
 export async function criarEscala(db: D1Database, data: Omit<Escala, 'id' | 'created_at'>): Promise<D1Result> {
 	return db.prepare(
-		'INSERT INTO escalas (titulo, cidade, data_inicio, data_fim, horario, hora_entrada, hora_saida) VALUES (?, ?, ?, ?, ?, ?, ?)'
-	).bind(data.titulo, data.cidade, data.data_inicio, data.data_fim, data.horario, data.hora_entrada, data.hora_saida).run();
+		'INSERT INTO escalas (titulo, cidade, data_inicio, data_fim, horario, hora_entrada, hora_saida, lotacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+	).bind(data.titulo, data.cidade, data.data_inicio, data.data_fim, data.horario, data.hora_entrada, data.hora_saida, data.lotacao).run();
 }
 
 export async function excluirEscala(db: D1Database, id: number): Promise<D1Result> {

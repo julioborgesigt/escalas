@@ -3,7 +3,7 @@ import { getDB } from '$lib/db';
 import * as XLSX from 'xlsx';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ platform, request }) => {
+export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	let db;
 	try {
 		db = getDB(platform);
@@ -98,6 +98,18 @@ export const POST: RequestHandler = async ({ platform, request }) => {
 			continue;
 		}
 
+		const lotacaoRow = String(row.lotacao).trim();
+
+		// Policial só pode importar da sua lotação
+		if (locals.usuario?.tipo === 'policial' && lotacaoRow !== locals.usuario.lotacao) {
+			errors.push({
+				row: rowNum,
+				nome,
+				message: `Lotação "${lotacaoRow}" diferente da sua. Você só pode importar policiais da sua lotação.`
+			});
+			continue;
+		}
+
 		try {
 			const result = await db.prepare(
 				'INSERT OR IGNORE INTO policiais (nome, matricula, cargo, telefone, lotacao) VALUES (?, ?, ?, ?, ?)'
@@ -106,7 +118,7 @@ export const POST: RequestHandler = async ({ platform, request }) => {
 				String(row.matricula).trim(),
 				cargo,
 				row.telefone ? String(row.telefone).trim() : '',
-				String(row.lotacao).trim()
+				lotacaoRow
 			).run();
 
 			if (result.meta?.changes === 0) {

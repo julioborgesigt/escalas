@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -13,6 +14,10 @@
 	let error = $state('');
 	let saving = $state(false);
 	let lotacoes = $state<string[]>([]);
+	let lotacaoEscala = $state('');
+
+	const usuario = $derived($page.data.usuario);
+	const isAdmin = $derived(usuario?.tipo === 'admin');
 
 	onMount(async () => {
 		try {
@@ -44,7 +49,8 @@
 				data_fim: dataFim,
 				horario: horarioLabel(),
 				hora_entrada: horaEntrada,
-				hora_saida: horaSaida
+				hora_saida: horaSaida,
+				lotacao: isAdmin ? lotacaoEscala : undefined
 			})
 		});
 
@@ -83,6 +89,17 @@
 
 <div class="card">
 	<form onsubmit={salvar}>
+		{#if isAdmin}
+			<div class="form-group">
+				<label for="lotacao_escala">Lotação (unidade policial)</label>
+				<select id="lotacao_escala" bind:value={lotacaoEscala} required>
+					<option value="" disabled selected>Selecione a lotação</option>
+					{#each lotacoes as lot}
+						<option value={lot}>{lot}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
 		<div class="form-group">
 			<label for="cidade">Cidade</label>
 			{#if lotacoes.length > 0}
