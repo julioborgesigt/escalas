@@ -7,15 +7,16 @@
 		errors: { row: number; nome: string; message: string }[];
 		total: number;
 	} | null>(null);
-	let error = $state('');
-	let errorType = $state('');
+
+	import { enhance } from '$app/forms';
+	import { toaster } from '$lib/toast';
+
+	let { form } = $props();
 
 	function onFileChange(e: Event) {
 		const input = e.target as HTMLInputElement;
 		file = input.files?.[0] || null;
 		result = null;
-		error = '';
-		errorType = '';
 	}
 
 	async function upload(e: Event) {
@@ -23,8 +24,6 @@
 		if (!file) return;
 
 		uploading = true;
-		error = '';
-		errorType = '';
 		result = null;
 
 		try {
@@ -40,23 +39,14 @@
 
 			if (res.ok) {
 				result = data;
+				toaster.create({ title: `${data.imported} policial${data.imported !== 1 ? 'is' : ''} importado${data.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
 			} else {
-				error = data.error || 'Erro desconhecido ao processar o arquivo.';
-				errorType = data.errorType || 'unknown';
+				toaster.create({ title: data.error || 'Erro desconhecido ao processar o arquivo.', type: 'error' });
 			}
 		} catch {
-			error = 'Erro de conexão. Verifique sua internet e tente novamente.';
-			errorType = 'network';
+			toaster.create({ title: 'Erro de conexão. Verifique sua internet e tente novamente.', type: 'error' });
 		}
 		uploading = false;
-	}
-
-	function getErrorHint(type: string) {
-		if (type === 'database')
-			return 'Dica: No dashboard da Cloudflare, vá em Pages > escalas > Settings > Functions > D1 database bindings e vincule o banco "escalas-db" à variável "DB".';
-		if (type === 'parse')
-			return 'Dica: Tente abrir o arquivo no Excel/LibreOffice e salvar novamente como .xlsx.';
-		return '';
 	}
 </script>
 
@@ -103,13 +93,12 @@
 		</p>
 	</div>
 
-	{#if error}
-		<aside class="preset-filled-error-500 p-4 rounded-lg mb-4">
-			<strong>{error}</strong>
-			{#if getErrorHint(errorType)}
-				<p class="mt-2 text-sm opacity-80">{getErrorHint(errorType)}</p>
-			{/if}
-		</aside>
+	{#if form?.error}
+		{(() => { if (form.error) toaster.create({ title: form.error, type: 'error' }); return ''; })()}
+	{/if}
+
+	{#if form?.success}
+		{(() => { if (form.success) toaster.create({ title: `Upload concluído! ${form.count} policiais importados.`, type: 'success' }); return ''; })()}
 	{/if}
 
 	{#if result}
@@ -137,12 +126,6 @@
 					</div>
 				{/if}
 			</div>
-
-			{#if result.imported > 0}
-				<aside class="preset-tonal-success p-3 rounded-lg text-sm mb-4">
-					{result.imported} policial{result.imported !== 1 ? 'is' : ''} importado{result.imported !== 1 ? 's' : ''} com sucesso!
-				</aside>
-			{/if}
 
 			{#if result.errors.length > 0}
 				<details class="border border-surface-200 rounded-lg overflow-hidden" open={result.imported === 0}>

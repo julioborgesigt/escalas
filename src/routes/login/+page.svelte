@@ -2,13 +2,14 @@
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
 	let senha = $state('');
-	let error = $state('');
+	import { goto } from '$app/navigation';
+	import { toaster } from '$lib/toast';
+
 	let loading = $state(false);
 
 	async function login(e: Event) {
 		e.preventDefault();
 		loading = true;
-		error = '';
 
 		const res = await fetch('/api/auth/login', {
 			method: 'POST',
@@ -16,19 +17,18 @@
 			body: JSON.stringify({ matricula, senha, tipo })
 		});
 
-		const data = await res.json();
-
-		if (!res.ok) {
-			error = data.error;
-			loading = false;
-			return;
-		}
-
-		if (data.primeiro_acesso) {
-			window.location.href = '/alterar-senha';
+		if (res.ok) {
+			const data = await res.json();
+			if (data.primeiro_login) {
+				goto(`/alterar-senha?token=${data.token}`);
+			} else {
+				window.location.href = '/policiais';
+			}
 		} else {
-			window.location.href = '/';
+			const data = await res.json();
+			toaster.create({ title: data.error || 'Credenciais inválidas', type: 'error' });
 		}
+		loading = false;
 	}
 </script>
 
@@ -47,23 +47,19 @@
 		<div class="flex mb-8 bg-surface-900/50 p-1 rounded-xl border border-white/5">
 			<button
 				class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-				onclick={() => { tipo = 'policial'; error = ''; }}
+				onclick={() => { tipo = 'policial'; }}
 			>
 				Policial
 			</button>
 			<button
 				class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-				onclick={() => { tipo = 'admin'; error = ''; }}
+				onclick={() => { tipo = 'admin'; }}
 			>
 				Administrador
 			</button>
 		</div>
 
-		{#if error}
-			<aside class="alert preset-filled-error-500 mb-4 p-3 rounded-lg text-sm">{error}</aside>
-		{/if}
-
-		<form onsubmit={login} class="space-y-4">
+		<form onsubmit={login} class="flex flex-col gap-6">
 			<label class="label">
 				<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 				<input

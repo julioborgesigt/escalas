@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
 	import type { Policial } from '$lib/types';
 
 	const usuario = $derived($page.data.usuario);
@@ -12,7 +13,6 @@
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
 	let telefone = $state('');
 	let lotacao = $state('');
-	let error = $state('');
 	let saving = $state(false);
 	let loading = $state(true);
 
@@ -34,7 +34,6 @@
 	async function salvar(e: Event) {
 		e.preventDefault();
 		saving = true;
-		error = '';
 
 		const res = await fetch(`/api/policiais/${$page.params.id}`, {
 			method: 'PUT',
@@ -43,10 +42,11 @@
 		});
 
 		if (res.ok) {
+			toaster.create({ title: 'Policial atualizado com sucesso!', type: 'success' });
 			goto('/policiais');
 		} else {
 			const data = await res.json();
-			error = data.error || 'Erro ao salvar';
+			toaster.create({ title: data.error || 'Erro ao salvar', type: 'error' });
 		}
 		saving = false;
 	}
@@ -56,10 +56,6 @@
 	<h1 class="h1 text-xl font-bold">Editar Policial</h1>
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
-
-{#if error}
-	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
-{/if}
 
 {#if loading}
 	<p class="text-center py-8">Carregando...</p>

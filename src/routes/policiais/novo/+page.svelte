@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
 
 	const usuario = $derived($page.data.usuario);
 	const isAdmin = $derived(usuario?.tipo === 'admin');
@@ -10,7 +11,6 @@
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
 	let telefone = $state('');
 	let lotacao = $state('');
-	let error = $state('');
 	let saving = $state(false);
 
 	$effect(() => {
@@ -22,7 +22,6 @@
 	async function salvar(e: Event) {
 		e.preventDefault();
 		saving = true;
-		error = '';
 
 		const res = await fetch('/api/policiais', {
 			method: 'POST',
@@ -31,10 +30,11 @@
 		});
 
 		if (res.ok) {
+			toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 			goto('/policiais');
 		} else {
 			const data = await res.json();
-			error = data.error || 'Erro ao cadastrar';
+			toaster.create({ title: data.error || 'Erro ao cadastrar', type: 'error' });
 		}
 		saving = false;
 	}
@@ -44,10 +44,6 @@
 	<h1 class="h1 text-xl font-bold">Novo Policial</h1>
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
-
-{#if error}
-	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
-{/if}
 
 <div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
 	<form onsubmit={salvar} class="space-y-4">

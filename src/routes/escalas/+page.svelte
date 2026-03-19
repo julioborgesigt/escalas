@@ -1,11 +1,18 @@
 <script lang="ts">
+	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
+	import { Dialog, Popover } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala } from '$lib/types';
 
 	let escalas = $state<Escala[]>([]);
 	let loading = $state(true);
-	let message = $state('');
-	let exportMenuId = $state<number | null>(null);
-	let exportMenuPos = $state({ top: 0, left: 0 });
+	let saving = $state(false);
+
+	let dialogOpen = $state(false);
+	let escalaParaExcluir = $state<{id: number, titulo: string} | null>(null);
+
+	const usuario = $derived($page.data.usuario);
+	const isAdmin = $derived(usuario?.tipo === 'admin');
 
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
@@ -19,48 +26,54 @@
 		loading = false;
 	}
 
-	async function excluir(id: number, titulo: string) {
-		if (!confirm(`Excluir escala "${titulo}"?`)) return;
+	function solicitarExclusao(id: number, titulo: string) {
+		escalaParaExcluir = { id, titulo };
+		dialogOpen = true;
+	}
+
+	async function confirmarExclusao() {
+		if (!escalaParaExcluir) return;
+		
+		const id = escalaParaExcluir.id;
+		const titulo = escalaParaExcluir.titulo;
+		dialogOpen = false;
+
 		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
 		if (res.ok) {
-			message = 'Escala excluída';
+			toaster.create({ title: `Escala de ${titulo} removida`, type: 'success' });
 			carregar();
+		} else {
+			toaster.create({ title: 'Erro ao remover', type: 'error' });
 		}
+		escalaParaExcluir = null;
 	}
 
-	function download(id: number, format: string) {
-		window.open(`/api/escalas/${id}/download?format=${format}`, '_blank');
-		exportMenuId = null;
-	}
-
-	function toggleExportMenu(id: number, e: MouseEvent) {
-		if (exportMenuId === id) {
-			exportMenuId = null;
-			return;
-		}
-		const btn = e.currentTarget as HTMLElement;
-		const rect = btn.getBoundingClientRect();
-		exportMenuPos = { top: rect.bottom + 4, left: rect.left };
-		exportMenuId = id;
-	}
-
-	$effect(() => { carregar(); });
+	$effect(() => {
+		carregar();
+	});
 </script>
-
-<svelte:window onclick={(e) => {
-	if (!(e.target as HTMLElement).closest('.export-wrapper')) exportMenuId = null;
-}} />
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 	<h1 class="h1 text-xl font-bold">Escalas de Plantão</h1>
 	<a href="/escalas/nova" class="btn preset-filled-primary-500">Nova Escala</a>
 </div>
 
-{#if message}
-	<aside class="preset-tonal-success p-3 rounded-lg text-sm mb-4">{message}</aside>
-{/if}
+<Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
+			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+				Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode ser desfeita.
+			</Dialog.Description>
+			<div class="flex justify-end gap-3">
+				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog>
 
-<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
+<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20 overflow-hidden mt-6">
 	{#if loading}
 		<p class="text-center py-8 text-surface-500">Carregando...</p>
 	{:else if escalas.length === 0}
@@ -89,12 +102,19 @@
 							<td class="whitespace-nowrap">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
 							<td>{esc.horario}</td>
 							<td>
-								<div class="flex gap-2 items-center flex-wrap">
-									<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Gerenciar</a>
-									<div class="export-wrapper relative inline-block">
-										<button class="btn btn-sm preset-outlined-primary-500" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
-									</div>
-									<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+								<div class="flex gap-2 justify-end">
+									<a href="/escalas/{esc.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Abrir</a>
+									<Popover positioning={{ placement: "bottom-end" }}>
+										<Popover.Trigger class="btn btn-sm preset-outlined-primary-500">Exportar ▾</Popover.Trigger>
+										<Popover.Content class="card p-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-2xl flex flex-col gap-1 min-w-[150px] z-50">
+											<Popover.Arrow />
+											<button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/export?format=pdf`, '_blank')}>Exportar PDF</button>
+											<button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/export?format=excel`, '_blank')}>Exportar Excel</button>
+										</Popover.Content>
+									</Popover>
+									{#if isAdmin}
+										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button>
+									{/if}
 								</div>
 							</td>
 						</tr>
@@ -122,26 +142,23 @@
 							<span class="text-surface-100">{esc.horario}</span>
 						</div>
 					</div>
-					<div class="flex gap-2 flex-wrap pt-3 border-t border-white/5">
-						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 hover:-translate-y-0.5 transition-all">Gerenciar</a>
-						<div class="export-wrapper relative inline-block">
-							<button class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
-						</div>
-						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+					<div class="flex gap-2 pt-3 border-t border-white/5">
+						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-colors">Abrir</a>
+						<Popover positioning={{ placement: "bottom-end" }}>
+							<Popover.Trigger class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10">Exportar ▾</Popover.Trigger>
+							<Popover.Content class="card p-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-2xl flex flex-col gap-1 min-w-[150px] z-50">
+								<Popover.Arrow />
+								<button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/export?format=pdf`, '_blank')}>Exportar PDF</button>
+								<button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/export?format=excel`, '_blank')}>Exportar Excel</button>
+							</Popover.Content>
+						</Popover>
+						{#if isAdmin}
+							<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button>
+						{/if}
 					</div>
 				</div>
 			{/each}
 		</div>
+		<p class="mt-3 text-surface-500 text-sm hidden md:block">{escalas.length} escala(s) encontrada(s)</p>
 	{/if}
 </div>
-
-{#if exportMenuId !== null}
-	{@const escId = exportMenuId}
-	<div class="fixed z-50 bg-surface-900 border border-white/10 rounded-xl shadow-2xl shadow-black/50 min-w-[150px] overflow-hidden backdrop-blur-xl" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
-		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors" onclick={() => download(escId, 'docx')}>Word (.docx)</button>
-		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
-		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
-		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
-		<button class="block w-full px-4 py-2 text-left text-sm text-surface-200 hover:bg-primary-500/20 hover:text-primary-100 transition-colors border-t border-white/5" onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
-	</div>
-{/if}
