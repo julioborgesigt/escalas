@@ -6,9 +6,11 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	const db = getDB(platform);
 	const usuario = locals.usuario;
 
-	// Policial só vê policiais da sua lotação
+	// Parâmetro todos=1 permite listar todos os policiais (para inclusão em escalas)
+	const todos = url.searchParams.get('todos') === '1';
+
 	let lotacao = url.searchParams.get('lotacao') || undefined;
-	if (usuario?.tipo === 'policial') {
+	if (usuario?.tipo === 'policial' && !todos) {
 		lotacao = usuario.lotacao;
 	}
 
