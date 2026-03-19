@@ -40,53 +40,53 @@
 	}
 </script>
 
-<div class="page-header">
-	<h1>Novo Policial</h1>
-	<a href="/policiais" class="btn btn-outline">Voltar</a>
+<div class="flex items-center justify-between mb-6">
+	<h1 class="h1 text-xl font-bold">Novo Policial</h1>
+	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
 {#if error}
-	<div class="alert alert-error">{error}</div>
+	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
 {/if}
 
-<div class="card">
-	<form onsubmit={salvar}>
-		<div class="form-row">
-			<div class="form-group">
-				<label for="nome">Nome completo</label>
-				<input id="nome" type="text" bind:value={nome} required />
-			</div>
-			<div class="form-group">
-				<label for="matricula">Matrícula</label>
-				<input id="matricula" type="text" bind:value={matricula} required />
-			</div>
+<div class="card p-6">
+	<form onsubmit={salvar} class="space-y-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<label class="label">
+				<span class="label-text">Nome completo</span>
+				<input class="input" type="text" bind:value={nome} required />
+			</label>
+			<label class="label">
+				<span class="label-text">Matrícula</span>
+				<input class="input" type="text" bind:value={matricula} required />
+			</label>
 		</div>
-		<div class="form-row">
-			<div class="form-group">
-				<label for="cargo">Cargo</label>
-				<select id="cargo" bind:value={cargo}>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<label class="label">
+				<span class="label-text">Cargo</span>
+				<select class="select" bind:value={cargo}>
 					<option value="DPC">DPC - Delegado de Polícia Civil</option>
 					<option value="OIP">OIP - Oficial Investigador de Polícia</option>
 				</select>
-			</div>
-			<div class="form-group">
-				<label for="telefone">Telefone</label>
-				<input id="telefone" type="text" bind:value={telefone} placeholder="(00) 0.0000-0000" />
-			</div>
+			</label>
+			<label class="label">
+				<span class="label-text">Telefone</span>
+				<input class="input" type="text" bind:value={telefone} placeholder="(00) 0.0000-0000" />
+			</label>
 		</div>
-		<div class="form-group">
-			<label for="lotacao">Lotação</label>
+		<label class="label">
+			<span class="label-text">Lotação</span>
 			{#if isAdmin}
-				<input id="lotacao" type="text" bind:value={lotacao} required placeholder="Ex: DELEGACIA DE POLÍCIA CIVIL DE ICÓ" />
+				<input class="input" type="text" bind:value={lotacao} required placeholder="Ex: DELEGACIA DE POLÍCIA CIVIL DE ICÓ" />
 			{:else}
-				<input id="lotacao" type="text" value={lotacao} readonly style="background: #f3f4f6; cursor: not-allowed;" />
+				<input class="input bg-surface-100 cursor-not-allowed" type="text" value={lotacao} readonly />
 			{/if}
-		</div>
-		<div class="actions" style="margin-top: 1rem;">
-			<button type="submit" class="btn btn-primary" disabled={saving}>
+		</label>
+		<div class="flex gap-3 pt-2">
+			<button type="submit" class="btn preset-filled-primary-500" disabled={saving}>
 				{saving ? 'Salvando...' : 'Cadastrar'}
 			</button>
-			<a href="/policiais" class="btn btn-outline">Cancelar</a>
+			<a href="/policiais" class="btn preset-outlined-primary-500">Cancelar</a>
 		</div>
 	</form>
 </div>

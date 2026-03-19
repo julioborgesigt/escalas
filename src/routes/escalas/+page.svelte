@@ -51,27 +51,27 @@
 	if (!(e.target as HTMLElement).closest('.export-wrapper')) exportMenuId = null;
 }} />
 
-<div class="page-header">
-	<h1>Escalas de Plantão</h1>
-	<a href="/escalas/nova" class="btn btn-primary">Nova Escala</a>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+	<h1 class="h1 text-xl font-bold">Escalas de Plantão</h1>
+	<a href="/escalas/nova" class="btn preset-filled-primary-500">Nova Escala</a>
 </div>
 
 {#if message}
-	<div class="alert alert-success">{message}</div>
+	<aside class="preset-tonal-success p-3 rounded-lg text-sm mb-4">{message}</aside>
 {/if}
 
-<div class="card">
+<div class="card p-4 sm:p-6">
 	{#if loading}
-		<p style="text-align: center; padding: 2rem; color: var(--text-light);">Carregando...</p>
+		<p class="text-center py-8 text-surface-500">Carregando...</p>
 	{:else if escalas.length === 0}
-		<div class="empty-state">
-			<p>Nenhuma escala criada.</p>
-			<a href="/escalas/nova" class="btn btn-primary">Criar Escala</a>
+		<div class="text-center py-12 text-surface-500">
+			<p class="mb-4">Nenhuma escala criada.</p>
+			<a href="/escalas/nova" class="btn preset-filled-primary-500">Criar Escala</a>
 		</div>
 	{:else}
 		<!-- Desktop: tabela -->
-		<div class="table-wrapper">
-			<table>
+		<div class="hidden md:block table-wrap">
+			<table class="table">
 				<thead>
 					<tr>
 						<th>Título</th>
@@ -84,17 +84,17 @@
 				<tbody>
 					{#each escalas as esc}
 						<tr>
-							<td><a href="/escalas/{esc.id}">{esc.titulo}</a></td>
+							<td><a href="/escalas/{esc.id}" class="anchor">{esc.titulo}</a></td>
 							<td>{esc.cidade}</td>
-							<td>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
+							<td class="whitespace-nowrap">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
 							<td>{esc.horario}</td>
 							<td>
-								<div class="action-buttons">
-									<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
-									<div class="export-wrapper">
-										<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+								<div class="flex gap-2 items-center flex-wrap">
+									<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Gerenciar</a>
+									<div class="export-wrapper relative inline-block">
+										<button class="btn btn-sm preset-outlined-primary-500" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
 									</div>
-									<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+									<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 								</div>
 							</td>
 						</tr>
@@ -104,30 +104,30 @@
 		</div>
 
 		<!-- Mobile: cards -->
-		<div class="mobile-list">
+		<div class="md:hidden space-y-3">
 			{#each escalas as esc}
-				<div class="mobile-card">
-					<a href="/escalas/{esc.id}" class="mobile-card-title">{esc.titulo}</a>
-					<div class="mobile-card-details">
-						<div class="mobile-card-row">
-							<span class="mobile-label">Cidade</span>
+				<div class="card border border-surface-200 p-4">
+					<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block mb-3">{esc.titulo}</a>
+					<div class="space-y-1 mb-3 text-sm">
+						<div class="flex justify-between">
+							<span class="text-surface-500 font-medium">Cidade</span>
 							<span>{esc.cidade}</span>
 						</div>
-						<div class="mobile-card-row">
-							<span class="mobile-label">Período</span>
+						<div class="flex justify-between">
+							<span class="text-surface-500 font-medium">Período</span>
 							<span>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span>
 						</div>
-						<div class="mobile-card-row">
-							<span class="mobile-label">Horário</span>
+						<div class="flex justify-between">
+							<span class="text-surface-500 font-medium">Horário</span>
 							<span>{esc.horario}</span>
 						</div>
 					</div>
-					<div class="mobile-card-actions">
-						<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
-						<div class="export-wrapper">
-							<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+					<div class="flex gap-2 flex-wrap pt-3 border-t border-surface-200">
+						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Gerenciar</a>
+						<div class="export-wrapper relative inline-block">
+							<button class="btn btn-sm preset-outlined-primary-500" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
 						</div>
-						<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+						<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 					</div>
 				</div>
 			{/each}
@@ -137,163 +137,11 @@
 
 {#if exportMenuId !== null}
 	{@const escId = exportMenuId}
-	<div class="export-menu" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
-		<button onclick={() => download(escId, 'docx')}>Word (.docx)</button>
-		<button onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
-		<button onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
-		<button onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
-		<button onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
+	<div class="fixed z-50 bg-surface-50 border border-surface-200 rounded-lg shadow-xl min-w-[150px]" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
+		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary rounded-t-lg" onclick={() => download(escId, 'docx')}>Word (.docx)</button>
+		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
+		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
+		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary" onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
+		<button class="block w-full px-3 py-2 text-left text-sm hover:preset-tonal-primary rounded-b-lg" onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
 	</div>
 {/if}
-
-<style>
-	/* === TABELA DESKTOP === */
-	.table-wrapper {
-		display: block;
-	}
-
-	.table-wrapper table {
-		table-layout: fixed;
-		width: 100%;
-	}
-
-	.table-wrapper table th:nth-child(1),
-	.table-wrapper table td:nth-child(1) {
-		width: 30%;
-	}
-
-	.table-wrapper table th:nth-child(2),
-	.table-wrapper table td:nth-child(2) {
-		width: 20%;
-	}
-
-	.table-wrapper table th:nth-child(3),
-	.table-wrapper table td:nth-child(3) {
-		width: 15%;
-	}
-
-	.table-wrapper table th:nth-child(4),
-	.table-wrapper table td:nth-child(4) {
-		width: 10%;
-	}
-
-	.table-wrapper table th:nth-child(5),
-	.table-wrapper table td:nth-child(5) {
-		width: 25%;
-	}
-
-	.table-wrapper table td {
-		vertical-align: middle;
-	}
-
-	.action-buttons {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-		flex-wrap: wrap;
-	}
-
-	/* === MOBILE CARDS === */
-	.mobile-list {
-		display: none;
-	}
-
-	.mobile-card {
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		padding: 1rem;
-		margin-bottom: 0.75rem;
-	}
-
-	.mobile-card:last-child {
-		margin-bottom: 0;
-	}
-
-	.mobile-card-title {
-		display: block;
-		font-weight: 600;
-		font-size: 0.95rem;
-		margin-bottom: 0.75rem;
-		color: var(--primary);
-	}
-
-	.mobile-card-details {
-		margin-bottom: 0.75rem;
-	}
-
-	.mobile-card-row {
-		display: flex;
-		justify-content: space-between;
-		padding: 0.25rem 0;
-		font-size: 0.85rem;
-		border-bottom: 1px solid #f3f4f6;
-	}
-
-	.mobile-card-row:last-child {
-		border-bottom: none;
-	}
-
-	.mobile-label {
-		font-weight: 500;
-		color: var(--text-light);
-	}
-
-	.mobile-card-actions {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-		padding-top: 0.5rem;
-		border-top: 1px solid var(--border);
-	}
-
-	/* === EXPORT DROPDOWN === */
-	.export-wrapper {
-		position: relative;
-		display: inline-block;
-	}
-
-	.export-menu {
-		position: fixed;
-		z-index: 100;
-		background: white;
-		border: 1px solid var(--border);
-		border-radius: 0.375rem;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-		min-width: 150px;
-	}
-
-	.export-menu button {
-		display: block;
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		border: none;
-		background: none;
-		text-align: left;
-		font-size: 0.85rem;
-		cursor: pointer;
-		color: var(--text);
-	}
-
-	.export-menu button:hover {
-		background: #f3f4f6;
-	}
-
-	.export-menu button:first-child {
-		border-radius: 0.375rem 0.375rem 0 0;
-	}
-
-	.export-menu button:last-child {
-		border-radius: 0 0 0.375rem 0.375rem;
-	}
-
-	/* === RESPONSIVO === */
-	@media (max-width: 768px) {
-		.table-wrapper {
-			display: none;
-		}
-
-		.mobile-list {
-			display: block;
-		}
-	}
-</style>

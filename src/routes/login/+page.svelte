@@ -36,24 +36,23 @@
 	<title>Login - Escalas de Plantão</title>
 </svelte:head>
 
-<div class="login-container">
-	<div class="login-card">
-		<div class="login-header">
-			<h1>Escalas de Plantão</h1>
-			<p>Faça login para acessar o sistema</p>
+<div class="min-h-screen flex items-center justify-center p-4">
+	<div class="card p-6 sm:p-8 w-full max-w-sm shadow-xl">
+		<div class="text-center mb-6">
+			<h1 class="h1 text-xl font-bold mb-1">Escalas de Plantão</h1>
+			<p class="text-surface-500 text-sm">Faça login para acessar o sistema</p>
 		</div>
 
-		<div class="tipo-toggle">
+		<!-- Toggle Policial/Admin -->
+		<div class="flex mb-6 border border-surface-300 rounded-lg overflow-hidden">
 			<button
-				class="tipo-btn"
-				class:active={tipo === 'policial'}
+				class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
 				onclick={() => { tipo = 'policial'; error = ''; }}
 			>
 				Policial
 			</button>
 			<button
-				class="tipo-btn"
-				class:active={tipo === 'admin'}
+				class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin' ? 'preset-filled-primary-500' : 'text-surface-500'}"
 				onclick={() => { tipo = 'admin'; error = ''; }}
 			>
 				Administrador
@@ -61,122 +60,43 @@
 		</div>
 
 		{#if error}
-			<div class="alert alert-error">{error}</div>
+			<aside class="alert preset-filled-error-500 mb-4 p-3 rounded-lg text-sm">{error}</aside>
 		{/if}
 
-		<form onsubmit={login}>
-			<div class="form-group">
-				<label for="matricula">
-					{tipo === 'admin' ? 'Login' : 'Matrícula'}
-				</label>
+		<form onsubmit={login} class="space-y-4">
+			<label class="label">
+				<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 				<input
-					id="matricula"
+					class="input"
 					type="text"
 					bind:value={matricula}
 					placeholder={tipo === 'admin' ? 'Digite seu login' : 'Digite sua matrícula (8 caracteres)'}
 					maxlength={tipo === 'admin' ? undefined : 8}
 					required
 				/>
-			</div>
+			</label>
 
-			<div class="form-group">
-				<label for="senha">Senha</label>
+			<label class="label">
+				<span class="label-text">Senha</span>
 				<input
-					id="senha"
+					class="input"
 					type="password"
 					bind:value={senha}
 					placeholder="Digite sua senha"
 					maxlength="8"
 					required
 				/>
-			</div>
+			</label>
 
-			<button type="submit" class="btn btn-primary btn-block" disabled={loading}>
+			<button type="submit" class="btn preset-filled-primary-500 w-full py-3" disabled={loading}>
 				{loading ? 'Entrando...' : 'Entrar'}
 			</button>
 		</form>
 
 		{#if tipo === 'policial'}
-			<p class="login-hint">
+			<p class="text-center mt-4 text-xs text-surface-500">
 				Senha inicial: <strong>12345678</strong> (será solicitada a troca no primeiro acesso)
 			</p>
 		{/if}
 	</div>
 </div>
-
-<style>
-	.login-container {
-		min-height: 100vh;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--bg);
-		padding: 1rem;
-	}
-
-	.login-card {
-		background: var(--card-bg);
-		border-radius: 12px;
-		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-		padding: 2rem;
-		width: 100%;
-		max-width: 400px;
-	}
-
-	.login-header {
-		text-align: center;
-		margin-bottom: 1.5rem;
-	}
-
-	.login-header h1 {
-		color: var(--primary-dark);
-		font-size: 1.5rem;
-		margin-bottom: 0.25rem;
-	}
-
-	.login-header p {
-		color: var(--text-light);
-		font-size: 0.9rem;
-	}
-
-	.tipo-toggle {
-		display: flex;
-		gap: 0;
-		margin-bottom: 1.5rem;
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		overflow: hidden;
-	}
-
-	.tipo-btn {
-		flex: 1;
-		padding: 0.5rem;
-		border: none;
-		background: transparent;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		color: var(--text-light);
-		transition: all 0.2s;
-	}
-
-	.tipo-btn.active {
-		background: var(--primary);
-		color: white;
-	}
-
-	.btn-block {
-		width: 100%;
-		justify-content: center;
-		padding: 0.75rem;
-		font-size: 1rem;
-		margin-top: 0.5rem;
-	}
-
-	.login-hint {
-		text-align: center;
-		margin-top: 1rem;
-		font-size: 0.8rem;
-		color: var(--text-light);
-	}
-</style>
