@@ -69,7 +69,8 @@
 			<a href="/escalas/nova" class="btn btn-primary">Criar Escala</a>
 		</div>
 	{:else}
-		<div style="overflow-x: auto; overflow-y: visible; position: relative;">
+		<!-- Desktop: tabela -->
+		<div class="table-wrapper">
 			<table>
 				<thead>
 					<tr>
@@ -87,17 +88,49 @@
 							<td>{esc.cidade}</td>
 							<td>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
 							<td>{esc.horario}</td>
-							<td class="actions">
-								<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
-								<div class="export-wrapper">
-									<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+							<td>
+								<div class="action-buttons">
+									<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
+									<div class="export-wrapper">
+										<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+									</div>
+									<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 								</div>
-								<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 							</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
+		</div>
+
+		<!-- Mobile: cards -->
+		<div class="mobile-list">
+			{#each escalas as esc}
+				<div class="mobile-card">
+					<a href="/escalas/{esc.id}" class="mobile-card-title">{esc.titulo}</a>
+					<div class="mobile-card-details">
+						<div class="mobile-card-row">
+							<span class="mobile-label">Cidade</span>
+							<span>{esc.cidade}</span>
+						</div>
+						<div class="mobile-card-row">
+							<span class="mobile-label">Período</span>
+							<span>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span>
+						</div>
+						<div class="mobile-card-row">
+							<span class="mobile-label">Horário</span>
+							<span>{esc.horario}</span>
+						</div>
+					</div>
+					<div class="mobile-card-actions">
+						<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
+						<div class="export-wrapper">
+							<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
+						</div>
+						<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
+					</div>
+				</div>
+			{/each}
 		</div>
 	{/if}
 </div>
@@ -114,12 +147,106 @@
 {/if}
 
 <style>
-	table tbody td {
-		vertical-align: top;
-		padding-top: 0.75rem;
-		padding-bottom: 0.75rem;
+	/* === TABELA DESKTOP === */
+	.table-wrapper {
+		display: block;
 	}
 
+	.table-wrapper table {
+		table-layout: fixed;
+		width: 100%;
+	}
+
+	.table-wrapper table th:nth-child(1),
+	.table-wrapper table td:nth-child(1) {
+		width: 30%;
+	}
+
+	.table-wrapper table th:nth-child(2),
+	.table-wrapper table td:nth-child(2) {
+		width: 20%;
+	}
+
+	.table-wrapper table th:nth-child(3),
+	.table-wrapper table td:nth-child(3) {
+		width: 15%;
+	}
+
+	.table-wrapper table th:nth-child(4),
+	.table-wrapper table td:nth-child(4) {
+		width: 10%;
+	}
+
+	.table-wrapper table th:nth-child(5),
+	.table-wrapper table td:nth-child(5) {
+		width: 25%;
+	}
+
+	.table-wrapper table td {
+		vertical-align: middle;
+	}
+
+	.action-buttons {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	/* === MOBILE CARDS === */
+	.mobile-list {
+		display: none;
+	}
+
+	.mobile-card {
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.mobile-card:last-child {
+		margin-bottom: 0;
+	}
+
+	.mobile-card-title {
+		display: block;
+		font-weight: 600;
+		font-size: 0.95rem;
+		margin-bottom: 0.75rem;
+		color: var(--primary);
+	}
+
+	.mobile-card-details {
+		margin-bottom: 0.75rem;
+	}
+
+	.mobile-card-row {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.25rem 0;
+		font-size: 0.85rem;
+		border-bottom: 1px solid #f3f4f6;
+	}
+
+	.mobile-card-row:last-child {
+		border-bottom: none;
+	}
+
+	.mobile-label {
+		font-weight: 500;
+		color: var(--text-light);
+	}
+
+	.mobile-card-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--border);
+	}
+
+	/* === EXPORT DROPDOWN === */
 	.export-wrapper {
 		position: relative;
 		display: inline-block;
@@ -157,5 +284,16 @@
 
 	.export-menu button:last-child {
 		border-radius: 0 0 0.375rem 0.375rem;
+	}
+
+	/* === RESPONSIVO === */
+	@media (max-width: 768px) {
+		.table-wrapper {
+			display: none;
+		}
+
+		.mobile-list {
+			display: block;
+		}
 	}
 </style>
