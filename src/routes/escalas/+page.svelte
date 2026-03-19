@@ -5,6 +5,7 @@
 	let loading = $state(true);
 	let message = $state('');
 	let exportMenuId = $state<number | null>(null);
+	let exportMenuPos = $state({ top: 0, left: 0 });
 
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
@@ -32,8 +33,15 @@
 		exportMenuId = null;
 	}
 
-	function toggleExportMenu(id: number) {
-		exportMenuId = exportMenuId === id ? null : id;
+	function toggleExportMenu(id: number, e: MouseEvent) {
+		if (exportMenuId === id) {
+			exportMenuId = null;
+			return;
+		}
+		const btn = e.currentTarget as HTMLElement;
+		const rect = btn.getBoundingClientRect();
+		exportMenuPos = { top: rect.bottom + 4, left: rect.left };
+		exportMenuId = id;
 	}
 
 	$effect(() => { carregar(); });
@@ -61,7 +69,7 @@
 			<a href="/escalas/nova" class="btn btn-primary">Criar Escala</a>
 		</div>
 	{:else}
-		<div style="overflow-x: auto;">
+		<div style="overflow-x: auto; overflow-y: visible; position: relative;">
 			<table>
 				<thead>
 					<tr>
@@ -82,16 +90,7 @@
 							<td class="actions">
 								<a href="/escalas/{esc.id}" class="btn btn-outline btn-sm">Gerenciar</a>
 								<div class="export-wrapper">
-									<button class="btn btn-outline btn-sm" onclick={() => toggleExportMenu(esc.id)}>Exportar ▾</button>
-									{#if exportMenuId === esc.id}
-										<div class="export-menu">
-											<button onclick={() => download(esc.id, 'docx')}>Word (.docx)</button>
-											<button onclick={() => download(esc.id, 'odt')}>ODT (.odt)</button>
-											<button onclick={() => download(esc.id, 'xlsx')}>Excel (.xlsx)</button>
-											<button onclick={() => download(esc.id, 'ods')}>ODS (.ods)</button>
-											<button onclick={() => download(esc.id, 'pdf')}>PDF (.pdf)</button>
-										</div>
-									{/if}
+									<button class="btn btn-outline btn-sm" onclick={(e) => toggleExportMenu(esc.id, e)}>Exportar ▾</button>
 								</div>
 								<button class="btn btn-danger btn-sm" onclick={() => excluir(esc.id, esc.titulo)}>Excluir</button>
 							</td>
@@ -103,23 +102,39 @@
 	{/if}
 </div>
 
+{#if exportMenuId !== null}
+	{@const escId = exportMenuId}
+	<div class="export-menu" style="top: {exportMenuPos.top}px; left: {exportMenuPos.left}px;">
+		<button onclick={() => download(escId, 'docx')}>Word (.docx)</button>
+		<button onclick={() => download(escId, 'odt')}>ODT (.odt)</button>
+		<button onclick={() => download(escId, 'xlsx')}>Excel (.xlsx)</button>
+		<button onclick={() => download(escId, 'ods')}>ODS (.ods)</button>
+		<button onclick={() => download(escId, 'pdf')}>PDF (.pdf)</button>
+	</div>
+{/if}
+
 <style>
+	table tbody tr {
+		height: 3.5rem;
+	}
+
+	table tbody td {
+		vertical-align: middle;
+	}
+
 	.export-wrapper {
 		position: relative;
 		display: inline-block;
 	}
 
 	.export-menu {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		z-index: 10;
+		position: fixed;
+		z-index: 100;
 		background: white;
 		border: 1px solid var(--border);
 		border-radius: 0.375rem;
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 		min-width: 150px;
-		margin-top: 0.25rem;
 	}
 
 	.export-menu button {
