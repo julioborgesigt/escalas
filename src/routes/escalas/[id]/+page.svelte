@@ -91,7 +91,7 @@
 		const [escalaRes, policiaisRes, todosRes] = await Promise.all([
 			fetch(`/api/escalas`).then(r => r.json()),
 			fetch(`/api/escalas/${id}/policiais`).then(r => r.json()),
-			fetch('/api/policiais').then(r => r.json())
+			fetch('/api/policiais?todos=1').then(r => r.json())
 		]);
 
 		escala = (escalaRes as Escala[]).find((e: Escala) => e.id === Number(id)) || null;
