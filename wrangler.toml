@@ -5,4 +5,4 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 [[d1_databases]]
 binding = "escalas_db"
 database_name = "escalas-db"
-database_id = "placeholder-id"
+database_id = "dc86ec72-7ed4-4e8c-9d29-67a4e509ea49"
