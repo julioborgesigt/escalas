@@ -237,30 +237,51 @@
 	{/if}
 
 	<div class="card">
-		<h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Adicionar Policial à Escala</h3>
+		<h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Adicionar DPC à Escala</h3>
 		<form onsubmit={adicionar}>
 			<div class="form-row" style="grid-template-columns: 1fr 1fr auto; align-items: end;">
 				<div class="form-group">
-					<label for="policial">Policial</label>
-					<select id="policial" bind:value={policialId} required>
+					<label for="policial-dpc">Delegado</label>
+					<select id="policial-dpc" bind:value={policialId} required>
 						<option value="">Selecione...</option>
-						{@const dpcs = todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome))}
-						{@const oips = todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome))}
-						<optgroup label="DPC - Delegados">
-							{#each dpcs as p}
-								<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
-							{/each}
-						</optgroup>
-						<optgroup label="OIP - Oficiais Investigadores">
-							{#each oips as p}
-								<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
-							{/each}
-						</optgroup>
+						{#each todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome)) as p}
+							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
+						{/each}
 					</select>
 				</div>
 				<div class="form-group">
-					<label for="data_plantao">Data do plantão</label>
-					<select id="data_plantao" bind:value={dataPlantao} required>
+					<label for="data_plantao_dpc">Data do plantão</label>
+					<select id="data_plantao_dpc" bind:value={dataPlantao} required>
+						{#each datasDoPlantao(escala) as d}
+							<option value={d}>{formatarData(d)}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="form-group">
+					<button type="submit" class="btn btn-primary" disabled={adding}>
+						{adding ? 'Adicionando...' : 'Adicionar'}
+					</button>
+				</div>
+			</div>
+		</form>
+	</div>
+
+	<div class="card">
+		<h3 style="margin-bottom: 0.75rem; font-size: 1rem;">Adicionar OIP à Escala</h3>
+		<form onsubmit={adicionar}>
+			<div class="form-row" style="grid-template-columns: 1fr 1fr auto; align-items: end;">
+				<div class="form-group">
+					<label for="policial-oip">Oficial Investigador</label>
+					<select id="policial-oip" bind:value={policialId} required>
+						<option value="">Selecione...</option>
+						{#each todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome)) as p}
+							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="data_plantao_oip">Data do plantão</label>
+					<select id="data_plantao_oip" bind:value={dataPlantao} required>
 						{#each datasDoPlantao(escala) as d}
 							<option value={d}>{formatarData(d)}</option>
 						{/each}
