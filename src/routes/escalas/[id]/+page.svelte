@@ -244,9 +244,18 @@
 					<label for="policial">Policial</label>
 					<select id="policial" bind:value={policialId} required>
 						<option value="">Selecione...</option>
-						{#each todosOsPoliciais as p}
-							<option value={String(p.id)}>{p.nome} ({p.cargo}) - {p.lotacao}</option>
-						{/each}
+						{@const dpcs = todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome))}
+						{@const oips = todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome))}
+						<optgroup label="DPC - Delegados">
+							{#each dpcs as p}
+								<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
+							{/each}
+						</optgroup>
+						<optgroup label="OIP - Oficiais Investigadores">
+							{#each oips as p}
+								<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
+							{/each}
+						</optgroup>
 					</select>
 				</div>
 				<div class="form-group">
