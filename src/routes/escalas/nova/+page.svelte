@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
+	import type { Escala } from '$lib/types';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -11,7 +13,6 @@
 	let dataFim = $state('');
 	let horaEntrada = $state('08');
 	let horaSaida = $state('08');
-	let error = $state('');
 	let saving = $state(false);
 	let lotacoes = $state<string[]>([]);
 	let lotacaoEscala = $state('');
@@ -37,7 +38,6 @@
 	async function salvar(e: Event) {
 		e.preventDefault();
 		saving = true;
-		error = '';
 
 		const res = await fetch('/api/escalas', {
 			method: 'POST',
@@ -56,10 +56,11 @@
 
 		if (res.ok) {
 			const data = await res.json();
+			toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 			goto(`/escalas/${data.id}`);
 		} else {
 			const data = await res.json();
-			error = data.error || 'Erro ao criar escala';
+			toaster.create({ title: data.error || 'Erro ao criar', type: 'error' });
 		}
 		saving = false;
 	}
@@ -82,10 +83,6 @@
 	<h1 class="h1 text-xl font-bold">Nova Escala</h1>
 	<a href="/escalas" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
-
-{#if error}
-	<aside class="preset-filled-error-500 p-3 rounded-lg text-sm mb-4">{error}</aside>
-{/if}
 
 <div class="card p-6">
 	<form onsubmit={salvar} class="space-y-4">

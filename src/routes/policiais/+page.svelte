@@ -1,16 +1,19 @@
 <script lang="ts">
 	import type { Policial } from '$lib/types';
 	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	const usuario = $derived($page.data.usuario);
 	const isAdmin = $derived(usuario?.tipo === 'admin');
 
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
-	let message = $state('');
-	let messageType = $state<'success' | 'error'>('success');
 	let filtroLotacao = $state('');
 	let lotacoes = $state<string[]>([]);
+
+	let dialogOpen = $state(false);
+	let policialParaExcluir = $state<{id: number, nome: string} | null>(null);
 
 	async function carregarPoliciais() {
 		loading = true;
@@ -26,17 +29,27 @@
 		lotacoes = [...new Set(todos.map(p => p.lotacao))].sort();
 	}
 
-	async function excluir(id: number, nome: string) {
-		if (!confirm(`Excluir ${nome}?`)) return;
+	function solicitarExclusao(id: number, nome: string) {
+		policialParaExcluir = { id, nome };
+		dialogOpen = true;
+	}
+
+	async function confirmarExclusao() {
+		if (!policialParaExcluir) return;
+		
+		const id = policialParaExcluir.id;
+		const nome = policialParaExcluir.nome;
+		dialogOpen = false;
+
 		const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
 		if (res.ok) {
-			message = `${nome} excluído com sucesso`;
-			messageType = 'success';
+			toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
 			carregarPoliciais();
 		} else {
-			message = 'Erro ao excluir';
-			messageType = 'error';
+			const data = await res.json();
+			toaster.create({ title: data.error || 'Erro ao remover', type: 'error' });
 		}
+		policialParaExcluir = null;
 	}
 
 	$effect(() => {
@@ -50,19 +63,32 @@
 	});
 </script>
 
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-	<h1 class="h1 text-xl font-bold">Policiais Cadastrados</h1>
+<div class="flex items-center justify-between mb-6">
+	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>
 	<div class="flex gap-2">
-		<a href="/policiais/upload" class="btn preset-outlined-primary-500">Importar Planilha</a>
+		{#if isAdmin}
+			<a href="/policiais/upload" class="btn preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a>
+		{/if}
 		<a href="/policiais/novo" class="btn preset-filled-primary-500">Novo Policial</a>
 	</div>
 </div>
 
-{#if message}
-	<aside class="p-3 rounded-lg text-sm mb-4 {messageType === 'success' ? 'preset-tonal-success' : 'preset-filled-error-500'}">{message}</aside>
-{/if}
+<Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-2">Excluir Policial?</Dialog.Title>
+			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+				Tem certeza que deseja excluir o policial "{policialParaExcluir?.nome}" do sistema de cadastro?
+			</Dialog.Description>
+			<div class="flex justify-end gap-3">
+				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog>
 
-<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20">
+<div class="p-6 rounded-3xl bg-surface-900/60 backdrop-blur-md border border-white/5 shadow-xl shadow-black/20 overflow-hidden mt-6">
 	{#if isAdmin}
 		<label class="label max-w-xs mb-4">
 			<span class="label-text">Filtrar por lotação</span>
@@ -108,9 +134,9 @@
 							<td>{p.lotacao}</td>
 							<td>
 								<div class="flex gap-2">
-									<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500">Editar</a>
-									<button class="btn btn-sm preset-filled-error-500" onclick={() => excluir(p.id, p.nome)}>Excluir</button>
-								</div>
+										<a href="/policiais/{p.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Editar</a>
+										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
+									</div>
 							</td>
 						</tr>
 					{/each}
@@ -142,7 +168,7 @@
 					</div>
 					<div class="flex gap-2 pt-3 border-t border-white/5">
 						<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 hover:-translate-y-0.5 transition-all">Editar</a>
-						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => excluir(p.id, p.nome)}>Excluir</button>
+						<button class="btn btn-sm preset-filled-error-500 hover:-translate-y-0.5 transition-all" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
 					</div>
 				</div>
 			{/each}

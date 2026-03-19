@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { toaster } from '$lib/toast';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -8,14 +10,15 @@
 	let policiaisEscala = $state<EscalaPolicialComDados[]>([]);
 	let todosOsPoliciais = $state<Policial[]>([]);
 	let loading = $state(true);
-	let message = $state('');
-	let messageType = $state<'success' | 'error'>('success');
 
 	let dpcId = $state('');
 	let oipId = $state('');
 	let policialId = $derived(dpcId || oipId);
 	let dataPlantao = $state('');
 	let adding = $state(false);
+
+	let dialogOpen = $state(false);
+	let policialParaRemover = $state<{itemId: number, nome: string} | null>(null);
 
 	let editingId = $state<number | null>(null);
 	let editDataEntrada = $state('');
@@ -125,14 +128,12 @@
 		});
 
 		if (res.ok) {
-			message = 'Policial adicionado à escala';
-			messageType = 'success';
+			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 			dpcId = '';
 			oipId = '';
 			carregar();
 		} else {
-			message = 'Erro ao adicionar';
-			messageType = 'error';
+			toaster.create({ title: 'Erro ao adicionar', type: 'error' });
 		}
 		adding = false;
 	}
@@ -177,14 +178,24 @@
 		editingId = null;
 	}
 
-	async function remover(itemId: number, nome: string) {
-		if (!confirm(`Remover ${nome} desta escala?`)) return;
+	function solicitarRemocao(itemId: number, nome: string) {
+		policialParaRemover = { itemId, nome };
+		dialogOpen = true;
+	}
+
+	async function confirmarRemocao() {
+		if (!policialParaRemover) return;
+		
+		const itemId = policialParaRemover.itemId;
+		const nome = policialParaRemover.nome;
+		dialogOpen = false;
+
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais?item_id=${itemId}`, { method: 'DELETE' });
 		if (res.ok) {
-			message = `${nome} removido da escala`;
-			messageType = 'success';
+			toaster.create({ title: `${nome} removido da escala`, type: 'success' });
 			carregar();
 		}
+		policialParaRemover = null;
 	}
 
 	function download(format: string) {
@@ -219,9 +230,20 @@
 		<a href="/escalas" class="btn preset-outlined-primary-500 shrink-0">Voltar</a>
 	</div>
 
-	{#if message}
-		<aside class="p-3 rounded-lg text-sm mb-4 {messageType === 'success' ? 'preset-tonal-success' : 'preset-filled-error-500'}">{message}</aside>
-	{/if}
+	<Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+			<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+				<Dialog.Title class="h3 font-bold mb-2">Remover Policial?</Dialog.Title>
+				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+					Tem certeza que deseja remover o policial "{policialParaRemover?.nome}" desta escala?
+				</Dialog.Description>
+				<div class="flex justify-end gap-3">
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<button class="btn preset-filled-error-500" onclick={confirmarRemocao}>Remover</button>
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
 
 	<!-- Export buttons -->
 	{#if policiaisEscala.length > 0}
@@ -347,7 +369,7 @@
 										</td>
 									{/if}
 									<td>
-										<button class="btn btn-sm preset-filled-error-500" onclick={() => remover(p.id, p.nome)}>Remover</button>
+										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
 									</td>
 								</tr>
 							{/each}
@@ -423,7 +445,7 @@
 						{/if}
 
 						<div class="flex justify-end">
-							<button class="btn btn-sm preset-filled-error-500" onclick={() => remover(p.id, p.nome)}>Remover</button>
+							<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
 						</div>
 					</div>
 				{/each}

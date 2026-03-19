@@ -1,7 +1,8 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
-	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import { AppBar, Toast } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '$lib/toast';
 
 	let { children } = $props();
 
@@ -33,6 +34,30 @@
 <svelte:head>
 	<title>Escalas de Plantão Policial</title>
 </svelte:head>
+
+<!-- Global Toast Provider -->
+<Toast.Group {toaster} class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3">
+	{#snippet children(toast)}
+		<Toast {toast} class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 min-w-[300px]">
+			<div class="flex items-center gap-3">
+				{#if toast.type === 'success'}
+					<svg class="w-6 h-6 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+				{:else if toast.type === 'error'}
+					<svg class="w-6 h-6 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+				{/if}
+				<div class="flex-1">
+					<Toast.Title class="font-bold text-sm">{toast.title}</Toast.Title>
+					{#if toast.description}
+						<Toast.Description class="text-xs opacity-75">{toast.description}</Toast.Description>
+					{/if}
+				</div>
+				<Toast.CloseTrigger class="btn-icon btn-sm opacity-50 hover:opacity-100 transition-opacity">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+				</Toast.CloseTrigger>
+			</div>
+		</Toast>
+	{/snippet}
+</Toast.Group>
 
 <!-- Navbar Glassmorphism -->
 <header class="sticky top-0 z-50 bg-surface-50/70 dark:bg-surface-950/70 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/20">
