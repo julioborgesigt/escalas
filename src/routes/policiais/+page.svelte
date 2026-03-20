@@ -1,11 +1,10 @@
 <script lang="ts">
 	import type { Policial } from '$lib/types';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
-	const usuario = $derived($page.data.usuario);
-	const isAdmin = $derived(usuario?.tipo === 'admin');
+	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
@@ -100,7 +99,7 @@
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao}>
 					<option value="">Selecione uma unidade...</option>
-					{#each lotacoes as lot}
+					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
@@ -138,7 +137,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each policiais as p}
+					{#each policiais as p (p.id)}
 						<tr>
 							<td>{p.nome}</td>
 							<td>{p.matricula}</td>
@@ -161,7 +160,7 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#each policiais as p}
+			{#each policiais as p (p.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 					<div class="flex items-center justify-between mb-2">
 						<span class="font-semibold text-sm">{p.nome}</span>
