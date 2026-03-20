@@ -106,6 +106,12 @@
 		loading = false;
 	}
 
+	async function recarregarPoliciais() {
+		const id = $page.params.id;
+		const res = await fetch(`/api/escalas/${id}/policiais`);
+		policiaisEscala = await res.json();
+	}
+
 	async function adicionar(e: Event) {
 		e.preventDefault();
 		if (!policialId || !dataPlantao) return;
@@ -131,7 +137,7 @@
 			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 			dpcId = '';
 			oipId = '';
-			carregar();
+			await recarregarPoliciais();
 		} else {
 			toaster.create({ title: 'Erro ao adicionar', type: 'error' });
 		}
@@ -170,7 +176,7 @@
 
 		if (res.ok) {
 			editingId = null;
-			carregar();
+			await recarregarPoliciais();
 		}
 	}
 
@@ -193,7 +199,7 @@
 		const res = await fetch(`/api/escalas/${$page.params.id}/policiais?item_id=${itemId}`, { method: 'DELETE' });
 		if (res.ok) {
 			toaster.create({ title: `${nome} removido da escala`, type: 'success' });
-			carregar();
+			await recarregarPoliciais();
 		}
 		policialParaRemover = null;
 	}
