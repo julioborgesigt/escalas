@@ -1,23 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 
-	const usuario = $derived($page.data.usuario);
-	const isAdmin = $derived(usuario?.tipo === 'admin');
+	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let nome = $state('');
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
 	let telefone = $state('');
-	let lotacao = $state('');
+	let lotacao = $state(
+		page.data.usuario?.tipo === 'policial' ? (page.data.usuario.lotacao ?? '') : ''
+	);
 	let saving = $state(false);
-
-	$effect(() => {
-		if (usuario?.tipo === 'policial' && usuario.lotacao) {
-			lotacao = usuario.lotacao;
-		}
-	});
 
 	async function salvar(e: Event) {
 		e.preventDefault();

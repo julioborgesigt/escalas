@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala } from '$lib/types';
@@ -13,8 +13,7 @@
 	let dialogOpen = $state(false);
 	let escalaParaExcluir = $state<{id: number, titulo: string} | null>(null);
 
-	const usuario = $derived($page.data.usuario);
-	const isAdmin = $derived(usuario?.tipo === 'admin');
+	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
@@ -55,7 +54,7 @@
 		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
 		if (res.ok) {
 			toaster.create({ title: `Escala de ${titulo} removida`, type: 'success' });
-			carregar();
+			escalas = escalas.filter(e => e.id !== id);
 		} else {
 			toaster.create({ title: 'Erro ao remover', type: 'error' });
 		}
@@ -100,7 +99,7 @@
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao}>
 					<option value="">Selecione uma unidade...</option>
-					{#each lotacoes as lot}
+					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
@@ -137,7 +136,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each escalas as esc}
+					{#each escalas as esc (esc.id)}
 						<tr>
 							<td><a href="/escalas/{esc.id}" class="anchor">{esc.titulo}</a></td>
 							<td>{esc.cidade}</td>
@@ -171,7 +170,7 @@
 
 		<!-- Mobile: cards -->
 		<div class="md:hidden space-y-3">
-			{#each escalas as esc}
+			{#each escalas as esc (esc.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 					<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block mb-3 text-primary-600 dark:text-primary-400 no-underline hover:text-primary-500 dark:hover:text-primary-300">{esc.titulo}</a>
 					<div class="space-y-1 mb-3 text-sm">

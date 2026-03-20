@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { toaster } from '$lib/toast';
+
 	let file = $state<File | null>(null);
 	let uploading = $state(false);
 	let result = $state<{
@@ -7,11 +9,6 @@
 		errors: { row: number; nome: string; message: string }[];
 		total: number;
 	} | null>(null);
-
-	import { enhance } from '$app/forms';
-	import { toaster } from '$lib/toast';
-
-	let { form } = $props();
 
 	function onFileChange(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -93,14 +90,6 @@
 		</p>
 	</div>
 
-	{#if form?.error}
-		{(() => { if (form.error) toaster.create({ title: form.error, type: 'error' }); return ''; })()}
-	{/if}
-
-	{#if form?.success}
-		{(() => { if (form.success) toaster.create({ title: `Upload concluído! ${form.count} policiais importados.`, type: 'success' }); return ''; })()}
-	{/if}
-
 	{#if result}
 		<div class="mb-6">
 			<!-- Summary cards -->
@@ -142,7 +131,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each result.errors as err}
+								{#each result.errors as err (err.row)}
 									<tr>
 										<td class="font-semibold whitespace-nowrap">{err.row}</td>
 										<td>{err.nome}</td>

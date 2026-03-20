@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import type { Policial } from '$lib/types';
 
-	const usuario = $derived($page.data.usuario);
-	const isAdmin = $derived(usuario?.tipo === 'admin');
+	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let policial = $state<Policial | null>(null);
 	let nome = $state('');
@@ -17,7 +16,7 @@
 	let loading = $state(true);
 
 	$effect(() => {
-		const id = $page.params.id;
+		const id = page.params.id;
 		fetch(`/api/policiais/${id}`)
 			.then(r => r.json())
 			.then((data: Policial) => {
@@ -35,7 +34,7 @@
 		e.preventDefault();
 		saving = true;
 
-		const res = await fetch(`/api/policiais/${$page.params.id}`, {
+		const res = await fetch(`/api/policiais/${page.params.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao })
