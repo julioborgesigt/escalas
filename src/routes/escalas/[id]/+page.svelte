@@ -11,11 +11,16 @@
 	let todosOsPoliciais = $state<Policial[]>([]);
 	let loading = $state(true);
 
-	let dpcId = $state('');
-	let oipId = $state('');
-	let policialId = $derived(dpcId || oipId);
+	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
+	let policialId = $state('');
 	let dataPlantao = $state('');
 	let adding = $state(false);
+
+	const policialsFiltrados = $derived(
+		cargoBusca
+			? todosOsPoliciais.filter(p => p.cargo === cargoBusca).sort((a, b) => a.nome.localeCompare(b.nome))
+			: []
+	);
 
 	let dialogOpen = $state(false);
 	let policialParaRemover = $state<{itemId: number, nome: string} | null>(null);
@@ -135,8 +140,8 @@
 
 		if (res.ok) {
 			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
-			dpcId = '';
-			oipId = '';
+			cargoBusca = '';
+			policialId = '';
 			await recarregarPoliciais();
 		} else {
 			toaster.create({ title: 'Erro ao adicionar', type: 'error' });
@@ -271,20 +276,19 @@
 		<form onsubmit={adicionar}>
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
 				<label class="label">
-					<span class="label-text">Delegado</span>
-					<select class="select" bind:value={dpcId} onchange={() => { if (dpcId) oipId = ''; }}>
+					<span class="label-text">Cargo</span>
+					<select class="select" bind:value={cargoBusca} onchange={() => { policialId = ''; }}>
 						<option value="">Selecione...</option>
-						{#each todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome)) as p (p.id)}
-							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
-						{/each}
+						<option value="DPC">DPC - Delegado de Polícia Civil</option>
+						<option value="OIP">OIP - Oficial Investigador de Polícia</option>
 					</select>
 				</label>
 				<label class="label">
-					<span class="label-text">Oficial Investigador</span>
-					<select class="select" bind:value={oipId} onchange={() => { if (oipId) dpcId = ''; }}>
+					<span class="label-text">Servidor</span>
+					<select class="select" bind:value={policialId} disabled={!cargoBusca}>
 						<option value="">Selecione...</option>
-						{#each todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome)) as p (p.id)}
-							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
+						{#each policialsFiltrados as p (p.id)}
+							<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
 						{/each}
 					</select>
 				</label>
@@ -297,7 +301,7 @@
 					</select>
 				</label>
 				<div>
-					<button type="submit" class="btn preset-filled-primary-500 w-full sm:w-auto" disabled={adding || !policialId}>
+					<button type="submit" class="btn preset-filled-primary-500 w-full sm:w-auto" disabled={adding || !policialId || !dataPlantao}>
 						{adding ? 'Adicionando...' : 'Adicionar'}
 					</button>
 				</div>
