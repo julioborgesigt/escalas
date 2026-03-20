@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -7,7 +8,7 @@
 	let error = $state('');
 	let loading = $state(false);
 
-	const primeiroAcesso = $derived($page.data.primeiro_acesso);
+	const primeiroAcesso = $derived(page.data.primeiro_acesso);
 
 	async function alterar(e: Event) {
 		e.preventDefault();
@@ -49,7 +50,7 @@
 			return;
 		}
 
-		window.location.href = '/';
+		goto('/');
 	}
 </script>
 

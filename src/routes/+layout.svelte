@@ -1,18 +1,20 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { AppBar, Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 
 	let { children } = $props();
 
-	const usuario = $derived($page.data.usuario);
+	const usuario = $derived(page.data.usuario);
 	let menuOpen = $state(false);
 	let isDark = $state(true);
 
 	$effect(() => {
 		isDark = document.documentElement.classList.contains('dark');
 	});
+
 
 	function toggleTheme() {
 		isDark = !isDark;
@@ -27,7 +29,8 @@
 
 	async function logout() {
 		await fetch('/api/auth/logout', { method: 'POST' });
-		window.location.href = '/login';
+		await invalidateAll();
+		goto('/login');
 	}
 </script>
 
@@ -60,7 +63,7 @@
 </Toast.Group>
 
 <!-- Navbar Glassmorphism -->
-{#if $page.url.pathname !== '/login' && $page.url.pathname !== '/alterar-senha'}
+{#if page.url.pathname !== '/login' && page.url.pathname !== '/alterar-senha'}
 <header class="sticky top-0 z-50 bg-surface-50/70 dark:bg-surface-950/70 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/20">
 	<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
 		<a href="/" class="flex items-center gap-2 text-surface-900 dark:text-surface-50 font-extrabold text-xl tracking-tight no-underline group">

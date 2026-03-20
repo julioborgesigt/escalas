@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
@@ -87,7 +87,7 @@
 	}
 
 	async function carregar() {
-		const id = $page.params.id;
+		const id = page.params.id;
 		loading = true;
 
 		const [escalaRes, policiaisRes, todosRes] = await Promise.all([
@@ -106,6 +106,12 @@
 		loading = false;
 	}
 
+	async function recarregarPoliciais() {
+		const id = page.params.id;
+		const res = await fetch(`/api/escalas/${id}/policiais`);
+		policiaisEscala = await res.json();
+	}
+
 	async function adicionar(e: Event) {
 		e.preventDefault();
 		if (!policialId || !dataPlantao) return;
@@ -115,7 +121,7 @@
 		const hs = escala?.hora_saida || '08';
 		const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
 
-		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -131,7 +137,7 @@
 			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 			dpcId = '';
 			oipId = '';
-			carregar();
+			await recarregarPoliciais();
 		} else {
 			toaster.create({ title: 'Erro ao adicionar', type: 'error' });
 		}
@@ -156,7 +162,7 @@
 	}
 
 	async function salvarEdicao(itemId: number) {
-		const res = await fetch(`/api/escalas/${$page.params.id}/policiais`, {
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -170,7 +176,7 @@
 
 		if (res.ok) {
 			editingId = null;
-			carregar();
+			await recarregarPoliciais();
 		}
 	}
 
@@ -190,16 +196,16 @@
 		const nome = policialParaRemover.nome;
 		dialogOpen = false;
 
-		const res = await fetch(`/api/escalas/${$page.params.id}/policiais?item_id=${itemId}`, { method: 'DELETE' });
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`, { method: 'DELETE' });
 		if (res.ok) {
 			toaster.create({ title: `${nome} removido da escala`, type: 'success' });
-			carregar();
+			await recarregarPoliciais();
 		}
 		policialParaRemover = null;
 	}
 
 	function download(format: string) {
-		window.open(`/api/escalas/${$page.params.id}/download?format=${format}`, '_blank');
+		window.open(`/api/escalas/${page.params.id}/download?format=${format}`, '_blank');
 	}
 
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
@@ -268,7 +274,7 @@
 					<span class="label-text">Delegado</span>
 					<select class="select" bind:value={dpcId} onchange={() => { if (dpcId) oipId = ''; }}>
 						<option value="">Selecione...</option>
-						{#each todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome)) as p}
+						{#each todosOsPoliciais.filter(p => p.cargo === 'DPC').sort((a, b) => a.nome.localeCompare(b.nome)) as p (p.id)}
 							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
 						{/each}
 					</select>
@@ -277,7 +283,7 @@
 					<span class="label-text">Oficial Investigador</span>
 					<select class="select" bind:value={oipId} onchange={() => { if (oipId) dpcId = ''; }}>
 						<option value="">Selecione...</option>
-						{#each todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome)) as p}
+						{#each todosOsPoliciais.filter(p => p.cargo === 'OIP').sort((a, b) => a.nome.localeCompare(b.nome)) as p (p.id)}
 							<option value={String(p.id)}>{p.nome} - {p.lotacao}</option>
 						{/each}
 					</select>
@@ -285,7 +291,7 @@
 				<label class="label">
 					<span class="label-text">Data do plantão</span>
 					<select class="select" bind:value={dataPlantao} required>
-						{#each datasDoPlantao(escala) as d}
+						{#each datasDoPlantao(escala) as d (d)}
 							<option value={d}>{formatarData(d)}</option>
 						{/each}
 					</select>
@@ -305,7 +311,7 @@
 			<p>Nenhum policial na escala. Adicione policiais acima.</p>
 		</div>
 	{:else}
-		{#each [...agruparPorData(policiaisEscala)] as [, policiais]}
+		{#each [...agruparPorData(policiaisEscala)] as [dataGrupo, policiais] (dataGrupo)}
 			<!-- Desktop table -->
 			<div class="p-0 overflow-hidden mb-4 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 				<div class="table-wrap">
@@ -323,7 +329,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each policiais as p}
+							{#each policiais as p (p.id)}
 								<tr>
 									<td>{p.nome}</td>
 									<td>{p.matricula}</td>
@@ -339,14 +345,14 @@
 													<span class="text-xs font-semibold text-surface-500 w-14">Entrada:</span>
 													<input type="date" bind:value={editDataEntrada} class="input text-sm flex-1 min-w-[120px]" />
 													<select bind:value={editEntrada} class="select text-sm w-16">
-														{#each horas as h}<option value={h}>{h}h</option>{/each}
+														{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 													</select>
 												</div>
 												<div class="flex items-center gap-2">
 													<span class="text-xs font-semibold text-surface-500 w-14">Saída:</span>
 													<input type="date" bind:value={editDataSaida} class="input text-sm flex-1 min-w-[120px]" />
 													<select bind:value={editSaida} class="select text-sm w-16">
-														{#each horas as h}<option value={h}>{h}h</option>{/each}
+														{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 													</select>
 												</div>
 												<p class="text-xs text-surface-500 italic">{editPreviewData()} &bull; {editEntrada}H A {editSaida}H</p>
@@ -380,7 +386,7 @@
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3 mb-4">
-				{#each policiais as p}
+				{#each policiais as p (p.id)}
 				<div class="p-4 mb-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 						<div class="flex items-center justify-between mb-2">
 							<span class="font-semibold text-sm">{p.nome}</span>
@@ -411,7 +417,7 @@
 									<label class="label">
 										<span class="label-text text-xs">Hora entrada</span>
 										<select bind:value={editEntrada} class="select text-sm">
-											{#each horas as h}<option value={h}>{h}h</option>{/each}
+											{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 										</select>
 									</label>
 								</div>
@@ -423,7 +429,7 @@
 									<label class="label">
 										<span class="label-text text-xs">Hora saída</span>
 										<select bind:value={editSaida} class="select text-sm">
-											{#each horas as h}<option value={h}>{h}h</option>{/each}
+											{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 										</select>
 									</label>
 								</div>
