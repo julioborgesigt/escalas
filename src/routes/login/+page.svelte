@@ -2,7 +2,7 @@
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
 	let senha = $state('');
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 
 	let loading = $state(false);
@@ -19,10 +19,11 @@
 
 		if (res.ok) {
 			const data = await res.json();
+			await invalidateAll();
 			if (data.primeiro_login) {
-				goto(`/alterar-senha?token=${data.token}`);
+				goto('/alterar-senha');
 			} else {
-				window.location.href = '/policiais';
+				goto('/policiais');
 			}
 		} else {
 			const data = await res.json();

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import type { Escala } from '$lib/types';
 
@@ -17,18 +16,13 @@
 	let lotacoes = $state<string[]>([]);
 	let lotacaoEscala = $state('');
 
-	const usuario = $derived($page.data.usuario);
-	const isAdmin = $derived(usuario?.tipo === 'admin');
+	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
-	onMount(async () => {
-		try {
-			const res = await fetch('/api/lotacoes');
-			if (res.ok) {
-				lotacoes = await res.json();
-			}
-		} catch {
-			// Silently fail
-		}
+	$effect(() => {
+		fetch('/api/lotacoes')
+			.then(r => r.ok ? r.json() : [])
+			.then((data: string[]) => { lotacoes = data; })
+			.catch(() => {});
 	});
 
 	function horarioLabel(): string {
@@ -72,11 +66,6 @@
 			titulo = `ESCALA PLANTÃO FINAL DE SEMANA ${cidade.toUpperCase()} ${di[2]}/${di[1]}/${di[0]} E ${df[2]}/${df[1]}/${df[0]}`;
 		}
 	}
-
-	$effect(() => {
-		cidade; dataInicio; dataFim;
-		gerarTitulo();
-	});
 </script>
 
 <div class="flex items-center justify-between mb-6">
@@ -91,7 +80,7 @@
 				<span class="label-text">Lotação (unidade policial)</span>
 				<select class="select" bind:value={lotacaoEscala} required>
 					<option value="" disabled selected>Selecione a lotação</option>
-					{#each lotacoes as lot}
+					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
@@ -101,25 +90,25 @@
 		<label class="label">
 			<span class="label-text">Cidade</span>
 			{#if lotacoes.length > 0}
-				<select class="select" bind:value={cidade} required>
+				<select class="select" bind:value={cidade} onchange={gerarTitulo} required>
 					<option value="" disabled selected>Selecione a lotação</option>
-					{#each lotacoes as lotacao}
+					{#each lotacoes as lotacao (lotacao)}
 						<option value={lotacao}>{lotacao}</option>
 					{/each}
 				</select>
 			{:else}
-				<input class="input" type="text" bind:value={cidade} required placeholder="Ex: ICÓ" />
+				<input class="input" type="text" bind:value={cidade} oninput={gerarTitulo} required placeholder="Ex: ICÓ" />
 			{/if}
 		</label>
 
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<label class="label">
 				<span class="label-text">Data início</span>
-				<input class="input" type="date" bind:value={dataInicio} required />
+				<input class="input" type="date" bind:value={dataInicio} onchange={gerarTitulo} required />
 			</label>
 			<label class="label">
 				<span class="label-text">Data fim</span>
-				<input class="input" type="date" bind:value={dataFim} required />
+				<input class="input" type="date" bind:value={dataFim} onchange={gerarTitulo} required />
 			</label>
 		</div>
 
@@ -127,7 +116,7 @@
 			<label class="label">
 				<span class="label-text">Hora de entrada (padrão)</span>
 				<select class="select" bind:value={horaEntrada}>
-					{#each horas as h}
+					{#each horas as h (h)}
 						<option value={h}>{h}h</option>
 					{/each}
 				</select>
@@ -135,7 +124,7 @@
 			<label class="label">
 				<span class="label-text">Hora de saída (padrão)</span>
 				<select class="select" bind:value={horaSaida}>
-					{#each horas as h}
+					{#each horas as h (h)}
 						<option value={h}>{h}h</option>
 					{/each}
 				</select>
