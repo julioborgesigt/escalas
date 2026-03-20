@@ -29,8 +29,6 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 		}
 		const senhaAtualHash = await hashSenha(senha_atual);
 		const tabela = usuario.tipo === 'admin' ? 'administradores' : 'policiais';
-		const campo = usuario.tipo === 'admin' ? 'login' : 'matricula';
-		const identificador = usuario.tipo === 'admin' ? 'admin' : usuario.matricula;
 
 		const registro = await db.prepare(
 			`SELECT id FROM ${tabela} WHERE id = ? AND senha = ?`
