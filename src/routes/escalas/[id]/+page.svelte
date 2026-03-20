@@ -317,7 +317,7 @@
 	{:else}
 		{#each [...agruparPorData(policiaisEscala)] as [dataGrupo, policiais] (dataGrupo)}
 			<!-- Desktop table -->
-			<div class="p-0 overflow-hidden mb-6 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border-2 border-surface-200 dark:border-white/15 shadow-xl shadow-black/5 dark:shadow-black/20">
+			<div class="p-4 overflow-hidden mb-6 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border-2 border-surface-200 dark:border-white/15 shadow-xl shadow-black/5 dark:shadow-black/20">
 				<div class="table-wrap">
 					<table class="table">
 						<thead>
