@@ -14,6 +14,9 @@
 	let dialogOpen = $state(false);
 	let policialParaExcluir = $state<{id: number, nome: string} | null>(null);
 
+	// Special sentinel value for "sem lotação" filter
+	const SEM_LOTACAO = '__sem_lotacao__';
+
 	async function carregarPoliciais() {
 		if (isAdmin && !filtroLotacao) {
 			policiais = [];
@@ -22,7 +25,12 @@
 		}
 
 		loading = true;
-		const params = filtroLotacao ? `?lotacao=${encodeURIComponent(filtroLotacao)}` : '';
+		let params = '';
+		if (filtroLotacao === SEM_LOTACAO) {
+			params = '?sem_lotacao=1';
+		} else if (filtroLotacao) {
+			params = `?lotacao=${encodeURIComponent(filtroLotacao)}`;
+		}
 		const res = await fetch(`/api/policiais${params}`);
 		policiais = await res.json();
 		loading = false;
@@ -97,6 +105,7 @@
 					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
+					<option value={SEM_LOTACAO}>— Sem lotação —</option>
 				</select>
 			</label>
 			<p class="text-xs text-surface-500 mb-2 italic">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
