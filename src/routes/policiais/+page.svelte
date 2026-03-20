@@ -9,6 +9,7 @@
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
 	let filtroLotacao = $state('');
+	let filtroCargo = $state('');
 	let lotacoes = $state<string[]>([]);
 
 	let dialogOpen = $state(false);
@@ -16,6 +17,10 @@
 
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
+
+	const policiaisExibidos = $derived(
+		filtroCargo ? policiais.filter(p => p.cargo === filtroCargo) : policiais
+	);
 
 	async function carregarPoliciais() {
 		if (isAdmin && !filtroLotacao) {
@@ -96,8 +101,8 @@
 </Dialog>
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
-	{#if isAdmin}
-		<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10">
+	<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10">
+		{#if isAdmin}
 			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregarPoliciais}>
@@ -108,9 +113,19 @@
 					<option value={SEM_LOTACAO}>— Sem lotação —</option>
 				</select>
 			</label>
-			<p class="text-xs text-surface-500 mb-2 italic">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
-		</div>
-	{/if}
+		{/if}
+		<label class="label w-full sm:w-48 shrink-0">
+			<span class="label-text font-semibold mb-1">Cargo</span>
+			<select class="select" bind:value={filtroCargo}>
+				<option value="">Todos</option>
+				<option value="DPC">DPC — Delegado</option>
+				<option value="OIP">OIP — Oficial Investigador</option>
+			</select>
+		</label>
+		{#if isAdmin}
+			<p class="text-xs text-surface-500 mb-2 italic self-end">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
+		{/if}
+	</div>
 
 	{#if loading}
 		<p class="text-center py-12 text-surface-500">Carregando...</p>
@@ -121,10 +136,12 @@
 			</div>
 			<p class="text-surface-600 dark:text-surface-400 text-lg">Escolha uma unidade para exibir os dados.</p>
 		</div>
-	{:else if policiais.length === 0}
+	{:else if policiaisExibidos.length === 0}
 		<div class="text-center py-12 text-surface-500">
-			<p class="mb-4">Nenhum policial cadastrado.</p>
-			<a href="/policiais/novo" class="btn preset-filled-primary-500">Cadastrar Policial</a>
+			<p class="mb-4">{filtroCargo ? `Nenhum policial com cargo ${filtroCargo} encontrado.` : 'Nenhum policial cadastrado.'}</p>
+			{#if !filtroCargo}
+				<a href="/policiais/novo" class="btn preset-filled-primary-500">Cadastrar Policial</a>
+			{/if}
 		</div>
 	{:else}
 		<!-- Desktop table -->
@@ -141,7 +158,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each policiais as p (p.id)}
+					{#each policiaisExibidos as p (p.id)}
 						<tr>
 							<td>{p.nome}</td>
 							<td>{p.matricula}</td>
@@ -152,9 +169,9 @@
 							<td>{p.lotacao}</td>
 							<td>
 								<div class="flex gap-2">
-										<a href="/policiais/{p.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Editar</a>
-										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
-									</div>
+									<a href="/policiais/{p.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Editar</a>
+									<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
+								</div>
 							</td>
 						</tr>
 					{/each}
@@ -164,7 +181,7 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#each policiais as p (p.id)}
+			{#each policiaisExibidos as p (p.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
 					<div class="flex items-center justify-between mb-2">
 						<span class="font-semibold text-sm">{p.nome}</span>
@@ -192,6 +209,6 @@
 			{/each}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">{policiais.length} policial(is) encontrado(s)</p>
+		<p class="mt-3 text-surface-500 text-sm">{policiaisExibidos.length} policial(is) encontrado(s)</p>
 	{/if}
 </div>
