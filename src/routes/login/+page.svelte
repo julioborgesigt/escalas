@@ -20,7 +20,7 @@
 		if (res.ok) {
 			const data = await res.json();
 			await invalidateAll();
-			if (data.primeiro_login) {
+			if (data.primeiro_acesso) {
 				goto('/alterar-senha');
 			} else {
 				goto('/policiais');

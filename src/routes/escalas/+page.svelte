@@ -65,11 +65,6 @@
 		carregar();
 		carregarLotacoes();
 	});
-
-	$effect(() => {
-		filtroLotacao;
-		carregar();
-	});
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -97,7 +92,7 @@
 		<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
 			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-				<select class="select" bind:value={filtroLotacao}>
+				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
 					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
