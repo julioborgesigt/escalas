@@ -139,7 +139,7 @@
 							<td>{esc.horario}</td>
 							<td>
 								<div class="flex gap-2 justify-end">
-									<a href="/escalas/{esc.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Abrir</a>
+									<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Abrir</a>
 									<Popover positioning={{ placement: "bottom-end", offset: { mainAxis: 4 } }}>
 										<Popover.Trigger class="btn btn-sm preset-outlined-primary-500">Exportar ▾</Popover.Trigger>
 										<Portal>

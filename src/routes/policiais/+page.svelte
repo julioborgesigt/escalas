@@ -169,7 +169,7 @@
 							<td>{p.lotacao}</td>
 							<td>
 								<div class="flex gap-2">
-									<a href="/policiais/{p.id}" class="btn btn-sm preset-filled-surface hover:preset-filled-primary-500 transition-colors">Editar</a>
+									<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500">Editar</a>
 									<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button>
 								</div>
 							</td>
