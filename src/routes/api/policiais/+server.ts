@@ -8,13 +8,15 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 
 	// Parâmetro todos=1 permite listar todos os policiais (para inclusão em escalas)
 	const todos = url.searchParams.get('todos') === '1';
+	// Parâmetro sem_lotacao=1 lista apenas policiais sem lotação (admin only)
+	const semLotacao = url.searchParams.get('sem_lotacao') === '1';
 
 	let lotacao = url.searchParams.get('lotacao') || undefined;
 	if (usuario?.tipo === 'policial' && !todos) {
 		lotacao = usuario.lotacao;
 	}
 
-	const policiais = await listarPoliciais(db, lotacao);
+	const policiais = await listarPoliciais(db, lotacao, semLotacao && usuario?.tipo === 'admin');
 	return json(policiais);
 };
 
@@ -23,8 +25,8 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	const usuario = locals.usuario;
 	const data = await request.json();
 
-	if (!data.nome || !data.matricula || !data.cargo || !data.lotacao) {
-		return json({ error: 'Campos obrigatórios: nome, matricula, cargo, lotacao' }, { status: 400 });
+	if (!data.nome || !data.matricula || !data.cargo) {
+		return json({ error: 'Campos obrigatórios: nome, matricula, cargo' }, { status: 400 });
 	}
 
 	if (!['DPC', 'OIP'].includes(data.cargo)) {

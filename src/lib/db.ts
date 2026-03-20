@@ -1,4 +1,4 @@
-import type { Policial, Escala, EscalaPolicialComDados } from './types';
+import type { Policial, Escala, EscalaPolicialComDados, Unidade } from './types';
 import { limparMatricula } from './utils';
 
 export function getDB(platform: App.Platform | undefined): D1Database {
@@ -10,10 +10,12 @@ export function getDB(platform: App.Platform | undefined): D1Database {
 
 // ---- Policiais ----
 
-export async function listarPoliciais(db: D1Database, lotacao?: string): Promise<Policial[]> {
+export async function listarPoliciais(db: D1Database, lotacao?: string, semLotacao?: boolean): Promise<Policial[]> {
 	let query = 'SELECT * FROM policiais WHERE ativo = 1';
 	const params: string[] = [];
-	if (lotacao) {
+	if (semLotacao) {
+		query += " AND (lotacao = '' OR lotacao IS NULL)";
+	} else if (lotacao) {
 		query += ' AND lotacao = ?';
 		params.push(lotacao);
 	}
@@ -55,8 +57,23 @@ export async function excluirPolicial(db: D1Database, id: number): Promise<D1Res
 }
 
 export async function listarLotacoes(db: D1Database): Promise<string[]> {
-	const result = await db.prepare('SELECT DISTINCT lotacao FROM policiais WHERE ativo = 1 ORDER BY lotacao').all<{ lotacao: string }>();
-	return result.results.map(r => r.lotacao);
+	const result = await db.prepare('SELECT nome FROM unidades ORDER BY nome').all<{ nome: string }>();
+	return result.results.map(r => r.nome);
+}
+
+// ---- Unidades ----
+
+export async function listarUnidades(db: D1Database): Promise<Unidade[]> {
+	const result = await db.prepare('SELECT * FROM unidades ORDER BY nome').all<Unidade>();
+	return result.results;
+}
+
+export async function criarUnidade(db: D1Database, nome: string): Promise<D1Result> {
+	return db.prepare('INSERT INTO unidades (nome) VALUES (?)').bind(nome.trim()).run();
+}
+
+export async function excluirUnidade(db: D1Database, id: number): Promise<D1Result> {
+	return db.prepare('DELETE FROM unidades WHERE id = ?').bind(id).run();
 }
 
 // ---- Escalas ----

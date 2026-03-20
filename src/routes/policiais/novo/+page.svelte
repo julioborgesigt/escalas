@@ -12,7 +12,16 @@
 	let lotacao = $state(
 		page.data.usuario?.tipo === 'policial' ? (page.data.usuario.lotacao ?? '') : ''
 	);
+	let unidades = $state<string[]>([]);
 	let saving = $state(false);
+
+	$effect(() => {
+		if (isAdmin) {
+			fetch('/api/lotacoes').then(r => r.json()).then((data: string[]) => {
+				unidades = data;
+			});
+		}
+	});
 
 	async function salvar(e: Event) {
 		e.preventDefault();
@@ -68,7 +77,12 @@
 		<label class="label">
 			<span class="label-text">Lotação</span>
 			{#if isAdmin}
-				<input class="input" type="text" bind:value={lotacao} required placeholder="Ex: DELEGACIA DE POLÍCIA CIVIL DE ICÓ" />
+				<select class="select" bind:value={lotacao}>
+					<option value="">— Sem lotação —</option>
+					{#each unidades as u (u)}
+						<option value={u}>{u}</option>
+					{/each}
+				</select>
 			{:else}
 				<input class="input bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75" type="text" value={lotacao} readonly />
 			{/if}

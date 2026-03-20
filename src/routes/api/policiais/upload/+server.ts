@@ -1,8 +1,22 @@
 import { json } from '@sveltejs/kit';
-import { getDB } from '$lib/db';
+import { getDB, listarUnidades } from '$lib/db';
 import * as XLSX from 'xlsx';
 import { limparMatricula } from '$lib/utils';
 import type { RequestHandler } from './$types';
+
+function normalizarTexto(texto: string): string {
+	return texto
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.trim();
+}
+
+function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]): string {
+	const normalizado = normalizarTexto(nomeNaPlanilha);
+	const encontrada = unidades.find(u => normalizarTexto(u.nome) === normalizado);
+	return encontrada ? encontrada.nome : '';
+}
 
 export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	let db;
@@ -13,6 +27,15 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 			error: 'Banco de dados não disponível. Verifique se o D1 está configurado corretamente nas bindings do Cloudflare Pages.',
 			errorType: 'database'
 		}, { status: 500 });
+	}
+
+	// Verificar se existem unidades cadastradas
+	const unidades = await listarUnidades(db);
+	if (unidades.length === 0) {
+		return json({
+			error: 'Nenhuma unidade policial cadastrada. Cadastre pelo menos uma unidade antes de importar policiais.',
+			errorType: 'no_units'
+		}, { status: 400 });
 	}
 
 	const formData = await request.formData();
@@ -78,7 +101,6 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		if (!row.nome) missing.push('Nome (coluna A)');
 		if (!row.matricula) missing.push('Matrícula (coluna B)');
 		if (!row.cargo) missing.push('Cargo (coluna C)');
-		if (!row.lotacao) missing.push('Lotação (coluna E)');
 
 		if (missing.length > 0) {
 			errors.push({
@@ -99,18 +121,25 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 			continue;
 		}
 
-		const lotacaoRow = String(row.lotacao).trim();
-		const matriculaLimpa = limparMatricula(String(row.matricula));
+		// Resolve lotacao: match against registered units ignoring accents
+		let lotacaoFinal = '';
+		if (row.lotacao) {
+			lotacaoFinal = encontrarUnidade(String(row.lotacao).trim(), unidades);
+		}
 
 		// Policial só pode importar da sua lotação
-		if (locals.usuario?.tipo === 'policial' && lotacaoRow !== locals.usuario.lotacao) {
-			errors.push({
-				row: rowNum,
-				nome,
-				message: `Lotação "${lotacaoRow}" diferente da sua. Você só pode importar policiais da sua lotação.`
-			});
-			continue;
+		if (locals.usuario?.tipo === 'policial') {
+			if (lotacaoFinal !== locals.usuario.lotacao) {
+				errors.push({
+					row: rowNum,
+					nome,
+					message: `Lotação "${row.lotacao}" diferente da sua. Você só pode importar policiais da sua lotação.`
+				});
+				continue;
+			}
 		}
+
+		const matriculaLimpa = limparMatricula(String(row.matricula));
 
 		try {
 			const result = await db.prepare(
@@ -120,7 +149,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 				matriculaLimpa,
 				cargo,
 				row.telefone ? String(row.telefone).trim() : '',
-				lotacaoRow
+				lotacaoFinal
 			).run();
 
 			if (result.meta?.changes === 0) {
@@ -132,6 +161,14 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 				});
 			} else {
 				imported++;
+				// Note if lotacao was not found
+				if (row.lotacao && !lotacaoFinal) {
+					errors.push({
+						row: rowNum,
+						nome,
+						message: `Lotação "${row.lotacao}" não encontrada no sistema — importado sem lotação.`
+					});
+				}
 			}
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Erro desconhecido no banco de dados';
