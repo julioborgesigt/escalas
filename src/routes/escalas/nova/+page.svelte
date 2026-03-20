@@ -66,6 +66,11 @@
 			titulo = `ESCALA PLANTÃO FINAL DE SEMANA ${cidade.toUpperCase()} ${di[2]}/${di[1]}/${di[0]} E ${df[2]}/${df[1]}/${df[0]}`;
 		}
 	}
+
+	function onCidadeChange() {
+		if (isAdmin) lotacaoEscala = cidade;
+		gerarTitulo();
+	}
 </script>
 
 <div class="flex items-center justify-between mb-6">
@@ -75,68 +80,49 @@
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mt-6">
 	<form onsubmit={salvar} class="space-y-4">
-		{#if isAdmin}
+		<!-- Linha principal: Cidade + datas + horas numa única fila -->
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_auto_1fr_auto] gap-3 items-end">
 			<label class="label">
-				<span class="label-text">Lotação (unidade policial)</span>
-				<select class="select" bind:value={lotacaoEscala} required>
-					<option value="" disabled selected>Selecione a lotação</option>
-					{#each lotacoes as lot (lot)}
-						<option value={lot}>{lot}</option>
-					{/each}
-				</select>
+				<span class="label-text">Cidade</span>
+				{#if lotacoes.length > 0}
+					<select class="select" bind:value={cidade} onchange={onCidadeChange} required>
+						<option value="" disabled selected>Selecione...</option>
+						{#each lotacoes as lot (lot)}
+							<option value={lot}>{lot}</option>
+						{/each}
+					</select>
+				{:else}
+					<input class="input" type="text" bind:value={cidade} oninput={onCidadeChange} required placeholder="Ex: ICÓ" />
+				{/if}
 			</label>
-		{/if}
-
-		<label class="label">
-			<span class="label-text">Cidade</span>
-			{#if lotacoes.length > 0}
-				<select class="select" bind:value={cidade} onchange={gerarTitulo} required>
-					<option value="" disabled selected>Selecione a lotação</option>
-					{#each lotacoes as lotacao (lotacao)}
-						<option value={lotacao}>{lotacao}</option>
-					{/each}
-				</select>
-			{:else}
-				<input class="input" type="text" bind:value={cidade} oninput={gerarTitulo} required placeholder="Ex: ICÓ" />
-			{/if}
-		</label>
-
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<label class="label">
 				<span class="label-text">Data início</span>
 				<input class="input" type="date" bind:value={dataInicio} onchange={gerarTitulo} required />
 			</label>
 			<label class="label">
+				<span class="label-text">Hora de entrada</span>
+				<select class="select" bind:value={horaEntrada}>
+					{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+				</select>
+			</label>
+			<label class="label">
 				<span class="label-text">Data fim</span>
 				<input class="input" type="date" bind:value={dataFim} onchange={gerarTitulo} required />
 			</label>
-		</div>
-
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<label class="label">
-				<span class="label-text">Hora de entrada (padrão)</span>
-				<select class="select" bind:value={horaEntrada}>
-					{#each horas as h (h)}
-						<option value={h}>{h}h</option>
-					{/each}
-				</select>
-			</label>
-			<label class="label">
-				<span class="label-text">Hora de saída (padrão)</span>
+				<span class="label-text">Hora de saída</span>
 				<select class="select" bind:value={horaSaida}>
-					{#each horas as h (h)}
-						<option value={h}>{h}h</option>
-					{/each}
+					{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 				</select>
 			</label>
 		</div>
 
-		<p class="text-sm text-surface-500">
+		<p class="text-sm text-primary-600 dark:text-primary-400">
 			Horário do plantão: <strong>{horarioLabel()}</strong>
 			{#if Number(horaSaida) <= Number(horaEntrada) && horaEntrada !== horaSaida}
-				<span class="italic"> (cruza para o dia seguinte)</span>
+				<span class="italic text-surface-500"> (cruza para o dia seguinte)</span>
 			{:else if horaEntrada === horaSaida}
-				<span class="italic"> (plantão de 24h)</span>
+				<span class="italic text-surface-500"> (plantão de 24h)</span>
 			{/if}
 		</p>
 
