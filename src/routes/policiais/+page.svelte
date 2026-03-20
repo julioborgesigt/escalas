@@ -49,7 +49,7 @@
 		const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
 		if (res.ok) {
 			toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
-			carregarPoliciais();
+			policiais = policiais.filter(p => p.id !== id);
 		} else {
 			const data = await res.json();
 			toaster.create({ title: data.error || 'Erro ao remover', type: 'error' });

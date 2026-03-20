@@ -55,7 +55,7 @@
 		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
 		if (res.ok) {
 			toaster.create({ title: `Escala de ${titulo} removida`, type: 'success' });
-			carregar();
+			escalas = escalas.filter(e => e.id !== id);
 		} else {
 			toaster.create({ title: 'Erro ao remover', type: 'error' });
 		}
