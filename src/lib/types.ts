@@ -41,3 +41,9 @@ export interface EscalaPolicialComDados extends EscalaPolicial {
 	telefone: string;
 	lotacao: string;
 }
+
+export interface Unidade {
+	id: number;
+	nome: string;
+	created_at: string;
+}
