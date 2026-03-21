@@ -1,3 +1,7 @@
+import { eq, and, gt } from 'drizzle-orm';
+import { sessoes, administradores, policiais } from './server/schema';
+import type { Database } from './db';
+
 export interface UsuarioLogado {
 	id: number;
 	tipo: 'policial' | 'admin';
@@ -12,44 +16,53 @@ export async function hashSenha(senha: string): Promise<string> {
 	const data = encoder.encode(senha);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export function gerarToken(): string {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
-	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+	return Array.from(bytes)
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
 }
 
 export async function criarSessao(
-	db: D1Database,
+	db: Database,
 	tipo: 'policial' | 'admin',
 	usuarioId: number
 ): Promise<string> {
 	const token = gerarToken();
 	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-	await db.prepare(
-		'INSERT INTO sessoes (token, tipo, usuario_id, expires_at) VALUES (?, ?, ?, ?)'
-	).bind(token, tipo, usuarioId, expiresAt).run();
+	await db.insert(sessoes).values({
+		token,
+		tipo,
+		usuario_id: usuarioId,
+		expires_at: expiresAt
+	});
 	return token;
 }
 
 export async function validarSessao(
-	db: D1Database,
+	db: Database,
 	token: string | undefined
 ): Promise<UsuarioLogado | null> {
 	if (!token) return null;
 
-	const sessao = await db.prepare(
-		"SELECT * FROM sessoes WHERE token = ? AND expires_at > datetime('now')"
-	).bind(token).first<{ tipo: string; usuario_id: number }>();
+	const sessao = await db
+		.select()
+		.from(sessoes)
+		.where(and(eq(sessoes.token, token), gt(sessoes.expires_at, new Date().toISOString())))
+		.get();
 
 	if (!sessao) return null;
 
 	if (sessao.tipo === 'admin') {
-		const admin = await db.prepare(
-			'SELECT * FROM administradores WHERE id = ?'
-		).bind(sessao.usuario_id).first<{ id: number; nome: string; primeiro_acesso: number }>();
+		const admin = await db
+			.select()
+			.from(administradores)
+			.where(eq(administradores.id, sessao.usuario_id))
+			.get();
 		if (!admin) return null;
 		return {
 			id: admin.id,
@@ -59,11 +72,11 @@ export async function validarSessao(
 		};
 	}
 
-	const policial = await db.prepare(
-		'SELECT * FROM policiais WHERE id = ? AND ativo = 1'
-	).bind(sessao.usuario_id).first<{
-		id: number; nome: string; matricula: string; lotacao: string; primeiro_acesso: number;
-	}>();
+	const policial = await db
+		.select()
+		.from(policiais)
+		.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
+		.get();
 	if (!policial) return null;
 	return {
 		id: policial.id,
@@ -75,6 +88,6 @@ export async function validarSessao(
 	};
 }
 
-export async function excluirSessao(db: D1Database, token: string): Promise<void> {
-	await db.prepare('DELETE FROM sessoes WHERE token = ?').bind(token).run();
+export async function excluirSessao(db: Database, token: string): Promise<void> {
+	await db.delete(sessoes).where(eq(sessoes.token, token));
 }

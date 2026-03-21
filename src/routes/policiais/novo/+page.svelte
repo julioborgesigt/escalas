@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
+	import { policialSchema } from '$lib/schemas';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -25,6 +26,13 @@
 
 	async function salvar(e: Event) {
 		e.preventDefault();
+
+		const parsed = policialSchema.safeParse({ nome, matricula, cargo, telefone, lotacao });
+		if (!parsed.success) {
+			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			return;
+		}
+
 		saving = true;
 
 		const res = await fetch('/api/policiais', {

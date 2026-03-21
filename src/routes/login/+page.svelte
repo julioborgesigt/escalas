@@ -1,20 +1,28 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { toaster } from '$lib/toast';
+	import { loginSchema } from '$lib/schemas';
+
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
 	let senha = $state('');
-	import { goto } from '$app/navigation';
-	import { toaster } from '$lib/toast';
-
 	let loading = $state(false);
 
 	async function login(e: Event) {
 		e.preventDefault();
+
+		const parsed = loginSchema.safeParse({ matricula, senha, tipo });
+		if (!parsed.success) {
+			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			return;
+		}
+
 		loading = true;
 
 		const res = await fetch('/api/auth/login', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ matricula, senha, tipo })
+			body: JSON.stringify(parsed.data)
 		});
 
 		if (res.ok) {
