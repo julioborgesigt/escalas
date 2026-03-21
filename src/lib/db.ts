@@ -1,132 +1,204 @@
-import type { Policial, Escala, EscalaPolicialComDados, Unidade } from './types';
+import { eq, and, or, isNull, sql, desc, asc } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from './server/schema';
+import {
+	policiais,
+	escalas,
+	escalaPoliciais,
+	unidades
+} from './server/schema';
+import type { EscalaPolicialComDados } from './types';
 import { limparMatricula } from './utils';
 
-export function getDB(platform: App.Platform | undefined): D1Database {
+export type Database = ReturnType<typeof getDB>;
+
+export function getDB(platform: App.Platform | undefined) {
 	if (!platform?.env?.escalas_db) {
 		throw new Error('Database not available. Make sure D1 is configured.');
 	}
-	return platform.env.escalas_db;
+	return drizzle(platform.env.escalas_db, { schema });
 }
 
 // ---- Policiais ----
 
-export async function listarPoliciais(db: D1Database, lotacao?: string, semLotacao?: boolean): Promise<Policial[]> {
-	let query = 'SELECT * FROM policiais WHERE ativo = 1';
-	const params: string[] = [];
+export async function listarPoliciais(
+	db: Database,
+	lotacao?: string,
+	semLotacao?: boolean
+): Promise<schema.Policial[]> {
+	const conditions = [eq(policiais.ativo, 1)];
+
 	if (semLotacao) {
-		query += " AND (lotacao = '' OR lotacao IS NULL)";
+		conditions.push(or(eq(policiais.lotacao, ''), isNull(policiais.lotacao))!);
 	} else if (lotacao) {
-		query += ' AND lotacao = ?';
-		params.push(lotacao);
+		conditions.push(eq(policiais.lotacao, lotacao));
 	}
-	query += ' ORDER BY cargo, nome';
-	const result = await db.prepare(query).bind(...params).all<Policial>();
-	return result.results;
+
+	return db
+		.select()
+		.from(policiais)
+		.where(and(...conditions))
+		.orderBy(asc(policiais.cargo), asc(policiais.nome));
 }
 
-export async function buscarPolicial(db: D1Database, id: number): Promise<Policial | null> {
-	return db.prepare('SELECT * FROM policiais WHERE id = ?').bind(id).first<Policial>();
+export async function buscarPolicial(db: Database, id: number): Promise<schema.Policial | undefined> {
+	return db.select().from(policiais).where(eq(policiais.id, id)).get();
 }
 
-export async function criarPolicial(db: D1Database, data: Omit<Policial, 'id' | 'ativo' | 'created_at' | 'updated_at'>): Promise<D1Result> {
-	const matriculaLimpa = limparMatricula(data.matricula);
-	return db.prepare(
-		'INSERT INTO policiais (nome, matricula, cargo, telefone, lotacao) VALUES (?, ?, ?, ?, ?)'
-	).bind(data.nome, matriculaLimpa, data.cargo, data.telefone, data.lotacao).run();
+export async function criarPolicial(
+	db: Database,
+	data: { nome: string; matricula: string; cargo: string; telefone?: string; lotacao?: string }
+) {
+	return db.insert(policiais).values({
+		nome: data.nome,
+		matricula: limparMatricula(data.matricula),
+		cargo: data.cargo as 'DPC' | 'OIP',
+		telefone: data.telefone || '',
+		lotacao: data.lotacao || ''
+	});
 }
 
-export async function atualizarPolicial(db: D1Database, id: number, data: Partial<Omit<Policial, 'id' | 'created_at' | 'updated_at'>>): Promise<D1Result> {
-	const fields: string[] = [];
-	const values: (string | number)[] = [];
+export async function atualizarPolicial(
+	db: Database,
+	id: number,
+	data: Partial<{ nome: string; matricula: string; cargo: string; telefone: string; lotacao: string; ativo: number }>
+) {
+	const updateData: Record<string, unknown> = {};
 
-	if (data.nome !== undefined) { fields.push('nome = ?'); values.push(data.nome); }
-	if (data.matricula !== undefined) { fields.push('matricula = ?'); values.push(limparMatricula(data.matricula)); }
-	if (data.cargo !== undefined) { fields.push('cargo = ?'); values.push(data.cargo); }
-	if (data.telefone !== undefined) { fields.push('telefone = ?'); values.push(data.telefone); }
-	if (data.lotacao !== undefined) { fields.push('lotacao = ?'); values.push(data.lotacao); }
-	if (data.ativo !== undefined) { fields.push('ativo = ?'); values.push(data.ativo); }
+	if (data.nome !== undefined) updateData.nome = data.nome;
+	if (data.matricula !== undefined) updateData.matricula = limparMatricula(data.matricula);
+	if (data.cargo !== undefined) updateData.cargo = data.cargo;
+	if (data.telefone !== undefined) updateData.telefone = data.telefone;
+	if (data.lotacao !== undefined) updateData.lotacao = data.lotacao;
+	if (data.ativo !== undefined) updateData.ativo = data.ativo;
 
-	fields.push("updated_at = datetime('now')");
-	values.push(id);
+	updateData.updated_at = sql`datetime('now')`;
 
-	return db.prepare(`UPDATE policiais SET ${fields.join(', ')} WHERE id = ?`).bind(...values).run();
+	return db.update(policiais).set(updateData).where(eq(policiais.id, id));
 }
 
-export async function excluirPolicial(db: D1Database, id: number): Promise<D1Result> {
-	return db.prepare('DELETE FROM policiais WHERE id = ?').bind(id).run();
+export async function excluirPolicial(db: Database, id: number) {
+	return db.delete(policiais).where(eq(policiais.id, id));
 }
 
-export async function listarLotacoes(db: D1Database): Promise<string[]> {
-	const result = await db.prepare('SELECT nome FROM unidades ORDER BY nome').all<{ nome: string }>();
-	return result.results.map(r => r.nome);
+export async function listarLotacoes(db: Database): Promise<string[]> {
+	const result = await db
+		.select({ nome: unidades.nome })
+		.from(unidades)
+		.orderBy(asc(unidades.nome));
+	return result.map((r) => r.nome);
 }
 
 // ---- Unidades ----
 
-export async function listarUnidades(db: D1Database): Promise<Unidade[]> {
-	const result = await db.prepare('SELECT * FROM unidades ORDER BY nome').all<Unidade>();
-	return result.results;
+export async function listarUnidades(db: Database): Promise<schema.Unidade[]> {
+	return db.select().from(unidades).orderBy(asc(unidades.nome));
 }
 
-export async function criarUnidade(db: D1Database, nome: string): Promise<D1Result> {
-	return db.prepare('INSERT INTO unidades (nome) VALUES (?)').bind(nome.trim()).run();
+export async function criarUnidade(db: Database, nome: string) {
+	return db.insert(unidades).values({ nome: nome.trim() });
 }
 
-export async function excluirUnidade(db: D1Database, id: number): Promise<D1Result> {
-	return db.prepare('DELETE FROM unidades WHERE id = ?').bind(id).run();
+export async function excluirUnidade(db: Database, id: number) {
+	return db.delete(unidades).where(eq(unidades.id, id));
 }
 
 // ---- Escalas ----
 
-export async function listarEscalas(db: D1Database, lotacao?: string): Promise<Escala[]> {
-	let query = 'SELECT * FROM escalas';
-	const params: string[] = [];
+export async function listarEscalas(db: Database, lotacao?: string): Promise<schema.Escala[]> {
 	if (lotacao) {
-		query += ' WHERE lotacao = ?';
-		params.push(lotacao);
+		return db
+			.select()
+			.from(escalas)
+			.where(eq(escalas.lotacao, lotacao))
+			.orderBy(desc(escalas.data_inicio));
 	}
-	query += ' ORDER BY data_inicio DESC';
-	const result = await db.prepare(query).bind(...params).all<Escala>();
-	return result.results;
+	return db.select().from(escalas).orderBy(desc(escalas.data_inicio));
 }
 
-export async function buscarEscala(db: D1Database, id: number): Promise<Escala | null> {
-	return db.prepare('SELECT * FROM escalas WHERE id = ?').bind(id).first<Escala>();
+export async function buscarEscala(db: Database, id: number): Promise<schema.Escala | undefined> {
+	return db.select().from(escalas).where(eq(escalas.id, id)).get();
 }
 
-export async function criarEscala(db: D1Database, data: Omit<Escala, 'id' | 'created_at'>): Promise<D1Result> {
-	return db.prepare(
-		'INSERT INTO escalas (titulo, cidade, data_inicio, data_fim, horario, hora_entrada, hora_saida, lotacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-	).bind(data.titulo, data.cidade, data.data_inicio, data.data_fim, data.horario, data.hora_entrada, data.hora_saida, data.lotacao).run();
+export async function criarEscala(
+	db: Database,
+	data: Omit<schema.NovaEscala, 'id' | 'created_at'>
+) {
+	return db.insert(escalas).values(data).returning({ id: escalas.id });
 }
 
-export async function excluirEscala(db: D1Database, id: number): Promise<D1Result> {
-	return db.prepare('DELETE FROM escalas WHERE id = ?').bind(id).run();
+export async function excluirEscala(db: Database, id: number) {
+	return db.delete(escalas).where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----
 
-export async function adicionarPolicialEscala(db: D1Database, escalaId: number, policialId: number, dataPlantao: string, dataSaida: string, horaEntrada: string, horaSaida: string): Promise<D1Result> {
-	return db.prepare(
-		'INSERT INTO escala_policiais (escala_id, policial_id, data_plantao, data_saida, hora_entrada, hora_saida) VALUES (?, ?, ?, ?, ?, ?)'
-	).bind(escalaId, policialId, dataPlantao, dataSaida, horaEntrada, horaSaida).run();
+export async function adicionarPolicialEscala(
+	db: Database,
+	escalaId: number,
+	policialId: number,
+	dataPlantao: string,
+	dataSaida: string,
+	horaEntrada: string,
+	horaSaida: string
+) {
+	return db.insert(escalaPoliciais).values({
+		escala_id: escalaId,
+		policial_id: policialId,
+		data_plantao: dataPlantao,
+		data_saida: dataSaida,
+		hora_entrada: horaEntrada,
+		hora_saida: horaSaida
+	});
 }
 
-export async function atualizarEscalaPolicial(db: D1Database, id: number, dataPlantao: string, dataSaida: string, horaEntrada: string, horaSaida: string): Promise<D1Result> {
-	return db.prepare('UPDATE escala_policiais SET data_plantao = ?, data_saida = ?, hora_entrada = ?, hora_saida = ? WHERE id = ?').bind(dataPlantao, dataSaida, horaEntrada, horaSaida, id).run();
+export async function atualizarEscalaPolicial(
+	db: Database,
+	id: number,
+	dataPlantao: string,
+	dataSaida: string,
+	horaEntrada: string,
+	horaSaida: string
+) {
+	return db
+		.update(escalaPoliciais)
+		.set({
+			data_plantao: dataPlantao,
+			data_saida: dataSaida,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida
+		})
+		.where(eq(escalaPoliciais.id, id));
 }
 
-export async function removerPolicialEscala(db: D1Database, id: number): Promise<D1Result> {
-	return db.prepare('DELETE FROM escala_policiais WHERE id = ?').bind(id).run();
+export async function removerPolicialEscala(db: Database, id: number) {
+	return db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, id));
 }
 
-export async function listarPoliciaisEscala(db: D1Database, escalaId: number): Promise<EscalaPolicialComDados[]> {
-	const result = await db.prepare(`
-		SELECT ep.*, p.nome, p.matricula, p.cargo, p.telefone, p.lotacao
-		FROM escala_policiais ep
-		JOIN policiais p ON ep.policial_id = p.id
-		WHERE ep.escala_id = ?
-		ORDER BY ep.data_plantao, p.cargo DESC, p.nome
-	`).bind(escalaId).all<EscalaPolicialComDados>();
-	return result.results;
+export async function listarPoliciaisEscala(
+	db: Database,
+	escalaId: number
+): Promise<EscalaPolicialComDados[]> {
+	const result = await db
+		.select({
+			id: escalaPoliciais.id,
+			escala_id: escalaPoliciais.escala_id,
+			policial_id: escalaPoliciais.policial_id,
+			data_plantao: escalaPoliciais.data_plantao,
+			data_saida: escalaPoliciais.data_saida,
+			horario: escalaPoliciais.horario,
+			hora_entrada: escalaPoliciais.hora_entrada,
+			hora_saida: escalaPoliciais.hora_saida,
+			nome: policiais.nome,
+			matricula: policiais.matricula,
+			cargo: policiais.cargo,
+			telefone: policiais.telefone,
+			lotacao: policiais.lotacao
+		})
+		.from(escalaPoliciais)
+		.innerJoin(policiais, eq(escalaPoliciais.policial_id, policiais.id))
+		.where(eq(escalaPoliciais.escala_id, escalaId))
+		.orderBy(asc(escalaPoliciais.data_plantao), desc(policiais.cargo), asc(policiais.nome));
+
+	return result as EscalaPolicialComDados[];
 }
