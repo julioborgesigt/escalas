@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarPolicial, atualizarPolicial, excluirPolicial } from '$lib/db';
+import { getDB, buscarPolicial, atualizarPolicial, excluirPolicial, type Database } from '$lib/db';
 import type { RequestHandler } from './$types';
 
-async function verificarPermissao(db: D1Database, policialId: number, locals: App.Locals): Promise<Response | null> {
+async function verificarPermissao(db: Database, policialId: number, locals: App.Locals): Promise<Response | null> {
 	if (locals.usuario?.tipo === 'policial') {
 		const policial = await buscarPolicial(db, policialId);
 		if (policial && policial.lotacao !== locals.usuario.lotacao) {

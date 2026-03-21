@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarEscalaPolicial } from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarEscalaPolicial, type Database } from '$lib/db';
+import { escalaPolicialSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
-async function verificarAcessoEscala(db: D1Database, escalaId: number, locals: App.Locals): Promise<Response | null> {
+async function verificarAcessoEscala(db: Database, escalaId: number, locals: App.Locals): Promise<Response | null> {
 	if (locals.usuario?.tipo === 'policial') {
 		const escala = await buscarEscala(db, escalaId);
 		if (escala && escala.lotacao !== locals.usuario.lotacao) {
@@ -31,19 +32,20 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 	if (bloqueio) return bloqueio;
 
 	const data = await request.json();
-
-	if (!data.policial_id || !data.data_plantao) {
-		return json({ error: 'policial_id e data_plantao são obrigatórios' }, { status: 400 });
+	const parsed = escalaPolicialSchema.safeParse(data);
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 
+	const validated = parsed.data;
 	await adicionarPolicialEscala(
 		db,
 		escalaId,
-		data.policial_id,
-		data.data_plantao,
-		data.data_saida || data.data_plantao,
-		data.hora_entrada || '',
-		data.hora_saida || ''
+		validated.policial_id,
+		validated.data_plantao,
+		validated.data_saida || validated.data_plantao,
+		validated.hora_entrada,
+		validated.hora_saida
 	);
 	return json({ success: true }, { status: 201 });
 };

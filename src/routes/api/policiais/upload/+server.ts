@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, listarUnidades } from '$lib/db';
+import { policiais as policiaisTable } from '$lib/server/schema';
 import * as XLSX from 'xlsx';
 import { limparMatricula } from '$lib/utils';
 import type { RequestHandler } from './$types';
@@ -142,17 +143,19 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		const matriculaLimpa = limparMatricula(String(row.matricula));
 
 		try {
-			const result = await db.prepare(
-				'INSERT OR IGNORE INTO policiais (nome, matricula, cargo, telefone, lotacao) VALUES (?, ?, ?, ?, ?)'
-			).bind(
-				nome,
-				matriculaLimpa,
-				cargo,
-				row.telefone ? String(row.telefone).trim() : '',
-				lotacaoFinal
-			).run();
+			const result = await db
+				.insert(policiaisTable)
+				.values({
+					nome,
+					matricula: matriculaLimpa,
+					cargo: cargo as 'DPC' | 'OIP',
+					telefone: row.telefone ? String(row.telefone).trim() : '',
+					lotacao: lotacaoFinal
+				})
+				.onConflictDoNothing()
+				.returning({ id: policiaisTable.id });
 
-			if (result.meta?.changes === 0) {
+			if (result.length === 0) {
 				skipped++;
 				errors.push({
 					row: rowNum,
