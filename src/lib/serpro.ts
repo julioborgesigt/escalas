@@ -516,24 +516,24 @@ export async function conectarSerpro(): Promise<SerproSignerClient> {
  * @param hashHex - Hash em hexadecimal dos SignedAttributes (retornado por preparar-assinatura)
  * @returns rawSignature e certificateBase64 para uso em finalizar-assinatura
  */
-export async function assinarHashSerpro(
+/**
+ * Assina um hash SHA-256 (messageDigest em hex) usando o Assinador SERPRO.
+ *
+ * Envia o SHA-256 do byte-range do PDF (messageDigest retornado por preparar-assinatura),
+ * não o hash dos signedAttributes — assim o CMS gerado pelo SERPRO pode ser embutido
+ * diretamente no placeholder do PDF.
+ *
+ * @param client           - Cliente SERPRO conectado
+ * @param messageDigestHex - SHA-256 do byte-range do PDF em hexadecimal
+ * @returns cmsBase64 - CMS SignedData completo retornado pelo SERPRO (campo 'signature')
+ */
+export async function assinarSerpro(
 	client: SerproSignerClient,
-	hashHex: string
-): Promise<{ rawSignature: string; certificateBase64: string }> {
-	const hashBase64 = hexParaBase64(hashHex);
+	messageDigestHex: string
+): Promise<{ cmsBase64: string }> {
+	const hashBase64 = hexParaBase64(messageDigestHex);
 	const result = await client.sign(hashBase64);
-
-	if (!result.certificateBase64) {
-		const ultimaMensagem = result.rawMessages[result.rawMessages.length - 1];
-		const campos = typeof ultimaMensagem === 'object' && ultimaMensagem
-			? Object.keys(ultimaMensagem as object).join(', ')
-			: String(ultimaMensagem);
-		throw new Error(
-			`O Assinador SERPRO assinou mas não retornou o certificado.\n` +
-			`Campos recebidos: ${campos}\n` +
-			`Verifique a versão do Assinador SERPRO e tente novamente.`
-		);
-	}
-
-	return { rawSignature: result.rawSignature, certificateBase64: result.certificateBase64 };
+	// result.rawSignature = campo 'signature' da resposta SERPRO = CMS SignedData completo
+	return { cmsBase64: result.rawSignature };
+}
 }
