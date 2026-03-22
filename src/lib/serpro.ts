@@ -29,11 +29,26 @@ export interface SerproCertificate {
 	subjectName?: string;
 }
 
-/** URLs do WebSocket do Assinador SERPRO (porta principal e fallback) */
+/**
+ * URLs do WebSocket do Assinador SERPRO.
+ *
+ * Ordem de tentativa:
+ * 1. ws:// (sem TLS) — funciona em páginas HTTP sem precisar aceitar certificado
+ * 2. wss:// (com TLS) — requer que o usuário tenha aceitado o certificado auto-assinado
+ *    acessando https://127.0.0.1:65156 no navegador antes de usar
+ */
 const SERPRO_WS_URLS = [
+	'ws://127.0.0.1:65156/signer/',
+	'ws://127.0.0.1:65500/signer/',
 	'wss://127.0.0.1:65156/signer/',
 	'wss://127.0.0.1:65500/signer/'
 ];
+
+/**
+ * URL para o usuário aceitar o certificado auto-assinado do SERPRO no navegador.
+ * Necessário apenas quando a conexão wss:// for usada (páginas HTTPS).
+ */
+export const SERPRO_CERT_AUTH_URL = 'https://127.0.0.1:65156';
 
 /** Timeout em ms para cada comando WebSocket */
 const COMMAND_TIMEOUT_MS = 30_000;
