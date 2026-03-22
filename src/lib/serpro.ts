@@ -115,7 +115,7 @@ export class SerproSignerClient {
 
 	/**
 	 * Conecta ao Assinador SERPRO local.
-	 * Tenta a porta principal (65156) e o fallback (65500).
+	 * Tenta URLs em sequência até a primeira que funcionar.
 	 */
 	async connect(): Promise<void> {
 		console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
@@ -157,31 +157,43 @@ export class SerproSignerClient {
 
 			const ws = new WebSocket(url);
 
+			// Timeout cobre tanto o onopen quanto a espera pelo hello
 			const timeout = setTimeout(() => {
-				console.warn(`[SERPRO]   ⏱ Timeout (5s) em ${url}`);
+				console.warn(`[SERPRO]   ⏱ Timeout (8s) em ${url}`);
 				ws.close();
 				settle(() => reject(new Error(`Timeout ao conectar em ${url}`)));
-			}, 5_000);
+			}, 8_000);
 
 			ws.onopen = () => {
-				console.log(`[SERPRO]   ✅ onopen disparou para ${url}`);
+				console.log(`[SERPRO]   ✅ onopen em ${url} — aguardando hello do servidor...`);
 				this.ws = ws;
-				ws.onmessage = (event) => this.handleMessage(event);
-				ws.onerror = (ev) => {
-					console.error('[SERPRO] Erro após conexão:', ev);
-					if (this.pendingReject) {
-						this.pendingReject(new Error('Erro na conexão WebSocket com o Assinador SERPRO'));
-						this.clearPending();
-					}
+
+				// O SERPRO envia uma mensagem de "ready" imediatamente após a conexão:
+				// {"command":"","requestId":0,"actionCanceled":false}
+				// Precisamos consumi-la ANTES de resolver o connect, para que os
+				// comandos subsequentes não a capturem como resposta.
+				ws.onmessage = (helloEvt) => {
+					console.log(`[SERPRO]   📨 Hello do servidor:`, helloEvt.data);
+
+					// Agora configura os handlers permanentes para comandos reais
+					ws.onmessage = (evt) => this.handleMessage(evt);
+					ws.onerror = (ev) => {
+						console.error('[SERPRO] Erro pós-conexão:', ev);
+						if (this.pendingReject) {
+							this.pendingReject(new Error('Erro na conexão WebSocket com o Assinador SERPRO'));
+							this.clearPending();
+						}
+					};
+					ws.onclose = (ev) => {
+						console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
+						if (this.pendingReject) {
+							this.pendingReject(new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`));
+							this.clearPending();
+						}
+					};
+
+					settle(() => resolve());
 				};
-				ws.onclose = (ev) => {
-					console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
-					if (this.pendingReject) {
-						this.pendingReject(new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`));
-						this.clearPending();
-					}
-				};
-				settle(() => resolve());
 			};
 
 			ws.onerror = (ev) => {
@@ -197,12 +209,16 @@ export class SerproSignerClient {
 	}
 
 	private handleMessage(event: MessageEvent): void {
-		console.log('[SERPRO] ← Mensagem recebida:', event.data);
+		console.log('[SERPRO] ← Resposta recebida:', event.data);
 		if (this.timeoutId) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
-		if (!this.pendingResolve) return;
+		if (!this.pendingResolve) {
+			// Mensagem não solicitada (ex: notificação do servidor)
+			console.warn('[SERPRO] Mensagem recebida sem comando pendente (ignorada):', event.data);
+			return;
+		}
 		const resolve = this.pendingResolve;
 		this.clearPending();
 		resolve(event.data);
@@ -229,12 +245,9 @@ export class SerproSignerClient {
 			this.pendingResolve = (data) => {
 				try {
 					const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+					console.log('[SERPRO]   Resposta parseada:', parsed);
 					if (parsed?.error || parsed?.result === 'ERROR' || parsed?.result === 'FAILURE') {
-						reject(
-							new Error(
-								parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO'
-							)
-						);
+						reject(new Error(parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO'));
 					} else {
 						resolve(parsed as T);
 					}
@@ -252,27 +265,81 @@ export class SerproSignerClient {
 	}
 
 	/**
+	 * Diagnóstico: envia um comando e retorna a resposta bruta como string.
+	 * Use para descobrir o protocolo correto do SERPRO.
+	 */
+	async probe(command: object): Promise<string> {
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+			throw new Error('WebSocket não está conectado');
+		}
+		return new Promise<string>((resolve, reject) => {
+			const handler = (evt: MessageEvent) => {
+				ws.onmessage = (e) => this.handleMessage(e);
+				resolve(evt.data);
+			};
+			const ws = this.ws!;
+			ws.onmessage = handler;
+			const tid = setTimeout(() => {
+				ws.onmessage = (e) => this.handleMessage(e);
+				reject(new Error('Timeout no probe'));
+			}, 5_000);
+			console.log('[SERPRO] 🔬 Probe:', command);
+			ws.send(JSON.stringify(command));
+			void tid;
+		});
+	}
+
+	/**
 	 * Lista os certificados digitais disponíveis no computador.
 	 *
-	 * Formato do comando WebSocket (SERPRO Desktop v4.x):
-	 *   → {"command": "listCertificates"}
-	 *   ← {"command": "listCertificates", "result": "SUCCESS",
-	 *        "certificates": [{"alias": "...", "subjectDN": "...", "issuerDN": "..."}]}
-	 *
-	 * Referência: https://www.assinadorserpro.estaleiro.serpro.gov.br/minimalista/tutorial/
+	 * Tenta múltiplas variações de nome do comando até obter certificados,
+	 * pois o protocolo exato do SERPRO não está documentado publicamente.
+	 * Os resultados dos probes são logados no console para diagnóstico.
 	 */
 	async listCertificates(): Promise<SerproCertificate[]> {
-		const resp = await this.sendCommand<{
-			certificates?: Array<{ alias: string; subjectDN: string; issuerDN?: string; certificate?: string }>;
-		}>({ command: 'listCertificates' });
-		return (resp.certificates ?? []).map((c) =>
-			enriquecerCert({
-				alias: c.alias,
-				subjectDN: c.subjectDN,
-				issuerDN: c.issuerDN,
-				certificate: c.certificate
-			})
-		);
+		// Candidatos de nome de comando, testados em sequência
+		const candidates = [
+			{ command: 'listCertificates' },
+			{ command: 'getCertificates' },
+			{ command: 'obterCertificados' },
+			{ command: 'listarCertificados' },
+			{ command: 'certificates' },
+			{ command: 'getAliases' },
+			{ command: 'aliases' },
+		];
+
+		console.group('[SERPRO] Descobrindo comando de listagem de certificados...');
+		let lastResponse: unknown = null;
+
+		for (const cmd of candidates) {
+			try {
+				const raw = await this.probe(cmd);
+				console.log(`[SERPRO] 🔬 ${cmd.command} →`, raw);
+				const parsed = JSON.parse(raw);
+				lastResponse = parsed;
+
+				// Verifica se a resposta contém certificados (qualquer campo com array)
+				const certs = parsed.certificates ?? parsed.aliases ?? parsed.content ?? parsed.data;
+				if (Array.isArray(certs) && certs.length > 0) {
+					console.log(`[SERPRO] ✅ Comando correto: "${cmd.command}" retornou ${certs.length} cert(s)`);
+					console.groupEnd();
+					return certs.map((c: { alias?: string; subjectDN?: string; issuerDN?: string; certificate?: string; thumbprint?: string }) =>
+						enriquecerCert({
+							alias: c.alias ?? c.thumbprint ?? '',
+							subjectDN: c.subjectDN ?? '',
+							issuerDN: c.issuerDN,
+							certificate: c.certificate
+						})
+					);
+				}
+			} catch (e) {
+				console.warn(`[SERPRO] 🔬 ${cmd.command} → erro:`, e);
+			}
+		}
+
+		console.warn('[SERPRO] Nenhum comando retornou certificados. Última resposta:', lastResponse);
+		console.groupEnd();
+		return [];
 	}
 
 	/**
