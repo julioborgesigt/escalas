@@ -3,8 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
-	import { initWebPKI, listarCertificados, assinarHash } from '$lib/webpki';
-	import type { WebPKICertificate } from '$lib/webpki';
+	import { initWebPKI, listarCertificados, assinarHash, type WebPKICertificate } from '$lib/webpki';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
