@@ -273,9 +273,19 @@
 	async function executarAssinatura(pki: Awaited<ReturnType<typeof initWebPKI>>, thumbprint: string) {
 		assinando = true;
 
+		// Buscar dados do certificado selecionado para o carimbo
+		const cert = certificados.find((c) => c.thumbprint === thumbprint);
+
 		// 1. Preparar PDF no servidor
 		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, { method: 'POST' });
+		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				signerName: cert?.subjectName ?? '',
+				signerCpf: cert?.cpf ?? ''
+			})
+		});
 		if (!prepRes.ok) {
 			const err = await prepRes.json();
 			throw new Error(err.error || 'Erro ao preparar PDF');
