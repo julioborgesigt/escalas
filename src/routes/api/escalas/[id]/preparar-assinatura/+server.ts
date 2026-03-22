@@ -26,7 +26,6 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		return json({ error: 'Escala sem policiais cadastrados' }, { status: 400 });
 	}
 
-	// Dados do certificado enviados pelo client
 	const body = await request.json().catch(() => ({}));
 	const signerName = (body as { signerName?: string }).signerName || usuario.nome;
 	const signerCpf = (body as { signerCpf?: string }).signerCpf || '';
@@ -34,18 +33,16 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	// Gerar o PDF da escala
 	const pdfBytes = gerarPdf(escala, policiais);
 
-	// Preparar o PDF com placeholder de assinatura e calcular hash
-	const { preparedPdf, hashHex } = await prepararPdfParaAssinatura(
-		pdfBytes,
-		signerName,
-		signerCpf
-	);
+	// Preparar o PDF com placeholder de assinatura e calcular hash dos SignedAttributes
+	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO } =
+		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf);
 
-	// Retornar o PDF preparado (base64) e o hash para o client assinar
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
 	return json({
-		hashHex,
-		preparedPdf: preparedPdfBase64
+		signedAttrsHashHex,
+		preparedPdf: preparedPdfBase64,
+		messageDigest,
+		signingTimeISO
 	});
 };
