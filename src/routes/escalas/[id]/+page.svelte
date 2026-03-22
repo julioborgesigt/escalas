@@ -5,8 +5,8 @@
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import {
-		conectarSerpro, listarCertificadosSerpro, lerCertificadoSerpro, assinarHashSerpro,
-		SERPRO_CERT_AUTH_URL, type SerproCertificate, type SerproSignerClient
+		conectarSerpro, assinarHashSerpro,
+		SERPRO_CERT_AUTH_URL, type SerproSignerClient
 	} from '$lib/serpro';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -228,9 +228,6 @@
 	let mostrarCerts = $state(false);
 
 	// --- Assinador SERPRO ---
-	let certsSerpro = $state<SerproCertificate[]>([]);
-	let certSerproSelecionado = $state('');
-	let mostrarCertsSerpro = $state(false);
 	let serproClient = $state<SerproSignerClient | null>(null);
 
 	// ── Helpers compartilhados ──────────────────────────────────────────────
@@ -360,97 +357,44 @@
 	}
 
 	// ── Assinador SERPRO ────────────────────────────────────────────────────
+	// O SERPRO 4.x não suporta listagem de certificados via WebSocket.
+	// A seleção de certificado e digitação de PIN ocorrem na UI nativa do
+	// Assinador SERPRO quando o comando "sign" é enviado.
 
 	async function assinarComSerpro() {
-		if (certsSerpro.length === 0) {
-			assinando = true;
-			etapaAssinatura = 'Conectando ao Assinador SERPRO...';
-			try {
-				const client = await conectarSerpro();
-				serproClient = client;
-				etapaAssinatura = 'Listando certificados...';
-				certsSerpro = await listarCertificadosSerpro(client);
-				if (certsSerpro.length === 0) {
-					toaster.create({ title: 'Nenhum certificado encontrado. Conecte seu token A3 e abra o Assinador SERPRO.', type: 'error' });
-					serproClient?.disconnect();
-					serproClient = null;
-					assinando = false;
-					etapaAssinatura = '';
-					return;
-				}
-				if (certsSerpro.length === 1) {
-					certSerproSelecionado = certsSerpro[0].alias;
-					await executarAssinaturaSerpro(certsSerpro[0]);
-				} else {
-					mostrarCertsSerpro = true;
-					assinando = false;
-					etapaAssinatura = '';
-				}
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : 'Erro ao conectar ao Assinador SERPRO';
-				toaster.create({ title: msg, type: 'error' });
-				serproClient?.disconnect();
-				serproClient = null;
-				assinando = false;
-				etapaAssinatura = '';
-			}
-			return;
-		}
-
-		if (!certSerproSelecionado) {
-			toaster.create({ title: 'Selecione um certificado', type: 'error' });
-			return;
-		}
-		const cert = certsSerpro.find((c) => c.alias === certSerproSelecionado);
-		if (!cert) return;
-
 		assinando = true;
+		etapaAssinatura = 'Conectando ao Assinador SERPRO...';
 		try {
-			await executarAssinaturaSerpro(cert);
+			const client = serproClient ?? await conectarSerpro();
+			serproClient = client;
+			await executarAssinaturaSerpro(client);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Erro na assinatura SERPRO';
+			const msg = err instanceof Error ? err.message : 'Erro no Assinador SERPRO';
 			toaster.create({ title: msg, type: 'error' });
+			serproClient?.disconnect();
+			serproClient = null;
 			assinando = false;
 			etapaAssinatura = '';
 		}
 	}
 
-	async function executarAssinaturaSerpro(cert: SerproCertificate) {
-		assinando = true;
-		if (!serproClient) {
-			throw new Error('Cliente SERPRO não conectado');
-		}
-		const client = serproClient;
-
-		etapaAssinatura = 'Lendo certificado...';
-		const certificateBase64 = await lerCertificadoSerpro(client, cert);
-
+	async function executarAssinaturaSerpro(client: SerproSignerClient) {
 		try {
 			await finalizarEBaixarPdf(
-				cert.subjectName ?? cert.subjectDN,
-				cert.cpf ?? '',
+				'',  // servidor usa o nome do usuário logado
+				'',  // servidor usa '' como CPF padrão
 				async (signedAttrsHashHex) => {
-					etapaAssinatura = 'Aguardando assinatura no Assinador SERPRO (digite o PIN)...';
-					const rawSignature = await assinarHashSerpro(client, cert.alias, signedAttrsHashHex);
-					return { rawSignature, certificateBase64 };
+					etapaAssinatura = 'Selecione o certificado e digite o PIN no Assinador SERPRO...';
+					return assinarHashSerpro(client, signedAttrsHashHex);
 				}
 			);
 			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
 		} finally {
 			assinando = false;
 			etapaAssinatura = '';
-			mostrarCertsSerpro = false;
 			serproClient?.disconnect();
 			serproClient = null;
 		}
-	}
-
-	function resetarSerpro() {
-		serproClient?.disconnect();
-		serproClient = null;
-		certsSerpro = [];
-		certSerproSelecionado = '';
-		mostrarCertsSerpro = false;
 	}
 
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
@@ -528,23 +472,6 @@
 				</div>
 			{/if}
 
-			<!-- Seletor de certificado SERPRO -->
-			{#if mostrarCertsSerpro && certsSerpro.length > 1}
-				<div class="flex gap-2 flex-wrap items-end mb-3">
-					<label class="label flex-1 min-w-[200px]">
-						<span class="label-text text-xs">Certificado (Assinador SERPRO)</span>
-						<select class="select" bind:value={certSerproSelecionado}>
-							<option value="">Selecione o certificado...</option>
-							{#each certsSerpro as cert (cert.alias)}
-								<option value={cert.alias}>
-									{cert.subjectName ?? cert.subjectDN}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''}
-								</option>
-							{/each}
-						</select>
-					</label>
-				</div>
-			{/if}
-
 			<div class="flex gap-2 items-center flex-wrap">
 				<!-- Botão Web PKI -->
 				<button
@@ -568,7 +495,7 @@
 					disabled={assinando}
 					title="Requer o Assinador SERPRO Desktop instalado e em execução"
 				>
-					{#if assinando && (certsSerpro.length > 0 || mostrarCertsSerpro || serproClient)}
+					{#if assinando && serproClient}
 						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 						{etapaAssinatura}
 					{:else}
@@ -583,12 +510,6 @@
 					</button>
 				{/if}
 
-				<!-- Trocar certificado SERPRO -->
-				{#if certsSerpro.length > 0 && !assinando}
-					<button class="btn btn-sm preset-outlined-surface" onclick={resetarSerpro}>
-						Trocar (SERPRO)
-					</button>
-				{/if}
 			</div>
 
 			<p class="text-xs text-surface-400 dark:text-surface-500 mt-2">

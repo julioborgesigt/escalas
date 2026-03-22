@@ -14,6 +14,18 @@
  * Verifique a documentação oficial caso ocorram erros de protocolo.
  */
 
+/**
+ * Resultado do comando "sign" do Assinador SERPRO.
+ */
+export interface SerproSignResult {
+	/** Assinatura RSA bruta em Base64 (campo outputData ou signature da resposta). */
+	rawSignature: string;
+	/** Certificado do signatário em Base64 DER, se retornado pelo SERPRO. */
+	certificateBase64?: string;
+	/** Todas as mensagens recebidas (ACK + resposta real), para diagnóstico. */
+	rawMessages: unknown[];
+}
+
 export interface SerproCertificate {
 	alias: string;
 	subjectDN: string;
@@ -385,46 +397,76 @@ export class SerproSignerClient {
 	}
 
 	/**
-	 * Obtém o certificado em formato DER codificado em Base64 para o alias informado.
+	 * Assina um hash SHA-256 usando o comando "sign" do Assinador SERPRO.
 	 *
-	 * Formato do comando WebSocket:
-	 *   → {"command": "getCertificate", "alias": "<alias>"}
-	 *   ← {"command": "getCertificate", "result": "SUCCESS", "certificate": "<base64DER>"}
+	 * O SERPRO abre sua interface nativa para o usuário selecionar o certificado
+	 * e digitar o PIN. A resposta pode incluir o certificado do signatário.
+	 *
+	 * Protocolo documentado em serpro-signer-client.js (oficial SERPRO):
+	 *   → {"command": "sign", "type": "hash", "inputData": "<base64>", "requestId": <n>}
+	 *   ← {"command": "sign", "requestId": <n>, "outputData": "<sig-base64>",
+	 *        "certificate?": "<cert-base64>", "actionCanceled": false}
+	 *
+	 * @param hashBase64 - SHA-256 dos SignedAttributes em Base64
+	 * @param timeoutMs  - Tempo máximo aguardando o usuário interagir (padrão 120 s)
 	 */
-	async getCertificate(alias: string): Promise<string> {
-		const resp = await this.sendCommand<{ certificate?: string }>({
-			command: 'getCertificate',
-			alias
-		});
-		if (!resp.certificate) {
-			throw new Error('Assinador SERPRO não retornou o certificado DER');
-		}
-		return resp.certificate;
-	}
+	async sign(hashBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
+		const requestId = Date.now();
+		console.log(`[SERPRO] → Enviando sign (hash). Aguardando interação do usuário (${timeoutMs / 1000}s)...`);
 
-	/**
-	 * Assina um hash SHA-256 com o certificado selecionado.
-	 * Neste momento o Assinador SERPRO abre a janela de PIN para o usuário.
-	 *
-	 * @param alias - Identificador do certificado retornado por listCertificates()
-	 * @param hashBase64 - Hash SHA-256 a ser assinado, codificado em Base64
-	 * @returns Assinatura RSA bruta em Base64
-	 *
-	 * Formato do comando WebSocket:
-	 *   → {"command": "signHash", "alias": "<alias>", "hash": "<base64>", "algorithm": "SHA-256"}
-	 *   ← {"command": "signHash", "result": "SUCCESS", "signature": "<base64>"}
-	 */
-	async signHash(alias: string, hashBase64: string): Promise<string> {
-		const resp = await this.sendCommand<{ signature?: string }>({
-			command: 'signHash',
-			alias,
-			hash: hashBase64,
-			algorithm: 'SHA-256'
+		const msgs = await this.probeMulti(
+			{ command: 'sign', type: 'hash', inputData: hashBase64, requestId },
+			timeoutMs,
+			3_000
+		);
+
+		const parsed = msgs.map(m => {
+			try { return JSON.parse(m as string); } catch { return m; }
 		});
-		if (!resp.signature) {
-			throw new Error('Assinador SERPRO não retornou a assinatura');
+		console.log('[SERPRO] ← Todas as respostas do sign:', parsed);
+
+		// Procura a mensagem real (ignora ACK genérico com command="")
+		const real = parsed.find((p: unknown) => {
+			if (typeof p !== 'object' || p === null) return false;
+			const o = p as Record<string, unknown>;
+			return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+		}) ?? parsed[parsed.length - 1];
+
+		if (!real || typeof real !== 'object') {
+			throw new Error(
+				`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`
+			);
 		}
-		return resp.signature;
+
+		const o = real as Record<string, unknown>;
+
+		if (o.actionCanceled === true) {
+			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
+		}
+
+		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
+		if (!rawSignature) {
+			const campos = Object.keys(o).join(', ');
+			console.error('[SERPRO] Resposta sem assinatura. Campos disponíveis:', campos, o);
+			throw new Error(
+				`Assinador SERPRO não retornou a assinatura.\n` +
+				`Campos na resposta: ${campos}.\n` +
+				`Resposta completa: ${JSON.stringify(o)}`
+			);
+		}
+
+		const certificateBase64 = (
+			o.certificate ?? o.signerCertificate ?? o.cert ?? o.signerCertificateBase64
+		) as string | undefined;
+
+		if (!certificateBase64) {
+			console.warn(
+				'[SERPRO] ⚠️ sign retornou assinatura mas SEM certificado.\n' +
+				'Campos disponíveis:', Object.keys(o), '\nResposta:', o
+			);
+		}
+
+		return { rawSignature, certificateBase64, rawMessages: parsed };
 	}
 
 	/** Encerra a conexão WebSocket. */
@@ -465,39 +507,33 @@ export async function conectarSerpro(): Promise<SerproSignerClient> {
 }
 
 /**
- * Lista os certificados disponíveis via Assinador SERPRO.
- */
-export async function listarCertificadosSerpro(
-	client: SerproSignerClient
-): Promise<SerproCertificate[]> {
-	return client.listCertificates();
-}
-
-/**
- * Lê o certificado em Base64 DER.
- * Primeiro tenta usar o campo `certificate` da listagem; se não estiver presente,
- * envia o comando getCertificate.
- */
-export async function lerCertificadoSerpro(
-	client: SerproSignerClient,
-	cert: SerproCertificate
-): Promise<string> {
-	if (cert.certificate) return cert.certificate;
-	return client.getCertificate(cert.alias);
-}
-
-/**
- * Assina um hash SHA-256 (em hexadecimal) com o certificado SERPRO.
- * Internamente converte hex → Base64 antes de enviar ao Assinador.
+ * Assina um hash SHA-256 (hexadecimal) usando o Assinador SERPRO.
  *
- * @param hashHex - Hash em hexadecimal (como retornado por preparar-assinatura)
- * @returns Assinatura em Base64
+ * O SERPRO exibe sua interface nativa para seleção de certificado e PIN.
+ * A resposta deve incluir a assinatura e (esperamos) o certificado do signatário.
+ *
+ * @param client  - Cliente SERPRO conectado
+ * @param hashHex - Hash em hexadecimal dos SignedAttributes (retornado por preparar-assinatura)
+ * @returns rawSignature e certificateBase64 para uso em finalizar-assinatura
  */
 export async function assinarHashSerpro(
 	client: SerproSignerClient,
-	alias: string,
 	hashHex: string
-): Promise<string> {
+): Promise<{ rawSignature: string; certificateBase64: string }> {
 	const hashBase64 = hexParaBase64(hashHex);
-	return client.signHash(alias, hashBase64);
+	const result = await client.sign(hashBase64);
+
+	if (!result.certificateBase64) {
+		const ultimaMensagem = result.rawMessages[result.rawMessages.length - 1];
+		const campos = typeof ultimaMensagem === 'object' && ultimaMensagem
+			? Object.keys(ultimaMensagem as object).join(', ')
+			: String(ultimaMensagem);
+		throw new Error(
+			`O Assinador SERPRO assinou mas não retornou o certificado.\n` +
+			`Campos recebidos: ${campos}\n` +
+			`Verifique a versão do Assinador SERPRO e tente novamente.`
+		);
+	}
+
+	return { rawSignature: result.rawSignature, certificateBase64: result.certificateBase64 };
 }
