@@ -30,18 +30,17 @@ export interface SerproCertificate {
 }
 
 /**
- * URLs do WebSocket do Assinador SERPRO.
- *
- * Ordem de tentativa:
- * 1. ws:// (sem TLS) — funciona em páginas HTTP sem precisar aceitar certificado
- * 2. wss:// (com TLS) — requer que o usuário tenha aceitado o certificado auto-assinado
- *    acessando https://127.0.0.1:65156 no navegador antes de usar
+ * Candidatos de URL WebSocket testados em sequência.
+ * Portas conhecidas do Assinador SERPRO: 65156, 65166, 65500.
+ * Paths documentados: /signer/  (v3/v4).
  */
 const SERPRO_WS_URLS = [
 	'ws://127.0.0.1:65156/signer/',
+	'ws://127.0.0.1:65166/signer/',
 	'ws://127.0.0.1:65500/signer/',
 	'wss://127.0.0.1:65156/signer/',
-	'wss://127.0.0.1:65500/signer/'
+	'wss://127.0.0.1:65166/signer/',
+	'wss://127.0.0.1:65500/signer/',
 ];
 
 /**
@@ -107,60 +106,86 @@ export class SerproSignerClient {
 	 * Tenta a porta principal (65156) e o fallback (65500).
 	 */
 	async connect(): Promise<void> {
+		console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
+		console.log('[SERPRO] URLs a tentar:', SERPRO_WS_URLS);
+		const erros: string[] = [];
+
 		for (const url of SERPRO_WS_URLS) {
 			try {
 				await this.tryConnect(url);
+				console.log(`[SERPRO] ✅ Conectado em ${url}`);
+				console.groupEnd();
 				return;
-			} catch {
-				// tenta próxima URL
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				erros.push(`${url} → ${msg}`);
+				console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
 			}
 		}
+
+		console.error('[SERPRO] Todas as tentativas falharam:', erros);
+		console.groupEnd();
 		throw new Error(
 			'Não foi possível conectar ao Assinador SERPRO. ' +
-				'Verifique se o software está instalado e em execução: ' +
-				'https://www.serpro.gov.br/menu/nossas-forcas/especializados/assinador-digital'
+			'Verifique se o software está instalado e em execução.\n' +
+			'Detalhes no console do navegador (F12).'
 		);
 	}
 
 	private tryConnect(url: string): Promise<void> {
 		return new Promise((resolve, reject) => {
+			console.log(`[SERPRO]   → Tentando ${url} ...`);
+			let settled = false;
+			const settle = (fn: () => void) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timeout);
+				fn();
+			};
+
 			const ws = new WebSocket(url);
+
 			const timeout = setTimeout(() => {
+				console.warn(`[SERPRO]   ⏱ Timeout (5s) em ${url}`);
 				ws.close();
-				reject(new Error(`Timeout ao conectar em ${url}`));
+				settle(() => reject(new Error(`Timeout ao conectar em ${url}`)));
 			}, 5_000);
 
 			ws.onopen = () => {
-				clearTimeout(timeout);
+				console.log(`[SERPRO]   ✅ onopen disparou para ${url}`);
 				this.ws = ws;
 				ws.onmessage = (event) => this.handleMessage(event);
-				ws.onerror = () => {
+				ws.onerror = (ev) => {
+					console.error('[SERPRO] Erro após conexão:', ev);
 					if (this.pendingReject) {
 						this.pendingReject(new Error('Erro na conexão WebSocket com o Assinador SERPRO'));
 						this.clearPending();
 					}
 				};
-				ws.onclose = () => {
+				ws.onclose = (ev) => {
+					console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
 					if (this.pendingReject) {
-						this.pendingReject(new Error('Conexão com o Assinador SERPRO foi encerrada'));
+						this.pendingReject(new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`));
 						this.clearPending();
 					}
 				};
-				resolve();
+				settle(() => resolve());
 			};
 
-			ws.onerror = () => {
-				clearTimeout(timeout);
-				reject(new Error(`Falha ao conectar em ${url}`));
+			ws.onerror = (ev) => {
+				console.warn(`[SERPRO]   ❌ onerror em ${url}`, ev);
+				settle(() => reject(new Error(`onerror em ${url}`)));
 			};
-			ws.onclose = () => {
-				clearTimeout(timeout);
-				reject(new Error(`Conexão recusada em ${url}`));
+
+			ws.onclose = (ev) => {
+				console.warn(`[SERPRO]   🔌 onclose em ${url} — code=${ev.code} wasClean=${ev.wasClean} reason="${ev.reason}"`);
+				settle(() => reject(new Error(`onclose code=${ev.code} em ${url}`)));
 			};
 		});
 	}
 
 	private handleMessage(event: MessageEvent): void {
+		console.log('[SERPRO] ← Mensagem recebida:', event.data);
 		if (this.timeoutId) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
@@ -187,6 +212,7 @@ export class SerproSignerClient {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			return Promise.reject(new Error('WebSocket não está conectado'));
 		}
+		console.log('[SERPRO] → Enviando comando:', command);
 		return new Promise<T>((resolve, reject) => {
 			this.pendingResolve = (data) => {
 				try {
