@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, listarEscalas, criarEscala, excluirEscala } from '$lib/db';
+import { escalaSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, url, locals }) => {
@@ -22,31 +23,30 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	const usuario = locals.usuario;
 	const data = await request.json();
 
-	if (!data.titulo || !data.cidade || !data.data_inicio || !data.data_fim) {
-		return json({ error: 'Campos obrigatórios: titulo, cidade, data_inicio, data_fim' }, { status: 400 });
+	const parsed = escalaSchema.safeParse(data);
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 
-	const horaEntrada = data.hora_entrada || '08';
-	const horaSaida = data.hora_saida || '08';
+	const validated = parsed.data;
 
 	// Policial cria escala da sua lotação; admin deve informar
-	let lotacao = data.lotacao || '';
 	if (usuario?.tipo === 'policial') {
-		lotacao = usuario.lotacao!;
+		validated.lotacao = usuario.lotacao!;
 	}
 
 	const result = await criarEscala(db, {
-		titulo: data.titulo,
-		cidade: data.cidade,
-		data_inicio: data.data_inicio,
-		data_fim: data.data_fim,
-		horario: data.horario || `${horaEntrada}H A ${horaSaida}H`,
-		hora_entrada: horaEntrada,
-		hora_saida: horaSaida,
-		lotacao
+		titulo: validated.titulo,
+		cidade: validated.cidade,
+		data_inicio: validated.data_inicio,
+		data_fim: validated.data_fim,
+		horario: validated.horario || `${validated.hora_entrada}H A ${validated.hora_saida}H`,
+		hora_entrada: validated.hora_entrada,
+		hora_saida: validated.hora_saida,
+		lotacao: validated.lotacao
 	});
 
-	return json({ success: true, id: result.meta?.last_row_id }, { status: 201 });
+	return json({ success: true, id: result[0]?.id }, { status: 201 });
 };
 
 export const DELETE: RequestHandler = async ({ platform, url, locals }) => {

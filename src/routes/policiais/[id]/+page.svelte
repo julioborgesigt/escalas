@@ -25,7 +25,7 @@
 				nome = data.nome;
 				matricula = data.matricula;
 				cargo = data.cargo;
-				telefone = data.telefone;
+				telefone = data.telefone || '';
 				lotacao = data.lotacao;
 				loading = false;
 			});
