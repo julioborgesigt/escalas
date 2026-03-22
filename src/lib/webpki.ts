@@ -65,18 +65,34 @@ export async function listarCertificados(
 }
 
 /**
+ * Converte uma string hexadecimal em Base64.
+ */
+function hexToBase64(hex: string): string {
+	const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+	let binary = '';
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	return btoa(binary);
+}
+
+/**
  * Assina um hash SHA-256 usando o certificado selecionado.
  * Retorna a assinatura PKCS#7 em base64.
  * Neste momento a janela de PIN do token aparece para o usuário.
+ *
+ * @param hashHex - Hash em formato hexadecimal (será convertido para Base64 internamente,
+ *                  pois o Web PKI espera o hash codificado em Base64).
  */
 export async function assinarHash(
 	pki: PKIInstance,
 	thumbprint: string,
 	hashHex: string
 ): Promise<string> {
+	const hashBase64 = hexToBase64(hashHex);
 	return toNativePromise<string>(pki.signHash({
 		thumbprint,
-		hash: hashHex,
+		hash: hashBase64,
 		digestAlgorithm: 'SHA-256'
 	}));
 }
