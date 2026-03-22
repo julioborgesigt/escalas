@@ -1,6 +1,32 @@
 import { json } from '@sveltejs/kit';
-import { getDB, excluirUnidade } from '$lib/db';
+import { getDB, excluirUnidade, atualizarUnidade } from '$lib/db';
 import type { RequestHandler } from './$types';
+
+export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
+	if (locals.usuario?.tipo !== 'admin') {
+		return json({ error: 'Apenas administradores podem editar unidades' }, { status: 403 });
+	}
+
+	const db = getDB(platform);
+	const id = Number(params.id);
+	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
+
+	const data = await request.json();
+	if (!data.nome || !String(data.nome).trim()) {
+		return json({ error: 'Nome da unidade é obrigatório' }, { status: 400 });
+	}
+
+	try {
+		await atualizarUnidade(db, id, String(data.nome));
+		return json({ success: true });
+	} catch (e: unknown) {
+		const message = e instanceof Error ? e.message : 'Erro desconhecido';
+		if (message.includes('UNIQUE')) {
+			return json({ error: 'Já existe uma unidade com este nome' }, { status: 409 });
+		}
+		return json({ error: message }, { status: 500 });
+	}
+};
 
 export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	if (locals.usuario?.tipo !== 'admin') {
@@ -9,9 +35,21 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 
 	const db = getDB(platform);
 	const id = Number(params.id);
+	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
 
-	if (!id) {
-		return json({ error: 'ID inválido' }, { status: 400 });
+	// Verificar se a unidade está atrelada a alguma escala
+	const unidade = await db.prepare('SELECT nome FROM unidades WHERE id = ?').bind(id).first<{ nome: string }>();
+	if (!unidade) return json({ error: 'Unidade não encontrada' }, { status: 404 });
+
+	const { count } = await db
+		.prepare('SELECT COUNT(*) as count FROM escalas WHERE lotacao = ?')
+		.bind(unidade.nome)
+		.first<{ count: number }>() ?? { count: 0 };
+
+	if (count > 0) {
+		return json({
+			error: `Não é possível excluir: esta unidade possui ${count} escala${count !== 1 ? 's' : ''} vinculada${count !== 1 ? 's' : ''}. Exclua as escalas primeiro.`
+		}, { status: 409 });
 	}
 
 	await excluirUnidade(db, id);

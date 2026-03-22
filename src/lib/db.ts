@@ -72,6 +72,17 @@ export async function criarUnidade(db: D1Database, nome: string): Promise<D1Resu
 	return db.prepare('INSERT INTO unidades (nome) VALUES (?)').bind(nome.trim()).run();
 }
 
+export async function atualizarUnidade(db: D1Database, id: number, novoNome: string): Promise<{ nomeAntigo: string }> {
+	const unidade = await db.prepare('SELECT nome FROM unidades WHERE id = ?').bind(id).first<{ nome: string }>();
+	if (!unidade) throw new Error('Unidade não encontrada');
+	const nomeAntigo = unidade.nome;
+	await db.prepare('UPDATE unidades SET nome = ? WHERE id = ?').bind(novoNome.trim(), id).run();
+	// Cascata: atualizar lotação em policiais e escalas
+	await db.prepare("UPDATE policiais SET lotacao = ? WHERE lotacao = ?").bind(novoNome.trim(), nomeAntigo).run();
+	await db.prepare("UPDATE escalas SET lotacao = ? WHERE lotacao = ?").bind(novoNome.trim(), nomeAntigo).run();
+	return { nomeAntigo };
+}
+
 export async function excluirUnidade(db: D1Database, id: number): Promise<D1Result> {
 	return db.prepare('DELETE FROM unidades WHERE id = ?').bind(id).run();
 }
