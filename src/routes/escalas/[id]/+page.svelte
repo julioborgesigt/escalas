@@ -3,6 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
+	import { initWebPKI, listarCertificados, assinarHash, type WebPKICertificate } from '$lib/webpki';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -213,6 +214,109 @@
 		window.open(`/api/escalas/${page.params.id}/download?format=${format}`, '_blank');
 	}
 
+	// === Assinatura Digital ===
+	let assinando = $state(false);
+	let etapaAssinatura = $state('');
+	let certificados = $state<WebPKICertificate[]>([]);
+	let certSelecionado = $state('');
+	let mostrarCerts = $state(false);
+
+	async function assinarDigitalmente() {
+		if (certificados.length === 0) {
+			// Primeiro clique: inicializar Web PKI e listar certificados
+			assinando = true;
+			etapaAssinatura = 'Inicializando Web PKI...';
+			try {
+				const pki = await initWebPKI();
+				etapaAssinatura = 'Listando certificados...';
+				certificados = await listarCertificados(pki);
+				if (certificados.length === 0) {
+					toaster.create({ title: 'Nenhum certificado digital encontrado. Conecte seu eToken USB.', type: 'error' });
+					assinando = false;
+					etapaAssinatura = '';
+					return;
+				}
+				if (certificados.length === 1) {
+					certSelecionado = certificados[0].thumbprint;
+					await executarAssinatura(pki, certificados[0].thumbprint);
+				} else {
+					mostrarCerts = true;
+					assinando = false;
+					etapaAssinatura = '';
+				}
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : 'Erro ao inicializar Web PKI';
+				toaster.create({ title: msg, type: 'error' });
+				assinando = false;
+				etapaAssinatura = '';
+			}
+			return;
+		}
+
+		// Já tem certificados listados, usar o selecionado
+		if (!certSelecionado) {
+			toaster.create({ title: 'Selecione um certificado', type: 'error' });
+			return;
+		}
+		assinando = true;
+		try {
+			const pki = await initWebPKI();
+			await executarAssinatura(pki, certSelecionado);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Erro na assinatura';
+			toaster.create({ title: msg, type: 'error' });
+			assinando = false;
+			etapaAssinatura = '';
+		}
+	}
+
+	async function executarAssinatura(pki: Awaited<ReturnType<typeof initWebPKI>>, thumbprint: string) {
+		assinando = true;
+
+		// 1. Preparar PDF no servidor
+		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
+		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, { method: 'POST' });
+		if (!prepRes.ok) {
+			const err = await prepRes.json();
+			throw new Error(err.error || 'Erro ao preparar PDF');
+		}
+		const { hashHex, preparedPdf } = await prepRes.json();
+
+		// 2. Assinar hash com eToken (janela de PIN aparece aqui)
+		etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
+		const pkcs7 = await assinarHash(pki, thumbprint, hashHex);
+
+		// 3. Finalizar assinatura no servidor
+		etapaAssinatura = 'Finalizando PDF assinado...';
+		const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ preparedPdf, pkcs7 })
+		});
+
+		if (!finRes.ok) {
+			const err = await finRes.json();
+			throw new Error(err.error || 'Erro ao finalizar assinatura');
+		}
+
+		// 4. Download do PDF assinado
+		etapaAssinatura = 'Baixando PDF assinado...';
+		const blob = await finRes.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_assinada.pdf';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+
+		toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+		assinando = false;
+		etapaAssinatura = '';
+		mostrarCerts = false;
+	}
+
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
 		const map = new Map<string, EscalaPolicialComDados[]>();
 		for (const item of items) {
@@ -266,6 +370,45 @@
 				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('xlsx')}>Excel (.xlsx)</button>
 				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('ods')}>ODS (.ods)</button>
 				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('pdf')}>PDF (.pdf)</button>
+			</div>
+
+			<hr class="my-3 border-surface-200 dark:border-white/10" />
+			<h3 class="font-semibold text-sm mb-3">Assinatura Digital (eToken USB)</h3>
+
+			{#if mostrarCerts && certificados.length > 1}
+				<div class="flex gap-2 flex-wrap items-end mb-3">
+					<label class="label flex-1 min-w-[200px]">
+						<span class="label-text text-xs">Certificado</span>
+						<select class="select" bind:value={certSelecionado}>
+							<option value="">Selecione o certificado...</option>
+							{#each certificados as cert (cert.thumbprint)}
+								<option value={cert.thumbprint}>
+									{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''}
+								</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+			{/if}
+
+			<div class="flex gap-2 items-center flex-wrap">
+				<button
+					class="btn btn-sm preset-filled-success-500"
+					onclick={assinarDigitalmente}
+					disabled={assinando}
+				>
+					{#if assinando}
+						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+						{etapaAssinatura}
+					{:else}
+						Assinar Digitalmente
+					{/if}
+				</button>
+				{#if certificados.length > 0 && !assinando}
+					<button class="btn btn-sm preset-outlined-surface" onclick={() => { certificados = []; certSelecionado = ''; mostrarCerts = false; }}>
+						Trocar certificado
+					</button>
+				{/if}
 			</div>
 		</div>
 	{/if}
