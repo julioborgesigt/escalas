@@ -391,12 +391,13 @@
 				const err = await prepRes.json();
 				throw new Error(err.error || 'Erro ao preparar PDF');
 			}
-			const { preparedPdf, messageDigest } = await prepRes.json();
+			const { preparedPdf, dataToSignBase64 } = await prepRes.json();
 
-			// 2. Assinar com SERPRO — passa o SHA-256 do byte-range do PDF (messageDigest)
-			// O SERPRO abre sua UI nativa para seleção de certificado + PIN
+			// 2. Assinar com SERPRO — envia o byte-range do PDF (type:'file').
+			// O SERPRO computa SHA-256(byte-range) uma vez → CMS.messageDigest correto.
+			// O SERPRO abre sua UI nativa para seleção de certificado + PIN.
 			etapaAssinatura = 'Selecione o certificado e digite o PIN no Assinador SERPRO...';
-			const { cmsBase64 } = await assinarSerpro(client, messageDigest);
+			const { cmsBase64 } = await assinarSerpro(client, dataToSignBase64);
 
 			// 3. Embutir o CMS SERPRO no placeholder do PDF (servidor)
 			etapaAssinatura = 'Finalizando PDF assinado...';

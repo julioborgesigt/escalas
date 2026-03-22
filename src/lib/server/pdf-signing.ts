@@ -172,6 +172,8 @@ export interface PrepareResult {
 	signedAttrsHashHex: string;
 	messageDigest: string;
 	signingTimeISO: string;
+	/** Bytes do byte-range do PDF (base64) — usados pelo Assinador SERPRO com type:'file' */
+	dataToSignBase64: string;
 }
 
 /**
@@ -282,7 +284,8 @@ export async function prepararPdfParaAssinatura(
 		preparedPdf: new Uint8Array(preparedPdf),
 		signedAttrsHashHex,
 		messageDigest: forge.util.bytesToHex(messageDigest),
-		signingTimeISO: signingTime.toISOString()
+		signingTimeISO: signingTime.toISOString(),
+		dataToSignBase64: dataToSign.toString('base64')
 	};
 }
 
@@ -303,14 +306,32 @@ export async function embedSerproCms(
 	// Decodifica o CMS BER retornado pelo SERPRO
 	const cmsBer = forge.util.decode64(serproCmsBase64);
 
-	// Converte BER (comprimento indefinido) → DER (comprimento definido)
+	// Converte BER → DER e converte para detached (remove eContent se presente).
+	// Para PDF, o CMS deve ser detached: encapContentInfo só tem eContentType, sem eContent.
 	let cmsDer: string;
 	try {
 		const asn1 = forge.asn1.fromDer(cmsBer, { strict: false } as forge.asn1.Asn1Options);
+
+		// Navega: ContentInfo[1]=[0]EXPLICIT → SignedData → encapContentInfo
+		// ContentInfo.value = [OID, [0]EXPLICIT]
+		// [0]EXPLICIT.value = [SignedData]
+		// SignedData.value = [version, digestAlgorithms, encapContentInfo, ...]
+		const contentInfoChildren = asn1.value as forge.asn1.Asn1[];
+		const signedDataWrapper = contentInfoChildren[1]; // [0] EXPLICIT
+		const signedDataChildren = (signedDataWrapper.value as forge.asn1.Asn1[])[0].value as forge.asn1.Asn1[];
+		const encapCI = signedDataChildren[2]; // EncapsulatedContentInfo SEQUENCE
+		const encapChildren = encapCI.value as forge.asn1.Asn1[];
+
+		// Remove eContent (índice 1) se presente, tornando o CMS detached
+		if (encapChildren.length > 1) {
+			console.log(`[PDF] CMS SERPRO attached (eContent presente, ${encapChildren.length - 1} campo extra). Convertendo para detached.`);
+			encapChildren.splice(1); // mantém só o eContentType OID
+		}
+
 		cmsDer = forge.asn1.toDer(asn1).getBytes();
-	} catch {
-		// Se a conversão falhar, usa o BER original
-		console.warn('[PDF] Não foi possível converter BER→DER; usando CMS original do SERPRO.');
+		console.log(`[PDF] CMS convertido BER→DER: ${cmsDer.length} bytes`);
+	} catch (e) {
+		console.warn('[PDF] Não foi possível converter BER→DER; usando CMS original do SERPRO.', e);
 		cmsDer = cmsBer;
 	}
 
