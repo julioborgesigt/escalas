@@ -1,9 +1,19 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
+import forge from 'node-forge';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '**********';
+
+// OIDs usados na estrutura CMS
+const OID_DATA = '1.2.840.113549.1.7.1';
+const OID_SIGNED_DATA = '1.2.840.113549.1.7.2';
+const OID_CONTENT_TYPE = '1.2.840.113549.1.9.3';
+const OID_SIGNING_TIME = '1.2.840.113549.1.9.5';
+const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
+const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
+const OID_RSA_ENCRYPTION = '1.2.840.113549.1.1.1';
 
 /**
  * Formata a data atual no padrão dd/mm/yy HH:MM.
@@ -20,17 +30,160 @@ function formatarDataHora(): string {
 }
 
 /**
- * Adiciona um placeholder de assinatura digital ao PDF e calcula o hash
- * dos bytes que precisam ser assinados.
+ * Cria o AlgorithmIdentifier ASN.1 para SHA-256.
+ */
+function sha256AlgorithmIdentifier(): forge.asn1.Asn1 {
+	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+			forge.asn1.oidToDer(OID_SHA256).getBytes()),
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
+	]);
+}
+
+/**
+ * Cria o AlgorithmIdentifier ASN.1 para RSA Encryption.
+ */
+function rsaAlgorithmIdentifier(): forge.asn1.Asn1 {
+	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+			forge.asn1.oidToDer(OID_RSA_ENCRYPTION).getBytes()),
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
+	]);
+}
+
+/**
+ * Cria os SignedAttributes ASN.1 para a assinatura CMS.
  *
- * Retorna o PDF preparado (com placeholder) e o hash SHA-256 em hex
- * que deve ser assinado pelo cliente via Lacuna Web PKI.
+ * @param messageDigest - O hash SHA-256 do conteúdo do PDF (bytes do ByteRange)
+ * @param signingTime - A data/hora da assinatura
+ */
+function buildSignedAttributes(messageDigest: string, signingTime: Date): forge.asn1.Asn1 {
+	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+		// contentType
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+				forge.asn1.oidToDer(OID_CONTENT_TYPE).getBytes()),
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+					forge.asn1.oidToDer(OID_DATA).getBytes())
+			])
+		]),
+		// signingTime
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+				forge.asn1.oidToDer(OID_SIGNING_TIME).getBytes()),
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.UTCTIME, false,
+					forge.asn1.dateToUtcTime(signingTime))
+			])
+		]),
+		// messageDigest
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+				forge.asn1.oidToDer(OID_MESSAGE_DIGEST).getBytes()),
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false,
+					messageDigest)
+			])
+		])
+	]);
+}
+
+/**
+ * Monta a estrutura CMS SignedData completa em DER.
+ *
+ * @param certDer - Certificado do signatário em binário (DER)
+ * @param signedAttrs - SignedAttributes ASN.1 (com tag SET 0x31)
+ * @param signatureBytes - Bytes brutos da assinatura RSA
+ */
+function buildCmsSignedData(
+	certDer: string,
+	signedAttrs: forge.asn1.Asn1,
+	signatureBytes: string
+): string {
+	const certAsn1 = forge.asn1.fromDer(certDer);
+	const cert = forge.pki.certificateFromAsn1(certAsn1);
+
+	// IssuerAndSerialNumber
+	const issuerAsn1 = forge.pki.distinguishedNameToAsn1(cert.issuer);
+	const serialHex = cert.serialNumber;
+	const serialBytes = forge.util.hexToBytes(serialHex);
+
+	// Converter SignedAttributes de SET (0x31) para IMPLICIT [0] (0xA0)
+	const signedAttrsImplicit = forge.asn1.create(
+		forge.asn1.Class.CONTEXT_SPECIFIC, 0, true,
+		signedAttrs.value as forge.asn1.Asn1[]
+	);
+
+	// SignerInfo
+	const signerInfo = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		// version
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
+			forge.asn1.integerToDer(1).getBytes()),
+		// sid: IssuerAndSerialNumber
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			issuerAsn1,
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false, serialBytes)
+		]),
+		// digestAlgorithm
+		sha256AlgorithmIdentifier(),
+		// signedAttrs [0] IMPLICIT
+		signedAttrsImplicit,
+		// signatureAlgorithm
+		rsaAlgorithmIdentifier(),
+		// signature
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, signatureBytes)
+	]);
+
+	// SignedData
+	const signedData = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		// version
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
+			forge.asn1.integerToDer(1).getBytes()),
+		// digestAlgorithms
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
+			sha256AlgorithmIdentifier()
+		]),
+		// encapContentInfo (detached = sem conteúdo)
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+				forge.asn1.oidToDer(OID_DATA).getBytes())
+		]),
+		// certificates [0] IMPLICIT
+		forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [certAsn1]),
+		// signerInfos
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [signerInfo])
+	]);
+
+	// ContentInfo wrapper
+	const contentInfo = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
+			forge.asn1.oidToDer(OID_SIGNED_DATA).getBytes()),
+		forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [signedData])
+	]);
+
+	return forge.asn1.toDer(contentInfo).getBytes();
+}
+
+// ---- Interface para o resultado da preparação ----
+
+export interface PrepareResult {
+	preparedPdf: Uint8Array;
+	signedAttrsHashHex: string;
+	messageDigest: string;
+	signingTimeISO: string;
+}
+
+/**
+ * Adiciona carimbo visual + placeholder de assinatura ao PDF,
+ * constrói os SignedAttributes do CMS e retorna o hash que o
+ * cliente deve assinar via Web PKI.
  */
 export async function prepararPdfParaAssinatura(
 	pdfBytes: Uint8Array,
 	signerName: string,
 	signerCpf?: string
-): Promise<{ preparedPdf: Uint8Array; hashHex: string }> {
+): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
 	// Adicionar carimbo de assinatura no rodapé (canto inferior direito) da última página
@@ -73,7 +226,7 @@ export async function prepararPdfParaAssinatura(
 	const savedPdf = await pdfDoc.save();
 	const pdfBuffer = removeTrailingNewLine(Buffer.from(savedPdf));
 
-	// Encontrar o ByteRange placeholder manualmente no PDF
+	// Encontrar o ByteRange e calcular os ranges reais
 	const pdfString = pdfBuffer.toString('latin1');
 	const byteRangePos = pdfString.lastIndexOf(`/ByteRange`);
 	if (byteRangePos === -1) {
@@ -84,7 +237,6 @@ export async function prepararPdfParaAssinatura(
 	const bracketEnd = pdfString.indexOf(']', bracketStart);
 	const byteRangeStr = pdfString.substring(bracketStart + 1, bracketEnd).trim();
 
-	// Encontrar a posição do conteúdo da assinatura (<0000...>)
 	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
 	if (contentsTagPos === -1) {
 		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
@@ -93,58 +245,79 @@ export async function prepararPdfParaAssinatura(
 	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
 	const sigEnd = pdfString.indexOf('>', sigStart);
 
-	// Calcular ByteRange real
-	const br = [
-		0,
-		sigStart,
-		sigEnd + 1,
-		pdfBuffer.length - (sigEnd + 1)
-	];
+	const br = [0, sigStart, sigEnd + 1, pdfBuffer.length - (sigEnd + 1)];
 
-	// Substituir o ByteRange placeholder pelos valores reais
+	// Substituir ByteRange placeholder pelos valores reais
 	const byteRangeReplacement = `[${br.join(' ')}]`;
 	const byteRangePlaceholderFull = `[${byteRangeStr}]`;
-
-	// Criar o PDF com ByteRange preenchido
-	const preparedPdfStr = pdfString.replace(byteRangePlaceholderFull, byteRangeReplacement.padEnd(byteRangePlaceholderFull.length, ' '));
+	const preparedPdfStr = pdfString.replace(
+		byteRangePlaceholderFull,
+		byteRangeReplacement.padEnd(byteRangePlaceholderFull.length, ' ')
+	);
 	const preparedPdf = Buffer.from(preparedPdfStr, 'latin1');
 
-	// Extrair os bytes que precisam ser assinados (antes + depois do placeholder de assinatura)
+	// Extrair os bytes que representam o conteúdo assinado
 	const dataToSign = Buffer.concat([
 		preparedPdf.subarray(br[0], br[1]),
 		preparedPdf.subarray(br[2], br[2] + br[3])
 	]);
 
-	// Calcular hash SHA-256
-	const hashBuffer = await crypto.subtle.digest('SHA-256', dataToSign);
-	const hashArray = new Uint8Array(hashBuffer);
-	const hashHex = Array.from(hashArray)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	// Hash SHA-256 do conteúdo do PDF → este é o messageDigest
+	const md = forge.md.sha256.create();
+	md.update(dataToSign.toString('binary'));
+	const messageDigest = md.digest().getBytes(); // binary string
+
+	// Registrar signingTime
+	const signingTime = new Date();
+
+	// Construir SignedAttributes e calcular seu hash
+	const signedAttrs = buildSignedAttributes(messageDigest, signingTime);
+	const signedAttrsDer = forge.asn1.toDer(signedAttrs).getBytes();
+
+	const attrsMd = forge.md.sha256.create();
+	attrsMd.update(signedAttrsDer);
+	const signedAttrsHashHex = attrsMd.digest().toHex();
 
 	return {
 		preparedPdf: new Uint8Array(preparedPdf),
-		hashHex
+		signedAttrsHashHex,
+		messageDigest: forge.util.bytesToHex(messageDigest),
+		signingTimeISO: signingTime.toISOString()
 	};
 }
 
 /**
- * Embute uma assinatura PKCS#7 (produzida externamente, ex: Lacuna Web PKI)
- * no PDF preparado com placeholder.
+ * Monta a estrutura CMS/PKCS#7 SignedData completa e embute no PDF.
  *
- * Retorna o PDF assinado final.
+ * @param preparedPdf - PDF com placeholder de assinatura
+ * @param rawSignatureBase64 - Bytes brutos da assinatura RSA (base64, do Web PKI signHash)
+ * @param certificateBase64 - Certificado DER do signatário (base64, do Web PKI readCertificate)
+ * @param messageDigestHex - Hash do conteúdo PDF (hex, retornado por prepararPdfParaAssinatura)
+ * @param signingTimeISO - Data/hora da assinatura (ISO, retornado por prepararPdfParaAssinatura)
  */
 export async function finalizarAssinatura(
 	preparedPdf: Uint8Array,
-	pkcs7Base64: string
+	rawSignatureBase64: string,
+	certificateBase64: string,
+	messageDigestHex: string,
+	signingTimeISO: string
 ): Promise<Uint8Array> {
-	const pkcs7Bytes = Buffer.from(pkcs7Base64, 'base64');
-	const pkcs7Hex = pkcs7Bytes.toString('hex');
+	const certDer = forge.util.decode64(certificateBase64);
+	const signatureBytes = forge.util.decode64(rawSignatureBase64);
+	const messageDigest = forge.util.hexToBytes(messageDigestHex);
+	const signingTime = new Date(signingTimeISO);
 
+	// Reconstruir os mesmos SignedAttributes
+	const signedAttrs = buildSignedAttributes(messageDigest, signingTime);
+
+	// Montar CMS SignedData completo
+	const cmsDer = buildCmsSignedData(certDer, signedAttrs, signatureBytes);
+	const cmsHex = forge.util.bytesToHex(cmsDer);
+
+	// Embutir no PDF
 	const pdfBuffer = Buffer.from(preparedPdf);
 	const pdfString = pdfBuffer.toString('latin1');
 
-	// Encontrar o placeholder de assinatura (sequência de zeros entre < >)
 	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
 	if (contentsTagPos === -1) {
 		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
@@ -152,16 +325,13 @@ export async function finalizarAssinatura(
 
 	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
 	const sigEnd = pdfString.indexOf('>', sigStart);
-	const placeholderLength = sigEnd - sigStart - 1; // tamanho em hex chars
+	const placeholderLength = sigEnd - sigStart - 1;
 
-	if (pkcs7Hex.length > placeholderLength) {
-		throw new Error(`Assinatura muito grande: ${pkcs7Hex.length} hex chars, máximo ${placeholderLength}`);
+	if (cmsHex.length > placeholderLength) {
+		throw new Error(`CMS SignedData muito grande: ${cmsHex.length} hex chars, máximo ${placeholderLength}`);
 	}
 
-	// Preencher com a assinatura hex, padded com zeros
-	const paddedSig = pkcs7Hex.padEnd(placeholderLength, '0');
-
-	// Substituir no buffer
+	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
 	const signedPdf = Buffer.from(pdfBuffer);
 	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
 

@@ -3,7 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
-	import { initWebPKI, listarCertificados, assinarHash, type WebPKICertificate } from '$lib/webpki';
+	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -276,7 +276,11 @@
 		// Buscar dados do certificado selecionado para o carimbo
 		const cert = certificados.find((c) => c.thumbprint === thumbprint);
 
-		// 1. Preparar PDF no servidor
+		// 1. Ler o certificado DER do eToken
+		etapaAssinatura = 'Lendo certificado...';
+		const certificateBase64 = await lerCertificado(pki, thumbprint);
+
+		// 2. Preparar PDF no servidor (retorna hash dos SignedAttributes)
 		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
 		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
 			method: 'POST',
@@ -290,18 +294,24 @@
 			const err = await prepRes.json();
 			throw new Error(err.error || 'Erro ao preparar PDF');
 		}
-		const { hashHex, preparedPdf } = await prepRes.json();
+		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO } = await prepRes.json();
 
-		// 2. Assinar hash com eToken (janela de PIN aparece aqui)
+		// 3. Assinar hash dos SignedAttributes com eToken (janela de PIN aparece aqui)
 		etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
-		const pkcs7 = await assinarHash(pki, thumbprint, hashHex);
+		const rawSignature = await assinarHash(pki, thumbprint, signedAttrsHashHex);
 
-		// 3. Finalizar assinatura no servidor
+		// 4. Finalizar assinatura no servidor (monta CMS/PKCS#7 e embute no PDF)
 		etapaAssinatura = 'Finalizando PDF assinado...';
 		const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ preparedPdf, pkcs7 })
+			body: JSON.stringify({
+				preparedPdf,
+				rawSignature,
+				certificateBase64,
+				messageDigest,
+				signingTimeISO
+			})
 		});
 
 		if (!finRes.ok) {
@@ -309,7 +319,7 @@
 			throw new Error(err.error || 'Erro ao finalizar assinatura');
 		}
 
-		// 4. Download do PDF assinado
+		// 5. Download do PDF assinado
 		etapaAssinatura = 'Baixando PDF assinado...';
 		const blob = await finRes.blob();
 		const url = URL.createObjectURL(blob);

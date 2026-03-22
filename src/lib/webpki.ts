@@ -65,6 +65,16 @@ export async function listarCertificados(
 }
 
 /**
+ * Lê o conteúdo do certificado DER codificado em Base64.
+ */
+export async function lerCertificado(
+	pki: PKIInstance,
+	thumbprint: string
+): Promise<string> {
+	return toNativePromise<string>(pki.readCertificate({ thumbprint }));
+}
+
+/**
  * Converte uma string hexadecimal em Base64.
  */
 function hexToBase64(hex: string): string {
@@ -78,7 +88,7 @@ function hexToBase64(hex: string): string {
 
 /**
  * Assina um hash SHA-256 usando o certificado selecionado.
- * Retorna a assinatura PKCS#7 em base64.
+ * Retorna os bytes brutos da assinatura RSA em base64.
  * Neste momento a janela de PIN do token aparece para o usuário.
  *
  * @param hashHex - Hash em formato hexadecimal (será convertido para Base64 internamente,

@@ -17,18 +17,25 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		return json({ error: 'Escala não encontrada' }, { status: 404 });
 	}
 
-	const { preparedPdf, pkcs7 } = await request.json();
+	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO } =
+		await request.json();
 
-	if (!preparedPdf || !pkcs7) {
-		return json({ error: 'preparedPdf e pkcs7 são obrigatórios' }, { status: 400 });
+	if (!preparedPdf || !rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
+		return json(
+			{ error: 'preparedPdf, rawSignature, certificateBase64, messageDigest e signingTimeISO são obrigatórios' },
+			{ status: 400 }
+		);
 	}
 
 	try {
-		// Reconstituir o PDF preparado e embutir a assinatura
-		const preparedPdfBytes = new Uint8Array(
-			Buffer.from(preparedPdf, 'base64')
+		const preparedPdfBytes = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
+		const signedPdf = await finalizarAssinatura(
+			preparedPdfBytes,
+			rawSignature,
+			certificateBase64,
+			messageDigest,
+			signingTimeISO
 		);
-		const signedPdf = await finalizarAssinatura(preparedPdfBytes, pkcs7);
 
 		const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_assinada.pdf`;
 
