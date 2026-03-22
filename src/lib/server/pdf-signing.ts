@@ -1,7 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
-import signpdfModule from '@signpdf/signpdf';
-import { removeTrailingNewLine, findByteRange, Signer } from '@signpdf/utils';
+import { removeTrailingNewLine } from '@signpdf/utils';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '**********';
@@ -32,53 +31,61 @@ export async function prepararPdfParaAssinatura(
 	});
 
 	const savedPdf = await pdfDoc.save();
-	const pdfBuffer = Buffer.from(savedPdf);
-	const normalizedPdf = removeTrailingNewLine(pdfBuffer);
+	const pdfBuffer = removeTrailingNewLine(Buffer.from(savedPdf));
 
-	// Encontrar o ByteRange no PDF
-	const byteRangeInfo = findByteRange(normalizedPdf, BYTE_RANGE_PLACEHOLDER);
-
-	if (
-		!byteRangeInfo.byteRange ||
-		byteRangeInfo.byteRange.length < 4
-	) {
-		throw new Error('Não foi possível encontrar o ByteRange no PDF preparado');
+	// Encontrar o ByteRange placeholder manualmente no PDF
+	const pdfString = pdfBuffer.toString('latin1');
+	const byteRangePos = pdfString.lastIndexOf(`/ByteRange`);
+	if (byteRangePos === -1) {
+		throw new Error('Não foi possível encontrar /ByteRange no PDF preparado');
 	}
 
-	const br = byteRangeInfo.byteRange.map(Number);
+	const bracketStart = pdfString.indexOf('[', byteRangePos);
+	const bracketEnd = pdfString.indexOf(']', bracketStart);
+	const byteRangeStr = pdfString.substring(bracketStart + 1, bracketEnd).trim();
 
-	// Extrair os bytes que precisam ser assinados (antes + depois do placeholder)
+	// Encontrar a posição do conteúdo da assinatura (<0000...>)
+	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
+	if (contentsTagPos === -1) {
+		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
+	}
+
+	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
+	const sigEnd = pdfString.indexOf('>', sigStart);
+
+	// Calcular ByteRange real
+	const br = [
+		0,
+		sigStart,
+		sigEnd + 1,
+		pdfBuffer.length - (sigEnd + 1)
+	];
+
+	// Substituir o ByteRange placeholder pelos valores reais
+	const byteRangeReplacement = `[${br.join(' ')}]`;
+	const byteRangePlaceholderFull = `[${byteRangeStr}]`;
+
+	// Criar o PDF com ByteRange preenchido
+	const preparedPdfStr = pdfString.replace(byteRangePlaceholderFull, byteRangeReplacement.padEnd(byteRangePlaceholderFull.length, ' '));
+	const preparedPdf = Buffer.from(preparedPdfStr, 'latin1');
+
+	// Extrair os bytes que precisam ser assinados (antes + depois do placeholder de assinatura)
 	const dataToSign = Buffer.concat([
-		normalizedPdf.subarray(br[0], br[0] + br[1]),
-		normalizedPdf.subarray(br[2], br[2] + br[3])
+		preparedPdf.subarray(br[0], br[1]),
+		preparedPdf.subarray(br[2], br[2] + br[3])
 	]);
 
 	// Calcular hash SHA-256
 	const hashBuffer = await crypto.subtle.digest('SHA-256', dataToSign);
-	const hashHex = Array.from(new Uint8Array(hashBuffer))
+	const hashArray = new Uint8Array(hashBuffer);
+	const hashHex = Array.from(hashArray)
 		.map((b) => b.toString(16).padStart(2, '0'))
 		.join('');
 
 	return {
-		preparedPdf: new Uint8Array(normalizedPdf),
+		preparedPdf: new Uint8Array(preparedPdf),
 		hashHex
 	};
-}
-
-/**
- * Signer customizado que retorna uma assinatura PKCS#7 produzida externamente.
- */
-class ExternalPkcs7Signer extends Signer {
-	private externalSignature: Buffer;
-
-	constructor(pkcs7Bytes: Buffer) {
-		super();
-		this.externalSignature = pkcs7Bytes;
-	}
-
-	async sign(): Promise<Buffer> {
-		return this.externalSignature;
-	}
 }
 
 /**
@@ -92,11 +99,31 @@ export async function finalizarAssinatura(
 	pkcs7Base64: string
 ): Promise<Uint8Array> {
 	const pkcs7Bytes = Buffer.from(pkcs7Base64, 'base64');
-	const signer = new ExternalPkcs7Signer(pkcs7Bytes);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const SignPdf = (signpdfModule as any).default || signpdfModule;
-	const signpdf = new SignPdf() as { sign(pdf: Buffer, signer: ExternalPkcs7Signer): Promise<Buffer> };
+	const pkcs7Hex = pkcs7Bytes.toString('hex');
 
-	const signedPdf = await signpdf.sign(Buffer.from(preparedPdf), signer);
+	const pdfBuffer = Buffer.from(preparedPdf);
+	const pdfString = pdfBuffer.toString('latin1');
+
+	// Encontrar o placeholder de assinatura (sequência de zeros entre < >)
+	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
+	if (contentsTagPos === -1) {
+		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
+	}
+
+	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
+	const sigEnd = pdfString.indexOf('>', sigStart);
+	const placeholderLength = sigEnd - sigStart - 1; // tamanho em hex chars
+
+	if (pkcs7Hex.length > placeholderLength) {
+		throw new Error(`Assinatura muito grande: ${pkcs7Hex.length} hex chars, máximo ${placeholderLength}`);
+	}
+
+	// Preencher com a assinatura hex, padded com zeros
+	const paddedSig = pkcs7Hex.padEnd(placeholderLength, '0');
+
+	// Substituir no buffer
+	const signedPdf = Buffer.from(pdfBuffer);
+	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
+
 	return new Uint8Array(signedPdf);
 }
