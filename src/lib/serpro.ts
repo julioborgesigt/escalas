@@ -536,4 +536,3 @@ export async function assinarSerpro(
 	// result.rawSignature = campo 'signature' da resposta SERPRO = CMS SignedData completo
 	return { cmsBase64: result.rawSignature };
 }
-}
