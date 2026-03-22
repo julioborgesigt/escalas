@@ -110,7 +110,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					p.nome,
 					formatarMatricula(p.matricula),
 					p.cargo,
-					p.telefone,
+					p.telefone || '',
 					p.lotacao,
 					formatarDataPlantao(p, escala),
 					formatarHorario(p, escala)
@@ -174,7 +174,7 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 				p.nome,
 				formatarMatricula(p.matricula),
 				p.cargo,
-				p.telefone,
+				p.telefone || '',
 				p.lotacao,
 				formatarDataPlantao(p, escala),
 				formatarHorario(p, escala)
@@ -210,7 +210,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 			p.nome,
 			formatarMatricula(p.matricula),
 			p.cargo,
-			p.telefone,
+			p.telefone || '',
 			p.lotacao,
 			formatarDataPlantao(p, escala),
 			formatarHorario(p, escala)
@@ -261,7 +261,7 @@ export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): U
 				p.nome,
 				formatarMatricula(p.matricula),
 				p.cargo,
-				p.telefone,
+				p.telefone || '',
 				p.lotacao,
 				formatarDataPlantao(p, escala),
 				formatarHorario(p, escala)

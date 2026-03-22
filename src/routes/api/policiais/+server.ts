@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, listarPoliciais, criarPolicial, excluirPolicial } from '$lib/db';
+import { policialSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, url, locals }) => {
@@ -25,12 +26,9 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	const usuario = locals.usuario;
 	const data = await request.json();
 
-	if (!data.nome || !data.matricula || !data.cargo) {
-		return json({ error: 'Campos obrigatórios: nome, matricula, cargo' }, { status: 400 });
-	}
-
-	if (!['DPC', 'OIP'].includes(data.cargo)) {
-		return json({ error: 'Cargo deve ser DPC ou OIP' }, { status: 400 });
+	const parsed = policialSchema.safeParse(data);
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 
 	// Policial só pode cadastrar na sua lotação

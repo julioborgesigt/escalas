@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { alterarSenhaSchema } from '$lib/schemas';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -14,18 +15,14 @@
 		e.preventDefault();
 		error = '';
 
-		if (novaSenha.length !== 8) {
-			error = 'A nova senha deve ter exatamente 8 caracteres';
-			return;
-		}
-
 		if (novaSenha !== confirmarSenha) {
 			error = 'As senhas não conferem';
 			return;
 		}
 
-		if (novaSenha === '12345678') {
-			error = 'Escolha uma senha diferente da padrão';
+		const parsed = alterarSenhaSchema.safeParse({ nova_senha: novaSenha, senha_atual: senhaAtual || undefined });
+		if (!parsed.success) {
+			error = parsed.error.issues[0].message;
 			return;
 		}
 

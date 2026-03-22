@@ -1,5 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { getDB, excluirUnidade, atualizarUnidade } from '$lib/db';
+import { unidades } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
+import { escalas } from '$lib/server/schema';
 import type { RequestHandler } from './$types';
 
 export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
@@ -37,15 +40,17 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const id = Number(params.id);
 	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
 
-	// Verificar se a unidade está atrelada a alguma escala
-	const unidade = await db.prepare('SELECT nome FROM unidades WHERE id = ?').bind(id).first<{ nome: string }>();
+	// Buscar nome da unidade
+	const unidade = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, id)).get();
 	if (!unidade) return json({ error: 'Unidade não encontrada' }, { status: 404 });
 
-	const { count } = await db
-		.prepare('SELECT COUNT(*) as count FROM escalas WHERE lotacao = ?')
-		.bind(unidade.nome)
-		.first<{ count: number }>() ?? { count: 0 };
+	// Verificar se há escalas vinculadas
+	const escalasVinculadas = await db
+		.select({ id: escalas.id })
+		.from(escalas)
+		.where(eq(escalas.lotacao, unidade.nome));
 
+	const count = escalasVinculadas.length;
 	if (count > 0) {
 		return json({
 			error: `Não é possível excluir: esta unidade possui ${count} escala${count !== 1 ? 's' : ''} vinculada${count !== 1 ? 's' : ''}. Exclua as escalas primeiro.`

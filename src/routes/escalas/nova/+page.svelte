@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
-	import type { Escala } from '$lib/types';
+	import { escalaSchema } from '$lib/schemas';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -31,6 +31,22 @@
 
 	async function salvar(e: Event) {
 		e.preventDefault();
+
+		const parsed = escalaSchema.safeParse({
+			titulo,
+			cidade,
+			data_inicio: dataInicio,
+			data_fim: dataFim,
+			horario: horarioLabel(),
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida,
+			lotacao: isAdmin ? lotacaoEscala : undefined
+		});
+		if (!parsed.success) {
+			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			return;
+		}
+
 		saving = true;
 
 		const res = await fetch('/api/escalas', {
