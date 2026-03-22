@@ -469,6 +469,64 @@ export class SerproSignerClient {
 		return { rawSignature, certificateBase64, rawMessages: parsed };
 	}
 
+	/**
+	 * Assina um arquivo (bytes em Base64) usando o Assinador SERPRO com type:'file'.
+	 *
+	 * O SERPRO computa SHA-256(input_bytes) e usa como messageDigest no CMS — sem double-hash.
+	 * Isso é o que precisamos: enviar o byte-range do PDF para que o CMS.messageDigest
+	 * seja SHA-256(byte-range), valor esperado pelo validador de assinaturas PDF.
+	 *
+	 * @param dataBase64  - Bytes do arquivo em Base64 (ex: byte-range do PDF)
+	 * @param timeoutMs   - Tempo máximo aguardando interação do usuário (padrão 120 s)
+	 */
+	async signFile(dataBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
+		const requestId = Date.now();
+		console.log(`[SERPRO] → Enviando sign (file, ${Math.round(dataBase64.length * 3 / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`);
+
+		const msgs = await this.probeMulti(
+			{ command: 'sign', type: 'file', inputData: dataBase64, outputDataType: 'base64', requestId },
+			timeoutMs,
+			3_000
+		);
+
+		const parsed = msgs.map(m => {
+			try { return JSON.parse(m as string); } catch { return m; }
+		});
+		console.log('[SERPRO] ← Todas as respostas do signFile:', parsed);
+
+		const real = parsed.find((p: unknown) => {
+			if (typeof p !== 'object' || p === null) return false;
+			const o = p as Record<string, unknown>;
+			return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+		}) ?? parsed[parsed.length - 1];
+
+		if (!real || typeof real !== 'object') {
+			throw new Error(`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`);
+		}
+
+		const o = real as Record<string, unknown>;
+
+		if (o.actionCanceled === true) {
+			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
+		}
+
+		console.log('[SERPRO] Campos disponíveis na resposta signFile:', Object.keys(o));
+
+		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
+		if (!rawSignature) {
+			throw new Error(
+				`Assinador SERPRO não retornou assinatura.\n` +
+				`Campos: ${Object.keys(o).join(', ')}\nResposta: ${JSON.stringify(o)}`
+			);
+		}
+
+		const certificateBase64 = (
+			o.certificate ?? o.signerCertificate ?? o.cert
+		) as string | undefined;
+
+		return { rawSignature, certificateBase64, rawMessages: parsed };
+	}
+
 	/** Encerra a conexão WebSocket. */
 	disconnect(): void {
 		this.clearPending();
@@ -517,22 +575,20 @@ export async function conectarSerpro(): Promise<SerproSignerClient> {
  * @returns rawSignature e certificateBase64 para uso em finalizar-assinatura
  */
 /**
- * Assina um hash SHA-256 (messageDigest em hex) usando o Assinador SERPRO.
+ * Assina os bytes do byte-range do PDF usando o Assinador SERPRO com type:'file'.
  *
- * Envia o SHA-256 do byte-range do PDF (messageDigest retornado por preparar-assinatura),
- * não o hash dos signedAttributes — assim o CMS gerado pelo SERPRO pode ser embutido
- * diretamente no placeholder do PDF.
+ * O SERPRO computa SHA-256(byte-range) e usa como messageDigest no CMS resultante.
+ * O CMS é então embutido diretamente no placeholder /Contents do PDF preparado.
  *
  * @param client           - Cliente SERPRO conectado
- * @param messageDigestHex - SHA-256 do byte-range do PDF em hexadecimal
- * @returns cmsBase64 - CMS SignedData completo retornado pelo SERPRO (campo 'signature')
+ * @param dataToSignBase64 - Bytes do byte-range do PDF em Base64 (de preparar-assinatura)
+ * @returns cmsBase64 - CMS SignedData completo retornado pelo SERPRO
  */
 export async function assinarSerpro(
 	client: SerproSignerClient,
-	messageDigestHex: string
+	dataToSignBase64: string
 ): Promise<{ cmsBase64: string }> {
-	const hashBase64 = hexParaBase64(messageDigestHex);
-	const result = await client.sign(hashBase64);
-	// result.rawSignature = campo 'signature' da resposta SERPRO = CMS SignedData completo
+	const result = await client.signFile(dataToSignBase64);
+	// result.rawSignature = campo 'signature' ou 'outputData' da resposta SERPRO = CMS completo
 	return { cmsBase64: result.rawSignature };
 }
