@@ -1,12 +1,11 @@
 /**
  * Wrapper TypeScript para a API do Lacuna Web PKI.
  *
- * Usa o pacote npm `web-pki` (import direto, sem CDN).
+ * O pacote npm `web-pki` acessa `window` no momento do import,
+ * então usamos dynamic import para carregar apenas no browser.
+ *
  * Referência: https://docs.lacunasoftware.com/pt-br/articles/web-pki/get-started.html
  */
-
-import LacunaWebPKI from 'web-pki';
-import type { CertificateModel } from 'web-pki';
 
 export interface WebPKICertificate {
 	thumbprint: string;
@@ -14,6 +13,9 @@ export interface WebPKICertificate {
 	issuerName: string;
 	cpf?: string;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PKIInstance = any;
 
 /**
  * Converte a Promise customizada do Web PKI em uma Promise nativa.
@@ -30,7 +32,8 @@ function toNativePromise<T>(webPkiPromise: { success(cb: (result: T) => void): {
  * Inicializa o Lacuna Web PKI e retorna a instância pronta.
  * Funciona gratuitamente em localhost.
  */
-export function initWebPKI(license?: string): Promise<LacunaWebPKI> {
+export async function initWebPKI(license?: string): Promise<PKIInstance> {
+	const { default: LacunaWebPKI } = await import('web-pki');
 	return new Promise((resolve, reject) => {
 		const pki = new LacunaWebPKI(license);
 		pki.init({
@@ -50,9 +53,9 @@ export function initWebPKI(license?: string): Promise<LacunaWebPKI> {
  * Lista os certificados digitais disponíveis (eToken, A1, etc.)
  */
 export async function listarCertificados(
-	pki: LacunaWebPKI
+	pki: PKIInstance
 ): Promise<WebPKICertificate[]> {
-	const certs = await toNativePromise<CertificateModel[]>(pki.listCertificates());
+	const certs = await toNativePromise<Array<{ thumbprint: string; subjectName: string; issuerName: string; pkiBrazil?: { cpf?: string } }>>(pki.listCertificates());
 	return certs.map((c) => ({
 		thumbprint: c.thumbprint,
 		subjectName: c.subjectName,
@@ -67,7 +70,7 @@ export async function listarCertificados(
  * Neste momento a janela de PIN do token aparece para o usuário.
  */
 export async function assinarHash(
-	pki: LacunaWebPKI,
+	pki: PKIInstance,
 	thumbprint: string,
 	hashHex: string
 ): Promise<string> {
