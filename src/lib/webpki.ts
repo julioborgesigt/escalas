@@ -1,42 +1,12 @@
 /**
  * Wrapper TypeScript para a API do Lacuna Web PKI.
  *
- * O script lacuna-web-pki.js é carregado via CDN no app.html
- * e expõe window.LacunaWebPKI globalmente.
- *
+ * Usa o pacote npm `web-pki` (import direto, sem CDN).
  * Referência: https://docs.lacunasoftware.com/pt-br/articles/web-pki/get-started.html
  */
 
-declare global {
-	interface Window {
-		LacunaWebPKI: new (license?: string) => LacunaWebPKIInstance;
-	}
-}
-
-interface CertificateInfo {
-	thumbprint: string;
-	subjectName: string;
-	issuerName: string;
-	notBefore: string;
-	notAfter: string;
-	pkiBrazil?: {
-		cpf?: string;
-		cnpj?: string;
-		responsavel?: string;
-		companyName?: string;
-	};
-}
-
-interface LacunaWebPKIInstance {
-	init(args: { ready: () => void; notInstalled?: () => void; defaultFail?: (ex: unknown) => void }): void;
-	listCertificates(): Promise<CertificateInfo[]>;
-	readCertificate(thumbprint: string): Promise<string>;
-	signHash(args: {
-		thumbprint: string;
-		hash: string;
-		digestAlgorithm: string;
-	}): Promise<string>;
-}
+import LacunaWebPKI from 'web-pki';
+import type { CertificateModel } from 'web-pki';
 
 export interface WebPKICertificate {
 	thumbprint: string;
@@ -46,29 +16,32 @@ export interface WebPKICertificate {
 }
 
 /**
- * Inicializa o Lacuna Web PKI e retorna a instância pronta.
+ * Converte a Promise customizada do Web PKI em uma Promise nativa.
  */
-export function initWebPKI(license?: string): Promise<LacunaWebPKIInstance> {
-	return new Promise((resolve, reject) => {
-		if (typeof window === 'undefined' || !window.LacunaWebPKI) {
-			reject(
-				new Error(
-					'Lacuna Web PKI não está carregado. Verifique se a extensão está instalada.'
-				)
-			);
-			return;
-		}
+function toNativePromise<T>(webPkiPromise: { success(cb: (result: T) => void): { fail(cb: (err: unknown) => void): void } }): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		webPkiPromise
+			.success((result: T) => resolve(result))
+			.fail((ex: unknown) => reject(ex));
+	});
+}
 
-		const pki = new window.LacunaWebPKI(license);
+/**
+ * Inicializa o Lacuna Web PKI e retorna a instância pronta.
+ * Funciona gratuitamente em localhost.
+ */
+export function initWebPKI(license?: string): Promise<LacunaWebPKI> {
+	return new Promise((resolve, reject) => {
+		const pki = new LacunaWebPKI(license);
 		pki.init({
 			ready: () => resolve(pki),
 			notInstalled: () =>
 				reject(
 					new Error(
-						'Lacuna Web PKI não está instalado. Instale em https://get.webpkiplugin.com/'
+						'Lacuna Web PKI não está instalado. Instale a extensão e o componente nativo em https://get.webpkiplugin.com/'
 					)
 				),
-			defaultFail: (ex) => reject(ex)
+			defaultFail: (ex: unknown) => reject(ex)
 		});
 	});
 }
@@ -77,9 +50,9 @@ export function initWebPKI(license?: string): Promise<LacunaWebPKIInstance> {
  * Lista os certificados digitais disponíveis (eToken, A1, etc.)
  */
 export async function listarCertificados(
-	pki: LacunaWebPKIInstance
+	pki: LacunaWebPKI
 ): Promise<WebPKICertificate[]> {
-	const certs = await pki.listCertificates();
+	const certs = await toNativePromise<CertificateModel[]>(pki.listCertificates());
 	return certs.map((c) => ({
 		thumbprint: c.thumbprint,
 		subjectName: c.subjectName,
@@ -94,13 +67,13 @@ export async function listarCertificados(
  * Neste momento a janela de PIN do token aparece para o usuário.
  */
 export async function assinarHash(
-	pki: LacunaWebPKIInstance,
+	pki: LacunaWebPKI,
 	thumbprint: string,
 	hashHex: string
 ): Promise<string> {
-	return pki.signHash({
+	return toNativePromise<string>(pki.signHash({
 		thumbprint,
 		hash: hashHex,
 		digestAlgorithm: 'SHA-256'
-	});
+	}));
 }
