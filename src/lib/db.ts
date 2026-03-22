@@ -99,6 +99,18 @@ export async function criarUnidade(db: Database, nome: string) {
 	return db.insert(unidades).values({ nome: nome.trim() });
 }
 
+export async function atualizarUnidade(db: Database, id: number, novoNome: string): Promise<{ nomeAntigo: string }> {
+	const unidade = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, id)).get();
+	if (!unidade) throw new Error('Unidade não encontrada');
+	const nomeAntigo = unidade.nome;
+	const nomeTrimmed = novoNome.trim();
+	await db.update(unidades).set({ nome: nomeTrimmed }).where(eq(unidades.id, id));
+	// Cascata: atualizar lotação em policiais e escalas
+	await db.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo));
+	await db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo));
+	return { nomeAntigo };
+}
+
 export async function excluirUnidade(db: Database, id: number) {
 	return db.delete(unidades).where(eq(unidades.id, id));
 }
