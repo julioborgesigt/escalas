@@ -6,7 +6,7 @@
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import {
 		conectarSerpro, listarCertificadosSerpro, lerCertificadoSerpro, assinarHashSerpro,
-		type SerproCertificate, type SerproSignerClient
+		SERPRO_CERT_AUTH_URL, type SerproCertificate, type SerproSignerClient
 	} from '$lib/serpro';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -598,6 +598,13 @@
 				<strong>SERPRO:</strong> requer o
 				<a href="https://www.serpro.gov.br/menu/nossas-forcas/especializados/assinador-digital" target="_blank" rel="noopener" class="anchor">Assinador SERPRO Desktop</a>
 				instalado e em execução.
+				Se a conexão falhar mesmo com o software aberto, clique em
+				<button
+					type="button"
+					class="anchor text-xs"
+					onclick={() => window.open(SERPRO_CERT_AUTH_URL, '_blank')}
+				>Autorizar Navegador</button>
+				e aceite o certificado (clique em "Avançado" → "Prosseguir").
 			</p>
 		</div>
 	{/if}
