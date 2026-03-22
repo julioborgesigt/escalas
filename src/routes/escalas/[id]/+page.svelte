@@ -598,13 +598,16 @@
 				<strong>SERPRO:</strong> requer o
 				<a href="https://www.serpro.gov.br/menu/nossas-forcas/especializados/assinador-digital" target="_blank" rel="noopener" class="anchor">Assinador SERPRO Desktop</a>
 				instalado e em execução.
-				Se a conexão falhar mesmo com o software aberto, clique em
+				Se a conexão falhar mesmo com o software aberto:
+				(1) abra
 				<button
 					type="button"
 					class="anchor text-xs"
 					onclick={() => window.open(SERPRO_CERT_AUTH_URL, '_blank')}
-				>Autorizar Navegador</button>
-				e aceite o certificado (clique em "Avançado" → "Prosseguir").
+				>este link</button>
+				no <strong>Firefox</strong> e aceite o certificado ("Avançado" → "Aceitar o Risco"),
+				(2) verifique no Windows se o SERPRO está ouvindo alguma porta:
+				<code class="text-xs bg-surface-200 dark:bg-surface-700 px-1 rounded">netstat -ano | findstr "651"</code>.
 			</p>
 		</div>
 	{/if}
