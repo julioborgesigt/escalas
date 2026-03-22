@@ -287,6 +287,63 @@ export async function prepararPdfParaAssinatura(
 }
 
 /**
+ * Embute o CMS SignedData retornado pelo Assinador SERPRO diretamente no
+ * placeholder de assinatura do PDF preparado.
+ *
+ * O SERPRO retorna um CMS em BER (codificação de comprimento indefinido).
+ * Este método converte para DER de comprimento definido antes de embutir.
+ *
+ * @param preparedPdf    - PDF com placeholder gerado por prepararPdfParaAssinatura
+ * @param serproCmsBase64 - CMS SignedData completo em Base64 (campo 'signature' da resposta SERPRO)
+ */
+export async function embedSerproCms(
+	preparedPdf: Uint8Array,
+	serproCmsBase64: string
+): Promise<Uint8Array> {
+	// Decodifica o CMS BER retornado pelo SERPRO
+	const cmsBer = forge.util.decode64(serproCmsBase64);
+
+	// Converte BER (comprimento indefinido) → DER (comprimento definido)
+	let cmsDer: string;
+	try {
+		const asn1 = forge.asn1.fromDer(cmsBer, { strict: false } as forge.asn1.Asn1Options);
+		cmsDer = forge.asn1.toDer(asn1).getBytes();
+	} catch {
+		// Se a conversão falhar, usa o BER original
+		console.warn('[PDF] Não foi possível converter BER→DER; usando CMS original do SERPRO.');
+		cmsDer = cmsBer;
+	}
+
+	const cmsHex = forge.util.bytesToHex(cmsDer);
+
+	const pdfBuffer = Buffer.from(preparedPdf);
+	const pdfString = pdfBuffer.toString('latin1');
+
+	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
+	if (contentsTagPos === -1) {
+		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
+	}
+
+	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
+	const sigEnd = pdfString.indexOf('>', sigStart);
+	const placeholderLength = sigEnd - sigStart - 1;
+
+	if (cmsHex.length > placeholderLength) {
+		throw new Error(
+			`CMS SERPRO muito grande: ${cmsHex.length / 2} bytes — ` +
+			`placeholder suporta ${placeholderLength / 2} bytes. ` +
+			`Aumente SIGNATURE_LENGTH em pdf-signing.ts.`
+		);
+	}
+
+	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
+	const signedPdf = Buffer.from(pdfBuffer);
+	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
+
+	return new Uint8Array(signedPdf);
+}
+
+/**
  * Monta a estrutura CMS/PKCS#7 SignedData completa e embute no PDF.
  *
  * @param preparedPdf - PDF com placeholder de assinatura
