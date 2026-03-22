@@ -11,6 +11,12 @@
 	let novoNome = $state('');
 	let salvando = $state(false);
 
+	// Edição inline
+	let editandoId = $state<number | null>(null);
+	let editNome = $state('');
+	let salvandoEdicao = $state(false);
+
+	// Exclusão
 	let dialogOpen = $state(false);
 	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
 
@@ -43,6 +49,37 @@
 		salvando = false;
 	}
 
+	function iniciarEdicao(u: Unidade) {
+		editandoId = u.id;
+		editNome = u.nome;
+	}
+
+	function cancelarEdicao() {
+		editandoId = null;
+		editNome = '';
+	}
+
+	async function salvarEdicao(id: number) {
+		if (!editNome.trim()) return;
+		salvandoEdicao = true;
+
+		const res = await fetch(`/api/unidades/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ nome: editNome.trim() })
+		});
+
+		if (res.ok) {
+			toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
+			editandoId = null;
+			await carregarUnidades();
+		} else {
+			const data = await res.json();
+			toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
+		}
+		salvandoEdicao = false;
+	}
+
 	function solicitarExclusao(id: number, nome: string) {
 		unidadeParaExcluir = { id, nome };
 		dialogOpen = true;
@@ -64,9 +101,7 @@
 		unidadeParaExcluir = null;
 	}
 
-	$effect(() => {
-		carregarUnidades();
-	});
+	$effect(() => { carregarUnidades(); });
 </script>
 
 <div class="flex items-center justify-between mb-6">
@@ -133,11 +168,34 @@
 				<tbody>
 					{#each unidades as u (u.id)}
 						<tr>
-							<td class="font-medium">{u.nome}</td>
+							<td>
+								{#if isAdmin && editandoId === u.id}
+									<input
+										class="input text-sm"
+										type="text"
+										bind:value={editNome}
+										onkeydown={(e) => { if (e.key === 'Enter') salvarEdicao(u.id); if (e.key === 'Escape') cancelarEdicao(); }}
+									/>
+								{:else}
+									<span class="font-medium">{u.nome}</span>
+								{/if}
+							</td>
 							<td class="text-surface-500 text-sm">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td>
 							{#if isAdmin}
 								<td>
-									<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
+									{#if editandoId === u.id}
+										<div class="flex gap-2">
+											<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
+											</button>
+											<button class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}>Cancelar</button>
+										</div>
+									{:else}
+										<div class="flex gap-2">
+											<button class="btn btn-sm preset-outlined-primary-500" onclick={() => iniciarEdicao(u)}>Editar</button>
+											<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
+										</div>
+									{/if}
 								</td>
 							{/if}
 						</tr>
@@ -150,15 +208,35 @@
 		<div class="md:hidden space-y-3">
 			{#each unidades as u (u.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10">
-					<div class="flex items-center justify-between gap-3">
-						<div class="min-w-0">
-							<p class="font-semibold text-sm truncate">{u.nome}</p>
-							<p class="text-xs text-surface-500 mt-0.5">Cadastrada em {new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+					{#if isAdmin && editandoId === u.id}
+						<div class="space-y-2">
+							<input
+								class="input text-sm w-full"
+								type="text"
+								bind:value={editNome}
+								onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
+							/>
+							<div class="flex gap-2">
+								<button class="btn btn-sm preset-filled-primary-500 flex-1" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
+								</button>
+								<button class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}>Cancelar</button>
+							</div>
 						</div>
-						{#if isAdmin}
-							<button class="btn btn-sm preset-filled-error-500 shrink-0" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
-						{/if}
-					</div>
+					{:else}
+						<div class="flex items-center justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-semibold text-sm">{u.nome}</p>
+								<p class="text-xs text-surface-500 mt-0.5">Cadastrada em {new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+							</div>
+							{#if isAdmin}
+								<div class="flex gap-2 shrink-0">
+									<button class="btn btn-sm preset-outlined-primary-500" onclick={() => iniciarEdicao(u)}>Editar</button>
+									<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
