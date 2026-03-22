@@ -4,6 +4,10 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
+	import {
+		conectarSerpro, listarCertificadosSerpro, lerCertificadoSerpro, assinarHashSerpro,
+		type SerproCertificate, type SerproSignerClient
+	} from '$lib/serpro';
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -217,13 +221,74 @@
 	// === Assinatura Digital ===
 	let assinando = $state(false);
 	let etapaAssinatura = $state('');
+
+	// --- Web PKI (Lacuna) ---
 	let certificados = $state<WebPKICertificate[]>([]);
 	let certSelecionado = $state('');
 	let mostrarCerts = $state(false);
 
-	async function assinarDigitalmente() {
+	// --- Assinador SERPRO ---
+	let certsSerpro = $state<SerproCertificate[]>([]);
+	let certSerproSelecionado = $state('');
+	let mostrarCertsSerpro = $state(false);
+	let serproClient = $state<SerproSignerClient | null>(null);
+
+	// ── Helpers compartilhados ──────────────────────────────────────────────
+
+	/**
+	 * Envia o PDF preparado pelo servidor, assina o hash e baixa o resultado.
+	 * Reutilizado por ambos os métodos (Web PKI e SERPRO).
+	 */
+	async function finalizarEBaixarPdf(
+		signerName: string,
+		signerCpf: string,
+		getSignature: (signedAttrsHashHex: string) => Promise<{ rawSignature: string; certificateBase64: string }>
+	) {
+		// 1. Preparar PDF no servidor (cria carimbo + placeholder + hash)
+		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
+		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ signerName, signerCpf })
+		});
+		if (!prepRes.ok) {
+			const err = await prepRes.json();
+			throw new Error(err.error || 'Erro ao preparar PDF');
+		}
+		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO } = await prepRes.json();
+
+		// 2. Assinar hash (janela de PIN aparece aqui, gerenciada pela lib de assinatura)
+		const { rawSignature, certificateBase64 } = await getSignature(signedAttrsHashHex);
+
+		// 3. Finalizar assinatura no servidor (embute CMS/PKCS#7 no PDF)
+		etapaAssinatura = 'Finalizando PDF assinado...';
+		const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO })
+		});
+		if (!finRes.ok) {
+			const err = await finRes.json();
+			throw new Error(err.error || 'Erro ao finalizar assinatura');
+		}
+
+		// 4. Download do PDF assinado
+		etapaAssinatura = 'Baixando PDF assinado...';
+		const blob = await finRes.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_assinada.pdf';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
+	// ── Web PKI (Lacuna) ────────────────────────────────────────────────────
+
+	async function assinarComWebPKI() {
 		if (certificados.length === 0) {
-			// Primeiro clique: inicializar Web PKI e listar certificados
 			assinando = true;
 			etapaAssinatura = 'Inicializando Web PKI...';
 			try {
@@ -238,7 +303,7 @@
 				}
 				if (certificados.length === 1) {
 					certSelecionado = certificados[0].thumbprint;
-					await executarAssinatura(pki, certificados[0].thumbprint);
+					await executarAssinaturaWebPKI(pki, certificados[0].thumbprint);
 				} else {
 					mostrarCerts = true;
 					assinando = false;
@@ -253,7 +318,6 @@
 			return;
 		}
 
-		// Já tem certificados listados, usar o selecionado
 		if (!certSelecionado) {
 			toaster.create({ title: 'Selecione um certificado', type: 'error' });
 			return;
@@ -261,7 +325,7 @@
 		assinando = true;
 		try {
 			const pki = await initWebPKI();
-			await executarAssinatura(pki, certSelecionado);
+			await executarAssinaturaWebPKI(pki, certSelecionado);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : 'Erro na assinatura';
 			toaster.create({ title: msg, type: 'error' });
@@ -270,71 +334,123 @@
 		}
 	}
 
-	async function executarAssinatura(pki: Awaited<ReturnType<typeof initWebPKI>>, thumbprint: string) {
+	async function executarAssinaturaWebPKI(pki: Awaited<ReturnType<typeof initWebPKI>>, thumbprint: string) {
 		assinando = true;
-
-		// Buscar dados do certificado selecionado para o carimbo
 		const cert = certificados.find((c) => c.thumbprint === thumbprint);
 
-		// 1. Ler o certificado DER do eToken
 		etapaAssinatura = 'Lendo certificado...';
 		const certificateBase64 = await lerCertificado(pki, thumbprint);
 
-		// 2. Preparar PDF no servidor (retorna hash dos SignedAttributes)
-		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				signerName: cert?.subjectName ?? '',
-				signerCpf: cert?.cpf ?? ''
-			})
-		});
-		if (!prepRes.ok) {
-			const err = await prepRes.json();
-			throw new Error(err.error || 'Erro ao preparar PDF');
+		try {
+			await finalizarEBaixarPdf(
+				cert?.subjectName ?? '',
+				cert?.cpf ?? '',
+				async (signedAttrsHashHex) => {
+					etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
+					const rawSignature = await assinarHash(pki, thumbprint, signedAttrsHashHex);
+					return { rawSignature, certificateBase64 };
+				}
+			);
+			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+		} finally {
+			assinando = false;
+			etapaAssinatura = '';
+			mostrarCerts = false;
 		}
-		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO } = await prepRes.json();
+	}
 
-		// 3. Assinar hash dos SignedAttributes com eToken (janela de PIN aparece aqui)
-		etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
-		const rawSignature = await assinarHash(pki, thumbprint, signedAttrsHashHex);
+	// ── Assinador SERPRO ────────────────────────────────────────────────────
 
-		// 4. Finalizar assinatura no servidor (monta CMS/PKCS#7 e embute no PDF)
-		etapaAssinatura = 'Finalizando PDF assinado...';
-		const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				preparedPdf,
-				rawSignature,
-				certificateBase64,
-				messageDigest,
-				signingTimeISO
-			})
-		});
-
-		if (!finRes.ok) {
-			const err = await finRes.json();
-			throw new Error(err.error || 'Erro ao finalizar assinatura');
+	async function assinarComSerpro() {
+		if (certsSerpro.length === 0) {
+			assinando = true;
+			etapaAssinatura = 'Conectando ao Assinador SERPRO...';
+			try {
+				const client = await conectarSerpro();
+				serproClient = client;
+				etapaAssinatura = 'Listando certificados...';
+				certsSerpro = await listarCertificadosSerpro(client);
+				if (certsSerpro.length === 0) {
+					toaster.create({ title: 'Nenhum certificado encontrado. Conecte seu token A3 e abra o Assinador SERPRO.', type: 'error' });
+					serproClient?.disconnect();
+					serproClient = null;
+					assinando = false;
+					etapaAssinatura = '';
+					return;
+				}
+				if (certsSerpro.length === 1) {
+					certSerproSelecionado = certsSerpro[0].alias;
+					await executarAssinaturaSerpro(certsSerpro[0]);
+				} else {
+					mostrarCertsSerpro = true;
+					assinando = false;
+					etapaAssinatura = '';
+				}
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : 'Erro ao conectar ao Assinador SERPRO';
+				toaster.create({ title: msg, type: 'error' });
+				serproClient?.disconnect();
+				serproClient = null;
+				assinando = false;
+				etapaAssinatura = '';
+			}
+			return;
 		}
 
-		// 5. Download do PDF assinado
-		etapaAssinatura = 'Baixando PDF assinado...';
-		const blob = await finRes.blob();
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_assinada.pdf';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
+		if (!certSerproSelecionado) {
+			toaster.create({ title: 'Selecione um certificado', type: 'error' });
+			return;
+		}
+		const cert = certsSerpro.find((c) => c.alias === certSerproSelecionado);
+		if (!cert) return;
 
-		toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
-		assinando = false;
-		etapaAssinatura = '';
-		mostrarCerts = false;
+		assinando = true;
+		try {
+			await executarAssinaturaSerpro(cert);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Erro na assinatura SERPRO';
+			toaster.create({ title: msg, type: 'error' });
+			assinando = false;
+			etapaAssinatura = '';
+		}
+	}
+
+	async function executarAssinaturaSerpro(cert: SerproCertificate) {
+		assinando = true;
+		if (!serproClient) {
+			throw new Error('Cliente SERPRO não conectado');
+		}
+		const client = serproClient;
+
+		etapaAssinatura = 'Lendo certificado...';
+		const certificateBase64 = await lerCertificadoSerpro(client, cert);
+
+		try {
+			await finalizarEBaixarPdf(
+				cert.subjectName ?? cert.subjectDN,
+				cert.cpf ?? '',
+				async (signedAttrsHashHex) => {
+					etapaAssinatura = 'Aguardando assinatura no Assinador SERPRO (digite o PIN)...';
+					const rawSignature = await assinarHashSerpro(client, cert.alias, signedAttrsHashHex);
+					return { rawSignature, certificateBase64 };
+				}
+			);
+			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+		} finally {
+			assinando = false;
+			etapaAssinatura = '';
+			mostrarCertsSerpro = false;
+			serproClient?.disconnect();
+			serproClient = null;
+		}
+	}
+
+	function resetarSerpro() {
+		serproClient?.disconnect();
+		serproClient = null;
+		certsSerpro = [];
+		certSerproSelecionado = '';
+		mostrarCertsSerpro = false;
 	}
 
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
@@ -393,12 +509,13 @@
 			</div>
 
 			<hr class="my-3 border-surface-200 dark:border-white/10" />
-			<h3 class="font-semibold text-sm mb-3">Assinatura Digital (eToken USB)</h3>
+			<h3 class="font-semibold text-sm mb-3">Assinatura Digital (eToken / Certificado A3)</h3>
 
+			<!-- Seletor de certificado Web PKI -->
 			{#if mostrarCerts && certificados.length > 1}
 				<div class="flex gap-2 flex-wrap items-end mb-3">
 					<label class="label flex-1 min-w-[200px]">
-						<span class="label-text text-xs">Certificado</span>
+						<span class="label-text text-xs">Certificado (Web PKI)</span>
 						<select class="select" bind:value={certSelecionado}>
 							<option value="">Selecione o certificado...</option>
 							{#each certificados as cert (cert.thumbprint)}
@@ -411,25 +528,77 @@
 				</div>
 			{/if}
 
+			<!-- Seletor de certificado SERPRO -->
+			{#if mostrarCertsSerpro && certsSerpro.length > 1}
+				<div class="flex gap-2 flex-wrap items-end mb-3">
+					<label class="label flex-1 min-w-[200px]">
+						<span class="label-text text-xs">Certificado (Assinador SERPRO)</span>
+						<select class="select" bind:value={certSerproSelecionado}>
+							<option value="">Selecione o certificado...</option>
+							{#each certsSerpro as cert (cert.alias)}
+								<option value={cert.alias}>
+									{cert.subjectName ?? cert.subjectDN}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''}
+								</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+			{/if}
+
 			<div class="flex gap-2 items-center flex-wrap">
+				<!-- Botão Web PKI -->
 				<button
 					class="btn btn-sm preset-filled-success-500"
-					onclick={assinarDigitalmente}
+					onclick={assinarComWebPKI}
 					disabled={assinando}
+					title="Requer a extensão Lacuna Web PKI instalada no navegador"
 				>
-					{#if assinando}
+					{#if assinando && (certificados.length > 0 || mostrarCerts)}
 						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 						{etapaAssinatura}
 					{:else}
-						Assinar Digitalmente
+						Assinar com Web PKI
 					{/if}
 				</button>
+
+				<!-- Botão SERPRO -->
+				<button
+					class="btn btn-sm preset-filled-tertiary-500"
+					onclick={assinarComSerpro}
+					disabled={assinando}
+					title="Requer o Assinador SERPRO Desktop instalado e em execução"
+				>
+					{#if assinando && (certsSerpro.length > 0 || mostrarCertsSerpro || serproClient)}
+						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+						{etapaAssinatura}
+					{:else}
+						Assinar com SERPRO
+					{/if}
+				</button>
+
+				<!-- Trocar certificado Web PKI -->
 				{#if certificados.length > 0 && !assinando}
 					<button class="btn btn-sm preset-outlined-surface" onclick={() => { certificados = []; certSelecionado = ''; mostrarCerts = false; }}>
-						Trocar certificado
+						Trocar (Web PKI)
+					</button>
+				{/if}
+
+				<!-- Trocar certificado SERPRO -->
+				{#if certsSerpro.length > 0 && !assinando}
+					<button class="btn btn-sm preset-outlined-surface" onclick={resetarSerpro}>
+						Trocar (SERPRO)
 					</button>
 				{/if}
 			</div>
+
+			<p class="text-xs text-surface-400 dark:text-surface-500 mt-2">
+				<strong>Web PKI:</strong> requer extensão
+				<a href="https://get.webpkiplugin.com/" target="_blank" rel="noopener" class="anchor">Lacuna Web PKI</a>.
+				&nbsp;|&nbsp;
+				<strong>SERPRO:</strong> requer o
+				<a href="https://www.serpro.gov.br/menu/nossas-forcas/especializados/assinador-digital" target="_blank" rel="noopener" class="anchor">Assinador SERPRO Desktop</a>
+				instalado e em execução.
+			</p>
 		</div>
 	{/if}
 
