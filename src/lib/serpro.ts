@@ -30,24 +30,36 @@ export interface SerproCertificate {
 }
 
 /**
+ * Hostname real usado pelo Assinador SERPRO.
+ * O instalador adiciona "127.0.0.1 assinador-desktop.serpro.gov.br" no hosts do sistema
+ * e emite um certificado TLS para esse hostname (não para 127.0.0.1).
+ * Fonte: https://forum.netgate.com/topic/176865/aplicativo-do-serpro
+ */
+const SERPRO_HOST = 'assinador-desktop.serpro.gov.br';
+
+/**
  * Candidatos de URL WebSocket testados em sequência.
- * Portas conhecidas do Assinador SERPRO: 65156, 65166, 65500.
- * Paths documentados: /signer/  (v3/v4).
+ *
+ * Tentamos primeiro o hostname oficial (SERPRO v4+, certificado TLS correto),
+ * depois o IP de fallback (pode funcionar em versões/configurações antigas).
  */
 const SERPRO_WS_URLS = [
-	'ws://127.0.0.1:65156/signer/',
-	'ws://127.0.0.1:65166/signer/',
-	'ws://127.0.0.1:65500/signer/',
-	'wss://127.0.0.1:65156/signer/',
+	`wss://${SERPRO_HOST}:65166/signer/`,
+	`wss://${SERPRO_HOST}:65156/signer/`,
+	`wss://${SERPRO_HOST}:65500/signer/`,
 	'wss://127.0.0.1:65166/signer/',
-	'wss://127.0.0.1:65500/signer/',
+	'wss://127.0.0.1:65156/signer/',
+	'ws://127.0.0.1:65166/signer/',
+	'ws://127.0.0.1:65156/signer/',
+	'ws://127.0.0.1:65500/signer/',
 ];
 
 /**
- * URL para o usuário aceitar o certificado auto-assinado do SERPRO no navegador.
- * Necessário apenas quando a conexão wss:// for usada (páginas HTTPS).
+ * URL para aceitar o certificado do SERPRO no navegador.
+ * O usuário deve abrir esta URL, clicar em "Avançado" → "Prosseguir" (ou equivalente).
+ * No Chrome/Edge isso pode não funcionar — use Firefox para a primeira autorização.
  */
-export const SERPRO_CERT_AUTH_URL = 'https://127.0.0.1:65156';
+export const SERPRO_CERT_AUTH_URL = `https://${SERPRO_HOST}:65166`;
 
 /** Timeout em ms para cada comando WebSocket */
 const COMMAND_TIMEOUT_MS = 30_000;
