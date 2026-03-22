@@ -1,9 +1,23 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '**********';
+
+/**
+ * Formata a data atual no padrão dd/mm/yy HH:MM.
+ */
+function formatarDataHora(): string {
+	const now = new Date();
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const day = pad(now.getDate());
+	const month = pad(now.getMonth() + 1);
+	const year = String(now.getFullYear()).slice(-2);
+	const hours = pad(now.getHours());
+	const minutes = pad(now.getMinutes());
+	return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
 
 /**
  * Adiciona um placeholder de assinatura digital ao PDF e calcula o hash
@@ -14,9 +28,35 @@ const BYTE_RANGE_PLACEHOLDER = '**********';
  */
 export async function prepararPdfParaAssinatura(
 	pdfBytes: Uint8Array,
-	signerName: string
+	signerName: string,
+	signerCpf?: string
 ): Promise<{ preparedPdf: Uint8Array; hashHex: string }> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
+
+	// Adicionar carimbo de assinatura no rodapé (canto inferior direito) da última página
+	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontSize = 8;
+	const pages = pdfDoc.getPages();
+	const lastPage = pages[pages.length - 1];
+	const { width } = lastPage.getSize();
+
+	const dataHora = formatarDataHora();
+	let stampText = `Assinado digitalmente em ${dataHora} por: ${signerName}`;
+	if (signerCpf) {
+		stampText += ` - CPF: ${signerCpf}`;
+	}
+
+	const textWidth = font.widthOfTextAtSize(stampText, fontSize);
+	const rightMargin = 10;
+	const bottomMargin = 10;
+
+	lastPage.drawText(stampText, {
+		x: width - textWidth - rightMargin,
+		y: bottomMargin,
+		size: fontSize,
+		font,
+		color: rgb(0.2, 0.2, 0.2)
+	});
 
 	pdflibAddPlaceholder({
 		pdfDoc,
