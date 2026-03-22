@@ -258,40 +258,81 @@ export class SerproSignerClient {
 	}
 
 	/**
-	 * Diagnóstico: envia um comando e retorna a resposta bruta como string.
-	 * Use para descobrir o protocolo correto do SERPRO.
+	 * Diagnóstico: envia um comando e coleta TODAS as mensagens recebidas
+	 * até 2 s de silêncio ou o timeout total expirar.
+	 *
+	 * O SERPRO pode enviar uma mensagem de ACK imediatamente e depois enviar
+	 * a resposta real (com dados) após interação do usuário.
+	 * Retornar todas as mensagens permite diagnosticar o comportamento correto.
 	 */
-	async probe(command: object): Promise<string> {
+	async probeMulti(
+		command: object,
+		totalTimeoutMs = 8_000,
+		silenceMs = 2_000
+	): Promise<string[]> {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			throw new Error('WebSocket não está conectado');
 		}
-		return new Promise<string>((resolve, reject) => {
-			const handler = (evt: MessageEvent) => {
+		const ws = this.ws;
+		const messages: string[] = [];
+
+		return new Promise<string[]>((resolve, reject) => {
+			let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+			let totalTimer: ReturnType<typeof setTimeout> | null = null;
+
+			const done = () => {
+				if (silenceTimer) clearTimeout(silenceTimer);
+				if (totalTimer)   clearTimeout(totalTimer);
 				ws.onmessage = (e) => this.handleMessage(e);
-				resolve(evt.data);
+				resolve(messages);
 			};
-			const ws = this.ws!;
-			ws.onmessage = handler;
-			const tid = setTimeout(() => {
-				ws.onmessage = (e) => this.handleMessage(e);
-				reject(new Error('Timeout no probe'));
-			}, 5_000);
+
+			ws.onmessage = (evt: MessageEvent) => {
+				messages.push(evt.data as string);
+				// Reinicia o timer de silêncio a cada mensagem recebida
+				if (silenceTimer) clearTimeout(silenceTimer);
+				silenceTimer = setTimeout(done, silenceMs);
+			};
+
+			totalTimer = setTimeout(() => {
+				if (messages.length > 0) {
+					done();
+				} else {
+					ws.onmessage = (e) => this.handleMessage(e);
+					reject(new Error(`Timeout: nenhuma resposta em ${totalTimeoutMs}ms`));
+				}
+			}, totalTimeoutMs);
+
 			console.log('[SERPRO] 🔬 Probe:', command);
 			ws.send(JSON.stringify(command));
-			void tid;
 		});
 	}
 
 	/**
 	 * Lista os certificados digitais disponíveis no computador.
 	 *
-	 * Tenta múltiplas variações de nome do comando até obter certificados,
-	 * pois o protocolo exato do SERPRO não está documentado publicamente.
-	 * Os resultados dos probes são logados no console para diagnóstico.
+	 * Estratégia:
+	 * 1. Envia {"command":"list"} para descobrir comandos suportados pelo servidor.
+	 * 2. Tenta variações de nome de comando para listar certificados.
+	 * 3. Cada probe coleta TODAS as mensagens recebidas (ACK + resposta real).
+	 *
+	 * Importante: a resposta {"command":"","requestId":0,"actionCanceled":false}
+	 * parece ser um ACK genérico — pode vir uma segunda mensagem com os dados reais.
 	 */
 	async listCertificates(): Promise<SerproCertificate[]> {
-		// Candidatos de nome de comando, testados em sequência
-		// requestId adicionado para correlação (o SERPRO pode exigi-lo)
+		console.group('[SERPRO] Descobrindo protocolo de certificados...');
+
+		// Passo 1: listar comandos disponíveis no servidor SERPRO
+		try {
+			const listMsgs = await this.probeMulti({ command: 'list' });
+			console.log('[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
+				listMsgs.map(m => { try { return JSON.parse(m); } catch { return m; } })
+			);
+		} catch (e) {
+			console.warn('[SERPRO] 🔬 Comando "list" falhou:', e);
+		}
+
+		// Passo 2: testar variações de nome de comando para listar certificados
 		const candidates = [
 			{ command: 'listCertificates',   requestId: 1 },
 			{ command: 'getCertificates',    requestId: 2 },
@@ -302,36 +343,43 @@ export class SerproSignerClient {
 			{ command: 'aliases',            requestId: 7 },
 		];
 
-		console.group('[SERPRO] Descobrindo comando de listagem de certificados...');
-		let lastResponse: unknown = null;
-
 		for (const cmd of candidates) {
 			try {
-				const raw = await this.probe(cmd);
-				console.log(`[SERPRO] 🔬 ${cmd.command} →`, raw);
-				const parsed = JSON.parse(raw);
-				lastResponse = parsed;
+				const msgs = await this.probeMulti(cmd);
+				const parsed = msgs.map(m => { try { return JSON.parse(m); } catch { return m; } });
+				console.log(`[SERPRO] 🔬 ${cmd.command} → ${msgs.length} msg(s):`, parsed);
 
-				// Verifica se a resposta contém certificados (qualquer campo com array)
-				const certs = parsed.certificates ?? parsed.aliases ?? parsed.content ?? parsed.data;
-				if (Array.isArray(certs) && certs.length > 0) {
-					console.log(`[SERPRO] ✅ Comando correto: "${cmd.command}" retornou ${certs.length} cert(s)`);
-					console.groupEnd();
-					return certs.map((c: { alias?: string; subjectDN?: string; issuerDN?: string; certificate?: string; thumbprint?: string }) =>
-						enriquecerCert({
-							alias: c.alias ?? c.thumbprint ?? '',
-							subjectDN: c.subjectDN ?? '',
-							issuerDN: c.issuerDN,
-							certificate: c.certificate
-						})
-					);
+				// Verifica TODAS as mensagens recebidas em busca de certificados
+				for (const p of parsed) {
+					if (typeof p !== 'object' || p === null) continue;
+					const certs = (p as Record<string, unknown>).certificates
+						?? (p as Record<string, unknown>).aliases
+						?? (p as Record<string, unknown>).content
+						?? (p as Record<string, unknown>).data;
+					if (Array.isArray(certs) && certs.length > 0) {
+						console.log(`[SERPRO] ✅ "${cmd.command}" retornou ${certs.length} cert(s)`);
+						console.groupEnd();
+						return (certs as Array<{ alias?: string; subjectDN?: string; issuerDN?: string; certificate?: string; thumbprint?: string }>).map(c =>
+							enriquecerCert({
+								alias: c.alias ?? c.thumbprint ?? '',
+								subjectDN: c.subjectDN ?? '',
+								issuerDN: c.issuerDN,
+								certificate: c.certificate
+							})
+						);
+					}
 				}
 			} catch (e) {
 				console.warn(`[SERPRO] 🔬 ${cmd.command} → erro:`, e);
 			}
 		}
 
-		console.warn('[SERPRO] Nenhum comando retornou certificados. Última resposta:', lastResponse);
+		console.warn(
+			'[SERPRO] ⚠️ Nenhum comando retornou certificados.\n' +
+			'O protocolo SERPRO 4.x pode não suportar listagem programática de certificados.\n' +
+			'A seleção de certificado deve ser feita pela UI nativa do Assinador SERPRO ' +
+			'durante o comando "sign".'
+		);
 		console.groupEnd();
 		return [];
 	}
