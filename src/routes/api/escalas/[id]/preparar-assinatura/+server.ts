@@ -34,7 +34,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	const pdfBytes = gerarPdf(escala, policiais);
 
 	// Preparar o PDF com placeholder de assinatura e calcular hash dos SignedAttributes
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO } =
+	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
 		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf);
 
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
@@ -43,6 +43,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		signedAttrsHashHex,
 		preparedPdf: preparedPdfBase64,
 		messageDigest,
-		signingTimeISO
+		signingTimeISO,
+		dataToSignBase64
 	});
 };
