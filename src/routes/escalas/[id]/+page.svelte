@@ -5,7 +5,7 @@
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import {
-		conectarSerpro, assinarHashSerpro,
+		conectarSerpro, assinarSerpro,
 		SERPRO_CERT_AUTH_URL, type SerproSignerClient
 	} from '$lib/serpro';
 
@@ -380,14 +380,49 @@
 
 	async function executarAssinaturaSerpro(client: SerproSignerClient) {
 		try {
-			await finalizarEBaixarPdf(
-				'',  // servidor usa o nome do usuário logado
-				'',  // servidor usa '' como CPF padrão
-				async (signedAttrsHashHex) => {
-					etapaAssinatura = 'Selecione o certificado e digite o PIN no Assinador SERPRO...';
-					return assinarHashSerpro(client, signedAttrsHashHex);
-				}
-			);
+			// 1. Preparar PDF no servidor (carimbo + placeholder + messageDigest)
+			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
+			const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({})  // servidor usa nome/CPF do usuário logado
+			});
+			if (!prepRes.ok) {
+				const err = await prepRes.json();
+				throw new Error(err.error || 'Erro ao preparar PDF');
+			}
+			const { preparedPdf, messageDigest } = await prepRes.json();
+
+			// 2. Assinar com SERPRO — passa o SHA-256 do byte-range do PDF (messageDigest)
+			// O SERPRO abre sua UI nativa para seleção de certificado + PIN
+			etapaAssinatura = 'Selecione o certificado e digite o PIN no Assinador SERPRO...';
+			const { cmsBase64 } = await assinarSerpro(client, messageDigest);
+
+			// 3. Embutir o CMS SERPRO no placeholder do PDF (servidor)
+			etapaAssinatura = 'Finalizando PDF assinado...';
+			const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura-serpro`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preparedPdf, serproCms: cmsBase64 })
+			});
+			if (!finRes.ok) {
+				const err = await finRes.json();
+				throw new Error(err.error || 'Erro ao finalizar assinatura SERPRO');
+			}
+
+			// 4. Download do PDF assinado
+			const blob = await finRes.blob();
+			const cd = finRes.headers.get('Content-Disposition') ?? '';
+			const filename = cd.match(/filename="(.+?)"/)?.[1] ?? 'escala_assinada.pdf';
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+
 			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
 		} finally {
 			assinando = false;
