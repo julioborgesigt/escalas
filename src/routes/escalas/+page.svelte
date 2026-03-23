@@ -8,12 +8,23 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let filtroLotacao = $state('');
+	let filtroMes = $state(new Date().getMonth() + 1);
+	let filtroAno = $state(new Date().getFullYear());
+	let filtroTipo = $state('todos');
 	let lotacoes = $state<string[]>([]);
 
 	let dialogOpen = $state(false);
 	let escalaParaExcluir = $state<{id: number, titulo: string} | null>(null);
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
+
+	const meses = [
+		{ value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' }, { value: 3, label: 'Março' },
+		{ value: 4, label: 'Abril' }, { value: 5, label: 'Maio' }, { value: 6, label: 'Junho' },
+		{ value: 7, label: 'Julho' }, { value: 8, label: 'Agosto' }, { value: 9, label: 'Setembro' },
+		{ value: 10, label: 'Outubro' }, { value: 11, label: 'Novembro' }, { value: 12, label: 'Dezembro' }
+	];
+	const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i);
 
 	function formatarData(dateStr: string): string {
 		const [year, month, day] = dateStr.split('-');
@@ -29,10 +40,13 @@
 
 		loading = true;
 		const params = new URLSearchParams();
-		if (filtroLotacao === '__PENDENTES__') {
-			params.set('status', 'pendente');
-		} else if (filtroLotacao) {
+		if (filtroLotacao) {
 			params.set('lotacao', filtroLotacao);
+		}
+		params.set('mes', filtroMes.toString());
+		params.set('ano', filtroAno.toString());
+		if (filtroTipo !== 'todos') {
+			params.set('tipo', filtroTipo);
 		}
 		
 		const res = await fetch(`/api/escalas?${params.toString()}`);
@@ -95,25 +109,46 @@
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
 	{#if isAdmin}
-		<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
+		<div class="flex flex-col md:flex-row md:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
 			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
-					<option value="__PENDENTES__" class="font-bold text-warning-600 dark:text-warning-400">🚨 Todas as Escalas Pendentes</option>
-					<hr />
 					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
 			</label>
-			<p class="text-xs text-surface-500 mb-2 italic">
-				{#if filtroLotacao === '__PENDENTES__'}
-					Mostrando todas as escalas que aguardam assinatura.
-				{:else}
-					Selecione uma unidade para visualizar as escalas dela.
-				{/if}
-			</p>
+
+			<div class="flex flex-[2] gap-4">
+				<label class="label flex-1">
+					<span class="label-text font-semibold mb-1">Tipo</span>
+					<select class="select" bind:value={filtroTipo} onchange={carregar}>
+						<option value="todos">Todos</option>
+						<option value="plantao">Plantão</option>
+						<option value="expediente">Expediente</option>
+						<option value="fds">Final de Semana</option>
+					</select>
+				</label>
+
+				<label class="label flex-1">
+					<span class="label-text font-semibold mb-1">Mês</span>
+					<select class="select" bind:value={filtroMes} onchange={carregar}>
+						{#each meses as mes}
+							<option value={mes.value}>{mes.label}</option>
+						{/each}
+					</select>
+				</label>
+
+				<label class="label flex-1">
+					<span class="label-text font-semibold mb-1">Ano</span>
+					<select class="select" bind:value={filtroAno} onchange={carregar}>
+						{#each anos as ano}
+							<option value={ano}>{ano}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
 		</div>
 	{/if}
 
@@ -128,7 +163,7 @@
 		</div>
 	{:else if escalas.length === 0}
 		<div class="text-center py-12 text-surface-500">
-			<p class="mb-4">{filtroLotacao === '__PENDENTES__' ? 'Nenhuma escala pendente de assinatura. Todas estão em dia!' : 'Nenhuma escala criada para esta unidade.'}</p>
+			<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 			<a href="/escalas/nova" class="btn preset-filled-primary-500">Criar Escala</a>
 		</div>
 	{:else}

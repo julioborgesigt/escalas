@@ -12,12 +12,15 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	let lotacao = url.searchParams.get('lotacao') || undefined;
 	const statusParam = url.searchParams.get('status');
 	const status = (statusParam === 'pendente' || statusParam === 'assinada') ? statusParam : undefined;
+	const mes = url.searchParams.get('mes') ? Number(url.searchParams.get('mes')) : undefined;
+	const ano = url.searchParams.get('ano') ? Number(url.searchParams.get('ano')) : undefined;
+	const tipo = url.searchParams.get('tipo') || undefined;
 
 	if (usuario?.tipo === 'policial') {
 		lotacao = usuario.lotacao;
 	}
 
-	const escalas = await listarEscalas(db, lotacao, status);
+	const escalas = await listarEscalas(db, lotacao, status, mes, ano, tipo);
 	return json(escalas);
 };
 
@@ -46,7 +49,8 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		horario: validated.horario || `${validated.hora_entrada}H A ${validated.hora_saida}H`,
 		hora_entrada: validated.hora_entrada,
 		hora_saida: validated.hora_saida,
-		lotacao: validated.lotacao
+		lotacao: validated.lotacao,
+		tipo: validated.tipo
 	});
 
 	return json({ success: true, id: result[0]?.id }, { status: 201 });

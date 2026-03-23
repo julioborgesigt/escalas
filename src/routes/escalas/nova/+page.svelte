@@ -200,7 +200,8 @@
 				horario: horarioLabel(),
 				hora_entrada: `${horaEntrada}:${minutoEntrada}`,
 				hora_saida: `${horaSaida}:${minutoSaida}`,
-				lotacao: isAdmin ? lotacaoEscala : undefined
+				lotacao: isAdmin ? lotacaoEscala : undefined,
+				tipo: tipoEscolhido
 			})
 		});
 
