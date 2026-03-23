@@ -456,14 +456,15 @@ export class SerproSignerClient {
 		}
 
 		const certificateBase64 = (
-			o.certificate ?? o.signerCertificate ?? o.cert ?? o.signerCertificateBase64
+			o.certificate ?? o.signerCertificate ?? o.cert ?? o.signerCertificateBase64 ?? o.publicKey
 		) as string | undefined;
 
-		if (!certificateBase64) {
-			console.warn(
-				'[SERPRO] ⚠️ sign retornou assinatura mas SEM certificado.\n' +
-				'Campos disponíveis:', Object.keys(o), '\nResposta:', o
-			);
+		if (certificateBase64) {
+			const via = o.certificate ? 'certificate' : o.signerCertificate ? 'signerCertificate'
+				: o.cert ? 'cert' : o.signerCertificateBase64 ? 'signerCertificateBase64' : 'publicKey';
+			console.log(`[SERPRO] ✅ sign: certificado via '${via}' (${certificateBase64.length} chars)`);
+		} else {
+			console.warn('[SERPRO] ⚠️ sign: sem certificado. Campos:', Object.keys(o), '\nResposta:', o);
 		}
 
 		return { rawSignature, certificateBase64, rawMessages: parsed };
