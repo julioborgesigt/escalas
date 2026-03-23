@@ -15,41 +15,29 @@ const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 
 // ---------------------------------------------------------------------------
-// BER → DER seletivo
+// BER → DER recursivo
 // ---------------------------------------------------------------------------
 
 /**
- * Converte **apenas** os wrappers externos do CMS (ContentInfo e [0] EXPLICIT)
- * de comprimentos BER indefinidos para comprimentos DER definidos, mantendo o
- * bloco SignedData **idêntico byte a byte**.
+ * Converte CMS de BER para DER de forma recursiva, preservando todos os
+ * bytes VALUE dos elementos primitivos (OID, OCTET STRING, INTEGER, etc.).
  *
- * Por que isso importa:
- *   - Adobe Acrobat exige DER e rejeita CMS com comprimentos indefinidos.
- *   - O SERPRO assinou sobre os bytes exatos do SignedData (hash dos
- *     signed attributes). Qualquer alteração nesses bytes invalida a RSA.
- *   - Forge.asn1.toDer() faz re-codificação completa e pode mudar bytes
- *     internos (UTCTime, SET ordering etc.), quebrando a verificação.
+ * Por que é seguro para a assinatura RSA:
+ *   - Os signed attributes no SignerInfo já têm comprimentos DER definidos
+ *     (o SERPRO os codificou em DER para calcular o hash que assinou).
+ *   - Nossa conversão muda APENAS os campos de comprimento de elementos
+ *     CONSTRUÍDOS que estejam em BER indefinido (30 80 → 30 82 xx xx).
+ *   - Os BYTES VALOR de todos os elementos são copiados sem alteração.
+ *   - Portanto: sha256(signedAttrs_DER_original) = sha256(signedAttrs_após_conversão)
+ *     e a verificação RSA continua válida.
+ *   - Adobe Acrobat exige DER e rejeita CMS com comprimentos indefinidos (BER).
  *
- * Estrutura esperada do SERPRO type:'hash':
- *   30 80  (ContentInfo, BER indefinido)
- *     06 09 [OID signedData]
- *     a0 80  ([0] EXPLICIT, BER indefinido)
- *       30 82 xx xx [SignedData, DER definido] ← preservado intacto
- *     00 00
- *   00 00
+ * O conversor anterior (berWrappersToDer) falhava silenciosamente quando o
+ * próprio SignedData usava comprimento indefinido (caso do SERPRO), retornando
+ * BER bruto e causando "Esperado um objeto de número" no Adobe.
  */
-function berWrappersToDer(ber: Buffer): Buffer {
+function berToDer(ber: Buffer): Buffer {
 	let pos = 0;
-
-	function readLen(): [len: number, bytes: number] {
-		const b = ber[pos];
-		if (b === 0x80) return [-1, 1];        // BER indefinido
-		if ((b & 0x80) === 0) return [b, 1];   // DER curto (< 128)
-		const n = b & 0x7f;
-		let len = 0;
-		for (let i = 0; i < n; i++) len = (len << 8) | ber[pos + 1 + i];
-		return [len, 1 + n];
-	}
 
 	function encLen(len: number): Buffer {
 		if (len < 0x80) return Buffer.from([len]);
@@ -58,71 +46,68 @@ function berWrappersToDer(ber: Buffer): Buffer {
 		return Buffer.from([0x83, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff]);
 	}
 
-	// 1. ContentInfo ::= SEQUENCE
-	if (ber[pos] !== 0x30) {
-		console.warn('[PDF] CMS não inicia com SEQUENCE — usando BER original');
-		return ber;
-	}
-	pos++;
-	const [seqLen, seqLenBytes] = readLen();
-	pos += seqLenBytes;
-	if (seqLen !== -1) {
-		console.log('[PDF] CMS já é DER (comprimento definido) — sem conversão');
-		return ber;
+	function parseElement(): Buffer {
+		const tag = ber[pos++];
+		const isConstructed = (tag & 0x20) !== 0;
+
+		// Ler comprimento
+		const lb = ber[pos++];
+		let len: number;
+		let indefinite = false;
+		if (lb === 0x80) {
+			indefinite = true;
+			len = 0;
+		} else if ((lb & 0x80) === 0) {
+			len = lb;
+		} else {
+			const n = lb & 0x7f;
+			len = 0;
+			for (let i = 0; i < n; i++) len = (len << 8) | ber[pos++];
+		}
+
+		if (!isConstructed) {
+			// Primitivo: copiar value bytes sem alteração (preserva hash, assinatura, OID, etc.)
+			let value: Buffer;
+			if (indefinite) {
+				// Primitivo com comprimento indefinido (raro) — ler até 00 00
+				const bytes: number[] = [];
+				while (!(ber[pos] === 0 && ber[pos + 1] === 0)) bytes.push(ber[pos++]);
+				pos += 2;
+				value = Buffer.from(bytes);
+			} else {
+				value = Buffer.from(ber.subarray(pos, pos + len));
+				pos += len;
+			}
+			return Buffer.concat([Buffer.from([tag]), encLen(value.length), value]);
+		} else {
+			// Construído: processar filhos recursivamente
+			const children: Buffer[] = [];
+			if (indefinite) {
+				// Comprimento indefinido: ler filhos até 00 00
+				while (!(ber[pos] === 0 && ber[pos + 1] === 0)) {
+					children.push(parseElement());
+				}
+				pos += 2; // consumir 00 00
+			} else {
+				// Comprimento definido: ler exatamente len bytes de filhos
+				const end = pos + len;
+				while (pos < end) children.push(parseElement());
+			}
+			const content = Buffer.concat(children);
+			return Buffer.concat([Buffer.from([tag]), encLen(content.length), content]);
+		}
 	}
 
-	// 2. OID (contentType)
-	if (ber[pos] !== 0x06) {
-		console.warn('[PDF] ContentInfo: OID esperado — usando BER original');
+	try {
+		const der = parseElement();
+		if (der.length !== ber.length) {
+			console.log(`[PDF] CMS BER→DER: ${ber.length} → ${der.length} bytes (comprimentos indefinidos convertidos)`);
+		}
+		return der;
+	} catch (e) {
+		console.warn('[PDF] Falha ao converter CMS BER→DER — usando original:', e);
 		return ber;
 	}
-	const oidStart = pos++;
-	const [oidLen, oidLenBytes] = readLen();
-	pos += oidLenBytes + oidLen;
-	const oidBytes = Buffer.from(ber.subarray(oidStart, pos));
-
-	// 3. [0] EXPLICIT
-	if (ber[pos] !== 0xa0) {
-		console.warn('[PDF] ContentInfo: [0] EXPLICIT esperado — usando BER original');
-		return ber;
-	}
-	pos++;
-	const [a0Len, a0LenBytes] = readLen();
-	pos += a0LenBytes;
-
-	if (a0Len !== -1) {
-		// [0] já é DER — só reencapsular o SEQUENCE externo
-		const a0Content = Buffer.from(ber.subarray(pos, pos + a0Len));
-		const a0Der = Buffer.concat([Buffer.from([0xa0]), encLen(a0Len), a0Content]);
-		const seqContent = Buffer.concat([oidBytes, a0Der]);
-		return Buffer.concat([Buffer.from([0x30]), encLen(seqContent.length), seqContent]);
-	}
-
-	// 4. SignedData (deve ter comprimento DER definido — é sobre ele que o SERPRO calculou)
-	if (ber[pos] !== 0x30) {
-		console.warn('[PDF] SignedData: SEQUENCE esperado dentro de [0] — usando BER original');
-		return ber;
-	}
-	const sdStart = pos++;
-	const [sdLen, sdLenBytes] = readLen();
-	if (sdLen === -1) {
-		console.warn('[PDF] SignedData também tem comprimento indefinido — usando BER original');
-		return ber;
-	}
-	pos += sdLenBytes + sdLen;
-	// ↑ signedData = ber[sdStart..pos) — bytes PRESERVADOS SEM ALTERAÇÃO
-	const signedData = Buffer.from(ber.subarray(sdStart, pos));
-
-	// 5. Reconstruir ContentInfo com comprimentos DER definidos
-	const a0Der = Buffer.concat([Buffer.from([0xa0]), encLen(signedData.length), signedData]);
-	const seqContent = Buffer.concat([oidBytes, a0Der]);
-	const result = Buffer.concat([Buffer.from([0x30]), encLen(seqContent.length), seqContent]);
-
-	console.log(
-		`[PDF] CMS BER→DER seletivo: ${ber.length} → ${result.length} bytes ` +
-		`(SignedData ${signedData.length} bytes preservados intactos)`
-	);
-	return result;
 }
 const OID_RSA_ENCRYPTION = '1.2.840.113549.1.1.1';
 
@@ -380,7 +365,7 @@ export async function prepararPdfParaAssinatura(
 		signatureLength: SIGNATURE_LENGTH,
 		byteRangePlaceholder: BYTE_RANGE_PLACEHOLDER,
 		subFilter: 'adbe.pkcs7.detached',
-		widgetRect: [boxX, boxY, boxX + boxW, boxY + boxH]
+		widgetRect: [Math.round(boxX), Math.round(boxY), Math.round(boxX + boxW), Math.round(boxY + boxH)]
 	});
 
 	const savedPdf = await pdfDoc.save();
@@ -468,7 +453,7 @@ export async function embedSerproCms(
 
 	// Converte APENAS os wrappers externos para DER, preservando o SignedData intacto.
 	// Adobe exige DER; re-codificação completa via forge quebraria a assinatura RSA.
-	const cmsDer = berWrappersToDer(cmsBer);
+	const cmsDer = berToDer(cmsBer);
 
 	const cmsHex = cmsDer.toString('hex');
 
