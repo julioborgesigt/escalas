@@ -293,8 +293,10 @@ export async function prepararPdfParaAssinatura(
  * Embute o CMS SignedData retornado pelo Assinador SERPRO diretamente no
  * placeholder de assinatura do PDF preparado.
  *
- * O SERPRO retorna um CMS em BER (codificação de comprimento indefinido).
- * Este método converte para DER de comprimento definido antes de embutir.
+ * ATENÇÃO: o CMS é embutido como-veio do SERPRO (BER), sem re-codificação ASN.1.
+ * Re-codificar via forge.asn1.toDer() alteraria os bytes dos signed attributes,
+ * que são os exatos bytes sobre os quais o SERPRO calculou a assinatura RSA,
+ * invalidando a verificação matemática no Adobe.
  *
  * @param preparedPdf    - PDF com placeholder gerado por prepararPdfParaAssinatura
  * @param serproCmsBase64 - CMS SignedData completo em Base64 (campo 'signature' da resposta SERPRO)
@@ -303,39 +305,11 @@ export async function embedSerproCms(
 	preparedPdf: Uint8Array,
 	serproCmsBase64: string
 ): Promise<Uint8Array> {
-	// Decodifica o CMS BER retornado pelo SERPRO
-	const cmsBer = forge.util.decode64(serproCmsBase64);
+	// Decodifica o CMS retornado pelo SERPRO (BER, possivelmente com comprimentos indefinidos)
+	const cmsBytes = forge.util.decode64(serproCmsBase64);
+	console.log(`[PDF] CMS SERPRO: ${cmsBytes.length} bytes — embedding direto (sem re-codificação)`);
 
-	// Converte BER → DER e converte para detached (remove eContent se presente).
-	// Para PDF, o CMS deve ser detached: encapContentInfo só tem eContentType, sem eContent.
-	let cmsDer: string;
-	try {
-		const asn1 = forge.asn1.fromDer(cmsBer, { strict: false } as forge.asn1.Asn1Options);
-
-		// Navega: ContentInfo[1]=[0]EXPLICIT → SignedData → encapContentInfo
-		// ContentInfo.value = [OID, [0]EXPLICIT]
-		// [0]EXPLICIT.value = [SignedData]
-		// SignedData.value = [version, digestAlgorithms, encapContentInfo, ...]
-		const contentInfoChildren = asn1.value as forge.asn1.Asn1[];
-		const signedDataWrapper = contentInfoChildren[1]; // [0] EXPLICIT
-		const signedDataChildren = (signedDataWrapper.value as forge.asn1.Asn1[])[0].value as forge.asn1.Asn1[];
-		const encapCI = signedDataChildren[2]; // EncapsulatedContentInfo SEQUENCE
-		const encapChildren = encapCI.value as forge.asn1.Asn1[];
-
-		// Remove eContent (índice 1) se presente, tornando o CMS detached
-		if (encapChildren.length > 1) {
-			console.log(`[PDF] CMS SERPRO attached (eContent presente, ${encapChildren.length - 1} campo extra). Convertendo para detached.`);
-			encapChildren.splice(1); // mantém só o eContentType OID
-		}
-
-		cmsDer = forge.asn1.toDer(asn1).getBytes();
-		console.log(`[PDF] CMS convertido BER→DER: ${cmsDer.length} bytes`);
-	} catch (e) {
-		console.warn('[PDF] Não foi possível converter BER→DER; usando CMS original do SERPRO.', e);
-		cmsDer = cmsBer;
-	}
-
-	const cmsHex = forge.util.bytesToHex(cmsDer);
+	const cmsHex = forge.util.bytesToHex(cmsBytes);
 
 	const pdfBuffer = Buffer.from(preparedPdf);
 	const pdfString = pdfBuffer.toString('latin1');

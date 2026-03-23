@@ -22,6 +22,12 @@ export interface SerproSignResult {
 	rawSignature: string;
 	/** Certificado do signatário em Base64 DER, se retornado pelo SERPRO. */
 	certificateBase64?: string;
+	/**
+	 * Nome do titular do certificado A3, extraído do campo by.alias da resposta SERPRO.
+	 * Formato: "NOME COMPLETO:CPF" — o CPF deve ser removido pelo consumidor.
+	 * Ausente se o SERPRO não retornou o campo 'by'.
+	 */
+	signerAlias?: string;
 	/** Todas as mensagens recebidas (ACK + resposta real), para diagnóstico. */
 	rawMessages: unknown[];
 }
@@ -460,7 +466,14 @@ export class SerproSignerClient {
 		// rawSignature = o.signature = CMS completo em base64.
 		console.log(`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`);
 
-		return { rawSignature, certificateBase64: undefined, rawMessages: parsed };
+		// Extrai o nome do titular do certificado A3 (campo 'by.alias' da resposta SERPRO)
+		const by = o.by as Record<string, unknown> | undefined;
+		const signerAlias = typeof by?.alias === 'string' ? by.alias : undefined;
+		if (signerAlias) {
+			console.log(`[SERPRO] ✅ sign: titular do certificado: ${signerAlias}`);
+		}
+
+		return { rawSignature, certificateBase64: undefined, signerAlias, rawMessages: parsed };
 	}
 
 	/**
