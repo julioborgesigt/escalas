@@ -455,32 +455,12 @@ export class SerproSignerClient {
 			);
 		}
 
-		// Dump completo para diagnóstico
-		console.log('[SERPRO] sign: resposta completa:', JSON.stringify(o, null, 2));
+		// O campo 'signature' do SERPRO type:'hash' é um CMS PKCS#7 completo (não assinatura RSA bruta).
+		// O certificado está embutido no CMS — não precisamos extraí-lo separadamente.
+		// rawSignature = o.signature = CMS completo em base64.
+		console.log(`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`);
 
-		// Tenta extrair certificado: primeiro campos diretos, depois listOfSignatures[0]
-		const listSigs = Array.isArray(o.listOfSignatures) ? o.listOfSignatures as Record<string, unknown>[] : [];
-		const sigEntry = listSigs[0] ?? {};
-		const certificateBase64 = (
-			o.certificate ?? o.signerCertificate ?? o.cert ?? o.signerCertificateBase64
-			?? sigEntry.certificate ?? sigEntry.cert ?? sigEntry.signerCertificate
-			?? sigEntry.x509 ?? sigEntry.x509Certificate
-		) as string | undefined;
-
-		if (certificateBase64) {
-			const via = o.certificate ? 'certificate' : o.signerCertificate ? 'signerCertificate'
-				: o.cert ? 'cert' : o.signerCertificateBase64 ? 'signerCertificateBase64'
-				: 'listOfSignatures[0]';
-			console.log(`[SERPRO] ✅ sign: certificado via '${via}' (${certificateBase64.length} chars base64 ≈ ${Math.round(certificateBase64.length * 3 / 4)} bytes)`);
-		} else {
-			console.warn(
-				'[SERPRO] ⚠️ sign: sem certificado.\n' +
-				'Campos do objeto principal:', Object.keys(o), '\n' +
-				'listOfSignatures[0]:', JSON.stringify(sigEntry)
-			);
-		}
-
-		return { rawSignature, certificateBase64, rawMessages: parsed };
+		return { rawSignature, certificateBase64: undefined, rawMessages: parsed };
 	}
 
 	/**
