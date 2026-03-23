@@ -133,9 +133,35 @@ export async function excluirUnidade(db: Database, id: number) {
 
 // ---- Escalas ----
 
-export async function listarEscalas(db: Database, lotacao?: string, status?: 'pendente' | 'assinada'): Promise<EscalaListagem[]> {
-	const query = lotacao ? 
-		db.select().from(escalas).where(eq(escalas.lotacao, lotacao)).orderBy(desc(escalas.data_inicio)) :
+export async function listarEscalas(
+	db: Database,
+	lotacao?: string,
+	status?: 'pendente' | 'assinada',
+	mes?: number,
+	ano?: number,
+	tipo?: string
+): Promise<EscalaListagem[]> {
+	const conditions = [];
+
+	if (lotacao) {
+		conditions.push(eq(escalas.lotacao, lotacao));
+	}
+
+	if (mes) {
+		const monthStr = mes.toString().padStart(2, '0');
+		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}`);
+	}
+
+	if (ano) {
+		conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}`);
+	}
+
+	if (tipo && tipo !== 'todos') {
+		conditions.push(eq(escalas.tipo, tipo as any));
+	}
+
+	const query = conditions.length > 0 ?
+		db.select().from(escalas).where(and(...conditions)).orderBy(desc(escalas.data_inicio)) :
 		db.select().from(escalas).orderBy(desc(escalas.data_inicio));
 
 	const results = await query;

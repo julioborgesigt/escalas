@@ -8,7 +8,8 @@ export const escalaSchema = z.object({
 	horario: z.string().default('08H A 08H'),
 	hora_entrada: z.string().default('08'),
 	hora_saida: z.string().default('08'),
-	lotacao: z.string().default('')
+	lotacao: z.string().default(''),
+	tipo: z.enum(['plantao', 'expediente', 'fds']).optional()
 });
 
 export const escalaPolicialSchema = z.object({
