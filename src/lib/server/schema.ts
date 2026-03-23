@@ -108,6 +108,8 @@ export const unidades = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		nome: text('nome').notNull().unique(),
+		tipo: text('tipo', { enum: ['seccional', 'delegacia'] }).notNull().default('delegacia'),
+		seccional_id: integer('seccional_id'), // Reference to another unidade.id
 		tem_plantao: integer('tem_plantao', { mode: 'boolean' }).default(false).notNull(),
 		tem_expediente: integer('tem_expediente', { mode: 'boolean' }).default(false).notNull(),
 		tem_fds: integer('tem_fds', { mode: 'boolean' }).default(false).notNull(),

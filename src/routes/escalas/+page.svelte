@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-	import type { EscalaListagem } from '$lib/types';
+	import type { EscalaListagem, Unidade } from '$lib/types';
 
 	let escalas = $state<EscalaListagem[]>([]);
 	let loading = $state(true);
@@ -11,7 +11,21 @@
 	let filtroMes = $state(new Date().getMonth() + 1);
 	let filtroAno = $state(new Date().getFullYear());
 	let filtroTipo = $state('todos');
-	let lotacoes = $state<string[]>([]);
+	let filtroSeccional = $state<number | 'todas'>('todas');
+	let unidades = $state<Unidade[]>([]);
+
+	$effect(() => {
+		if (filtroSeccional) {
+			filtroLotacao = '';
+		}
+	});
+
+	const seccionais = $derived(unidades.filter(u => u.tipo === 'seccional'));
+	const delegaciasDropdown = $derived(
+		filtroSeccional === 'todas'
+			? unidades.filter(u => u.tipo === 'delegacia')
+			: unidades.filter(u => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional)
+	);
 
 	let dialogOpen = $state(false);
 	let escalaParaExcluir = $state<{id: number, titulo: string} | null>(null);
@@ -54,9 +68,9 @@
 		loading = false;
 	}
 
-	async function carregarLotacoes() {
-		const res = await fetch('/api/lotacoes');
-		lotacoes = await res.json();
+	async function carregarUnidades() {
+		const res = await fetch('/api/unidades');
+		unidades = await res.json();
 	}
 
 	function solicitarExclusao(id: number, titulo: string) {
@@ -83,7 +97,7 @@
 
 	$effect(() => {
 		carregar();
-		carregarLotacoes();
+		carregarUnidades();
 	});
 </script>
 
@@ -111,11 +125,21 @@
 	{#if isAdmin}
 		<div class="flex flex-col md:flex-row md:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
 			<label class="label flex-1 max-w-sm">
+				<span class="label-text font-semibold mb-1">Seccional</span>
+				<select class="select" bind:value={filtroSeccional} onchange={() => { filtroLotacao = ''; carregar(); }}>
+					<option value="todas">Todas as Seccionais</option>
+					{#each seccionais as sec (sec.id)}
+						<option value={sec.id}>{sec.nome}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
-					{#each lotacoes as lot (lot)}
-						<option value={lot}>{lot}</option>
+					{#each delegaciasDropdown as del (del.id)}
+						<option value={del.nome}>{del.nome}</option>
 					{/each}
 				</select>
 			</label>

@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
+	import type { Unidade } from '$lib/types';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -10,9 +11,21 @@
 
 	// Filtros
 	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>('todos');
+	let filtroSeccional = $state<number | 'todas'>('todas');
 	let filtroUnidade = $state('');
 	let filtroPendentes = $state(true);
 	let mostrarIgnorados = $state(false);
+
+	let unidadesDB = $state<Unidade[]>([]);
+
+	$effect(() => {
+		if (filtroSeccional) {
+			filtroUnidade = '';
+		}
+	});
+
+	const seccionais = $derived(unidadesDB.filter(u => u.tipo === 'seccional'));
+
 
 	// Itens ignorados (persistidos no localStorage)
 	let ignorados = $state<Set<string>>(new Set());
@@ -42,11 +55,28 @@
 		if (mostrarIgnorados && !ignorado) return false;
 		if (filtroRegime !== 'todos' && d.tipo_regime !== filtroRegime) return false;
 		if (filtroPendentes && d.status === 'ok') return false;
+		
+		if (filtroSeccional !== 'todas') {
+			const udb = unidadesDB.find(u => u.nome === d.unidade_nome);
+			if (udb) {
+				if (udb.tipo === 'seccional' && udb.id !== filtroSeccional) return false;
+				if (udb.tipo === 'delegacia' && udb.seccional_id !== filtroSeccional) return false;
+			}
+		}
+		
 		if (filtroUnidade && d.unidade_nome !== filtroUnidade) return false;
 		return true;
 	}));
 
-	const unidades = $derived([...new Set(dados.map(d => d.unidade_nome))].sort());
+	const unidadesDropdown = $derived([...new Set(
+		dados.filter(d => {
+			if (filtroSeccional === 'todas') return true;
+			const udb = unidadesDB.find(u => u.nome === d.unidade_nome);
+			if (!udb) return true;
+			return (udb.tipo === 'seccional' && udb.id === filtroSeccional) ||
+			       (udb.tipo === 'delegacia' && udb.seccional_id === filtroSeccional);
+		}).map(d => d.unidade_nome)
+	)].sort());
 
 	const totais = $derived({
 		ok: dados.filter(d => d.status === 'ok' && !ignorados.has(chaveIgnorado(d))).length,
@@ -62,6 +92,9 @@
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
 		} catch { /* ignora */ }
+
+		const resDB = await fetch('/api/unidades');
+		if (resDB.ok) unidadesDB = await resDB.json();
 
 		const res = await fetch('/api/admin/compliance');
 		if (res.ok) dados = await res.json();
@@ -143,12 +176,22 @@
 			{/each}
 		</div>
 
-		<div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-			<label class="label flex-1 max-w-xs">
+		<div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
+			<label class="label flex-1">
+				<span class="label-text text-sm font-semibold mb-1">Seccional</span>
+				<select class="select" bind:value={filtroSeccional}>
+					<option value="todas">Todas as seccionais</option>
+					{#each seccionais as sec (sec.id)}
+						<option value={sec.id}>{sec.nome}</option>
+					{/each}
+				</select>
+			</label>
+			
+			<label class="label flex-1">
 				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
 				<select class="select" bind:value={filtroUnidade}>
 					<option value="">Todas as unidades</option>
-					{#each unidades as u}
+					{#each unidadesDropdown as u}
 						<option value={u}>{u}</option>
 					{/each}
 				</select>
