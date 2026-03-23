@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Policial } from '$lib/types';
+	import type { Policial, Unidade } from '$lib/types';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -10,7 +10,27 @@
 	let loading = $state(true);
 	let filtroLotacao = $state('');
 	let filtroCargo = $state('');
-	let lotacoes = $state<string[]>([]);
+	let filtroSeccional = $state<number | 'todas'>('todas');
+	let filtroBusca = $state('');
+	let unidades = $state<Unidade[]>([]);
+
+	$effect(() => {
+		// Reset lotacao when seccional changes
+		if (filtroSeccional) {
+			filtroLotacao = '';
+			// We might want to call carregarPoliciais() here? Yes, because clearing it removes the filter.
+			// Actually the select handles onchange={carregarPoliciais}. We don't need to do it here manually 
+			// if it triggers an onchange, but wait, $effect running will just update state. 
+			// Just clearing the 'filtroLotacao' won't fetch. We can trigger `carregarPoliciais()` manually.
+		}
+	});
+
+	const seccionais = $derived(unidades.filter(u => u.tipo === 'seccional'));
+	const delegaciasDropdown = $derived(
+		filtroSeccional === 'todas'
+			? unidades.filter(u => u.tipo === 'delegacia')
+			: unidades.filter(u => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional)
+	);
 
 	let dialogOpen = $state(false);
 	let policialParaExcluir = $state<{id: number, nome: string} | null>(null);
@@ -19,7 +39,11 @@
 	const SEM_LOTACAO = '__sem_lotacao__';
 
 	const policiaisExibidos = $derived(
-		filtroCargo ? policiais.filter(p => p.cargo === filtroCargo) : policiais
+		policiais.filter(p => {
+			if (filtroCargo && p.cargo !== filtroCargo) return false;
+			if (filtroBusca && !p.nome.toLowerCase().includes(filtroBusca.toLowerCase())) return false;
+			return true;
+		})
 	);
 
 	async function carregarPoliciais() {
@@ -41,9 +65,9 @@
 		loading = false;
 	}
 
-	async function carregarLotacoes() {
-		const res = await fetch('/api/lotacoes');
-		lotacoes = await res.json();
+	async function carregarUnidades() {
+		const res = await fetch('/api/unidades');
+		unidades = await res.json();
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -71,7 +95,7 @@
 
 	$effect(() => {
 		carregarPoliciais();
-		carregarLotacoes();
+		carregarUnidades();
 	});
 </script>
 
@@ -104,11 +128,20 @@
 	<div class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10">
 		{#if isAdmin}
 			<label class="label flex-1 max-w-sm">
+				<span class="label-text font-semibold mb-1">Seccional</span>
+				<select class="select" bind:value={filtroSeccional} onchange={() => { filtroLotacao = ''; carregarPoliciais(); }}>
+					<option value="todas">Todas as Seccionais</option>
+					{#each seccionais as sec (sec.id)}
+						<option value={sec.id}>{sec.nome}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregarPoliciais}>
 					<option value="">Selecione uma unidade...</option>
-					{#each lotacoes as lot (lot)}
-						<option value={lot}>{lot}</option>
+					{#each delegaciasDropdown as del (del.id)}
+						<option value={del.nome}>{del.nome}</option>
 					{/each}
 					<option value={SEM_LOTACAO}>— Sem lotação —</option>
 				</select>
@@ -121,6 +154,16 @@
 				<option value="DPC">DPC — Delegado</option>
 				<option value="OIP">OIP — Oficial Investigador</option>
 			</select>
+		</label>
+
+		<label class="label flex-1 min-w-[200px]">
+			<span class="label-text font-semibold mb-1">Buscar por Nome</span>
+			<div class="relative">
+				<input type="text" class="input pl-10" bind:value={filtroBusca} placeholder="Digite um nome..." />
+				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+				</div>
+			</div>
 		</label>
 		{#if isAdmin}
 			<p class="text-xs text-surface-500 mb-2 italic self-end">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>

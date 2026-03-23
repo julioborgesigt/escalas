@@ -8,15 +8,76 @@
 
 	let unidades = $state<Unidade[]>([]);
 	let loading = $state(true);
-	let novoNome = $state('');
+	let salvando = $state(false);
+
+	let filtroSeccional = $state<number | 'todas'>('todas');
+	let filtroBusca = $state('');
+
+	$effect(() => {
+		// Reset busqueda if seccional changes? Optional, but keeping it simple for now.
+		if (filtroSeccional) {
+			// filtroBusca = '';
+		}
+	});
+
+	const unidadesFiltradas = $derived(unidades.filter((u) => {
+		if (filtroSeccional !== 'todas') {
+			if (u.tipo === 'seccional' && u.id !== filtroSeccional) return false;
+			if (u.tipo === 'delegacia' && u.seccional_id !== filtroSeccional) return false;
+		}
+		if (filtroBusca && !u.nome.toLowerCase().includes(filtroBusca.toLowerCase())) return false;
+		return true;
+	}));
+
+	const unidadesAgrupadas = $derived.by(() => {
+		const result: (Unidade & { isChild?: boolean; isLastChild?: boolean; hasChildren?: boolean })[] = [];
+		const seccionais = unidadesFiltradas.filter(u => u.tipo === 'seccional');
+		const delegacias = unidadesFiltradas.filter(u => u.tipo === 'delegacia');
+
+		for (const sec of seccionais) {
+			const filhos = delegacias.filter(d => d.seccional_id === sec.id);
+			result.push({ ...sec, isChild: false, isLastChild: false, hasChildren: filhos.length > 0 });
+			filhos.forEach((f, index) => {
+				result.push({ ...f, isChild: true, isLastChild: index === filhos.length - 1 });
+			});
+		}
+
+		// Delegacias sem seccional listada ou sem parent
+		const orfaos = delegacias.filter(d => !seccionais.some(s => s.id === d.seccional_id));
+		for (const f of orfaos) {
+			result.push({ ...f, isChild: false, isLastChild: false, hasChildren: false });
+		}
+
+		return result;
+	});
+
+
+
+	// Estado para o cadastro guiado
+	let tipoUnidade = $state<'delegacia' | 'seccional'>('delegacia');
+	let delegaciaPrefixo = $state(''); // ex: 1ª
+	let delegaciaSufixo = $state('');  // ex: Iguatu
+	let seccionalPrefixo = $state(''); // ex: 1ª
+	let seccionalSufixo = $state('Interior Sul');
+
+	const novoNome = $derived(
+		tipoUnidade === 'delegacia'
+			? `${delegaciaPrefixo ? delegaciaPrefixo + ' ' : ''}Delegacia de Polícia Civil de ${delegaciaSufixo}`.trim()
+			: `${seccionalPrefixo ? seccionalPrefixo + ' ' : ''}Seccional do ${seccionalSufixo}`.trim()
+	);
+
+	let novoSeccionalId = $state<number | null>(null);
+	const seccionais = $derived(unidades.filter((u) => u.tipo === 'seccional'));
+
 	let novoTemPlantao = $state(false);
 	let novoTemExpediente = $state(false);
 	let novoTemFds = $state(false);
-	let salvando = $state(false);
 
 	// Edição inline
 	let editandoId = $state<number | null>(null);
 	let editNome = $state('');
+	let editTipo = $state<'seccional' | 'delegacia'>('delegacia');
+	let editSeccionalId = $state<number | null>(null);
 	let editTemPlantao = $state(false);
 	let editTemExpediente = $state(false);
 	let editTemFds = $state(false);
@@ -38,14 +99,17 @@
 
 	async function salvarUnidade(e: Event) {
 		e.preventDefault();
-		if (!novoNome.trim()) return;
+		const nomeFinal = novoNome;
+		if (!nomeFinal) return;
 		salvando = true;
 
 		const res = await fetch('/api/unidades', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ 
-				nome: novoNome.trim(),
+				nome: nomeFinal,
+				tipo: tipoUnidade,
+				seccional_id: tipoUnidade === 'delegacia' ? novoSeccionalId : null,
 				tem_plantao: novoTemPlantao,
 				tem_expediente: novoTemExpediente,
 				tem_fds: novoTemFds
@@ -54,7 +118,11 @@
 
 		if (res.ok) {
 			toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-			novoNome = '';
+			delegaciaPrefixo = '';
+			delegaciaSufixo = '';
+			seccionalPrefixo = '';
+			seccionalSufixo = 'Interior Sul';
+			novoSeccionalId = null;
 			novoTemPlantao = false;
 			novoTemExpediente = false;
 			novoTemFds = false;
@@ -70,6 +138,8 @@
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
 		editNome = u.nome;
+		editTipo = u.tipo;
+		editSeccionalId = u.seccional_id;
 		editTemPlantao = u.tem_plantao ?? false;
 		editTemExpediente = u.tem_expediente ?? false;
 		editTemFds = u.tem_fds ?? false;
@@ -78,6 +148,8 @@
 	function cancelarEdicao() {
 		editandoId = null;
 		editNome = '';
+		editTipo = 'delegacia';
+		editSeccionalId = null;
 		editTemPlantao = false;
 		editTemExpediente = false;
 		editTemFds = false;
@@ -92,6 +164,8 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ 
 				nome: editNome.trim(),
+				tipo: editTipo,
+				seccional_id: editSeccionalId,
 				tem_plantao: editTemPlantao,
 				tem_expediente: editTemExpediente,
 				tem_fds: editTemFds
@@ -143,6 +217,29 @@
 	{/if}
 </div>
 
+<div class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6">
+	<div class="flex flex-col sm:flex-row gap-4">
+		<label class="label flex-1">
+			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
+			<select class="select" bind:value={filtroSeccional}>
+				<option value="todas">Todas as Seccionais</option>
+				{#each seccionais as sec (sec.id)}
+					<option value={sec.id}>{sec.nome}</option>
+				{/each}
+			</select>
+		</label>
+		<label class="label flex-1">
+			<span class="label-text font-semibold mb-1">Buscar por Nome</span>
+			<div class="relative">
+				<input type="text" class="input pl-10" bind:value={filtroBusca} placeholder="Digite o nome da unidade..." />
+				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+				</div>
+			</div>
+		</label>
+	</div>
+</div>
+
 <Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
 	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
 		<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
@@ -159,21 +256,68 @@
 </Dialog>
 
 <!-- Modal de Cadastro -->
-<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { novoNome = ''; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; } }}>
+<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { delegaciaPrefixo = ''; delegaciaSufixo = ''; seccionalPrefixo = ''; seccionalSufixo = 'Interior Sul'; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; } }}>
 	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
 		<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
 			<form onsubmit={salvarUnidade} class="flex flex-col gap-4">
-				<label class="label">
-					<span class="label-text font-semibold mb-1">Nome da Unidade</span>
-					<input
-						class="input"
-						type="text"
-						bind:value={novoNome}
-						placeholder="Ex: Delegacia de Polícia Civil de Icó"
-						required
-					/>
-				</label>
+				
+				<div class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5">
+					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Tipo de Unidade</span>
+					<div class="flex gap-2">
+						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'delegacia' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'delegacia'}>Delegacia</button>
+						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'seccional' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'seccional'}>Seccional</button>
+					</div>
+				</div>
+
+				{#if tipoUnidade === 'delegacia'}
+					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
+						<label class="label">
+							<span class="label-text">Seccional Vinculada</span>
+							<select class="select" bind:value={novoSeccionalId}>
+								<option value={null}>Selecione uma Seccional...</option>
+								{#each seccionais as sec}
+									<option value={sec.id}>{sec.nome}</option>
+								{/each}
+							</select>
+						</label>
+						<div class="flex items-end gap-2">
+							<label class="label w-20">
+								<span class="label-text">Prefixo</span>
+								<input class="input text-center" type="text" bind:value={delegaciaPrefixo} placeholder="1ª" />
+							</label>
+							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
+								Delegacia de Polícia Civil de
+							</div>
+							<label class="label flex-1">
+								<span class="label-text">Local</span>
+								<input class="input" type="text" bind:value={delegaciaSufixo} placeholder="Iguatu" />
+							</label>
+						</div>
+					</div>
+				{:else}
+					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
+						<div class="flex items-end gap-2">
+							<label class="label w-20">
+								<span class="label-text">Prefixo</span>
+								<input class="input text-center" type="text" bind:value={seccionalPrefixo} placeholder="1ª" />
+							</label>
+							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
+								Seccional do
+							</div>
+							<label class="label flex-1">
+								<span class="label-text">Local</span>
+								<input class="input" type="text" bind:value={seccionalSufixo} placeholder="Interior Sul" />
+							</label>
+						</div>
+					</div>
+				{/if}
+
+				<div class="p-3 bg-primary-500/10 border border-primary-500/20 rounded-lg">
+					<p class="text-[10px] uppercase font-bold text-primary-600 dark:text-primary-400 mb-1">Preview do Nome:</p>
+					<p class="text-sm font-semibold truncate">{novoNome || 'Preencha os campos...'}</p>
+				</div>
+
 				<div class="flex flex-wrap gap-4 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5">
 					<p class="w-full text-sm font-medium mb-1 text-surface-600 dark:text-surface-400">Regimes de Escala:</p>
 					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span>Plantão</span></label>
@@ -182,7 +326,7 @@
 				</div>
 				<div class="flex justify-end gap-3 pt-1">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button type="submit" class="btn preset-filled-primary-500" disabled={salvando || !novoNome.trim()}>
+					<button type="submit" class="btn preset-filled-primary-500" disabled={salvando || !novoNome.trim() || (tipoUnidade === 'delegacia' && !novoSeccionalId)}>
 						{salvando ? 'Salvando...' : 'Cadastrar'}
 					</button>
 				</div>
@@ -217,9 +361,16 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each unidades as u (u.id)}
+					{#each unidadesAgrupadas as u (u.id)}
 						<tr>
-							<td>
+							<td class="relative {u.isChild ? 'pl-14' : ''}">
+								{#if u.hasChildren}
+									<div class="absolute left-6 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
+								{/if}
+								{#if u.isChild}
+									<div class="absolute left-6 top-0 {u.isLastChild ? 'bottom-1/2' : 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"></div>
+									<div class="absolute left-6 top-1/2 w-6 h-px bg-surface-400 dark:bg-surface-500"></div>
+								{/if}
 								{#if isAdmin && editandoId === u.id}
 									<div class="flex flex-col gap-2">
 										<input
@@ -271,8 +422,8 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#each unidades as u (u.id)}
-				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10">
+			{#each unidadesAgrupadas as u (u.id)}
+				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild ? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6' : 'border-surface-200 dark:border-white/10'}">
 					{#if isAdmin && editandoId === u.id}
 						<div class="space-y-2">
 							<input
@@ -316,6 +467,6 @@
 			{/each}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">{unidades.length} unidade{unidades.length !== 1 ? 's' : ''} cadastrada{unidades.length !== 1 ? 's' : ''}</p>
+		<p class="mt-3 text-surface-500 text-sm">{unidadesFiltradas.length} unidade{unidadesFiltradas.length !== 1 ? 's' : ''} encontrada{unidadesFiltradas.length !== 1 ? 's' : ''}</p>
 	{/if}
 </div>

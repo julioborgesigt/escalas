@@ -15,6 +15,13 @@
       "when": 1774267246540,
       "tag": "0001_magenta_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774293390905,
+      "tag": "0002_clever_garia",
+      "breakpoints": true
     }
   ]
 }
