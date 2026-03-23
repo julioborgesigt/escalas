@@ -1,13 +1,14 @@
-import { eq, and, or, isNull, sql, desc, asc } from 'drizzle-orm';
+import { eq, and, or, isNull, sql, desc, asc, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './server/schema';
 import {
 	policiais,
 	escalas,
 	escalaPoliciais,
-	unidades
+	unidades,
+	escalaDocumentos
 } from './server/schema';
-import type { EscalaPolicialComDados } from './types';
+import type { EscalaPolicialComDados, EscalaListagem } from './types';
 import { limparMatricula } from './utils';
 
 export type Database = ReturnType<typeof getDB>;
@@ -95,16 +96,31 @@ export async function listarUnidades(db: Database): Promise<schema.Unidade[]> {
 	return db.select().from(unidades).orderBy(asc(unidades.nome));
 }
 
-export async function criarUnidade(db: Database, nome: string) {
-	return db.insert(unidades).values({ nome: nome.trim() });
+export async function criarUnidade(db: Database, data: { nome: string; tem_plantao: boolean; tem_expediente: boolean; tem_fds: boolean; }) {
+	return db.insert(unidades).values({ 
+		nome: data.nome.trim(),
+		tem_plantao: data.tem_plantao,
+		tem_expediente: data.tem_expediente,
+		tem_fds: data.tem_fds
+	});
 }
 
-export async function atualizarUnidade(db: Database, id: number, novoNome: string): Promise<{ nomeAntigo: string }> {
+export async function atualizarUnidade(
+	db: Database, 
+	id: number, 
+	data: { nome: string; tem_plantao: boolean; tem_expediente: boolean; tem_fds: boolean; }
+): Promise<{ nomeAntigo: string }> {
 	const unidade = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, id)).get();
 	if (!unidade) throw new Error('Unidade não encontrada');
 	const nomeAntigo = unidade.nome;
-	const nomeTrimmed = novoNome.trim();
-	await db.update(unidades).set({ nome: nomeTrimmed }).where(eq(unidades.id, id));
+	const nomeTrimmed = data.nome.trim();
+
+	await db.update(unidades).set({ 
+		nome: nomeTrimmed,
+		tem_plantao: data.tem_plantao,
+		tem_expediente: data.tem_expediente,
+		tem_fds: data.tem_fds
+	}).where(eq(unidades.id, id));
 	// Cascata: atualizar lotação em policiais e escalas
 	await db.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo));
 	await db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo));
@@ -117,15 +133,33 @@ export async function excluirUnidade(db: Database, id: number) {
 
 // ---- Escalas ----
 
-export async function listarEscalas(db: Database, lotacao?: string): Promise<schema.Escala[]> {
-	if (lotacao) {
-		return db
-			.select()
-			.from(escalas)
-			.where(eq(escalas.lotacao, lotacao))
-			.orderBy(desc(escalas.data_inicio));
+export async function listarEscalas(db: Database, lotacao?: string, status?: 'pendente' | 'assinada'): Promise<EscalaListagem[]> {
+	const query = lotacao ? 
+		db.select().from(escalas).where(eq(escalas.lotacao, lotacao)).orderBy(desc(escalas.data_inicio)) :
+		db.select().from(escalas).orderBy(desc(escalas.data_inicio));
+
+	const results = await query;
+	if (results.length === 0) return [];
+
+	const escalaIds = results.map(e => e.id);
+	const docs = await db.select({ escala_id: escalaDocumentos.escala_id })
+		.from(escalaDocumentos)
+		.where(inArray(escalaDocumentos.escala_id, escalaIds));
+	
+	const assinadas = new Set(docs.map(d => d.escala_id));
+
+	let mapeadas = results.map(e => ({
+		...e,
+		is_assinada: assinadas.has(e.id)
+	}));
+
+	if (status === 'pendente') {
+		mapeadas = mapeadas.filter(e => !e.is_assinada);
+	} else if (status === 'assinada') {
+		mapeadas = mapeadas.filter(e => e.is_assinada);
 	}
-	return db.select().from(escalas).orderBy(desc(escalas.data_inicio));
+
+	return mapeadas;
 }
 
 export async function buscarEscala(db: Database, id: number): Promise<schema.Escala | undefined> {
@@ -213,4 +247,35 @@ export async function listarPoliciaisEscala(
 		.orderBy(asc(escalaPoliciais.data_plantao), desc(policiais.cargo), asc(policiais.nome));
 
 	return result as EscalaPolicialComDados[];
+}
+
+// ---- Documentos de Escalas (R2) ----
+
+export async function salvarDocumentoEscala(
+	db: Database,
+	escalaId: number,
+	r2Key: string,
+	assinanteNome: string,
+	assinanteCpf?: string
+) {
+	return db.insert(escalaDocumentos)
+		.values({
+			escala_id: escalaId,
+			r2_key: r2Key,
+			assinante_nome: assinanteNome,
+			assinante_cpf: assinanteCpf || ''
+		})
+		.onConflictDoUpdate({
+			target: escalaDocumentos.escala_id,
+			set: {
+				r2_key: r2Key,
+				assinante_nome: assinanteNome,
+				assinante_cpf: assinanteCpf || '',
+				created_at: sql`datetime('now')`
+			}
+		});
+}
+
+export async function buscarDocumentoEscala(db: Database, escalaId: number): Promise<schema.EscalaDocumento | undefined> {
+	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId)).get();
 }

@@ -9,16 +9,25 @@
 	let unidades = $state<Unidade[]>([]);
 	let loading = $state(true);
 	let novoNome = $state('');
+	let novoTemPlantao = $state(false);
+	let novoTemExpediente = $state(false);
+	let novoTemFds = $state(false);
 	let salvando = $state(false);
 
 	// Edição inline
 	let editandoId = $state<number | null>(null);
 	let editNome = $state('');
+	let editTemPlantao = $state(false);
+	let editTemExpediente = $state(false);
+	let editTemFds = $state(false);
 	let salvandoEdicao = $state(false);
 
 	// Exclusão
 	let dialogOpen = $state(false);
 	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
+
+	// Cadastro
+	let cadastroOpen = $state(false);
 
 	async function carregarUnidades() {
 		loading = true;
@@ -35,12 +44,21 @@
 		const res = await fetch('/api/unidades', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome: novoNome.trim() })
+			body: JSON.stringify({ 
+				nome: novoNome.trim(),
+				tem_plantao: novoTemPlantao,
+				tem_expediente: novoTemExpediente,
+				tem_fds: novoTemFds
+			})
 		});
 
 		if (res.ok) {
 			toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
 			novoNome = '';
+			novoTemPlantao = false;
+			novoTemExpediente = false;
+			novoTemFds = false;
+			cadastroOpen = false;
 			await carregarUnidades();
 		} else {
 			const data = await res.json();
@@ -52,11 +70,17 @@
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
 		editNome = u.nome;
+		editTemPlantao = u.tem_plantao ?? false;
+		editTemExpediente = u.tem_expediente ?? false;
+		editTemFds = u.tem_fds ?? false;
 	}
 
 	function cancelarEdicao() {
 		editandoId = null;
 		editNome = '';
+		editTemPlantao = false;
+		editTemExpediente = false;
+		editTemFds = false;
 	}
 
 	async function salvarEdicao(id: number) {
@@ -66,7 +90,12 @@
 		const res = await fetch(`/api/unidades/${id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome: editNome.trim() })
+			body: JSON.stringify({ 
+				nome: editNome.trim(),
+				tem_plantao: editTemPlantao,
+				tem_expediente: editTemExpediente,
+				tem_fds: editTemFds
+			})
 		});
 
 		if (res.ok) {
@@ -106,6 +135,12 @@
 
 <div class="flex items-center justify-between mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
+	{#if isAdmin}
+		<button class="btn preset-filled-primary-500" onclick={() => cadastroOpen = true}>
+			<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+			Cadastrar
+		</button>
+	{/if}
 </div>
 
 <Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
@@ -123,23 +158,39 @@
 	</Dialog.Content>
 </Dialog>
 
-{#if isAdmin}
-	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mb-6">
-		<h2 class="font-semibold text-base mb-4">Cadastrar Nova Unidade</h2>
-		<form onsubmit={salvarUnidade} class="flex flex-col sm:flex-row gap-3">
-			<input
-				class="input flex-1"
-				type="text"
-				bind:value={novoNome}
-				placeholder="Ex: Delegacia de Polícia Civil de Icó"
-				required
-			/>
-			<button type="submit" class="btn preset-filled-primary-500 shrink-0" disabled={salvando || !novoNome.trim()}>
-				{salvando ? 'Salvando...' : 'Cadastrar'}
-			</button>
-		</form>
-	</div>
-{/if}
+<!-- Modal de Cadastro -->
+<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { novoNome = ''; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; } }}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
+			<form onsubmit={salvarUnidade} class="flex flex-col gap-4">
+				<label class="label">
+					<span class="label-text font-semibold mb-1">Nome da Unidade</span>
+					<input
+						class="input"
+						type="text"
+						bind:value={novoNome}
+						placeholder="Ex: Delegacia de Polícia Civil de Icó"
+						required
+					/>
+				</label>
+				<div class="flex flex-wrap gap-4 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5">
+					<p class="w-full text-sm font-medium mb-1 text-surface-600 dark:text-surface-400">Regimes de Escala:</p>
+					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span>Plantão</span></label>
+					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span>Expediente</span></label>
+					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span>Fim de Semana</span></label>
+				</div>
+				<div class="flex justify-end gap-3 pt-1">
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<button type="submit" class="btn preset-filled-primary-500" disabled={salvando || !novoNome.trim()}>
+						{salvando ? 'Salvando...' : 'Cadastrar'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</Dialog.Content>
+</Dialog>
+
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
 	{#if loading}
@@ -170,14 +221,28 @@
 						<tr>
 							<td>
 								{#if isAdmin && editandoId === u.id}
-									<input
-										class="input text-sm"
-										type="text"
-										bind:value={editNome}
-										onkeydown={(e) => { if (e.key === 'Enter') salvarEdicao(u.id); if (e.key === 'Escape') cancelarEdicao(); }}
-									/>
+									<div class="flex flex-col gap-2">
+										<input
+											class="input text-sm"
+											type="text"
+											bind:value={editNome}
+											onkeydown={(e) => { if (e.key === 'Enter') salvarEdicao(u.id); if (e.key === 'Escape') cancelarEdicao(); }}
+										/>
+										<div class="flex flex-wrap gap-3 text-sm mt-1">
+											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
+											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
+											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
+										</div>
+									</div>
 								{:else}
-									<span class="font-medium">{u.nome}</span>
+									<div>
+										<span class="font-medium block">{u.nome}</span>
+										<div class="flex gap-1.5 mt-1.5">
+											{#if u.tem_plantao}<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold">Plantão</span>{/if}
+											{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
+											{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
+										</div>
+									</div>
 								{/if}
 							</td>
 							<td class="text-surface-500 text-sm">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td>
@@ -216,6 +281,11 @@
 								bind:value={editNome}
 								onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
 							/>
+							<div class="flex flex-wrap gap-3 text-sm py-2">
+								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
+								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
+								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
+							</div>
 							<div class="flex gap-2">
 								<button class="btn btn-sm preset-filled-primary-500 flex-1" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
 									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
@@ -227,7 +297,12 @@
 						<div class="flex items-center justify-between gap-3">
 							<div class="min-w-0">
 								<p class="font-semibold text-sm">{u.nome}</p>
-								<p class="text-xs text-surface-500 mt-0.5">Cadastrada em {new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+								<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
+									{#if u.tem_plantao}<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold">Plantão</span>{/if}
+									{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
+									{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
+								</div>
+								<p class="text-[11px] text-surface-500 mt-1">Cadastrada em {new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
 							</div>
 							{#if isAdmin}
 								<div class="flex gap-2 shrink-0">

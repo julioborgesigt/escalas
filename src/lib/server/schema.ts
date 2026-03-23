@@ -107,12 +107,29 @@ export const unidades = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		nome: text('nome').notNull().unique(),
+		tem_plantao: integer('tem_plantao', { mode: 'boolean' }).default(false).notNull(),
+		tem_expediente: integer('tem_expediente', { mode: 'boolean' }).default(false).notNull(),
+		tem_fds: integer('tem_fds', { mode: 'boolean' }).default(false).notNull(),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now'))`)
 	},
 	(table) => [index('idx_unidades_nome').on(table.nome)]
 );
+
+// ---- Documentos de Escalas (R2) ----
+
+export const escalaDocumentos = sqliteTable('escala_documentos', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	escala_id: integer('escala_id')
+		.notNull()
+		.unique()
+		.references(() => escalas.id, { onDelete: 'cascade' }),
+	r2_key: text('r2_key').notNull(),
+	assinante_nome: text('assinante_nome').notNull(),
+	assinante_cpf: text('assinante_cpf'),
+	created_at: text('created_at').default(sql`(datetime('now'))`)
+});
 
 // ---- Tipos inferidos ----
 
@@ -122,5 +139,7 @@ export type Escala = typeof escalas.$inferSelect;
 export type NovaEscala = typeof escalas.$inferInsert;
 export type EscalaPolicial = typeof escalaPoliciais.$inferSelect;
 export type Administrador = typeof administradores.$inferSelect;
+export type Administrator = typeof administradores.$inferSelect;
 export type Sessao = typeof sessoes.$inferSelect;
 export type Unidade = typeof unidades.$inferSelect;
+export type EscalaDocumento = typeof escalaDocumentos.$inferSelect;

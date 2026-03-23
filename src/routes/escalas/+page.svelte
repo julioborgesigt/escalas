@@ -2,9 +2,9 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-	import type { Escala } from '$lib/types';
+	import type { EscalaListagem } from '$lib/types';
 
-	let escalas = $state<Escala[]>([]);
+	let escalas = $state<EscalaListagem[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	let filtroLotacao = $state('');
@@ -28,8 +28,14 @@
 		}
 
 		loading = true;
-		const params = filtroLotacao ? `?lotacao=${encodeURIComponent(filtroLotacao)}` : '';
-		const res = await fetch(`/api/escalas${params}`);
+		const params = new URLSearchParams();
+		if (filtroLotacao === '__PENDENTES__') {
+			params.set('status', 'pendente');
+		} else if (filtroLotacao) {
+			params.set('lotacao', filtroLotacao);
+		}
+		
+		const res = await fetch(`/api/escalas?${params.toString()}`);
 		escalas = await res.json();
 		loading = false;
 	}
@@ -94,12 +100,20 @@
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
+					<option value="__PENDENTES__" class="font-bold text-warning-600 dark:text-warning-400">🚨 Todas as Escalas Pendentes</option>
+					<hr />
 					{#each lotacoes as lot (lot)}
 						<option value={lot}>{lot}</option>
 					{/each}
 				</select>
 			</label>
-			<p class="text-xs text-surface-500 mb-2 italic">Selecione uma unidade para visualizar as escalas dela.</p>
+			<p class="text-xs text-surface-500 mb-2 italic">
+				{#if filtroLotacao === '__PENDENTES__'}
+					Mostrando todas as escalas que aguardam assinatura.
+				{:else}
+					Selecione uma unidade para visualizar as escalas dela.
+				{/if}
+			</p>
 		</div>
 	{/if}
 
@@ -114,7 +128,7 @@
 		</div>
 	{:else if escalas.length === 0}
 		<div class="text-center py-12 text-surface-500">
-			<p class="mb-4">Nenhuma escala criada para esta unidade.</p>
+			<p class="mb-4">{filtroLotacao === '__PENDENTES__' ? 'Nenhuma escala pendente de assinatura. Todas estão em dia!' : 'Nenhuma escala criada para esta unidade.'}</p>
 			<a href="/escalas/nova" class="btn preset-filled-primary-500">Criar Escala</a>
 		</div>
 	{:else}
@@ -127,6 +141,7 @@
 						<th>Cidade</th>
 						<th>Período</th>
 						<th>Horário</th>
+						<th>Status</th>
 						<th>Ações</th>
 					</tr>
 				</thead>
@@ -138,6 +153,19 @@
 							<td class="whitespace-nowrap">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
 							<td>{esc.horario}</td>
 							<td>
+								{#if esc.is_assinada}
+									<span class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+										Assinada
+									</span>
+								{:else}
+									<span class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+										Pendente
+									</span>
+								{/if}
+							</td>
+							<td>
 								<div class="flex gap-2 justify-end">
 									<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Abrir</a>
 									<Popover positioning={{ placement: "bottom-end", offset: { mainAxis: 4 } }}>
@@ -145,6 +173,13 @@
 										<Portal>
 											<Popover.Positioner class="z-50">
 												<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]">
+													{#if esc.is_assinada}
+														<button class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2" onclick={() => window.open(`/api/escalas/${esc.id}/documento-assinado`, '_blank')}>
+															<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+															PDF Oficial
+														</button>
+														<hr class="opacity-10 my-1" />
+													{/if}
 													<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=docx`, '_blank')}>Word (.docx)</button>
 													<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=odt`, '_blank')}>ODT (.odt)</button>
 													<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=excel`, '_blank')}>Excel (.xlsx)</button>
@@ -167,7 +202,14 @@
 		<div class="md:hidden space-y-3">
 			{#each escalas as esc (esc.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
-					<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block mb-3 text-primary-600 dark:text-primary-400 no-underline hover:text-primary-500 dark:hover:text-primary-300">{esc.titulo}</a>
+					<div class="flex justify-between items-start mb-3 gap-2">
+						<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block text-primary-600 dark:text-primary-400 no-underline hover:text-primary-500 dark:hover:text-primary-300">{esc.titulo}</a>
+						{#if esc.is_assinada}
+							<span class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Assinada</span>
+						{:else}
+							<span class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Pendente</span>
+						{/if}
+					</div>
 					<div class="space-y-1 mb-3 text-sm">
 						<div class="flex justify-between">
 							<span class="text-surface-500 font-medium">Cidade</span>
@@ -189,6 +231,13 @@
 							<Portal>
 								<Popover.Positioner class="z-50">
 									<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]">
+										{#if esc.is_assinada}
+											<button class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2" onclick={() => window.open(`/api/escalas/${esc.id}/documento-assinado`, '_blank')}>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+												PDF Oficial
+											</button>
+											<hr class="opacity-10 my-1" />
+										{/if}
 										<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=docx`, '_blank')}>Word (.docx)</button>
 										<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=odt`, '_blank')}>ODT (.odt)</button>
 										<button class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={() => window.open(`/api/escalas/${esc.id}/download?format=excel`, '_blank')}>Excel (.xlsx)</button>

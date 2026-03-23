@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	}
 
 	try {
-		await criarUnidade(db, parsed.data.nome);
+		await criarUnidade(db, parsed.data);
 		return json({ success: true }, { status: 201 });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';

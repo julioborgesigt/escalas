@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarEscala } from '$lib/db';
+import { getDB, buscarEscala, salvarDocumentoEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -18,7 +18,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	}
 
 	const body = await request.json();
-	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms } = body;
+	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms, signerName, signerCpf } = body;
 
 	if (!preparedPdf) {
 		return json({ error: 'preparedPdf é obrigatório' }, { status: 400 });
@@ -50,6 +50,19 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 				messageDigest,
 				signingTimeISO
 			);
+		}
+
+		// Salva o PDF no Cloudflare R2 e registra no banco
+		if (platform?.env?.escalas_docs) {
+			const r2Key = `escala_${escalaId}_assinada.pdf`;
+			try {
+				await platform.env.escalas_docs.put(r2Key, signedPdf);
+				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '');
+			} catch (err) {
+				console.error('[finalizar-assinatura] Erro ao salvar no R2 ou BD:', err);
+			}
+		} else {
+			console.warn('[finalizar-assinatura] R2 (escalas_docs) não configurado no env.');
 		}
 
 		return new Response(signedPdf as unknown as BodyInit, {

@@ -4,7 +4,7 @@ import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 
 const SIGNATURE_LENGTH = 8192;
-const BYTE_RANGE_PLACEHOLDER = '**********';
+const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
 
 // OIDs usados na estrutura CMS
 const OID_DATA = '1.2.840.113549.1.7.1';
@@ -380,7 +380,6 @@ export async function prepararPdfParaAssinatura(
 
 	const bracketStart = pdfString.indexOf('[', byteRangePos);
 	const bracketEnd = pdfString.indexOf(']', bracketStart);
-	const byteRangeStr = pdfString.substring(bracketStart + 1, bracketEnd).trim();
 
 	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
 	if (contentsTagPos === -1) {
@@ -392,13 +391,14 @@ export async function prepararPdfParaAssinatura(
 
 	const br = [0, sigStart, sigEnd + 1, pdfBuffer.length - (sigEnd + 1)];
 
-	// Substituir ByteRange placeholder pelos valores reais
-	const byteRangeReplacement = `[${br.join(' ')}]`;
-	const byteRangePlaceholderFull = `[${byteRangeStr}]`;
-	const preparedPdfStr = pdfString.replace(
-		byteRangePlaceholderFull,
-		byteRangeReplacement.padEnd(byteRangePlaceholderFull.length, ' ')
-	);
+	// O placeholder original exato, incluindo os colchetes e espaços originais
+	const byteRangePlaceholderFull = pdfString.substring(bracketStart, bracketEnd + 1);
+	const byteRangeReplacement = `[${br.join(' ')}]`.padEnd(byteRangePlaceholderFull.length, ' ');
+
+	const preparedPdfStr = pdfString.substring(0, bracketStart) + 
+						   byteRangeReplacement + 
+						   pdfString.substring(bracketEnd + 1);
+
 	const preparedPdf = Buffer.from(preparedPdfStr, 'latin1');
 
 	// Extrair os bytes que representam o conteúdo assinado
@@ -543,3 +543,82 @@ export async function finalizarAssinatura(
 
 	return new Uint8Array(signedPdf);
 }
+
+// ---------------------------------------------------------------------------
+// Assinatura Simples: rodapé textual sem PKI (para escalas de FDS)
+// ---------------------------------------------------------------------------
+
+/**
+ * Adiciona um rodapé de confirmação administrativa no PDF.
+ * Não é uma assinatura PKI — é um carimbo textual com data/hora e nome do responsável.
+ */
+export async function adicionarRodapeSimples(
+	pdfBytes: Uint8Array,
+	assinante: string,
+	dataHora: string // ex: "23/03/2026 às 12:30:00"
+): Promise<Uint8Array> {
+	const pdfDoc = await PDFDocument.load(pdfBytes);
+	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+	const pages = pdfDoc.getPages();
+	const lastPage = pages[pages.length - 1];
+	const { width } = lastPage.getSize();
+
+	const marginX = 40;
+	const lineY = 52;
+	const textY = 36;
+	const noteY = 20;
+
+	// Linha separadora
+	lastPage.drawLine({
+		start: { x: marginX, y: lineY },
+		end: { x: width - marginX, y: lineY },
+		thickness: 0.5,
+		color: rgb(0.5, 0.5, 0.5)
+	});
+
+	// Texto principal
+	const texto = `Confirmado eletronicamente por `;
+	const textoWidth = font.widthOfTextAtSize(texto, 7.5);
+
+	lastPage.drawText(texto, {
+		x: marginX,
+		y: textY,
+		size: 7.5,
+		font,
+		color: rgb(0.3, 0.3, 0.3)
+	});
+
+	lastPage.drawText(assinante, {
+		x: marginX + textoWidth,
+		y: textY,
+		size: 7.5,
+		font: fontBold,
+		color: rgb(0.1, 0.1, 0.1)
+	});
+
+	const assinanteWidth = fontBold.widthOfTextAtSize(assinante, 7.5);
+	lastPage.drawText(` em ${dataHora}.`, {
+		x: marginX + textoWidth + assinanteWidth,
+		y: textY,
+		size: 7.5,
+		font,
+		color: rgb(0.3, 0.3, 0.3)
+	});
+
+	// Nota de validade
+	lastPage.drawText(
+		'Este registro eletrônico possui validade administrativa interna.',
+		{
+			x: marginX,
+			y: noteY,
+			size: 6.5,
+			font,
+			color: rgb(0.55, 0.55, 0.55)
+		}
+	);
+
+	return pdfDoc.save();
+}
+
