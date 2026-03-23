@@ -10,6 +10,7 @@ declare global {
 		interface Platform {
 			env: {
 				escalas_db: D1Database;
+				escalas_docs: R2Bucket;
 			};
 		}
 	}

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDB, excluirUnidade, atualizarUnidade } from '$lib/db';
 import { unidades } from '$lib/server/schema';
+import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { escalas } from '$lib/server/schema';
 import type { RequestHandler } from './$types';
@@ -15,12 +16,13 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const data = await request.json();
-	if (!data.nome || !String(data.nome).trim()) {
-		return json({ error: 'Nome da unidade é obrigatório' }, { status: 400 });
+	const parsed = unidadeSchema.safeParse(data);
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 
 	try {
-		await atualizarUnidade(db, id, String(data.nome));
+		await atualizarUnidade(db, id, parsed.data);
 		return json({ success: true });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';

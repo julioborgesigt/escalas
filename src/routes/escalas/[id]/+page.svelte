@@ -1,65 +1,93 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { toaster } from '$lib/toast';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
-	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
+	import { page } from "$app/state";
+	import { toaster } from "$lib/toast";
+	import { Dialog } from "@skeletonlabs/skeleton-svelte";
+	import type { Escala, Policial, EscalaPolicialComDados } from "$lib/types";
+	import {
+		initWebPKI,
+		listarCertificados,
+		assinarHash,
+		lerCertificado,
+		type WebPKICertificate,
+	} from "$lib/webpki";
 	import {
 		conectarSerpro,
-		SERPRO_CERT_AUTH_URL, type SerproSignerClient
-	} from '$lib/serpro';
+		SERPRO_CERT_AUTH_URL,
+		type SerproSignerClient,
+	} from "$lib/serpro";
 
-	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+	const horas = Array.from({ length: 24 }, (_, i) =>
+		String(i).padStart(2, "0"),
+	);
+	const minutos = Array.from({ length: 60 }, (_, i) =>
+		String(i).padStart(2, "0"),
+	);
 
 	let escala = $state<Escala | null>(null);
 	let policiaisEscala = $state<EscalaPolicialComDados[]>([]);
 	let todosOsPoliciais = $state<Policial[]>([]);
+	let documentoAssinadoInfo = $state<{
+		existe: boolean;
+		assinante_nome?: string;
+		assinante_cpf?: string;
+		data?: string;
+	} | null>(null);
 	let loading = $state(true);
 
-	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
-	let policialId = $state('');
-	let dataPlantao = $state('');
+	let cargoBusca = $state<"DPC" | "OIP" | "">("");
+	let policialId = $state("");
+	let dataPlantao = $state("");
+	let addHoraEntrada = $state("08");
+	let addMinutoEntrada = $state("00");
+	let addHoraSaida = $state("08");
+	let addMinutoSaida = $state("00");
 	let adding = $state(false);
 
 	const policialsFiltrados = $derived(
 		cargoBusca
-			? todosOsPoliciais.filter(p => p.cargo === cargoBusca).sort((a, b) => a.nome.localeCompare(b.nome))
-			: []
+			? todosOsPoliciais
+					.filter((p) => p.cargo === cargoBusca)
+					.sort((a, b) => a.nome.localeCompare(b.nome))
+			: [],
 	);
 
 	let dialogOpen = $state(false);
-	let policialParaRemover = $state<{itemId: number, nome: string} | null>(null);
+	let policialParaRemover = $state<{ itemId: number; nome: string } | null>(
+		null,
+	);
 
 	let editingId = $state<number | null>(null);
-	let editDataEntrada = $state('');
-	let editDataSaida = $state('');
-	let editEntrada = $state('');
-	let editSaida = $state('');
+	let editDataEntrada = $state("");
+	let editDataSaida = $state("");
+	let editHoraEntrada = $state("");
+	let editMinutoEntrada = $state("");
+	let editHoraSaida = $state("");
+	let editMinutoSaida = $state("");
 
 	function formatarData(dateStr: string): string {
-		if (!dateStr) return '';
-		const [year, month, day] = dateStr.split('-');
+		if (!dateStr) return "";
+		const [year, month, day] = dateStr.split("-");
 		return `${day}/${month}/${year}`;
 	}
 
 	function proximoDia(dateStr: string): string {
-		const d = new Date(dateStr + 'T00:00:00');
+		const d = new Date(dateStr + "T00:00:00");
 		d.setDate(d.getDate() + 1);
-		return d.toISOString().split('T')[0];
+		return d.toISOString().split("T")[0];
 	}
 
 	function getHoraEntrada(p: EscalaPolicialComDados): string {
-		return p.hora_entrada || escala?.hora_entrada || '08';
+		return p.hora_entrada || escala?.hora_entrada || "08";
 	}
 
 	function getHoraSaida(p: EscalaPolicialComDados): string {
-		return p.hora_saida || escala?.hora_saida || '08';
+		return p.hora_saida || escala?.hora_saida || "08";
 	}
 
 	function getDataSaida(p: EscalaPolicialComDados): string {
 		if (p.data_saida) return p.data_saida;
-		const he = Number(getHoraEntrada(p));
-		const hs = Number(getHoraSaida(p));
+		const he = Number(getHoraEntrada(p).split(":")[0]);
+		const hs = Number(getHoraSaida(p).split(":")[0]);
 		if (hs <= he) return proximoDia(p.data_plantao);
 		return p.data_plantao;
 	}
@@ -79,19 +107,23 @@
 
 	function datasDoPlantao(escala: Escala): string[] {
 		const datas: string[] = [];
-		const inicio = new Date(escala.data_inicio + 'T00:00:00');
-		const fim = new Date(escala.data_fim + 'T00:00:00');
+		const inicio = new Date(escala.data_inicio + "T00:00:00");
+		const fim = new Date(escala.data_fim + "T00:00:00");
 		const current = new Date(inicio);
 		while (current <= fim) {
-			datas.push(current.toISOString().split('T')[0]);
+			datas.push(current.toISOString().split("T")[0]);
 			current.setDate(current.getDate() + 1);
 		}
 		return datas;
 	}
 
-	function calcularDataSaidaInicial(dataEntrada: string, horaEntrada: string, horaSaida: string): string {
-		const he = Number(horaEntrada);
-		const hs = Number(horaSaida);
+	function calcularDataSaidaInicial(
+		dataEntrada: string,
+		horaEntrada: string,
+		horaSaida: string,
+	): string {
+		const he = Number(horaEntrada.split(":")[0]);
+		const hs = Number(horaSaida.split(":")[0]);
 		if (hs <= he) return proximoDia(dataEntrada);
 		return dataEntrada;
 	}
@@ -100,15 +132,33 @@
 		const id = page.params.id;
 		loading = true;
 
-		const [escalaRes, policiaisRes, todosRes] = await Promise.all([
-			fetch(`/api/escalas`).then(r => r.json()),
-			fetch(`/api/escalas/${id}/policiais`).then(r => r.json()),
-			fetch('/api/policiais?todos=1').then(r => r.json())
+		const [escalaRes, policiaisRes, todosRes, infoRes] = await Promise.all([
+			fetch(`/api/escalas`).then((r) => r.json()),
+			fetch(`/api/escalas/${id}/policiais`).then((r) => r.json()),
+			fetch("/api/policiais?todos=1").then((r) => r.json()),
+			fetch(`/api/escalas/${id}/documento-assinado/info`)
+				.then((r) => (r.ok ? r.json() : null))
+				.catch(() => null),
 		]);
 
-		escala = (escalaRes as Escala[]).find((e: Escala) => e.id === Number(id)) || null;
+		escala =
+			(escalaRes as Escala[]).find((e: Escala) => e.id === Number(id)) ||
+			null;
 		policiaisEscala = policiaisRes;
 		todosOsPoliciais = todosRes;
+
+		if (escala) {
+			const [he, me = "00"] = escala.hora_entrada.split(":");
+			addHoraEntrada = he;
+			addMinutoEntrada = me;
+			const [hs, ms = "00"] = escala.hora_saida.split(":");
+			addHoraSaida = hs;
+			addMinutoSaida = ms;
+		}
+
+		if (infoRes && infoRes.existe) {
+			documentoAssinadoInfo = infoRes;
+		}
 
 		if (escala && !dataPlantao) {
 			dataPlantao = escala.data_inicio;
@@ -127,29 +177,32 @@
 		if (!policialId || !dataPlantao) return;
 		adding = true;
 
-		const he = escala?.hora_entrada || '08';
-		const hs = escala?.hora_saida || '08';
+		const he = escala?.hora_entrada || "08";
+		const hs = escala?.hora_saida || "08";
 		const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
 
 		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				policial_id: Number(policialId),
 				data_plantao: dataPlantao,
 				data_saida: ds,
-				hora_entrada: he,
-				hora_saida: hs
-			})
+				hora_entrada: `${addHoraEntrada}:${addMinutoEntrada}`,
+				hora_saida: `${addHoraSaida}:${addMinutoSaida}`,
+			}),
 		});
 
 		if (res.ok) {
-			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
-			cargoBusca = '';
-			policialId = '';
+			toaster.create({
+				title: "Policial adicionado à escala",
+				type: "success",
+			});
+			cargoBusca = "";
+			policialId = "";
 			await recarregarPoliciais();
 		} else {
-			toaster.create({ title: 'Erro ao adicionar', type: 'error' });
+			toaster.create({ title: "Erro ao adicionar", type: "error" });
 		}
 		adding = false;
 	}
@@ -158,12 +211,16 @@
 		editingId = p.id;
 		editDataEntrada = p.data_plantao;
 		editDataSaida = getDataSaida(p);
-		editEntrada = getHoraEntrada(p);
-		editSaida = getHoraSaida(p);
+		const [he, me = "00"] = getHoraEntrada(p).split(":");
+		editHoraEntrada = he;
+		editMinutoEntrada = me;
+		const [hs, ms = "00"] = getHoraSaida(p).split(":");
+		editHoraSaida = hs;
+		editMinutoSaida = ms;
 	}
 
 	function editPreviewData(): string {
-		if (!editDataEntrada) return '';
+		if (!editDataEntrada) return "";
 		const de = formatarData(editDataEntrada);
 		if (editDataSaida && editDataSaida !== editDataEntrada) {
 			return `${de} à ${formatarData(editDataSaida)}`;
@@ -173,15 +230,15 @@
 
 	async function salvarEdicao(itemId: number) {
 		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				item_id: itemId,
 				data_plantao: editDataEntrada,
 				data_saida: editDataSaida,
-				hora_entrada: editEntrada,
-				hora_saida: editSaida
-			})
+				hora_entrada: `${editHoraEntrada}:${editMinutoEntrada}`,
+				hora_saida: `${editHoraSaida}:${editMinutoSaida}`,
+			}),
 		});
 
 		if (res.ok) {
@@ -201,31 +258,69 @@
 
 	async function confirmarRemocao() {
 		if (!policialParaRemover) return;
-		
+
 		const itemId = policialParaRemover.itemId;
 		const nome = policialParaRemover.nome;
 		dialogOpen = false;
 
-		const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`, { method: 'DELETE' });
+		const res = await fetch(
+			`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`,
+			{ method: "DELETE" },
+		);
 		if (res.ok) {
-			toaster.create({ title: `${nome} removido da escala`, type: 'success' });
+			toaster.create({
+				title: `${nome} removido da escala`,
+				type: "success",
+			});
 			await recarregarPoliciais();
 		}
 		policialParaRemover = null;
 	}
 
 	function download(format: string) {
-		window.open(`/api/escalas/${page.params.id}/download?format=${format}`, '_blank');
+		window.open(
+			`/api/escalas/${page.params.id}/download?format=${format}`,
+			"_blank",
+		);
 	}
 
 	// === Assinatura Digital ===
 	let assinando = $state(false);
-	let etapaAssinatura = $state('');
+	let etapaAssinatura = $state("");
 
 	// --- Web PKI (Lacuna) ---
 	let certificados = $state<WebPKICertificate[]>([]);
-	let certSelecionado = $state('');
-	let mostrarCerts = $state(false);
+	let certSelecionado = $state("");
+	let lendoCertificados = $state(false);
+	let tentouLerCertificados = $state(false);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let pkInstance = $state<any>(null);
+
+	async function carregarCertificadosLocais() {
+		lendoCertificados = true;
+		tentouLerCertificados = false;
+		try {
+			const pki = pkInstance || (await initWebPKI());
+			pkInstance = pki;
+			certificados = await listarCertificados(pki);
+			if (certificados.length === 1) {
+				certSelecionado = certificados[0].thumbprint;
+				serproSignerName = certificados[0].subjectName;
+				serproSignerCpf = certificados[0].cpf || "";
+			}
+		} catch (err) {
+			toaster.create({
+				title:
+					err instanceof Error
+						? err.message
+						: "Erro ao inicializar Web PKI",
+				type: "error",
+			});
+		} finally {
+			lendoCertificados = false;
+			tentouLerCertificados = true;
+		}
+	}
 
 	// --- Assinador SERPRO ---
 	let serproClient = $state<SerproSignerClient | null>(null);
@@ -235,7 +330,8 @@
 	 * Pré-preenchido com o nome do usuário logado, mas editável caso
 	 * o token pertença a outra pessoa.
 	 */
-	let serproSignerName = $state(page.data.usuario?.nome ?? '');
+	let serproSignerName = $state(page.data.usuario?.nome ?? "");
+	let serproSignerCpf = $state(page.data.usuario?.cpf ?? "");
 
 	// ── Helpers compartilhados ──────────────────────────────────────────────
 
@@ -246,47 +342,80 @@
 	async function finalizarEBaixarPdf(
 		signerName: string,
 		signerCpf: string,
-		getSignature: (signedAttrsHashHex: string) => Promise<{ rawSignature: string; certificateBase64: string }>
+		getSignature: (
+			signedAttrsHashHex: string,
+		) => Promise<{ rawSignature: string; certificateBase64: string }>,
 	) {
 		// 1. Preparar PDF no servidor (cria carimbo + placeholder + hash)
-		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-		const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ signerName, signerCpf })
-		});
+		etapaAssinatura = "Gerando PDF e preparando assinatura...";
+		const prepRes = await fetch(
+			`/api/escalas/${page.params.id}/preparar-assinatura`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ signerName, signerCpf }),
+			},
+		);
 		if (!prepRes.ok) {
 			const err = await prepRes.json();
-			throw new Error(err.error || 'Erro ao preparar PDF');
+			throw new Error(err.error || "Erro ao preparar PDF");
 		}
-		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO } = await prepRes.json();
+		const {
+			signedAttrsHashHex,
+			preparedPdf,
+			messageDigest,
+			signingTimeISO,
+		} = await prepRes.json();
 
 		// 2. Assinar hash (janela de PIN aparece aqui, gerenciada pela lib de assinatura)
-		const { rawSignature, certificateBase64 } = await getSignature(signedAttrsHashHex);
+		const { rawSignature, certificateBase64 } =
+			await getSignature(signedAttrsHashHex);
 
 		// 3. Finalizar assinatura no servidor (embute CMS/PKCS#7 no PDF)
-		etapaAssinatura = 'Finalizando PDF assinado...';
-		const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO })
-		});
+		etapaAssinatura = "Finalizando PDF assinado...";
+		const finRes = await fetch(
+			`/api/escalas/${page.params.id}/finalizar-assinatura`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					preparedPdf,
+					rawSignature,
+					certificateBase64,
+					messageDigest,
+					signingTimeISO,
+					signerName,
+					signerCpf,
+				}),
+			},
+		);
 		if (!finRes.ok) {
 			const err = await finRes.json();
-			throw new Error(err.error || 'Erro ao finalizar assinatura');
+			throw new Error(err.error || "Erro ao finalizar assinatura");
 		}
 
 		// 4. Download do PDF assinado
-		etapaAssinatura = 'Baixando PDF assinado...';
+		etapaAssinatura = "Baixando PDF assinado...";
 		const blob = await finRes.blob();
 		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
+		const a = document.createElement("a");
 		a.href = url;
-		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_assinada.pdf';
+		a.download =
+			finRes.headers
+				.get("Content-Disposition")
+				?.match(/filename="(.+)"/)?.[1] || "escala_assinada.pdf";
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
+
+		// Exibir tarja de download imediatamente na tela
+		documentoAssinadoInfo = {
+			existe: true,
+			assinante_nome: signerName,
+			assinante_cpf: signerCpf,
+			data: new Date().toISOString(),
+		};
 	}
 
 	// ── Web PKI (Lacuna) ────────────────────────────────────────────────────
@@ -294,36 +423,29 @@
 	async function assinarComWebPKI() {
 		if (certificados.length === 0) {
 			assinando = true;
-			etapaAssinatura = 'Inicializando Web PKI...';
-			try {
-				const pki = await initWebPKI();
-				etapaAssinatura = 'Listando certificados...';
-				certificados = await listarCertificados(pki);
-				if (certificados.length === 0) {
-					toaster.create({ title: 'Nenhum certificado digital encontrado. Conecte seu eToken USB.', type: 'error' });
-					assinando = false;
-					etapaAssinatura = '';
-					return;
-				}
-				if (certificados.length === 1) {
-					certSelecionado = certificados[0].thumbprint;
-					await executarAssinaturaWebPKI(pki, certificados[0].thumbprint);
-				} else {
-					mostrarCerts = true;
-					assinando = false;
-					etapaAssinatura = '';
-				}
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : 'Erro ao inicializar Web PKI';
-				toaster.create({ title: msg, type: 'error' });
-				assinando = false;
-				etapaAssinatura = '';
+			etapaAssinatura = "Conectando ao Web PKI...";
+			await carregarCertificadosLocais();
+			assinando = false;
+			etapaAssinatura = "";
+			if (certificados.length === 0) {
+				// Carregou vazio ou deu erro
+				return;
 			}
-			return;
+			if (certificados.length > 1) {
+				// Exige que o usuário selecione no dropdown recém-revelado
+				toaster.create({
+					title: "Selecione um dos certificados carregados",
+					type: "warning",
+				});
+				return;
+			}
 		}
 
 		if (!certSelecionado) {
-			toaster.create({ title: 'Selecione um certificado', type: 'error' });
+			toaster.create({
+				title: "Selecione um certificado",
+				type: "error",
+			});
 			return;
 		}
 		assinando = true;
@@ -331,35 +453,46 @@
 			const pki = await initWebPKI();
 			await executarAssinaturaWebPKI(pki, certSelecionado);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Erro na assinatura';
-			toaster.create({ title: msg, type: 'error' });
+			const msg =
+				err instanceof Error ? err.message : "Erro na assinatura";
+			toaster.create({ title: msg, type: "error" });
 			assinando = false;
-			etapaAssinatura = '';
+			etapaAssinatura = "";
 		}
 	}
 
-	async function executarAssinaturaWebPKI(pki: Awaited<ReturnType<typeof initWebPKI>>, thumbprint: string) {
+	async function executarAssinaturaWebPKI(
+		pki: Awaited<ReturnType<typeof initWebPKI>>,
+		thumbprint: string,
+	) {
 		assinando = true;
 		const cert = certificados.find((c) => c.thumbprint === thumbprint);
 
-		etapaAssinatura = 'Lendo certificado...';
+		etapaAssinatura = "Lendo certificado...";
 		const certificateBase64 = await lerCertificado(pki, thumbprint);
 
 		try {
 			await finalizarEBaixarPdf(
-				cert?.subjectName ?? '',
-				cert?.cpf ?? '',
+				cert?.subjectName ?? "",
+				cert?.cpf ?? "",
 				async (signedAttrsHashHex) => {
-					etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
-					const rawSignature = await assinarHash(pki, thumbprint, signedAttrsHashHex);
+					etapaAssinatura =
+						"Aguardando assinatura no eToken (digite o PIN)...";
+					const rawSignature = await assinarHash(
+						pki,
+						thumbprint,
+						signedAttrsHashHex,
+					);
 					return { rawSignature, certificateBase64 };
-				}
+				},
 			);
-			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+			toaster.create({
+				title: "PDF assinado com sucesso!",
+				type: "success",
+			});
 		} finally {
 			assinando = false;
-			etapaAssinatura = '';
-			mostrarCerts = false;
+			etapaAssinatura = "";
 		}
 	}
 
@@ -370,18 +503,19 @@
 
 	async function assinarComSerpro() {
 		assinando = true;
-		etapaAssinatura = 'Conectando ao Assinador SERPRO...';
+		etapaAssinatura = "Conectando ao Assinador SERPRO...";
 		try {
-			const client = serproClient ?? await conectarSerpro();
+			const client = serproClient ?? (await conectarSerpro());
 			serproClient = client;
 			await executarAssinaturaSerpro(client);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Erro no Assinador SERPRO';
-			toaster.create({ title: msg, type: 'error' });
+			const msg =
+				err instanceof Error ? err.message : "Erro no Assinador SERPRO";
+			toaster.create({ title: msg, type: "error" });
 			serproClient?.disconnect();
 			serproClient = null;
 			assinando = false;
-			etapaAssinatura = '';
+			etapaAssinatura = "";
 		}
 	}
 
@@ -396,114 +530,298 @@
 			// O CMS é então embedado diretamente via embedSerproCms (sem reconstrução).
 
 			// 1. Preparar PDF com o nome do assinante informado no campo de texto
-			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-			const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ signerName: serproSignerName || undefined })
-			});
+			etapaAssinatura = "Gerando PDF e preparando assinatura...";
+			const prepRes = await fetch(
+				`/api/escalas/${page.params.id}/preparar-assinatura`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						signerName: serproSignerName || undefined,
+						signerCpf: serproSignerCpf || undefined,
+					}),
+				},
+			);
 			if (!prepRes.ok) {
 				const err = await prepRes.json();
-				throw new Error(err.error || 'Erro ao preparar PDF');
+				throw new Error(err.error || "Erro ao preparar PDF");
 			}
-			const { preparedPdf, messageDigest: messageDigestHex } = await prepRes.json();
+			const { preparedPdf, messageDigest: messageDigestHex } =
+				await prepRes.json();
 
 			// 2. Converter messageDigest hex → bytes binários → base64 para SERPRO
 			const messageDigestBase64 = btoa(
-				messageDigestHex.match(/.{2}/g)!
+				messageDigestHex
+					.match(/.{2}/g)!
 					.map((h: string) => String.fromCharCode(parseInt(h, 16)))
-					.join('')
+					.join(""),
 			);
 
 			// 3. SERPRO assina e retorna CMS completo (campo 'signature' da resposta)
-			etapaAssinatura = 'Selecione o certificado e assine no Assinador SERPRO...';
+			etapaAssinatura =
+				"Selecione o certificado e assine no Assinador SERPRO...";
 			const result = await client.sign(messageDigestBase64);
 			const serproCms = result.rawSignature; // CMS PKCS#7 completo base64
 
 			// Extrai nome do titular do certificado A3 (ex.: "MARCOS NAZARE:12345678901" → "MARCOS NAZARE")
-			const certName = result.signerAlias?.replace(/:[\d]+$/, '').trim();
+			const certName = result.signerAlias?.replace(/:[\d]+$/, "").trim();
+			// Extrai o CPF do titular do certificado A3
+			const certCpfMatch = result.signerAlias?.match(/:([\d]{11})$/);
+			const certCpf = certCpfMatch ? certCpfMatch[1] : "";
 
 			// 4. Embutir CMS SERPRO diretamente no PDF (servidor usa embedSerproCms)
-			etapaAssinatura = 'Finalizando PDF assinado...';
-			const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ preparedPdf, serproCms })
-			});
+			etapaAssinatura = "Finalizando PDF assinado...";
+			const finRes = await fetch(
+				`/api/escalas/${page.params.id}/finalizar-assinatura`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ 
+						preparedPdf, 
+						serproCms,
+						signerName: certName || serproSignerName,
+						signerCpf: certCpf || serproSignerCpf 
+					}),
+				},
+			);
 			if (!finRes.ok) {
 				const err = await finRes.json();
-				throw new Error(err.error || 'Erro ao finalizar assinatura');
+				throw new Error(err.error || "Erro ao finalizar assinatura");
 			}
 
 			// 5. Download
-			etapaAssinatura = 'Baixando PDF assinado...';
+			etapaAssinatura = "Baixando PDF assinado...";
 			const blob = await finRes.blob();
 			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
+			const a = document.createElement("a");
 			a.href = url;
-			a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_assinada.pdf';
+			a.download =
+				finRes.headers
+					.get("Content-Disposition")
+					?.match(/filename="(.+)"/)?.[1] || "escala_assinada.pdf";
 			document.body.appendChild(a);
 			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			// Exibir tarja de download imediatamente na tela
+			documentoAssinadoInfo = {
+				existe: true,
+				assinante_nome: certName || serproSignerName,
+				assinante_cpf: certCpf || serproSignerCpf,
+				data: new Date().toISOString(),
+			};
 
 			// Após assinar, atualiza o nome para o próximo uso (facilita fluxo com token alheio)
-			if (certName && certName !== serproSignerName) {
-				serproSignerName = certName;
+			const changedName = certName && certName !== serproSignerName;
+			const changedCpf = certCpf && certCpf !== serproSignerCpf;
+
+			if (changedName || changedCpf) {
+				serproSignerName = certName || serproSignerName;
+				serproSignerCpf = certCpf || serproSignerCpf;
 				toaster.create({
-					title: 'PDF assinado com sucesso!',
-					description: `Certificado: ${certName}. Se o nome no carimbo estiver diferente, atualize o campo "Assinante" acima e assine novamente.`,
-					type: 'success'
+					title: "PDF assinado com sucesso!",
+					description: `Certificado reconhecido: ${certName}. Se alguma informação no carimbo estiver diferente, você pode tentar assinar novamente, os campos Assinante e CPF foram atualizados com os dados do token.`,
+					type: "success",
 				});
 			} else {
-				toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+				toaster.create({
+					title: "PDF assinado com sucesso!",
+					type: "success",
+				});
 			}
 		} finally {
 			assinando = false;
-			etapaAssinatura = '';
+			etapaAssinatura = "";
 			serproClient?.disconnect();
 			serproClient = null;
 		}
 	}
 
-	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
+	function agruparPorData(
+		items: EscalaPolicialComDados[],
+	): Map<string, EscalaPolicialComDados[]> {
 		const map = new Map<string, EscalaPolicialComDados[]>();
 		for (const item of items) {
 			const list = map.get(item.data_plantao) || [];
 			list.push(item);
 			map.set(item.data_plantao, list);
 		}
-		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
+		return new Map(
+			[...map.entries()].sort(([a], [b]) => a.localeCompare(b)),
+		);
 	}
 
-	$effect(() => { carregar(); });
+	// Detecta se a escala é de Final de Semana (duração <= 3 dias)
+	const isFDS = $derived(() => {
+		if (!escala) return false;
+		const ini = new Date(escala.data_inicio + 'T00:00:00');
+		const fim = new Date(escala.data_fim + 'T00:00:00');
+		const diff = (fim.getTime() - ini.getTime()) / (1000 * 60 * 60 * 24);
+		return diff <= 3;
+	});
+
+	let assinandoSimples = $state(false);
+
+	async function assinarSimples() {
+		if (policiaisEscala.length === 0) {
+			toaster.create({ title: 'Adicione ao menos um policial antes de confirmar', type: 'error' });
+			return;
+		}
+		assinandoSimples = true;
+		try {
+			const res = await fetch(`/api/escalas/${page.params.id}/assinar-simples`, { method: 'POST' });
+			if (!res.ok) {
+				const err = await res.json();
+				throw new Error(err.error || 'Erro ao confirmar escala');
+			}
+			// Baixar imediatamente
+			const blob = await res.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'escala_confirmada.pdf';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+			
+			// Atualizar banner
+			documentoAssinadoInfo = { existe: true, assinante_nome: page.data.usuario?.nome || 'Administrador', data: new Date().toISOString() };
+			toaster.create({ title: 'Escala confirmada e PDF gerado!', type: 'success' });
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Erro ao confirmar';
+			toaster.create({ title: msg, type: 'error' });
+		} finally {
+			assinandoSimples = false;
+		}
+	}
+
+	$effect(() => {
+		carregar();
+	});
 </script>
 
 {#if loading}
 	<p class="text-center py-12 text-surface-500">Carregando...</p>
 {:else if !escala}
-	<div class="text-center py-12 text-surface-500"><p>Escala não encontrada.</p></div>
+	<div class="text-center py-12 text-surface-500">
+		<p>Escala não encontrada.</p>
+	</div>
 {:else}
-	<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+	<div
+		class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6"
+	>
 		<div>
 			<h1 class="h1 text-lg sm:text-xl font-bold">{escala.titulo}</h1>
 			<p class="text-surface-500 text-sm mt-1">
-				{escala.cidade} &bull; {formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)} &bull; {escala.hora_entrada || '08'}H a {escala.hora_saida || '08'}H
+				{formatarData(escala.data_inicio)} a {formatarData(
+					escala.data_fim,
+				)} &bull; {escala.hora_entrada || "08:00"}H a {escala.hora_saida ||
+					"08:00"}H
 			</p>
 		</div>
-		<a href="/escalas" class="btn preset-outlined-primary-500 shrink-0">Voltar</a>
+		<a href="/escalas" class="btn preset-outlined-primary-500 shrink-0"
+			>Voltar</a
+		>
 	</div>
 
-	<Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
-		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
-			<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
-				<Dialog.Title class="h3 font-bold mb-2">Remover Policial?</Dialog.Title>
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja remover o policial "{policialParaRemover?.nome}" desta escala?
+	{#if documentoAssinadoInfo}
+		<div
+			class="mb-6 p-4 sm:p-5 bg-success-500/10 border-2 border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md"
+		>
+			<div>
+				<h3
+					class="font-bold text-success-700 dark:text-success-400 flex items-center gap-2 text-lg"
+				>
+					<svg
+						class="w-6 h-6"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+						/>
+					</svg>
+					Escala Oficialmente Assinada
+				</h3>
+				<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
+					Assinado por <strong
+						>{documentoAssinadoInfo.assinante_nome}</strong
+					>. Arquivo original ICP-Brasil guardado nos servidores para
+					download.
+				</p>
+			</div>
+			<a
+				href={`/api/escalas/${escala.id}/documento-assinado`}
+				class="btn preset-filled-success-500 shrink-0 font-bold px-6 py-3 shadow-lg shadow-success-500/30 hover:scale-105 transition-transform"
+				target="_blank"
+			>
+				<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+				</svg>
+				Baixar PDF Assinado
+			</a>
+		</div>
+	{/if}
+
+	<!-- Se é escala FDS e ainda não foi confirmada, mostrar opção de assinatura simples -->
+	{#if isFDS() && !documentoAssinadoInfo}
+		<div class="mb-6 p-4 sm:p-5 bg-primary-500/8 border border-primary-500/25 rounded-2xl">
+			<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+				<div>
+					<h3 class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2">
+						<span>📋</span> Confirmar Escala de Final de Semana
+					</h3>
+					<p class="text-sm text-surface-500 mt-1 max-w-md">
+						Ao clicar em Confirmar Escala, ela será enviada ao administrador superior
+					</p>
+				</div>
+				<button
+					class="btn preset-filled-primary-500 shrink-0 font-bold px-5 py-2.5"
+					disabled={assinandoSimples || policiaisEscala.length === 0}
+					onclick={assinarSimples}
+				>
+					{#if assinandoSimples}
+						<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+						Gerando PDF...
+					{:else}
+						<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+						Confirmar Escala
+					{/if}
+				</button>
+			</div>
+			{#if policiaisEscala.length === 0}
+				<p class="text-xs text-warning-600 dark:text-warning-400 mt-2">⚠️ Adicione ao menos um policial para habilitar a confirmação.</p>
+			{/if}
+		</div>
+	{/if}
+
+	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		>
+			<div
+				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			>
+				<Dialog.Title class="h3 font-bold mb-2"
+					>Remover Policial?</Dialog.Title
+				>
+				<Dialog.Description
+					class="text-surface-600 dark:text-surface-400 mb-6"
+				>
+					Tem certeza que deseja remover o policial "{policialParaRemover?.nome}"
+					desta escala?
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button class="btn preset-filled-error-500" onclick={confirmarRemocao}>Remover</button>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface"
+						>Cancelar</Dialog.CloseTrigger
+					>
+					<button
+						class="btn preset-filled-error-500"
+						onclick={confirmarRemocao}>Remover</button
+					>
 				</div>
 			</div>
 		</Dialog.Content>
@@ -511,49 +829,123 @@
 
 	<!-- Export buttons -->
 	{#if policiaisEscala.length > 0}
-		<div class="p-4 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
-			<h3 class="font-semibold text-sm mb-3">Exportar Escala</h3>
+		<div
+			class="p-4 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+		>
+			<h3 class="font-semibold text-sm mb-3">
+				Exportar Escala Sem Assinatura Digital
+			</h3>
 			<div class="flex gap-2 flex-wrap">
-				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('docx')}>Word (.docx)</button>
-				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('odt')}>ODT (.odt)</button>
-				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('xlsx')}>Excel (.xlsx)</button>
-				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('ods')}>ODS (.ods)</button>
-				<button class="btn btn-sm preset-filled-primary-500" onclick={() => download('pdf')}>PDF (.pdf)</button>
+				<button
+					class="btn btn-sm preset-filled-primary-500"
+					onclick={() => download("docx")}>Word (.docx)</button
+				>
+				<button
+					class="btn btn-sm preset-filled-primary-500"
+					onclick={() => download("odt")}>ODT (.odt)</button
+				>
+				<button
+					class="btn btn-sm preset-filled-primary-500"
+					onclick={() => download("xlsx")}>Excel (.xlsx)</button
+				>
+				<button
+					class="btn btn-sm preset-filled-primary-500"
+					onclick={() => download("ods")}>ODS (.ods)</button
+				>
+				<button
+					class="btn btn-sm preset-filled-primary-500"
+					onclick={() => download("pdf")}>PDF (.pdf)</button
+				>
 			</div>
 
-			<hr class="my-3 border-surface-200 dark:border-white/10" />
-			<h3 class="font-semibold text-sm mb-3">Assinatura Digital (eToken / Certificado A3)</h3>
+			{#if !isFDS()}
+				<hr class="my-3 border-surface-200 dark:border-white/10" />
+			<h3 class="font-semibold text-sm mb-3">
+				Assinatura Digital (eToken / Certificado A3)
+			</h3>
 
-			<!-- Seletor de certificado Web PKI -->
-			{#if mostrarCerts && certificados.length > 1}
-				<div class="flex gap-2 flex-wrap items-end mb-3">
-					<label class="label flex-1 min-w-[200px]">
-						<span class="label-text text-xs">Certificado (Web PKI)</span>
-						<select class="select" bind:value={certSelecionado}>
-							<option value="">Selecione o certificado...</option>
+			<!-- Selecionador Unificado de Certificados (Web PKI) -->
+			<div
+				class="mb-4 p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10"
+			>
+				<div
+					class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"
+				>
+					<h4 class="font-semibold text-sm flex items-center gap-2">
+						<svg
+							class="w-4 h-4 text-primary-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+							/>
+						</svg>
+						Leitura de Tokens (Recomendado)
+					</h4>
+					<button
+						class="btn btn-sm preset-outlined-primary-500"
+						onclick={carregarCertificadosLocais}
+						disabled={lendoCertificados}
+					>
+						{#if lendoCertificados}
+							<span
+								class="inline-block w-3 h-3 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"
+							></span>
+							Lendo tokens...
+						{:else}
+							Ler Tokens Plugados
+						{/if}
+					</button>
+				</div>
+
+				{#if certificados.length > 0}
+					<label class="label mt-3">
+						<span class="label-text text-xs"
+							>Selecione o certificado que deseja utilizar:</span
+						>
+						<select
+							class="select text-sm bg-white dark:bg-surface-900"
+							bind:value={certSelecionado}
+							onchange={(e) => {
+								const c = certificados.find(
+									(x) =>
+										x.thumbprint === e.currentTarget.value,
+								);
+								if (c) {
+									serproSignerName = c.subjectName;
+									serproSignerCpf = c.cpf || "";
+								}
+							}}
+						>
+							<option value="">Selecione...</option>
 							{#each certificados as cert (cert.thumbprint)}
 								<option value={cert.thumbprint}>
-									{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''}
+									{cert.subjectName}{cert.cpf
+										? ` (CPF: ${cert.cpf})`
+										: ""} - Emissor: {cert.issuerName}
 								</option>
 							{/each}
 						</select>
 					</label>
-				</div>
-			{/if}
-
-			<!-- Campo de nome para assinatura SERPRO -->
-			<div class="flex items-center gap-2 mb-1">
-				<label class="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap" for="serpro-signer-name">
-					Assinante (A3):
-				</label>
-				<input
-					id="serpro-signer-name"
-					type="text"
-					bind:value={serproSignerName}
-					disabled={assinando}
-					placeholder="Nome conforme no certificado A3"
-					class="input input-sm text-xs flex-1 min-w-0"
-				/>
+				{:else if tentouLerCertificados}
+					<p
+						class="text-xs text-error-500 mt-2 bg-error-500/10 p-2 rounded"
+					>
+						Nenhum certificado encontrado. Verifique se o token está
+						conectado e a extensão <strong>Lacuna Web PKI</strong> está
+						instalada.
+					</p>
+				{:else}
+					<p class="text-xs text-surface-500 mt-1">
+						Clique no botão ao lado para listar e preencher
+						automaticamente os dados do seu certificado.
+					</p>
+				{/if}
 			</div>
 
 			<div class="flex gap-2 items-center flex-wrap">
@@ -561,11 +953,13 @@
 				<button
 					class="btn btn-sm preset-filled-success-500"
 					onclick={assinarComWebPKI}
-					disabled={assinando}
-					title="Requer a extensão Lacuna Web PKI instalada no navegador"
+					disabled={assinando || !certSelecionado}
+					title="Requer usar o Leitor de Tokens primeiro"
 				>
-					{#if assinando && (certificados.length > 0 || mostrarCerts)}
-						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+					{#if assinando && certificados.length > 0}
+						<span
+							class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+						></span>
 						{etapaAssinatura}
 					{:else}
 						Assinar com Web PKI
@@ -576,11 +970,13 @@
 				<button
 					class="btn btn-sm preset-filled-tertiary-500"
 					onclick={assinarComSerpro}
-					disabled={assinando}
-					title="Requer o Assinador SERPRO Desktop instalado e em execução"
+					disabled={assinando || !certSelecionado}
+					title="Requer usar o Leitor de Tokens primeiro"
 				>
 					{#if assinando && serproClient}
-						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+						<span
+							class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+						></span>
 						{etapaAssinatura}
 					{:else}
 						Assinar com SERPRO
@@ -589,53 +985,81 @@
 
 				<!-- Trocar certificado Web PKI -->
 				{#if certificados.length > 0 && !assinando}
-					<button class="btn btn-sm preset-outlined-surface" onclick={() => { certificados = []; certSelecionado = ''; mostrarCerts = false; }}>
-						Trocar (Web PKI)
+					<button
+						class="btn btn-sm preset-outlined-surface"
+						onclick={() => {
+							certificados = [];
+							certSelecionado = "";
+							tentouLerCertificados = false;
+						}}
+					>
+						Limpar lista
 					</button>
 				{/if}
-
 			</div>
 
 			<p class="text-xs text-surface-400 dark:text-surface-500 mt-2">
 				<strong>Web PKI:</strong> requer extensão
-				<a href="https://get.webpkiplugin.com/" target="_blank" rel="noopener" class="anchor">Lacuna Web PKI</a>.
-				&nbsp;|&nbsp;
+				<a
+					href="https://get.webpkiplugin.com/"
+					target="_blank"
+					rel="noopener"
+					class="anchor">Lacuna Web PKI</a
+				>. &nbsp;|&nbsp;
 				<strong>SERPRO:</strong> requer o
-				<a href="https://www.serpro.gov.br/menu/nossas-forcas/especializados/assinador-digital" target="_blank" rel="noopener" class="anchor">Assinador SERPRO Desktop</a>
+				<a
+					href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
+					target="_blank"
+					rel="noopener"
+					class="anchor">Assinador SERPRO Desktop</a
+				>
 				instalado e em execução.
-				Se a conexão falhar mesmo com o software aberto:
-				(1) abra
-				<button
-					type="button"
-					class="anchor text-xs"
-					onclick={() => window.open(SERPRO_CERT_AUTH_URL, '_blank')}
-				>este link</button>
-				no <strong>Firefox</strong> e aceite o certificado ("Avançado" → "Aceitar o Risco"),
-				(2) verifique no Windows se o SERPRO está ouvindo alguma porta:
-				<code class="text-xs bg-surface-200 dark:bg-surface-700 px-1 rounded">netstat -ano | findstr "651"</code>.
 			</p>
+			{/if}
 		</div>
 	{/if}
 
 	<!-- Add form -->
-	<div class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
+	<div
+		class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+	>
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 		<form onsubmit={adicionar}>
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+			<div
+				class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end"
+			>
 				<label class="label">
 					<span class="label-text">Cargo</span>
-					<select class="select" bind:value={cargoBusca} onchange={() => { policialId = ''; }}>
+					<select
+						class="select"
+						bind:value={cargoBusca}
+						onchange={() => {
+							policialId = "";
+						}}
+					>
 						<option value="">Selecione...</option>
-						<option value="DPC">DPC - Delegado de Polícia Civil</option>
-						<option value="OIP">OIP - Oficial Investigador de Polícia</option>
+						<option value="DPC"
+							>DPC - Delegado de Polícia Civil</option
+						>
+						<option value="OIP"
+							>OIP - Oficial Investigador de Polícia</option
+						>
 					</select>
 				</label>
 				<label class="label">
 					<span class="label-text">Servidor</span>
-					<select class="select" bind:value={policialId} disabled={!cargoBusca}>
+					<select
+						class="select"
+						bind:value={policialId}
+						disabled={!cargoBusca}
+					>
 						<option value="">Selecione...</option>
 						{#each policialsFiltrados as p (p.id)}
-							<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
+							<option value={String(p.id)}
+								>{p.nome}{p.lotacao
+									? " — " + p.lotacao
+									: ""}</option
+							>
 						{/each}
 					</select>
 				</label>
@@ -647,9 +1071,35 @@
 						{/each}
 					</select>
 				</label>
-				<div>
-					<button type="submit" class="btn preset-filled-primary-500 w-full sm:w-auto" disabled={adding || !policialId || !dataPlantao}>
-						{adding ? 'Adicionando...' : 'Adicionar'}
+				<div class="flex flex-col gap-1">
+					<span class="label-text text-xs">Entrada</span>
+					<div class="flex gap-1">
+						<select class="select flex-1" bind:value={addHoraEntrada}>
+							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+						</select>
+						<select class="select flex-1" bind:value={addMinutoEntrada}>
+							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+						</select>
+					</div>
+				</div>
+				<div class="flex flex-col gap-1">
+					<span class="label-text text-xs">Saída</span>
+					<div class="flex gap-1">
+						<select class="select flex-1" bind:value={addHoraSaida}>
+							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+						</select>
+						<select class="select flex-1" bind:value={addMinutoSaida}>
+							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+						</select>
+					</div>
+				</div>
+				<div class="lg:col-span-1">
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 w-full"
+						disabled={adding || !policialId || !dataPlantao}
+					>
+						{adding ? "Adicionando..." : "Adicionar"}
 					</button>
 				</div>
 			</div>
@@ -664,7 +1114,9 @@
 	{:else}
 		{#each [...agruparPorData(policiaisEscala)] as [dataGrupo, policiais] (dataGrupo)}
 			<!-- Desktop table -->
-			<div class="p-4 overflow-hidden mb-6 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border-2 border-surface-200 dark:border-white/15 shadow-xl shadow-black/5 dark:shadow-black/20">
+			<div
+				class="p-4 overflow-hidden mb-6 hidden md:block rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border-2 border-surface-200 dark:border-white/15 shadow-xl shadow-black/5 dark:shadow-black/20"
+			>
 				<div class="table-wrap">
 					<table class="table">
 						<thead>
@@ -685,28 +1137,49 @@
 									<td>{p.nome}</td>
 									<td>{p.matricula}</td>
 									<td>
-										<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
+										<span
+											class="badge text-xs {p.cargo === 'DPC'
+												? 'preset-filled-primary-500'
+												: 'preset-filled-warning-500'}"
+										>
+											{p.cargo}
+										</span>
 									</td>
 									<td>{p.telefone}</td>
 									<td>{p.lotacao}</td>
 									{#if editingId === p.id}
-										<td colspan="2" class="bg-surface-200 dark:bg-surface-800 rounded-lg">
+										<td
+											colspan="2"
+											class="bg-surface-200 dark:bg-surface-800 rounded-lg"
+										>
 											<div class="flex flex-col gap-2 py-1">
 												<div class="flex items-center gap-2">
 													<span class="text-xs font-semibold text-surface-500 w-14">Entrada:</span>
 													<input type="date" bind:value={editDataEntrada} class="input text-sm flex-1 min-w-[120px]" />
-													<select bind:value={editEntrada} class="select text-sm w-16">
-														{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-													</select>
+													<div class="flex gap-1">
+														<select bind:value={editHoraEntrada} class="select text-sm w-16">
+															{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+														</select>
+														<select bind:value={editMinutoEntrada} class="select text-sm w-16">
+															{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+														</select>
+													</div>
 												</div>
 												<div class="flex items-center gap-2">
 													<span class="text-xs font-semibold text-surface-500 w-14">Saída:</span>
 													<input type="date" bind:value={editDataSaida} class="input text-sm flex-1 min-w-[120px]" />
-													<select bind:value={editSaida} class="select text-sm w-16">
-														{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-													</select>
+													<div class="flex gap-1">
+														<select bind:value={editHoraSaida} class="select text-sm w-16">
+															{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+														</select>
+														<select bind:value={editMinutoSaida} class="select text-sm w-16">
+															{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+														</select>
+													</div>
 												</div>
-												<p class="text-xs text-surface-500 italic">{editPreviewData()} &bull; {editEntrada}H A {editSaida}H</p>
+												<p class="text-xs text-surface-500 italic">
+													{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H
+												</p>
 												<div class="flex gap-1">
 													<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
 													<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
@@ -715,18 +1188,31 @@
 										</td>
 									{:else}
 										<td>
-											<button class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors" onclick={() => startEdit(p)} title="Clique para editar">
+											<button
+												class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors"
+												onclick={() => startEdit(p)}
+												title="Clique para editar"
+											>
 												{formatarDataPlantao(p)}
 											</button>
 										</td>
 										<td>
-											<button class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors" onclick={() => startEdit(p)} title="Clique para editar">
+											<button
+												class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors"
+												onclick={() => startEdit(p)}
+												title="Clique para editar"
+											>
 												{formatarHorario(p)}
 											</button>
 										</td>
 									{/if}
 									<td>
-										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
+										<button
+											class="btn btn-sm preset-filled-error-500"
+											onclick={() => solicitarRemocao(p.id, p.nome)}
+										>
+											Remover
+										</button>
 									</td>
 								</tr>
 							{/each}
@@ -738,10 +1224,17 @@
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3 mb-6">
 				{#each policiais as p (p.id)}
-				<div class="p-4 mb-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border-2 border-surface-200 dark:border-white/15 hover:border-primary-500/40 transition-colors">
+					<div
+						class="p-4 mb-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border-2 border-surface-200 dark:border-white/15 hover:border-primary-500/40 transition-colors"
+					>
 						<div class="flex items-center justify-between mb-2">
 							<span class="font-semibold text-sm">{p.nome}</span>
-							<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
+							<span
+								class="badge text-xs {p.cargo === 'DPC'
+									? 'preset-filled-primary-500'
+									: 'preset-filled-warning-500'}"
+								>{p.cargo}</span
+							>
 						</div>
 						<div class="space-y-1 text-sm text-surface-600 mb-3">
 							<div class="flex justify-between">
@@ -759,50 +1252,117 @@
 						</div>
 
 						{#if editingId === p.id}
-							<div class="bg-surface-200 dark:bg-surface-800 rounded-lg p-3 space-y-2 mb-3">
+							<div
+								class="bg-surface-200 dark:bg-surface-800 rounded-lg p-3 space-y-2 mb-3"
+							>
 								<div class="grid grid-cols-2 gap-2">
 									<label class="label">
-										<span class="label-text text-xs">Data entrada</span>
-										<input type="date" bind:value={editDataEntrada} class="input text-sm" />
+										<span class="label-text text-xs"
+											>Data entrada</span
+										>
+										<input
+											type="date"
+											bind:value={editDataEntrada}
+											class="input text-sm"
+										/>
 									</label>
 									<label class="label">
-										<span class="label-text text-xs">Hora entrada</span>
-										<select bind:value={editEntrada} class="select text-sm">
-											{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-										</select>
+										<span class="label-text text-xs"
+											>Hora entrada</span
+										>
+										<div class="flex gap-1">
+											<select
+												bind:value={editHoraEntrada}
+												class="select text-sm flex-1"
+											>
+												{#each horas as h (h)}<option
+														value={h}>{h}h</option
+													>{/each}
+											</select>
+											<select
+												bind:value={editMinutoEntrada}
+												class="select text-sm flex-1"
+											>
+												{#each minutos as m (m)}<option
+														value={m}>{m}m</option
+													>{/each}
+											</select>
+										</div>
 									</label>
 								</div>
 								<div class="grid grid-cols-2 gap-2">
 									<label class="label">
-										<span class="label-text text-xs">Data saída</span>
-										<input type="date" bind:value={editDataSaida} class="input text-sm" />
+										<span class="label-text text-xs"
+											>Data saída</span
+										>
+										<input
+											type="date"
+											bind:value={editDataSaida}
+											class="input text-sm"
+										/>
 									</label>
 									<label class="label">
-										<span class="label-text text-xs">Hora saída</span>
-										<select bind:value={editSaida} class="select text-sm">
-											{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-										</select>
+										<span class="label-text text-xs"
+											>Hora saída</span
+										>
+										<div class="flex gap-1">
+											<select
+												bind:value={editHoraSaida}
+												class="select text-sm flex-1"
+											>
+												{#each horas as h (h)}<option
+														value={h}>{h}h</option
+													>{/each}
+											</select>
+											<select
+												bind:value={editMinutoSaida}
+												class="select text-sm flex-1"
+											>
+												{#each minutos as m (m)}<option
+														value={m}>{m}m</option
+													>{/each}
+											</select>
+										</div>
 									</label>
 								</div>
-								<p class="text-xs text-surface-500 italic">{editPreviewData()} &bull; {editEntrada}H A {editSaida}H</p>
+								<p class="text-xs text-surface-500 italic">
+									{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H
+								</p>
 								<div class="flex gap-2">
-									<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
-									<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
+									<button
+										class="btn btn-sm preset-filled-primary-500"
+										onclick={() => salvarEdicao(p.id)}
+										>Salvar</button
+									>
+									<button
+										class="btn btn-sm preset-outlined-primary-500"
+										onclick={cancelEdit}>Cancelar</button
+									>
 								</div>
 							</div>
 						{:else}
 							<div class="flex gap-2 mb-3">
-								<button class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors" onclick={() => startEdit(p)}>
+								<button
+									class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors"
+									onclick={() => startEdit(p)}
+								>
 									{formatarDataPlantao(p)}
 								</button>
-								<button class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors" onclick={() => startEdit(p)}>
+								<button
+									class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors"
+									onclick={() => startEdit(p)}
+								>
 									{formatarHorario(p)}
 								</button>
 							</div>
 						{/if}
 
 						<div class="flex justify-end">
-							<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
+							<button
+								class="btn btn-sm preset-filled-error-500"
+								onclick={() => solicitarRemocao(p.id, p.nome)}
+								>Remover</button
+							>
 						</div>
 					</div>
 				{/each}

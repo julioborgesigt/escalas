@@ -33,8 +33,8 @@ function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string {
 
 function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	if (p.data_saida) return p.data_saida;
-	const he = Number(getHoraEntrada(p, escala));
-	const hs = Number(getHoraSaida(p, escala));
+	const he = Number(getHoraEntrada(p, escala).split(':')[0]);
+	const hs = Number(getHoraSaida(p, escala).split(':')[0]);
 	if (hs <= he) return proximoDia(p.data_plantao);
 	return p.data_plantao;
 }

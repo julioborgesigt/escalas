@@ -1,11 +1,11 @@
+import type { Policial, Escala, EscalaPolicial, Unidade } from './server/schema';
+
 export type {
 	Policial,
 	Escala,
 	EscalaPolicial,
 	Unidade
-} from './server/schema';
-
-import type { EscalaPolicial } from './server/schema';
+};
 
 export interface EscalaPolicialComDados extends EscalaPolicial {
 	nome: string;
@@ -13,4 +13,8 @@ export interface EscalaPolicialComDados extends EscalaPolicial {
 	cargo: string;
 	telefone: string | null;
 	lotacao: string;
+}
+
+export interface EscalaListagem extends Escala {
+	is_assinada: boolean;
 }

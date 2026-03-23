@@ -10,11 +10,14 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	// Se for policial, filtra obrigatoriamente pela sua lotação.
 	// Se for admin, usa o filtro vindo da query string (se houver).
 	let lotacao = url.searchParams.get('lotacao') || undefined;
+	const statusParam = url.searchParams.get('status');
+	const status = (statusParam === 'pendente' || statusParam === 'assinada') ? statusParam : undefined;
+
 	if (usuario?.tipo === 'policial') {
 		lotacao = usuario.lotacao;
 	}
 
-	const escalas = await listarEscalas(db, lotacao);
+	const escalas = await listarEscalas(db, lotacao, status);
 	return json(escalas);
 };
 
