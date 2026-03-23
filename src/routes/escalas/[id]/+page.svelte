@@ -5,7 +5,7 @@
 	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import {
-		conectarSerpro, assinarSerpro,
+		conectarSerpro,
 		SERPRO_CERT_AUTH_URL, type SerproSignerClient
 	} from '$lib/serpro';
 
@@ -380,49 +380,28 @@
 
 	async function executarAssinaturaSerpro(client: SerproSignerClient) {
 		try {
-			// 1. Preparar PDF no servidor (carimbo + placeholder + messageDigest)
-			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-			const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({})  // servidor usa nome/CPF do usuário logado
+			// Usa o mesmo fluxo do Web PKI (finalizarEBaixarPdf + type:'hash').
+			// type:'file' abre o seletor de arquivo do app SERPRO, que assina um
+			// arquivo diferente dos bytes preparados pelo servidor → assinatura inválida.
+			// Com type:'hash' o SERPRO assina exatamente o hash dos SignedAttributes
+			// que o servidor calculou, e o CMS é montado pelo servidor com o certificado.
+			await finalizarEBaixarPdf('', '', async (signedAttrsHashHex) => {
+				etapaAssinatura = 'Selecione o certificado e assine no Assinador SERPRO...';
+				// Converter hash hex (32 bytes) → bytes binários → base64 para SERPRO
+				const hashBase64 = btoa(
+					signedAttrsHashHex.match(/.{2}/g)!
+						.map(h => String.fromCharCode(parseInt(h, 16)))
+						.join('')
+				);
+				const result = await client.sign(hashBase64);
+				if (!result.certificateBase64) {
+					throw new Error(
+						'Assinador SERPRO não retornou o certificado do signatário. ' +
+						'Verifique se o Assinador SERPRO Desktop está atualizado.'
+					);
+				}
+				return { rawSignature: result.rawSignature, certificateBase64: result.certificateBase64 };
 			});
-			if (!prepRes.ok) {
-				const err = await prepRes.json();
-				throw new Error(err.error || 'Erro ao preparar PDF');
-			}
-			const { preparedPdf, dataToSignBase64 } = await prepRes.json();
-
-			// 2. Assinar com SERPRO — envia o byte-range do PDF (type:'file').
-			// O SERPRO computa SHA-256(byte-range) uma vez → CMS.messageDigest correto.
-			// O SERPRO abre sua UI nativa para seleção de certificado + PIN.
-			etapaAssinatura = 'Selecione o certificado e digite o PIN no Assinador SERPRO...';
-			const { cmsBase64 } = await assinarSerpro(client, dataToSignBase64);
-
-			// 3. Embutir o CMS SERPRO no placeholder do PDF (servidor)
-			etapaAssinatura = 'Finalizando PDF assinado...';
-			const finRes = await fetch(`/api/escalas/${page.params.id}/finalizar-assinatura-serpro`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ preparedPdf, serproCms: cmsBase64 })
-			});
-			if (!finRes.ok) {
-				const err = await finRes.json();
-				throw new Error(err.error || 'Erro ao finalizar assinatura SERPRO');
-			}
-
-			// 4. Download do PDF assinado
-			const blob = await finRes.blob();
-			const cd = finRes.headers.get('Content-Disposition') ?? '';
-			const filename = cd.match(/filename="(.+?)"/)?.[1] ?? 'escala_assinada.pdf';
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = filename;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
 
 			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
 		} finally {
