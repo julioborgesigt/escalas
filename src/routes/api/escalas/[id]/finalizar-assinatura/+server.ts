@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, buscarEscala } from '$lib/db';
-import { finalizarAssinatura } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const POST = async ({ platform, params, request, locals }: RequestEvent) => {
@@ -17,27 +17,40 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		return json({ error: 'Escala não encontrada' }, { status: 404 });
 	}
 
-	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO } =
-		await request.json();
+	const body = await request.json();
+	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms } = body;
 
-	if (!preparedPdf || !rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
-		return json(
-			{ error: 'preparedPdf, rawSignature, certificateBase64, messageDigest e signingTimeISO são obrigatórios' },
-			{ status: 400 }
-		);
+	if (!preparedPdf) {
+		return json({ error: 'preparedPdf é obrigatório' }, { status: 400 });
 	}
+
+	const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_assinada.pdf`;
 
 	try {
 		const preparedPdfBytes = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
-		const signedPdf = await finalizarAssinatura(
-			preparedPdfBytes,
-			rawSignature,
-			certificateBase64,
-			messageDigest,
-			signingTimeISO
-		);
+		let signedPdf: Uint8Array;
 
-		const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_assinada.pdf`;
+		if (serproCms) {
+			// Fluxo SERPRO: CMS PKCS#7 completo retornado pelo Assinador SERPRO.
+			// O messageDigest já está correto (enviamos o hash do ByteRange ao SERPRO).
+			// Basta embutir o CMS diretamente no placeholder do PDF.
+			signedPdf = await embedSerproCms(preparedPdfBytes, serproCms);
+		} else {
+			// Fluxo Web PKI: assinatura RSA bruta + certificado separados.
+			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
+				return json(
+					{ error: 'rawSignature, certificateBase64, messageDigest e signingTimeISO são obrigatórios para o fluxo Web PKI' },
+					{ status: 400 }
+				);
+			}
+			signedPdf = await finalizarAssinatura(
+				preparedPdfBytes,
+				rawSignature,
+				certificateBase64,
+				messageDigest,
+				signingTimeISO
+			);
+		}
 
 		return new Response(signedPdf as unknown as BodyInit, {
 			headers: {
