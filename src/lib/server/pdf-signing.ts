@@ -450,10 +450,12 @@ export async function embedSerproCms(
 ): Promise<Uint8Array> {
 	// Decodifica o CMS retornado pelo SERPRO (BER, com comprimentos indefinidos nos wrappers)
 	const cmsBer = Buffer.from(forge.util.decode64(serproCmsBase64), 'binary');
+	console.log(`[PDF] CMS raw BER bytes[0..19]: ${cmsBer.subarray(0, 20).toString('hex')}`);
 
 	// Converte APENAS os wrappers externos para DER, preservando o SignedData intacto.
 	// Adobe exige DER; re-codificação completa via forge quebraria a assinatura RSA.
 	const cmsDer = berToDer(cmsBer);
+	console.log(`[PDF] CMS DER bytes[0..19]:     ${cmsDer.subarray(0, 20).toString('hex')}`);
 
 	const cmsHex = cmsDer.toString('hex');
 
@@ -468,6 +470,12 @@ export async function embedSerproCms(
 	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
 	const sigEnd = pdfString.indexOf('>', sigStart);
 	const placeholderLength = sigEnd - sigStart - 1;
+
+	// Diagnóstico
+	const byteRangeMatch = pdfString.match(/\/ByteRange\s*\[([^\]]+)\]/);
+	console.log(`[PDF] /ByteRange: ${byteRangeMatch?.[1]?.trim() ?? 'NÃO ENCONTRADO'}`);
+	console.log(`[PDF] /Contents: sigStart=${sigStart}, sigEnd=${sigEnd}, placeholderLength=${placeholderLength} (${placeholderLength / 2} bytes)`);
+	console.log(`[PDF] cmsHex.length=${cmsHex.length} (${cmsHex.length / 2} bytes)`);
 
 	if (cmsHex.length > placeholderLength) {
 		throw new Error(
