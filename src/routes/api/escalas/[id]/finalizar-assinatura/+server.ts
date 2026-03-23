@@ -47,6 +47,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		});
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Erro ao assinar PDF';
+		console.error('[finalizar-assinatura] Erro:', e);
 		return json({ error: message }, { status: 500 });
 	}
 };
