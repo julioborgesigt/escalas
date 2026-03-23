@@ -229,6 +229,13 @@
 
 	// --- Assinador SERPRO ---
 	let serproClient = $state<SerproSignerClient | null>(null);
+	/**
+	 * Nome do assinante a ser gravado no carimbo visual do PDF.
+	 * Deve corresponder ao titular do certificado A3 usado na assinatura.
+	 * Pré-preenchido com o nome do usuário logado, mas editável caso
+	 * o token pertença a outra pessoa.
+	 */
+	let serproSignerName = $state(page.data.usuario?.nome ?? '');
 
 	// ── Helpers compartilhados ──────────────────────────────────────────────
 
@@ -388,12 +395,12 @@
 			// SignedAttrs — assim o CMS resultante terá o messageDigest correto para PAdES.
 			// O CMS é então embedado diretamente via embedSerproCms (sem reconstrução).
 
-			// 1. Preparar PDF
+			// 1. Preparar PDF com o nome do assinante informado no campo de texto
 			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
 			const prepRes = await fetch(`/api/escalas/${page.params.id}/preparar-assinatura`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({})
+				body: JSON.stringify({ signerName: serproSignerName || undefined })
 			});
 			if (!prepRes.ok) {
 				const err = await prepRes.json();
@@ -412,6 +419,9 @@
 			etapaAssinatura = 'Selecione o certificado e assine no Assinador SERPRO...';
 			const result = await client.sign(messageDigestBase64);
 			const serproCms = result.rawSignature; // CMS PKCS#7 completo base64
+
+			// Extrai nome do titular do certificado A3 (ex.: "MARCOS NAZARE:12345678901" → "MARCOS NAZARE")
+			const certName = result.signerAlias?.replace(/:[\d]+$/, '').trim();
 
 			// 4. Embutir CMS SERPRO diretamente no PDF (servidor usa embedSerproCms)
 			etapaAssinatura = 'Finalizando PDF assinado...';
@@ -437,7 +447,17 @@
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
 
-			toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+			// Após assinar, atualiza o nome para o próximo uso (facilita fluxo com token alheio)
+			if (certName && certName !== serproSignerName) {
+				serproSignerName = certName;
+				toaster.create({
+					title: 'PDF assinado com sucesso!',
+					description: `Certificado: ${certName}. Se o nome no carimbo estiver diferente, atualize o campo "Assinante" acima e assine novamente.`,
+					type: 'success'
+				});
+			} else {
+				toaster.create({ title: 'PDF assinado com sucesso!', type: 'success' });
+			}
 		} finally {
 			assinando = false;
 			etapaAssinatura = '';
@@ -520,6 +540,21 @@
 					</label>
 				</div>
 			{/if}
+
+			<!-- Campo de nome para assinatura SERPRO -->
+			<div class="flex items-center gap-2 mb-1">
+				<label class="text-xs text-surface-500 dark:text-surface-400 whitespace-nowrap" for="serpro-signer-name">
+					Assinante (A3):
+				</label>
+				<input
+					id="serpro-signer-name"
+					type="text"
+					bind:value={serproSignerName}
+					disabled={assinando}
+					placeholder="Nome conforme no certificado A3"
+					class="input input-sm text-xs flex-1 min-w-0"
+				/>
+			</div>
 
 			<div class="flex gap-2 items-center flex-wrap">
 				<!-- Botão Web PKI -->
