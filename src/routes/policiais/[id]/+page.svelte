@@ -11,6 +11,7 @@
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
 	let telefone = $state('');
+	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacao = $state('');
 	let unidades = $state<string[]>([]);
 	let saving = $state(false);
@@ -26,6 +27,7 @@
 				matricula = data.matricula;
 				cargo = data.cargo;
 				telefone = data.telefone || '';
+				regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
 				lotacao = data.lotacao;
 				loading = false;
 			});
@@ -44,7 +46,7 @@
 		const res = await fetch(`/api/policiais/${page.params.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao })
+			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao, regime })
 		});
 
 		if (res.ok) {
@@ -91,6 +93,14 @@
 					<input class="input" type="text" bind:value={telefone} />
 				</label>
 			</div>
+			<label class="label">
+				<span class="label-text">Regime de Trabalho</span>
+				<select class="select" bind:value={regime}>
+					<option value="ambos">Plantão e Expediente</option>
+					<option value="plantao">Somente Plantão</option>
+					<option value="expediente">Somente Expediente</option>
+				</select>
+			</label>
 			<label class="label">
 				<span class="label-text">Lotação</span>
 				{#if isAdmin}

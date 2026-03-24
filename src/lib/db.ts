@@ -48,21 +48,22 @@ export async function buscarPolicial(db: Database, id: number): Promise<schema.P
 
 export async function criarPolicial(
 	db: Database,
-	data: { nome: string; matricula: string; cargo: string; telefone?: string; lotacao?: string }
+	data: { nome: string; matricula: string; cargo: string; telefone?: string; lotacao?: string; regime?: string }
 ) {
 	return db.insert(policiais).values({
 		nome: data.nome,
 		matricula: limparMatricula(data.matricula),
 		cargo: data.cargo as 'DPC' | 'OIP',
 		telefone: data.telefone || '',
-		lotacao: data.lotacao || ''
+		lotacao: data.lotacao || '',
+		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos'
 	});
 }
 
 export async function atualizarPolicial(
 	db: Database,
 	id: number,
-	data: Partial<{ nome: string; matricula: string; cargo: string; telefone: string; lotacao: string; ativo: number }>
+	data: Partial<{ nome: string; matricula: string; cargo: string; telefone: string; lotacao: string; ativo: number; regime: string }>
 ) {
 	const updateData: Record<string, unknown> = {};
 
@@ -72,6 +73,7 @@ export async function atualizarPolicial(
 	if (data.telefone !== undefined) updateData.telefone = data.telefone;
 	if (data.lotacao !== undefined) updateData.lotacao = data.lotacao;
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;
+	if (data.regime !== undefined) updateData.regime = data.regime;
 
 	updateData.updated_at = sql`datetime('now')`;
 
@@ -220,6 +222,36 @@ export async function excluirEscala(db: Database, id: number) {
 	return db.delete(escalas).where(eq(escalas.id, id));
 }
 
+export async function verificarEscalaExistente(
+	db: Database,
+	lotacao: string,
+	tipo: 'plantao' | 'expediente' | 'fds',
+	dataInicio: string
+): Promise<schema.Escala | undefined> {
+	if (tipo === 'fds') {
+		// Para FDS: verifica mesma data de início (mesmo sábado)
+		return db
+			.select()
+			.from(escalas)
+			.where(and(eq(escalas.lotacao, lotacao), eq(escalas.tipo, tipo), eq(escalas.data_inicio, dataInicio)))
+			.get();
+	} else {
+		// Para plantão/expediente: verifica mesmo mês/ano
+		const mesAno = dataInicio.substring(0, 7); // "YYYY-MM"
+		return db
+			.select()
+			.from(escalas)
+			.where(
+				and(
+					eq(escalas.lotacao, lotacao),
+					eq(escalas.tipo, tipo),
+					sql`substr(${escalas.data_inicio}, 1, 7) = ${mesAno}`
+				)
+			)
+			.get();
+	}
+}
+
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db
 		.update(escalas)
@@ -269,6 +301,55 @@ export async function atualizarEscalaPolicial(
 
 export async function removerPolicialEscala(db: Database, id: number) {
 	return db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, id));
+}
+
+export async function adicionarTodosPoliciais(
+	db: Database,
+	escalaId: number,
+	lotacao: string,
+	regime: 'plantao' | 'expediente',
+	dataPlantao: string,
+	dataSaida: string,
+	horaEntrada: string,
+	horaSaida: string
+): Promise<number> {
+	// Busca policiais ativos da lotação com regime compatível (regime exato ou 'ambos')
+	const candidatos = await db
+		.select({ id: policiais.id })
+		.from(policiais)
+		.where(
+			and(
+				eq(policiais.ativo, 1),
+				eq(policiais.lotacao, lotacao),
+				or(eq(policiais.regime, regime), eq(policiais.regime, 'ambos'))!
+			)
+		);
+
+	if (candidatos.length === 0) return 0;
+
+	// Verifica quais já estão na escala (qualquer data) para não duplicar
+	const jaNaEscala = await db
+		.select({ policial_id: escalaPoliciais.policial_id })
+		.from(escalaPoliciais)
+		.where(eq(escalaPoliciais.escala_id, escalaId));
+
+	const idsJaAdicionados = new Set(jaNaEscala.map((e) => e.policial_id));
+	const novos = candidatos.filter((p) => !idsJaAdicionados.has(p.id));
+
+	if (novos.length === 0) return 0;
+
+	await db.insert(escalaPoliciais).values(
+		novos.map((p) => ({
+			escala_id: escalaId,
+			policial_id: p.id,
+			data_plantao: dataPlantao,
+			data_saida: dataSaida,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida
+		}))
+	);
+
+	return novos.length;
 }
 
 export async function listarPoliciaisEscala(

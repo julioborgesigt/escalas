@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarEscalaPolicial, type Database } from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarEscalaPolicial, adicionarTodosPoliciais, type Database } from '$lib/db';
 import { escalaPolicialSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -72,6 +72,40 @@ export const PATCH: RequestHandler = async ({ platform, params, request, locals 
 		data.hora_saida || ''
 	);
 	return json({ success: true });
+};
+
+export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
+	const db = getDB(platform);
+	const escalaId = Number(params.id);
+
+	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
+	if (bloqueio) return bloqueio;
+
+	const escala = await buscarEscala(db, escalaId);
+	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+
+	if (escala.tipo !== 'plantao' && escala.tipo !== 'expediente') {
+		return json({ error: 'Esta operação só está disponível para escalas de plantão ou expediente' }, { status: 400 });
+	}
+
+	const data = await request.json();
+	const dataPlantao: string = data.data_plantao || escala.data_inicio;
+	const dataSaida: string = data.data_saida || escala.data_inicio;
+	const horaEntrada: string = data.hora_entrada || escala.hora_entrada;
+	const horaSaida: string = data.hora_saida || escala.hora_saida;
+
+	const quantidade = await adicionarTodosPoliciais(
+		db,
+		escalaId,
+		escala.lotacao,
+		escala.tipo,
+		dataPlantao,
+		dataSaida,
+		horaEntrada,
+		horaSaida
+	);
+
+	return json({ success: true, quantidade }, { status: 200 });
 };
 
 export const DELETE: RequestHandler = async ({ platform, params, url, locals }) => {
