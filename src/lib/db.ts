@@ -314,6 +314,7 @@ export async function adicionarTodosPoliciais(
 	horaSaida: string
 ): Promise<number> {
 	// Busca policiais ativos da lotação com regime compatível (regime exato ou 'ambos')
+	// Usa SQL raw para evitar problemas com or() do Drizzle no D1
 	const candidatos = await db
 		.select({ id: policiais.id })
 		.from(policiais)
@@ -321,7 +322,7 @@ export async function adicionarTodosPoliciais(
 			and(
 				eq(policiais.ativo, 1),
 				eq(policiais.lotacao, lotacao),
-				or(eq(policiais.regime, regime), eq(policiais.regime, 'ambos'))!
+				sql`(${policiais.regime} = ${regime} OR ${policiais.regime} = 'ambos' OR ${policiais.regime} IS NULL)`
 			)
 		);
 

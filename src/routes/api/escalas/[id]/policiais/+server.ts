@@ -94,18 +94,23 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	const horaEntrada: string = data.hora_entrada || escala.hora_entrada;
 	const horaSaida: string = data.hora_saida || escala.hora_saida;
 
-	const quantidade = await adicionarTodosPoliciais(
-		db,
-		escalaId,
-		escala.lotacao,
-		escala.tipo,
-		dataPlantao,
-		dataSaida,
-		horaEntrada,
-		horaSaida
-	);
-
-	return json({ success: true, quantidade }, { status: 200 });
+	try {
+		const quantidade = await adicionarTodosPoliciais(
+			db,
+			escalaId,
+			escala.lotacao,
+			escala.tipo,
+			dataPlantao,
+			dataSaida,
+			horaEntrada,
+			horaSaida
+		);
+		return json({ success: true, quantidade }, { status: 200 });
+	} catch (e: unknown) {
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error('[PUT /api/escalas/[id]/policiais] erro:', msg);
+		return json({ error: 'Erro ao adicionar servidores', detail: msg }, { status: 500 });
+	}
 };
 
 export const DELETE: RequestHandler = async ({ platform, params, url, locals }) => {
