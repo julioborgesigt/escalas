@@ -13,6 +13,7 @@ export const policiais = sqliteTable(
 		telefone: text('telefone'),
 		lotacao: text('lotacao').notNull(),
 		ativo: integer('ativo').notNull().default(1),
+		regime: text('regime', { enum: ['plantao', 'expediente', 'ambos'] }).notNull().default('ambos'),
 		senha: text('senha')
 			.notNull()
 			.default('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f'),

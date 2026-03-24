@@ -5,7 +5,8 @@ export const policialSchema = z.object({
 	matricula: z.string().min(1, 'Matrícula é obrigatória'),
 	cargo: z.enum(['DPC', 'OIP'], { message: 'Cargo deve ser DPC ou OIP' }),
 	telefone: z.string().default(''),
-	lotacao: z.string().default('')
+	lotacao: z.string().default(''),
+	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos')
 });
 
 export const policialUpdateSchema = policialSchema.partial().extend({

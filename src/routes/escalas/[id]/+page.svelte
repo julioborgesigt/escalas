@@ -42,6 +42,7 @@
 	let addHoraSaida = $state("08");
 	let addMinutoSaida = $state("00");
 	let adding = $state(false);
+	let adicionandoTodos = $state(false);
 
 	const policialsFiltrados = $derived(
 		cargoBusca
@@ -205,6 +206,45 @@
 			toaster.create({ title: "Erro ao adicionar", type: "error" });
 		}
 		adding = false;
+	}
+
+	async function adicionarTodos() {
+		if (!escala || adicionandoTodos) return;
+		adicionandoTodos = true;
+
+		const he = escala.hora_entrada || "08:00";
+		const hs = escala.hora_saida || "08:00";
+		const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
+
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				data_plantao: escala.data_inicio,
+				data_saida: ds,
+				hora_entrada: he,
+				hora_saida: hs,
+			}),
+		});
+
+		if (res.ok) {
+			const data = await res.json();
+			if (data.quantidade === 0) {
+				toaster.create({
+					title: "Todos os servidores já estão na escala",
+					type: "warning",
+				});
+			} else {
+				toaster.create({
+					title: `${data.quantidade} servidor(es) adicionado(s) à escala`,
+					type: "success",
+				});
+			}
+			await recarregarPoliciais();
+		} else {
+			toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
+		}
+		adicionandoTodos = false;
 	}
 
 	function startEdit(p: EscalaPolicialComDados) {
@@ -1016,6 +1056,36 @@
 				instalado e em execução.
 			</p>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Adicionar todos (apenas para escalas mensais de plantão ou expediente) -->
+	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
+		<div
+			class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20"
+		>
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<h3 class="font-semibold text-sm text-primary-700 dark:text-primary-400">
+						Adicionar Todos os Servidores do {escala.tipo === 'plantao' ? 'Plantão' : 'Expediente'}
+					</h3>
+					<p class="text-xs text-surface-500 mt-1">
+						Adiciona automaticamente todos os servidores cadastrados com regime de {escala.tipo === 'plantao' ? 'plantão' : 'expediente'} (ou ambos) da {escala.lotacao} que ainda não estão na escala.
+					</p>
+				</div>
+				<button
+					class="btn preset-filled-primary-500 shrink-0 font-semibold"
+					onclick={adicionarTodos}
+					disabled={adicionandoTodos}
+				>
+					{#if adicionandoTodos}
+						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+						Adicionando...
+					{:else}
+						+ Adicionar Todos
+					{/if}
+				</button>
+			</div>
 		</div>
 	{/if}
 
