@@ -6,7 +6,8 @@ export const policialSchema = z.object({
 	cargo: z.enum(['DPC', 'OIP'], { message: 'Cargo deve ser DPC ou OIP' }),
 	telefone: z.string().default(''),
 	lotacao: z.string().default(''),
-	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos')
+	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos'),
+	classe: z.string().default('')
 });
 
 export const policialUpdateSchema = policialSchema.partial().extend({

@@ -1,6 +1,11 @@
 import { error, json } from '@sveltejs/kit';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
-import { gerarDocx, gerarXlsx, gerarPdf, gerarOds } from '$lib/export';
+import {
+	gerarDocx, gerarDocxExpediente, gerarDocxPlantao,
+	gerarXlsx, gerarXlsxExpediente, gerarXlsxPlantao,
+	gerarPdf, gerarPdfExpediente, gerarPdfPlantao,
+	gerarOds, gerarOdsExpediente, gerarOdsPlantao
+} from '$lib/export';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, params, url, locals }) => {
@@ -27,30 +32,52 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 	let contentType: string;
 	let ext: string;
 
+	const tipo = escala.tipo;
+
 	try {
 		switch (format) {
 			case 'docx':
-				data = await gerarDocx(escala, policiais);
+				data = tipo === 'expediente'
+					? await gerarDocxExpediente(escala, policiais)
+					: tipo === 'plantao'
+						? await gerarDocxPlantao(escala, policiais)
+						: await gerarDocx(escala, policiais);
 				contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 				ext = 'docx';
 				break;
 			case 'odt':
-				data = await gerarDocx(escala, policiais);
-				contentType = 'application/vnd.oasis.opendocument.text';
-				ext = 'odt';
+				data = tipo === 'expediente'
+					? await gerarDocxExpediente(escala, policiais)
+					: tipo === 'plantao'
+						? await gerarDocxPlantao(escala, policiais)
+						: await gerarDocx(escala, policiais);
+				contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+				ext = 'docx';
 				break;
 			case 'xlsx':
-				data = gerarXlsx(escala, policiais);
+				data = tipo === 'expediente'
+					? gerarXlsxExpediente(escala, policiais)
+					: tipo === 'plantao'
+						? gerarXlsxPlantao(escala, policiais)
+						: gerarXlsx(escala, policiais);
 				contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 				ext = 'xlsx';
 				break;
 			case 'ods':
-				data = gerarOds(escala, policiais);
+				data = tipo === 'expediente'
+					? gerarOdsExpediente(escala, policiais)
+					: tipo === 'plantao'
+						? gerarOdsPlantao(escala, policiais)
+						: gerarOds(escala, policiais);
 				contentType = 'application/vnd.oasis.opendocument.spreadsheet';
 				ext = 'ods';
 				break;
 			case 'pdf':
-				data = gerarPdf(escala, policiais);
+				data = tipo === 'expediente'
+					? gerarPdfExpediente(escala, policiais)
+					: tipo === 'plantao'
+						? gerarPdfPlantao(escala, policiais)
+						: gerarPdf(escala, policiais);
 				contentType = 'application/pdf';
 				ext = 'pdf';
 				break;

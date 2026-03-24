@@ -14,6 +14,7 @@ export const policiais = sqliteTable(
 		lotacao: text('lotacao').notNull(),
 		ativo: integer('ativo').notNull().default(1),
 		regime: text('regime', { enum: ['plantao', 'expediente', 'ambos'] }).notNull().default('ambos'),
+		classe: text('classe').notNull().default(''),
 		senha: text('senha')
 			.notNull()
 			.default('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f'),
@@ -66,7 +67,9 @@ export const escalaPoliciais = sqliteTable(
 		data_saida: text('data_saida').notNull().default(''),
 		horario: text('horario').notNull().default(''),
 		hora_entrada: text('hora_entrada').notNull().default(''),
-		hora_saida: text('hora_saida').notNull().default('')
+		hora_saida: text('hora_saida').notNull().default(''),
+		observacoes: text('observacoes').notNull().default(''),
+		equipe: text('equipe').notNull().default('')
 	},
 	(table) => [
 		index('idx_escala_policiais_escala').on(table.escala_id),

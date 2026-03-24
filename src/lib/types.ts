@@ -13,6 +13,10 @@ export interface EscalaPolicialComDados extends EscalaPolicial {
 	cargo: string;
 	telefone: string | null;
 	lotacao: string;
+	classe: string;
+	regime: string;
+	observacoes: string;
+	equipe: string;
 }
 
 export interface EscalaListagem extends Escala {

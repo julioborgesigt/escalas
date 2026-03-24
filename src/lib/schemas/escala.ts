@@ -14,10 +14,12 @@ export const escalaSchema = z.object({
 
 export const escalaPolicialSchema = z.object({
 	policial_id: z.number({ message: 'policial_id é obrigatório' }),
-	data_plantao: z.string().min(1, 'data_plantao é obrigatória'),
+	data_plantao: z.string().optional(),
+	datas: z.array(z.object({ data_plantao: z.string(), data_saida: z.string() })).optional(),
 	data_saida: z.string().default(''),
 	hora_entrada: z.string().default(''),
-	hora_saida: z.string().default('')
+	hora_saida: z.string().default(''),
+	equipe: z.string().default('')
 });
 
 export type EscalaInput = z.infer<typeof escalaSchema>;
