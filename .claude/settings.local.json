@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/Pc/Documents/escalas/src/routes/escalas/[id]/+page.svelte)",
+      "Bash(node -e \":*)",
+      "Bash(node scripts/update-api.js)",
+      "Bash(node scripts/update-proximo-mes.cjs)",
+      "Bash(node scripts/update-export.cjs)",
+      "Bash(node scripts/update-page.cjs)",
+      "Bash(grep -n \"Adicionar todos\\\\|tipo === ''plantao'' || escala.tipo === ''expediente''\" src/routes/escalas/[id]/+page.svelte)",
+      "Bash(npx wrangler d1 execute escalas-db --local --file=./migrations/0014_equipe_plantao.sql)",
+      "Bash(npx svelte-kit sync)",
+      "Bash(npx svelte-check --tsconfig ./tsconfig.json)"
+    ]
+  }
+}

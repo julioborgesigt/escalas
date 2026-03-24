@@ -10,6 +10,7 @@
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
 	let telefone = $state('');
+	let classe = $state('');
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacao = $state(
 		page.data.usuario?.tipo === 'policial' ? (page.data.usuario.lotacao ?? '') : ''
@@ -28,7 +29,7 @@
 	async function salvar(e: Event) {
 		e.preventDefault();
 
-		const parsed = policialSchema.safeParse({ nome, matricula, cargo, telefone, lotacao, regime });
+		const parsed = policialSchema.safeParse({ nome, matricula, cargo, telefone, lotacao, regime, classe });
 		if (!parsed.success) {
 			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
 			return;
@@ -39,7 +40,7 @@
 		const res = await fetch('/api/policiais', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao, regime })
+			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao, regime, classe })
 		});
 
 		if (res.ok) {
@@ -83,14 +84,20 @@
 				<input class="input" type="text" bind:value={telefone} placeholder="(00) 0.0000-0000" />
 			</label>
 		</div>
-		<label class="label">
-			<span class="label-text">Regime de Trabalho</span>
-			<select class="select" bind:value={regime}>
-				<option value="ambos">Plantão e Expediente</option>
-				<option value="plantao">Somente Plantão</option>
-				<option value="expediente">Somente Expediente</option>
-			</select>
-		</label>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<label class="label">
+				<span class="label-text">Classe</span>
+				<input class="input" type="text" bind:value={classe} placeholder="Ex: Especial, A I, B II, C III..." />
+			</label>
+			<label class="label">
+				<span class="label-text">Regime de Trabalho</span>
+				<select class="select" bind:value={regime}>
+					<option value="ambos">Plantão e Expediente</option>
+					<option value="plantao">Somente Plantão</option>
+					<option value="expediente">Somente Expediente</option>
+				</select>
+			</label>
+		</div>
 		<label class="label">
 			<span class="label-text">Lotação</span>
 			{#if isAdmin}

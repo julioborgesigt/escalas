@@ -12,11 +12,12 @@
 	}
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	// === Estado do seletor de regime ===
 	let unidadesComRegime = $state<UnidadeRegime[]>([]);
-	let selecionando = $state(true); // mostra o seletor primeiro
+	let selecionando = $state(true);
 	let tipoEscolhido = $state<'plantao' | 'expediente' | 'fds' | null>(null);
 	let unidadeEscolhida = $state<UnidadeRegime | null>(null);
 
@@ -29,12 +30,13 @@
 	let minutoEntrada = $state('00');
 	let horaSaida = $state('08');
 	let minutoSaida = $state('00');
-	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 	let saving = $state(false);
 	let lotacoes = $state<string[]>([]);
 	let lotacaoEscala = $state('');
 
-	// Nomes dos meses em português
+	// Se true, o form de FDS mostra o seletor de data do fim de semana
+	let fdsDataInicio = $state('');
+
 	const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 		'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
@@ -48,7 +50,7 @@
 
 	function sabadoDaSemana(): Date {
 		const hoje = new Date();
-		const dow = hoje.getDay(); // 0=dom, 6=sab
+		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;
 		const sab = new Date(hoje);
 		sab.setDate(hoje.getDate() + offset);
@@ -59,8 +61,6 @@
 		const hoje = new Date();
 		const ano = hoje.getFullYear();
 		const mes = hoje.getMonth() + 1;
-
-		// Próximo mês (sempre preenche para o mês seguinte)
 		const proxMes = mes === 12 ? 1 : mes + 1;
 		const proxAno = mes === 12 ? ano + 1 : ano;
 
@@ -76,24 +76,35 @@
 		} else if (tipo === 'fds') {
 			const sab = sabadoDaSemana();
 			const seg = new Date(sab);
-			seg.setDate(sab.getDate() + 2); // segunda-feira
+			seg.setDate(sab.getDate() + 2);
 			dataInicio = toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate());
+			fdsDataInicio = dataInicio;
 			dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
 			horaEntrada = '08';
 			minutoEntrada = '00';
 			horaSaida = '08';
 			minutoSaida = '00';
-			const dS = String(sab.getDate()).padStart(2,'0');
-			const mS = String(sab.getMonth()+1).padStart(2,'0');
-			const dom = new Date(sab);
-			dom.setDate(sab.getDate() + 1);
-			const dD = String(dom.getDate()).padStart(2,'0');
-			const mD = String(dom.getMonth()+1).padStart(2,'0');
-			titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidade.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
+			atualizarTituloFds();
 		}
 
 		cidade = unidade.nome;
 		lotacaoEscala = unidade.nome;
+	}
+
+	function atualizarTituloFds() {
+		if (!unidadeEscolhida || !fdsDataInicio) return;
+		const sab = new Date(fdsDataInicio + 'T00:00:00');
+		const dom = new Date(sab);
+		dom.setDate(sab.getDate() + 1);
+		const dS = String(sab.getDate()).padStart(2,'0');
+		const mS = String(sab.getMonth()+1).padStart(2,'0');
+		const dD = String(dom.getDate()).padStart(2,'0');
+		const mD = String(dom.getMonth()+1).padStart(2,'0');
+		titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
+		dataInicio = fdsDataInicio;
+		const seg = new Date(sab);
+		seg.setDate(sab.getDate() + 2);
+		dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
 	}
 
 	function escolherTipo(tipo: 'plantao' | 'expediente' | 'fds') {
@@ -108,10 +119,8 @@
 		unidadeEscolhida = u;
 		const regimes = tiposDisponiveis(u);
 		if (regimes.length === 1) {
-			// Só tem um regime: seleciona automaticamente
 			escolherTipo(regimes[0].tipo);
 		}
-		// Senão aguarda escolha de tipo (UI será atualizada via reactive)
 	}
 
 	function tiposDisponiveis(u: UnidadeRegime): Array<{ tipo: 'plantao' | 'expediente' | 'fds'; label: string; desc: string; icon: string }> {
@@ -140,6 +149,7 @@
 	const precisaEscolherTipo = $derived(
 		unidadeEscolhida !== null && tipoEscolhido === null && tiposDisponiveis(unidadeEscolhida).length > 1
 	);
+	const isMensal = $derived(tipoEscolhido === 'plantao' || tipoEscolhido === 'expediente');
 
 	$effect(() => {
 		Promise.all([
@@ -149,25 +159,18 @@
 			unidadesComRegime = regimes;
 			lotacoes = lotes;
 
-			// Policial: tem apenas 1 unidade, seleciona automaticamente
 			if (!isAdmin && regimes.length === 1) {
 				unidadeEscolhida = regimes[0];
 				const tipos = tiposDisponiveis(regimes[0]);
 				if (tipos.length === 1) {
 					escolherTipo(tipos[0].tipo);
 				}
-				// Se tem mais de 1 tipo, o policial verá as opções de tipo
 			}
 		});
 	});
 
 	function horarioLabel(): string {
 		return `${horaEntrada}:${minutoEntrada}H A ${horaSaida}:${minutoSaida}H`;
-	}
-
-	function gerarTitulo() {
-		if (!tipoEscolhido || !unidadeEscolhida) return;
-		preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida);
 	}
 
 	async function salvar(e: Event) {
@@ -232,7 +235,6 @@
 			</div>
 
 		{:else if temVariasUnidades && !unidadeEscolhida}
-			<!-- Admin: escolher a unidade primeiro -->
 			<h2 class="font-bold text-lg mb-5">Qual unidade é a escala?</h2>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				{#each unidadesComRegime as u (u.nome)}
@@ -254,7 +256,6 @@
 			</div>
 
 		{:else if unidadeEscolhida && precisaEscolherTipo}
-			<!-- Escolher o tipo de regime -->
 			<div class="flex items-center gap-3 mb-5">
 				{#if temVariasUnidades}
 					<button class="btn btn-sm preset-outlined-surface" onclick={() => { unidadeEscolhida = null; tipoEscolhido = null; }}>
@@ -275,12 +276,9 @@
 					</button>
 				{/each}
 			</div>
-		{:else if unidadeEscolhida && !selecionando}
-			<!-- Não deve chegar aqui mas garantia -->
 		{:else if unidadesComRegime.length > 0 && unidadesComRegime.every(u => !u.tem_plantao && !u.tem_expediente && !u.tem_fds)}
-			<!-- Nenhuma unidade tem regime configurado: vai direto para o form manual -->
 			<p class="text-center py-6 text-surface-500">
-				Nenhuma unidade tem regime configurado. 
+				Nenhuma unidade tem regime configurado.
 				<a href="/unidades" class="text-primary-500 underline">Configure em Unidades</a> ou crie manualmente abaixo.
 			</p>
 			<div class="flex justify-center mt-2">
@@ -308,11 +306,11 @@
 
 	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 		<form onsubmit={salvar} class="space-y-4">
-			<!-- Cidade/Lotação -->
+			<!-- Unidade (admin) -->
 			{#if isAdmin}
 				<label class="label">
 					<span class="label-text">Unidade / Cidade</span>
-					<select class="select" bind:value={cidade} onchange={() => { lotacaoEscala = cidade; gerarTitulo(); }} required>
+					<select class="select" bind:value={cidade} onchange={() => { lotacaoEscala = cidade; if (tipoEscolhido && unidadeEscolhida) preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida); }} required>
 						<option value="" disabled>Selecione...</option>
 						{#each lotacoes as lot (lot)}
 							<option value={lot}>{lot}</option>
@@ -323,50 +321,53 @@
 				<p class="text-sm font-medium text-surface-500">Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{cidade}</span></p>
 			{/if}
 
-			<!-- Datas e Horas -->
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr] gap-3 items-end">
+			<!-- Para plantão/expediente: período implícito mostrado como info -->
+			{#if isMensal}
+				<div class="rounded-xl bg-surface-100 dark:bg-surface-800/60 px-4 py-3 text-sm text-surface-600 dark:text-surface-400">
+					Período: <strong class="text-surface-900 dark:text-surface-100">{dataInicio ? new Date(dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
+					até <strong class="text-surface-900 dark:text-surface-100">{dataFim ? new Date(dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
+					· Horário: <strong class="text-surface-900 dark:text-surface-100">{horarioLabel()}</strong>
+				</div>
+
+			<!-- Para FDS: seletor de data do sábado -->
+			{:else if tipoEscolhido === 'fds'}
 				<label class="label">
-					<span class="label-text">Data início</span>
-					<input class="input" type="date" bind:value={dataInicio} onchange={gerarTitulo} required />
+					<span class="label-text">Data do Sábado</span>
+					<input class="input" type="date" bind:value={fdsDataInicio} onchange={atualizarTituloFds} required />
 				</label>
-				<div class="flex flex-col gap-2">
-					<span class="label-text">Hora entrada</span>
-					<div class="flex gap-1">
-						<select class="select flex-1" bind:value={horaEntrada}>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-						</select>
-						<select class="select flex-1" bind:value={minutoEntrada}>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-						</select>
+				<div class="flex flex-col sm:flex-row gap-3">
+					<div class="flex flex-col gap-2 flex-1">
+						<span class="label-text">Hora entrada</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={horaEntrada}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={minutoEntrada}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
+					</div>
+					<div class="flex flex-col gap-2 flex-1">
+						<span class="label-text">Hora saída</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={horaSaida}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={minutoSaida}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
 					</div>
 				</div>
-				<label class="label">
-					<span class="label-text">Data fim</span>
-					<input class="input" type="date" bind:value={dataFim} onchange={gerarTitulo} required />
-				</label>
-				<div class="flex flex-col gap-2">
-					<span class="label-text">Hora saída</span>
-					<div class="flex gap-1">
-						<select class="select flex-1" bind:value={horaSaida}>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-						</select>
-						<select class="select flex-1" bind:value={minutoSaida}>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-						</select>
-					</div>
-				</div>
-			</div>
+				<p class="text-sm text-primary-600 dark:text-primary-400">
+					Horário: <strong>{horarioLabel()}</strong>
+					{#if Number(horaSaida) <= Number(horaEntrada) && horaEntrada !== horaSaida}
+						<span class="italic text-surface-500"> (cruza para o dia seguinte)</span>
+					{/if}
+				</p>
+			{/if}
 
-			<p class="text-sm text-primary-600 dark:text-primary-400">
-				Horário: <strong>{horarioLabel()}</strong>
-				{#if Number(horaSaida) <= Number(horaEntrada) && horaEntrada !== horaSaida}
-					<span class="italic text-surface-500"> (cruza para o dia seguinte)</span>
-				{:else if horaEntrada === horaSaida}
-					<span class="italic text-surface-500"> (plantão de 24h)</span>
-				{/if}
-			</p>
-
-			<!-- Título -->
+			<!-- Título (sempre visível e editável) -->
 			<label class="label">
 				<span class="label-text">Título da Escala</span>
 				<input class="input" type="text" bind:value={titulo} required />

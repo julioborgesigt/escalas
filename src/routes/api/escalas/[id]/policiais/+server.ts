@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, removerPolicialEscala, atualizarEscalaPolicial, adicionarTodosPoliciais, type Database } from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, adicionarMultiplasDatasPlantao, removerPolicialEscala, atualizarEscalaPolicial, adicionarTodosPoliciais, type Database } from '$lib/db';
 import { escalaPolicialSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -32,12 +32,35 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 	if (bloqueio) return bloqueio;
 
 	const data = await request.json();
+
+	// Bulk insert for plantão (array of dates)
+	if (data.datas && Array.isArray(data.datas)) {
+		if (!data.policial_id) {
+			return json({ error: 'policial_id é obrigatório' }, { status: 400 });
+		}
+		await adicionarMultiplasDatasPlantao(
+			db,
+			escalaId,
+			Number(data.policial_id),
+			data.datas,
+			data.hora_entrada || '',
+			data.hora_saida || '',
+			data.equipe || '',
+			data.observacoes || ''
+		);
+		return json({ success: true }, { status: 201 });
+	}
+
+	// Single date (existing behavior)
 	const parsed = escalaPolicialSchema.safeParse(data);
 	if (!parsed.success) {
 		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 
 	const validated = parsed.data;
+	if (!validated.data_plantao) {
+		return json({ error: 'data_plantao é obrigatória' }, { status: 400 });
+	}
 	await adicionarPolicialEscala(
 		db,
 		escalaId,
@@ -45,7 +68,9 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 		validated.data_plantao,
 		validated.data_saida || validated.data_plantao,
 		validated.hora_entrada,
-		validated.hora_saida
+		validated.hora_saida,
+		'',
+		validated.equipe || ''
 	);
 	return json({ success: true }, { status: 201 });
 };
@@ -69,7 +94,8 @@ export const PATCH: RequestHandler = async ({ platform, params, request, locals 
 		data.data_plantao || '',
 		data.data_saida || '',
 		data.hora_entrada || '',
-		data.hora_saida || ''
+		data.hora_saida || '',
+		data.observacoes ?? ''
 	);
 	return json({ success: true });
 };

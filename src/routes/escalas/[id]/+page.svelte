@@ -46,6 +46,11 @@
 	let adicionandoTodos = $state(false);
 	let gerandoProximoMes = $state(false);
 
+	let addEquipe = $state('1');
+	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
+	let addPrimeiroPlantao = $state('');
+	let addDatasSelecionadas = $state<string[]>([]);
+
 	const policialsFiltrados = $derived(
 		cargoBusca
 			? todosOsPoliciais
@@ -66,6 +71,7 @@
 	let editMinutoEntrada = $state("");
 	let editHoraSaida = $state("");
 	let editMinutoSaida = $state("");
+	let editObservacoes = $state("");
 
 	function formatarData(dateStr: string): string {
 		if (!dateStr) return "";
@@ -301,6 +307,7 @@
 		const [hs, ms = "00"] = getHoraSaida(p).split(":");
 		editHoraSaida = hs;
 		editMinutoSaida = ms;
+		editObservacoes = p.observacoes || "";
 	}
 
 	function editPreviewData(): string {
@@ -322,6 +329,7 @@
 				data_saida: editDataSaida,
 				hora_entrada: `${editHoraEntrada}:${editMinutoEntrada}`,
 				hora_saida: `${editHoraSaida}:${editMinutoSaida}`,
+				observacoes: editObservacoes,
 			}),
 		});
 
@@ -778,6 +786,95 @@
 		}
 	}
 
+	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
+		if (!primeiroPlantao || !escala) return [];
+		const datas: string[] = [];
+		const inicio = new Date(escala.data_inicio + 'T00:00:00');
+		const fim = new Date(escala.data_fim + 'T00:00:00');
+		let d = new Date(primeiroPlantao + 'T00:00:00');
+		if (tipo === '1x3') {
+			while (d <= fim) {
+				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
+				d.setDate(d.getDate() + 4);
+			}
+		} else {
+			while (d <= fim) {
+				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
+				d.setDate(d.getDate() + 8);
+			}
+		}
+		return datas;
+	}
+
+	function toggleDataPlantao(data: string) {
+		const idx = addDatasSelecionadas.indexOf(data);
+		if (idx >= 0) {
+			addDatasSelecionadas = addDatasSelecionadas.filter((d) => d !== data);
+		} else {
+			addDatasSelecionadas = [...addDatasSelecionadas, data].sort();
+		}
+	}
+
+	function agruparPorEquipe(
+		items: EscalaPolicialComDados[],
+	): Map<string, EscalaPolicialComDados[]> {
+		const map = new Map<string, EscalaPolicialComDados[]>();
+		for (const item of items) {
+			const equipe = item.equipe || '';
+			const list = map.get(equipe) || [];
+			list.push(item);
+			map.set(equipe, list);
+		}
+		for (const list of map.values()) {
+			list.sort((a, b) => {
+				if (a.cargo !== b.cargo) return a.cargo === 'DPC' ? -1 : 1;
+				if (a.nome !== b.nome) return a.nome.localeCompare(b.nome);
+				return a.data_plantao.localeCompare(b.data_plantao);
+			});
+		}
+		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
+	}
+
+	async function adicionarPlantao(e: Event) {
+		e.preventDefault();
+		if (!policialId || addDatasSelecionadas.length === 0) return;
+		adding = true;
+		const diasSaida = addTipoEscala === '2x6' ? 2 : 1;
+		const datas = addDatasSelecionadas.map((d) => {
+			const ds = new Date(d + 'T00:00:00');
+			ds.setDate(ds.getDate() + diasSaida);
+			return { data_plantao: d, data_saida: ds.toISOString().split('T')[0] };
+		});
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				policial_id: Number(policialId),
+				datas,
+				hora_entrada: `${addHoraEntrada}:${addMinutoEntrada}`,
+				hora_saida: `${addHoraSaida}:${addMinutoSaida}`,
+				equipe: addEquipe,
+			}),
+		});
+		if (res.ok) {
+			toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
+			cargoBusca = '';
+			policialId = '';
+			addPrimeiroPlantao = '';
+			addEquipe = '1';
+			addDatasSelecionadas = [];
+			await recarregarPoliciais();
+		} else {
+			const err = await res.json().catch(() => ({}));
+			toaster.create({ title: (err as { error?: string }).error || 'Erro ao adicionar', type: 'error' });
+		}
+		adding = false;
+	}
+
+	$effect(() => {
+		addDatasSelecionadas = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala);
+	});
+
 	$effect(() => {
 		carregar();
 	});
@@ -1104,17 +1201,17 @@
 	{/if}
 
 	<!-- Adicionar todos (apenas para escalas mensais de plantão ou expediente) -->
-	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
+	{#if escala.tipo === 'expediente'}
 		<div
 			class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20"
 		>
 			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
 					<h3 class="font-semibold text-sm text-primary-700 dark:text-primary-400">
-						Adicionar Todos os Servidores do {escala.tipo === 'plantao' ? 'Plantão' : 'Expediente'}
+						Adicionar Todos os Servidores do Expediente
 					</h3>
 					<p class="text-xs text-surface-500 mt-1">
-						Adiciona automaticamente todos os servidores cadastrados com regime de {escala.tipo === 'plantao' ? 'plantão' : 'expediente'} (ou ambos) da {escala.lotacao} que ainda não estão na escala.
+						Adiciona automaticamente todos os servidores cadastrados com regime de expediente (ou ambos) da {escala.lotacao} que ainda não estão na escala.
 					</p>
 				</div>
 				<button
@@ -1172,94 +1269,331 @@
 		class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
-		<form onsubmit={adicionar}>
-			<div
-				class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end"
-			>
-				<label class="label">
-					<span class="label-text">Cargo</span>
-					<select
-						class="select"
-						bind:value={cargoBusca}
-						onchange={() => {
-							policialId = "";
-						}}
-					>
-						<option value="">Selecione...</option>
-						<option value="DPC"
-							>DPC - Delegado de Polícia Civil</option
+		{#if escala.tipo === 'plantao'}
+			<!-- Plantão: form com cálculo automático de datas -->
+			<form onsubmit={adicionarPlantao}>
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+					<label class="label">
+						<span class="label-text">Cargo</span>
+						<select class="select" bind:value={cargoBusca} onchange={() => { policialId = ''; }}>
+							<option value="">Selecione...</option>
+							<option value="DPC">DPC - Delegado de Polícia Civil</option>
+							<option value="OIP">OIP - Oficial Investigador de Polícia</option>
+						</select>
+					</label>
+					<label class="label">
+						<span class="label-text">Servidor</span>
+						<select class="select" bind:value={policialId} disabled={!cargoBusca}>
+							<option value="">Selecione...</option>
+							{#each policialsFiltrados as p (p.id)}
+								<option value={String(p.id)}>{p.nome}{p.lotacao ? " — " + p.lotacao : ""}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="label">
+						<span class="label-text">Equipe</span>
+						<select class="select" bind:value={addEquipe}>
+							<option value="1">Equipe 1</option>
+							<option value="2">Equipe 2</option>
+							<option value="3">Equipe 3</option>
+							<option value="4">Equipe 4</option>
+							<option value="5">Equipe 5</option>
+						</select>
+					</label>
+					<label class="label">
+						<span class="label-text">Tipo de Escala</span>
+						<select class="select" bind:value={addTipoEscala}>
+							<option value="1x3">1×3 — 24h serviço, 3 dias folga</option>
+							<option value="2x6">2×6 — 48h serviço, 6 dias folga</option>
+						</select>
+					</label>
+				</div>
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+					<label class="label">
+						<span class="label-text">Primeiro plantão do mês</span>
+						<input type="date" class="input" bind:value={addPrimeiroPlantao} min={escala.data_inicio} max={escala.data_fim} required />
+					</label>
+					<div class="flex flex-col gap-1">
+						<span class="label-text text-xs">Hora Entrada</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={addHoraEntrada}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={addMinutoEntrada}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
+					</div>
+					<div class="flex flex-col gap-1">
+						<span class="label-text text-xs">Hora Saída</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={addHoraSaida}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={addMinutoSaida}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
+					</div>
+				</div>
+				{#if addPrimeiroPlantao}
+					{@const datasCalc = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala)}
+					<div class="mb-4">
+						<p class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-2">
+							Dias de plantão calculados ({addDatasSelecionadas.length} selecionados — desmarque para férias/licença):
+						</p>
+						<div class="flex flex-wrap gap-2">
+							{#each datasCalc as d (d)}
+								{@const dia = d.split('-')[2]}
+								{@const selecionada = addDatasSelecionadas.includes(d)}
+								<button
+									type="button"
+									class="px-3 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all {selecionada ? 'bg-primary-500 text-white border-primary-500' : 'bg-surface-100 dark:bg-surface-800 text-surface-400 border-surface-200 line-through'}"
+									onclick={() => toggleDataPlantao(d)}
+								>
+									{dia}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+				<button
+					type="submit"
+					class="btn preset-filled-primary-500"
+					disabled={adding || !policialId || addDatasSelecionadas.length === 0}
+				>
+					{adding ? 'Adicionando...' : '+ Adicionar à Escala de Plantão'}
+				</button>
+			</form>
+		{:else}
+			<!-- Expediente / FDS: form com data única -->
+			<form onsubmit={adicionar}>
+				<div
+					class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end"
+				>
+					<label class="label">
+						<span class="label-text">Cargo</span>
+						<select
+							class="select"
+							bind:value={cargoBusca}
+							onchange={() => {
+								policialId = "";
+							}}
 						>
-						<option value="OIP"
-							>OIP - Oficial Investigador de Polícia</option
-						>
-					</select>
-				</label>
-				<label class="label">
-					<span class="label-text">Servidor</span>
-					<select
-						class="select"
-						bind:value={policialId}
-						disabled={!cargoBusca}
-					>
-						<option value="">Selecione...</option>
-						{#each policialsFiltrados as p (p.id)}
-							<option value={String(p.id)}
-								>{p.nome}{p.lotacao
-									? " — " + p.lotacao
-									: ""}</option
+							<option value="">Selecione...</option>
+							<option value="DPC"
+								>DPC - Delegado de Polícia Civil</option
 							>
-						{/each}
-					</select>
-				</label>
-				<label class="label">
-					<span class="label-text">Data do plantão</span>
-					<select class="select" bind:value={dataPlantao} required>
-						{#each datasDoPlantao(escala) as d (d)}
-							<option value={d}>{formatarData(d)}</option>
-						{/each}
-					</select>
-				</label>
-				<div class="flex flex-col gap-1">
-					<span class="label-text text-xs">Entrada</span>
-					<div class="flex gap-1">
-						<select class="select flex-1" bind:value={addHoraEntrada}>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							<option value="OIP"
+								>OIP - Oficial Investigador de Polícia</option
+							>
 						</select>
-						<select class="select flex-1" bind:value={addMinutoEntrada}>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+					</label>
+					<label class="label">
+						<span class="label-text">Servidor</span>
+						<select
+							class="select"
+							bind:value={policialId}
+							disabled={!cargoBusca}
+						>
+							<option value="">Selecione...</option>
+							{#each policialsFiltrados as p (p.id)}
+								<option value={String(p.id)}
+									>{p.nome}{p.lotacao
+										? " — " + p.lotacao
+										: ""}</option
+								>
+							{/each}
 						</select>
+					</label>
+					<label class="label">
+						<span class="label-text">Data do plantão</span>
+						<select class="select" bind:value={dataPlantao} required>
+							{#each datasDoPlantao(escala) as d (d)}
+								<option value={d}>{formatarData(d)}</option>
+							{/each}
+						</select>
+					</label>
+					<div class="flex flex-col gap-1">
+						<span class="label-text text-xs">Entrada</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={addHoraEntrada}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={addMinutoEntrada}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
+					</div>
+					<div class="flex flex-col gap-1">
+						<span class="label-text text-xs">Saída</span>
+						<div class="flex gap-1">
+							<select class="select flex-1" bind:value={addHoraSaida}>
+								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
+							</select>
+							<select class="select flex-1" bind:value={addMinutoSaida}>
+								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
+							</select>
+						</div>
+					</div>
+					<div class="lg:col-span-1">
+						<button
+							type="submit"
+							class="btn preset-filled-primary-500 w-full"
+							disabled={adding || !policialId || !dataPlantao}
+						>
+							{adding ? "Adicionando..." : "Adicionar"}
+						</button>
 					</div>
 				</div>
-				<div class="flex flex-col gap-1">
-					<span class="label-text text-xs">Saída</span>
-					<div class="flex gap-1">
-						<select class="select flex-1" bind:value={addHoraSaida}>
-							{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
-						</select>
-						<select class="select flex-1" bind:value={addMinutoSaida}>
-							{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
-						</select>
-					</div>
-				</div>
-				<div class="lg:col-span-1">
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 w-full"
-						disabled={adding || !policialId || !dataPlantao}
-					>
-						{adding ? "Adicionando..." : "Adicionar"}
-					</button>
-				</div>
-			</div>
-		</form>
+			</form>
+		{/if}
 	</div>
-
 	<!-- Policiais list -->
 	{#if policiaisEscala.length === 0}
 		<div class="card p-8 text-center text-surface-500">
 			<p>Nenhum policial na escala. Adicione policiais acima.</p>
 		</div>
+	{:else if escala.tipo === 'plantao'}
+		<!-- Plantão: agrupado por equipe -->
+		{#each [...agruparPorEquipe(policiaisEscala)] as [equipe, itens] (equipe)}
+			<div
+				class="p-4 overflow-hidden mb-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border-2 border-primary-500/20 shadow-xl shadow-black/5 dark:shadow-black/20"
+			>
+				<h4 class="font-bold text-primary-700 dark:text-primary-400 text-sm mb-3 uppercase tracking-wide">
+					{equipe ? `Equipe ${equipe}` : 'Sem Equipe Definida'}
+				</h4>
+				<!-- Desktop table -->
+				<div class="table-wrap hidden md:block">
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Nome</th>
+								<th>Matrícula</th>
+								<th>Cargo</th>
+								<th>Telefone</th>
+								<th>Lotação</th>
+								<th>Data Plantão</th>
+								<th>Horário</th>
+								<th>Observações</th>
+								<th>Ações</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each itens as p (p.id)}
+								<tr>
+									<td>{p.nome}</td>
+									<td>{p.matricula}</td>
+									<td>
+										<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
+									</td>
+									<td>{p.telefone}</td>
+									<td>{p.lotacao}</td>
+									{#if editingId === p.id}
+										<td colspan="3" class="bg-surface-200 dark:bg-surface-800 rounded-lg">
+											<div class="flex flex-col gap-2 py-1">
+												<div class="flex items-center gap-2">
+													<span class="text-xs font-semibold text-surface-500 w-14">Entrada:</span>
+													<input type="date" bind:value={editDataEntrada} class="input text-sm flex-1 min-w-[120px]" />
+													<div class="flex gap-1">
+														<select bind:value={editHoraEntrada} class="select text-sm w-16">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+														<select bind:value={editMinutoEntrada} class="select text-sm w-16">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+													</div>
+												</div>
+												<div class="flex items-center gap-2">
+													<span class="text-xs font-semibold text-surface-500 w-14">Saída:</span>
+													<input type="date" bind:value={editDataSaida} class="input text-sm flex-1 min-w-[120px]" />
+													<div class="flex gap-1">
+														<select bind:value={editHoraSaida} class="select text-sm w-16">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+														<select bind:value={editMinutoSaida} class="select text-sm w-16">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+													</div>
+												</div>
+												<p class="text-xs text-surface-500 italic">{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H</p>
+												<div>
+													<span class="text-xs font-semibold text-surface-500">Observações:</span>
+													<textarea bind:value={editObservacoes} class="input text-sm w-full mt-1 min-h-[48px] resize-y" placeholder="Férias, licenças, dispensas..." rows="2"></textarea>
+												</div>
+												<div class="flex gap-1">
+													<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
+													<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
+												</div>
+											</div>
+										</td>
+									{:else}
+										<td>
+											<button class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors" onclick={() => startEdit(p)} title="Clique para editar">{formatarDataPlantao(p)}</button>
+										</td>
+										<td>
+											<button class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-center hover:border-primary-500 hover:bg-surface-100 transition-colors" onclick={() => startEdit(p)} title="Clique para editar">{formatarHorario(p)}</button>
+										</td>
+										<td>
+											<button class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-left hover:border-primary-500 hover:bg-surface-100 transition-colors text-xs" onclick={() => startEdit(p)} title="Clique para editar">{p.observacoes || '-'}</button>
+										</td>
+									{/if}
+									<td>
+										<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+				<!-- Mobile cards -->
+				<div class="md:hidden space-y-3">
+					{#each itens as p (p.id)}
+						<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border-2 border-surface-200 dark:border-white/15 hover:border-primary-500/40 transition-colors">
+							<div class="flex items-center justify-between mb-2">
+								<span class="font-semibold text-sm">{p.nome}</span>
+								<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
+							</div>
+							<div class="space-y-1 text-sm text-surface-600 mb-3">
+								<div class="flex justify-between"><span class="text-surface-500">Matrícula</span><span>{p.matricula}</span></div>
+								<div class="flex justify-between"><span class="text-surface-500">Telefone</span><span>{p.telefone}</span></div>
+								<div class="flex justify-between"><span class="text-surface-500">Lotação</span><span>{p.lotacao}</span></div>
+							</div>
+							{#if editingId === p.id}
+								<div class="bg-surface-200 dark:bg-surface-800 rounded-lg p-3 space-y-2 mb-3">
+									<div class="grid grid-cols-2 gap-2">
+										<label class="label"><span class="label-text text-xs">Data entrada</span><input type="date" bind:value={editDataEntrada} class="input text-sm" /></label>
+										<label class="label"><span class="label-text text-xs">Hora entrada</span>
+											<div class="flex gap-1"><select bind:value={editHoraEntrada} class="select text-sm flex-1">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select><select bind:value={editMinutoEntrada} class="select text-sm flex-1">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select></div>
+										</label>
+									</div>
+									<div class="grid grid-cols-2 gap-2">
+										<label class="label"><span class="label-text text-xs">Data saída</span><input type="date" bind:value={editDataSaida} class="input text-sm" /></label>
+										<label class="label"><span class="label-text text-xs">Hora saída</span>
+											<div class="flex gap-1"><select bind:value={editHoraSaida} class="select text-sm flex-1">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select><select bind:value={editMinutoSaida} class="select text-sm flex-1">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select></div>
+										</label>
+									</div>
+									<p class="text-xs text-surface-500 italic">{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H</p>
+									<div>
+										<span class="text-xs font-semibold text-surface-500">Observações:</span>
+										<textarea bind:value={editObservacoes} class="input text-sm w-full mt-1 min-h-[48px] resize-y" placeholder="Férias, licenças, dispensas..." rows="2"></textarea>
+									</div>
+									<div class="flex gap-2">
+										<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
+										<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
+									</div>
+								</div>
+							{:else}
+								{#if p.observacoes}
+									<div class="text-xs text-surface-500 italic mb-2">{p.observacoes}</div>
+								{/if}
+								<div class="flex gap-2 mb-3">
+									<button class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors" onclick={() => startEdit(p)}>{formatarDataPlantao(p)}</button>
+									<button class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors" onclick={() => startEdit(p)}>{formatarHorario(p)}</button>
+								</div>
+							{/if}
+							<div class="flex justify-end">
+								<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/each}
 	{:else}
+		<!-- Expediente / FDS: agrupado por data -->
 		{#each [...agruparPorData(policiaisEscala)] as [dataGrupo, policiais] (dataGrupo)}
 			<!-- Desktop table -->
 			<div
@@ -1269,13 +1603,15 @@
 					<table class="table">
 						<thead>
 							<tr>
-								<th>Equipe de Plantão da DP</th>
+								<th>Nome</th>
 								<th>Matrícula</th>
 								<th>Cargo</th>
 								<th>Telefone</th>
+								<th>Classe</th>
 								<th>Lotação</th>
 								<th>Data</th>
 								<th>Horário</th>
+								<th>Observações</th>
 								<th>Ações</th>
 							</tr>
 						</thead>
@@ -1294,10 +1630,11 @@
 										</span>
 									</td>
 									<td>{p.telefone}</td>
+									<td class="text-xs text-surface-500">{p.classe || '—'}</td>
 									<td>{p.lotacao}</td>
 									{#if editingId === p.id}
 										<td
-											colspan="2"
+											colspan="3"
 											class="bg-surface-200 dark:bg-surface-800 rounded-lg"
 										>
 											<div class="flex flex-col gap-2 py-1">
@@ -1328,6 +1665,10 @@
 												<p class="text-xs text-surface-500 italic">
 													{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H
 												</p>
+												<div>
+													<span class="text-xs font-semibold text-surface-500">Observações:</span>
+													<textarea bind:value={editObservacoes} class="input text-sm w-full mt-1 min-h-[48px] resize-y" placeholder="Férias, licenças, dispensas..." rows="2"></textarea>
+												</div>
 												<div class="flex gap-1">
 													<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
 													<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
@@ -1351,6 +1692,15 @@
 												title="Clique para editar"
 											>
 												{formatarHorario(p)}
+											</button>
+										</td>
+										<td>
+											<button
+												class="border border-dashed border-surface-300 rounded px-2 py-1 text-sm w-full text-left hover:border-primary-500 hover:bg-surface-100 transition-colors text-xs"
+												onclick={() => startEdit(p)}
+												title="Clique para editar"
+											>
+												{p.observacoes || '-'}
 											</button>
 										</td>
 									{/if}
@@ -1392,6 +1742,10 @@
 							<div class="flex justify-between">
 								<span class="text-surface-500">Telefone</span>
 								<span>{p.telefone}</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-surface-500">Classe</span>
+								<span class="text-xs text-surface-500">{p.classe || '—'}</span>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-surface-500">Lotação</span>
@@ -1476,6 +1830,10 @@
 								<p class="text-xs text-surface-500 italic">
 									{editPreviewData()} &bull; {editHoraEntrada}:{editMinutoEntrada}H A {editHoraSaida}:{editMinutoSaida}H
 								</p>
+								<div>
+									<span class="text-xs font-semibold text-surface-500">Observações:</span>
+									<textarea bind:value={editObservacoes} class="input text-sm w-full mt-1 min-h-[48px] resize-y" placeholder="Férias, licenças, dispensas..." rows="2"></textarea>
+								</div>
 								<div class="flex gap-2">
 									<button
 										class="btn btn-sm preset-filled-primary-500"
@@ -1489,6 +1847,9 @@
 								</div>
 							</div>
 						{:else}
+							{#if p.observacoes}
+								<div class="text-xs text-surface-500 italic mb-2">{p.observacoes}</div>
+							{/if}
 							<div class="flex gap-2 mb-3">
 								<button
 									class="flex-1 border border-dashed border-surface-300 rounded px-2 py-2 text-sm text-center hover:border-primary-500 transition-colors"

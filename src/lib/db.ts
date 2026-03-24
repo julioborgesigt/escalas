@@ -48,7 +48,7 @@ export async function buscarPolicial(db: Database, id: number): Promise<schema.P
 
 export async function criarPolicial(
 	db: Database,
-	data: { nome: string; matricula: string; cargo: string; telefone?: string; lotacao?: string; regime?: string }
+	data: { nome: string; matricula: string; cargo: string; telefone?: string; lotacao?: string; regime?: string; classe?: string }
 ) {
 	return db.insert(policiais).values({
 		nome: data.nome,
@@ -56,14 +56,15 @@ export async function criarPolicial(
 		cargo: data.cargo as 'DPC' | 'OIP',
 		telefone: data.telefone || '',
 		lotacao: data.lotacao || '',
-		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos'
+		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos',
+		classe: data.classe || ''
 	});
 }
 
 export async function atualizarPolicial(
 	db: Database,
 	id: number,
-	data: Partial<{ nome: string; matricula: string; cargo: string; telefone: string; lotacao: string; ativo: number; regime: string }>
+	data: Partial<{ nome: string; matricula: string; cargo: string; telefone: string; lotacao: string; ativo: number; regime: string; classe: string }>
 ) {
 	const updateData: Record<string, unknown> = {};
 
@@ -74,6 +75,7 @@ export async function atualizarPolicial(
 	if (data.lotacao !== undefined) updateData.lotacao = data.lotacao;
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;
 	if (data.regime !== undefined) updateData.regime = data.regime;
+	if (data.classe !== undefined) updateData.classe = data.classe;
 
 	updateData.updated_at = sql`datetime('now')`;
 
@@ -268,7 +270,9 @@ export async function adicionarPolicialEscala(
 	dataPlantao: string,
 	dataSaida: string,
 	horaEntrada: string,
-	horaSaida: string
+	horaSaida: string,
+	observacoes: string = '',
+	equipe: string = ''
 ) {
 	return db.insert(escalaPoliciais).values({
 		escala_id: escalaId,
@@ -276,8 +280,39 @@ export async function adicionarPolicialEscala(
 		data_plantao: dataPlantao,
 		data_saida: dataSaida,
 		hora_entrada: horaEntrada,
-		hora_saida: horaSaida
+		hora_saida: horaSaida,
+		observacoes,
+		equipe
 	});
+}
+
+export async function adicionarMultiplasDatasPlantao(
+	db: Database,
+	escalaId: number,
+	policialId: number,
+	datas: Array<{ data_plantao: string; data_saida: string }>,
+	horaEntrada: string,
+	horaSaida: string,
+	equipe: string = '',
+	observacoes: string = ''
+): Promise<void> {
+	if (datas.length === 0) return;
+	const BATCH_SIZE = 10;
+	for (let i = 0; i < datas.length; i += BATCH_SIZE) {
+		const lote = datas.slice(i, i + BATCH_SIZE);
+		await db.insert(escalaPoliciais).values(
+			lote.map((d) => ({
+				escala_id: escalaId,
+				policial_id: policialId,
+				data_plantao: d.data_plantao,
+				data_saida: d.data_saida,
+				hora_entrada: horaEntrada,
+				hora_saida: horaSaida,
+				equipe,
+				observacoes
+			}))
+		);
+	}
 }
 
 export async function atualizarEscalaPolicial(
@@ -286,7 +321,8 @@ export async function atualizarEscalaPolicial(
 	dataPlantao: string,
 	dataSaida: string,
 	horaEntrada: string,
-	horaSaida: string
+	horaSaida: string,
+	observacoes: string = ''
 ) {
 	return db
 		.update(escalaPoliciais)
@@ -294,7 +330,8 @@ export async function atualizarEscalaPolicial(
 			data_plantao: dataPlantao,
 			data_saida: dataSaida,
 			hora_entrada: horaEntrada,
-			hora_saida: horaSaida
+			hora_saida: horaSaida,
+			observacoes
 		})
 		.where(eq(escalaPoliciais.id, id));
 }
@@ -380,11 +417,15 @@ export async function listarPoliciaisEscala(
 			horario: escalaPoliciais.horario,
 			hora_entrada: escalaPoliciais.hora_entrada,
 			hora_saida: escalaPoliciais.hora_saida,
+			observacoes: escalaPoliciais.observacoes,
 			nome: policiais.nome,
 			matricula: policiais.matricula,
 			cargo: policiais.cargo,
 			telefone: policiais.telefone,
-			lotacao: policiais.lotacao
+			lotacao: policiais.lotacao,
+			regime: policiais.regime,
+			classe: policiais.classe,
+			equipe: escalaPoliciais.equipe
 		})
 		.from(escalaPoliciais)
 		.innerJoin(policiais, eq(escalaPoliciais.policial_id, policiais.id))

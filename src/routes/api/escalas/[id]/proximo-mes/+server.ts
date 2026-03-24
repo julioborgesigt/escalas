@@ -139,17 +139,17 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 			adicionados++;
 		}
 	} else {
-		// Para plantão: agrupa dias por servidor e calcula rotação
-		const diasPorPolicial = new Map<number, { nome: string; dias: string[] }>();
+		// Para plantão: agrupa dias por servidor e calcula rotação (preserva equipe)
+		const diasPorPolicial = new Map<number, { nome: string; dias: string[]; equipe: string }>();
 
 		for (const p of policiaisAtuais) {
 			if (!diasPorPolicial.has(p.policial_id)) {
-				diasPorPolicial.set(p.policial_id, { nome: p.nome, dias: [] });
+				diasPorPolicial.set(p.policial_id, { nome: p.nome, dias: [], equipe: p.equipe || '' });
 			}
 			diasPorPolicial.get(p.policial_id)!.dias.push(p.data_plantao);
 		}
 
-		for (const [policialId, { nome, dias }] of diasPorPolicial) {
+		for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {
 			const { dias: novosDias, rotacao } = calcularProximoMesDias(dias, novoAno, novoMes);
 
 			if (novosDias.length === 0) {
@@ -172,7 +172,9 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 					dia,
 					dataSaida,
 					horaEntrada,
-					horaSaida
+					horaSaida,
+					'',
+					equipe
 				);
 			}
 			adicionados++;
