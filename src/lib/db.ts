@@ -222,6 +222,36 @@ export async function excluirEscala(db: Database, id: number) {
 	return db.delete(escalas).where(eq(escalas.id, id));
 }
 
+export async function verificarEscalaExistente(
+	db: Database,
+	lotacao: string,
+	tipo: 'plantao' | 'expediente' | 'fds',
+	dataInicio: string
+): Promise<schema.Escala | undefined> {
+	if (tipo === 'fds') {
+		// Para FDS: verifica mesma data de início (mesmo sábado)
+		return db
+			.select()
+			.from(escalas)
+			.where(and(eq(escalas.lotacao, lotacao), eq(escalas.tipo, tipo), eq(escalas.data_inicio, dataInicio)))
+			.get();
+	} else {
+		// Para plantão/expediente: verifica mesmo mês/ano
+		const mesAno = dataInicio.substring(0, 7); // "YYYY-MM"
+		return db
+			.select()
+			.from(escalas)
+			.where(
+				and(
+					eq(escalas.lotacao, lotacao),
+					eq(escalas.tipo, tipo),
+					sql`substr(${escalas.data_inicio}, 1, 7) = ${mesAno}`
+				)
+			)
+			.get();
+	}
+}
+
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db
 		.update(escalas)
