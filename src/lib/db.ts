@@ -346,16 +346,22 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	await db.insert(escalaPoliciais).values(
-		novos.map((p) => ({
-			escala_id: escalaId,
-			policial_id: p.id,
-			data_plantao: dataPlantao,
-			data_saida: dataSaida,
-			hora_entrada: horaEntrada,
-			hora_saida: horaSaida
-		}))
-	);
+	// D1 limita a 100 variáveis bound por query.
+	// Cada linha usa 7 params → máximo de 14 linhas por lote (14×7=98).
+	const BATCH_SIZE = 10;
+	for (let i = 0; i < novos.length; i += BATCH_SIZE) {
+		const lote = novos.slice(i, i + BATCH_SIZE);
+		await db.insert(escalaPoliciais).values(
+			lote.map((p) => ({
+				escala_id: escalaId,
+				policial_id: p.id,
+				data_plantao: dataPlantao,
+				data_saida: dataSaida,
+				hora_entrada: horaEntrada,
+				hora_saida: horaSaida
+			}))
+		);
+	}
 
 	return novos.length;
 }
