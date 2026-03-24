@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
 	import { toaster } from "$lib/toast";
 	import { Dialog } from "@skeletonlabs/skeleton-svelte";
 	import type { Escala, Policial, EscalaPolicialComDados } from "$lib/types";
@@ -43,6 +44,7 @@
 	let addMinutoSaida = $state("00");
 	let adding = $state(false);
 	let adicionandoTodos = $state(false);
+	let gerandoProximoMes = $state(false);
 
 	const policialsFiltrados = $derived(
 		cargoBusca
@@ -245,6 +247,48 @@
 			toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
 		}
 		adicionandoTodos = false;
+	}
+
+	async function gerarProximoMes() {
+		if (!escala || gerandoProximoMes) return;
+		gerandoProximoMes = true;
+
+		const res = await fetch(`/api/escalas/${page.params.id}/proximo-mes`, {
+			method: "POST",
+		});
+
+		const data = await res.json();
+
+		if (res.ok) {
+			const tipo = escala.tipo === 'plantao' ? 'Plantão' : 'Expediente';
+			if (data.nao_processados?.length > 0) {
+				const nomes = data.nao_processados.map((p: { nome: string }) => p.nome).join(', ');
+				toaster.create({
+					title: `Escala gerada! ${data.adicionados} servidor(es) adicionado(s).`,
+					description: `Não processados (rotação não identificada): ${nomes}. Adicione-os manualmente.`,
+					type: "warning",
+				});
+			} else {
+				toaster.create({
+					title: `Escala de ${tipo} do próximo mês criada com sucesso!`,
+					description: `${data.adicionados} servidor(es) adicionado(s).`,
+					type: "success",
+				});
+			}
+			goto(`/escalas/${data.escala_id}`);
+		} else if (res.status === 409 && data.escala_id) {
+			// Já existe — redireciona para a escala existente
+			toaster.create({
+				title: data.error,
+				description: "Redirecionando para a escala existente...",
+				type: "warning",
+			});
+			goto(`/escalas/${data.escala_id}`);
+		} else {
+			toaster.create({ title: data.error || "Erro ao gerar próximo mês", type: "error" });
+		}
+
+		gerandoProximoMes = false;
 	}
 
 	function startEdit(p: EscalaPolicialComDados) {
@@ -1083,6 +1127,40 @@
 						Adicionando...
 					{:else}
 						+ Adicionar Todos
+					{/if}
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Gerar próximo mês (apenas para escalas mensais de plantão ou expediente) -->
+	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
+		<div
+			class="p-4 sm:p-5 mb-4 rounded-3xl bg-surface-100/80 dark:bg-surface-800/60 backdrop-blur-md border border-surface-200 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20"
+		>
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<h3 class="font-semibold text-sm text-surface-700 dark:text-surface-300">
+						Gerar Escala do Próximo Mês
+					</h3>
+					<p class="text-xs text-surface-500 mt-1 max-w-lg">
+						{#if escala.tipo === 'plantao'}
+							Cria a escala de plantão do próximo mês calculando automaticamente os dias de cada servidor pela rotação detectada (1x3 ou 2x6) a partir desta escala.
+						{:else}
+							Cria a escala de expediente do próximo mês com os mesmos servidores desta escala.
+						{/if}
+					</p>
+				</div>
+				<button
+					class="btn preset-outlined-primary-500 shrink-0 font-semibold"
+					onclick={gerarProximoMes}
+					disabled={gerandoProximoMes}
+				>
+					{#if gerandoProximoMes}
+						<span class="inline-block w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"></span>
+						Gerando...
+					{:else}
+						Gerar Próximo Mês →
 					{/if}
 				</button>
 			</div>
