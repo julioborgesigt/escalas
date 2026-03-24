@@ -1,0 +1,39 @@
+﻿[
+  {
+    "results": [
+      {
+        "nome": "1┬¬ Delegacia de Pol├¡cia Civil de Acopiara"
+      },
+      {
+        "nome": "1┬¬ Delegacia de Pol├¡cia Civil de Iguatu"
+      },
+      {
+        "nome": "1┬¬ Delegacia de Pol├¡cia Civil de Juazeiro do Norte"
+      },
+      {
+        "nome": "2┬¬ Seccional do Interior Sul"
+      },
+      {
+        "nome": "4┬¬ Seccional do Interior Sul"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "IAD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.2044
+      },
+      "duration": 0.2044,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 122880,
+      "rows_read": 5,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

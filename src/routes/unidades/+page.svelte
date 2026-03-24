@@ -265,8 +265,8 @@
 				<div class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5">
 					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Tipo de Unidade</span>
 					<div class="flex gap-2">
-						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'delegacia' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'delegacia'}>Delegacia</button>
 						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'seccional' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'seccional'}>Seccional</button>
+						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'delegacia' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'delegacia'}>Delegacia</button>
 					</div>
 				</div>
 
@@ -282,9 +282,14 @@
 							</select>
 						</label>
 						<div class="flex items-end gap-2">
-							<label class="label w-20">
+							<label class="label w-24">
 								<span class="label-text">Prefixo</span>
-								<input class="input text-center" type="text" bind:value={delegaciaPrefixo} placeholder="1ª" />
+								<select class="select" bind:value={delegaciaPrefixo}>
+									<option value="">—</option>
+									{#each Array.from({length: 99}, (_, i) => `${i + 1}ª`) as ord}
+										<option value={ord}>{ord}</option>
+									{/each}
+								</select>
 							</label>
 							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
 								Delegacia de Polícia Civil de
@@ -298,9 +303,14 @@
 				{:else}
 					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
 						<div class="flex items-end gap-2">
-							<label class="label w-20">
+							<label class="label w-24">
 								<span class="label-text">Prefixo</span>
-								<input class="input text-center" type="text" bind:value={seccionalPrefixo} placeholder="1ª" />
+								<select class="select" bind:value={seccionalPrefixo}>
+									<option value="">—</option>
+									{#each Array.from({length: 99}, (_, i) => `${i + 1}ª`) as ord}
+										<option value={ord}>{ord}</option>
+									{/each}
+								</select>
 							</label>
 							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
 								Seccional do
@@ -318,12 +328,14 @@
 					<p class="text-sm font-semibold truncate">{novoNome || 'Preencha os campos...'}</p>
 				</div>
 
-				<div class="flex flex-wrap gap-4 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5">
-					<p class="w-full text-sm font-medium mb-1 text-surface-600 dark:text-surface-400">Regimes de Escala:</p>
+				<div class="flex flex-col gap-2 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5">
+				<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Regimes de Escala:</p>
+				<div class="flex gap-4">
 					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span>Plantão</span></label>
 					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span>Expediente</span></label>
 					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span>Fim de Semana</span></label>
 				</div>
+			</div>
 				<div class="flex justify-end gap-3 pt-1">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<button type="submit" class="btn preset-filled-primary-500" disabled={salvando || !novoNome.trim() || (tipoUnidade === 'delegacia' && !novoSeccionalId)}>
@@ -363,13 +375,13 @@
 				<tbody>
 					{#each unidadesAgrupadas as u (u.id)}
 						<tr>
-							<td class="relative {u.isChild ? 'pl-14' : ''}">
+							<td class="relative {u.isChild ? 'pl-6' : ''}">
 								{#if u.hasChildren}
-									<div class="absolute left-6 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
+									<div class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
 								{/if}
 								{#if u.isChild}
-									<div class="absolute left-6 top-0 {u.isLastChild ? 'bottom-1/2' : 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"></div>
-									<div class="absolute left-6 top-1/2 w-6 h-px bg-surface-400 dark:bg-surface-500"></div>
+									<div class="absolute left-1 top-0 {u.isLastChild ? 'bottom-1/2' : 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"></div>
+									<div class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"></div>
 								{/if}
 								{#if isAdmin && editandoId === u.id}
 									<div class="flex flex-col gap-2">
