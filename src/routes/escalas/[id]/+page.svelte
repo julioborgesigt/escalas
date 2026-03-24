@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
 	import { toaster } from "$lib/toast";
 	import { Dialog } from "@skeletonlabs/skeleton-svelte";
 	import type { Escala, Policial, EscalaPolicialComDados } from "$lib/types";
@@ -42,6 +43,8 @@
 	let addHoraSaida = $state("08");
 	let addMinutoSaida = $state("00");
 	let adding = $state(false);
+	let adicionandoTodos = $state(false);
+	let gerandoProximoMes = $state(false);
 
 	const policialsFiltrados = $derived(
 		cargoBusca
@@ -205,6 +208,87 @@
 			toaster.create({ title: "Erro ao adicionar", type: "error" });
 		}
 		adding = false;
+	}
+
+	async function adicionarTodos() {
+		if (!escala || adicionandoTodos) return;
+		adicionandoTodos = true;
+
+		const he = escala.hora_entrada || "08:00";
+		const hs = escala.hora_saida || "08:00";
+		const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
+
+		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				data_plantao: escala.data_inicio,
+				data_saida: ds,
+				hora_entrada: he,
+				hora_saida: hs,
+			}),
+		});
+
+		if (res.ok) {
+			const data = await res.json();
+			if (data.quantidade === 0) {
+				toaster.create({
+					title: "Todos os servidores já estão na escala",
+					type: "warning",
+				});
+			} else {
+				toaster.create({
+					title: `${data.quantidade} servidor(es) adicionado(s) à escala`,
+					type: "success",
+				});
+			}
+			await recarregarPoliciais();
+		} else {
+			toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
+		}
+		adicionandoTodos = false;
+	}
+
+	async function gerarProximoMes() {
+		if (!escala || gerandoProximoMes) return;
+		gerandoProximoMes = true;
+
+		const res = await fetch(`/api/escalas/${page.params.id}/proximo-mes`, {
+			method: "POST",
+		});
+
+		const data = await res.json();
+
+		if (res.ok) {
+			const tipo = escala.tipo === 'plantao' ? 'Plantão' : 'Expediente';
+			if (data.nao_processados?.length > 0) {
+				const nomes = data.nao_processados.map((p: { nome: string }) => p.nome).join(', ');
+				toaster.create({
+					title: `Escala gerada! ${data.adicionados} servidor(es) adicionado(s).`,
+					description: `Não processados (rotação não identificada): ${nomes}. Adicione-os manualmente.`,
+					type: "warning",
+				});
+			} else {
+				toaster.create({
+					title: `Escala de ${tipo} do próximo mês criada com sucesso!`,
+					description: `${data.adicionados} servidor(es) adicionado(s).`,
+					type: "success",
+				});
+			}
+			goto(`/escalas/${data.escala_id}`);
+		} else if (res.status === 409 && data.escala_id) {
+			// Já existe — redireciona para a escala existente
+			toaster.create({
+				title: data.error,
+				description: "Redirecionando para a escala existente...",
+				type: "warning",
+			});
+			goto(`/escalas/${data.escala_id}`);
+		} else {
+			toaster.create({ title: data.error || "Erro ao gerar próximo mês", type: "error" });
+		}
+
+		gerandoProximoMes = false;
 	}
 
 	function startEdit(p: EscalaPolicialComDados) {
@@ -1016,6 +1100,70 @@
 				instalado e em execução.
 			</p>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Adicionar todos (apenas para escalas mensais de plantão ou expediente) -->
+	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
+		<div
+			class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20"
+		>
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<h3 class="font-semibold text-sm text-primary-700 dark:text-primary-400">
+						Adicionar Todos os Servidores do {escala.tipo === 'plantao' ? 'Plantão' : 'Expediente'}
+					</h3>
+					<p class="text-xs text-surface-500 mt-1">
+						Adiciona automaticamente todos os servidores cadastrados com regime de {escala.tipo === 'plantao' ? 'plantão' : 'expediente'} (ou ambos) da {escala.lotacao} que ainda não estão na escala.
+					</p>
+				</div>
+				<button
+					class="btn preset-filled-primary-500 shrink-0 font-semibold"
+					onclick={adicionarTodos}
+					disabled={adicionandoTodos}
+				>
+					{#if adicionandoTodos}
+						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+						Adicionando...
+					{:else}
+						+ Adicionar Todos
+					{/if}
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Gerar próximo mês (apenas para escalas mensais de plantão ou expediente) -->
+	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
+		<div
+			class="p-4 sm:p-5 mb-4 rounded-3xl bg-surface-100/80 dark:bg-surface-800/60 backdrop-blur-md border border-surface-200 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20"
+		>
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<h3 class="font-semibold text-sm text-surface-700 dark:text-surface-300">
+						Gerar Escala do Próximo Mês
+					</h3>
+					<p class="text-xs text-surface-500 mt-1 max-w-lg">
+						{#if escala.tipo === 'plantao'}
+							Cria a escala de plantão do próximo mês calculando automaticamente os dias de cada servidor pela rotação detectada (1x3 ou 2x6) a partir desta escala.
+						{:else}
+							Cria a escala de expediente do próximo mês com os mesmos servidores desta escala.
+						{/if}
+					</p>
+				</div>
+				<button
+					class="btn preset-outlined-primary-500 shrink-0 font-semibold"
+					onclick={gerarProximoMes}
+					disabled={gerandoProximoMes}
+				>
+					{#if gerandoProximoMes}
+						<span class="inline-block w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"></span>
+						Gerando...
+					{:else}
+						Gerar Próximo Mês →
+					{/if}
+				</button>
+			</div>
 		</div>
 	{/if}
 

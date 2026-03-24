@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, listarEscalas, criarEscala, excluirEscala } from '$lib/db';
+import { getDB, listarEscalas, criarEscala, excluirEscala, verificarEscalaExistente } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -42,6 +42,29 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	// Policial cria escala da sua lotação; admin deve informar
 	if (usuario?.tipo === 'policial') {
 		validated.lotacao = usuario.lotacao!;
+	}
+
+	// Valida unicidade: uma escala por tipo/período por unidade
+	if (validated.tipo && validated.lotacao) {
+		const existente = await verificarEscalaExistente(
+			db,
+			validated.lotacao,
+			validated.tipo as 'plantao' | 'expediente' | 'fds',
+			validated.data_inicio
+		);
+		if (existente) {
+			const periodo =
+				validated.tipo === 'fds'
+					? 'nesta semana'
+					: 'neste mês';
+			const tipoLabel =
+				validated.tipo === 'plantao' ? 'Plantão' :
+				validated.tipo === 'expediente' ? 'Expediente' : 'Final de Semana';
+			return json(
+				{ error: `Já existe uma Escala de ${tipoLabel} para ${validated.lotacao} ${periodo}.` },
+				{ status: 409 }
+			);
+		}
 	}
 
 	console.log('[POST /api/escalas] payload:', JSON.stringify(validated));
