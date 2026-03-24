@@ -313,18 +313,25 @@ export async function adicionarTodosPoliciais(
 	horaEntrada: string,
 	horaSaida: string
 ): Promise<number> {
-	// Busca policiais ativos da lotação com regime compatível (regime exato ou 'ambos')
-	// Usa SQL raw para evitar problemas com or() do Drizzle no D1
-	const candidatos = await db
-		.select({ id: policiais.id })
+	// Busca todos os policiais ativos da lotação e filtra por regime em JS
+	// para evitar incompatibilidades do D1 com OR em queries parametrizadas
+	const todos = await db
+		.select({ id: policiais.id, regime: policiais.regime })
 		.from(policiais)
 		.where(
 			and(
 				eq(policiais.ativo, 1),
-				eq(policiais.lotacao, lotacao),
-				sql`(${policiais.regime} = ${regime} OR ${policiais.regime} = 'ambos' OR ${policiais.regime} IS NULL)`
+				eq(policiais.lotacao, lotacao)
 			)
 		);
+
+	console.log(`[adicionarTodosPoliciais] escala=${escalaId} lotacao="${lotacao}" regime="${regime}" total_ativos=${todos.length}`);
+
+	const candidatos = todos.filter(
+		(p) => p.regime === regime || p.regime === 'ambos' || p.regime === null
+	);
+
+	console.log(`[adicionarTodosPoliciais] candidatos compatíveis=${candidatos.length}`);
 
 	if (candidatos.length === 0) return 0;
 
