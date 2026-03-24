@@ -1,0 +1,49 @@
+﻿[
+  {
+    "results": [
+      {
+        "id": 136,
+        "nome": "VICENTE DE PAULA",
+        "lotacao": "1┬¬ Delegacia de Pol├¡cia Civil de Acopiara"
+      },
+      {
+        "id": 137,
+        "nome": "P├éMELA CHRISTINA SILVA TAVARES",
+        "lotacao": ""
+      },
+      {
+        "id": 138,
+        "nome": "ACRISIO PINHEIRO DE SOUZA",
+        "lotacao": "Delegacia de Pol├¡cia Civil de Ic├│"
+      },
+      {
+        "id": 139,
+        "nome": "ALBERGE LUCENA DO NASCIMENTO",
+        "lotacao": "Delegacia de Pol├¡cia Civil de Ic├│"
+      },
+      {
+        "id": 140,
+        "nome": "CHRISTIANO PESCA PEREIRA",
+        "lotacao": "Delegacia de Pol├¡cia Civil de Ic├│"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "ENAM",
+      "served_by_colo": "IAD",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 0.1631
+      },
+      "duration": 0.1631,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 122880,
+      "rows_read": 5,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

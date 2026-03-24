@@ -101,14 +101,6 @@
 		loading = false;
 	}
 
-	function criarEscala(item: ItemCompliance) {
-		const params = new URLSearchParams({
-			lotacao: item.unidade_nome,
-			data_inicio: item.data_inicio,
-			data_fim: item.data_fim,
-		});
-		goto(`/escalas/nova?${params.toString()}`);
-	}
 
 	$effect(() => {
 		if (isAdmin) carregar();
@@ -221,7 +213,7 @@
 	{/if}
 
 	<!-- Tabela -->
-	<div class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
+	<div class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5">
 		{#if loading}
 			<p class="text-center py-16 text-surface-500">Carregando...</p>
 		{:else if dadosFiltrados.length === 0}
@@ -236,7 +228,7 @@
 			</div>
 		{:else}
 			<!-- Desktop table -->
-			<div class="hidden md:block table-wrap">
+			<div class="hidden md:block table-wrap overflow-hidden rounded-xl">
 				<table class="table">
 					<thead>
 						<tr>
@@ -276,11 +268,7 @@
 											<button class="btn btn-sm preset-outlined-surface" onclick={() => restaurarItem(item)}>Restaurar</button>
 										{:else}
 											{#if item.status === 'nao_criada'}
-												<button class="btn btn-sm preset-filled-error-500" onclick={() => criarEscala(item)}>Criar Escala</button>
-											{:else if item.status === 'nao_assinada'}
-												<a href="/escalas/{item.escala_id}" class="btn btn-sm preset-filled-warning-500">Assinar</a>
-											{:else}
-												<a href="/escalas/{item.escala_id}" class="btn btn-sm preset-outlined-surface">Ver</a>
+												<span class="text-xs italic text-surface-500">Pendente de criação</span>
 											{/if}
 											<button
 												class="btn btn-sm preset-outlined-surface opacity-60 hover:opacity-100"
@@ -327,11 +315,7 @@
 								<button class="btn btn-sm preset-outlined-surface text-xs" onclick={() => restaurarItem(item)}>Restaurar</button>
 							{:else}
 								{#if item.status === 'nao_criada'}
-									<button class="btn btn-sm preset-filled-error-500 text-xs" onclick={() => criarEscala(item)}>Criar</button>
-								{:else if item.status === 'nao_assinada'}
-									<a href="/escalas/{item.escala_id}" class="btn btn-sm preset-filled-warning-500 text-xs">Assinar</a>
-								{:else}
-									<a href="/escalas/{item.escala_id}" class="btn btn-sm preset-outlined-surface text-xs">Ver</a>
+									<span class="text-[10px] italic text-surface-500">Pendente</span>
 								{/if}
 								<button class="btn btn-sm preset-outlined-surface text-xs opacity-60" onclick={() => ignorarItem(item)}>🔕 Ignorar</button>
 							{/if}
@@ -340,7 +324,7 @@
 				{/each}
 			</div>
 
-			<p class="px-4 sm:px-6 py-3 text-surface-500 text-sm border-t border-surface-200 dark:border-white/5">
+			<p class="pt-3 text-surface-500 text-sm border-t border-surface-200 dark:border-white/5 mt-1">
 				{dadosFiltrados.length} item(ns) exibido(s)
 			</p>
 		{/if}

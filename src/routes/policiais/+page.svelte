@@ -37,6 +37,7 @@
 
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
+	const TODAS_UNIDADES = '__todas__';
 
 	const policiaisExibidos = $derived(
 		policiais.filter(p => {
@@ -49,6 +50,13 @@
 	async function carregarPoliciais() {
 		if (isAdmin && !filtroLotacao) {
 			policiais = [];
+			loading = false;
+			return;
+		}
+		if (isAdmin && filtroLotacao === TODAS_UNIDADES) {
+			loading = true;
+			const res = await fetch('/api/policiais');
+			policiais = await res.json();
 			loading = false;
 			return;
 		}
@@ -140,6 +148,7 @@
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregarPoliciais}>
 					<option value="">Selecione uma unidade...</option>
+					<option value={TODAS_UNIDADES}>Todas as unidades</option>
 					{#each delegaciasDropdown as del (del.id)}
 						<option value={del.nome}>{del.nome}</option>
 					{/each}
@@ -165,10 +174,10 @@
 				</div>
 			</div>
 		</label>
-		{#if isAdmin}
-			<p class="text-xs text-surface-500 mb-2 italic self-end">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
-		{/if}
 	</div>
+	{#if isAdmin && !filtroLotacao}
+		<p class="text-xs text-surface-500 -mt-5 mb-4 italic px-1">Selecione uma unidade para visualizar os policiais cadastrados nela.</p>
+	{/if}
 
 	{#if loading}
 		<p class="text-center py-12 text-surface-500">Carregando...</p>

@@ -146,7 +146,9 @@ export async function listarEscalas(
 	status?: 'pendente' | 'assinada',
 	mes?: number,
 	ano?: number,
-	tipo?: string
+	tipo?: string,
+	visto?: boolean,
+	criadaEmDepoisDe?: string // ISO date string
 ): Promise<EscalaListagem[]> {
 	const conditions = [];
 
@@ -167,9 +169,17 @@ export async function listarEscalas(
 		conditions.push(eq(escalas.tipo, tipo as any));
 	}
 
+	if (visto !== undefined) {
+		conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
+	}
+
+	if (criadaEmDepoisDe) {
+		conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}`);
+	}
+
 	const query = conditions.length > 0 ?
-		db.select().from(escalas).where(and(...conditions)).orderBy(desc(escalas.data_inicio)) :
-		db.select().from(escalas).orderBy(desc(escalas.data_inicio));
+		db.select().from(escalas).where(and(...conditions)).orderBy(desc(escalas.created_at)) :
+		db.select().from(escalas).orderBy(desc(escalas.created_at));
 
 	const results = await query;
 	if (results.length === 0) return [];
@@ -208,6 +218,13 @@ export async function criarEscala(
 
 export async function excluirEscala(db: Database, id: number) {
 	return db.delete(escalas).where(eq(escalas.id, id));
+}
+
+export async function marcarVisto(db: Database, id: number, visto: boolean) {
+	return db
+		.update(escalas)
+		.set({ visto_por_admin: visto ? 1 : 0 })
+		.where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----

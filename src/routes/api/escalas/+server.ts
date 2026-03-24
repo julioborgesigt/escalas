@@ -15,12 +15,15 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	const mes = url.searchParams.get('mes') ? Number(url.searchParams.get('mes')) : undefined;
 	const ano = url.searchParams.get('ano') ? Number(url.searchParams.get('ano')) : undefined;
 	const tipo = url.searchParams.get('tipo') || undefined;
+	const vistoParam = url.searchParams.get('visto');
+	const visto = vistoParam !== null ? vistoParam === 'true' : undefined;
+	const depois = url.searchParams.get('depois') || undefined;
 
 	if (usuario?.tipo === 'policial') {
 		lotacao = usuario.lotacao;
 	}
 
-	const escalas = await listarEscalas(db, lotacao, status, mes, ano, tipo);
+	const escalas = await listarEscalas(db, lotacao, status, mes, ano, tipo, visto, depois);
 	return json(escalas);
 };
 
@@ -41,19 +44,27 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		validated.lotacao = usuario.lotacao!;
 	}
 
-	const result = await criarEscala(db, {
-		titulo: validated.titulo,
-		cidade: validated.cidade,
-		data_inicio: validated.data_inicio,
-		data_fim: validated.data_fim,
-		horario: validated.horario || `${validated.hora_entrada}H A ${validated.hora_saida}H`,
-		hora_entrada: validated.hora_entrada,
-		hora_saida: validated.hora_saida,
-		lotacao: validated.lotacao,
-		tipo: validated.tipo
-	});
+	console.log('[POST /api/escalas] payload:', JSON.stringify(validated));
 
-	return json({ success: true, id: result[0]?.id }, { status: 201 });
+	try {
+		const result = await criarEscala(db, {
+			titulo: validated.titulo,
+			cidade: validated.cidade,
+			data_inicio: validated.data_inicio,
+			data_fim: validated.data_fim,
+			horario: validated.horario || `${validated.hora_entrada}H A ${validated.hora_saida}H`,
+			hora_entrada: validated.hora_entrada,
+			hora_saida: validated.hora_saida,
+			lotacao: validated.lotacao,
+			tipo: validated.tipo
+		});
+
+		return json({ success: true, id: result[0]?.id }, { status: 201 });
+	} catch (err) {
+		console.error('[POST /api/escalas] erro ao criar escala:', err);
+		const message = err instanceof Error ? err.message : String(err);
+		return json({ error: 'Erro interno ao criar escala', detail: message }, { status: 500 });
+	}
 };
 
 export const DELETE: RequestHandler = async ({ platform, url, locals }) => {
