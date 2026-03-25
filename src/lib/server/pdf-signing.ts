@@ -113,17 +113,21 @@ function berToDer(ber: Buffer): Buffer {
 const OID_RSA_ENCRYPTION = '1.2.840.113549.1.1.1';
 
 /**
- * Formata a data atual no padrão dd/mm/yy HH:MM.
+ * Formata a data atual no padrão dd/mm/yy HH:MM no fuso de Brasília.
  */
 function formatarDataHora(): string {
 	const now = new Date();
-	const pad = (n: number) => String(n).padStart(2, '0');
-	const day = pad(now.getDate());
-	const month = pad(now.getMonth() + 1);
-	const year = String(now.getFullYear()).slice(-2);
-	const hours = pad(now.getHours());
-	const minutes = pad(now.getMinutes());
-	return `${day}/${month}/${year} ${hours}:${minutes}`;
+	const fmt = new Intl.DateTimeFormat('pt-BR', {
+		timeZone: 'America/Sao_Paulo',
+		day: '2-digit',
+		month: '2-digit',
+		year: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
+	const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
 /**
@@ -288,111 +292,91 @@ export async function prepararPdfParaAssinatura(
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
-	// Adicionar carimbo visual + campo de assinatura visível no rodapé da última página
-	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-	const pages = pdfDoc.getPages();
+	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
+	const pages    = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
 	const { width } = lastPage.getSize();
-	const dataHora = formatarDataHora();
+	const dataHora  = formatarDataHora();
 
-	// Localização dinâmica do carimbo
-	const boxW = 240;
-	const boxH = 75;
+	// --- Dimensões do carimbo ---
+	const boxW = 255;
+	const boxH = 82;
 	const marginY = 40;
-	
+	const headerH = 11;
+
 	let boxX: number;
 	if (alignment === 'center') {
 		boxX = (width - boxW) / 2;
 	} else {
-		// Alinhado ao centro da metade direita (como no PDF de Plantão)
 		boxX = (width * 0.75) - (boxW / 2);
 	}
 	const boxY = marginY;
 
-	// Fundo levemente azulado e borda
-	lastPage.drawRectangle({
-		x: boxX,
-		y: boxY,
-		width: boxW,
-		height: boxH,
-		color: rgb(0.96, 0.98, 1.0),
-		borderColor: rgb(0.25, 0.35, 0.75),
-		borderWidth: 0.5,
-		opacity: 1
-	});
+	// --- Paleta ---
+	const cNavy  = rgb(0.07, 0.14, 0.42);
+	const cBlue  = rgb(0.18, 0.32, 0.72);
+	const cBg    = rgb(0.94, 0.96, 0.99);
+	const cHatch = rgb(0.82, 0.88, 0.96);
+	const cDark  = rgb(0.05, 0.08, 0.22);
+	const cGray  = rgb(0.40, 0.40, 0.45);
+	const cWhite = rgb(1, 1, 1);
 
-	// Cabeçalho da caixa
-	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-	lastPage.drawText('Assinado digitalmente por:', {
-		x: boxX + 8,
-		y: boxY + boxH - 12,
-		size: 7,
-		font,
-		color: rgb(0.3, 0.45, 0.8)
-	});
+	// 1 — Fundo azul claro
+	lastPage.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: cBg });
 
-	// Nome do assinante
-	const nomeAssinante = signerName.toUpperCase();
-	const nomeFontSize = 9.5;
-	// Truncar nome se for muito longo para o espaço lateral (boxW - qrSize - margins)
-	const textMaxW = boxW - 75; 
-	let nomeDisplay = nomeAssinante;
-	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, nomeFontSize) > textMaxW) {
-		nomeDisplay = nomeDisplay.slice(0, -1);
+	// 2 — Linhas de segurança diagonais (45°, guilloche simples)
+	for (let i = -boxH; i < boxW + 1; i += 8) {
+		lastPage.drawLine({
+			start: { x: boxX + i,        y: boxY },
+			end:   { x: boxX + i + boxH, y: boxY + boxH },
+			thickness: 0.18, color: cHatch
+		});
 	}
-	if (nomeDisplay !== nomeAssinante) nomeDisplay += '…';
 
-	lastPage.drawText(nomeDisplay, {
-		x: boxX + 8,
-		y: boxY + boxH - 26,
-		size: nomeFontSize,
-		font: fontBold,
-		color: rgb(0.05, 0.1, 0.25)
+	// 3 — Hash fantasma (marca d'água repetida no fundo)
+	if (verificationHash) {
+		const ghostSize = 14;
+		const ghostStep = fontMono.widthOfTextAtSize(verificationHash + '  ', ghostSize);
+		const ghostY = boxY + (boxH - headerH) / 2 - 5;
+		for (let gx = boxX + 4; gx < boxX + boxW - 12; gx += ghostStep) {
+			lastPage.drawText(verificationHash, {
+				x: gx, y: ghostY, size: ghostSize, font: fontMono,
+				color: rgb(0.88, 0.91, 0.97)
+			});
+		}
+	}
+
+	// 4 — Faixa de cabeçalho navy
+	lastPage.drawRectangle({
+		x: boxX, y: boxY + boxH - headerH,
+		width: boxW, height: headerH, color: cNavy
+	});
+	lastPage.drawRectangle({ x: boxX + 4, y: boxY + boxH - headerH + 3, width: 4, height: 4, color: cWhite, opacity: 0.5 });
+	lastPage.drawRectangle({ x: boxX + boxW - 8, y: boxY + boxH - headerH + 3, width: 4, height: 4, color: cWhite, opacity: 0.5 });
+	lastPage.drawText('ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ', {
+		x: boxX + 11, y: boxY + boxH - headerH + 3,
+		size: 5.5, font: fontBold, color: cWhite
 	});
 
-	// CPF e Data
-	const cpfFormatado = signerCpf ? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**` : 'CPF: ***.***.***-**';
-	const infoText = `${dataHora} — ${cpfFormatado}`;
-	lastPage.drawText(infoText, {
-		x: boxX + 8,
-		y: boxY + boxH - 38,
-		size: 7,
-		font,
-		color: rgb(0.25, 0.25, 0.25)
-	});
-
-	// Texto institucional
-	const instTextLine1 = 'Documento assinado digitalmente conforme MP nº 2.200-2/2001,';
-	const instTextLine2 = 'que institui a ICP-Brasil. Validade jurídica assegurada.';
-	lastPage.drawText(instTextLine1, {
-		x: boxX + 8, y: boxY + 16, size: 5, font, color: rgb(0.45, 0.45, 0.45)
-	});
-	lastPage.drawText(instTextLine2, {
-		x: boxX + 8, y: boxY + 9, size: 5, font, color: rgb(0.45, 0.45, 0.45)
-	});
-
-	// Adicionar QR Code se houver URL (Desenho manual para compatibilidade com Cloudflare Workers)
+	// 5 — QR Code (com fundo branco, error correction H)
+	const qrSize = 56;
+	const qrX = boxX + boxW - qrSize - 5;
+	const qrYPos = boxY + (boxH - headerH - qrSize) / 2;
 	if (verificationUrl) {
 		try {
-			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
 			const moduleCount = qr.modules.size;
-			const qrSize = 58;
 			const dotSize = qrSize / moduleCount;
-			const qrX = boxX + boxW - qrSize - 6;
-			const qrY = boxY + (boxH - qrSize) / 2;
-
-			// Filtro leve para a cor do QR
-			const qrColor = rgb(0.0, 0.2, 0.4);
-
+			lastPage.drawRectangle({ x: qrX - 2, y: qrYPos - 2, width: qrSize + 4, height: qrSize + 4, color: cWhite });
 			for (let row = 0; row < moduleCount; row++) {
 				for (let col = 0; col < moduleCount; col++) {
 					if (qr.modules.get(row, col)) {
 						lastPage.drawRectangle({
 							x: qrX + col * dotSize,
-							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1, // Pequeno overlap para evitar gaps
-							height: dotSize + 0.1,
-							color: qrColor
+							y: qrYPos + (moduleCount - row - 1) * dotSize,
+							width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
 						});
 					}
 				}
@@ -402,19 +386,70 @@ export async function prepararPdfParaAssinatura(
 		}
 	}
 
-	// Legenda de verificação para impressão (posicionada verticalmente à esquerda)
-	// Reduzimos o tamanho e simplificamos conforme o modelo usual
+	// 6 — Linha divisória vertical entre conteúdo e QR
+	lastPage.drawLine({
+		start: { x: qrX - 5, y: boxY + 4 },
+		end:   { x: qrX - 5, y: boxY + boxH - headerH - 3 },
+		thickness: 0.3, color: cBlue
+	});
+
+	// 7 — Conteúdo textual
+	const txtX    = boxX + 7;
+	const textMaxW = qrX - boxX - 14;
+	const cpfFormatado = signerCpf
+		? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**`
+		: '';
+
+	lastPage.drawText('Assinado digitalmente por:', {
+		x: txtX, y: boxY + boxH - headerH - 10,
+		size: 6, font, color: cBlue
+	});
+
+	const nomeAssinante = signerName.toUpperCase();
+	let nomeDisplay = nomeAssinante;
+	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, 8.5) > textMaxW) {
+		nomeDisplay = nomeDisplay.slice(0, -1);
+	}
+	if (nomeDisplay !== nomeAssinante) nomeDisplay += '\u2026';
+	lastPage.drawText(nomeDisplay, {
+		x: txtX, y: boxY + boxH - headerH - 21,
+		size: 8.5, font: fontBold, color: cDark
+	});
+
+	const infoLine = cpfFormatado ? `${dataHora}   ${cpfFormatado}` : dataHora;
+	lastPage.drawText(infoLine, {
+		x: txtX, y: boxY + boxH - headerH - 32,
+		size: 6.5, font, color: cGray
+	});
+
+	// Caixa de destaque do código de verificação
 	if (verificationHash) {
-		const labelFontSize = 5.5;
-		const labelText = `Para verificar a validade acesse https://escalas.policiacivil.ce.gov.br/validar e informe o código: ${verificationHash}`;
-		lastPage.drawText(labelText, {
-			x: 10,
-			y: 35,
-			size: labelFontSize,
-			font,
-			color: rgb(0.5, 0.5, 0.5),
-			rotate: degrees(90)
-		});
+		const hashLabel = `Cód: ${verificationHash}`;
+		const hashBgW = fontMono.widthOfTextAtSize(hashLabel, 7.5) + 14;
+		lastPage.drawRectangle({ x: txtX - 2, y: boxY + 19, width: hashBgW, height: 12, color: cNavy });
+		lastPage.drawText(hashLabel, { x: txtX + 5, y: boxY + 23, size: 7.5, font: fontMono, color: cWhite });
+	}
+
+	lastPage.drawText('Assinado conforme MP 2.200-2/2001 — ICP-Brasil', {
+		x: txtX, y: boxY + 7, size: 4.5, font, color: cGray
+	});
+
+	// 8 — Borda dupla (desenhada por último para ficar sobre tudo)
+	lastPage.drawRectangle({
+		x: boxX + 2, y: boxY + 2, width: boxW - 4, height: boxH - 4,
+		borderColor: cBlue, borderWidth: 0.35
+	});
+	lastPage.drawRectangle({
+		x: boxX, y: boxY, width: boxW, height: boxH,
+		borderColor: cNavy, borderWidth: 1.1
+	});
+
+	// 9 — Texto de verificação vertical na margem esquerda
+	if (verificationHash) {
+		lastPage.drawText(
+			`Para verificar acesse https://escalas.policiacivil.ce.gov.br/validar · Código: ${verificationHash}`,
+			{ x: 9, y: 32, size: 5, font, color: rgb(0.55, 0.55, 0.55), rotate: degrees(90) }
+		);
 	}
 
 	// Widget de assinatura digital visível — sobreposto à caixa visual
@@ -622,77 +657,82 @@ export async function adicionarRodapeSimples(
 	verificationUrl?: string
 ): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
-	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
 
-	const pages = pdfDoc.getPages();
+	const pages    = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
 	const { width } = lastPage.getSize();
 
-	const marginX = 40;
-	const lineY = 52;
-	const textY = 36;
-	const noteY = 20;
+	// --- Dimensões do selo ---
+	const margin  = 10;
+	const boxX    = margin;
+	const boxW    = width - margin * 2;
+	const boxH    = 72;
+	const boxY    = 7;
+	const headerH = 14;
 
-	// Linha separadora
-	lastPage.drawLine({
-		start: { x: marginX, y: lineY },
-		end: { x: width - marginX, y: lineY },
-		thickness: 0.5,
-		color: rgb(0.5, 0.5, 0.5)
-	});
+	// --- Paleta ---
+	const cNavy  = rgb(0.07, 0.14, 0.42);
+	const cBlue  = rgb(0.18, 0.32, 0.72);
+	const cBg    = rgb(0.94, 0.96, 0.99);
+	const cHatch = rgb(0.82, 0.88, 0.96);
+	const cDark  = rgb(0.05, 0.08, 0.22);
+	const cGray  = rgb(0.40, 0.40, 0.45);
+	const cWhite = rgb(1, 1, 1);
 
-	// Texto principal
-	const dataHora = formatarDataHora();
-	const texto = `Confirmado eletronicamente por `;
-	const textoWidth = font.widthOfTextAtSize(texto, 7.5);
+	// 1 — Fundo azul claro
+	lastPage.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: cBg });
 
-	lastPage.drawText(texto, {
-		x: marginX,
-		y: textY,
-		size: 7.5,
-		font,
-		color: rgb(0.3, 0.3, 0.3)
-	});
+	// 2 — Linhas de segurança diagonais (45°, guilloche simples)
+	for (let i = -boxH; i < boxW + 1; i += 8) {
+		lastPage.drawLine({
+			start: { x: boxX + i,        y: boxY },
+			end:   { x: boxX + i + boxH, y: boxY + boxH },
+			thickness: 0.18, color: cHatch
+		});
+	}
 
-	lastPage.drawText(assinante, {
-		x: marginX + textoWidth,
-		y: textY,
-		size: 7.5,
-		font: fontBold,
-		color: rgb(0.1, 0.1, 0.1)
-	});
-
-	const assinanteWidth = fontBold.widthOfTextAtSize(assinante, 7.5);
-	lastPage.drawText(` em ${dataHora}.`, {
-		x: marginX + textoWidth + assinanteWidth,
-		y: textY,
-		size: 7.5,
-		font,
-		color: rgb(0.3, 0.3, 0.3)
-	});
-
-	// Nota de validade
-	lastPage.drawText(
-		'Este registro eletrônico possui validade administrativa interna.',
-		{
-			x: marginX,
-			y: noteY,
-			size: 6.5,
-			font,
-			color: rgb(0.55, 0.55, 0.55)
+	// 3 — Hash fantasma (marca d'água repetida no fundo)
+	if (verificationHash) {
+		const ghostSize = 16;
+		const ghostStep = fontMono.widthOfTextAtSize(verificationHash + '   ', ghostSize);
+		const ghostY = boxY + (boxH - headerH) / 2 - 6;
+		for (let gx = boxX + 6; gx < boxX + boxW - 20; gx += ghostStep) {
+			lastPage.drawText(verificationHash, {
+				x: gx, y: ghostY, size: ghostSize, font: fontMono,
+				color: rgb(0.87, 0.91, 0.97)
+			});
 		}
-	);
+	}
 
-	// Adicionar QR Code se houver URL
+	// 4 — Faixa de cabeçalho navy
+	lastPage.drawRectangle({
+		x: boxX, y: boxY + boxH - headerH,
+		width: boxW, height: headerH, color: cNavy
+	});
+	lastPage.drawRectangle({ x: boxX + 5, y: boxY + boxH - headerH + 4, width: 5, height: 5, color: cWhite, opacity: 0.5 });
+	lastPage.drawRectangle({ x: boxX + boxW - 10, y: boxY + boxH - headerH + 4, width: 5, height: 5, color: cWhite, opacity: 0.5 });
+	lastPage.drawText('CONFIRMADO ELETRONICAMENTE — POLÍCIA CIVIL DO ESTADO DO CEARÁ', {
+		x: boxX + 14, y: boxY + boxH - headerH + 4,
+		size: 6.5, font: fontBold, color: cWhite
+	});
+
+	// 5 — QR Code (error correction H)
+	let qrColumnX = boxX + boxW - 8;
 	if (verificationUrl) {
 		try {
-			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+			const qrSize = 52;
+			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
 			const moduleCount = qr.modules.size;
-			const qrSize = 35;
 			const dotSize = qrSize / moduleCount;
-			const qrX = width - marginX - qrSize;
-			const qrY = 18;
+			const qrX = boxX + boxW - qrSize - 9;
+			const qrY = boxY + (boxH - headerH - qrSize) / 2;
+			qrColumnX = qrX;
+
+			// Fundo branco para o QR
+			lastPage.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, color: cWhite });
 
 			for (let row = 0; row < moduleCount; row++) {
 				for (let col = 0; col < moduleCount; col++) {
@@ -700,29 +740,75 @@ export async function adicionarRodapeSimples(
 						lastPage.drawRectangle({
 							x: qrX + col * dotSize,
 							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1,
-							height: dotSize + 0.1,
-							color: rgb(0.2, 0.2, 0.2)
+							width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
 						});
 					}
 				}
 			}
-		} catch (err: any) {
-			console.error('Erro ao gerar QR Code para rodapé simples:', err);
+
+			// Label "VERIFICAR" abaixo do QR
+			const lblW = fontBold.widthOfTextAtSize('VERIFICAR', 4.5);
+			lastPage.drawText('VERIFICAR', {
+				x: qrX + (qrSize - lblW) / 2, y: boxY + 4,
+				size: 4.5, font: fontBold, color: cBlue
+			});
+
+			// Linha divisória vertical
+			lastPage.drawLine({
+				start: { x: qrX - 6, y: boxY + 4 },
+				end:   { x: qrX - 6, y: boxY + boxH - headerH - 3 },
+				thickness: 0.3, color: cBlue
+			});
+		} catch (err) {
+			console.error('Erro QR Code rodapé simples:', err);
 		}
 	}
 
-	// Legenda de verificação para impressão
-	if (verificationHash) {
-		const labelText = `Para verificar a validade deste documento acesse https://escalas.policiacivil.ce.gov.br/validar e informe o código: ${verificationHash}`;
-		lastPage.drawText(labelText, {
-			x: marginX,
-			y: 18,
-			size: 6.5,
-			font,
-			color: rgb(0.4, 0.4, 0.4)
-		});
+	// 6 — Conteúdo textual
+	const textX     = boxX + 8;
+	const textMaxW  = qrColumnX - boxX - 22;
+	const contentTop = boxY + boxH - headerH - 3;
+	const dataHora   = formatarDataHora();
+
+	lastPage.drawText('Confirmado eletronicamente por:', {
+		x: textX, y: contentTop - 8, size: 6, font, color: cBlue
+	});
+
+	// Nome (truncado se necessário)
+	let nomeDisplay = assinante.toUpperCase();
+	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, 8.5) > textMaxW) {
+		nomeDisplay = nomeDisplay.slice(0, -1);
 	}
+	if (nomeDisplay !== assinante.toUpperCase()) nomeDisplay += '\u2026';
+	lastPage.drawText(nomeDisplay, {
+		x: textX, y: contentTop - 19, size: 8.5, font: fontBold, color: cDark
+	});
+
+	lastPage.drawText(`Data/Hora: ${dataHora}  (Horário de Brasília)`, {
+		x: textX, y: contentTop - 30, size: 6.5, font, color: cGray
+	});
+
+	// 7 — Caixa de destaque do código de verificação (navy + Courier Bold)
+	if (verificationHash) {
+		const hashLabel = `Cód: ${verificationHash}`;
+		const hashBgW   = fontMono.widthOfTextAtSize(hashLabel, 8) + 16;
+		lastPage.drawRectangle({ x: textX - 2, y: boxY + 15, width: hashBgW, height: 13, color: cNavy });
+		lastPage.drawText(hashLabel, { x: textX + 6, y: boxY + 19, size: 8, font: fontMono, color: cWhite });
+	}
+
+	lastPage.drawText('Verificar em: escalas.policiacivil.ce.gov.br/validar', {
+		x: textX, y: boxY + 5, size: 5.5, font, color: cGray
+	});
+
+	// 8 — Borda dupla (desenhada por último para encaixilhar tudo)
+	lastPage.drawRectangle({
+		x: boxX + 2, y: boxY + 2, width: boxW - 4, height: boxH - 4,
+		borderColor: cBlue, borderWidth: 0.35
+	});
+	lastPage.drawRectangle({
+		x: boxX, y: boxY, width: boxW, height: boxH,
+		borderColor: cNavy, borderWidth: 1.1
+	});
 
 	return pdfDoc.save();
 }

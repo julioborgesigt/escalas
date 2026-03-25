@@ -455,6 +455,7 @@
 			preparedPdf,
 			messageDigest,
 			signingTimeISO,
+			verificationHash,
 		} = await prepRes.json();
 
 		// 2. Assinar hash (janela de PIN aparece aqui, gerenciada pela lib de assinatura)
@@ -476,6 +477,7 @@
 					signingTimeISO,
 					signerName,
 					signerCpf,
+					verificationHash,
 				}),
 			},
 		);
@@ -636,7 +638,7 @@
 				const err = await prepRes.json();
 				throw new Error(err.error || "Erro ao preparar PDF");
 			}
-			const { preparedPdf, messageDigest: messageDigestHex } =
+			const { preparedPdf, messageDigest: messageDigestHex, verificationHash: serproVerificationHash } =
 				await prepRes.json();
 
 			// 2. Converter messageDigest hex → bytes binários → base64 para SERPRO
@@ -670,7 +672,8 @@
 						preparedPdf, 
 						serproCms,
 						signerName: certName || serproSignerName,
-						signerCpf: certCpf || serproSignerCpf 
+						signerCpf: certCpf || serproSignerCpf,
+						verificationHash: serproVerificationHash
 					}),
 				},
 			);
