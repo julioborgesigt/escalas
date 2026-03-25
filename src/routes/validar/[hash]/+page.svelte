@@ -128,27 +128,47 @@
 			</footer>
 
 		{:else}
-			<!-- ❌ DOCUMENTO NÃO ENCONTRADO -->
+			<!-- ❌ DOCUMENTO NÃO ENCONTRADO / ERRO -->
+			{@const erroInterno = data.motivo === 'erro_db' || data.motivo === 'erro_consulta'}
+
 			<div class="flex flex-col items-center mb-10">
 				<img src={icon} alt="Logo PC-CE" class="w-20 mb-4 drop-shadow-md" />
-				<div class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center mb-4">
-					<svg class="w-9 h-9 text-error-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-					</svg>
+				<div class="w-16 h-16 rounded-full {erroInterno ? 'bg-warning-500/10' : 'bg-error-500/10'} flex items-center justify-center mb-4">
+					{#if erroInterno}
+						<svg class="w-9 h-9 text-warning-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					{:else}
+						<svg class="w-9 h-9 text-error-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+					{/if}
 				</div>
-				<h1 class="text-2xl font-black text-error-600 dark:text-error-400 uppercase tracking-tighter">Documento Não Encontrado</h1>
+				<h1 class="text-2xl font-black {erroInterno ? 'text-warning-600 dark:text-warning-400' : 'text-error-600 dark:text-error-400'} uppercase tracking-tighter">
+					{erroInterno ? 'Erro ao Consultar' : 'Documento Não Encontrado'}
+				</h1>
 				<p class="text-surface-500 font-medium text-center mt-2">
-					O código de verificação informado não corresponde a nenhum documento registrado no sistema.
+					{#if erroInterno}
+						Ocorreu um erro interno ao consultar o sistema. Tente novamente em alguns instantes.
+					{:else}
+						O código de verificação informado não corresponde a nenhum documento registrado no sistema.
+					{/if}
 				</p>
 			</div>
 
-			<div class="p-6 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-700/30 rounded-2xl text-center space-y-3">
-				<p class="text-sm text-error-800 dark:text-error-300">
-					Este documento pode ser <strong>falso ou adulterado</strong>. Não utilize este documento.
-				</p>
-				<p class="text-xs text-surface-500">
-					Se você acredita que há um erro, entre em contato com a unidade que emitiu o documento.
-				</p>
+			<div class="p-6 {erroInterno ? 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-700/30' : 'bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-700/30'} border rounded-2xl text-center space-y-3">
+				{#if erroInterno}
+					<p class="text-sm text-warning-800 dark:text-warning-300">
+						Não foi possível verificar a autenticidade neste momento. Por favor, tente novamente ou contate o suporte.
+					</p>
+				{:else}
+					<p class="text-sm text-error-800 dark:text-error-300">
+						Este documento pode ser <strong>falso ou adulterado</strong>. Não utilize este documento.
+					</p>
+					<p class="text-xs text-surface-500">
+						Se você acredita que há um erro, entre em contato com a unidade que emitiu o documento.
+					</p>
+				{/if}
 			</div>
 
 			<footer class="mt-10 pt-6 border-t border-surface-200 dark:border-white/5 text-center">
