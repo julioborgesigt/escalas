@@ -1,24 +1,42 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
+
 
 	let escalas = $state<EscalaListagem[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
-	let filtroLotacao = $state('');
-	let filtroMes = $state(0);
-	let filtroAno = $state(new Date().getFullYear());
-	let filtroTipo = $state('todos');
-	let filtroSeccional = $state<number | 'todas'>('todas');
 	let unidades = $state<Unidade[]>([]);
+	
+	// Recuperar filtros do localStorage (apenas no navegador)
+	const KEY = 'filtros_escalas';
+	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
 
+	let filtroLotacao = $state(saved.lotacao || '');
+	let filtroMes = $state(saved.mes !== undefined ? saved.mes : new Date().getMonth() + 1);
+	let filtroAno = $state(saved.ano || new Date().getFullYear());
+	let filtroTipo = $state(saved.tipo || 'todos');
+	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
+
+	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
-		if (filtroSeccional) {
-			filtroLotacao = '';
+		if (browser) {
+			localStorage.setItem(KEY, JSON.stringify({
+				lotacao: filtroLotacao,
+				mes: filtroMes,
+				ano: filtroAno,
+				tipo: filtroTipo,
+				seccional: filtroSeccional
+			}));
 		}
 	});
+
+
+
 
 	const seccionais = $derived(unidades.filter(u => u.tipo === 'seccional'));
 	const delegaciasDropdown = $derived(
@@ -28,7 +46,9 @@
 	);
 
 	let dialogOpen = $state(false);
+	let dialogRevogarOpen = $state(false);
 	let escalaParaExcluir = $state<{id: number, titulo: string} | null>(null);
+	let escalaParaRevogar = $state<{id: number, titulo: string} | null>(null);
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -96,16 +116,52 @@
 		escalaParaExcluir = null;
 	}
 
+	function solicitarEdicao(esc: EscalaListagem) {
+		if (esc.is_assinada) {
+			escalaParaRevogar = { id: esc.id, titulo: esc.titulo };
+			dialogRevogarOpen = true;
+		} else {
+			goto(`/escalas/${esc.id}`);
+		}
+	}
+
+	async function confirmarRevogacao() {
+		if (!escalaParaRevogar) return;
+		const id = escalaParaRevogar.id;
+		dialogRevogarOpen = false;
+
+		const res = await fetch(`/api/escalas/${id}/documento-assinado`, { method: 'DELETE' });
+		if (res.ok) {
+			toaster.create({ title: 'Assinatura revogada', description: 'A escala agora pode ser editada.', type: 'info' });
+			goto(`/escalas/${id}`);
+		} else {
+			const err = await res.json().catch(() => ({}));
+			toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
+		}
+		escalaParaRevogar = null;
+	}
+
+	let paginaAtual = $state(1);
+	const itensPorPagina = 10;
+	const totalPaginas = $derived(Math.max(1, Math.ceil(escalas.length / itensPorPagina)));
+	const escalasPaginadas = $derived(escalas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina));
+
 	$effect(() => {
 		carregar();
 		carregarUnidades();
+		// Resetar para página 1 ao mudar filtros
+		if (filtroMes || filtroAno || filtroTipo || filtroLotacao) {
+			paginaAtual = 1;
+		}
 	});
+
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-	<h1 class="h1 text-xl font-bold">Escalas de Plantão</h1>
+	<h1 class="h1 text-xl font-bold">Arquivo</h1>
 	<a href="/escalas/nova" class="btn preset-filled-primary-500">Nova Escala</a>
 </div>
+
 
 <Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
 	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
@@ -117,6 +173,26 @@
 			<div class="flex justify-end gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog>
+
+<Dialog open={dialogRevogarOpen} onOpenChange={(e) => dialogRevogarOpen = e.open}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-2">Editar Escala Assinada?</Dialog.Title>
+			<Dialog.Description class="space-y-4 mb-6">
+				<p class="text-surface-600 dark:text-surface-400">
+					Esta escala já possui uma <strong>assinatura digital</strong> válida. Ao editá-la, a assinatura atual será <span class="text-error-500 font-bold underline">revogada</span> (removida).
+				</p>
+				<p class="text-surface-500 text-sm">
+					Se você deseja apenas visualizar a escala oficial, utilize a opção <strong>Exportar</strong> ou clique no título da escala.
+				</p>
+			</Dialog.Description>
+			<div class="flex justify-end gap-3">
+				<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500" onclick={confirmarRevogacao}>Revogar e Editar</button>
 			</div>
 		</div>
 	</Dialog.Content>
@@ -206,8 +282,9 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each escalas as esc (esc.id)}
+					{#each escalasPaginadas as esc (esc.id)}
 						<tr>
+
 							<td><a href="/escalas/{esc.id}" class="anchor">{esc.titulo}</a></td>
 							<td>{esc.cidade}</td>
 							<td class="whitespace-nowrap">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td>
@@ -227,7 +304,12 @@
 							</td>
 							<td>
 								<div class="flex gap-2 justify-end">
-									<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500">Abrir</a>
+									<button 
+										class="btn btn-sm {esc.is_assinada ? 'preset-filled-warning-500' : 'preset-outlined-primary-500'}"
+										onclick={() => solicitarEdicao(esc)}
+									>
+										{esc.is_assinada ? 'Editar' : 'Abrir'}
+									</button>
 									<Popover positioning={{ placement: "bottom-end", offset: { mainAxis: 4 } }}>
 										<Popover.Trigger class="btn btn-sm preset-outlined-primary-500">Exportar ▾</Popover.Trigger>
 										<Portal>
@@ -260,8 +342,9 @@
 
 		<!-- Mobile: cards -->
 		<div class="md:hidden space-y-3">
-			{#each escalas as esc (esc.id)}
+			{#each escalasPaginadas as esc (esc.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
+
 					<div class="flex justify-between items-start mb-3 gap-2">
 						<a href="/escalas/{esc.id}" class="anchor font-semibold text-sm block text-primary-600 dark:text-primary-400 no-underline hover:text-primary-500 dark:hover:text-primary-300">{esc.titulo}</a>
 						{#if esc.is_assinada}
@@ -285,7 +368,12 @@
 						</div>
 					</div>
 					<div class="flex gap-2 pt-3 border-t border-white/5">
-						<a href="/escalas/{esc.id}" class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-colors">Abrir</a>
+						<button 
+							class="btn btn-sm {esc.is_assinada ? 'preset-filled-warning-500' : 'preset-outlined-primary-500'} flex-1"
+							onclick={() => solicitarEdicao(esc)}
+						>
+							{esc.is_assinada ? 'Editar' : 'Abrir'}
+						</button>
 						<Popover positioning={{ placement: "bottom-end", offset: { mainAxis: 4 } }}>
 							<Popover.Trigger class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10">Exportar ▾</Popover.Trigger>
 							<Portal>
@@ -312,6 +400,46 @@
 				</div>
 			{/each}
 		</div>
-		<p class="mt-3 text-surface-500 text-sm hidden md:block">{escalas.length} escala(s) encontrada(s)</p>
+		<div class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+			<p class="text-surface-500 text-sm">
+				Mostrando <strong>{(paginaAtual - 1) * itensPorPagina + 1}-{Math.min(paginaAtual * itensPorPagina, escalas.length)}</strong> de <strong>{escalas.length}</strong> escala(s)
+			</p>
+			
+			{#if totalPaginas > 1}
+				<div class="flex items-center gap-2">
+					<button 
+						class="btn btn-sm preset-outlined-surface" 
+						onclick={() => { paginaAtual--; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+						disabled={paginaAtual === 1}
+					>
+						Anterior
+					</button>
+					
+					<div class="flex items-center gap-1">
+						{#each Array.from({length: totalPaginas}, (_, i) => i + 1) as p}
+							{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
+								<button 
+									class="btn btn-sm {paginaAtual === p ? 'preset-filled-primary-500' : 'preset-outlined-surface'} min-w-[32px]"
+									onclick={() => { paginaAtual = p; window.scrollTo({top: 0, behavior: 'smooth'}); }}
+								>
+									{p}
+								</button>
+							{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
+								<span class="px-1 opacity-50">...</span>
+							{/if}
+						{/each}
+					</div>
+
+					<button 
+						class="btn btn-sm preset-outlined-surface" 
+						onclick={() => { paginaAtual++; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+						disabled={paginaAtual >= totalPaginas}
+					>
+						Próxima
+					</button>
+				</div>
+			{/if}
+		</div>
+
 	{/if}
 </div>

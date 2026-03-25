@@ -34,11 +34,14 @@ export const POST = async ({ platform, params, locals, url }: RequestEvent) => {
 
 	try {
 		// Gerar o PDF da escala correto conforme o tipo
-		const pdfBytes = escala.tipo === 'expediente'
+		const result = escala.tipo === 'expediente'
 			? gerarPdfExpediente(escala, policiais)
 			: escala.tipo === 'plantao'
 				? gerarPdfPlantao(escala, policiais)
 				: gerarPdf(escala, policiais);
+		
+		const pdfBytes = result.pdf;
+
 
 		const verificationHash = gerarCodigoValidacao();
 		const verificationUrl = `${url.origin}/validar/${verificationHash}`;

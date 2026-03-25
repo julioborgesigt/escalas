@@ -470,6 +470,11 @@ export async function buscarDocumentoEscala(db: Database, escalaId: number): Pro
 	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId)).get();
 }
 
+export async function excluirDocumentoEscala(db: Database, escalaId: number) {
+	return db.delete(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId));
+}
+
 export async function buscarDocumentoPorHash(db: Database, hash: string): Promise<schema.EscalaDocumento | undefined> {
 	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get();
 }
+

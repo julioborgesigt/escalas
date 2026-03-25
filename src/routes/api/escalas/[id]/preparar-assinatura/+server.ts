@@ -32,11 +32,14 @@ export const POST = async ({ platform, params, request, locals, url }: RequestEv
 	const signerCpf = (body as { signerCpf?: string }).signerCpf || '';
 
 	// Gerar o PDF da escala
-	const pdfBytes = escala.tipo === 'expediente'
+	const result = escala.tipo === 'expediente'
 		? gerarPdfExpediente(escala, policiais)
 		: escala.tipo === 'plantao'
 			? gerarPdfPlantao(escala, policiais)
 			: gerarPdf(escala, policiais);
+
+	const pdfBytes = result.pdf;
+	const finalYmm = result.finalY;
 
 	// Alinhamento conforme o PDF (Plantão = right (centro da direita), outros = center)
 	const isPlantao = escala.tipo === 'plantao';
@@ -45,9 +48,17 @@ export const POST = async ({ platform, params, request, locals, url }: RequestEv
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
+	// Converter Y de mm (jspdf) para points (pdf-lib) e compensar a altura do carimbo
+	// A4 = 210mm = 595.28 points. 1mm = 2.8346 points.
+	// O Y do jspdf é do topo. O Y do pdf-lib é da base.
+	// Queremos o carimbo um pouco acima da linha de assinatura (finalYmm).
+	const boxY = (210 - finalYmm) * 2.8346 + 1.5;
+
 	// Preparar o PDF com placeholder de assinatura e calcular hash dos SignedAttributes
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
-		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf, isPlantao ? 'right' : 'center', verificationHash, verificationUrl);
+		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf, 'right', verificationHash, verificationUrl, boxY);
+
+
 
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 

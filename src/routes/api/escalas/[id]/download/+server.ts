@@ -74,10 +74,10 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 				break;
 			case 'pdf':
 				data = tipo === 'expediente'
-					? gerarPdfExpediente(escala, policiais)
+					? gerarPdfExpediente(escala, policiais).pdf
 					: tipo === 'plantao'
-						? gerarPdfPlantao(escala, policiais)
-						: gerarPdf(escala, policiais);
+						? gerarPdfPlantao(escala, policiais).pdf
+						: gerarPdf(escala, policiais).pdf;
 				contentType = 'application/pdf';
 				ext = 'pdf';
 				break;
@@ -89,10 +89,11 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 		return json({ error: `Erro ao gerar ${format}: ${msg}` }, { status: 500 });
 	}
 
-	return new Response(data, {
+	return new Response(data as unknown as BodyInit, {
 		headers: {
 			'Content-Type': contentType,
 			'Content-Disposition': `attachment; filename="${filename}.${ext}"`
 		}
 	});
 };
+
