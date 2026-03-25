@@ -13,11 +13,12 @@ import { limparMatricula } from './utils';
 
 export type Database = ReturnType<typeof getDB>;
 
-export function getDB(platform: App.Platform | undefined) {
-	if (!platform?.env?.escalas_db) {
+export function getDB(platform: any) {
+	const p = platform as App.Platform | undefined;
+	if (!p?.env?.escalas_db) {
 		throw new Error('Database not available. Make sure D1 is configured.');
 	}
-	return drizzle(platform.env.escalas_db, { schema });
+	return drizzle(p.env.escalas_db, { schema });
 }
 
 // ---- Policiais ----
@@ -442,14 +443,16 @@ export async function salvarDocumentoEscala(
 	escalaId: number,
 	r2Key: string,
 	assinanteNome: string,
-	assinanteCpf?: string
+	assinanteCpf?: string,
+	verificacaoHash?: string
 ) {
 	return db.insert(escalaDocumentos)
 		.values({
 			escala_id: escalaId,
 			r2_key: r2Key,
 			assinante_nome: assinanteNome,
-			assinante_cpf: assinanteCpf || ''
+			assinante_cpf: assinanteCpf || '',
+			verificacao_hash: verificacaoHash
 		})
 		.onConflictDoUpdate({
 			target: escalaDocumentos.escala_id,
@@ -457,6 +460,7 @@ export async function salvarDocumentoEscala(
 				r2_key: r2Key,
 				assinante_nome: assinanteNome,
 				assinante_cpf: assinanteCpf || '',
+				verificacao_hash: verificacaoHash,
 				created_at: sql`datetime('now')`
 			}
 		});
@@ -464,4 +468,8 @@ export async function salvarDocumentoEscala(
 
 export async function buscarDocumentoEscala(db: Database, escalaId: number): Promise<schema.EscalaDocumento | undefined> {
 	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId)).get();
+}
+
+export async function buscarDocumentoPorHash(db: Database, hash: string): Promise<schema.EscalaDocumento | undefined> {
+	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get();
 }

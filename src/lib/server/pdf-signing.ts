@@ -1,7 +1,8 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
+import * as QRCode from 'qrcode';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
@@ -280,7 +281,10 @@ export interface PrepareResult {
 export async function prepararPdfParaAssinatura(
 	pdfBytes: Uint8Array,
 	signerName: string,
-	signerCpf?: string
+	signerCpf?: string,
+	alignment: 'center' | 'right' = 'right',
+	verificationHash?: string,
+	verificationUrl?: string
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -289,15 +293,21 @@ export async function prepararPdfParaAssinatura(
 	const pages = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
 	const { width } = lastPage.getSize();
-
 	const dataHora = formatarDataHora();
 
-	// Dimensões da caixa de assinatura (canto inferior direito)
-	const boxW = 220;
-	const boxH = 46;
-	const margin = 8;
-	const boxX = width - boxW - margin;
-	const boxY = margin;
+	// Localização dinâmica do carimbo
+	const boxW = 240;
+	const boxH = 75;
+	const marginY = 40;
+	
+	let boxX: number;
+	if (alignment === 'center') {
+		boxX = (width - boxW) / 2;
+	} else {
+		// Alinhado ao centro da metade direita (como no PDF de Plantão)
+		boxX = (width * 0.75) - (boxW / 2);
+	}
+	const boxY = marginY;
 
 	// Fundo levemente azulado e borda
 	lastPage.drawRectangle({
@@ -305,54 +315,107 @@ export async function prepararPdfParaAssinatura(
 		y: boxY,
 		width: boxW,
 		height: boxH,
-		color: rgb(0.95, 0.97, 1.0),
+		color: rgb(0.96, 0.98, 1.0),
 		borderColor: rgb(0.25, 0.35, 0.75),
-		borderWidth: 0.6,
+		borderWidth: 0.5,
 		opacity: 1
 	});
 
-	// Linha de separação horizontal superior
-	lastPage.drawLine({
-		start: { x: boxX, y: boxY + boxH - 14 },
-		end:   { x: boxX + boxW, y: boxY + boxH - 14 },
-		thickness: 0.4,
-		color: rgb(0.25, 0.35, 0.75),
-		opacity: 0.5
-	});
-
-	// Textos dentro da caixa
-	const innerX = boxX + 5;
+	// Cabeçalho da caixa
+	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	lastPage.drawText('Assinado digitalmente por:', {
-		x: innerX, y: boxY + boxH - 11,
-		size: 6, font, color: rgb(0.25, 0.35, 0.75)
+		x: boxX + 8,
+		y: boxY + boxH - 12,
+		size: 7,
+		font,
+		color: rgb(0.3, 0.45, 0.8)
 	});
 
-	// Nome do assinante (truncado se muito longo)
-	const nomeFontSize = 7.5;
-	const nomeMaxWidth = boxW - 10;
-	let nomeDisplay = signerName;
-	while (nomeDisplay.length > 3 && font.widthOfTextAtSize(nomeDisplay, nomeFontSize) > nomeMaxWidth) {
+	// Nome do assinante
+	const nomeAssinante = signerName.toUpperCase();
+	const nomeFontSize = 9.5;
+	// Truncar nome se for muito longo para o espaço lateral (boxW - qrSize - margins)
+	const textMaxW = boxW - 75; 
+	let nomeDisplay = nomeAssinante;
+	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, nomeFontSize) > textMaxW) {
 		nomeDisplay = nomeDisplay.slice(0, -1);
 	}
-	if (nomeDisplay !== signerName) nomeDisplay += '…';
+	if (nomeDisplay !== nomeAssinante) nomeDisplay += '…';
+
 	lastPage.drawText(nomeDisplay, {
-		x: innerX, y: boxY + boxH - 23,
-		size: nomeFontSize, font, color: rgb(0.05, 0.05, 0.05)
+		x: boxX + 8,
+		y: boxY + boxH - 26,
+		size: nomeFontSize,
+		font: fontBold,
+		color: rgb(0.05, 0.1, 0.25)
 	});
 
-	// Data/hora e info do certificado
-	let infoLine = `${dataHora} — ICP-Brasil`;
-	if (signerCpf) infoLine += ` — CPF: ${signerCpf}`;
-	lastPage.drawText(infoLine, {
-		x: innerX, y: boxY + boxH - 35,
-		size: 6, font, color: rgb(0.3, 0.3, 0.3)
+	// CPF e Data
+	const cpfFormatado = signerCpf ? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**` : 'CPF: ***.***.***-**';
+	const infoText = `${dataHora} — ${cpfFormatado}`;
+	lastPage.drawText(infoText, {
+		x: boxX + 8,
+		y: boxY + boxH - 38,
+		size: 7,
+		font,
+		color: rgb(0.25, 0.25, 0.25)
 	});
 
-	// "Verificar no Adobe Acrobat"
-	lastPage.drawText('Clique para verificar a validade do certificado', {
-		x: innerX, y: boxY + 4,
-		size: 5.5, font, color: rgb(0.25, 0.35, 0.75)
+	// Texto institucional
+	const instTextLine1 = 'Documento assinado digitalmente conforme MP nº 2.200-2/2001,';
+	const instTextLine2 = 'que institui a ICP-Brasil. Validade jurídica assegurada.';
+	lastPage.drawText(instTextLine1, {
+		x: boxX + 8, y: boxY + 16, size: 5, font, color: rgb(0.45, 0.45, 0.45)
 	});
+	lastPage.drawText(instTextLine2, {
+		x: boxX + 8, y: boxY + 9, size: 5, font, color: rgb(0.45, 0.45, 0.45)
+	});
+
+	// Adicionar QR Code se houver URL (Desenho manual para compatibilidade com Cloudflare Workers)
+	if (verificationUrl) {
+		try {
+			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+			const moduleCount = qr.modules.size;
+			const qrSize = 58;
+			const dotSize = qrSize / moduleCount;
+			const qrX = boxX + boxW - qrSize - 6;
+			const qrY = boxY + (boxH - qrSize) / 2;
+
+			// Filtro leve para a cor do QR
+			const qrColor = rgb(0.0, 0.2, 0.4);
+
+			for (let row = 0; row < moduleCount; row++) {
+				for (let col = 0; col < moduleCount; col++) {
+					if (qr.modules.get(row, col)) {
+						lastPage.drawRectangle({
+							x: qrX + col * dotSize,
+							y: qrY + (moduleCount - row - 1) * dotSize,
+							width: dotSize + 0.1, // Pequeno overlap para evitar gaps
+							height: dotSize + 0.1,
+							color: qrColor
+						});
+					}
+				}
+			}
+		} catch (err: any) {
+			console.error('Erro ao gerar QR Code para assinatura:', err);
+		}
+	}
+
+	// Legenda de verificação para impressão (posicionada verticalmente à esquerda)
+	// Reduzimos o tamanho e simplificamos conforme o modelo usual
+	if (verificationHash) {
+		const labelFontSize = 5.5;
+		const labelText = `Para verificar a validade acesse https://escalas.policiacivil.ce.gov.br/validar e informe o código: ${verificationHash}`;
+		lastPage.drawText(labelText, {
+			x: 10,
+			y: 35,
+			size: labelFontSize,
+			font,
+			color: rgb(0.5, 0.5, 0.5),
+			rotate: degrees(90)
+		});
+	}
 
 	// Widget de assinatura digital visível — sobreposto à caixa visual
 	// Ao clicar, o Adobe Acrobat mostra os detalhes do certificado e status
@@ -555,7 +618,8 @@ export async function finalizarAssinatura(
 export async function adicionarRodapeSimples(
 	pdfBytes: Uint8Array,
 	assinante: string,
-	dataHora: string // ex: "23/03/2026 às 12:30:00"
+	verificationHash?: string,
+	verificationUrl?: string
 ): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -579,6 +643,7 @@ export async function adicionarRodapeSimples(
 	});
 
 	// Texto principal
+	const dataHora = formatarDataHora();
 	const texto = `Confirmado eletronicamente por `;
 	const textoWidth = font.widthOfTextAtSize(texto, 7.5);
 
@@ -618,6 +683,46 @@ export async function adicionarRodapeSimples(
 			color: rgb(0.55, 0.55, 0.55)
 		}
 	);
+
+	// Adicionar QR Code se houver URL
+	if (verificationUrl) {
+		try {
+			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+			const moduleCount = qr.modules.size;
+			const qrSize = 35;
+			const dotSize = qrSize / moduleCount;
+			const qrX = width - marginX - qrSize;
+			const qrY = 18;
+
+			for (let row = 0; row < moduleCount; row++) {
+				for (let col = 0; col < moduleCount; col++) {
+					if (qr.modules.get(row, col)) {
+						lastPage.drawRectangle({
+							x: qrX + col * dotSize,
+							y: qrY + (moduleCount - row - 1) * dotSize,
+							width: dotSize + 0.1,
+							height: dotSize + 0.1,
+							color: rgb(0.2, 0.2, 0.2)
+						});
+					}
+				}
+			}
+		} catch (err: any) {
+			console.error('Erro ao gerar QR Code para rodapé simples:', err);
+		}
+	}
+
+	// Legenda de verificação para impressão
+	if (verificationHash) {
+		const labelText = `Para verificar a validade deste documento acesse https://escalas.policiacivil.ce.gov.br/validar e informe o código: ${verificationHash}`;
+		lastPage.drawText(labelText, {
+			x: marginX,
+			y: 18,
+			size: 6.5,
+			font,
+			color: rgb(0.4, 0.4, 0.4)
+		});
+	}
 
 	return pdfDoc.save();
 }

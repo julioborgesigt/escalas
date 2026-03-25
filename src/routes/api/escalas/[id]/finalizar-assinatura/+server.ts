@@ -7,6 +7,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
 	const usuario = locals.usuario;
+	const p = platform as App.Platform | undefined;
 
 	if (!usuario) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
@@ -18,7 +19,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	}
 
 	const body = await request.json();
-	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms, signerName, signerCpf } = body;
+	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms, signerName, signerCpf, verificationHash } = body;
 
 	if (!preparedPdf) {
 		return json({ error: 'preparedPdf é obrigatório' }, { status: 400 });
@@ -53,11 +54,11 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		}
 
 		// Salva o PDF no Cloudflare R2 e registra no banco
-		if (platform?.env?.escalas_docs) {
+		if (p?.env?.escalas_docs) {
 			const r2Key = `escala_${escalaId}_assinada.pdf`;
 			try {
-				await platform.env.escalas_docs.put(r2Key, signedPdf);
-				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '');
+				await p.env.escalas_docs.put(r2Key, signedPdf);
+				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '', verificationHash);
 			} catch (err) {
 				console.error('[finalizar-assinatura] Erro ao salvar no R2 ou BD:', err);
 			}
