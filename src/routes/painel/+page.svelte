@@ -1,28 +1,46 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
+
 	import type { Unidade } from '$lib/types';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let dados = $state<ItemCompliance[]>([]);
 	let loading = $state(true);
-
-	// Filtros
-	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>('todos');
-	let filtroSeccional = $state<number | 'todas'>('todas');
-	let filtroUnidade = $state('');
-	let filtroPendentes = $state(true);
-	let mostrarIgnorados = $state(false);
-
 	let unidadesDB = $state<Unidade[]>([]);
+	
+	// Filtros com persistência
+	const KEY = 'filtros_painel';
+	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
 
+	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>(saved.regime || 'todos');
+	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
+	let filtroUnidade = $state(saved.unidade || '');
+	let filtroPendentes = $state(saved.pendentes !== undefined ? !!saved.pendentes : true);
+	let mostrarIgnorados = $state(!!saved.ignorados);
+
+	// Salvar filtros a cada mudança
 	$effect(() => {
-		if (filtroSeccional) {
-			filtroUnidade = '';
+		if (browser) {
+			localStorage.setItem(KEY, JSON.stringify({
+				regime: filtroRegime,
+				seccional: filtroSeccional,
+				unidade: filtroUnidade,
+				pendentes: filtroPendentes,
+				ignorados: mostrarIgnorados
+			}));
 		}
 	});
+
+	// Reset de unidade (apenas no clique seccional)
+	function mudarSeccional() {
+		filtroUnidade = '';
+		// carregar() não é necessário aqui pois dados já estão em memória
+	}
+
 
 	const seccionais = $derived(unidadesDB.filter(u => u.tipo === 'seccional'));
 
@@ -171,12 +189,13 @@
 		<div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
 			<label class="label flex-1">
 				<span class="label-text text-sm font-semibold mb-1">Seccional</span>
-				<select class="select" bind:value={filtroSeccional}>
+				<select class="select" bind:value={filtroSeccional} onchange={mudarSeccional}>
 					<option value="todas">Todas as seccionais</option>
 					{#each seccionais as sec (sec.id)}
 						<option value={sec.id}>{sec.nome}</option>
 					{/each}
 				</select>
+
 			</label>
 			
 			<label class="label flex-1">

@@ -3,27 +3,38 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { browser } from '$app/environment';
+
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
-	let filtroLotacao = $state('');
-	let filtroCargo = $state('');
-	let filtroSeccional = $state<number | 'todas'>('todas');
-	let filtroBusca = $state('');
 	let unidades = $state<Unidade[]>([]);
+	
+	// Recuperar filtros do localStorage (apenas no navegador)
+	const KEY = 'filtros_policiais';
+	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
 
+	let filtroLotacao = $state(saved.lotacao || '');
+	let filtroCargo = $state(saved.cargo || '');
+	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
+	let filtroBusca = $state(saved.busca || '');
+	
+	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
-		// Reset lotacao when seccional changes
-		if (filtroSeccional) {
-			filtroLotacao = '';
-			// We might want to call carregarPoliciais() here? Yes, because clearing it removes the filter.
-			// Actually the select handles onchange={carregarPoliciais}. We don't need to do it here manually 
-			// if it triggers an onchange, but wait, $effect running will just update state. 
-			// Just clearing the 'filtroLotacao' won't fetch. We can trigger `carregarPoliciais()` manually.
+		if (browser) {
+			localStorage.setItem(KEY, JSON.stringify({
+				lotacao: filtroLotacao,
+				cargo: filtroCargo,
+				seccional: filtroSeccional,
+				busca: filtroBusca
+			}));
 		}
 	});
+
+
+
 
 	const seccionais = $derived(unidades.filter(u => u.tipo === 'seccional'));
 	const delegaciasDropdown = $derived(
@@ -46,6 +57,19 @@
 			return true;
 		})
 	);
+
+	let paginaAtual = $state(1);
+	const itensPorPagina = 10;
+	const totalPaginas = $derived(Math.max(1, Math.ceil(policiaisExibidos.length / itensPorPagina)));
+	const policiaisPaginados = $derived(policiaisExibidos.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina));
+
+	$effect(() => {
+		// Resetar para página 1 ao filtrar
+		if (filtroCargo || filtroBusca || filtroLotacao || filtroSeccional) {
+			paginaAtual = 1;
+		}
+	});
+
 
 	async function carregarPoliciais() {
 		if (isAdmin && !filtroLotacao) {
@@ -210,8 +234,9 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each policiaisExibidos as p (p.id)}
+					{#each policiaisPaginados as p (p.id)}
 						<tr>
+
 							<td>{p.nome}</td>
 							<td>{p.matricula}</td>
 							<td>
@@ -233,8 +258,9 @@
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#each policiaisExibidos as p (p.id)}
+			{#each policiaisPaginados as p (p.id)}
 				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
+
 					<div class="flex items-center justify-between mb-2">
 						<span class="font-semibold text-sm">{p.nome}</span>
 						<span class="badge text-xs {p.cargo === 'DPC' ? 'preset-filled-primary-500' : 'preset-filled-warning-500'}">{p.cargo}</span>
@@ -261,6 +287,46 @@
 			{/each}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">{policiaisExibidos.length} policial(is) encontrado(s)</p>
+		<div class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+			<p class="text-surface-500 text-sm">
+				Mostrando <strong>{(paginaAtual - 1) * itensPorPagina + 1}-{Math.min(paginaAtual * itensPorPagina, policiaisExibidos.length)}</strong> de <strong>{policiaisExibidos.length}</strong> policial(is)
+			</p>
+			
+			{#if totalPaginas > 1}
+				<div class="flex items-center gap-2">
+					<button 
+						class="btn btn-sm preset-outlined-surface" 
+						onclick={() => { paginaAtual--; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+						disabled={paginaAtual === 1}
+					>
+						Anterior
+					</button>
+					
+					<div class="flex items-center gap-1">
+						{#each Array.from({length: totalPaginas}, (_, i) => i + 1) as p}
+							{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
+								<button 
+									class="btn btn-sm {paginaAtual === p ? 'preset-filled-primary-500' : 'preset-outlined-surface'} min-w-[32px]"
+									onclick={() => { paginaAtual = p; window.scrollTo({top: 0, behavior: 'smooth'}); }}
+								>
+									{p}
+								</button>
+							{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
+								<span class="px-1 opacity-50">...</span>
+							{/if}
+						{/each}
+					</div>
+
+					<button 
+						class="btn btn-sm preset-outlined-surface" 
+						onclick={() => { paginaAtual++; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+						disabled={paginaAtual >= totalPaginas}
+					>
+						Próxima
+					</button>
+				</div>
+			{/if}
+		</div>
+
 	{/if}
 </div>

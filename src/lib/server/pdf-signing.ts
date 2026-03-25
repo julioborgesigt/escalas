@@ -288,7 +288,8 @@ export async function prepararPdfParaAssinatura(
 	signerCpf?: string,
 	alignment: 'center' | 'right' = 'right',
 	verificationHash?: string,
-	verificationUrl?: string
+	verificationUrl?: string,
+	customBoxY?: number
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -300,11 +301,13 @@ export async function prepararPdfParaAssinatura(
 	const { width } = lastPage.getSize();
 	const dataHora  = formatarDataHora();
 
-	// --- Dimensões do carimbo ---
-	const boxW = 255;
-	const boxH = 82;
-	const marginY = 40;
-	const headerH = 11;
+	// --- Dimensões do carimbo (+5% largura conforme pedido) ---
+	const boxW = 158; 
+	const boxH = 70;  
+
+
+	const marginY = customBoxY !== undefined ? customBoxY : 40;
+	const headerH = 9;
 
 	let boxX: number;
 	if (alignment === 'center') {
@@ -328,19 +331,26 @@ export async function prepararPdfParaAssinatura(
 
 	// 2 — Linhas de segurança diagonais (45°, guilloche simples)
 	for (let i = -boxH; i < boxW + 1; i += 8) {
-		lastPage.drawLine({
-			start: { x: boxX + i,        y: boxY },
-			end:   { x: boxX + i + boxH, y: boxY + boxH },
-			thickness: 0.18, color: cHatch
-		});
+		const tStart = Math.max(0, -i / boxH);
+		const tEnd = Math.min(1, (boxW - i) / boxH);
+		if (tStart < tEnd) {
+			lastPage.drawLine({
+				start: { x: boxX + i + tStart * boxH, y: boxY + tStart * boxH },
+				end:   { x: boxX + i + tEnd * boxH,   y: boxY + tEnd * boxH   },
+				thickness: 0.18, color: cHatch
+			});
+		}
 	}
 
-	// 3 — Hash fantasma (marca d'água repetida no fundo)
+	// 3 — Hash fantasma (marca d'água repetida no fundo) preservando limites
 	if (verificationHash) {
-		const ghostSize = 14;
-		const ghostStep = fontMono.widthOfTextAtSize(verificationHash + '  ', ghostSize);
+		const ghostSize = 10; // Reduzido
+		const hashWidth = fontMono.widthOfTextAtSize(verificationHash, ghostSize);
+
+		const ghostStep = hashWidth + fontMono.widthOfTextAtSize('  ', ghostSize);
 		const ghostY = boxY + (boxH - headerH) / 2 - 5;
-		for (let gx = boxX + 4; gx < boxX + boxW - 12; gx += ghostStep) {
+		// A condição agora garante que o texto INTEIRO caiba dentro da largura (boxX + boxW)
+		for (let gx = boxX + 6; gx + hashWidth < boxX + boxW - 6; gx += ghostStep) {
 			lastPage.drawText(verificationHash, {
 				x: gx, y: ghostY, size: ghostSize, font: fontMono,
 				color: rgb(0.88, 0.91, 0.97)
@@ -353,17 +363,30 @@ export async function prepararPdfParaAssinatura(
 		x: boxX, y: boxY + boxH - headerH,
 		width: boxW, height: headerH, color: cNavy
 	});
-	lastPage.drawRectangle({ x: boxX + 4, y: boxY + boxH - headerH + 3, width: 4, height: 4, color: cWhite, opacity: 0.5 });
-	lastPage.drawRectangle({ x: boxX + boxW - 8, y: boxY + boxH - headerH + 3, width: 4, height: 4, color: cWhite, opacity: 0.5 });
-	lastPage.drawText('ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ', {
-		x: boxX + 11, y: boxY + boxH - headerH + 3,
-		size: 5.5, font: fontBold, color: cWhite
+	
+	const headerTitle = 'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ';
+	const headerFontSize = 4.2;
+	const titleWidth = fontBold.widthOfTextAtSize(headerTitle, headerFontSize);
+	const titleX = boxX + (boxW - titleWidth) / 2;
+	const titleY = boxY + boxH - headerH + (headerH - headerFontSize) / 2 + 0.3; // Centralização vertical refinada
+
+	// Quadrados laterais de acento
+	lastPage.drawRectangle({ x: boxX + 4, y: boxY + boxH - headerH + 3, width: 3, height: 3, color: cWhite, opacity: 0.5 });
+	lastPage.drawRectangle({ x: boxX + boxW - 7, y: boxY + boxH - headerH + 3, width: 3, height: 3, color: cWhite, opacity: 0.5 });
+
+	lastPage.drawText(headerTitle, {
+		x: titleX, y: titleY,
+		size: headerFontSize, font: fontBold, color: cWhite
 	});
 
+
+
 	// 5 — QR Code (com fundo branco, error correction H)
-	const qrSize = 56;
-	const qrX = boxX + boxW - qrSize - 5;
-	const qrYPos = boxY + (boxH - headerH - qrSize) / 2;
+	const qrSize = 42;
+	const qrX = boxX + boxW - qrSize - 4;
+	const qrYPos = boxY + (boxH - headerH - qrSize) / 2 + 0.5;
+
+
 	if (verificationUrl) {
 		try {
 			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
@@ -388,51 +411,93 @@ export async function prepararPdfParaAssinatura(
 
 	// 6 — Linha divisória vertical entre conteúdo e QR
 	lastPage.drawLine({
-		start: { x: qrX - 5, y: boxY + 4 },
-		end:   { x: qrX - 5, y: boxY + boxH - headerH - 3 },
+		start: { x: qrX - 5, y: boxY + 5 },
+		end:   { x: qrX - 5, y: boxY + boxH - headerH - 5 },
 		thickness: 0.3, color: cBlue
 	});
 
+
 	// 7 — Conteúdo textual
-	const txtX    = boxX + 7;
-	const textMaxW = qrX - boxX - 14;
+	const txtX    = boxX + 6;
+	const textMaxW = qrX - boxX - 12;
 	const cpfFormatado = signerCpf
 		? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**`
 		: '';
 
 	lastPage.drawText('Assinado digitalmente por:', {
 		x: txtX, y: boxY + boxH - headerH - 10,
-		size: 6, font, color: cBlue
+		size: 5, font, color: cBlue
 	});
+
 
 	const nomeAssinante = signerName.toUpperCase();
-	let nomeDisplay = nomeAssinante;
-	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, 8.5) > textMaxW) {
-		nomeDisplay = nomeDisplay.slice(0, -1);
+	const nomeFontSize = 6.2; // Reduzido de 7.2
+
+	const words = nomeAssinante.split(' ');
+	let line1 = '';
+	let line2 = '';
+	let useLine2 = false;
+
+	for (const word of words) {
+		const testLine = line1 ? line1 + ' ' + word : word;
+		if (!useLine2 && fontBold.widthOfTextAtSize(testLine, nomeFontSize) <= textMaxW) {
+			line1 = testLine;
+		} else {
+			useLine2 = true;
+			const testLine2 = line2 ? line2 + ' ' + word : word;
+			if (fontBold.widthOfTextAtSize(testLine2, nomeFontSize) <= textMaxW) {
+				line2 = testLine2;
+			} else if (!line2) {
+				// Palavra única muito longa
+				line2 = word;
+				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
+					line2 = line2.slice(0, -1);
+				}
+				line2 += '\u2026';
+				break;
+			} else {
+				// Trunca a segunda linha
+				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
+					line2 = line2.slice(0, -1);
+				}
+				line2 += '\u2026';
+				break;
+			}
+		}
 	}
-	if (nomeDisplay !== nomeAssinante) nomeDisplay += '\u2026';
-	lastPage.drawText(nomeDisplay, {
-		x: txtX, y: boxY + boxH - headerH - 21,
-		size: 8.5, font: fontBold, color: cDark
+
+	lastPage.drawText(line1, {
+		x: txtX, y: boxY + boxH - headerH - 17,
+		size: nomeFontSize, font: fontBold, color: cDark
+	});
+	if (line2) {
+		lastPage.drawText(line2, {
+			x: txtX, y: boxY + boxH - headerH - 25,
+			size: nomeFontSize, font: fontBold, color: cDark
+		});
+	}
+
+	const infoLine = dataHora; // Removido CPF repetido conforme pedido
+	lastPage.drawText(infoLine, {
+		x: txtX, y: boxY + boxH - headerH - (line2 ? 33 : 25),
+		size: 5.5, font, color: cGray
 	});
 
-	const infoLine = cpfFormatado ? `${dataHora}   ${cpfFormatado}` : dataHora;
-	lastPage.drawText(infoLine, {
-		x: txtX, y: boxY + boxH - headerH - 32,
-		size: 6.5, font, color: cGray
-	});
+
+
 
 	// Caixa de destaque do código de verificação
 	if (verificationHash) {
 		const hashLabel = `Cód: ${verificationHash}`;
-		const hashBgW = fontMono.widthOfTextAtSize(hashLabel, 7.5) + 14;
-		lastPage.drawRectangle({ x: txtX - 2, y: boxY + 19, width: hashBgW, height: 12, color: cNavy });
-		lastPage.drawText(hashLabel, { x: txtX + 5, y: boxY + 23, size: 7.5, font: fontMono, color: cWhite });
+		const hashBgW = fontMono.widthOfTextAtSize(hashLabel, 6) + 10;
+		lastPage.drawRectangle({ x: txtX - 2, y: boxY + 12, width: hashBgW, height: 9, color: cNavy });
+		lastPage.drawText(hashLabel, { x: txtX + 3, y: boxY + 15, size: 6, font: fontMono, color: cWhite });
 	}
 
 	lastPage.drawText('Assinado conforme MP 2.200-2/2001 — ICP-Brasil', {
-		x: txtX, y: boxY + 7, size: 4.5, font, color: cGray
+		x: txtX, y: boxY + 4, size: 3.8, font, color: cGray
 	});
+
 
 	// 8 — Borda dupla (desenhada por último para ficar sobre tudo)
 	lastPage.drawRectangle({
@@ -687,19 +752,24 @@ export async function adicionarRodapeSimples(
 
 	// 2 — Linhas de segurança diagonais (45°, guilloche simples)
 	for (let i = -boxH; i < boxW + 1; i += 8) {
-		lastPage.drawLine({
-			start: { x: boxX + i,        y: boxY },
-			end:   { x: boxX + i + boxH, y: boxY + boxH },
-			thickness: 0.18, color: cHatch
-		});
+		const tStart = Math.max(0, -i / boxH);
+		const tEnd = Math.min(1, (boxW - i) / boxH);
+		if (tStart < tEnd) {
+			lastPage.drawLine({
+				start: { x: boxX + i + tStart * boxH, y: boxY + tStart * boxH },
+				end:   { x: boxX + i + tEnd * boxH,   y: boxY + tEnd * boxH   },
+				thickness: 0.18, color: cHatch
+			});
+		}
 	}
 
-	// 3 — Hash fantasma (marca d'água repetida no fundo)
+	// 3 — Hash fantasma (marca d'água repetida no fundo) preservando limites
 	if (verificationHash) {
 		const ghostSize = 16;
-		const ghostStep = fontMono.widthOfTextAtSize(verificationHash + '   ', ghostSize);
+		const hashWidth = fontMono.widthOfTextAtSize(verificationHash, ghostSize);
+		const ghostStep = hashWidth + fontMono.widthOfTextAtSize('   ', ghostSize);
 		const ghostY = boxY + (boxH - headerH) / 2 - 6;
-		for (let gx = boxX + 6; gx < boxX + boxW - 20; gx += ghostStep) {
+		for (let gx = boxX + 8; gx + hashWidth < boxX + boxW - 8; gx += ghostStep) {
 			lastPage.drawText(verificationHash, {
 				x: gx, y: ghostY, size: ghostSize, font: fontMono,
 				color: rgb(0.87, 0.91, 0.97)
@@ -774,19 +844,53 @@ export async function adicionarRodapeSimples(
 		x: textX, y: contentTop - 8, size: 6, font, color: cBlue
 	});
 
-	// Nome (truncado se necessário)
-	let nomeDisplay = assinante.toUpperCase();
-	while (nomeDisplay.length > 5 && fontBold.widthOfTextAtSize(nomeDisplay, 8.5) > textMaxW) {
-		nomeDisplay = nomeDisplay.slice(0, -1);
+	// Nome com quebra de linha
+	const nomeAssinante = assinante.toUpperCase();
+	const nomeFontSize = 7.2; // Reduzido de 8.5
+	const words = nomeAssinante.split(' ');
+	let line1 = '';
+	let line2 = '';
+	let useLine2 = false;
+
+	for (const word of words) {
+		const testLine = line1 ? line1 + ' ' + word : word;
+		if (!useLine2 && fontBold.widthOfTextAtSize(testLine, nomeFontSize) <= textMaxW) {
+			line1 = testLine;
+		} else {
+			useLine2 = true;
+			const testLine2 = line2 ? line2 + ' ' + word : word;
+			if (fontBold.widthOfTextAtSize(testLine2, nomeFontSize) <= textMaxW) {
+				line2 = testLine2;
+			} else if (!line2) {
+				line2 = word;
+				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
+					line2 = line2.slice(0, -1);
+				}
+				line2 += '\u2026';
+				break;
+			} else {
+				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
+					line2 = line2.slice(0, -1);
+				}
+				line2 += '\u2026';
+				break;
+			}
+		}
 	}
-	if (nomeDisplay !== assinante.toUpperCase()) nomeDisplay += '\u2026';
-	lastPage.drawText(nomeDisplay, {
-		x: textX, y: contentTop - 19, size: 8.5, font: fontBold, color: cDark
+
+	lastPage.drawText(line1, {
+		x: textX, y: contentTop - 18, size: nomeFontSize, font: fontBold, color: cDark
 	});
+	if (line2) {
+		lastPage.drawText(line2, {
+			x: textX, y: contentTop - 27, size: nomeFontSize, font: fontBold, color: cDark
+		});
+	}
 
 	lastPage.drawText(`Data/Hora: ${dataHora}  (Horário de Brasília)`, {
-		x: textX, y: contentTop - 30, size: 6.5, font, color: cGray
+		x: textX, y: contentTop - (line2 ? 38 : 31), size: 6.5, font, color: cGray
 	});
+
 
 	// 7 — Caixa de destaque do código de verificação (navy + Courier Bold)
 	if (verificationHash) {

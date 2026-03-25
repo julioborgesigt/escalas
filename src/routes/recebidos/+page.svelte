@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
+	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
+
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -9,11 +11,26 @@
 	let unidades = $state<Unidade[]>([]);
 	let loading = $state(true);
 
-	// Filtros
-	let filtroTimeRange = $state<'24h' | '48h' | 'semana' | 'mes' | 'todos'>('todos');
-	let filtroUnidade = $state('');
-	let filtroData = $state('');
-	let mostrarApenasNaoVistos = $state(false);
+	// Filtros com persistência
+	const KEY = 'filtros_recebidos';
+	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
+
+	let filtroTimeRange = $state<'24h' | '48h' | 'semana' | 'mes' | 'todos'>(saved.timeRange || 'todos');
+	let filtroUnidade = $state(saved.unidade || '');
+	let filtroData = $state(saved.data || '');
+	let mostrarApenasNaoVistos = $state(!!saved.naoLidos);
+
+	// Salvar a cada mudança
+	$effect(() => {
+		if (browser) {
+			localStorage.setItem(KEY, JSON.stringify({
+				timeRange: filtroTimeRange,
+				unidade: filtroUnidade,
+				data: filtroData,
+				naoLidos: mostrarApenasNaoVistos
+			}));
+		}
+	});
 
 	const escalasFiltradas = $derived(
 		escalas.filter((e) => {
@@ -73,9 +90,19 @@
 		}
 	}
 
+	let paginaAtual = $state(1);
+	const itensPorPagina = 10;
+	const totalPaginas = $derived(Math.max(1, Math.ceil(escalasFiltradas.length / itensPorPagina)));
+	const escalasRecebidasPaginadas = $derived(escalasFiltradas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina));
+
 	$effect(() => {
 		if (isAdmin) carregar();
+		// Resetar para página 1 ao mudar filtros
+		if (filtroTimeRange || filtroUnidade || filtroData || mostrarApenasNaoVistos) {
+			paginaAtual = 1;
+		}
 	});
+
 
 	// Helper para formatar data de criação
 	function formatRelativeTime(dateStr: string) {
@@ -170,8 +197,9 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each escalasFiltradas as escala (escala.id)}
+						{#each escalasRecebidasPaginadas as escala (escala.id)}
 							<tr class={escala.visto_por_admin ? 'opacity-60 grayscale-[0.5]' : 'bg-primary-500/5'}>
+
 								<td>
 									<input 
 										type="checkbox" 
@@ -210,9 +238,47 @@
 				</table>
 			</div>
 
-			<p class="pt-3 text-surface-500 text-xs border-t border-surface-200 dark:border-white/5 mt-1 px-1">
-				Exibindo {escalasFiltradas.length} escala(s) recebida(s).
-			</p>
+			<div class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+				<p class="text-surface-500 text-xs px-1">
+					Mostrando <strong>{(paginaAtual - 1) * itensPorPagina + 1}-{Math.min(paginaAtual * itensPorPagina, escalasFiltradas.length)}</strong> de <strong>{escalasFiltradas.length}</strong> escala(s) recebida(s)
+				</p>
+				
+				{#if totalPaginas > 1}
+					<div class="flex items-center gap-2">
+						<button 
+							class="btn btn-sm preset-outlined-surface" 
+							onclick={() => { paginaAtual--; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+							disabled={paginaAtual === 1}
+						>
+							Anterior
+						</button>
+						
+						<div class="flex items-center gap-1">
+							{#each Array.from({length: totalPaginas}, (_, i) => i + 1) as p}
+								{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
+									<button 
+										class="btn btn-sm {paginaAtual === p ? 'preset-filled-primary-500' : 'preset-outlined-surface'} min-w-[32px]"
+										onclick={() => { paginaAtual = p; window.scrollTo({top: 0, behavior: 'smooth'}); }}
+									>
+										{p}
+									</button>
+								{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
+									<span class="px-1 opacity-50">...</span>
+								{/if}
+							{/each}
+						</div>
+
+						<button 
+							class="btn btn-sm preset-outlined-surface" 
+							onclick={() => { paginaAtual++; window.scrollTo({top: 0, behavior: 'smooth'}); }} 
+							disabled={paginaAtual >= totalPaginas}
+						>
+							Próxima
+						</button>
+					</div>
+				{/if}
+			</div>
+
 		{/if}
 	</div>
 {/if}

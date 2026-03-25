@@ -2,23 +2,39 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
+
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	let unidades = $state<Unidade[]>([]);
 	let loading = $state(true);
 	let salvando = $state(false);
+	
+	// Filtros com persistência
+	const KEY = 'filtros_unidades';
+	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
 
-	let filtroSeccional = $state<number | 'todas'>('todas');
-	let filtroBusca = $state('');
+	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
+	let filtroBusca = $state(saved.busca || '');
 
+	// Salvar filtros a cada mudança
 	$effect(() => {
-		// Reset busqueda if seccional changes? Optional, but keeping it simple for now.
-		if (filtroSeccional) {
-			// filtroBusca = '';
+		if (browser) {
+			localStorage.setItem(KEY, JSON.stringify({
+				seccional: filtroSeccional,
+				busca: filtroBusca
+			}));
 		}
 	});
+
+	function mudarSeccional() {
+		// Reset busqueda se desejar, mas o usuário não pediu explicitamente aqui. 
+		// Mantendo a lógica de reset de outros componentes para consistência.
+		// filtroBusca = '';
+	}
+
 
 	const unidadesFiltradas = $derived(unidades.filter((u) => {
 		if (filtroSeccional !== 'todas') {
@@ -221,12 +237,13 @@
 	<div class="flex flex-col sm:flex-row gap-4">
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
-			<select class="select" bind:value={filtroSeccional}>
+			<select class="select" bind:value={filtroSeccional} onchange={mudarSeccional}>
 				<option value="todas">Todas as Seccionais</option>
 				{#each seccionais as sec (sec.id)}
 					<option value={sec.id}>{sec.nome}</option>
 				{/each}
 			</select>
+
 		</label>
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Buscar por Nome</span>

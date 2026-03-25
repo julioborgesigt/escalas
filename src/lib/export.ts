@@ -192,8 +192,14 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 	return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
 }
 
+export interface PdfExportResult {
+	pdf: Uint8Array;
+	finalY: number;
+}
+
 // ---- PDF ----
-export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
+
 	const dias = agruparPorData(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -238,24 +244,34 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 		});
 	}
 
+	const lastY = (doc as any).lastAutoTable?.finalY ?? startY;
 	const pageWidth = 297;
-	const margin = 10;
+	// Footer e assinatura logo após a tabela - aumentado para evitar sobreposição do carimbo
+	let sigY = lastY + 35;
+	if (sigY > 185) {
+		doc.addPage();
+		sigY = 35;
+	}
 
-	// Footer fixo no final da página
-	const footerY = 185;
-	const sigY = 195;
-	const sigCenterX = pageWidth / 2;
+	const sigCenterX = pageWidth * 0.75;
+
+	const margin = 10;
 
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
-	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, footerY);
+	// Data alinhada na mesma altura da linha de assinatura
+	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
 
-	doc.line(sigCenterX - 40, sigY, sigCenterX + 40, sigY);
+	// Assinatura alinhada à direita
+	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
-	return new Uint8Array(doc.output('arraybuffer'));
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+
 }
+
+
 
 // ---- Shared helper for expediente exports ----
 function sortExpediente(policiais: EscalaPolicialComDados[]): EscalaPolicialComDados[] {
@@ -361,7 +377,8 @@ export function gerarOdsExpediente(escala: Escala, policiais: EscalaPolicialComD
 }
 
 // ---- PDF Expediente ----
-export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
+
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 	const margin = 10;
@@ -411,24 +428,30 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 		margin: { left: margin, right: margin }
 	});
 
-	const lastY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 190;
+	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	// Footer e assinatura logo após a tabela
+	let sigY = lastY + 35;
+	if (sigY > 180) {
 
-	// Footer
-	// Footer fixo no final da página
-	const footerY = 175;
-	const sigY = 185;
-	const sigCenterX = pageWidth / 2;
+		doc.addPage();
+		sigY = 35;
+	}
+	const sigCenterX = pageWidth * 0.75;
 
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
-	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, footerY);
+	// Data alinhada na mesma altura da linha de assinatura
+	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
 
-	doc.line(sigCenterX - 40, sigY, sigCenterX + 40, sigY);
+	// Assinatura alinhada à direita e na mesma altura da data
+	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
-	return new Uint8Array(doc.output('arraybuffer'));
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+
 }
+
 
 // ---- ODS/ODT via XLSX (ODS format) ----
 export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
@@ -644,7 +667,8 @@ export function gerarOdsPlantao(escala: Escala, policiais: EscalaPolicialComDado
 }
 
 // ---- PDF Plantão ----
-export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
+
 	const equipes = agruparPlantao(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
@@ -695,19 +719,31 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 		y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
 	}
 
-	// Footer fixo no final da página
-	const footerY = 180;
+	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+
+	// Footer e assinatura logo após a tabela - aumentado para evitar sobreposição do carimbo
+	let sigY = lastY + 35;
+	if (sigY > 180) {
+		doc.addPage();
+		sigY = 35;
+	}
+
+	
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, footerY);
+	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, sigY - 10);
 	
-	const sigY = 188;
+	// Data alinhada na mesma altura da linha de assinatura
+	doc.setFontSize(9);
 	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
 	
+	// Assinatura já alinhada à direita, agora na mesma altura da data
 	const sigCenterX = pageWidth * 0.75;
-	doc.line(sigCenterX - 45, sigY + 12, sigCenterX + 45, sigY + 12);
-	doc.setFontSize(7);
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 17, { align: 'center' });
+	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
+	doc.setFontSize(8);
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
-	return new Uint8Array(doc.output('arraybuffer'));
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+
 }
+

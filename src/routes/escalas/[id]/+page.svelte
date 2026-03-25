@@ -374,6 +374,29 @@
 		);
 	}
 
+	async function revogarAssinatura() {
+		if (!confirm('Você tem certeza que deseja revogar a assinatura digital? Isso excluirá o PDF oficial e permitirá editar a escala novamente.')) {
+			return;
+		}
+		
+		assinando = true;
+		etapaAssinatura = "Revogando assinatura...";
+		try {
+			const res = await fetch(`/api/escalas/${page.params.id}/documento-assinado`, { method: 'DELETE' });
+			if (res.ok) {
+				documentoAssinadoInfo = null;
+				toaster.create({ title: 'Assinatura revogada', description: 'Você agora pode editar os dados da escala.', type: 'info' });
+			} else {
+				throw new Error('Falha ao revogar');
+			}
+		} catch (err) {
+			toaster.create({ title: 'Erro ao revogar assinatura', type: 'error' });
+		} finally {
+			assinando = false;
+			etapaAssinatura = "";
+		}
+	}
+
 	// === Assinatura Digital ===
 	let assinando = $state(false);
 	let etapaAssinatura = $state("");
@@ -742,14 +765,9 @@
 		);
 	}
 
-	// Detecta se a escala é de Final de Semana (duração <= 3 dias)
-	const isFDS = $derived(() => {
-		if (!escala) return false;
-		const ini = new Date(escala.data_inicio + 'T00:00:00');
-		const fim = new Date(escala.data_fim + 'T00:00:00');
-		const diff = (fim.getTime() - ini.getTime()) / (1000 * 60 * 60 * 24);
-		return diff <= 3;
-	});
+	// Detecta se a escala é de Final de Semana
+	const isFDS = $derived(escala?.tipo === 'fds');
+
 
 	let assinandoSimples = $state(false);
 
@@ -1015,27 +1033,40 @@
 					Escala Oficialmente Assinada
 				</h3>
 				<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-					Assinado por <strong
-						>{documentoAssinadoInfo.assinante_nome || ''}</strong
-					>. Arquivo original ICP-Brasil guardado nos servidores para
-					download.
+					Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ''}</strong>. 
+					{isFDS ? 'Confirmação administrativa gerada e guardada para download.' : 'Arquivo original ICP-Brasil guardado nos servidores para download.'}
 				</p>
+
 			</div>
-			<a
-				href={`/api/escalas/${escala.id}/documento-assinado`}
-				class="btn preset-filled-success-500 shrink-0 font-bold px-6 py-3 shadow-lg shadow-success-500/30 hover:scale-105 transition-transform"
-				target="_blank"
-			>
-				<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-				</svg>
-				Baixar PDF Assinado
-			</a>
+			<div class="flex flex-col sm:flex-row gap-3">
+				<a
+					href={`/api/escalas/${escala.id}/documento-assinado`}
+					class="btn preset-filled-success-500 shrink-0 font-bold px-6 py-3 shadow-lg shadow-success-500/30 hover:scale-105 transition-transform"
+					target="_blank"
+				>
+					<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+					</svg>
+					Baixar PDF
+				</a>
+				<button
+					class="btn preset-outlined-error-500 shrink-0 font-bold px-6 py-3"
+					onclick={revogarAssinatura}
+					disabled={assinando}
+				>
+					<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+					</svg>
+					Revogar para Editar
+				</button>
+			</div>
+
 		</div>
 	{/if}
 
 	<!-- Se é escala FDS e ainda não foi confirmada, mostrar opção de assinatura simples -->
-	{#if isFDS() && !documentoAssinadoInfo}
+	{#if isFDS && !documentoAssinadoInfo}
+
 		<div class="mb-6 p-4 sm:p-5 bg-primary-500/8 border border-primary-500/25 rounded-2xl">
 			<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
 				<div>
@@ -1126,8 +1157,10 @@
 				>
 			</div>
 
-			{#if !isFDS()}
+			{#if !documentoAssinadoInfo && !isFDS}
+
 				<hr class="my-3 border-surface-200 dark:border-white/10" />
+
 			<h3 class="font-semibold text-sm mb-3">
 				Assinatura Digital (eToken / Certificado A3)
 			</h3>
@@ -1285,6 +1318,7 @@
 			</p>
 			{/if}
 		</div>
+
 	{/if}
 
 	<!-- Adicionar todos (apenas para escalas mensais de plantão ou expediente) -->
@@ -1352,9 +1386,11 @@
 	{/if}
 
 	<!-- Add form -->
+	{#if !documentoAssinadoInfo}
 	<div
 		class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
+
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 		{#if escala.tipo === 'plantao'}
 			<!-- Plantão: form com cálculo automático de datas -->
@@ -1536,6 +1572,8 @@
 			</form>
 		{/if}
 	</div>
+	{/if}
+
 	<!-- Policiais list -->
 	{#if policiaisEscala.length === 0}
 		<div class="card p-8 text-center text-surface-500">
