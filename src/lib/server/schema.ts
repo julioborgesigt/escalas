@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ---- Policiais ----
@@ -136,6 +136,7 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	r2_key: text('r2_key').notNull(),
 	assinante_nome: text('assinante_nome').notNull(),
 	assinante_cpf: text('assinante_cpf'),
+	verificacao_hash: text('verificacao_hash').unique(),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 });
 

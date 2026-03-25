@@ -144,8 +144,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 				page: {
 					size: {
 						orientation: PageOrientation.LANDSCAPE,
-						width: 11906,
-						height: 16838
+						width: 16838,
+						height: 11906
 					},
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
@@ -236,11 +236,23 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): U
 			},
 			margin: { left: 10, right: 10 }
 		});
-
-		startY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY
-			? (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable!.finalY + 10
-			: startY + 50;
 	}
+
+	const pageWidth = 297;
+	const margin = 10;
+
+	// Footer fixo no final da página
+	const footerY = 185;
+	const sigY = 195;
+	const sigCenterX = pageWidth / 2;
+
+	doc.setFontSize(9);
+	doc.setFont('helvetica', 'normal');
+	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, footerY);
+
+	doc.line(sigCenterX - 40, sigY, sigCenterX + 40, sigY);
+	doc.setFontSize(8);
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
 	return new Uint8Array(doc.output('arraybuffer'));
 }
@@ -402,16 +414,18 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 	const lastY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 190;
 
 	// Footer
-	const footerY = lastY + 15;
+	// Footer fixo no final da página
+	const footerY = 175;
+	const sigY = 185;
+	const sigCenterX = pageWidth / 2;
+
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
 	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, footerY);
 
-	const sigY = footerY + 20;
-	const sigCenterX = pageWidth / 2;
 	doc.line(sigCenterX - 40, sigY, sigCenterX + 40, sigY);
 	doc.setFontSize(8);
-	doc.text('Assinatura / Carimbo', sigCenterX, sigY + 5, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
 	return new Uint8Array(doc.output('arraybuffer'));
 }
@@ -647,8 +661,10 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	doc.text(`DELEGACIA: ${escala.cidade.toUpperCase()}`, margin, y);
-	doc.text(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, pageWidth / 2, y);
+	y += 5;
+	doc.text(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, margin, y);
 	y += 8;
+
 
 	for (const [equipe, oficiais] of equipes) {
 		const equipeLabel = equipe ? `EQUIPE ${equipe}` : 'EQUIPE';
@@ -679,17 +695,19 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 		y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
 	}
 
-	// Footer
-	const footerY = y + 10;
+	// Footer fixo no final da página
+	const footerY = 180;
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
 	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, footerY);
-	const sigY = footerY + 14;
+	
+	const sigY = 188;
 	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
+	
 	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY + 12, sigCenterX + 45, sigY + 12);
 	doc.setFontSize(7);
-	doc.text('Delegado(a) de Polícia / Carimbo', sigCenterX, sigY + 17, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 17, { align: 'center' });
 
 	return new Uint8Array(doc.output('arraybuffer'));
 }

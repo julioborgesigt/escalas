@@ -1,10 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
-import { gerarPdf } from '$lib/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
 import { prepararPdfParaAssinatura } from '$lib/server/pdf-signing';
+import { gerarCodigoValidacao } from '$lib/utils';
 import type { RequestEvent } from '@sveltejs/kit';
 
-export const POST = async ({ platform, params, request, locals }: RequestEvent) => {
+export const POST = async ({ platform, params, request, locals, url }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
 	const usuario = locals.usuario;
@@ -31,11 +32,22 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 	const signerCpf = (body as { signerCpf?: string }).signerCpf || '';
 
 	// Gerar o PDF da escala
-	const pdfBytes = gerarPdf(escala, policiais);
+	const pdfBytes = escala.tipo === 'expediente'
+		? gerarPdfExpediente(escala, policiais)
+		: escala.tipo === 'plantao'
+			? gerarPdfPlantao(escala, policiais)
+			: gerarPdf(escala, policiais);
+
+	// Alinhamento conforme o PDF (Plantão = right (centro da direita), outros = center)
+	const isPlantao = escala.tipo === 'plantao';
+	
+	// Gerar código de verificação para impressão
+	const verificationHash = gerarCodigoValidacao();
+	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
 	// Preparar o PDF com placeholder de assinatura e calcular hash dos SignedAttributes
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
-		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf);
+		await prepararPdfParaAssinatura(pdfBytes, signerName, signerCpf, isPlantao ? 'right' : 'center', verificationHash, verificationUrl);
 
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
@@ -44,6 +56,7 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		preparedPdf: preparedPdfBase64,
 		messageDigest,
 		signingTimeISO,
-		dataToSignBase64
+		dataToSignBase64,
+		verificationHash
 	});
 };

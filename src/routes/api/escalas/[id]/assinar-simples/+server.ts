@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala } from '$lib/db';
-import { gerarPdf } from '$lib/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
 import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
+import { gerarCodigoValidacao } from '$lib/utils';
 import type { RequestEvent } from '@sveltejs/kit';
 
-export const POST = async ({ platform, params, locals }: RequestEvent) => {
+export const POST = async ({ platform, params, locals, url }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
 	const usuario = locals.usuario;
@@ -28,37 +29,37 @@ export const POST = async ({ platform, params, locals }: RequestEvent) => {
 		return json({ error: 'Escala sem policiais cadastrados' }, { status: 400 });
 	}
 
-	// Formatar data/hora no fuso de Brasília
-	const agora = new Date();
-	const dataHoraBrasilia = agora.toLocaleString('pt-BR', {
-		timeZone: 'America/Sao_Paulo',
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit'
-	}).replace(',', ' às');
+	// Formatar data/hora no fuso de Brasília (usado internamente se necessário)
+	// No entanto, o adicionarRodapeSimples agora gera sua própria dataHoraFormatada.
 
 	try {
-		// Gerar o PDF da escala
-		const pdfBytes = gerarPdf(escala, policiais);
+		// Gerar o PDF da escala correto conforme o tipo
+		const pdfBytes = escala.tipo === 'expediente'
+			? gerarPdfExpediente(escala, policiais)
+			: escala.tipo === 'plantao'
+				? gerarPdfPlantao(escala, policiais)
+				: gerarPdf(escala, policiais);
+
+		const verificationHash = gerarCodigoValidacao();
+		const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
 		// Adicionar rodapé de confirmação
 		const pdfComRodape = await adicionarRodapeSimples(
 			pdfBytes,
 			usuario.nome,
-			dataHoraBrasilia
+			verificationHash,
+			verificationUrl
 		);
 
-		// Salvar no R2
+		// Salva no R2
+		const p = platform as App.Platform | undefined;
 		const r2Key = `escala_${escalaId}_assinada.pdf`;
-		if (platform?.env?.escalas_docs) {
-			await platform.env.escalas_docs.put(r2Key, pdfComRodape);
+		if (p?.env?.escalas_docs) {
+			await p.env.escalas_docs.put(r2Key, pdfComRodape);
 		}
 
 		// Registrar no banco
-		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '');
+		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '', verificationHash);
 
 		const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_confirmada.pdf`;
 		return new Response(pdfComRodape as unknown as BodyInit, {
