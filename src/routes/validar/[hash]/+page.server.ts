@@ -2,22 +2,52 @@ import { getDB, buscarDocumentoPorHash, buscarEscala } from '$lib/db';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform }) => {
-	const db = getDB(platform);
 	const hash = params.hash;
 
+	console.log(`[validar] Iniciando validação para hash: ${hash}`);
+
 	if (!hash) {
-		return { encontrado: false as const };
+		console.warn('[validar] Hash ausente na URL');
+		return { encontrado: false as const, motivo: 'hash_ausente' };
 	}
 
-	const documento = await buscarDocumentoPorHash(db, hash);
+	let db;
+	try {
+		db = getDB(platform);
+	} catch (err) {
+		console.error('[validar] Falha ao conectar ao banco de dados:', err);
+		return { encontrado: false as const, motivo: 'erro_db' };
+	}
+
+	let documento;
+	try {
+		documento = await buscarDocumentoPorHash(db, hash);
+	} catch (err) {
+		console.error(`[validar] Erro ao buscar documento pelo hash "${hash}":`, err);
+		return { encontrado: false as const, motivo: 'erro_consulta' };
+	}
+
 	if (!documento) {
-		return { encontrado: false as const };
+		console.log(`[validar] Nenhum documento encontrado para hash: ${hash}`);
+		return { encontrado: false as const, motivo: 'nao_encontrado' };
 	}
 
-	const escala = await buscarEscala(db, documento.escala_id);
-	if (!escala) {
-		return { encontrado: false as const };
+	console.log(`[validar] Documento encontrado: id=${documento.id}, escala_id=${documento.escala_id}`);
+
+	let escala;
+	try {
+		escala = await buscarEscala(db, documento.escala_id);
+	} catch (err) {
+		console.error(`[validar] Erro ao buscar escala id=${documento.escala_id}:`, err);
+		return { encontrado: false as const, motivo: 'erro_consulta' };
 	}
+
+	if (!escala) {
+		console.warn(`[validar] Escala id=${documento.escala_id} não encontrada`);
+		return { encontrado: false as const, motivo: 'nao_encontrado' };
+	}
+
+	console.log(`[validar] Validação concluída com sucesso para hash: ${hash}`);
 
 	return {
 		encontrado: true as const,
