@@ -4,6 +4,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
+	import { CIDADES_CEARA } from '$lib/constants/cidades';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -97,6 +98,8 @@
 	let editTemPlantao = $state(false);
 	let editTemExpediente = $state(false);
 	let editTemFds = $state(false);
+	let editCidade = $state('');
+	let buscaCidade = $state('');
 	let salvandoEdicao = $state(false);
 
 	// Exclusão
@@ -128,7 +131,8 @@
 				seccional_id: tipoUnidade === 'delegacia' ? novoSeccionalId : null,
 				tem_plantao: novoTemPlantao,
 				tem_expediente: novoTemExpediente,
-				tem_fds: novoTemFds
+				tem_fds: novoTemFds,
+				cidade: buscaCidade
 			})
 		});
 
@@ -159,6 +163,7 @@
 		editTemPlantao = u.tem_plantao ?? false;
 		editTemExpediente = u.tem_expediente ?? false;
 		editTemFds = u.tem_fds ?? false;
+		editCidade = u.cidade ?? '';
 	}
 
 	function cancelarEdicao() {
@@ -169,6 +174,7 @@
 		editTemPlantao = false;
 		editTemExpediente = false;
 		editTemFds = false;
+		editCidade = '';
 	}
 
 	async function salvarEdicao(id: number) {
@@ -184,7 +190,8 @@
 				seccional_id: editSeccionalId,
 				tem_plantao: editTemPlantao,
 				tem_expediente: editTemExpediente,
-				tem_fds: editTemFds
+				tem_fds: editTemFds,
+				cidade: editCidade
 			})
 		});
 
@@ -220,17 +227,33 @@
 		unidadeParaExcluir = null;
 	}
 
+	function limparFiltros() {
+		filtroSeccional = 'todas';
+		filtroBusca = '';
+	}
+
+	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
+
 	$effect(() => { carregarUnidades(); });
 </script>
 
 <div class="flex items-center justify-between mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
-	{#if isAdmin}
-		<button class="btn preset-filled-primary-500" onclick={() => cadastroOpen = true}>
-			<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-			Cadastrar
+	<div class="flex gap-2">
+		<button 
+			class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
+			onclick={limparFiltros}
+			disabled={!temFiltros && !loading}
+		>
+			Limpar filtros
 		</button>
-	{/if}
+		{#if isAdmin}
+			<button class="btn btn-sm preset-filled-primary-500" onclick={() => cadastroOpen = true}>
+				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+				Cadastrar
+			</button>
+		{/if}
+	</div>
 </div>
 
 <div class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6">
@@ -273,7 +296,7 @@
 </Dialog>
 
 <!-- Modal de Cadastro -->
-<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { delegaciaPrefixo = ''; delegaciaSufixo = ''; seccionalPrefixo = ''; seccionalSufixo = 'Interior Sul'; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; } }}>
+<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { delegaciaPrefixo = ''; delegaciaSufixo = ''; seccionalPrefixo = ''; seccionalSufixo = 'Interior Sul'; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; buscaCidade = ''; } }}>
 	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
 		<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
@@ -286,6 +309,25 @@
 						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'delegacia' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'delegacia'}>Delegacia</button>
 					</div>
 				</div>
+
+				<label class="label">
+					<span class="label-text font-semibold">Cidade no Ceará</span>
+					<div class="relative">
+						<input 
+							class="input" 
+							type="text" 
+							list="cidades-ce-registro" 
+							bind:value={buscaCidade} 
+							placeholder="Buscar e selecionar cidade..." 
+							required
+						/>
+						<datalist id="cidades-ce-registro">
+							{#each CIDADES_CEARA as c}
+								<option value={c}></option>
+							{/each}
+						</datalist>
+					</div>
+				</label>
 
 				{#if tipoUnidade === 'delegacia'}
 					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
@@ -385,7 +427,7 @@
 				<thead>
 					<tr>
 						<th>Nome da Unidade</th>
-						<th>Cadastrada em</th>
+						<th>Localização</th>
 						{#if isAdmin}<th>Ações</th>{/if}
 					</tr>
 				</thead>
@@ -408,16 +450,31 @@
 											bind:value={editNome}
 											onkeydown={(e) => { if (e.key === 'Enter') salvarEdicao(u.id); if (e.key === 'Escape') cancelarEdicao(); }}
 										/>
-										<div class="flex flex-wrap gap-3 text-sm mt-1">
+										<div class="flex flex-wrap items-center gap-3 text-sm mt-1">
 											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
 											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
 											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
+											
+											<div class="relative ml-2">
+												<input 
+													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]" 
+													type="text" 
+													list="cidades-ce-edicao" 
+													bind:value={editCidade} 
+													placeholder="Mudar cidade..." 
+												/>
+												<datalist id="cidades-ce-edicao">
+													{#each CIDADES_CEARA as c}
+														<option value={c}></option>
+													{/each}
+												</datalist>
+											</div>
 										</div>
 									</div>
 								{:else}
 									<div>
 										<span class="font-medium block">{u.nome}</span>
-										<div class="flex gap-1.5 mt-1.5">
+										<div class="flex gap-1.5 mt-1.5 items-center">
 											{#if u.tem_plantao}<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold">Plantão</span>{/if}
 											{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
 											{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
@@ -425,7 +482,7 @@
 									</div>
 								{/if}
 							</td>
-							<td class="text-surface-500 text-sm">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td>
+							<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic">{u.cidade || 'Sem cidade'}</td>
 							{#if isAdmin}
 								<td>
 									{#if editandoId === u.id}
@@ -461,10 +518,24 @@
 								bind:value={editNome}
 								onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
 							/>
-							<div class="flex flex-wrap gap-3 text-sm py-2">
+							<div class="flex flex-wrap items-center gap-3 text-sm py-2">
 								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
 								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
 								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
+								<div class="relative w-full mt-1">
+									<input 
+										class="input text-xs w-full" 
+										type="text" 
+										list="cidades-ce-edicao-mobile" 
+										bind:value={editCidade} 
+										placeholder="Mudar cidade..." 
+									/>
+									<datalist id="cidades-ce-edicao-mobile">
+										{#each CIDADES_CEARA as c}
+											<option value={c}></option>
+										{/each}
+									</datalist>
+								</div>
 							</div>
 							<div class="flex gap-2">
 								<button class="btn btn-sm preset-filled-primary-500 flex-1" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
@@ -482,7 +553,7 @@
 									{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
 									{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
 								</div>
-								<p class="text-[11px] text-surface-500 mt-1">Cadastrada em {new Date(u.created_at).toLocaleDateString('pt-BR')}</p>
+								<p class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1">{u.cidade || 'Sem cidade'}</p>
 							</div>
 							{#if isAdmin}
 								<div class="flex gap-2 shrink-0">

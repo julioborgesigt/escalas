@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
-import { and, eq, gte, lte, inArray } from 'drizzle-orm';
+import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 export interface ItemCompliance {
@@ -52,7 +52,7 @@ function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: strin
 	};
 }
 
-export const GET: RequestHandler = async ({ platform, locals }) => {
+export const GET: RequestHandler = async ({ platform, locals, url }) => {
 	if (locals.usuario?.tipo !== 'admin') {
 		return json({ error: 'Acesso restrito' }, { status: 403 });
 	}
@@ -63,6 +63,8 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 	const mesHoje = hoje.getMonth() + 1; // 1-12
 	const anoHoje = hoje.getFullYear();
 
+	const showAll = url.searchParams.get('todos') === '1';
+
 	// ── Mês relevante (apenas 1): próximo se dia >= 20, atual se dia < 20 ──
 	const mesRelAno = diaHoje >= 20
 		? (mesHoje === 12 ? anoHoje + 1 : anoHoje)
@@ -71,8 +73,18 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 		? (mesHoje === 12 ? 1 : mesHoje + 1)
 		: mesHoje;
 
-	const inicioMesRel = toISO(mesRelAno, mesRelMes, 1);
-	const fimMesRel = toISO(mesRelAno, mesRelMes, diasNoMes(mesRelAno, mesRelMes));
+	let inicioMesRel = toISO(mesRelAno, mesRelMes, 1);
+	let fimMesRel = toISO(mesRelAno, mesRelMes, diasNoMes(mesRelAno, mesRelMes));
+
+	if (showAll) {
+		const inicioDate = new Date(hoje);
+		inicioDate.setMonth(hoje.getMonth() - 1);
+		inicioMesRel = toISO(inicioDate.getFullYear(), inicioDate.getMonth() + 1, 1);
+		
+		const fimDate = new Date(hoje);
+		fimDate.setMonth(hoje.getMonth() + 1);
+		fimMesRel = toISO(fimDate.getFullYear(), fimDate.getMonth() + 1, diasNoMes(fimDate.getFullYear(), fimDate.getMonth() + 1));
+	}
 
 	// ── FDS: apenas semana corrente ──
 	const fdsHoje = fdsAtualSemana(hoje);
@@ -89,8 +101,15 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 
 	const nomesUnidades = unidadesComRegime.map((u) => u.nome);
 	const escalasEncontradas = await db
-		.select()
+		.select({
+			id: escalas.id,
+			lotacao: escalas.lotacao,
+			data_inicio: escalas.data_inicio,
+			tipo: escalas.tipo,
+			is_assinada: sql<number>`CASE WHEN ${escalaDocumentos.id} IS NOT NULL THEN 1 ELSE 0 END`
+		})
 		.from(escalas)
+		.leftJoin(escalaDocumentos, eq(escalas.id, escalaDocumentos.escala_id))
 		.where(
 			and(
 				inArray(escalas.lotacao, nomesUnidades),
@@ -100,15 +119,6 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 		)
 		.all();
 
-	const escalasIds = escalasEncontradas.map((e) => e.id);
-	const docsAssinados = escalasIds.length > 0
-		? await db.select({ escala_id: escalaDocumentos.escala_id })
-				.from(escalaDocumentos)
-				.where(inArray(escalaDocumentos.escala_id, escalasIds))
-				.all()
-		: [];
-	const assinadasSet = new Set(docsAssinados.map((d) => d.escala_id));
-
 	const resultado: ItemCompliance[] = [];
 
 	for (const unidade of unidadesComRegime) {
@@ -117,7 +127,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 		// ── PLANTÃO ──
 		if (unidade.tem_plantao) {
 			const escala = escalasUnidade.find(
-				(e) => e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel
+				(e) => e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel && e.tipo === 'plantao'
 			);
 			resultado.push({
 				unidade_nome: unidade.nome,
@@ -125,7 +135,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 				periodo: `${MESES_PT[mesRelMes - 1]} ${mesRelAno}`,
 				data_inicio: inicioMesRel,
 				data_fim: fimMesRel,
-				status: !escala ? 'nao_criada' : assinadasSet.has(escala.id) ? 'ok' : 'nao_assinada',
+				status: !escala ? 'nao_criada' : escala.is_assinada ? 'ok' : 'nao_assinada',
 				escala_id: escala?.id
 			});
 		}
@@ -133,7 +143,7 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 		// ── EXPEDIENTE ──
 		if (unidade.tem_expediente) {
 			const escala = escalasUnidade.find(
-				(e) => e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel
+				(e) => e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel && e.tipo === 'expediente'
 			);
 			resultado.push({
 				unidade_nome: unidade.nome,
@@ -141,21 +151,21 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 				periodo: `${MESES_PT[mesRelMes - 1]} ${mesRelAno}`,
 				data_inicio: inicioMesRel,
 				data_fim: fimMesRel,
-				status: !escala ? 'nao_criada' : assinadasSet.has(escala.id) ? 'ok' : 'nao_assinada',
+				status: !escala ? 'nao_criada' : escala.is_assinada ? 'ok' : 'nao_assinada',
 				escala_id: escala?.id
 			});
 		}
 
 		// ── FDS ──
 		if (unidade.tem_fds) {
-			const escala = escalasUnidade.find((e) => e.data_inicio === fdsHoje.inicio);
+			const escala = escalasUnidade.find((e) => e.data_inicio === fdsHoje.inicio && e.tipo === 'fds');
 			resultado.push({
 				unidade_nome: unidade.nome,
 				tipo_regime: 'fds',
 				periodo: fdsHoje.label,
 				data_inicio: fdsHoje.inicio,
 				data_fim: fdsHoje.fim,
-				status: !escala ? 'nao_criada' : assinadasSet.has(escala.id) ? 'ok' : 'nao_assinada',
+				status: !escala ? 'nao_criada' : escala.is_assinada ? 'ok' : 'nao_assinada',
 				escala_id: escala?.id
 			});
 		}

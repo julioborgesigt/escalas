@@ -2,6 +2,8 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 
 	import type { Unidade } from '$lib/types';
@@ -19,6 +21,8 @@
 	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>(saved.regime || 'todos');
 	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
 	let filtroUnidade = $state(saved.unidade || '');
+	let filtreMesCorrente = $state(saved.mesCorrente !== undefined ? !!saved.mesCorrente : true);
+	let filtroAgrupamento = $state<'nenhum' | 'unidade' | 'regime' | 'ambos'>(saved.agrupamento || 'nenhum');
 	let filtroPendentes = $state(saved.pendentes !== undefined ? !!saved.pendentes : true);
 	let mostrarIgnorados = $state(!!saved.ignorados);
 
@@ -29,6 +33,8 @@
 				regime: filtroRegime,
 				seccional: filtroSeccional,
 				unidade: filtroUnidade,
+				mesCorrente: filtreMesCorrente,
+				agrupamento: filtroAgrupamento,
 				pendentes: filtroPendentes,
 				ignorados: mostrarIgnorados
 			}));
@@ -86,6 +92,31 @@
 		return true;
 	}));
 
+	interface GrupoCompliance {
+		titulo: string;
+		itens: ItemCompliance[];
+	}
+
+	const dadosAgrupados = $derived.by(() => {
+		const base = [...dadosFiltrados];
+		if (filtroAgrupamento === 'nenhum') {
+			return [{ titulo: '', itens: base }];
+		}
+
+		const gruposMap = new Map<string, ItemCompliance[]>();
+		for (const item of base) {
+			let chave = '';
+			if (filtroAgrupamento === 'unidade') chave = item.unidade_nome;
+			else if (filtroAgrupamento === 'regime') chave = item.tipo_regime.toUpperCase();
+			else if (filtroAgrupamento === 'ambos') chave = `${item.unidade_nome} - ${item.tipo_regime.toUpperCase()}`;
+			
+			if (!gruposMap.has(chave)) gruposMap.set(chave, []);
+			gruposMap.get(chave)!.push(item);
+		}
+
+		return Array.from(gruposMap.entries()).map(([titulo, itens]) => ({ titulo, itens }));
+	});
+
 	const unidadesDropdown = $derived([...new Set(
 		dados.filter(d => {
 			if (filtroSeccional === 'todas') return true;
@@ -103,9 +134,12 @@
 		ignorados: ignorados.size,
 	});
 
+	// Exclusão de escala (para "não assinada")
+	let escalaExcluirOpen = $state(false);
+	let itemParaExcluir = $state<ItemCompliance | null>(null);
+
 	async function carregar() {
 		loading = true;
-		// Carregar ignorados do localStorage
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
@@ -114,11 +148,48 @@
 		const resDB = await fetch('/api/unidades');
 		if (resDB.ok) unidadesDB = await resDB.json();
 
-		const res = await fetch('/api/admin/compliance');
+		const res = await fetch(`/api/admin/compliance${!filtreMesCorrente ? '?todos=1' : ''}`);
 		if (res.ok) dados = await res.json();
 		loading = false;
 	}
 
+	function limparFiltros() {
+		filtroRegime = 'todos';
+		filtroSeccional = 'todas';
+		filtroUnidade = '';
+		filtroPendentes = true;
+		mostrarIgnorados = false;
+		filtreMesCorrente = true;
+		filtroAgrupamento = 'nenhum';
+		carregar(); // Recarregar após limpar
+	}
+
+
+	async function confirmarExcluirEscala() {
+		if (!itemParaExcluir?.escala_id) return;
+		const id = itemParaExcluir.escala_id;
+		escalaExcluirOpen = false;
+
+		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+		if (res.ok) {
+			toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
+			carregar(); // Recarregar painel
+		} else {
+			const data = await res.json();
+			toaster.create({ title: data.error || 'Erro ao excluir escala', type: 'error' });
+		}
+		itemParaExcluir = null;
+	}
+
+	const temFiltros = $derived(
+		filtroRegime !== 'todos' ||
+		filtroSeccional !== 'todas' ||
+		filtroUnidade !== '' ||
+		filtroPendentes !== true ||
+		mostrarIgnorados !== false ||
+		!filtreMesCorrente ||
+		filtroAgrupamento !== 'nenhum'
+	);
 
 	$effect(() => {
 		if (isAdmin) carregar();
@@ -140,12 +211,21 @@
 			<h1 class="h1 text-xl font-bold">Painel de Compliance</h1>
 			<p class="text-sm text-surface-500 mt-0.5">Controle de envio e assinatura de escalas por unidade</p>
 		</div>
-		<button class="btn preset-outlined-surface btn-sm" onclick={carregar}>
-			<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-			</svg>
-			Atualizar
-		</button>
+		<div class="flex gap-2">
+			<button 
+				class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
+				onclick={limparFiltros}
+				disabled={!temFiltros && !loading}
+			>
+				Limpar filtros
+			</button>
+			<button class="btn preset-outlined-surface btn-sm" onclick={carregar}>
+				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+				</svg>
+				Atualizar
+			</button>
+		</div>
 	</div>
 
 	<!-- Cards de resumo -->
@@ -174,33 +254,36 @@
 	{/if}
 
 	<!-- Filtros -->
-	<div class="p-4 sm:p-5 mb-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col gap-4">
-
-		<div class="flex flex-wrap gap-2 items-center">
-			<span class="text-sm font-semibold text-surface-600 dark:text-surface-300 mr-1">Regime:</span>
-			{#each [['todos','Todos'],['plantao','Plantão'],['expediente','Expediente'],['fds','FDS']] as [val, label]}
-				<button
-					class="btn btn-sm {filtroRegime === val ? 'preset-filled-primary-500' : 'preset-outlined-surface'}"
-					onclick={() => { filtroRegime = val as typeof filtroRegime; mostrarIgnorados = false; }}
-				>{label}</button>
-			{/each}
+	<div class="p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-5">
+		
+		<!-- Regime Row -->
+		<div class="flex items-center gap-3">
+			<span class="text-sm font-bold text-surface-500">Regime:</span>
+			<div class="flex gap-2">
+				{#each [['todos','Todos'],['plantao','Plantão'],['expediente','Expediente'],['fds','FDS']] as [val, label]}
+					<button
+						class="btn btn-sm px-4 rounded-full transition-all text-sm font-medium {filtroRegime === val ? 'bg-[#00ADC8] text-white shadow-sm' : 'text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'}"
+						onclick={() => { filtroRegime = val as typeof filtroRegime; mostrarIgnorados = false; }}
+					>{label}</button>
+				{/each}
+			</div>
 		</div>
 
-		<div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
-			<label class="label flex-1">
-				<span class="label-text text-sm font-semibold mb-1">Seccional</span>
-				<select class="select" bind:value={filtroSeccional} onchange={mudarSeccional}>
+		<!-- Main Filters Row -->
+		<div class="flex flex-wrap items-end gap-6">
+			<label class="flex flex-col gap-1.5 w-full sm:w-60">
+				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Seccional</span>
+				<select class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm" bind:value={filtroSeccional} onchange={mudarSeccional}>
 					<option value="todas">Todas as seccionais</option>
 					{#each seccionais as sec (sec.id)}
 						<option value={sec.id}>{sec.nome}</option>
 					{/each}
 				</select>
-
 			</label>
-			
-			<label class="label flex-1">
-				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
-				<select class="select" bind:value={filtroUnidade}>
+
+			<label class="flex flex-col gap-1.5 w-full sm:w-60">
+				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Unidade</span>
+				<select class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm" bind:value={filtroUnidade}>
 					<option value="">Todas as unidades</option>
 					{#each unidadesDropdown as u}
 						<option value={u}>{u}</option>
@@ -208,19 +291,40 @@
 				</select>
 			</label>
 
-			{#if !mostrarIgnorados}
-				<label class="flex items-center gap-2 cursor-pointer mt-4 sm:mt-5">
-					<input type="checkbox" class="checkbox" bind:checked={filtroPendentes} />
-					<span class="text-sm font-medium">Apenas pendências</span>
-				</label>
-			{/if}
+			<label class="flex flex-col gap-1.5 w-full sm:w-48">
+				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Agrupar por:</span>
+				<select class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm" bind:value={filtroAgrupamento}>
+					<option value="nenhum">Nenhum</option>
+					<option value="unidade">Delegacia</option>
+					<option value="regime">Regime</option>
+					<option value="ambos">Delegacia e Regime</option>
+				</select>
+			</label>
 
-			{#if mostrarIgnorados}
-				<button class="btn btn-sm preset-outlined-surface mt-4 sm:mt-5" onclick={() => { mostrarIgnorados = false; filtroPendentes = true; }}>
+			<div class="flex items-center gap-5 pb-1 h-9">
+				{#if !mostrarIgnorados}
+					<label class="flex items-center gap-2 cursor-pointer group">
+						<input type="checkbox" class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none" bind:checked={filtroPendentes} />
+						<span class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">Apenas pendências</span>
+					</label>
+				{/if}
+
+				<label class="flex items-center gap-2 cursor-pointer group">
+					<input type="checkbox" class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none" bind:checked={filtreMesCorrente} onchange={carregar} />
+					<span class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">Mês Corrente</span>
+				</label>
+			</div>
+		</div>
+
+		{#if mostrarIgnorados}
+			<div class="pt-1 border-t border-surface-100 dark:border-white/5">
+				<button class="btn btn-sm variant-soft-surface text-xs font-bold" onclick={() => { mostrarIgnorados = false; filtroPendentes = true; }}>
 					← Voltar para pendências
 				</button>
-			{/if}
-		</div>
+			</div>
+		{/if}
+
+		<hr class="opacity-50 dark:opacity-10" />
 	</div>
 
 	<!-- Modo ignorados: banner informativo -->
@@ -230,6 +334,21 @@
 			Exibindo itens ignorados. Para restaurar, clique em <strong>Restaurar</strong> na linha correspondente.
 		</div>
 	{/if}
+
+	<Dialog open={escalaExcluirOpen} onOpenChange={(e) => escalaExcluirOpen = e.open}>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+			<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
+				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+					Tem certeza que deseja excluir esta escala de <strong>{itemParaExcluir?.unidade_nome}</strong>? O status voltará a ser "Não Criada".
+				</Dialog.Description>
+				<div class="flex justify-end gap-3">
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<button class="btn preset-filled-error-500" onclick={confirmarExcluirEscala}>Confirmar Exclusão</button>
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
 
 	<!-- Tabela -->
 	<div class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5">
@@ -255,13 +374,21 @@
 							<th>Regime</th>
 							<th>Período</th>
 							<th>Status</th>
-							<th class="text-right">Ações</th>
+							<th class="text-left">Ações</th>
 						</tr>
 					</thead>
 					<tbody>
-						{#each dadosFiltrados as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
+						{#each dadosAgrupados as grupo}
+							{#if grupo.titulo}
+								<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
+									<td colspan="5" class="py-1.5 px-4 text-[10px] font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400">
+										{grupo.titulo}
+									</td>
+								</tr>
+							{/if}
+							{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
 							<tr class="{ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}">
-								<td class="font-medium max-w-[220px] truncate">{item.unidade_nome}</td>
+								<td class="font-medium max-w-[305px] truncate">{item.unidade_nome}</td>
 								<td>
 									{#if item.tipo_regime === 'plantao'}
 										<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-xs font-bold">Plantão</span>
@@ -275,6 +402,15 @@
 								<td>
 									{#if item.status === 'ok'}
 										<span class="badge preset-filled-success-500 text-white text-xs font-bold px-2">✅ Em dia</span>
+									{:else if item.status === 'nao_assinada' && item.escala_id}
+										<div class="flex items-center gap-1.5">
+											<a href="/escalas/{item.escala_id}" class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2 hover:bg-warning-500/30 transition-colors pointer-events-auto">🟡 Não Assinada</a>
+											<button 
+												class="text-error-500 hover:text-error-600 hover:bg-error-500/10 p-1 rounded-md transition-colors leading-none font-bold"
+												title="Excluir escala"
+												onclick={(e) => { e.preventDefault(); itemParaExcluir = item; escalaExcluirOpen = true; }}
+											>✕</button>
+										</div>
 									{:else if item.status === 'nao_assinada'}
 										<span class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2">🟡 Não Assinada</span>
 									{:else}
@@ -282,22 +418,22 @@
 									{/if}
 								</td>
 								<td>
-									<div class="flex gap-2 justify-end">
+									<div class="flex gap-2 justify-start">
 										{#if mostrarIgnorados}
 											<button class="btn btn-sm preset-outlined-surface" onclick={() => restaurarItem(item)}>Restaurar</button>
 										{:else}
-											{#if item.status === 'nao_criada'}
-												<span class="text-xs italic text-surface-500">Pendente de criação</span>
-											{/if}
-											<button
-												class="btn btn-sm preset-outlined-surface opacity-60 hover:opacity-100"
-												title="Ignorar esta pendência"
-												onclick={() => ignorarItem(item)}
-											>🔕</button>
+												<div class="flex gap-2 items-center">
+													<button
+														class="btn btn-sm preset-outlined-surface opacity-60 hover:opacity-100"
+														title="Ignorar esta pendência"
+														onclick={() => ignorarItem(item)}
+													>🔕</button>
+												</div>
 										{/if}
 									</div>
 								</td>
 							</tr>
+							{/each}
 						{/each}
 					</tbody>
 				</table>
@@ -322,6 +458,14 @@
 							<div class="mt-1.5">
 								{#if item.status === 'ok'}
 									<span class="text-xs text-success-600 dark:text-success-400 font-bold">✅ Em dia</span>
+								{:else if item.status === 'nao_assinada' && item.escala_id}
+									<div class="flex items-center gap-2">
+										<a href="/escalas/{item.escala_id}" class="text-xs text-warning-600 dark:text-warning-400 font-bold hover:underline decoration-warning-500">🟡 Não Assinada</a>
+										<button 
+											class="text-error-500 font-bold px-1"
+											onclick={(e) => { e.preventDefault(); itemParaExcluir = item; escalaExcluirOpen = true; }}
+										>✕</button>
+									</div>
 								{:else if item.status === 'nao_assinada'}
 									<span class="text-xs text-warning-600 dark:text-warning-400 font-bold">🟡 Não Assinada</span>
 								{:else}
@@ -333,10 +477,9 @@
 							{#if mostrarIgnorados}
 								<button class="btn btn-sm preset-outlined-surface text-xs" onclick={() => restaurarItem(item)}>Restaurar</button>
 							{:else}
-								{#if item.status === 'nao_criada'}
-									<span class="text-[10px] italic text-surface-500">Pendente</span>
-								{/if}
-								<button class="btn btn-sm preset-outlined-surface text-xs opacity-60" onclick={() => ignorarItem(item)}>🔕 Ignorar</button>
+								<div class="flex flex-col gap-1.5 items-end">
+									<button class="btn btn-sm preset-outlined-surface text-xs opacity-60" onclick={() => ignorarItem(item)}>🔕 Ignorar</button>
+								</div>
 							{/if}
 						</div>
 					</div>

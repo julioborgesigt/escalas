@@ -75,7 +75,7 @@
 
 		loading = true;
 		const params = new URLSearchParams();
-		if (filtroLotacao) {
+		if (filtroLotacao && filtroLotacao !== 'todas') {
 			params.set('lotacao', filtroLotacao);
 		}
 		params.set('mes', filtroMes.toString());
@@ -116,6 +116,15 @@
 		escalaParaExcluir = null;
 	}
 
+	function limparFiltros() {
+		filtroSeccional = 'todas';
+		filtroLotacao = 'todas';
+		filtroMes = new Date().getMonth() + 1;
+		filtroAno = new Date().getFullYear();
+		filtroTipo = 'todos';
+		carregar();
+	}
+
 	function solicitarEdicao(esc: EscalaListagem) {
 		if (esc.is_assinada) {
 			escalaParaRevogar = { id: esc.id, titulo: esc.titulo };
@@ -141,6 +150,14 @@
 		escalaParaRevogar = null;
 	}
 
+	const temFiltros = $derived(
+		filtroSeccional !== 'todas' ||
+		filtroLotacao !== 'todas' ||
+		filtroMes !== (new Date().getMonth() + 1) ||
+		filtroAno !== (new Date().getFullYear()) ||
+		filtroTipo !== 'todos'
+	);
+
 	let paginaAtual = $state(1);
 	const itensPorPagina = 10;
 	const totalPaginas = $derived(Math.max(1, Math.ceil(escalas.length / itensPorPagina)));
@@ -159,7 +176,16 @@
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 	<h1 class="h1 text-xl font-bold">Arquivo</h1>
-	<a href="/escalas/nova" class="btn preset-filled-primary-500">Nova Escala</a>
+	<div class="flex items-center gap-2">
+		<button 
+			class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
+			onclick={limparFiltros}
+			disabled={!temFiltros && !loading}
+		>
+			Limpar filtros
+		</button>
+		<a href="/escalas/nova" class="btn btn-sm preset-filled-primary-500">Nova Escala</a>
+	</div>
 </div>
 
 
@@ -215,6 +241,7 @@
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
+					<option value="todas">Todas as unidades</option>
 					{#each delegaciasDropdown as del (del.id)}
 						<option value={del.nome}>{del.nome}</option>
 					{/each}

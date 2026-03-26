@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import type { Policial } from '$lib/types';
+	import { formatarTelefone } from '$lib/utils';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -41,6 +42,26 @@
 		}
 	});
 
+	const classesDisponiveis = $derived(
+		cargo === 'DPC' 
+			? ['1', '2', '3', 'Especial']
+			: [
+				'D - I', 'D - II',
+				'C - I', 'C - II', 'C - III', 'C - IV', 'C - V', 'C - VI', 'C - VII',
+				'B - I', 'B - II', 'B - III', 'B - IV', 'B - V', 'B - VI', 'B - VII',
+				'A - I', 'A - II', 'A - III', 'A - IV'
+			]
+	);
+
+	let firstLoad = true;
+	$effect(() => {
+		// Only reset classe on subsequent cargo changes, not when first loaded
+		if (!firstLoad && !loading) {
+			classe = '';
+		}
+		if (!loading) firstLoad = false;
+	});
+
 	async function salvar(e: Event) {
 		e.preventDefault();
 		saving = true;
@@ -70,64 +91,77 @@
 {#if loading}
 	<p class="text-center py-8">Carregando...</p>
 {:else}
-	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
-		<form onsubmit={salvar} class="space-y-4">
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<label class="label">
-					<span class="label-text">Nome completo</span>
-					<input class="input" type="text" bind:value={nome} required />
+	<div class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
+		<form onsubmit={salvar} class="space-y-2">
+			<!-- Linha 1 -->
+			<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+				<label class="label sm:col-span-4">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo</span>
+					<input class="input py-1 px-3 text-sm" type="text" bind:value={nome} required />
 				</label>
-				<label class="label">
-					<span class="label-text">Matrícula</span>
-					<input class="input" type="text" bind:value={matricula} required />
+				<label class="label sm:col-span-2">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Matrícula</span>
+					<input class="input py-1 px-3 text-sm" type="text" bind:value={matricula} required />
 				</label>
-			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<label class="label">
-					<span class="label-text">Cargo</span>
-					<select class="select" bind:value={cargo}>
-						<option value="DPC">DPC - Delegado de Polícia Civil</option>
-						<option value="OIP">OIP - Oficial Investigador de Polícia</option>
+				<label class="label sm:col-span-3">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
+					<select class="select py-1 px-3 text-sm" bind:value={cargo}>
+						<option value="DPC">DPC - Delegado</option>
+						<option value="OIP">OIP - Investigador</option>
 					</select>
 				</label>
-				<label class="label">
-					<span class="label-text">Telefone</span>
-					<input class="input" type="text" bind:value={telefone} />
+				<label class="label sm:col-span-3">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Telefone</span>
+					<input class="input py-1 px-3 text-sm" type="text" value={telefone} oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))} placeholder="(00) 0.0000-0000" />
 				</label>
 			</div>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<label class="label">
-					<span class="label-text">Classe</span>
-					<input class="input" type="text" bind:value={classe} placeholder="Ex: Especial, A I, B II, C III..." />
+
+			<!-- Linha 2 -->
+			<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+				<label class="label sm:col-span-1">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
+					<select class="select py-1 px-3 text-sm" bind:value={classe} required>
+						<option value="" disabled>-</option>
+						{#each classesDisponiveis as c}
+							<option value={c}>{c}</option>
+						{/each}
+						{#if classe && !classesDisponiveis.includes(classe)}
+							<option value={classe}>{classe} (Atual)</option>
+						{/if}
+					</select>
 				</label>
-				<label class="label">
-					<span class="label-text">Regime de Trabalho</span>
-					<select class="select" bind:value={regime}>
+				<label class="label sm:col-span-4">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Regime de Trabalho</span>
+					<select class="select py-1 px-3 text-sm" bind:value={regime}>
 						<option value="ambos">Plantão e Expediente</option>
 						<option value="plantao">Somente Plantão</option>
 						<option value="expediente">Somente Expediente</option>
 					</select>
 				</label>
+				<label class="label sm:col-span-7">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span>
+					{#if isAdmin}
+						<select class="select py-1 px-3 text-sm" bind:value={lotacao}>
+							<option value="">— Sem lotação —</option>
+							{#each unidades as u (u)}
+								<option value={u}>{u}</option>
+							{/each}
+						</select>
+					{:else}
+						<input class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75" type="text" value={lotacao} readonly />
+					{/if}
+				</label>
 			</div>
-			<label class="label">
-				<span class="label-text">Lotação</span>
-				{#if isAdmin}
-					<select class="select" bind:value={lotacao}>
-						<option value="">— Sem lotação —</option>
-						{#each unidades as u (u)}
-							<option value={u}>{u}</option>
-						{/each}
-					</select>
-				{:else}
-					<input class="input bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75" type="text" value={lotacao} readonly />
-				{/if}
-			</label>
-			<div class="flex gap-3 pt-2">
-				<button type="submit" class="btn preset-filled-primary-500" disabled={saving}>
-					{saving ? 'Salvando...' : 'Salvar'}
+
+			<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+				<button type="submit" class="btn btn-sm sm:btn-md preset-filled-primary-500" disabled={saving}>
+					{saving ? 'Guardando...' : 'Salvar'}
 				</button>
-				<a href="/policiais" class="btn preset-outlined-primary-500">Cancelar</a>
+				<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
 			</div>
 		</form>
 	</div>
+
+
+
 {/if}
