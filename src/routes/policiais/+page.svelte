@@ -4,6 +4,8 @@
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
+	import { formatarTelefone } from '$lib/utils';
+	import { policialSchema } from '$lib/schemas';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -49,6 +51,73 @@
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
 	const TODAS_UNIDADES = '__todas__';
+
+	// Cadastro
+	let cadastroOpen = $state(false);
+	let nome = $state('');
+	let matricula = $state('');
+	let cargo = $state<'DPC' | 'OIP'>('OIP');
+	let telefone = $state('');
+	let classe = $state('');
+	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
+	let lotacaoInput = $state('');
+	let saving = $state(false);
+
+	$effect(() => {
+		if (cadastroOpen) {
+			lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+		}
+	});
+
+	const classesDisponiveis = $derived(
+		cargo === 'DPC' 
+			? ['1', '2', '3', 'Especial']
+			: [
+				'D - I', 'D - II',
+				'C - I', 'C - II', 'C - III', 'C - IV', 'C - V', 'C - VI', 'C - VII',
+				'B - I', 'B - II', 'B - III', 'B - IV', 'B - V', 'B - VI', 'B - VII',
+				'A - I', 'A - II', 'A - III', 'A - IV'
+			]
+	);
+
+	function resetForm() {
+		nome = '';
+		matricula = '';
+		cargo = 'OIP';
+		telefone = '';
+		classe = '';
+		regime = 'ambos';
+		lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+	}
+
+	async function salvar(e: Event) {
+		e.preventDefault();
+
+		const parsed = policialSchema.safeParse({ nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe });
+		if (!parsed.success) {
+			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			return;
+		}
+
+		saving = true;
+
+		const res = await fetch('/api/policiais', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe })
+		});
+
+		if (res.ok) {
+			toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+			resetForm();
+			cadastroOpen = false;
+			carregarPoliciais();
+		} else {
+			const data = await res.json();
+			toaster.create({ title: data.error || 'Erro ao cadastrar', type: 'error' });
+		}
+		saving = false;
+	}
 
 	const policiaisExibidos = $derived(
 		policiais.filter(p => {
@@ -125,6 +194,21 @@
 		policialParaExcluir = null;
 	}
 
+	function limparFiltros() {
+		filtroLotacao = isAdmin ? '' : page.data.usuario?.lotacao || '';
+		filtroCargo = '';
+		filtroSeccional = 'todas';
+		filtroBusca = '';
+		carregarPoliciais();
+	}
+
+	const temFiltros = $derived(
+		filtroLotacao !== (isAdmin ? '' : (page.data.usuario?.lotacao || '')) ||
+		filtroCargo !== '' ||
+		filtroSeccional !== 'todas' ||
+		filtroBusca !== ''
+	);
+
 	$effect(() => {
 		carregarPoliciais();
 		carregarUnidades();
@@ -134,12 +218,105 @@
 <div class="flex items-center justify-between mb-6">
 	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>
 	<div class="flex gap-2">
+		<button 
+			class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
+			onclick={limparFiltros}
+			disabled={!temFiltros && !loading}
+		>
+			Limpar filtros
+		</button>
 		{#if isAdmin}
-			<a href="/policiais/upload" class="btn preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a>
+			<a href="/policiais/upload" class="btn btn-sm preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a>
 		{/if}
-		<a href="/policiais/novo" class="btn preset-filled-primary-500">Novo Policial</a>
+		<button class="btn btn-sm preset-filled-primary-500" onclick={() => { resetForm(); cadastroOpen = true; }}>Novo Policial</button>
 	</div>
 </div>
+
+<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) resetForm(); }}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-5 max-w-2xl w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
+			
+			<form onsubmit={salvar} class="space-y-3">
+				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-7">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo</span>
+						<input class="input py-1 px-3 text-sm" type="text" bind:value={nome} required />
+					</label>
+					<label class="label sm:col-span-2">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Matrícula</span>
+						<input class="input py-1 px-3 text-sm" type="text" bind:value={matricula} maxlength="10" required />
+					</label>
+					<label class="label sm:col-span-3">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
+						<select class="select py-1 px-3 text-sm" bind:value={cargo}>
+							<option value="DPC">DPC - Delegado</option>
+							<option value="OIP">OIP - Investigador</option>
+						</select>
+					</label>
+				</div>
+		
+				<!-- Linha 2: Telefone (3), Classe (4), Regime (5) -->
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-3">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Telefone</span>
+						<input 
+							class="input py-1 px-3 text-sm" 
+							type="text" 
+							value={telefone} 
+							oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))} 
+							placeholder="(88) 9.0000-0000"
+							maxlength="16"
+						/>
+					</label>
+					<label class="label sm:col-span-4">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
+						<select class="select py-1 px-3 text-sm" bind:value={classe} required>
+							<option value="" disabled>-</option>
+							{#each classesDisponiveis as c}
+								<option value={c}>{c}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="label sm:col-span-5">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Regime de Trabalho</span>
+						<select class="select py-1 px-3 text-sm" bind:value={regime}>
+							<option value="ambos">Plantão e Expediente</option>
+							<option value="plantao">Somente Plantão</option>
+							<option value="expediente">Somente Expediente</option>
+						</select>
+					</label>
+				</div>
+
+				<!-- Linha 3: Lotação (12) -->
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-12">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span>
+						{#if isAdmin}
+							<select class="select py-1 px-3 text-sm" bind:value={lotacaoInput}>
+								<option value="">— Sem lotação —</option>
+								{#each unidades as u (u.id)}
+									<option value={u.nome}>{u.nome}</option>
+								{/each}
+							</select>
+						{:else}
+							<input class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75" type="text" value={lotacaoInput} readonly />
+						{/if}
+					</label>
+				</div>
+		
+				<div class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-white/5">
+					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<button type="submit" class="btn btn-sm preset-filled-primary-500" disabled={saving}>
+						{saving ? 'Guardando...' : 'Cadastrar'}
+					</button>
+				</div>
+			</form>
+		</div>
+	</Dialog.Content>
+</Dialog>
+
 
 <Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
 	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
@@ -216,7 +393,7 @@
 		<div class="text-center py-12 text-surface-500">
 			<p class="mb-4">{filtroCargo ? `Nenhum policial com cargo ${filtroCargo} encontrado.` : 'Nenhum policial cadastrado.'}</p>
 			{#if !filtroCargo}
-				<a href="/policiais/novo" class="btn preset-filled-primary-500">Cadastrar Policial</a>
+				<a href="/policiais" class="btn preset-filled-primary-500" onclick={(e) => { e.preventDefault(); resetForm(); cadastroOpen = true; }}>Cadastrar Policial</a>
 			{/if}
 		</div>
 	{:else}

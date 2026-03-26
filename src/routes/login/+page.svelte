@@ -30,7 +30,7 @@
 			if (data.primeiro_acesso) {
 				goto('/alterar-senha', { invalidateAll: true });
 			} else {
-				goto('/escalas', { invalidateAll: true });
+				goto(tipo === 'admin' ? '/painel' : '/escalas', { invalidateAll: true });
 			}
 		} else {
 			const data = await res.json();

@@ -9,7 +9,8 @@ export const unidadeSchema = z.object({
 	seccional_id: z.number().nullable().default(null),
 	tem_plantao: z.boolean().default(false),
 	tem_expediente: z.boolean().default(false),
-	tem_fds: z.boolean().default(false)
+	tem_fds: z.boolean().default(false),
+	cidade: z.string().min(1, 'Cidade é obrigatória').default('')
 });
 
 export type UnidadeInput = z.infer<typeof unidadeSchema>;
