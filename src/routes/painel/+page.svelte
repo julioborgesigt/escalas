@@ -438,57 +438,76 @@
 					</tbody>
 				</table>
 			</div>
-
+	
 			<!-- Mobile cards -->
-			<div class="md:hidden divide-y divide-surface-200 dark:divide-white/5">
-				{#each dadosFiltrados as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
-					<div class="p-4 flex items-center justify-between gap-3 {ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}">
-						<div class="min-w-0">
-							<p class="font-semibold text-sm truncate">{item.unidade_nome}</p>
-							<div class="flex items-center gap-2 mt-1 flex-wrap">
-								{#if item.tipo_regime === 'plantao'}
-									<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] font-bold px-1.5">Plantão</span>
-								{:else if item.tipo_regime === 'expediente'}
-									<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] font-bold px-1.5">Expediente</span>
-								{:else}
-									<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] font-bold px-1.5">FDS</span>
-								{/if}
-								<span class="text-xs text-surface-500">{item.periodo}</span>
-							</div>
-							<div class="mt-1.5">
-								{#if item.status === 'ok'}
-									<span class="text-xs text-success-600 dark:text-success-400 font-bold">✅ Em dia</span>
-								{:else if item.status === 'nao_assinada' && item.escala_id}
-									<div class="flex items-center gap-2">
-										<a href="/escalas/{item.escala_id}" class="text-xs text-warning-600 dark:text-warning-400 font-bold hover:underline decoration-warning-500">🟡 Não Assinada</a>
-										<button 
-											class="text-error-500 font-bold px-1"
-											onclick={(e) => { e.preventDefault(); itemParaExcluir = item; escalaExcluirOpen = true; }}
-										>✕</button>
+			<div class="md:hidden space-y-2">
+				{#each dadosAgrupados as grupo}
+					{#if grupo.titulo}
+						<div class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg">
+							{grupo.titulo}
+						</div>
+					{/if}
+					
+					<div class="divide-y divide-surface-200 dark:divide-white/5 bg-white/50 dark:bg-surface-900/30 rounded-xl overflow-hidden border border-surface-200 dark:border-white/5 mb-4">
+						{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
+							<div class="p-4 flex items-center justify-between gap-3 {ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}">
+								<div class="min-w-0 flex-1">
+									<p class="font-bold text-sm truncate">{item.unidade_nome}</p>
+									<div class="flex items-center gap-2 mt-1.5 flex-wrap">
+										{#if item.tipo_regime === 'plantao'}
+											<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight">PLANTÃO</span>
+										{:else if item.tipo_regime === 'expediente'}
+											<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight">EXPEDIENTE</span>
+										{:else}
+											<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight">FDS</span>
+										{/if}
+										<span class="text-xs text-surface-500 font-medium">{item.periodo}</span>
 									</div>
-								{:else if item.status === 'nao_assinada'}
-									<span class="text-xs text-warning-600 dark:text-warning-400 font-bold">🟡 Não Assinada</span>
-								{:else}
-									<span class="text-xs text-error-600 dark:text-error-400 font-bold">🔴 Não Criada</span>
-								{/if}
-							</div>
-						</div>
-						<div class="flex flex-col gap-1.5 shrink-0 items-end">
-							{#if mostrarIgnorados}
-								<button class="btn btn-sm preset-outlined-surface text-xs" onclick={() => restaurarItem(item)}>Restaurar</button>
-							{:else}
-								<div class="flex flex-col gap-1.5 items-end">
-									<button class="btn btn-sm preset-outlined-surface text-xs opacity-60" onclick={() => ignorarItem(item)}>🔕 Ignorar</button>
+									<div class="mt-2">
+										{#if item.status === 'ok'}
+											<span class="text-xs text-success-600 dark:text-success-400 font-bold flex items-center gap-1">
+												<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+												Em dia
+											</span>
+										{:else if item.status === 'nao_assinada' && item.escala_id}
+											<div class="flex items-center gap-2">
+												<a href="/escalas/{item.escala_id}" class="text-xs text-warning-600 dark:text-warning-400 font-bold hover:underline decoration-warning-500 flex items-center gap-1">
+													<div class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></div>
+													Não Assinada
+												</a>
+												<button 
+													class="text-error-500 font-black px-1.5 py-0.5 bg-error-500/10 rounded"
+													onclick={(e) => { e.preventDefault(); itemParaExcluir = item; escalaExcluirOpen = true; }}
+												>✕</button>
+											</div>
+										{:else if item.status === 'nao_assinada'}
+											<span class="text-xs text-warning-600 dark:text-warning-400 font-bold flex items-center gap-1">
+												<div class="w-2 h-2 rounded-full bg-warning-500"></div>
+												Não Assinada
+											</span>
+										{:else}
+											<span class="text-xs text-error-600 dark:text-error-400 font-bold flex items-center gap-1">
+												<div class="w-2 h-2 rounded-full bg-error-500"></div>
+												Não Criada
+											</span>
+										{/if}
+									</div>
 								</div>
-							{/if}
-						</div>
+								
+								<div class="shrink-0 flex items-center gap-2">
+									{#if mostrarIgnorados}
+										<button class="btn btn-sm preset-outlined-surface text-[10px] font-bold" onclick={() => restaurarItem(item)}>Restaurar</button>
+									{:else}
+										<button class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface opacity-60 flex items-center justify-center rounded-full" title="Ignorar" onclick={() => ignorarItem(item)}>
+											<span class="text-sm">🔕</span>
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
 					</div>
 				{/each}
 			</div>
-
-			<p class="pt-3 text-surface-500 text-sm border-t border-surface-200 dark:border-white/5 mt-1">
-				{dadosFiltrados.length} item(ns) exibido(s)
-			</p>
 		{/if}
 	</div>
 {/if}
