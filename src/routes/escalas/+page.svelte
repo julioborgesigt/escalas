@@ -249,8 +249,8 @@
 			</label>
 		{/if}
 
-		<div class="flex flex-[2] gap-4">
-			<label class="label flex-1">
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+			<label class="label">
 				<span class="label-text font-semibold mb-1">Tipo</span>
 				<select class="select" bind:value={filtroTipo} onchange={carregar}>
 					<option value="todos">Todos</option>
@@ -260,7 +260,7 @@
 				</select>
 			</label>
 
-			<label class="label flex-1">
+			<label class="label">
 				<span class="label-text font-semibold mb-1">Mês</span>
 				<select class="select" bind:value={filtroMes} onchange={carregar}>
 					{#each meses as mes}
@@ -269,7 +269,7 @@
 				</select>
 			</label>
 
-			<label class="label flex-1">
+			<label class="label">
 				<span class="label-text font-semibold mb-1">Ano</span>
 				<select class="select" bind:value={filtroAno} onchange={carregar}>
 					{#each anos as ano}

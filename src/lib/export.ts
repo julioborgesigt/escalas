@@ -13,8 +13,17 @@ interface DiaPlantao {
 }
 
 function formatarData(dateStr: string): string {
+	if (!dateStr) return '';
 	const [year, month, day] = dateStr.split('-');
 	return `${day}/${month}/${year}`;
+}
+
+function formatarDataExtenso(date: Date): string {
+	const d = date.getDate();
+	const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+	const m = meses[date.getMonth()];
+	const a = date.getFullYear();
+	return `${String(d).padStart(2, '0')} de ${m} de ${a}`;
 }
 
 function proximoDia(dateStr: string): string {
@@ -76,7 +85,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 
 	const titulo = new Paragraph({
 		children: [new TextRun({
-			text: `ESCALA PLANTÃO FINAL DE SEMANA ${escala.cidade.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
+			text: `ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
 			bold: true,
 			size: 24,
 			font: 'Arial'
@@ -164,7 +173,7 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 	const wb = XLSX.utils.book_new();
 
 	const rows: (string | null)[][] = [];
-	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.cidade.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
+	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
 	rows.push([]);
 
 	for (const dia of dias) {
@@ -205,11 +214,11 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 
 	doc.setFontSize(14);
 	doc.text(
-		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.cidade.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
+		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
 		148, 15, { align: 'center' }
 	);
 
-	let startY = 25;
+	let y = 25;
 
 	for (const dia of dias) {
 		const tableData = dia.policiais.map(p => [
@@ -225,7 +234,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 		autoTable(doc, {
 			head: [['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']],
 			body: tableData,
-			startY,
+			startY: y,
 			theme: 'grid',
 			headStyles: {
 				fillColor: [26, 92, 87],
@@ -242,9 +251,11 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 			},
 			margin: { left: 10, right: 10 }
 		});
+
+		y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
 	}
 
-	const lastY = (doc as any).lastAutoTable?.finalY ?? startY;
+	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
 	const pageWidth = 297;
 	// Footer e assinatura logo após a tabela - aumentado para evitar sobreposição do carimbo
 	let sigY = lastY + 35;
@@ -253,16 +264,17 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 		sigY = 35;
 	}
 
-	const sigCenterX = pageWidth * 0.75;
-
 	const margin = 10;
-
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
-	// Data alinhada na mesma altura da linha de assinatura
-	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
+
+	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const dataExtenso = formatarDataExtenso(new Date());
+	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
+	doc.text(textoData, margin, sigY);
 
 	// Assinatura alinhada à direita
+	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
@@ -436,14 +448,18 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 		doc.addPage();
 		sigY = 35;
 	}
-	const sigCenterX = pageWidth * 0.75;
 
+	const marginLine = 10;
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
-	// Data alinhada na mesma altura da linha de assinatura
-	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
+
+	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const dataExtenso = formatarDataExtenso(new Date());
+	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
+	doc.text(textoData, marginLine, sigY);
 
 	// Assinatura alinhada à direita e na mesma altura da data
+	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
@@ -459,7 +475,7 @@ export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): U
 	const wb = XLSX.utils.book_new();
 
 	const rows: (string | null)[][] = [];
-	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.cidade.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
+	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
 	rows.push([]);
 
 	for (const dia of dias) {
@@ -541,6 +557,7 @@ function formatarDias(dias: string[]): string {
 }
 
 function formatarMesAno(dateStr: string): string {
+	if (!dateStr) return '';
 	const [year, month] = dateStr.split('-');
 	const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 	return `${meses[Number(month) - 1]}/${year}`;
@@ -684,7 +701,7 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	doc.text('DELEGACIA GERAL DA POLÍCIA CIVIL / DEPARTAMENTO DE POLÍCIA JUDICIÁRIA DO INTERIOR SUL', pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFont('helvetica', 'bold');
-	doc.text(`DELEGACIA: ${escala.cidade.toUpperCase()}`, margin, y);
+	doc.text(`DELEGACIA: ${escala.lotacao.toUpperCase()}`, margin, y);
 	y += 5;
 	doc.text(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, margin, y);
 	y += 8;
@@ -716,7 +733,7 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 			margin: { left: margin, right: margin }
 		});
 
-		y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 6;
+		y = ((doc as any).lastAutoTable?.finalY ?? y) + 6;
 	}
 
 	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
@@ -728,15 +745,17 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 		sigY = 35;
 	}
 
-	
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
 	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, sigY - 10);
-	
+
 	// Data alinhada na mesma altura da linha de assinatura
 	doc.setFontSize(9);
-	doc.text(`${escala.cidade}, ______ de ________________ de ________`, margin, sigY);
-	
+	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const dataExtenso = formatarDataExtenso(new Date());
+	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
+	doc.text(textoData, margin, sigY);
+
 	// Assinatura já alinhada à direita, agora na mesma altura da data
 	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
@@ -746,4 +765,3 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
 
 }
-

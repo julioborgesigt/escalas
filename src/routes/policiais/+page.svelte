@@ -215,9 +215,9 @@
 	});
 </script>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>
-	<div class="flex gap-2">
+	<div class="flex flex-wrap gap-2">
 		<button 
 			class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
 			onclick={limparFiltros}

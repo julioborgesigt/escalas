@@ -10,14 +10,15 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 
 	if (locals.usuario?.tipo === 'policial') {
 		// Policial: retorna somente a própria unidade
-		const lotacao = locals.usuario.lotacao;
+		const lotacao = locals.usuario.lotacao as string;
 		const unidade = await db.select().from(unidades).where(eq(unidades.nome, lotacao)).get();
 		if (!unidade) return json([]);
 		return json([{
 			nome: unidade.nome,
 			tem_plantao: unidade.tem_plantao,
 			tem_expediente: unidade.tem_expediente,
-			tem_fds: unidade.tem_fds
+			tem_fds: unidade.tem_fds,
+			cidade: unidade.cidade
 		}]);
 	}
 
@@ -26,7 +27,8 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 		nome: unidades.nome,
 		tem_plantao: unidades.tem_plantao,
 		tem_expediente: unidades.tem_expediente,
-		tem_fds: unidades.tem_fds
+		tem_fds: unidades.tem_fds,
+		cidade: unidades.cidade
 	}).from(unidades).all();
 
 	return json(todas);

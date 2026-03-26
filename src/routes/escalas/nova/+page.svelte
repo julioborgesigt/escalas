@@ -9,6 +9,7 @@
 		tem_plantao: boolean;
 		tem_expediente: boolean;
 		tem_fds: boolean;
+		cidade: string;
 	}
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -87,7 +88,7 @@
 			atualizarTituloFds();
 		}
 
-		cidade = unidade.nome;
+		cidade = unidade.cidade || '';
 		lotacaoEscala = unidade.nome;
 	}
 

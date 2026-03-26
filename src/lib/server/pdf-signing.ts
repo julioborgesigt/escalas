@@ -730,189 +730,39 @@ export async function adicionarRodapeSimples(
 	const lastPage = pages[pages.length - 1];
 	const { width } = lastPage.getSize();
 
-	// --- Dimensões do selo ---
-	const margin  = 10;
-	const boxX    = margin;
-	const boxW    = width - margin * 2;
-	const boxH    = 72;
-	const boxY    = 7;
-	const headerH = 14;
+	// --- Posicionamento simplificado ---
+	const marginX = 25;
+	const bottomY = 15; // 15mm do fundo do PDF (pdf-lib usa 0 no fundo)
+	const dataHora = formatarDataHora();
 
-	// --- Paleta ---
-	const cNavy  = rgb(0.07, 0.14, 0.42);
-	const cBlue  = rgb(0.18, 0.32, 0.72);
-	const cBg    = rgb(0.94, 0.96, 0.99);
-	const cHatch = rgb(0.82, 0.88, 0.96);
-	const cDark  = rgb(0.05, 0.08, 0.22);
-	const cGray  = rgb(0.40, 0.40, 0.45);
-	const cWhite = rgb(1, 1, 1);
+	const cDark = rgb(0.05, 0.08, 0.22);
+	const cBlue = rgb(0.18, 0.32, 0.72);
+	const cGray = rgb(0.40, 0.40, 0.45);
 
-	// 1 — Fundo azul claro
-	lastPage.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: cBg });
+	// 1 — Mensagem principal solicitada pelo usuário
+	lastPage.drawText('Assinatura digital simples - Validade interna', {
+		x: marginX, y: bottomY + 12, size: 7, font: fontBold, color: cBlue
+	});
 
-	// 2 — Linhas de segurança diagonais (45°, guilloche simples)
-	for (let i = -boxH; i < boxW + 1; i += 8) {
-		const tStart = Math.max(0, -i / boxH);
-		const tEnd = Math.min(1, (boxW - i) / boxH);
-		if (tStart < tEnd) {
-			lastPage.drawLine({
-				start: { x: boxX + i + tStart * boxH, y: boxY + tStart * boxH },
-				end:   { x: boxX + i + tEnd * boxH,   y: boxY + tEnd * boxH   },
-				thickness: 0.18, color: cHatch
-			});
-		}
-	}
+	// 2 — Informações do assinante
+	lastPage.drawText(`Confirmado eletronicamente por: ${assinante.toUpperCase()}`, {
+		x: marginX, y: bottomY + 6, size: 6.5, font, color: cDark
+	});
 
-	// 3 — Hash fantasma (marca d'água repetida no fundo) preservando limites
+	// 3 — Data e validadores
+	let infoLine = `Data/Hora: ${dataHora}`;
 	if (verificationHash) {
-		const ghostSize = 16;
-		const hashWidth = fontMono.widthOfTextAtSize(verificationHash, ghostSize);
-		const ghostStep = hashWidth + fontMono.widthOfTextAtSize('   ', ghostSize);
-		const ghostY = boxY + (boxH - headerH) / 2 - 6;
-		for (let gx = boxX + 8; gx + hashWidth < boxX + boxW - 8; gx += ghostStep) {
-			lastPage.drawText(verificationHash, {
-				x: gx, y: ghostY, size: ghostSize, font: fontMono,
-				color: rgb(0.87, 0.91, 0.97)
-			});
-		}
+		infoLine += `  |  Código: ${verificationHash}`;
 	}
-
-	// 4 — Faixa de cabeçalho navy
-	lastPage.drawRectangle({
-		x: boxX, y: boxY + boxH - headerH,
-		width: boxW, height: headerH, color: cNavy
-	});
-	lastPage.drawRectangle({ x: boxX + 5, y: boxY + boxH - headerH + 4, width: 5, height: 5, color: cWhite, opacity: 0.5 });
-	lastPage.drawRectangle({ x: boxX + boxW - 10, y: boxY + boxH - headerH + 4, width: 5, height: 5, color: cWhite, opacity: 0.5 });
-	lastPage.drawText('CONFIRMADO ELETRONICAMENTE — POLÍCIA CIVIL DO ESTADO DO CEARÁ', {
-		x: boxX + 14, y: boxY + boxH - headerH + 4,
-		size: 6.5, font: fontBold, color: cWhite
+	lastPage.drawText(infoLine, {
+		x: marginX, y: bottomY, size: 6, font, color: cGray
 	});
 
-	// 5 — QR Code (error correction H)
-	let qrColumnX = boxX + boxW - 8;
 	if (verificationUrl) {
-		try {
-			const qrSize = 52;
-			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
-			const moduleCount = qr.modules.size;
-			const dotSize = qrSize / moduleCount;
-			const qrX = boxX + boxW - qrSize - 9;
-			const qrY = boxY + (boxH - headerH - qrSize) / 2;
-			qrColumnX = qrX;
-
-			// Fundo branco para o QR
-			lastPage.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, color: cWhite });
-
-			for (let row = 0; row < moduleCount; row++) {
-				for (let col = 0; col < moduleCount; col++) {
-					if (qr.modules.get(row, col)) {
-						lastPage.drawRectangle({
-							x: qrX + col * dotSize,
-							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
-						});
-					}
-				}
-			}
-
-			// Label "VERIFICAR" abaixo do QR
-			const lblW = fontBold.widthOfTextAtSize('VERIFICAR', 4.5);
-			lastPage.drawText('VERIFICAR', {
-				x: qrX + (qrSize - lblW) / 2, y: boxY + 4,
-				size: 4.5, font: fontBold, color: cBlue
-			});
-
-			// Linha divisória vertical
-			lastPage.drawLine({
-				start: { x: qrX - 6, y: boxY + 4 },
-				end:   { x: qrX - 6, y: boxY + boxH - headerH - 3 },
-				thickness: 0.3, color: cBlue
-			});
-		} catch (err) {
-			console.error('Erro QR Code rodapé simples:', err);
-		}
-	}
-
-	// 6 — Conteúdo textual
-	const textX     = boxX + 8;
-	const textMaxW  = qrColumnX - boxX - 22;
-	const contentTop = boxY + boxH - headerH - 3;
-	const dataHora   = formatarDataHora();
-
-	lastPage.drawText('Confirmado eletronicamente por:', {
-		x: textX, y: contentTop - 8, size: 6, font, color: cBlue
-	});
-
-	// Nome com quebra de linha
-	const nomeAssinante = assinante.toUpperCase();
-	const nomeFontSize = 7.2; // Reduzido de 8.5
-	const words = nomeAssinante.split(' ');
-	let line1 = '';
-	let line2 = '';
-	let useLine2 = false;
-
-	for (const word of words) {
-		const testLine = line1 ? line1 + ' ' + word : word;
-		if (!useLine2 && fontBold.widthOfTextAtSize(testLine, nomeFontSize) <= textMaxW) {
-			line1 = testLine;
-		} else {
-			useLine2 = true;
-			const testLine2 = line2 ? line2 + ' ' + word : word;
-			if (fontBold.widthOfTextAtSize(testLine2, nomeFontSize) <= textMaxW) {
-				line2 = testLine2;
-			} else if (!line2) {
-				line2 = word;
-				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
-					line2 = line2.slice(0, -1);
-				}
-				line2 += '\u2026';
-				break;
-			} else {
-				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '\u2026', nomeFontSize) > textMaxW) {
-					line2 = line2.slice(0, -1);
-				}
-				line2 += '\u2026';
-				break;
-			}
-		}
-	}
-
-	lastPage.drawText(line1, {
-		x: textX, y: contentTop - 18, size: nomeFontSize, font: fontBold, color: cDark
-	});
-	if (line2) {
-		lastPage.drawText(line2, {
-			x: textX, y: contentTop - 27, size: nomeFontSize, font: fontBold, color: cDark
+		lastPage.drawText(`Verificar em: ${verificationUrl.replace('https://', '')}`, {
+			x: marginX, y: bottomY - 5, size: 5, font, color: cGray
 		});
 	}
-
-	lastPage.drawText(`Data/Hora: ${dataHora}  (Horário de Brasília)`, {
-		x: textX, y: contentTop - (line2 ? 38 : 31), size: 6.5, font, color: cGray
-	});
-
-
-	// 7 — Caixa de destaque do código de verificação (navy + Courier Bold)
-	if (verificationHash) {
-		const hashLabel = `Cód: ${verificationHash}`;
-		const hashBgW   = fontMono.widthOfTextAtSize(hashLabel, 8) + 16;
-		lastPage.drawRectangle({ x: textX - 2, y: boxY + 15, width: hashBgW, height: 13, color: cNavy });
-		lastPage.drawText(hashLabel, { x: textX + 6, y: boxY + 19, size: 8, font: fontMono, color: cWhite });
-	}
-
-	lastPage.drawText('Verificar em: escalas.policiacivil.ce.gov.br/validar', {
-		x: textX, y: boxY + 5, size: 5.5, font, color: cGray
-	});
-
-	// 8 — Borda dupla (desenhada por último para encaixilhar tudo)
-	lastPage.drawRectangle({
-		x: boxX + 2, y: boxY + 2, width: boxW - 4, height: boxH - 4,
-		borderColor: cBlue, borderWidth: 0.35
-	});
-	lastPage.drawRectangle({
-		x: boxX, y: boxY, width: boxW, height: boxH,
-		borderColor: cNavy, borderWidth: 1.1
-	});
 
 	return pdfDoc.save();
 }
