@@ -151,8 +151,14 @@ export const giseEscalas = sqliteTable('gise_escalas', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	data_inicio: text('data_inicio').notNull(),
 	data_fim: text('data_fim').notNull(),
+	// Horários legados (mantidos para compatibilidade)
 	hora_entrada: text('hora_entrada').notNull().default('08'),
 	hora_saida: text('hora_saida').notNull().default('16'),
+	// Horários separados por dia (Feature 1)
+	hora_entrada_sabado: text('hora_entrada_sabado').notNull().default('08'),
+	hora_saida_sabado: text('hora_saida_sabado').notNull().default('16'),
+	hora_entrada_domingo: text('hora_entrada_domingo').notNull().default('08'),
+	hora_saida_domingo: text('hora_saida_domingo').notNull().default('16'),
 	status: text('status', {
 		enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
 	})
@@ -176,7 +182,8 @@ export const giseSeccionais = sqliteTable(
 			.notNull()
 			.references(() => unidades.id),
 		unidade_operacional_id: integer('unidade_operacional_id'),
-		status: text('status', { enum: ['pendente', 'preenchida'] }).notNull().default('pendente')
+		// Feature 4: 'retificada' = seccional já enviada mas depois alterada pelo admin seccional
+		status: text('status', { enum: ['pendente', 'preenchida', 'retificada'] }).notNull().default('pendente')
 	},
 	(table) => [
 		index('idx_gise_seccionais_gise').on(table.gise_id),
