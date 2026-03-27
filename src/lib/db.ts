@@ -815,8 +815,9 @@ export async function salvarGiseDocumento(
 	db: Database,
 	giseId: number,
 	r2Key: string,
-	assinanteId: number,
+	assinanteId: number | null,
 	assinanteNome: string,
+	assinanteCpf: string,
 	verificacaoHash?: string
 ) {
 	return db
@@ -826,6 +827,7 @@ export async function salvarGiseDocumento(
 			r2_key: r2Key,
 			assinante_id: assinanteId,
 			assinante_nome: assinanteNome,
+			assinante_cpf: assinanteCpf,
 			verificacao_hash: verificacaoHash
 		})
 		.onConflictDoUpdate({
@@ -834,6 +836,7 @@ export async function salvarGiseDocumento(
 				r2_key: r2Key,
 				assinante_id: assinanteId,
 				assinante_nome: assinanteNome,
+				assinante_cpf: assinanteCpf,
 				verificacao_hash: verificacaoHash,
 				created_at: sql`datetime('now')`
 			}

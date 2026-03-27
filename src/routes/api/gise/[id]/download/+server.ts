@@ -1,10 +1,11 @@
 /**
- * GET /api/gise/[id]/download?format=xlsx
+ * GET /api/gise/[id]/download?format=xlsx|pdf
  *
- * Exporta a Escala GISE em XLSX.
+ * Exporta a Escala GISE em XLSX ou PDF (sem assinatura digital).
  *
  * Permissão: Admin Geral ou Admin Seccional.
- * Bloqueio: Se a escala não estiver assinada (status != 'assinada'), retorna 400.
+ * Para XLSX/PDF assinado: download só é liberado após assinatura.
+ * Para PDF sem assinatura: disponível a qualquer momento para admins.
  */
 
 import { json } from '@sveltejs/kit';
@@ -12,8 +13,9 @@ import type { RequestHandler } from './$types';
 import * as XLSX from 'xlsx';
 import { getDB, buscarGiseDetalhado } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { gerarPdfGise } from '$lib/export';
 
-export const GET: RequestHandler = async ({ locals, params, platform }) => {
+export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
 	if (!u || (!isAdminGeral(u) && !isAdminSeccional(u))) {
 		return json({ error: 'Sem permissão para baixar a escala GISE' }, { status: 403 });
@@ -26,6 +28,22 @@ export const GET: RequestHandler = async ({ locals, params, platform }) => {
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
+	const format = url.searchParams.get('format') || 'xlsx';
+
+	// PDF sem assinatura pode ser gerado a qualquer momento
+	if (format === 'pdf') {
+		const result = gerarPdfGise(gise);
+		const filename = `gise_${gise.data_inicio}.pdf`;
+		return new Response(result.pdf as unknown as BodyInit, {
+			headers: {
+				'Content-Type': 'application/pdf',
+				'Content-Disposition': `attachment; filename="${filename}"`,
+				'Cache-Control': 'no-cache'
+			}
+		});
+	}
+
+	// XLSX requer assinatura
 	if (gise.status !== 'assinada' && gise.status !== 'finalizada') {
 		return json(
 			{ error: 'A escala ainda não foi assinada. O download só é liberado após a assinatura do Supervisor.' },
