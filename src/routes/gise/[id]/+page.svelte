@@ -1177,13 +1177,13 @@
 			{/if}
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
-					<input type="date" bind:value={editDataInicio}
+					<label for="editDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
+					<input id="editDataInicio" type="date" bind:value={editDataInicio}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 				</div>
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
-					<input type="date" bind:value={editDataFim}
+					<label for="editDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
+					<input id="editDataFim" type="date" bind:value={editDataFim}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 				</div>
 			</div>
@@ -1191,13 +1191,13 @@
 				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input type="number" min="0" max="23" bind:value={editHoraEntradaSabado}
+						<label for="editHoraEntradaSabado" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="editHoraEntradaSabado" type="number" min="0" max="23" bind:value={editHoraEntradaSabado}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 					</div>
 					<div>
-						<label class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input type="number" min="0" max="23" bind:value={editHoraSaidaSabado}
+						<label for="editHoraSaidaSabado" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input id="editHoraSaidaSabado" type="number" min="0" max="23" bind:value={editHoraSaidaSabado}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 					</div>
 				</div>
@@ -1206,13 +1206,13 @@
 				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input type="number" min="0" max="23" bind:value={editHoraEntradaDomingo}
+						<label for="editHoraEntradaDomingo" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="editHoraEntradaDomingo" type="number" min="0" max="23" bind:value={editHoraEntradaDomingo}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 					</div>
 					<div>
-						<label class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input type="number" min="0" max="23" bind:value={editHoraSaidaDomingo}
+						<label for="editHoraSaidaDomingo" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input id="editHoraSaidaDomingo" type="number" min="0" max="23" bind:value={editHoraSaidaDomingo}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 					</div>
 				</div>

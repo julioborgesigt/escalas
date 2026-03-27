@@ -702,7 +702,7 @@ export async function upsertGiseSeccional(
 export async function atualizarGiseSeccional(
 	db: Database,
 	id: number,
-	data: Partial<{ unidade_operacional_id: number | null; status: 'pendente' | 'preenchida' }>
+	data: Partial<{ unidade_operacional_id: number | null; status: 'pendente' | 'preenchida' | 'retificada' }>
 ) {
 	return db.update(giseSeccionais).set(data).where(eq(giseSeccionais.id, id));
 }
