@@ -828,3 +828,21 @@ export async function isSupervisorGiseAtiva(db: Database, policialId: number): P
 	if (!gise) return false;
 	return gise.sup_sab === policialId || gise.sup_dom === policialId;
 }
+
+/** Verifica se um policial é membro de alguma equipe na GISE ativa (não finalizada) */
+export async function isMembroGiseAtiva(db: Database, policialId: number): Promise<boolean> {
+	const result = await db
+		.select({ id: giseMembros.id })
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		.where(
+			and(
+				eq(giseMembros.policial_id, policialId),
+				ne(giseEscalas.status, 'finalizada')
+			)
+		)
+		.get();
+	return !!result;
+}

@@ -11,6 +11,7 @@
 	const isAdminGeral = $derived(papelGise === 'admin_geral');
 	const isSeccional = $derived(papelGise === 'admin_seccional');
 	const isSupervisor = $derived(papelGise === 'supervisor');
+	const isMembro = $derived(papelGise === 'membro');
 
 	// Modal de criação (Admin Geral)
 	let showCriarModal = $state(false);
@@ -101,8 +102,10 @@
 					Gerenciamento completo das escalas GISE
 				{:else if isSeccional}
 					Preenchimento da sua seccional
-				{:else}
+				{:else if isSupervisor}
 					Assinatura digital da escala
+				{:else}
+					Formulários de produtividade
 				{/if}
 			</p>
 		</div>
@@ -117,8 +120,28 @@
 		{/if}
 	</div>
 
+	<!-- Card informativo para servidores escalados (membros comuns) -->
+	{#if isMembro}
+		<div class="rounded-2xl border border-primary-500/20 bg-primary-500/5 dark:bg-primary-500/10 p-6 text-center space-y-2">
+			<svg class="w-10 h-10 mx-auto text-primary-500 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+			</svg>
+			<p class="text-base font-semibold text-surface-900 dark:text-surface-100">
+				Você está escalado na GISE
+			</p>
+			<p class="text-sm text-surface-500 dark:text-surface-400">
+				Os formulários de produtividade estarão disponíveis em breve nesta área.
+			</p>
+			{#if ativa}
+				<p class="text-xs text-surface-400 mt-1">
+					Escala vigente: <span class="font-medium">{fmtDate(ativa.data_inicio)} – {fmtDate(ativa.data_fim)}</span>
+				</p>
+			{/if}
+		</div>
+	{/if}
+
 	<!-- Escala Ativa -->
-	{#if ativa}
+	{#if ativa && !isMembro}
 		<div class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5">
 			<div class="flex items-start justify-between flex-wrap gap-3">
 				<div>
@@ -179,8 +202,8 @@
 		</div>
 	{/if}
 
-	<!-- Histórico -->
-	{#if escalas.length > 0}
+	<!-- Histórico (oculto para membros comuns) -->
+	{#if escalas.length > 0 && !isMembro}
 		<div>
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 			<div class="space-y-2">

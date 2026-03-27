@@ -9,13 +9,15 @@
 
 	const usuario = $derived(page.data.usuario);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
+	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 
-	// Mostra aba GISE para: admin, admin_seccional, admin_unidade (com papel) ou supervisor ativo
+	// Mostra aba GISE para: admin, admin_seccional, admin_unidade, supervisor ativo ou membro escalado
 	const showGise = $derived(
 		usuario?.tipo === 'admin' ||
 		usuario?.papel === 'admin_seccional' ||
 		usuario?.papel === 'admin_unidade' ||
-		isSupervisorGise
+		isSupervisorGise ||
+		isMembroGise
 	);
 
 	const showSidebar = $derived(
