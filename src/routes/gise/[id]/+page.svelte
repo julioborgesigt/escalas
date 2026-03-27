@@ -215,6 +215,22 @@
 	const podeEditar = $derived(
 		gise?.status !== 'finalizada' && gise?.status !== 'assinada'
 	);
+	const podeDownload = $derived(
+		(isAdminGeral || isSeccional) &&
+		(gise?.status === 'assinada' || gise?.status === 'finalizada')
+	);
+
+	async function baixarXlsx() {
+		if (!gise) return;
+		if (!podeDownload) {
+			toaster.warning({
+				title: 'Download indisponível',
+				description: 'A escala só pode ser baixada após ser assinada pelo Supervisor.'
+			});
+			return;
+		}
+		window.location.href = `/api/gise/${gise.id}/download?format=xlsx`;
+	}
 
 	// Filtra delegacias (unidades tipo delegacia) para unidade operacional
 	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
@@ -243,7 +259,28 @@
 			{/if}
 		</div>
 
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 flex-wrap">
+			{#if (isAdminGeral || isSeccional) && gise}
+				{#if podeDownload}
+					<button
+						class="btn preset-tonal-success text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
+						onclick={baixarXlsx}
+						title="Baixar escala em XLSX"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+						Baixar XLSX
+					</button>
+				{:else}
+					<button
+						class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+						onclick={() => toaster.warning({ title: 'Escala incompleta', description: 'O download só é liberado após a assinatura do Supervisor.' })}
+						title="Aguardando assinatura para liberar download"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+						Baixar XLSX
+					</button>
+				{/if}
+			{/if}
 			{#if podeFinalizar}
 				<button
 					class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
