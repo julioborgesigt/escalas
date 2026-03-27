@@ -228,6 +228,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	r2_key: text('r2_key').notNull(),
 	assinante_id: integer('assinante_id'),
 	assinante_nome: text('assinante_nome').notNull().default(''),
+	assinante_cpf: text('assinante_cpf').notNull().default(''),
 	verificacao_hash: text('verificacao_hash').unique(),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 });
