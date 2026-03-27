@@ -18,6 +18,15 @@
 	let unidades = $state<string[]>([]);
 	let saving = $state(false);
 	let loading = $state(true);
+	let papel = $state<string | null>(null);
+	let papelUnidadeId = $state<number | null>(null);
+	let todasUnidadesObj = $state<{id: number, nome: string, tipo: string}[]>([]);
+	let salvandoPapel = $state(false);
+
+	const isAdminOrSeccional = $derived(
+		page.data.usuario?.tipo === 'admin' || page.data.usuario?.papel === 'admin_seccional'
+	);
+	const seccionaisParaPapel = $derived(todasUnidadesObj.filter((u: any) => u.tipo === 'seccional'));
 
 	$effect(() => {
 		const id = page.params.id;
@@ -32,12 +41,19 @@
 				classe = (data as unknown as { classe?: string }).classe || '';
 				regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
 				lotacao = data.lotacao;
+				papel = data.papel ?? null;
+				papelUnidadeId = data.papel_unidade_id ?? null;
 				loading = false;
 			});
 
 		if (isAdmin) {
 			fetch('/api/lotacoes').then(r => r.json()).then((data: string[]) => {
 				unidades = data;
+			});
+		}
+		if (isAdminOrSeccional) {
+			fetch('/api/unidades').then(r => r.json()).then((data: any[]) => {
+				todasUnidadesObj = data;
 			});
 		}
 	});
@@ -80,6 +96,29 @@
 			toaster.create({ title: data.error || 'Erro ao salvar', type: 'error' });
 		}
 		saving = false;
+	}
+
+	async function salvarPapel(e: Event) {
+		e.preventDefault();
+		salvandoPapel = true;
+		try {
+			const res = await fetch('/api/admin/papeis', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					policial_id: Number(page.params.id),
+					papel: papel || null,
+					papel_unidade_id: papelUnidadeId || null
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
+		} catch (err: any) {
+			toaster.create({ title: err.message || 'Erro ao atualizar papel', type: 'error' });
+		} finally {
+			salvandoPapel = false;
+		}
 	}
 </script>
 
@@ -162,6 +201,43 @@
 		</form>
 	</div>
 
+	{#if isAdminOrSeccional}
+		<div class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mt-4">
+			<h2 class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300">Papel Administrativo</h2>
+			<form onsubmit={salvarPapel} class="space-y-3">
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-5">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Papel</span>
+						<select class="select py-1 px-3 text-sm" bind:value={papel}>
+							<option value={null}>Servidor (sem papel)</option>
+							{#if isAdmin}
+								<option value="admin_seccional">Admin Seccional</option>
+							{/if}
+							<option value="admin_unidade">Admin Unidade</option>
+						</select>
+					</label>
+					{#if papel}
+						<label class="label sm:col-span-7">
+							<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">
+								{papel === 'admin_seccional' ? 'Seccional de responsabilidade' : 'Unidade de responsabilidade'}
+							</span>
+							<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
+								<option value={null}>Selecionar...</option>
+								{#each (papel === 'admin_seccional' ? seccionaisParaPapel : todasUnidadesObj) as u}
+									<option value={u.id}>{u.nome} ({u.tipo})</option>
+								{/each}
+							</select>
+						</label>
+					{/if}
+				</div>
+				<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
+					<button type="submit" class="btn btn-sm preset-filled-primary-500" disabled={salvandoPapel}>
+						{salvandoPapel ? 'Salvando...' : 'Salvar papel'}
+					</button>
+				</div>
+			</form>
+		</div>
+	{/if}
 
 
 {/if}
