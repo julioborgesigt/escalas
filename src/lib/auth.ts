@@ -9,6 +9,30 @@ export interface UsuarioLogado {
 	matricula?: string;
 	lotacao?: string;
 	primeiro_acesso: boolean;
+	// RBAC
+	papel?: 'admin_seccional' | 'admin_unidade' | null;
+	papel_unidade_id?: number | null;
+	cargo?: 'DPC' | 'OIP';
+}
+
+/** Retorna true se o usuário possui poder de Admin Geral */
+export function isAdminGeral(u: UsuarioLogado | null): boolean {
+	return u?.tipo === 'admin';
+}
+
+/** Retorna true se o usuário é Admin Seccional */
+export function isAdminSeccional(u: UsuarioLogado | null): boolean {
+	return u?.tipo === 'policial' && u.papel === 'admin_seccional';
+}
+
+/** Retorna true se o usuário é Admin de Unidade */
+export function isAdminUnidade(u: UsuarioLogado | null): boolean {
+	return u?.tipo === 'policial' && u.papel === 'admin_unidade';
+}
+
+/** Retorna true se o usuário possui qualquer papel administrativo */
+export function isAnyAdmin(u: UsuarioLogado | null): boolean {
+	return isAdminGeral(u) || isAdminSeccional(u) || isAdminUnidade(u);
 }
 
 export async function hashSenha(senha: string): Promise<string> {
@@ -84,7 +108,10 @@ export async function validarSessao(
 		nome: policial.nome,
 		matricula: policial.matricula,
 		lotacao: policial.lotacao,
-		primeiro_acesso: policial.primeiro_acesso === 1
+		primeiro_acesso: policial.primeiro_acesso === 1,
+		papel: policial.papel ?? null,
+		papel_unidade_id: policial.papel_unidade_id ?? null,
+		cargo: policial.cargo as 'DPC' | 'OIP'
 	};
 }
 
