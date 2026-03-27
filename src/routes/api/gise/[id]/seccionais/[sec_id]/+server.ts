@@ -19,7 +19,8 @@ import {
 	removerGiseMembro,
 	verificarGiseCompleta,
 	atualizarGiseEscala,
-	excluirGiseEquipe
+	excluirGiseEquipe,
+	criarGiseEquipe
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { giseSeccionais, giseEquipes, giseMembros, policiais, unidades } from '$lib/server/schema';
@@ -62,7 +63,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		supervisor_domingo_id,
 		equipes,
 		adicionar_membro,
-		remover_membro_id
+		remover_membro_id,
+		adicionar_equipe
 	} = body as {
 		unidade_operacional_id?: number | null;
 		supervisor_sabado_id?: number | null;
@@ -70,6 +72,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		equipes?: Array<{ id: number; slots_dpc: number; slots_oip: number }>;
 		adicionar_membro?: { equipe_id: number; policial_id: number; dia?: 'sabado' | 'domingo' | 'ambos' };
 		remover_membro_id?: number;
+		adicionar_equipe?: { tipo: 'operacional' | 'seint'; slots_dpc: number; slots_oip: number };
 	};
 
 	// Atualizar unidade operacional
@@ -119,6 +122,15 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 			.get();
 		if (!equipe) return json({ error: 'Equipe não encontrada nesta seccional' }, { status: 404 });
 		await adicionarGiseMembro(db, equipe_id, policial_id, dia);
+	}
+
+	// Adicionar equipe (Admin Geral somente)
+	if (adicionar_equipe && isAdminGeral(u)) {
+		const { tipo, slots_dpc, slots_oip } = adicionar_equipe;
+		if (tipo !== 'operacional' && tipo !== 'seint') {
+			return json({ error: 'Tipo de equipe inválido' }, { status: 400 });
+		}
+		await criarGiseEquipe(db, secId, tipo, slots_dpc ?? 0, slots_oip ?? 0);
 	}
 
 	// Remover membro

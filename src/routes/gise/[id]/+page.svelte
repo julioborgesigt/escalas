@@ -36,6 +36,21 @@
 	let policialParaAdicionar = $state<number | ''>('');
 	let diaParaAdicionar = $state<'sabado' | 'domingo' | 'ambos'>('ambos');
 
+	// Edição de slots de equipe
+	let editandoEquipe = $state<number | null>(null);
+	let editSlotsDpc = $state(0);
+	let editSlotsOip = $state(0);
+
+	// Reabrir escala
+	let reabrindo = $state(false);
+	let showReabrirConfirm = $state(false);
+
+	// Adicionar equipe
+	let adicionandoEquipeSec = $state<number | null>(null);
+	let novaEquipeTipo = $state<'operacional' | 'seint'>('operacional');
+	let novaEquipeDpc = $state(1);
+	let novaEquipeOip = $state(3);
+
 	// Unidade operacional (Admin Seccional)
 	let unidadeOperacionalId = $state<number | null>(null);
 
@@ -210,10 +225,75 @@
 		}
 	}
 
+	async function salvarSlotsEquipe(equipeId: number) {
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/equipes/${equipeId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ slots_dpc: editSlotsDpc, slots_oip: editSlotsOip })
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			toaster.success({ title: 'Vagas atualizadas' });
+			editandoEquipe = null;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
+	async function reabrirEscala() {
+		reabrindo = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/reabrir`, { method: 'POST' });
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			toaster.success({ title: 'Escala reaberta', description: 'A assinatura foi revogada. A escala pode ser editada novamente.' });
+			showReabrirConfirm = false;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			reabrindo = false;
+		}
+	}
+
+	async function adicionarEquipe(secId: number) {
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					adicionar_equipe: {
+						tipo: novaEquipeTipo,
+						slots_dpc: novaEquipeDpc,
+						slots_oip: novaEquipeOip
+					}
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			toaster.success({ title: 'Equipe adicionada' });
+			adicionandoEquipeSec = null;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
 	const podeFinalizar = $derived(isAdminGeral && gise?.status === 'assinada');
 	const podeAssinar = $derived(isSupervisor && gise?.status === 'aguardando_assinatura');
 	const podeEditar = $derived(
 		gise?.status !== 'finalizada' && gise?.status !== 'assinada'
+	);
+	const podeReabrir = $derived(
+		isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada')
 	);
 	const podeDownload = $derived(
 		(isAdminGeral || isSeccional) &&
@@ -280,6 +360,14 @@
 						Baixar XLSX
 					</button>
 				{/if}
+			{/if}
+			{#if podeReabrir}
+				<button
+					class="btn preset-tonal-warning text-sm px-4 py-2 rounded-xl"
+					onclick={() => (showReabrirConfirm = true)}
+				>
+					Reabrir para Edição
+				</button>
 			{/if}
 			{#if podeFinalizar}
 				<button
@@ -449,13 +537,41 @@
 							{#each (sec.equipes ?? []) as equipe}
 								<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
 									<div class="flex items-center justify-between mb-3">
-										<div>
+										<div class="flex items-center gap-2">
 											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100 capitalize">
 												Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
 											</span>
-											<span class="ml-2 text-xs text-surface-500">
-												{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP
-											</span>
+											{#if editandoEquipe === equipe.id}
+												<div class="flex items-center gap-1.5">
+													<label class="text-xs text-surface-500">DPC:</label>
+													<input type="number" min="0" max="20" bind:value={editSlotsDpc}
+														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
+													<label class="text-xs text-surface-500">OIP:</label>
+													<input type="number" min="0" max="20" bind:value={editSlotsOip}
+														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
+													<button
+														class="btn preset-filled-primary-500 text-xs px-2 py-1 rounded-lg"
+														onclick={() => salvarSlotsEquipe(equipe.id)}
+														disabled={salvando}
+													>Salvar</button>
+													<button
+														class="btn preset-tonal-surface text-xs px-2 py-1 rounded-lg"
+														onclick={() => (editandoEquipe = null)}
+													>×</button>
+												</div>
+											{:else}
+												<span class="text-xs text-surface-500">
+													{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP
+												</span>
+												{#if isAdminGeral && podeEditar}
+													<button
+														class="text-xs text-primary-600 hover:text-primary-500 transition-colors"
+														onclick={() => { editandoEquipe = equipe.id; editSlotsDpc = equipe.slots_dpc; editSlotsOip = equipe.slots_oip; }}
+													>
+														Editar vagas
+													</button>
+												{/if}
+											{/if}
 										</div>
 										{#if isAdminGeral && podeEditar}
 											<button
@@ -538,6 +654,49 @@
 									{/if}
 								</div>
 							{/each}
+
+							<!-- Adicionar equipe (Admin Geral) -->
+							{#if isAdminGeral && podeEditar}
+								{#if adicionandoEquipeSec === sec.id}
+									<div class="flex flex-wrap gap-2 items-end mt-3 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600">
+										<div>
+											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Tipo</label>
+											<select bind:value={novaEquipeTipo}
+												onchange={() => { if (novaEquipeTipo === 'operacional') { novaEquipeDpc = 1; novaEquipeOip = 3; } else { novaEquipeDpc = 0; novaEquipeOip = 2; } }}
+												class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs">
+												<option value="operacional">Operacional</option>
+												<option value="seint">SEINT</option>
+											</select>
+										</div>
+										<div>
+											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">DPC</label>
+											<input type="number" min="0" max="20" bind:value={novaEquipeDpc}
+												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
+										</div>
+										<div>
+											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">OIP</label>
+											<input type="number" min="0" max="20" bind:value={novaEquipeOip}
+												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
+										</div>
+										<button
+											class="btn preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg"
+											onclick={() => adicionarEquipe(sec.id)}
+											disabled={salvando}
+										>Adicionar</button>
+										<button
+											class="btn preset-tonal-surface text-xs px-2 py-1.5 rounded-lg"
+											onclick={() => (adicionandoEquipeSec = null)}
+										>Cancelar</button>
+									</div>
+								{:else}
+									<button
+										class="text-xs text-primary-600 hover:text-primary-500 transition-colors mt-2"
+										onclick={() => { adicionandoEquipeSec = sec.id; novaEquipeTipo = 'operacional'; novaEquipeDpc = 1; novaEquipeOip = 3; }}
+									>
+										+ Adicionar equipe
+									</button>
+								{/if}
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -586,6 +745,31 @@
 					disabled={assinando}
 				>
 					{assinando ? 'Assinando...' : 'Confirmar Assinatura'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Confirmar Reabrir -->
+{#if showReabrirConfirm}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Reabrir Escala GISE</h2>
+			<p class="text-sm text-surface-600 dark:text-surface-400">
+				A assinatura digital será <strong>revogada</strong> e todas as seccionais voltarão ao status pendente.
+				Será necessário que as seccionais reenviem e o supervisor assine novamente.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showReabrirConfirm = false)}>
+					Cancelar
+				</button>
+				<button
+					class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
+					onclick={reabrirEscala}
+					disabled={reabrindo}
+				>
+					{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
 				</button>
 			</div>
 		</div>
