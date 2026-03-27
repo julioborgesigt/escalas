@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ---- Policiais ----
@@ -19,6 +19,10 @@ export const policiais = sqliteTable(
 			.notNull()
 			.default('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f'),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
+		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
+		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
+		// Unidade/Seccional sob responsabilidade do papel (FK a unidades.id)
+		papel_unidade_id: integer('papel_unidade_id'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now'))`),
@@ -141,6 +145,93 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 });
 
+// ---- GISE ----
+
+export const giseEscalas = sqliteTable('gise_escalas', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	data_inicio: text('data_inicio').notNull(),
+	data_fim: text('data_fim').notNull(),
+	hora_entrada: text('hora_entrada').notNull().default('08'),
+	hora_saida: text('hora_saida').notNull().default('16'),
+	status: text('status', {
+		enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
+	})
+		.notNull()
+		.default('em_preenchimento'),
+	supervisor_sabado_id: integer('supervisor_sabado_id'),
+	supervisor_domingo_id: integer('supervisor_domingo_id'),
+	created_at: text('created_at')
+		.notNull()
+		.default(sql`(datetime('now'))`)
+});
+
+export const giseSeccionais = sqliteTable(
+	'gise_seccionais',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		seccional_id: integer('seccional_id')
+			.notNull()
+			.references(() => unidades.id),
+		unidade_operacional_id: integer('unidade_operacional_id'),
+		status: text('status', { enum: ['pendente', 'preenchida'] }).notNull().default('pendente')
+	},
+	(table) => [
+		index('idx_gise_seccionais_gise').on(table.gise_id),
+		unique('uq_gise_seccional').on(table.gise_id, table.seccional_id)
+	]
+);
+
+export const giseEquipes = sqliteTable(
+	'gise_equipes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_seccional_id: integer('gise_seccional_id')
+			.notNull()
+			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', { enum: ['operacional', 'seint'] }).notNull(),
+		slots_dpc: integer('slots_dpc').notNull().default(0),
+		slots_oip: integer('slots_oip').notNull().default(0)
+	},
+	(table) => [
+		index('idx_gise_equipes_sec').on(table.gise_seccional_id),
+		unique('uq_gise_equipe').on(table.gise_seccional_id, table.tipo)
+	]
+);
+
+export const giseMembros = sqliteTable(
+	'gise_membros',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		equipe_id: integer('equipe_id')
+			.notNull()
+			.references(() => giseEquipes.id, { onDelete: 'cascade' }),
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		dia: text('dia', { enum: ['sabado', 'domingo', 'ambos'] }).notNull().default('ambos')
+	},
+	(table) => [
+		index('idx_gise_membros_equipe').on(table.equipe_id),
+		index('idx_gise_membros_policial').on(table.policial_id)
+	]
+);
+
+export const giseDocumentos = sqliteTable('gise_documentos', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	gise_id: integer('gise_id')
+		.notNull()
+		.unique()
+		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+	r2_key: text('r2_key').notNull(),
+	assinante_id: integer('assinante_id'),
+	assinante_nome: text('assinante_nome').notNull().default(''),
+	verificacao_hash: text('verificacao_hash').unique(),
+	created_at: text('created_at').default(sql`(datetime('now'))`)
+});
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -153,3 +244,8 @@ export type Administrator = typeof administradores.$inferSelect;
 export type Sessao = typeof sessoes.$inferSelect;
 export type Unidade = typeof unidades.$inferSelect;
 export type EscalaDocumento = typeof escalaDocumentos.$inferSelect;
+export type GiseEscala = typeof giseEscalas.$inferSelect;
+export type GiseSeccional = typeof giseSeccionais.$inferSelect;
+export type GiseEquipe = typeof giseEquipes.$inferSelect;
+export type GiseMembro = typeof giseMembros.$inferSelect;
+export type GiseDocumento = typeof giseDocumentos.$inferSelect;
