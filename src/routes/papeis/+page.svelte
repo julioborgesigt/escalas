@@ -138,8 +138,9 @@
 			<p class="text-sm text-surface-600 dark:text-surface-400">{editando.nome}</p>
 
 			<div>
-				<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Papel</label>
+				<label for="editPapel" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Papel</label>
 				<select
+					id="editPapel"
 					bind:value={editando.papel}
 					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 				>
@@ -153,10 +154,11 @@
 
 			{#if editando.papel}
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">
+					<label for="editPapelUnidade" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">
 						{editando.papel === 'admin_seccional' ? 'Seccional de responsabilidade' : 'Unidade de responsabilidade'}
 					</label>
 					<select
+						id="editPapelUnidade"
 						bind:value={editando.papel_unidade_id}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					>

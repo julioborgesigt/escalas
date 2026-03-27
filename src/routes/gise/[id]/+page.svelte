@@ -320,8 +320,9 @@
 			{#if editandoSupervisores}
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
 					<div>
-						<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Sábado (DPC)</label>
+						<label for="supSabado" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Sábado (DPC)</label>
 						<select
+							id="supSabado"
 							bind:value={supSabadoId}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 						>
@@ -332,8 +333,9 @@
 						</select>
 					</div>
 					<div>
-						<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Domingo (DPC)</label>
+						<label for="supDomingo" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Domingo (DPC)</label>
 						<select
+							id="supDomingo"
 							bind:value={supDomingoId}
 							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 						>
@@ -414,11 +416,12 @@
 							<!-- Unidade Operacional -->
 							{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 								<div>
-									<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">
+									<label for="unidadeOperacional" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">
 										Unidade Operacional
 									</label>
 									<div class="flex gap-2">
 										<select
+											id="unidadeOperacional"
 											bind:value={unidadeOperacionalId}
 											class="flex-1 px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 										>

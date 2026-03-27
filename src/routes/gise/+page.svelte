@@ -240,24 +240,27 @@
 
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado</label>
+					<label for="novaDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado</label>
 					<input
+						id="novaDataInicio"
 						type="date"
 						bind:value={novaDataInicio}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					/>
 				</div>
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo</label>
+					<label for="novaDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo</label>
 					<input
+						id="novaDataFim"
 						type="date"
 						bind:value={novaDataFim}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					/>
 				</div>
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Entrada</label>
+					<label for="novaHoraEntrada" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Entrada</label>
 					<input
+						id="novaHoraEntrada"
 						type="number"
 						min="0"
 						max="23"
@@ -266,8 +269,9 @@
 					/>
 				</div>
 				<div>
-					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Saída</label>
+					<label for="novaHoraSaida" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Saída</label>
 					<input
+						id="novaHoraSaida"
 						type="number"
 						min="0"
 						max="23"
