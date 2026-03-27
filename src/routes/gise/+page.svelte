@@ -17,8 +17,11 @@
 	let showCriarModal = $state(false);
 	let novaDataInicio = $state('');
 	let novaDataFim = $state('');
-	let novaHoraEntrada = $state('08');
-	let novaHoraSaida = $state('16');
+	// Feature 1: horários separados por dia
+	let novaHoraEntradaSabado = $state('08');
+	let novaHoraSaidaSabado = $state('16');
+	let novaHoraEntradaDomingo = $state('08');
+	let novaHoraSaidaDomingo = $state('16');
 	let criando = $state(false);
 
 	function proximoSabado(): string {
@@ -48,8 +51,12 @@
 				body: JSON.stringify({
 					data_inicio: novaDataInicio,
 					data_fim: novaDataFim,
-					hora_entrada: novaHoraEntrada,
-					hora_saida: novaHoraSaida
+					hora_entrada: novaHoraEntradaSabado,
+					hora_saida: novaHoraSaidaSabado,
+					hora_entrada_sabado: novaHoraEntradaSabado,
+					hora_saida_sabado: novaHoraSaidaSabado,
+					hora_entrada_domingo: novaHoraEntradaDomingo,
+					hora_saida_domingo: novaHoraSaidaDomingo
 				})
 			});
 			const json = await res.json();
@@ -70,7 +77,8 @@
 			em_preenchimento: 'Em Preenchimento',
 			aguardando_assinatura: 'Aguardando Assinatura',
 			assinada: 'Assinada',
-			finalizada: 'Finalizada'
+			finalizada: 'Finalizada',
+			retificada: 'Finalizada (Retificada)'
 		};
 		return labels[status] ?? status;
 	}
@@ -238,9 +246,10 @@
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Nova Escala GISE</h2>
 
+			<!-- Datas -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="novaDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado</label>
+					<label for="novaDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
 					<input
 						id="novaDataInicio"
 						type="date"
@@ -249,7 +258,7 @@
 					/>
 				</div>
 				<div>
-					<label for="novaDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo</label>
+					<label for="novaDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
 					<input
 						id="novaDataFim"
 						type="date"
@@ -257,27 +266,42 @@
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					/>
 				</div>
-				<div>
-					<label for="novaHoraEntrada" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Entrada</label>
-					<input
-						id="novaHoraEntrada"
-						type="number"
-						min="0"
-						max="23"
-						bind:value={novaHoraEntrada}
-						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-					/>
+			</div>
+
+			<!-- Feature 1: Horários separados por dia -->
+			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="novaHoraEntradaSab" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="novaHoraEntradaSab" type="number" min="0" max="23"
+							bind:value={novaHoraEntradaSabado}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+					<div>
+						<label for="novaHoraSaidaSab" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input id="novaHoraSaidaSab" type="number" min="0" max="23"
+							bind:value={novaHoraSaidaSabado}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
 				</div>
-				<div>
-					<label for="novaHoraSaida" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Saída</label>
-					<input
-						id="novaHoraSaida"
-						type="number"
-						min="0"
-						max="23"
-						bind:value={novaHoraSaida}
-						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-					/>
+			</div>
+
+			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="novaHoraEntradaDom" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="novaHoraEntradaDom" type="number" min="0" max="23"
+							bind:value={novaHoraEntradaDomingo}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+					<div>
+						<label for="novaHoraSaidaDom" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input id="novaHoraSaidaDom" type="number" min="0" max="23"
+							bind:value={novaHoraSaidaDomingo}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
 				</div>
 			</div>
 
