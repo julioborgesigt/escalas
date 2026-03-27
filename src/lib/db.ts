@@ -701,6 +701,33 @@ export async function excluirGiseEquipe(db: Database, id: number) {
 	return db.delete(giseEquipes).where(eq(giseEquipes.id, id));
 }
 
+export async function criarGiseEquipe(
+	db: Database,
+	giseSeccionalId: number,
+	tipo: 'operacional' | 'seint',
+	slots_dpc: number,
+	slots_oip: number
+) {
+	const result = await db
+		.insert(giseEquipes)
+		.values({ gise_seccional_id: giseSeccionalId, tipo, slots_dpc, slots_oip })
+		.returning({ id: giseEquipes.id });
+	return result[0].id;
+}
+
+/** Reabre uma escala GISE assinada/finalizada: revoga assinatura, reseta seccionais */
+export async function reabrirGiseEscala(db: Database, giseId: number) {
+	// Remover documento de assinatura
+	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+	// Resetar todas as seccionais para pendente
+	await db
+		.update(giseSeccionais)
+		.set({ status: 'pendente' })
+		.where(eq(giseSeccionais.gise_id, giseId));
+	// Voltar status para em_preenchimento
+	await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+}
+
 export async function adicionarGiseMembro(
 	db: Database,
 	equipeId: number,
