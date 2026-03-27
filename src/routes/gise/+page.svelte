@@ -164,7 +164,7 @@
 						<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}">
 							{statusLabel(ativa.status)}
 						</span>
-						<span class="text-xs text-surface-500">{ativa.hora_entrada}h às {ativa.hora_saida}h</span>
+						<span class="text-xs text-surface-500">Sáb: {ativa.hora_entrada_sabado ?? ativa.hora_entrada}h–{ativa.hora_saida_sabado ?? ativa.hora_saida}h · Dom: {ativa.hora_entrada_domingo ?? ativa.hora_entrada}h–{ativa.hora_saida_domingo ?? ativa.hora_saida}h</span>
 					</div>
 				</div>
 
@@ -228,7 +228,7 @@
 							<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
 								{fmtDate(escala.data_inicio)} – {fmtDate(escala.data_fim)}
 							</p>
-							<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada}h às {escala.hora_saida}h</p>
+							<p class="text-xs text-surface-500 mt-0.5">Sáb: {escala.hora_entrada_sabado ?? escala.hora_entrada}h–{escala.hora_saida_sabado ?? escala.hora_saida}h · Dom: {escala.hora_entrada_domingo ?? escala.hora_entrada}h–{escala.hora_saida_domingo ?? escala.hora_saida}h</p>
 						</div>
 						<span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(escala.status)}">
 							{statusLabel(escala.status)}
