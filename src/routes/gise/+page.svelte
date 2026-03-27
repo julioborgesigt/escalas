@@ -1,0 +1,274 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { toaster } from '$lib/toast';
+
+	let { data } = $props();
+
+	const escalas = $derived(data.escalas ?? []);
+	const ativa = $derived(data.ativa);
+	const papelGise = $derived(data.papelGise);
+	const isAdminGeral = $derived(papelGise === 'admin_geral');
+	const isSeccional = $derived(papelGise === 'admin_seccional');
+	const isSupervisor = $derived(papelGise === 'supervisor');
+
+	// Modal de criação (Admin Geral)
+	let showCriarModal = $state(false);
+	let novaDataInicio = $state('');
+	let novaDataFim = $state('');
+	let novaHoraEntrada = $state('08');
+	let novaHoraSaida = $state('16');
+	let criando = $state(false);
+
+	function proximoSabado(): string {
+		const hoje = new Date();
+		const dia = hoje.getDay();
+		const diasAteSabado = (6 - dia + 7) % 7 || 7;
+		const sabado = new Date(hoje);
+		sabado.setDate(hoje.getDate() + diasAteSabado);
+		return sabado.toISOString().slice(0, 10);
+	}
+
+	function abrirCriarModal() {
+		const sabado = proximoSabado();
+		const domingo = new Date(sabado);
+		domingo.setDate(new Date(sabado).getDate() + 1);
+		novaDataInicio = sabado;
+		novaDataFim = domingo.toISOString().slice(0, 10);
+		showCriarModal = true;
+	}
+
+	async function criarGise() {
+		criando = true;
+		try {
+			const res = await fetch('/api/gise', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					data_inicio: novaDataInicio,
+					data_fim: novaDataFim,
+					hora_entrada: novaHoraEntrada,
+					hora_saida: novaHoraSaida
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error ?? 'Erro ao criar GISE');
+			toaster.success({ title: 'Escala GISE criada', description: `ID ${json.id}` });
+			showCriarModal = false;
+			await invalidateAll();
+			goto(`/gise/${json.id}`);
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			criando = false;
+		}
+	}
+
+	function statusLabel(status: string): string {
+		const labels: Record<string, string> = {
+			em_preenchimento: 'Em Preenchimento',
+			aguardando_assinatura: 'Aguardando Assinatura',
+			assinada: 'Assinada',
+			finalizada: 'Finalizada'
+		};
+		return labels[status] ?? status;
+	}
+
+	function statusColor(status: string): string {
+		const colors: Record<string, string> = {
+			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
+			aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
+			assinada: 'bg-success-500/15 text-success-700 dark:text-success-400',
+			finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
+		};
+		return colors[status] ?? '';
+	}
+
+	function fmtDate(iso: string): string {
+		if (!iso) return '';
+		const [y, m, d] = iso.split('-');
+		return `${d}/${m}/${y}`;
+	}
+</script>
+
+<div class="space-y-6">
+	<!-- Cabeçalho -->
+	<div class="flex items-center justify-between flex-wrap gap-3">
+		<div>
+			<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Escala GISE</h1>
+			<p class="text-sm text-surface-500 dark:text-surface-400 mt-0.5">
+				{#if isAdminGeral}
+					Gerenciamento completo das escalas GISE
+				{:else if isSeccional}
+					Preenchimento da sua seccional
+				{:else}
+					Assinatura digital da escala
+				{/if}
+			</p>
+		</div>
+
+		{#if isAdminGeral}
+			<button
+				class="btn preset-filled-primary-500 text-sm font-medium px-4 py-2 rounded-xl"
+				onclick={abrirCriarModal}
+			>
+				+ Nova Escala GISE
+			</button>
+		{/if}
+	</div>
+
+	<!-- Escala Ativa -->
+	{#if ativa}
+		<div class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5">
+			<div class="flex items-start justify-between flex-wrap gap-3">
+				<div>
+					<div class="flex items-center gap-2">
+						<span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+						<span class="text-sm font-semibold text-primary-700 dark:text-primary-400">Escala Ativa</span>
+					</div>
+					<p class="text-xl font-bold mt-1 text-surface-900 dark:text-surface-50">
+						{fmtDate(ativa.data_inicio)} – {fmtDate(ativa.data_fim)}
+					</p>
+					<div class="flex items-center gap-2 mt-2">
+						<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}">
+							{statusLabel(ativa.status)}
+						</span>
+						<span class="text-xs text-surface-500">{ativa.hora_entrada}h às {ativa.hora_saida}h</span>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3">
+					{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
+						<button
+							class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
+							onclick={() => goto(`/gise/${ativa.id}`)}
+						>
+							Assinar Escala
+						</button>
+					{:else if isSupervisor && ativa.status !== 'aguardando_assinatura'}
+						<button
+							class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl"
+							onclick={() => {
+								toaster.warning({ title: 'A escala não está concluída', description: 'Aguarde todas as seccionais finalizarem o preenchimento.' });
+							}}
+						>
+							Ver Escala
+						</button>
+					{:else}
+						<button
+							class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl"
+							onclick={() => goto(`/gise/${ativa.id}`)}
+						>
+							Acessar
+						</button>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{:else}
+		<div class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-8 text-center">
+			<p class="text-surface-500 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
+			{#if isAdminGeral}
+				<button
+					class="btn preset-filled-primary-500 text-sm mt-4 px-4 py-2 rounded-xl"
+					onclick={abrirCriarModal}
+				>
+					Criar primeira Escala GISE
+				</button>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Histórico -->
+	{#if escalas.length > 0}
+		<div>
+			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
+			<div class="space-y-2">
+				{#each escalas as escala}
+					<button
+						class="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl border
+							border-surface-200 dark:border-surface-800
+							bg-surface-50 dark:bg-surface-900
+							hover:border-primary-500/40 hover:bg-primary-500/5
+							transition-all text-left"
+						onclick={() => goto(`/gise/${escala.id}`)}
+					>
+						<div>
+							<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+								{fmtDate(escala.data_inicio)} – {fmtDate(escala.data_fim)}
+							</p>
+							<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada}h às {escala.hora_saida}h</p>
+						</div>
+						<span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(escala.status)}">
+							{statusLabel(escala.status)}
+						</span>
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+</div>
+
+<!-- Modal Criar GISE -->
+{#if showCriarModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Nova Escala GISE</h2>
+
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado</label>
+					<input
+						type="date"
+						bind:value={novaDataInicio}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo</label>
+					<input
+						type="date"
+						bind:value={novaDataFim}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Entrada</label>
+					<input
+						type="number"
+						min="0"
+						max="23"
+						bind:value={novaHoraEntrada}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Hora Saída</label>
+					<input
+						type="number"
+						min="0"
+						max="23"
+						bind:value={novaHoraSaida}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+			</div>
+
+			<div class="flex justify-end gap-3 pt-2">
+				<button
+					class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl"
+					onclick={() => (showCriarModal = false)}
+				>
+					Cancelar
+				</button>
+				<button
+					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+					onclick={criarGise}
+					disabled={criando || !novaDataInicio || !novaDataFim}
+				>
+					{criando ? 'Criando...' : 'Criar'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
