@@ -26,7 +26,9 @@
 	const isAdminOrSeccional = $derived(
 		page.data.usuario?.tipo === 'admin' || page.data.usuario?.papel === 'admin_seccional'
 	);
+	const isAdminUnidade = $derived(page.data.usuario?.papel === 'admin_unidade');
 	const seccionaisParaPapel = $derived(todasUnidadesObj.filter((u: any) => u.tipo === 'seccional'));
+	const unidadesParaAdmin = $derived(todasUnidadesObj.filter((u: any) => u.tipo !== 'seccional'));
 
 	$effect(() => {
 		const id = page.params.id;
@@ -51,7 +53,7 @@
 				unidades = data;
 			});
 		}
-		if (isAdminOrSeccional) {
+		if (isAdminOrSeccional || isAdminUnidade) {
 			fetch('/api/unidades').then(r => r.json()).then((data: any[]) => {
 				todasUnidadesObj = data;
 			});
@@ -201,7 +203,7 @@
 		</form>
 	</div>
 
-	{#if isAdminOrSeccional}
+	{#if isAdminOrSeccional || isAdminUnidade}
 		<div class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mt-4">
 			<h2 class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300">Papel Administrativo</h2>
 			<form onsubmit={salvarPapel} class="space-y-3">
@@ -210,24 +212,26 @@
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Papel</span>
 						<select class="select py-1 px-3 text-sm" bind:value={papel}>
 							<option value={null}>Servidor (sem papel)</option>
-							{#if isAdmin}
+							{#if isAdminOrSeccional}
 								<option value="admin_seccional">Admin Seccional</option>
 							{/if}
 							<option value="admin_unidade">Admin Unidade</option>
 						</select>
 					</label>
-					{#if papel}
+					{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
 						<label class="label sm:col-span-7">
 							<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">
 								{papel === 'admin_seccional' ? 'Seccional de responsabilidade' : 'Unidade de responsabilidade'}
 							</span>
 							<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
 								<option value={null}>Selecionar...</option>
-								{#each (papel === 'admin_seccional' ? seccionaisParaPapel : todasUnidadesObj) as u}
-									<option value={u.id}>{u.nome} ({u.tipo})</option>
+								{#each (papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin) as u}
+									<option value={u.id}>{u.nome}</option>
 								{/each}
 							</select>
 						</label>
+					{:else if papel === 'admin_unidade' && isAdminUnidade}
+						<p class="text-xs text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1">Será nomeado para a sua própria unidade.</p>
 					{/if}
 				</div>
 				<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
