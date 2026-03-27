@@ -28,11 +28,25 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 
 	const db = getDB(platform);
 	const body = await request.json();
-	const { data_inicio, data_fim, hora_entrada = '08', hora_saida = '16', seccional_ids } = body as {
+	const {
+		data_inicio,
+		data_fim,
+		hora_entrada = '08',
+		hora_saida = '16',
+		hora_entrada_sabado,
+		hora_saida_sabado,
+		hora_entrada_domingo,
+		hora_saida_domingo,
+		seccional_ids
+	} = body as {
 		data_inicio: string;
 		data_fim: string;
 		hora_entrada?: string;
 		hora_saida?: string;
+		hora_entrada_sabado?: string;
+		hora_saida_sabado?: string;
+		hora_entrada_domingo?: string;
+		hora_saida_domingo?: string;
 		seccional_ids?: number[];
 	};
 
@@ -40,7 +54,17 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 		return json({ error: 'data_inicio e data_fim são obrigatórios' }, { status: 400 });
 	}
 
-	const novoId = await criarGiseEscala(db, data_inicio, data_fim, hora_entrada, hora_saida);
+	const novoId = await criarGiseEscala(
+		db,
+		data_inicio,
+		data_fim,
+		hora_entrada,
+		hora_saida,
+		hora_entrada_sabado,
+		hora_saida_sabado,
+		hora_entrada_domingo,
+		hora_saida_domingo
+	);
 
 	// Adicionar seccionais informadas (ou todas as seccionais cadastradas)
 	if (seccional_ids && seccional_ids.length > 0) {

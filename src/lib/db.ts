@@ -540,11 +540,24 @@ export async function criarGiseEscala(
 	dataInicio: string,
 	dataFim: string,
 	horaEntrada: string,
-	horaSaida: string
+	horaSaida: string,
+	horaEntradaSabado?: string,
+	horaSaidaSabado?: string,
+	horaEntradaDomingo?: string,
+	horaSaidaDomingo?: string
 ): Promise<number> {
 	const result = await db
 		.insert(giseEscalas)
-		.values({ data_inicio: dataInicio, data_fim: dataFim, hora_entrada: horaEntrada, hora_saida: horaSaida })
+		.values({
+			data_inicio: dataInicio,
+			data_fim: dataFim,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida,
+			hora_entrada_sabado: horaEntradaSabado ?? horaEntrada,
+			hora_saida_sabado: horaSaidaSabado ?? horaSaida,
+			hora_entrada_domingo: horaEntradaDomingo ?? horaEntrada,
+			hora_saida_domingo: horaSaidaDomingo ?? horaSaida
+		})
 		.returning({ id: giseEscalas.id });
 	return result[0].id;
 }
@@ -628,8 +641,14 @@ export async function atualizarGiseEscala(
 	db: Database,
 	id: number,
 	data: Partial<{
+		data_inicio: string;
+		data_fim: string;
 		hora_entrada: string;
 		hora_saida: string;
+		hora_entrada_sabado: string;
+		hora_saida_sabado: string;
+		hora_entrada_domingo: string;
+		hora_saida_domingo: string;
 		status: 'em_preenchimento' | 'aguardando_assinatura' | 'assinada' | 'finalizada';
 		supervisor_sabado_id: number | null;
 		supervisor_domingo_id: number | null;
@@ -741,13 +760,18 @@ export async function removerGiseMembro(db: Database, id: number) {
 	return db.delete(giseMembros).where(eq(giseMembros.id, id));
 }
 
-/** Verifica se todas as seccionais de uma GISE estão preenchidas */
+/** Verifica se todas as seccionais de uma GISE estão preenchidas (nem pendentes nem retificadas) */
 export async function verificarGiseCompleta(db: Database, giseId: number): Promise<boolean> {
-	const pendentes = await db
+	const naoPreenchidas = await db
 		.select({ id: giseSeccionais.id })
 		.from(giseSeccionais)
-		.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.status, 'pendente')));
-	return pendentes.length === 0;
+		.where(
+			and(
+				eq(giseSeccionais.gise_id, giseId),
+				or(eq(giseSeccionais.status, 'pendente'), eq(giseSeccionais.status, 'retificada'))
+			)
+		);
+	return naoPreenchidas.length === 0;
 }
 
 /** Clona a GISE para o próximo final de semana (sábado seguinte) */
@@ -769,7 +793,11 @@ export async function clonarGiseParaProximoFDS(
 		fmtDate(proximoSabado),
 		fmtDate(proximoDomingo),
 		gise.hora_entrada,
-		gise.hora_saida
+		gise.hora_saida,
+		gise.hora_entrada_sabado,
+		gise.hora_saida_sabado,
+		gise.hora_entrada_domingo,
+		gise.hora_saida_domingo
 	);
 
 	// Clonar seccionais e suas equipes (sem membros, sem unidade operacional, sem supervisor)
@@ -809,6 +837,101 @@ export async function clonarGiseParaProximoFDS(
 	}
 
 	return novoId;
+}
+
+/**
+ * Feature 8: Verifica se uma equipe ainda tem slots disponíveis para o cargo do policial.
+ * Retorna { ok: true } ou { ok: false, motivo: string }
+ */
+export async function verificarSlotEquipe(
+	db: Database,
+	equipeId: number,
+	policialId: number,
+	dia: 'sabado' | 'domingo' | 'ambos'
+): Promise<{ ok: boolean; motivo?: string }> {
+	const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
+	if (!equipe) return { ok: false, motivo: 'Equipe não encontrada' };
+
+	const policial = await db
+		.select({ cargo: policiais.cargo })
+		.from(policiais)
+		.where(eq(policiais.id, policialId))
+		.get();
+	if (!policial) return { ok: false, motivo: 'Policial não encontrado' };
+
+	// Contar membros já alocados na equipe para este cargo e dia compatível
+	const membrosEquipe = await db
+		.select({ policial_id: giseMembros.policial_id, dia: giseMembros.dia })
+		.from(giseMembros)
+		.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
+		.where(and(eq(giseMembros.equipe_id, equipeId), eq(policiais.cargo, policial.cargo)));
+
+	// Contar ocupação: 'ambos' ocupa sábado e domingo; 'sabado'/'domingo' ocupa só o respectivo
+	let ocupados = 0;
+	for (const m of membrosEquipe) {
+		if (dia === 'ambos') {
+			// Novo membro para ambos os dias: conflita com qualquer alocação existente
+			ocupados++;
+		} else if (dia === 'sabado' && (m.dia === 'sabado' || m.dia === 'ambos')) {
+			ocupados++;
+		} else if (dia === 'domingo' && (m.dia === 'domingo' || m.dia === 'ambos')) {
+			ocupados++;
+		}
+	}
+
+	const limite = policial.cargo === 'DPC' ? equipe.slots_dpc : equipe.slots_oip;
+	if (ocupados >= limite) {
+		return {
+			ok: false,
+			motivo: `Vagas de ${policial.cargo} esgotadas nesta equipe (limite: ${limite})`
+		};
+	}
+
+	return { ok: true };
+}
+
+/**
+ * Feature 8: Verifica se o policial já está alocado em outra equipe desta GISE no mesmo dia.
+ * Retorna { ok: true } ou { ok: false, motivo: string }
+ */
+export async function verificarConflitoMembroGise(
+	db: Database,
+	giseId: number,
+	policialId: number,
+	dia: 'sabado' | 'domingo' | 'ambos'
+): Promise<{ ok: boolean; motivo?: string }> {
+	const membros = await db
+		.select({
+			id: giseMembros.id,
+			dia: giseMembros.dia,
+			equipe_id: giseMembros.equipe_id,
+			seccional_nome: unidades.nome
+		})
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+		.where(
+			and(eq(giseMembros.policial_id, policialId), eq(giseSeccionais.gise_id, giseId))
+		);
+
+	for (const m of membros) {
+		const conflito =
+			dia === 'ambos' ||
+			m.dia === 'ambos' ||
+			(dia === 'sabado' && m.dia === 'sabado') ||
+			(dia === 'domingo' && m.dia === 'domingo');
+
+		if (conflito) {
+			const diaLabel = m.dia === 'ambos' ? 'Sáb+Dom' : m.dia === 'sabado' ? 'Sábado' : 'Domingo';
+			return {
+				ok: false,
+				motivo: `Policial já escalado nesta GISE (${diaLabel}) na seccional ${m.seccional_nome}`
+			};
+		}
+	}
+
+	return { ok: true };
 }
 
 export async function salvarGiseDocumento(

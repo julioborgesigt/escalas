@@ -47,6 +47,17 @@
 	let reabrindo = $state(false);
 	let showReabrirConfirm = $state(false);
 
+	// Feature 5: Editar datas/horários e excluir GISE (Admin Geral)
+	let editandoDatasHorarios = $state(false);
+	let editDataInicio = $state('');
+	let editDataFim = $state('');
+	let editHoraEntradaSabado = $state('');
+	let editHoraSaidaSabado = $state('');
+	let editHoraEntradaDomingo = $state('');
+	let editHoraSaidaDomingo = $state('');
+	let showExcluirGiseConfirm = $state(false);
+	let excluindo = $state(false);
+
 	// Adicionar equipe
 	let adicionandoEquipeSec = $state<number | null>(null);
 	let novaEquipeTipo = $state<'operacional' | 'seint'>('operacional');
@@ -71,7 +82,8 @@
 			em_preenchimento: 'Em Preenchimento',
 			aguardando_assinatura: 'Aguardando Assinatura',
 			assinada: 'Assinada',
-			finalizada: 'Finalizada'
+			finalizada: 'Finalizada',
+			retificada: 'Finalizada (Retificada)'
 		};
 		return m[status] ?? status;
 	}
@@ -458,6 +470,67 @@
 		}
 	}
 
+	// Feature 5: Editar datas/horários da GISE (com revogação de assinatura se necessário)
+	async function abrirEdicaoDatasHorarios() {
+		editDataInicio = gise.data_inicio;
+		editDataFim = gise.data_fim;
+		editHoraEntradaSabado = gise.hora_entrada_sabado ?? gise.hora_entrada;
+		editHoraSaidaSabado = gise.hora_saida_sabado ?? gise.hora_saida;
+		editHoraEntradaDomingo = gise.hora_entrada_domingo ?? gise.hora_entrada;
+		editHoraSaidaDomingo = gise.hora_saida_domingo ?? gise.hora_saida;
+		editandoDatasHorarios = true;
+	}
+
+	async function salvarDatasHorarios() {
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					data_inicio: editDataInicio,
+					data_fim: editDataFim,
+					hora_entrada: editHoraEntradaSabado,
+					hora_saida: editHoraSaidaSabado,
+					hora_entrada_sabado: editHoraEntradaSabado,
+					hora_saida_sabado: editHoraSaidaSabado,
+					hora_entrada_domingo: editHoraEntradaDomingo,
+					hora_saida_domingo: editHoraSaidaDomingo
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			if (json.assinatura_revogada) {
+				toaster.warning({ title: 'Datas/horários atualizados', description: 'A assinatura digital foi revogada. Será necessário assinar novamente.' });
+			} else {
+				toaster.success({ title: 'Datas/horários atualizados' });
+			}
+			editandoDatasHorarios = false;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
+	// Feature 5: Excluir GISE (mesmo finalizada)
+	async function excluirGise() {
+		excluindo = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}`, { method: 'DELETE' });
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			toaster.success({ title: 'Escala GISE excluída' });
+			showExcluirGiseConfirm = false;
+			goto('/gise');
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			excluindo = false;
+		}
+	}
+
 	async function adicionarEquipe(secId: number) {
 		salvando = true;
 		try {
@@ -486,8 +559,12 @@
 
 	const podeFinalizar = $derived(isAdminGeral && gise?.status === 'assinada');
 	const podeAssinar = $derived(isSupervisor && gise?.status === 'aguardando_assinatura');
+	// Admin Geral: pode editar sempre (via modal de datas/horários)
+	// Admin Seccional: pode editar exceto quando finalizada (Feature 4: pode alterar mesmo assinada → vira 'retificada')
 	const podeEditar = $derived(
-		gise?.status !== 'finalizada' && gise?.status !== 'assinada'
+		isAdminGeral
+			? gise?.status !== 'finalizada'  // Admin geral só não edita conteúdo se finalizada (usa o modal de datas para editar)
+			: gise?.status !== 'finalizada'   // Seccional: pode editar em qualquer status exceto finalizada (gerará retificação)
 	);
 	const podeReabrir = $derived(
 		isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada')
@@ -524,7 +601,10 @@
 					<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 						{statusLabel(gise.status)}
 					</span>
-					<span class="text-xs text-surface-500">{gise.hora_entrada}h às {gise.hora_saida}h</span>
+					<span class="text-xs text-surface-500">
+						Sáb: {gise.hora_entrada_sabado ?? gise.hora_entrada}h–{gise.hora_saida_sabado ?? gise.hora_saida}h
+						· Dom: {gise.hora_entrada_domingo ?? gise.hora_entrada}h–{gise.hora_saida_domingo ?? gise.hora_saida}h
+					</span>
 				</div>
 			{/if}
 		</div>
@@ -556,6 +636,20 @@
 					PDF sem Assinatura
 				</button>
 			{/if}
+			{#if isAdminGeral && gise}
+				<button
+					class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl"
+					onclick={abrirEdicaoDatasHorarios}
+				>
+					Editar Datas/Horários
+				</button>
+				<button
+					class="btn preset-tonal-error text-sm px-4 py-2 rounded-xl"
+					onclick={() => (showExcluirGiseConfirm = true)}
+				>
+					Excluir GISE
+				</button>
+			{/if}
 			{#if podeReabrir}
 				<button
 					class="btn preset-tonal-warning text-sm px-4 py-2 rounded-xl"
@@ -582,7 +676,7 @@
 		<div class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisores</h2>
-				{#if (isAdminGeral || isSeccional) && podeEditar && !editandoSupervisores}
+				{#if isAdminGeral && podeEditar && !editandoSupervisores}
 					<button
 						class="text-xs text-primary-600 hover:text-primary-500 transition-colors"
 						onclick={() => (editandoSupervisores = true)}
@@ -670,8 +764,8 @@
 								<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
 									{sec.seccional_nome}
 								</span>
-								<span class="text-[0.65rem] px-1.5 py-0.5 rounded-full font-bold {sec.status === 'preenchida' ? 'bg-success-500/20 text-success-700 dark:text-success-400' : 'bg-warning-500/20 text-warning-600 dark:text-warning-400'}">
-									{sec.status === 'preenchida' ? 'Preenchida' : 'Pendente'}
+								<span class="text-[0.65rem] px-1.5 py-0.5 rounded-full font-bold {sec.status === 'preenchida' ? 'bg-success-500/20 text-success-700 dark:text-success-400' : sec.status === 'retificada' ? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40' : 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}">
+									{sec.status === 'preenchida' ? 'Preenchida' : sec.status === 'retificada' ? 'Finalizada (Retificada)' : 'Pendente'}
 								</span>
 							</div>
 
@@ -774,24 +868,53 @@
 										{/if}
 									</div>
 
-									<!-- Membros -->
+									<!-- Feature 3: Membros separados por dia (sábado/domingo) -->
 									{#if equipe.membros?.length}
-										<div class="space-y-1 mb-3">
-											{#each equipe.membros as m}
-												<div class="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
-													<div class="flex items-center gap-2">
-														<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
-														<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-														<span class="text-[0.6rem] px-1 py-0.5 rounded bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400 capitalize">{m.dia}</span>
+										{@const memsSab = equipe.membros.filter((m: any) => m.dia === 'sabado' || m.dia === 'ambos')}
+										{@const memsDom = equipe.membros.filter((m: any) => m.dia === 'domingo' || m.dia === 'ambos')}
+										<div class="space-y-2 mb-3">
+											<div>
+												<p class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wide mb-1">Sábado</p>
+												{#if memsSab.length}
+													<div class="space-y-1">
+														{#each memsSab as m}
+															<div class="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
+																<div class="flex items-center gap-2">
+																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
+																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+																	{#if m.dia === 'ambos'}<span class="text-[0.55rem] px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
+																</div>
+																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
+																	<button class="text-error-500 hover:text-error-400 transition-colors" onclick={() => removerMembro(m.id)}>×</button>
+																{/if}
+															</div>
+														{/each}
 													</div>
-													{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
-														<button
-															class="text-error-500 hover:text-error-400 transition-colors"
-															onclick={() => removerMembro(m.id)}
-														>×</button>
-													{/if}
-												</div>
-											{/each}
+												{:else}
+													<p class="text-xs text-surface-400 italic">Nenhum escalado</p>
+												{/if}
+											</div>
+											<div>
+												<p class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wide mb-1">Domingo</p>
+												{#if memsDom.length}
+													<div class="space-y-1">
+														{#each memsDom as m}
+															<div class="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
+																<div class="flex items-center gap-2">
+																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
+																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+																	{#if m.dia === 'ambos'}<span class="text-[0.55rem] px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
+																</div>
+																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
+																	<button class="text-error-500 hover:text-error-400 transition-colors" onclick={() => removerMembro(m.id)}>×</button>
+																{/if}
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<p class="text-xs text-surface-400 italic">Nenhum escalado</p>
+												{/if}
+											</div>
 										</div>
 									{:else}
 										<p class="text-xs text-surface-400 italic mb-3">Nenhum membro alocado</p>
@@ -914,6 +1037,17 @@
 			</div>
 		{/if}
 
+		<!-- Feature 4: Aviso para Admin Seccional sobre retificação -->
+		{#if isSeccional && minhaSeccional?.status === 'retificada'}
+			<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
+				<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
+				<p class="text-warning-600 dark:text-warning-300 mt-1 text-xs">
+					Você realizou alterações após o envio. A assinatura digital da escala foi revogada.
+					Finalize o envio novamente para prosseguir com a assinatura.
+				</p>
+			</div>
+		{/if}
+
 		<!-- Aviso: Supervisor aguardando seccionais -->
 		{#if isSupervisor && gise.status === 'em_preenchimento'}
 			<div class="rounded-2xl border border-warning-500/30 bg-warning-500/5 p-5 text-center">
@@ -1030,6 +1164,86 @@
 		{/if}
 	{/if}
 </div>
+
+<!-- Feature 5: Modal Editar Datas/Horários -->
+{#if editandoDatasHorarios}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Datas e Horários</h2>
+			{#if gise?.status === 'assinada' || gise?.status === 'finalizada'}
+				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-xs text-warning-700 dark:text-warning-400">
+					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
+				</div>
+			{/if}
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
+					<input type="date" bind:value={editDataInicio}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+				</div>
+				<div>
+					<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
+					<input type="date" bind:value={editDataFim}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+				</div>
+			</div>
+			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input type="number" min="0" max="23" bind:value={editHoraEntradaSabado}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+					<div>
+						<label class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input type="number" min="0" max="23" bind:value={editHoraSaidaSabado}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+				</div>
+			</div>
+			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
+						<input type="number" min="0" max="23" bind:value={editHoraEntradaDomingo}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+					<div>
+						<label class="text-xs text-surface-500 block mb-1">Saída (h)</label>
+						<input type="number" min="0" max="23" bind:value={editHoraSaidaDomingo}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+					</div>
+				</div>
+			</div>
+			<div class="flex justify-end gap-3">
+				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (editandoDatasHorarios = false)}>Cancelar</button>
+				<button class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl" onclick={salvarDatasHorarios} disabled={salvando}>
+					{salvando ? 'Salvando...' : 'Salvar'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Feature 5: Modal Confirmar Exclusão GISE -->
+{#if showExcluirGiseConfirm}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Excluir Escala GISE</h2>
+			<p class="text-sm text-surface-600 dark:text-surface-400">
+				Esta ação é <strong>irreversível</strong>. Todos os dados desta escala GISE serão permanentemente removidos, incluindo equipes, membros e assinatura digital.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button>
+				<button class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl" onclick={excluirGise} disabled={excluindo}>
+					{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- Confirmar Reabrir -->
 {#if showReabrirConfirm}
