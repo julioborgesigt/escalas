@@ -765,3 +765,135 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
 
 }
+
+// ---- GISE PDF ----
+
+export interface GisePdfData {
+	data_inicio: string;
+	data_fim: string;
+	hora_entrada: string;
+	hora_saida: string;
+	status: string;
+	supervisor_sabado_nome: string | null;
+	supervisor_domingo_nome: string | null;
+	seccionais: Array<{
+		seccional_nome: string;
+		unidade_operacional_nome: string | null;
+		status: string;
+		equipes: Array<{
+			tipo: string;
+			slots_dpc: number;
+			slots_oip: number;
+			membros: Array<{
+				policial_nome: string;
+				policial_cargo: string;
+				policial_matricula: string;
+				dia: string;
+			}>;
+		}>;
+	}>;
+}
+
+function diaLabelPdf(dia: string): string {
+	if (dia === 'sabado') return 'Sábado';
+	if (dia === 'domingo') return 'Domingo';
+	return 'Sáb + Dom';
+}
+
+export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
+	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+	const pageWidth = 297;
+
+	doc.setFontSize(14);
+	doc.text('ESCALA GISE', pageWidth / 2, 12, { align: 'center' });
+
+	doc.setFontSize(10);
+	doc.text(
+		`Período: ${formatarData(gise.data_inicio)} (Sábado) a ${formatarData(gise.data_fim)} (Domingo)  —  Horário: ${gise.hora_entrada}h às ${gise.hora_saida}h`,
+		pageWidth / 2, 19, { align: 'center' }
+	);
+
+	doc.setFontSize(9);
+	doc.text(`Supervisor Sábado: ${gise.supervisor_sabado_nome ?? '—'}`, 10, 26);
+	doc.text(`Supervisor Domingo: ${gise.supervisor_domingo_nome ?? '—'}`, 155, 26);
+
+	let y = 32;
+
+	for (const sec of gise.seccionais) {
+		if (y > 175) { doc.addPage(); y = 15; }
+
+		doc.setFontSize(11);
+		doc.setFont('helvetica', 'bold');
+		doc.text(`${sec.seccional_nome}`, 10, y);
+		if (sec.unidade_operacional_nome) {
+			doc.setFontSize(8);
+			doc.setFont('helvetica', 'normal');
+			doc.text(`Unidade Operacional: ${sec.unidade_operacional_nome}`, 10, y + 5);
+			y += 9;
+		} else {
+			y += 4;
+		}
+
+		for (const equipe of sec.equipes) {
+			if (y > 175) { doc.addPage(); y = 15; }
+
+			const tipoLabel = equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT';
+			const tableData = equipe.membros.map(m => [
+				m.policial_nome,
+				m.policial_matricula,
+				m.policial_cargo,
+				diaLabelPdf(m.dia)
+			]);
+
+			if (tableData.length === 0) {
+				tableData.push(['(sem membros alocados)', '', '', '']);
+			}
+
+			autoTable(doc, {
+				head: [[`Equipe ${tipoLabel} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`, 'Matrícula', 'Cargo', 'Dia']],
+				body: tableData,
+				startY: y,
+				theme: 'grid',
+				headStyles: {
+					fillColor: equipe.tipo === 'operacional' ? [26, 92, 87] : [59, 59, 118],
+					textColor: 255,
+					fontSize: 8,
+					fontStyle: 'bold',
+					halign: 'center'
+				},
+				bodyStyles: { fontSize: 8 },
+				columnStyles: {
+					0: { cellWidth: 70 },
+					1: { halign: 'center', cellWidth: 30 },
+					2: { halign: 'center', cellWidth: 20 },
+					3: { halign: 'center', cellWidth: 30 }
+				},
+				margin: { left: 10, right: 10 }
+			});
+
+			y = ((doc as any).lastAutoTable?.finalY ?? y) + 6;
+		}
+
+		y += 4;
+	}
+
+	// Assinatura
+	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	let giseSigY = lastY + 35;
+	if (giseSigY > 185) {
+		doc.addPage();
+		giseSigY = 35;
+	}
+
+	doc.setFontSize(9);
+	doc.setFont('helvetica', 'normal');
+	const giseDataExtenso = formatarDataExtenso(new Date());
+	doc.text(giseDataExtenso, 10, giseSigY);
+
+	const giseSigCenterX = pageWidth * 0.75;
+	doc.line(giseSigCenterX - 45, giseSigY, giseSigCenterX + 45, giseSigY);
+	doc.setFontSize(8);
+	doc.text('Supervisor GISE / assinado digitalmente', giseSigCenterX, giseSigY + 5, { align: 'center' });
+
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: giseSigY };
+}

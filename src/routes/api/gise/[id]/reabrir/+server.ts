@@ -7,17 +7,17 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 
-export const POST: RequestHandler = async ({ locals, params, platform }) => {
+export const POST = async ({ locals, params, platform }: RequestEvent) => {
 	const u = locals.usuario;
 	if (!isAdminGeral(u)) {
 		return json({ error: 'Apenas o Administrador Geral pode reabrir escalas GISE' }, { status: 403 });
 	}
 
-	const id = parseInt(params.id);
+	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const db = getDB(platform);

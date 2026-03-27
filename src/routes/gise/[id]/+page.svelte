@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
+	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
+	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 
 	let { data } = $props();
 
@@ -24,7 +26,6 @@
 	let assinando = $state(false);
 	let finalizando = $state(false);
 	let showFinalizarConfirm = $state(false);
-	let showAssinaConfirm = $state(false);
 
 	// Edição de supervisores (Admin Geral / Admin Seccional)
 	let editandoSupervisores = $state(false);
@@ -193,19 +194,214 @@
 		}
 	}
 
-	async function assinarEscala() {
-		assinando = true;
+	// === Documento assinado ===
+	let documentoAssinadoInfo = $state<{ existe: boolean; assinante_nome?: string; assinante_cpf?: string; data?: string } | null>(null);
+	let assinandoSimples = $state(false);
+	let etapaAssinatura = $state('');
+
+	// Web PKI
+	let certificados = $state<WebPKICertificate[]>([]);
+	let certSelecionado = $state('');
+	let lendoCertificados = $state(false);
+	let tentouLerCertificados = $state(false);
+	let pkInstance = $state<any>(null);
+
+	// SERPRO
+	let serproClient = $state<SerproSignerClient | null>(null);
+	let serproSignerName = $state(data.usuario?.nome ?? '');
+	let serproSignerCpf = $state('');
+
+	// Carregar info do documento ao montar
+	$effect(() => {
+		if (gise?.id) {
+			fetch(`/api/gise/${gise.id}/documento-assinado/info`)
+				.then(r => r.ok ? r.json() : null)
+				.then(info => {
+					if (info?.existe) documentoAssinadoInfo = info;
+					else documentoAssinadoInfo = null;
+				})
+				.catch(() => {});
+		}
+	});
+
+	async function assinarSimples() {
+		assinandoSimples = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/assinar`, { method: 'POST' });
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
-			toaster.success({ title: 'Escala assinada!', description: `Hash: ${json.verificacao_hash?.slice(0, 12)}...` });
-			showAssinaConfirm = false;
+			const res = await fetch(`/api/gise/${gise.id}/assinar-simples`, { method: 'POST' });
+			if (!res.ok) {
+				const err = await res.json();
+				throw new Error(err.error || 'Erro ao confirmar escala');
+			}
+			const blob = await res.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_confirmada.pdf';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+			documentoAssinadoInfo = { existe: true, assinante_nome: data.usuario?.nome || 'Supervisor' };
+			toaster.success({ title: 'Escala assinada e PDF gerado!' });
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {
+			assinandoSimples = false;
+		}
+	}
+
+	async function carregarCertificadosLocais() {
+		lendoCertificados = true;
+		tentouLerCertificados = false;
+		try {
+			const pki = pkInstance || (await initWebPKI());
+			pkInstance = pki;
+			certificados = await listarCertificados(pki);
+			if (certificados.length === 1) {
+				certSelecionado = certificados[0].thumbprint;
+				serproSignerName = certificados[0].subjectName;
+				serproSignerCpf = certificados[0].cpf || '';
+			}
+		} catch (err) {
+			toaster.error({ title: err instanceof Error ? err.message : 'Erro ao inicializar Web PKI' });
+		} finally {
+			lendoCertificados = false;
+			tentouLerCertificados = true;
+		}
+	}
+
+	async function finalizarEBaixarPdfGise(
+		signerName: string,
+		signerCpf: string,
+		getSignature: (hash: string) => Promise<{ rawSignature: string; certificateBase64: string }>
+	) {
+		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
+		const prepRes = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ signerName, signerCpf })
+		});
+		if (!prepRes.ok) { const err = await prepRes.json(); throw new Error(err.error || 'Erro ao preparar PDF'); }
+		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, verificationHash } = await prepRes.json();
+
+		const { rawSignature, certificateBase64 } = await getSignature(signedAttrsHashHex);
+
+		etapaAssinatura = 'Finalizando PDF assinado...';
+		const finRes = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash })
+		});
+		if (!finRes.ok) { const err = await finRes.json(); throw new Error(err.error || 'Erro ao finalizar assinatura'); }
+
+		etapaAssinatura = 'Baixando PDF assinado...';
+		const blob = await finRes.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_assinada.pdf';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+		documentoAssinadoInfo = { existe: true, assinante_nome: signerName, assinante_cpf: signerCpf, data: new Date().toISOString() };
+	}
+
+	async function assinarComWebPKI() {
+		if (certificados.length === 0) {
+			assinando = true;
+			etapaAssinatura = 'Conectando ao Web PKI...';
+			await carregarCertificadosLocais();
 			assinando = false;
+			etapaAssinatura = '';
+			if (certificados.length === 0) return;
+			if (certificados.length > 1) { toaster.warning({ title: 'Selecione um dos certificados carregados' }); return; }
+		}
+		if (!certSelecionado) { toaster.error({ title: 'Selecione um certificado' }); return; }
+		assinando = true;
+		try {
+			const pki = await initWebPKI();
+			const cert = certificados.find(c => c.thumbprint === certSelecionado);
+			etapaAssinatura = 'Lendo certificado...';
+			const certificateBase64 = await lerCertificado(pki, certSelecionado);
+			await finalizarEBaixarPdfGise(
+				cert?.subjectName ?? '',
+				cert?.cpf ?? '',
+				async (hash) => {
+					etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
+					const rawSignature = await assinarHash(pki, certSelecionado, hash);
+					return { rawSignature, certificateBase64 };
+				}
+			);
+			toaster.success({ title: 'PDF assinado com sucesso!' });
+			await invalidateAll();
+		} catch (err) {
+			toaster.error({ title: err instanceof Error ? err.message : 'Erro na assinatura' });
+		} finally {
+			assinando = false;
+			etapaAssinatura = '';
+		}
+	}
+
+	async function assinarComSerpro() {
+		assinando = true;
+		etapaAssinatura = 'Conectando ao Assinador SERPRO...';
+		try {
+			const client = serproClient ?? (await conectarSerpro());
+			serproClient = client;
+
+			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
+			const prepRes = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ signerName: serproSignerName || undefined, signerCpf: serproSignerCpf || undefined })
+			});
+			if (!prepRes.ok) { const err = await prepRes.json(); throw new Error(err.error || 'Erro ao preparar PDF'); }
+			const { preparedPdf, messageDigest: messageDigestHex, verificationHash } = await prepRes.json();
+
+			const messageDigestBase64 = btoa(
+				messageDigestHex.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join('')
+			);
+
+			etapaAssinatura = 'Selecione o certificado e assine no Assinador SERPRO...';
+			const result = await client.sign(messageDigestBase64);
+			const serproCms = result.rawSignature;
+			const certName = result.signerAlias?.replace(/:[\d]+$/, '').trim();
+			const certCpfMatch = result.signerAlias?.match(/:([\d]{11})$/);
+			const certCpf = certCpfMatch ? certCpfMatch[1] : '';
+
+			etapaAssinatura = 'Finalizando PDF assinado...';
+			const finRes = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ preparedPdf, serproCms, signerName: certName || serproSignerName, signerCpf: certCpf || serproSignerCpf, verificationHash })
+			});
+			if (!finRes.ok) { const err = await finRes.json(); throw new Error(err.error || 'Erro ao finalizar assinatura'); }
+
+			etapaAssinatura = 'Baixando PDF assinado...';
+			const blob = await finRes.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_assinada.pdf';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+			documentoAssinadoInfo = { existe: true, assinante_nome: certName || serproSignerName, assinante_cpf: certCpf || serproSignerCpf, data: new Date().toISOString() };
+
+			toaster.success({ title: 'PDF assinado com sucesso!' });
+			await invalidateAll();
+		} catch (err) {
+			toaster.error({ title: err instanceof Error ? err.message : 'Erro no Assinador SERPRO' });
+			serproClient?.disconnect();
+			serproClient = null;
+		} finally {
+			assinando = false;
+			etapaAssinatura = '';
+			serproClient?.disconnect();
+			serproClient = null;
 		}
 	}
 
@@ -300,16 +496,9 @@
 		(gise?.status === 'assinada' || gise?.status === 'finalizada')
 	);
 
-	async function baixarXlsx() {
+	function downloadGise(format: string) {
 		if (!gise) return;
-		if (!podeDownload) {
-			toaster.warning({
-				title: 'Download indisponível',
-				description: 'A escala só pode ser baixada após ser assinada pelo Supervisor.'
-			});
-			return;
-		}
-		window.location.href = `/api/gise/${gise.id}/download?format=xlsx`;
+		window.open(`/api/gise/${gise.id}/download?format=${format}`, '_blank');
 	}
 
 	// Filtra delegacias (unidades tipo delegacia) para unidade operacional
@@ -341,25 +530,30 @@
 
 		<div class="flex items-center gap-2 flex-wrap">
 			{#if (isAdminGeral || isSeccional) && gise}
+				{#if documentoAssinadoInfo}
+					<a
+						href={`/api/gise/${gise.id}/documento-assinado`}
+						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
+						target="_blank"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+						PDF Assinado
+					</a>
+				{/if}
 				{#if podeDownload}
 					<button
 						class="btn preset-tonal-success text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
-						onclick={baixarXlsx}
-						title="Baixar escala em XLSX"
+						onclick={() => downloadGise('xlsx')}
 					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-						Baixar XLSX
-					</button>
-				{:else}
-					<button
-						class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-						onclick={() => toaster.warning({ title: 'Escala incompleta', description: 'O download só é liberado após a assinatura do Supervisor.' })}
-						title="Aguardando assinatura para liberar download"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
 						Baixar XLSX
 					</button>
 				{/if}
+				<button
+					class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
+					onclick={() => downloadGise('pdf')}
+				>
+					PDF sem Assinatura
+				</button>
 			{/if}
 			{#if podeReabrir}
 				<button
@@ -375,14 +569,6 @@
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
-				</button>
-			{/if}
-			{#if podeAssinar}
-				<button
-					class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showAssinaConfirm = true)}
-				>
-					Assinar Digitalmente
 				</button>
 			{/if}
 		</div>
@@ -703,7 +889,31 @@
 			{/each}
 		</div>
 
-		<!-- Assinatura (Supervisor) -->
+		<!-- Banner: Escala Assinada -->
+		{#if documentoAssinadoInfo}
+			<div class="rounded-2xl border-2 border-success-500/30 bg-success-500/10 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+				<div>
+					<h3 class="font-bold text-success-700 dark:text-success-400 flex items-center gap-2">
+						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+						Escala GISE Oficialmente Assinada
+					</h3>
+					<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
+						Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ''}</strong>.
+					</p>
+				</div>
+				<div class="flex gap-2">
+					<a
+						href={`/api/gise/${gise.id}/documento-assinado`}
+						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
+						target="_blank"
+					>
+						Baixar PDF Assinado
+					</a>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Aviso: Supervisor aguardando seccionais -->
 		{#if isSupervisor && gise.status === 'em_preenchimento'}
 			<div class="rounded-2xl border border-warning-500/30 bg-warning-500/5 p-5 text-center">
 				<p class="text-warning-700 dark:text-warning-400 text-sm font-medium">
@@ -712,44 +922,113 @@
 			</div>
 		{/if}
 
-		<!-- Info de assinatura -->
-		{#if gise.documento}
-			<div class="rounded-2xl border border-success-500/30 bg-success-500/5 p-5">
-				<p class="text-success-700 dark:text-success-400 font-semibold text-sm">Escala Assinada</p>
-				<p class="text-xs text-surface-500 mt-1">Por: {gise.documento.assinante_nome}</p>
-				{#if gise.documento.verificacao_hash}
-					<p class="text-xs font-mono text-surface-400 mt-1 break-all">
-						Hash: {gise.documento.verificacao_hash}
-					</p>
-				{/if}
+		<!-- Seção de assinatura (Supervisor) -->
+		{#if podeAssinar && !documentoAssinadoInfo}
+			<div class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5 space-y-4">
+				<!-- Assinatura Simples (Confirmação) -->
+				<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+					<div>
+						<h3 class="font-semibold text-surface-900 dark:text-surface-50">Confirmar Escala GISE</h3>
+						<p class="text-xs text-surface-500 mt-1">Gera um PDF com confirmação administrativa (sem certificado digital).</p>
+					</div>
+					<button
+						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+						disabled={assinandoSimples}
+						onclick={assinarSimples}
+					>
+						{assinandoSimples ? 'Gerando PDF...' : 'Confirmar Escala'}
+					</button>
+				</div>
+
+				<hr class="border-surface-200 dark:border-surface-700" />
+
+				<!-- Assinatura Digital -->
+				<h3 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
+					Assinatura Digital (eToken / Certificado A3)
+				</h3>
+
+				<!-- Seletor de certificados -->
+				<div class="p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+						<h4 class="font-semibold text-sm flex items-center gap-2">
+							<svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+							</svg>
+							Leitura de Tokens
+						</h4>
+						<button
+							class="btn text-xs preset-outlined-primary-500 px-3 py-1.5 rounded-lg"
+							onclick={carregarCertificadosLocais}
+							disabled={lendoCertificados}
+						>
+							{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
+						</button>
+					</div>
+
+					{#if certificados.length > 0}
+						<select
+							bind:value={certSelecionado}
+							onchange={(e) => { const c = certificados.find(x => x.thumbprint === e.currentTarget.value); if (c) { serproSignerName = c.subjectName; serproSignerCpf = c.cpf || ''; } }}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm mt-2"
+						>
+							<option value="">Selecione...</option>
+							{#each certificados as cert (cert.thumbprint)}
+								<option value={cert.thumbprint}>
+									{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''} - Emissor: {cert.issuerName}
+								</option>
+							{/each}
+						</select>
+					{:else if tentouLerCertificados}
+						<p class="text-xs text-error-500 mt-2 bg-error-500/10 p-2 rounded">
+							Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Lacuna Web PKI</strong> está instalada.
+						</p>
+					{:else}
+						<p class="text-xs text-surface-500 mt-1">
+							Clique no botão para listar os certificados disponíveis.
+						</p>
+					{/if}
+				</div>
+
+				<div class="flex gap-2 items-center flex-wrap">
+					<button
+						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
+						onclick={assinarComWebPKI}
+						disabled={assinando || !certSelecionado}
+					>
+						{#if assinando && certificados.length > 0}
+							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+							{etapaAssinatura}
+						{:else}
+							Assinar com Web PKI
+						{/if}
+					</button>
+
+					<button
+						class="btn preset-filled-tertiary-500 text-sm px-4 py-2 rounded-xl"
+						onclick={assinarComSerpro}
+						disabled={assinando || !certSelecionado}
+					>
+						{#if assinando && serproClient}
+							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+							{etapaAssinatura}
+						{:else}
+							Assinar com SERPRO
+						{/if}
+					</button>
+
+					{#if certificados.length > 0 && !assinando}
+						<button
+							class="btn preset-tonal-surface text-xs px-3 py-1.5 rounded-lg"
+							onclick={() => { certificados = []; certSelecionado = ''; tentouLerCertificados = false; }}
+						>
+							Limpar lista
+						</button>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	{/if}
 </div>
-
-<!-- Confirmar Assinar -->
-{#if showAssinaConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Assinar Escala GISE</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Ao assinar, você confirma que os dados da escala estão corretos. Esta ação não pode ser desfeita.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showAssinaConfirm = false)}>
-					Cancelar
-				</button>
-				<button
-					class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-					onclick={assinarEscala}
-					disabled={assinando}
-				>
-					{assinando ? 'Assinando...' : 'Confirmar Assinatura'}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
 
 <!-- Confirmar Reabrir -->
 {#if showReabrirConfirm}
