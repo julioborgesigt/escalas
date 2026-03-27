@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
@@ -208,7 +209,7 @@
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(data.usuario?.nome ?? '');
+	let serproSignerName = $state(untrack(() => data.usuario?.nome ?? ''));
 	let serproSignerCpf = $state('');
 
 	// Carregar info do documento ao montar
@@ -729,11 +730,11 @@
 											</span>
 											{#if editandoEquipe === equipe.id}
 												<div class="flex items-center gap-1.5">
-													<label class="text-xs text-surface-500">DPC:</label>
-													<input type="number" min="0" max="20" bind:value={editSlotsDpc}
+													<label for="edit-dpc-{equipe.id}" class="text-xs text-surface-500">DPC:</label>
+													<input id="edit-dpc-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsDpc}
 														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
-													<label class="text-xs text-surface-500">OIP:</label>
-													<input type="number" min="0" max="20" bind:value={editSlotsOip}
+													<label for="edit-oip-{equipe.id}" class="text-xs text-surface-500">OIP:</label>
+													<input id="edit-oip-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsOip}
 														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
 													<button
 														class="btn preset-filled-primary-500 text-xs px-2 py-1 rounded-lg"
@@ -846,8 +847,8 @@
 								{#if adicionandoEquipeSec === sec.id}
 									<div class="flex flex-wrap gap-2 items-end mt-3 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600">
 										<div>
-											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Tipo</label>
-											<select bind:value={novaEquipeTipo}
+											<label for="novaEquipeTipo-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Tipo</label>
+											<select id="novaEquipeTipo-{sec.id}" bind:value={novaEquipeTipo}
 												onchange={() => { if (novaEquipeTipo === 'operacional') { novaEquipeDpc = 1; novaEquipeOip = 3; } else { novaEquipeDpc = 0; novaEquipeOip = 2; } }}
 												class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs">
 												<option value="operacional">Operacional</option>
@@ -855,13 +856,13 @@
 											</select>
 										</div>
 										<div>
-											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">DPC</label>
-											<input type="number" min="0" max="20" bind:value={novaEquipeDpc}
+											<label for="novaEquipeDpc-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">DPC</label>
+											<input id="novaEquipeDpc-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeDpc}
 												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
 										</div>
 										<div>
-											<label class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">OIP</label>
-											<input type="number" min="0" max="20" bind:value={novaEquipeOip}
+											<label for="novaEquipeOip-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">OIP</label>
+											<input id="novaEquipeOip-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeOip}
 												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
 										</div>
 										<button
