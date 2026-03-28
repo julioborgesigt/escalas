@@ -76,15 +76,16 @@
 		></canvas>
 	</div>
 
-	<div class="flex justify-between items-center gap-3">
-		<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={clear}>
+	<div class="flex flex-wrap justify-between items-center gap-4 mt-4">
+		<button class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors" onclick={clear}>
 			Limpar
 		</button>
-		<div class="flex gap-2">
-			<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={onCancel}>
+		
+		<div class="flex items-center gap-3">
+			<button class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors" onclick={onCancel}>
 				Cancelar
 			</button>
-			<button class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl" onclick={confirm}>
+			<button class="btn preset-filled-primary-500 rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all" onclick={confirm}>
 				Confirmar Rubrica
 			</button>
 		</div>

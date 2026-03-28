@@ -55,7 +55,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		hora_entrada_domingo,
 		hora_saida_domingo,
 		supervisor_sabado_id,
-		supervisor_domingo_id
+		supervisor_domingo_id,
+		status
 	} = body as {
 		data_inicio?: string;
 		data_fim?: string;
@@ -67,6 +68,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		hora_saida_domingo?: string;
 		supervisor_sabado_id?: number | null;
 		supervisor_domingo_id?: number | null;
+		status?: string;
 	};
 
 	// Validar supervisores: devem ser DPC
@@ -94,6 +96,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 	if (hora_saida_domingo !== undefined) updateData.hora_saida_domingo = hora_saida_domingo;
 	if (supervisor_sabado_id !== undefined) updateData.supervisor_sabado_id = supervisor_sabado_id;
 	if (supervisor_domingo_id !== undefined) updateData.supervisor_domingo_id = supervisor_domingo_id;
+	if (status !== undefined) updateData.status = status;
 
 	// Feature 5: se estiver editando datas/horários de uma GISE assinada/finalizada, revogar assinatura
 	const editandoTempoOuData =
