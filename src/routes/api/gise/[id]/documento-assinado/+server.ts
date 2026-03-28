@@ -7,7 +7,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDocumento, reabrirGiseEscala } from '$lib/db';
 
-export const GET = async ({ platform, params, locals }: RequestEvent) => {
+export const GET = async ({ platform, params, locals, request }: RequestEvent) => {
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
@@ -15,9 +15,11 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const db = getDB(platform);
-	const documento = await buscarGiseDocumento(db, id);
+	const dia = new URL(request.url).searchParams.get('dia');
+
+	const documento = await buscarGiseDocumento(db, id, dia || undefined);
 	if (!documento) {
-		return json({ error: 'Documento assinado não encontrado para esta escala GISE' }, { status: 404 });
+		return json({ error: `Documento assinado (${dia || 'ambos'}) não encontrado` }, { status: 404 });
 	}
 
 	const p = platform as App.Platform | undefined;

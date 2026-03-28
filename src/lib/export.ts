@@ -950,8 +950,10 @@ export function gerarPdfGise(gise: GisePdfData, dia?: 'sabado' | 'domingo'): Pdf
 
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
-	const giseDataExtenso = formatarDataExtenso(new Date());
-	doc.text(giseDataExtenso, 10, giseSigY);
+	const cidadeSig = gise.seccionais[0]?.seccional_nome.split('-')[1]?.trim() || 'IGUATU';
+	const dataSig = dia === 'sabado' ? gise.data_inicio : (dia === 'domingo' ? gise.data_fim : gise.data_inicio);
+	const textoLocalData = `${cidadeSig}/CE, ${formatarData(dataSig)}.`;
+	doc.text(textoLocalData, 10, giseSigY);
 
 	const giseSigCenterX = pageWidth * 0.75;
 	doc.line(giseSigCenterX - 45, giseSigY, giseSigCenterX + 45, giseSigY);
@@ -1082,10 +1084,17 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, dia: 's
 
 	// Período
 	const dataEfetiva = dia === 'sabado' ? gise.data_inicio : gise.data_fim;
-	const dataSaidaEfetiva = dataEfetiva;
-	
 	const hEnt = (gise as any)[`hora_entrada_${dia}`] || gise.hora_entrada;
 	const hSai = (gise as any)[`hora_saida_${dia}`] || gise.hora_saida;
+
+	let dataSaidaEfetiva = dataEfetiva;
+	const heVal = parseInt(hEnt.split(':')[0]);
+	const hsVal = parseInt(hSai.split(':')[0]);
+	if (hsVal <= heVal) {
+		const dObj = new Date(dataEfetiva + 'T12:00:00');
+		dObj.setDate(dObj.getDate() + 1);
+		dataSaidaEfetiva = dObj.toISOString().split('T')[0];
+	}
 
 	// Cálculo real de horas para o cabeçalho
 	let hEntNum = parseInt(hEnt.split(':')[0]);

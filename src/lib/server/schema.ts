@@ -314,3 +314,5 @@ export type GiseSeccional = typeof giseSeccionais.$inferSelect;
 export type GiseEquipe = typeof giseEquipes.$inferSelect;
 export type GiseMembro = typeof giseMembros.$inferSelect;
 export type GiseDocumento = typeof giseDocumentos.$inferSelect;
+export type GisePresenca = typeof gisePresencas.$inferSelect;
+export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
