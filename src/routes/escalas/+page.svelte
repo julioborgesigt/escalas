@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { goto } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -10,6 +11,8 @@
 	let escalas = $state<EscalaListagem[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
+	let excluindo = $state(false);
+	let revogando = $state(false);
 	let unidades = $state<Unidade[]>([]);
 	
 	// Recuperar filtros do localStorage (apenas no navegador)
@@ -101,12 +104,13 @@
 
 	async function confirmarExclusao() {
 		if (!escalaParaExcluir) return;
-		
+		excluindo = true;
 		const id = escalaParaExcluir.id;
 		const titulo = escalaParaExcluir.titulo;
-		dialogOpen = false;
 
 		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+		excluindo = false;
+		dialogOpen = false;
 		if (res.ok) {
 			toaster.create({ title: `Escala de ${titulo} removida`, type: 'success' });
 			escalas = escalas.filter(e => e.id !== id);
@@ -136,10 +140,12 @@
 
 	async function confirmarRevogacao() {
 		if (!escalaParaRevogar) return;
+		revogando = true;
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
 
 		const res = await fetch(`/api/escalas/${id}/documento-assinado`, { method: 'DELETE' });
+		revogando = false;
 		if (res.ok) {
 			toaster.create({ title: 'Assinatura revogada', description: 'A escala agora pode ser editada.', type: 'info' });
 			goto(`/escalas/${id}`);
@@ -198,7 +204,10 @@
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+				<button class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarExclusao} disabled={excluindo}>
+					{#if excluindo}<Spinner size="sm" />{/if}
+					{excluindo ? 'Excluindo...' : 'Excluir'}
+				</button>
 			</div>
 		</div>
 	</Dialog.Content>
@@ -218,7 +227,10 @@
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500" onclick={confirmarRevogacao}>Revogar e Editar</button>
+				<button class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarRevogacao} disabled={revogando}>
+					{#if revogando}<Spinner size="sm" />{/if}
+					{revogando ? 'Revogando...' : 'Revogar e Editar'}
+				</button>
 			</div>
 		</div>
 	</Dialog.Content>

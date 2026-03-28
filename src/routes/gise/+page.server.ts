@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	// Servidores sem qualquer vínculo com GISE: redirecionar
 	if (!isGeral && !isSeccional && !isSupervisor && !isMembro) {
-		throw redirect(302, '/escalas');
+		throw redirect(302, '/');
 	}
 
 	const escalas = await listarGiseEscalas(db);

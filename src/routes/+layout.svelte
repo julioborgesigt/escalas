@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
@@ -11,12 +11,23 @@
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 
-	// Mostra aba GISE para: admin, admin_seccional, admin_unidade, supervisor ativo ou membro escalado
+	// Mostra abas Escalas e Policiais para: admin, admin_seccional, admin_unidade
+	const showEscalasPoliciais = $derived(
+		usuario?.tipo === 'admin' ||
+		usuario?.papel === 'admin_seccional' ||
+		usuario?.papel === 'admin_unidade'
+	);
+
+	// Mostra aba GISE para: admin, admin_seccional ou supervisor ativo
+	// (admin_unidade só vê se também for supervisor, coberto por isSupervisorGise)
 	const showGise = $derived(
 		usuario?.tipo === 'admin' ||
 		usuario?.papel === 'admin_seccional' ||
-		usuario?.papel === 'admin_unidade' ||
-		isSupervisorGise ||
+		isSupervisorGise
+	);
+
+	const showResGise = $derived(
+		usuario?.tipo === 'admin' ||
 		isMembroGise
 	);
 
@@ -75,6 +86,13 @@
 <svelte:head>
 	<title>Escalas de Plantão Policial</title>
 </svelte:head>
+
+<!-- Navigation progress bar -->
+{#if navigating}
+	<div class="nav-progress-wrap" aria-hidden="true">
+		<div class="nav-progress-bar"></div>
+	</div>
+{/if}
 
 <!-- Global Toast Provider -->
 <Toast.Group {toaster} class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3">
@@ -156,6 +174,8 @@
 
 		<!-- Navigation -->
 		<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+
+			<!-- Grupo 1: Painel · Cx. de Entrada · Arquivo/Escalas -->
 			{#if usuario?.tipo === 'admin'}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
@@ -174,34 +194,23 @@
 					Cx. de Entrada
 				</button>
 			{/if}
-			<button
-				class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-					{isActive('/escalas') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-				onclick={() => navTo('/escalas')}
-			>
-				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-				{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
-			</button>
-
-			<button
-				class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-					{isActive('/policiais') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-				onclick={() => navTo('/policiais')}
-			>
-				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-				Policiais
-			</button>
-			{#if usuario?.tipo === 'admin'}
+			{#if showEscalasPoliciais}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/unidades') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => navTo('/unidades')}
+						{isActive('/escalas') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => navTo('/escalas')}
 				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-					Unidades
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+					{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
 				</button>
 			{/if}
 
+			<!-- Separador 1 (só admin geral) -->
+			{#if usuario?.tipo === 'admin'}
+				<hr class="!my-3 border-surface-200 dark:border-white/10" />
+			{/if}
+
+			<!-- Grupo 2: GISE · Res. GISE -->
 			{#if showGise}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
@@ -210,6 +219,43 @@
 				>
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
 					GISE
+				</button>
+			{/if}
+			{#if showResGise}
+				<button
+					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/res-gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => navTo('/res-gise')}
+				>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+					Res. Gise
+				</button>
+			{/if}
+
+			<!-- Separador 2 (só admin geral) -->
+			{#if usuario?.tipo === 'admin'}
+				<hr class="!my-3 border-surface-200 dark:border-white/10" />
+			{/if}
+
+			<!-- Grupo 3: Policiais · Unidades -->
+			{#if showEscalasPoliciais}
+				<button
+					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/policiais') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => navTo('/policiais')}
+				>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+					Policiais
+				</button>
+			{/if}
+			{#if usuario?.tipo === 'admin'}
+				<button
+					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/unidades') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => navTo('/unidades')}
+				>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+					Unidades
 				</button>
 			{/if}
 
@@ -270,3 +316,28 @@
 		{@render children()}
 	</main>
 {/if}
+
+<style>
+	.nav-progress-wrap {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 2px;
+		z-index: 10000;
+		pointer-events: none;
+		background: rgb(var(--color-primary-500) / 0.2);
+		overflow: hidden;
+	}
+	.nav-progress-bar {
+		height: 100%;
+		width: 45%;
+		background: rgb(var(--color-primary-500));
+		border-radius: 999px;
+		animation: nav-progress 1.2s ease-in-out infinite;
+	}
+	@keyframes nav-progress {
+		0%   { transform: translateX(-110%); }
+		100% { transform: translateX(320%); }
+	}
+</style>

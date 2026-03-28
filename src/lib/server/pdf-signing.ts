@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
+import type { PDFPage } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
@@ -289,7 +290,10 @@ export async function prepararPdfParaAssinatura(
 	alignment: 'center' | 'right' = 'right',
 	verificationHash?: string,
 	verificationUrl?: string,
-	customBoxY?: number
+	customBoxY?: number,
+	rubricBase64?: string,
+	customRubricX?: number,
+	customRubricY?: number
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -325,6 +329,28 @@ export async function prepararPdfParaAssinatura(
 	const cDark  = rgb(0.05, 0.08, 0.22);
 	const cGray  = rgb(0.40, 0.40, 0.45);
 	const cWhite = rgb(1, 1, 1);
+
+	// 0 — Rubrica (se fornecida)
+	if (rubricBase64) {
+		try {
+			const rubricImage = await pdfDoc.embedPng(rubricBase64);
+			const rubW = 130; // Aumentado novamente para ser mais proeminente
+			const rubH = (rubricImage.height / rubricImage.width) * rubW;
+			
+			const rx = customRubricX !== undefined ? customRubricX : boxX + (boxW - rubW) / 2;
+			const ry = customRubricY !== undefined ? customRubricY : boxY + boxH + 2;
+
+			lastPage.drawImage(rubricImage, {
+				x: rx,
+				y: ry,
+				width: rubW,
+				height: rubH,
+				opacity: 0.85
+			});
+		} catch (err) {
+			console.error('Erro ao embutir rubrica no prep:', err);
+		}
+	}
 
 	// 1 — Fundo azul claro
 	lastPage.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: cBg });
@@ -719,7 +745,10 @@ export async function adicionarRodapeSimples(
 	pdfBytes: Uint8Array,
 	assinante: string,
 	verificationHash?: string,
-	verificationUrl?: string
+	verificationUrl?: string,
+	rubricBase64?: string,
+	customRubricX?: number,
+	customRubricY?: number
 ): Promise<Uint8Array> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -728,12 +757,34 @@ export async function adicionarRodapeSimples(
 
 	const pages    = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
-	const { width } = lastPage.getSize();
+	const { width, height: pageHeight } = lastPage.getSize();
 
 	// --- Posicionamento simplificado ---
 	const marginX = 25;
 	const bottomY = 15; // 15mm do fundo do PDF (pdf-lib usa 0 no fundo)
 	const dataHora = formatarDataHora();
+
+	// Rubrica
+	if (rubricBase64) {
+		try {
+			const rubricImage = await pdfDoc.embedPng(rubricBase64);
+			const rubW = 130; // Aumentado novamente
+			const rubH = (rubricImage.height / rubricImage.width) * rubW;
+			
+			const rx = customRubricX !== undefined ? customRubricX : width - rubW - marginX;
+			const ry = customRubricY !== undefined ? customRubricY : bottomY + 20;
+
+			lastPage.drawImage(rubricImage, {
+				x: rx,
+				y: ry,
+				width: rubW,
+				height: rubH,
+				opacity: 0.85
+			});
+		} catch (err) {
+			console.error('Erro ao embutir rubrica no rodape simples:', err);
+		}
+	}
 
 	const cDark = rgb(0.05, 0.08, 0.22);
 	const cBlue = rgb(0.18, 0.32, 0.72);

@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	let { data } = $props();
 
@@ -18,11 +19,19 @@
 	let novaDataInicio = $state('');
 	let novaDataFim = $state('');
 	// Feature 1: horários separados por dia
-	let novaHoraEntradaSabado = $state('08');
-	let novaHoraSaidaSabado = $state('16');
-	let novaHoraEntradaDomingo = $state('08');
-	let novaHoraSaidaDomingo = $state('16');
+	let novaHoraEntradaSabado = $state('08:00');
+	let novaHoraSaidaSabado = $state('16:00');
+	let novaHoraEntradaDomingo = $state('08:00');
+	let novaHoraSaidaDomingo = $state('16:00');
 	let criando = $state(false);
+
+	function normalizarHora(v: string): string {
+		return v.replace(/[.,]/g, ':');
+	}
+	function validarHora(v: string): boolean {
+		if (!v) return true;
+		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v));
+	}
 
 	function proximoSabado(): string {
 		const hoje = new Date();
@@ -43,6 +52,15 @@
 	}
 
 	async function criarGise() {
+		const horas = [novaHoraEntradaSabado, novaHoraSaidaSabado, novaHoraEntradaDomingo, novaHoraSaidaDomingo];
+		if (horas.some(h => !h)) {
+			toaster.error({ title: 'Preencha todos os horários' });
+			return;
+		}
+		if (horas.some(h => !validarHora(h))) {
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			return;
+		}
 		criando = true;
 		try {
 			const res = await fetch('/api/gise', {
@@ -51,12 +69,12 @@
 				body: JSON.stringify({
 					data_inicio: novaDataInicio,
 					data_fim: novaDataFim,
-					hora_entrada: novaHoraEntradaSabado,
-					hora_saida: novaHoraSaidaSabado,
-					hora_entrada_sabado: novaHoraEntradaSabado,
-					hora_saida_sabado: novaHoraSaidaSabado,
-					hora_entrada_domingo: novaHoraEntradaDomingo,
-					hora_saida_domingo: novaHoraSaidaDomingo
+					hora_entrada: normalizarHora(novaHoraEntradaSabado),
+					hora_saida: normalizarHora(novaHoraSaidaSabado),
+					hora_entrada_sabado: normalizarHora(novaHoraEntradaSabado),
+					hora_saida_sabado: normalizarHora(novaHoraSaidaSabado),
+					hora_entrada_domingo: normalizarHora(novaHoraEntradaDomingo),
+					hora_saida_domingo: normalizarHora(novaHoraSaidaDomingo)
 				})
 			});
 			const json = await res.json();
@@ -178,7 +196,7 @@
 						</button>
 					{:else if isSupervisor && ativa.status !== 'aguardando_assinatura'}
 						<button
-							class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl"
+							class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl opacity-60 cursor-default"
 							onclick={() => {
 								toaster.warning({ title: 'A escala não está concluída', description: 'Aguarde todas as seccionais finalizarem o preenchimento.' });
 							}}
@@ -187,7 +205,7 @@
 						</button>
 					{:else}
 						<button
-							class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl"
+							class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
 							onclick={() => goto(`/gise/${ativa.id}`)}
 						>
 							Acessar
@@ -274,17 +292,18 @@
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label for="novaHoraEntradaSab" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="novaHoraEntradaSab" type="number" min="0" max="23"
+						<input id="novaHoraEntradaSab" type="text" placeholder="Ex: 08:00"
 							bind:value={novaHoraEntradaSabado}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraEntradaSabado && !validarHora(novaHoraEntradaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
 						<label for="novaHoraSaidaSab" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="novaHoraSaidaSab" type="number" min="0" max="23"
+						<input id="novaHoraSaidaSab" type="text" placeholder="Ex: 16:00"
 							bind:value={novaHoraSaidaSabado}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraSaidaSabado && !validarHora(novaHoraSaidaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
+				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
 			</div>
 
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
@@ -292,22 +311,23 @@
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label for="novaHoraEntradaDom" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="novaHoraEntradaDom" type="number" min="0" max="23"
+						<input id="novaHoraEntradaDom" type="text" placeholder="Ex: 08:00"
 							bind:value={novaHoraEntradaDomingo}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraEntradaDomingo && !validarHora(novaHoraEntradaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
 						<label for="novaHoraSaidaDom" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="novaHoraSaidaDom" type="number" min="0" max="23"
+						<input id="novaHoraSaidaDom" type="text" placeholder="Ex: 16:00"
 							bind:value={novaHoraSaidaDomingo}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraSaidaDomingo && !validarHora(novaHoraSaidaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
+				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
 			</div>
 
 			<div class="flex justify-end gap-3 pt-2">
 				<button
-					class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl"
+					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 					onclick={() => (showCriarModal = false)}
 				>
 					Cancelar
@@ -317,6 +337,7 @@
 					onclick={criarGise}
 					disabled={criando || !novaDataInicio || !novaDataFim}
 				>
+					{#if criando}<Spinner size="sm" />{/if}
 					{criando ? 'Criando...' : 'Criar'}
 				</button>
 			</div>

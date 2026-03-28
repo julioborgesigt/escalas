@@ -16,8 +16,14 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
 	const db = getDB(platform);
-	const escalas = await listarGiseEscalas(db);
-	return json(escalas);
+	try {
+		const escalas = await listarGiseEscalas(db);
+		return json(escalas);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error('[GET /api/gise]', msg);
+		return json({ error: msg }, { status: 500 });
+	}
 };
 
 export const POST: RequestHandler = async ({ locals, request, platform }) => {
@@ -54,33 +60,39 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 		return json({ error: 'data_inicio e data_fim são obrigatórios' }, { status: 400 });
 	}
 
-	const novoId = await criarGiseEscala(
-		db,
-		data_inicio,
-		data_fim,
-		hora_entrada,
-		hora_saida,
-		hora_entrada_sabado,
-		hora_saida_sabado,
-		hora_entrada_domingo,
-		hora_saida_domingo
-	);
+	try {
+		const novoId = await criarGiseEscala(
+			db,
+			data_inicio,
+			data_fim,
+			hora_entrada,
+			hora_saida,
+			hora_entrada_sabado,
+			hora_saida_sabado,
+			hora_entrada_domingo,
+			hora_saida_domingo
+		);
 
-	// Adicionar seccionais informadas (ou todas as seccionais cadastradas)
-	if (seccional_ids && seccional_ids.length > 0) {
-		for (const sid of seccional_ids) {
-			await upsertGiseSeccional(db, novoId, sid);
+		// Adicionar seccionais informadas (ou todas as seccionais cadastradas)
+		if (seccional_ids && seccional_ids.length > 0) {
+			for (const sid of seccional_ids) {
+				await upsertGiseSeccional(db, novoId, sid);
+			}
+		} else {
+			// Adicionar todas as seccionais
+			const todasSeccionais = await db
+				.select({ id: unidades.id })
+				.from(unidades)
+				.where(eq(unidades.tipo, 'seccional'));
+			for (const sec of todasSeccionais) {
+				await upsertGiseSeccional(db, novoId, sec.id);
+			}
 		}
-	} else {
-		// Adicionar todas as seccionais
-		const todasSeccionais = await db
-			.select({ id: unidades.id })
-			.from(unidades)
-			.where(eq(unidades.tipo, 'seccional'));
-		for (const sec of todasSeccionais) {
-			await upsertGiseSeccional(db, novoId, sec.id);
-		}
+
+		return json({ id: novoId }, { status: 201 });
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error('[POST /api/gise]', msg);
+		return json({ error: msg }, { status: 500 });
 	}
-
-	return json({ id: novoId }, { status: 201 });
 };

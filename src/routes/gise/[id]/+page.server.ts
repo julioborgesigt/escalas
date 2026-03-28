@@ -2,8 +2,8 @@ import type { PageServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, listarPoliciais, isSupervisorGiseAtiva } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { unidades } from '$lib/server/schema';
-import { eq, asc } from 'drizzle-orm';
+import { unidades, policiais } from '$lib/server/schema';
+import { eq, asc, inArray, or, and } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -22,34 +22,51 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	}
 
 	if (!isGeral && !isSeccional && !isSupervisor) {
-		throw redirect(302, '/escalas');
+		throw redirect(302, '/');
 	}
 
-	const gise = await buscarGiseDetalhado(db, id);
-	if (!gise) throw error(404, 'Escala GISE não encontrada');
+	try {
+		const gise = await buscarGiseDetalhado(db, id);
+		if (!gise) throw error(404, 'Escala GISE não encontrada');
 
-	// Lista de policiais disponíveis para alocação
-	// Admin Seccional: só policiais da sua seccional
-	// Admin Geral: todos
-	const seccionalNome = isSeccional && u.papel_unidade_id
-		? await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, u.papel_unidade_id!)).get()
-		: null;
+		// Lista de policiais disponíveis para alocação
+		let policiaisListResult: any[] = [];
+		if (isGeral) {
+			policiaisListResult = await listarPoliciais(db);
+		} else if (isSeccional && u.papel_unidade_id) {
+			const unidadesSubordinadas = await db
+				.select({ nome: unidades.nome })
+				.from(unidades)
+				.where(
+					or(
+						eq(unidades.seccional_id, u.papel_unidade_id),
+						eq(unidades.id, u.papel_unidade_id)
+					)
+				);
+			const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
+			if (nomesUnidades.length > 0) {
+				policiaisListResult = await db
+					.select()
+					.from(policiais)
+					.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
+					.orderBy(asc(policiais.cargo), asc(policiais.nome));
+			}
+		}
 
-	const policiais = isGeral
-		? await listarPoliciais(db)
-		: seccionalNome
-			? await listarPoliciais(db, seccionalNome.nome)
-			: [];
+		const todasUnidades = await db.select().from(unidades).orderBy(asc(unidades.nome));
 
-	// Lista de unidades (para definir unidade operacional)
-	const todasUnidades = await db.select().from(unidades).orderBy(asc(unidades.nome));
-
-	return {
-		gise,
-		policiais,
-		todasUnidades,
-		papelGise: isGeral ? 'admin_geral' : isSeccional ? 'admin_seccional' : 'supervisor',
-		minhaSeccionalId: u.papel_unidade_id ?? null,
-		usuario: { nome: u.nome, id: u.id }
-	};
+		return {
+			gise,
+			policiais: policiaisListResult,
+			todasUnidades,
+			papelGise: isGeral ? 'admin_geral' : isSeccional ? 'admin_seccional' : 'supervisor',
+			minhaSeccionalId: u.papel_unidade_id ?? null,
+			usuarioAtual: { nome: u.nome, id: u.id }
+		};
+	} catch (e) {
+		if (e && typeof e === 'object' && 'status' in e) throw e; // re-throw SvelteKit errors
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error('[gise/load]', msg);
+		throw error(500, `Erro ao carregar GISE: ${msg}`);
+	}
 };

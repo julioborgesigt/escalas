@@ -24,8 +24,23 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		return json({ error: 'GISE não disponível para edição' }, { status: 400 });
 	}
 
-	const { slots_dpc, slots_oip } = await request.json();
-	await atualizarGiseEquipe(db, eqId, slots_dpc ?? 0, slots_oip ?? 0);
+	const { 
+		slots_dpc, 
+		slots_oip,
+		hora_entrada_sabado,
+		hora_saida_sabado,
+		hora_entrada_domingo,
+		hora_saida_domingo
+	} = await request.json();
+	
+	const customHours = {
+		hora_entrada_sabado: hora_entrada_sabado === undefined ? undefined : hora_entrada_sabado,
+		hora_saida_sabado: hora_saida_sabado === undefined ? undefined : hora_saida_sabado,
+		hora_entrada_domingo: hora_entrada_domingo === undefined ? undefined : hora_entrada_domingo,
+		hora_saida_domingo: hora_saida_domingo === undefined ? undefined : hora_saida_domingo
+	};
+
+	await atualizarGiseEquipe(db, eqId, slots_dpc, slots_oip, customHours);
 	return json({ ok: true });
 };
 

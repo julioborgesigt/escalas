@@ -2,6 +2,7 @@
 	import type { Policial, Unidade } from '$lib/types';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone } from '$lib/utils';
@@ -62,6 +63,18 @@
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacaoInput = $state('');
 	let saving = $state(false);
+	let excluindo = $state(false);
+
+	// Papel administrativo no cadastro
+	let papel = $state<string | null>(null);
+	let papelUnidadeId = $state<number | null>(null);
+
+	const isAdminOrSeccional = $derived(
+		page.data.usuario?.tipo === 'admin' || page.data.usuario?.papel === 'admin_seccional'
+	);
+	const isAdminUnidade = $derived(page.data.usuario?.papel === 'admin_unidade');
+	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
+	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
 
 	$effect(() => {
 		if (cadastroOpen) {
@@ -88,12 +101,18 @@
 		classe = '';
 		regime = 'ambos';
 		lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+		papel = null;
+		papelUnidadeId = null;
 	}
 
 	async function salvar(e: Event) {
 		e.preventDefault();
 
-		const parsed = policialSchema.safeParse({ nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe });
+		const parsed = policialSchema.safeParse({ 
+			nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
+			papel: papel || null,
+			papel_unidade_id: papelUnidadeId || null
+		});
 		if (!parsed.success) {
 			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
 			return;
@@ -104,7 +123,11 @@
 		const res = await fetch('/api/policiais', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe })
+			body: JSON.stringify({ 
+				nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
+				papel: papel || null,
+				papel_unidade_id: papelUnidadeId || null
+			})
 		});
 
 		if (res.ok) {
@@ -178,12 +201,13 @@
 
 	async function confirmarExclusao() {
 		if (!policialParaExcluir) return;
-		
+		excluindo = true;
 		const id = policialParaExcluir.id;
 		const nome = policialParaExcluir.nome;
-		dialogOpen = false;
 
 		const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
+		excluindo = false;
+		dialogOpen = false;
 		if (res.ok) {
 			toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
 			policiais = policiais.filter(p => p.id !== id);
@@ -305,10 +329,46 @@
 						{/if}
 					</label>
 				</div>
+ 
+				{#if isAdminOrSeccional || isAdminUnidade}
+					<div class="p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 space-y-3 mt-1">
+						<h4 class="text-[0.7rem] font-bold uppercase opacity-50">Papel Administrativo (Opcional)</h4>
+						<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+							<label class="label sm:col-span-5">
+								<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">Papel</span>
+								<select class="select py-1 px-3 text-sm" bind:value={papel}>
+									<option value={null}>Servidor (sem papel)</option>
+									{#if isAdminOrSeccional}
+										<option value="admin_seccional">Admin Seccional</option>
+									{/if}
+									<option value="admin_unidade">Admin Unidade</option>
+								</select>
+							</label>
+							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
+								<label class="label sm:col-span-7">
+									<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">
+										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
+									</span>
+									<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
+										<option value={null}>Selecionar...</option>
+										{#each (papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin) as u}
+											<option value={u.id}>{u.nome}</option>
+										{/each}
+									</select>
+								</label>
+							{:else if papel === 'admin_unidade' && isAdminUnidade}
+								<p class="text-[0.65rem] text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1 italic">
+									Será nomeado para a sua própria unidade.
+								</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
 		
 				<div class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-white/5">
 					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button type="submit" class="btn btn-sm preset-filled-primary-500" disabled={saving}>
+					<button type="submit" class="btn btn-sm preset-filled-primary-500 flex items-center gap-2" disabled={saving}>
+						{#if saving}<Spinner size="sm" />{/if}
 						{saving ? 'Guardando...' : 'Cadastrar'}
 					</button>
 				</div>
@@ -326,8 +386,11 @@
 				Tem certeza que deseja excluir o policial "{policialParaExcluir?.nome}" do sistema de cadastro?
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarExclusao} disabled={excluindo}>
+					{#if excluindo}<Spinner size="sm" />{/if}
+					{excluindo ? 'Excluindo...' : 'Excluir'}
+				</button>
 			</div>
 		</div>
 	</Dialog.Content>

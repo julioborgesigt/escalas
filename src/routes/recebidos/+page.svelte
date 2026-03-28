@@ -196,7 +196,7 @@
 				>
 					Limpar filtros
 				</button>
-				<button class="btn preset-outlined-surface btn-sm" onclick={carregar}>
+				<button class="btn preset-outlined-primary-500 btn-sm" onclick={carregar}>
 					<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 					</svg>
@@ -309,7 +309,7 @@
 								</td>
 								<td>
 									<div class="flex gap-2 justify-center items-center">
-										<a href="/escalas/{escala.id}" class="btn btn-sm preset-outlined-surface text-xs" title="Ver Detalhes">
+										<a href="/escalas/{escala.id}" class="btn btn-sm preset-outlined-primary-500 text-xs" title="Ver Detalhes">
 											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
 										</a>
 										
@@ -321,7 +321,7 @@
 										{/if}
 
 										<Popover positioning={{ placement: "bottom-end", offset: { mainAxis: 4 } }}>
-											<Popover.Trigger class="btn btn-sm border border-primary-500 !rounded-full text-xs font-bold hover:bg-primary-500/10 transition-all">Exportar ▾</Popover.Trigger>
+											<Popover.Trigger class="btn btn-sm preset-outlined-primary-500 text-xs font-bold">Exportar ▾</Popover.Trigger>
 											<Portal>
 												<Popover.Positioner class="z-50">
 													<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]">
@@ -378,14 +378,14 @@
 						</div>
 
 						<div class="flex flex-wrap gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
-							<a href="/escalas/{escala.id}" class="btn btn-sm preset-outlined-surface flex-1 text-xs">Detalhes</a>
+							<a href="/escalas/{escala.id}" class="btn btn-sm preset-outlined-primary-500 flex-1 text-xs">Detalhes</a>
 							
 							{#if escala.is_assinada}
 								<a href="/api/escalas/{escala.id}/documento-assinado" class="btn btn-sm preset-filled-success-500 flex-1 text-xs" target="_blank">Baixar</a>
 							{/if}
 
 							<Popover positioning={{ placement: "bottom", offset: { mainAxis: 4 } }}>
-								<Popover.Trigger class="btn btn-sm border border-primary-500 !rounded-full w-full text-xs font-bold hover:bg-primary-500/10 transition-all">Exportar ▾</Popover.Trigger>
+								<Popover.Trigger class="btn btn-sm preset-outlined-primary-500 w-full text-xs font-bold">Exportar ▾</Popover.Trigger>
 								<Portal>
 									<Popover.Positioner class="z-50">
 										<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[200px]">
