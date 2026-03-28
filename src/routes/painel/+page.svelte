@@ -219,7 +219,7 @@
 			>
 				Limpar filtros
 			</button>
-			<button class="btn preset-outlined-surface btn-sm" onclick={carregar}>
+			<button class="btn preset-outlined-primary-500 btn-sm" onclick={carregar}>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 				</svg>
@@ -420,7 +420,7 @@
 								<td>
 									<div class="flex gap-2 justify-start">
 										{#if mostrarIgnorados}
-											<button class="btn btn-sm preset-outlined-surface" onclick={() => restaurarItem(item)}>Restaurar</button>
+											<button class="btn btn-sm preset-outlined-primary-500" onclick={() => restaurarItem(item)}>Restaurar</button>
 										{:else}
 												<div class="flex gap-2 items-center">
 													<button
@@ -496,9 +496,9 @@
 								
 								<div class="shrink-0 flex items-center gap-2">
 									{#if mostrarIgnorados}
-										<button class="btn btn-sm preset-outlined-surface text-[10px] font-bold" onclick={() => restaurarItem(item)}>Restaurar</button>
+										<button class="btn btn-sm preset-outlined-primary-500 text-xs font-bold" onclick={() => restaurarItem(item)}>Restaurar</button>
 									{:else}
-										<button class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface opacity-60 flex items-center justify-center rounded-full" title="Ignorar" onclick={() => ignorarItem(item)}>
+										<button class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface flex items-center justify-center rounded-full" title="Ignorar" onclick={() => ignorarItem(item)}>
 											<span class="text-sm">🔕</span>
 										</button>
 									{/if}

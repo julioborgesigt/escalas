@@ -7,7 +7,9 @@ export const policialSchema = z.object({
 	telefone: z.string().default(''),
 	lotacao: z.string().default(''),
 	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos'),
-	classe: z.string().default('')
+	classe: z.string().default(''),
+	papel: z.enum(['admin_seccional', 'admin_unidade']).nullable().optional(),
+	papel_unidade_id: z.number().nullable().optional()
 });
 
 export const policialUpdateSchema = policialSchema.partial().extend({

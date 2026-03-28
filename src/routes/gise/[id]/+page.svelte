@@ -5,6 +5,9 @@
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 
+	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
+
 	let { data } = $props();
 
 	const gise = $derived(data.gise);
@@ -37,6 +40,8 @@
 	let equipeParaAdicionar = $state<number | null>(null);
 	let policialParaAdicionar = $state<number | ''>('');
 	let diaParaAdicionar = $state<'sabado' | 'domingo' | 'ambos'>('ambos');
+	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
+	let modoEdicaoSeccional = $state(false);
 
 	// Edição de slots de equipe
 	let editandoEquipe = $state<number | null>(null);
@@ -66,6 +71,25 @@
 
 	// Unidade operacional (Admin Seccional)
 	let unidadeOperacionalId = $state<number | null>(null);
+	let editandoUnidade = $state(false);
+
+	// Gerenciamento de seccionais (Admin Geral)
+	let seccionaisDisponiveis = $state<any[]>([]);
+	let adicionandoSeccional = $state(false);
+	let seccionalParaAdicionarIdx = $state<number | ''>('');
+
+	// Feature: Horários customizados
+	let editandoHorariosSecId = $state<number | null>(null);
+	let editSecHoraEntSab = $state('');
+	let editSecHoraSaiSab = $state('');
+	let editSecHoraEntDom = $state('');
+	let editSecHoraSaiDom = $state('');
+
+	let editandoHorariosEquipeId = $state<number | null>(null);
+	let editEqHoraEntSab = $state('');
+	let editEqHoraSaiSab = $state('');
+	let editEqHoraEntDom = $state('');
+	let editEqHoraSaiDom = $state('');
 
 	$effect(() => {
 		if (gise) {
@@ -83,7 +107,7 @@
 			aguardando_assinatura: 'Aguardando Assinatura',
 			assinada: 'Assinada',
 			finalizada: 'Finalizada',
-			retificada: 'Finalizada (Retificada)'
+			retificada: 'Preenchida (Retificada)'
 		};
 		return m[status] ?? status;
 	}
@@ -102,6 +126,27 @@
 	}
 
 	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
+
+	function checkAllSigned(sec: any, diaTarget: 'sabado' | 'domingo') {
+		const members = (sec.equipes ?? []).flatMap((eq: any) => eq.membros ?? []);
+		const relevantMembers = members.filter((m: any) => m.dia === 'ambos' || m.dia === diaTarget);
+		if (relevantMembers.length === 0) return false;
+		return relevantMembers.every((m: any) => {
+			const presenca = m.presencas?.find((p: any) => p.dia === diaTarget);
+			return presenca?.entrada_timestamp && presenca?.saida_timestamp;
+		});
+	}
+
+	function getFaltandoRubrica(sec: any, diaTarget: 'sabado' | 'domingo') {
+		const members = (sec.equipes ?? []).flatMap((eq: any) => eq.membros ?? []);
+		const relevantMembers = members.filter((m: any) => m.dia === 'ambos' || m.dia === diaTarget);
+		const faltantes = relevantMembers.filter((m: any) => {
+			const p = m.presencas?.find((pr: any) => pr.dia === diaTarget);
+			return !p?.entrada_timestamp || !p?.saida_timestamp;
+		});
+		if (faltantes.length === 0) return '';
+		return 'Faltando rubrica de: ' + faltantes.map((m: any) => m.policial_nome.split(' ')[0]).join(', '); // Use first name to keep it compact
+	}
 
 	async function salvarSupervisores() {
 		salvando = true;
@@ -137,6 +182,61 @@
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
 			toaster.success({ title: 'Unidade operacional salva' });
+			editandoUnidade = false;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
+	async function buscarSeccionaisDisponiveis() {
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/seccionais`);
+			if (res.ok) {
+				seccionaisDisponiveis = await res.json();
+				adicionandoSeccional = true;
+			}
+		} catch (e) {
+			toaster.error({ title: 'Erro ao buscar seccionais' });
+		}
+	}
+
+	async function adicionarSeccional() {
+		if (seccionalParaAdicionarIdx === '') return;
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/seccionais`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ seccionalId: seccionalParaAdicionarIdx })
+			});
+			if (!res.ok) {
+				const j = await res.json();
+				throw new Error(j.error);
+			}
+			toaster.success({ title: 'Seccional adicionada' });
+			adicionandoSeccional = false;
+			seccionalParaAdicionarIdx = '';
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
+	async function removerSeccional(secId: number) {
+		if (!confirm('Tem certeza que deseja remover esta seccional da escala? Todos os policiais escalados nela serão removidos.')) return;
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, { method: 'DELETE' });
+			if (!res.ok) {
+				const j = await res.json();
+				throw new Error(j.error);
+			}
+			toaster.success({ title: 'Seccional removida' });
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -165,6 +265,7 @@
 			toaster.success({ title: 'Membro adicionado' });
 			equipeParaAdicionar = null;
 			policialParaAdicionar = '';
+			cargoParaAdicionar = null;
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -199,6 +300,7 @@
 			} else {
 				toaster.success({ title: 'Seccional finalizada', description: 'Aguardando demais seccionais.' });
 			}
+			modoEdicaoSeccional = false;
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -208,8 +310,10 @@
 	}
 
 	// === Documento assinado ===
-	let documentoAssinadoInfo = $state<{ existe: boolean; assinante_nome?: string; assinante_cpf?: string; data?: string } | null>(null);
+	let documentoAssinadoInfo = $state<any>(null);
+	let documentosAssinados = $state<Record<string, any>>({});
 	let assinandoSimples = $state(false);
+	// assinando is already declared above
 	let etapaAssinatura = $state('');
 
 	// Web PKI
@@ -221,8 +325,14 @@
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(untrack(() => data.usuario?.nome ?? ''));
+	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
 	let serproSignerCpf = $state('');
+
+	// Feature 5: Signature Rubric
+	let showRubricaModal = $state(false);
+	let diaSendoAssinado = $state<'sabado' | 'domingo' | 'ambos' | null>(null);
+	let tipoAssinaturaPendente = $state<'simples' | 'webpki' | 'serpro' | null>(null);
+	let rubricaCapturada = $state<string | null>(null);
 
 	// Carregar info do documento ao montar
 	$effect(() => {
@@ -230,37 +340,65 @@
 			fetch(`/api/gise/${gise.id}/documento-assinado/info`)
 				.then(r => r.ok ? r.json() : null)
 				.then(info => {
-					if (info?.existe) documentoAssinadoInfo = info;
-					else documentoAssinadoInfo = null;
+					if (info?.existe) {
+						documentoAssinadoInfo = info;
+						documentosAssinados = info.documentos || {};
+					} else {
+						documentoAssinadoInfo = null;
+						documentosAssinados = {};
+					}
 				})
 				.catch(() => {});
 		}
 	});
 
-	async function assinarSimples() {
+	function abrirModalRubrica(dia: 'sabado' | 'domingo' | 'ambos', tipo: 'simples' | 'webpki' | 'serpro') {
+		diaSendoAssinado = dia;
+		tipoAssinaturaPendente = tipo;
+		showRubricaModal = true;
+	}
+
+	async function confirmarRubrica(dataUrl: string) {
+		rubricaCapturada = dataUrl;
+		showRubricaModal = false;
+		
+		if (tipoAssinaturaPendente === 'simples') {
+			await executarAssinarSimples();
+		} else if (tipoAssinaturaPendente === 'webpki') {
+			await executarAssinarComWebPKI();
+		} else if (tipoAssinaturaPendente === 'serpro') {
+			await executarAssinarComSerpro();
+		}
+	}
+
+	async function executarAssinarSimples() {
+		if (!diaSendoAssinado) return;
 		assinandoSimples = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/assinar-simples`, { method: 'POST' });
-			if (!res.ok) {
-				const err = await res.json();
-				throw new Error(err.error || 'Erro ao confirmar escala');
+			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
+				method: 'POST',
+				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada })
+			});
+			if (r.ok) {
+				const blob = await r.blob();
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				const diaSuffix = diaSendoAssinado === 'ambos' ? '' : `_${diaSendoAssinado}`;
+				a.download = `gise_${gise.data_inicio}${diaSuffix}_confirmada.pdf`;
+				a.click();
+				toaster.success({ title: 'Escala confirmada com sucesso' });
+				await invalidateAll();
+			} else {
+				const j = await r.json();
+				toaster.error({ title: j.error || 'Erro ao assinar' });
 			}
-			const blob = await res.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_confirmada.pdf';
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-			documentoAssinadoInfo = { existe: true, assinante_nome: data.usuario?.nome || 'Supervisor' };
-			toaster.success({ title: 'Escala assinada e PDF gerado!' });
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
+		} catch (err) {
+			toaster.error({ title: 'Erro de conexão' });
 		} finally {
 			assinandoSimples = false;
+			diaSendoAssinado = null;
+			rubricaCapturada = null;
 		}
 	}
 
@@ -284,139 +422,129 @@
 		}
 	}
 
-	async function finalizarEBaixarPdfGise(
-		signerName: string,
-		signerCpf: string,
-		getSignature: (hash: string) => Promise<{ rawSignature: string; certificateBase64: string }>
-	) {
-		etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-		const prepRes = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ signerName, signerCpf })
-		});
-		if (!prepRes.ok) { const err = await prepRes.json(); throw new Error(err.error || 'Erro ao preparar PDF'); }
-		const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, verificationHash } = await prepRes.json();
-
-		const { rawSignature, certificateBase64 } = await getSignature(signedAttrsHashHex);
-
-		etapaAssinatura = 'Finalizando PDF assinado...';
-		const finRes = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash })
-		});
-		if (!finRes.ok) { const err = await finRes.json(); throw new Error(err.error || 'Erro ao finalizar assinatura'); }
-
-		etapaAssinatura = 'Baixando PDF assinado...';
-		const blob = await finRes.blob();
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_assinada.pdf';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-		documentoAssinadoInfo = { existe: true, assinante_nome: signerName, assinante_cpf: signerCpf, data: new Date().toISOString() };
-	}
-
-	async function assinarComWebPKI() {
-		if (certificados.length === 0) {
-			assinando = true;
-			etapaAssinatura = 'Conectando ao Web PKI...';
-			await carregarCertificadosLocais();
-			assinando = false;
-			etapaAssinatura = '';
-			if (certificados.length === 0) return;
-			if (certificados.length > 1) { toaster.warning({ title: 'Selecione um dos certificados carregados' }); return; }
-		}
-		if (!certSelecionado) { toaster.error({ title: 'Selecione um certificado' }); return; }
+	async function executarAssinarComWebPKI() {
+		if (!diaSendoAssinado || !certSelecionado) return;
 		assinando = true;
+		etapaAssinatura = 'Preparando PDF...';
+
 		try {
 			const pki = await initWebPKI();
 			const cert = certificados.find(c => c.thumbprint === certSelecionado);
-			etapaAssinatura = 'Lendo certificado...';
+			
+			const prepResp = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
+				method: 'POST',
+				body: JSON.stringify({
+					signerName: cert?.subjectName ?? serproSignerName,
+					signerCpf: cert?.cpf ?? serproSignerCpf,
+					dia: diaSendoAssinado,
+					rubrica: rubricaCapturada
+				})
+			});
+			if (!prepResp.ok) throw new Error((await prepResp.json()).error);
+			const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, verificationHash } = await prepResp.json();
+
+			etapaAssinatura = 'Lendo certificado e assinando (digite o PIN)...';
 			const certificateBase64 = await lerCertificado(pki, certSelecionado);
-			await finalizarEBaixarPdfGise(
-				cert?.subjectName ?? '',
-				cert?.cpf ?? '',
-				async (hash) => {
-					etapaAssinatura = 'Aguardando assinatura no eToken (digite o PIN)...';
-					const rawSignature = await assinarHash(pki, certSelecionado, hash);
-					return { rawSignature, certificateBase64 };
-				}
-			);
-			toaster.success({ title: 'PDF assinado com sucesso!' });
+			const signature = await assinarHash(pki, certSelecionado, signedAttrsHashHex);
+
+			etapaAssinatura = 'Finalizando...';
+			const finResp = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
+				method: 'POST',
+				body: JSON.stringify({
+					preparedPdf,
+					rawSignature: signature,
+					certificateBase64,
+					messageDigest,
+					signingTimeISO,
+					signerName: cert?.subjectName ?? serproSignerName,
+					signerCpf: cert?.cpf ?? serproSignerCpf,
+					verificationHash,
+					dia: diaSendoAssinado
+				})
+			});
+
+			if (!finResp.ok) throw new Error((await finResp.json()).error);
+			
+			const blob = await finResp.blob();
+			const url = URL.createObjectURL(blob);
+			window.open(url, '_blank');
+
+			toaster.success({ title: 'Escala assinada com sucesso!' });
 			await invalidateAll();
-		} catch (err) {
-			toaster.error({ title: err instanceof Error ? err.message : 'Erro na assinatura' });
+		} catch (err: any) {
+			toaster.error({ title: 'Erro na assinatura Web PKI', description: err.message });
 		} finally {
 			assinando = false;
+			diaSendoAssinado = null;
+			rubricaCapturada = null;
 			etapaAssinatura = '';
 		}
 	}
 
-	async function assinarComSerpro() {
+	async function executarAssinarComSerpro() {
+		if (!diaSendoAssinado) return;
 		assinando = true;
-		etapaAssinatura = 'Conectando ao Assinador SERPRO...';
+		etapaAssinatura = 'Iniciando SERPRO...';
+
 		try {
 			const client = serproClient ?? (await conectarSerpro());
 			serproClient = client;
 
 			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-			const prepRes = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
+			const prepResp = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ signerName: serproSignerName || undefined, signerCpf: serproSignerCpf || undefined })
+				body: JSON.stringify({
+					signerName: serproSignerName,
+					signerCpf: serproSignerCpf,
+					dia: diaSendoAssinado,
+					rubrica: rubricaCapturada
+				})
 			});
-			if (!prepRes.ok) { const err = await prepRes.json(); throw new Error(err.error || 'Erro ao preparar PDF'); }
-			const { preparedPdf, messageDigest: messageDigestHex, verificationHash } = await prepRes.json();
+			if (!prepResp.ok) throw new Error((await prepResp.json()).error);
+			const { preparedPdf, messageDigest: messageDigestHex, verificationHash } = await prepResp.json();
 
 			const messageDigestBase64 = btoa(
 				messageDigestHex.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join('')
 			);
 
-			etapaAssinatura = 'Selecione o certificado e assine no Assinador SERPRO...';
+			etapaAssinatura = 'Assinando no SERPRO...';
 			const result = await client.sign(messageDigestBase64);
 			const serproCms = result.rawSignature;
-			const certName = result.signerAlias?.replace(/:[\d]+$/, '').trim();
-			const certCpfMatch = result.signerAlias?.match(/:([\d]{11})$/);
-			const certCpf = certCpfMatch ? certCpfMatch[1] : '';
 
-			etapaAssinatura = 'Finalizando PDF assinado...';
-			const finRes = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
+			etapaAssinatura = 'Finalizando...';
+			const finResp = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ preparedPdf, serproCms, signerName: certName || serproSignerName, signerCpf: certCpf || serproSignerCpf, verificationHash })
+				body: JSON.stringify({
+					preparedPdf,
+					serproCms,
+					signerName: serproSignerName,
+					signerCpf: serproSignerCpf,
+					verificationHash,
+					dia: diaSendoAssinado
+				})
 			});
-			if (!finRes.ok) { const err = await finRes.json(); throw new Error(err.error || 'Erro ao finalizar assinatura'); }
 
-			etapaAssinatura = 'Baixando PDF assinado...';
-			const blob = await finRes.blob();
+			if (!finResp.ok) throw new Error((await finResp.json()).error);
+			
+			const blob = await finResp.blob();
 			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = finRes.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'gise_assinada.pdf';
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-			documentoAssinadoInfo = { existe: true, assinante_nome: certName || serproSignerName, assinante_cpf: certCpf || serproSignerCpf, data: new Date().toISOString() };
+			window.open(url, '_blank');
 
-			toaster.success({ title: 'PDF assinado com sucesso!' });
+			toaster.success({ title: 'Escala assinada com sucesso!' });
 			await invalidateAll();
-		} catch (err) {
-			toaster.error({ title: err instanceof Error ? err.message : 'Erro no Assinador SERPRO' });
-			serproClient?.disconnect();
-			serproClient = null;
+		} catch (err: any) {
+			toaster.error({ title: 'Erro na assinatura SERPRO', description: err.message });
 		} finally {
 			assinando = false;
+			diaSendoAssinado = null;
+			rubricaCapturada = null;
 			etapaAssinatura = '';
-			serproClient?.disconnect();
-			serproClient = null;
 		}
 	}
+
+	function assinarSimples() { abrirModalRubrica('ambos', 'simples'); }
+	function assinarComWebPKI() { abrirModalRubrica('ambos', 'webpki'); }
+	function assinarComSerpro() { abrirModalRubrica('ambos', 'serpro'); }
 
 	async function finalizarGise() {
 		finalizando = true;
@@ -482,6 +610,15 @@
 	}
 
 	async function salvarDatasHorarios() {
+		const horas = [editHoraEntradaSabado, editHoraSaidaSabado, editHoraEntradaDomingo, editHoraSaidaDomingo];
+		if (horas.some(h => !h)) {
+			toaster.error({ title: 'Preencha todos os horários' });
+			return;
+		}
+		if (horas.some(h => !validarHora(h))) {
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			return;
+		}
 		salvando = true;
 		try {
 			const res = await fetch(`/api/gise/${gise.id}`, {
@@ -490,12 +627,12 @@
 				body: JSON.stringify({
 					data_inicio: editDataInicio,
 					data_fim: editDataFim,
-					hora_entrada: editHoraEntradaSabado,
-					hora_saida: editHoraSaidaSabado,
-					hora_entrada_sabado: editHoraEntradaSabado,
-					hora_saida_sabado: editHoraSaidaSabado,
-					hora_entrada_domingo: editHoraEntradaDomingo,
-					hora_saida_domingo: editHoraSaidaDomingo
+					hora_entrada: normalizarHora(editHoraEntradaSabado),
+					hora_saida: normalizarHora(editHoraSaidaSabado),
+					hora_entrada_sabado: normalizarHora(editHoraEntradaSabado),
+					hora_saida_sabado: normalizarHora(editHoraSaidaSabado),
+					hora_entrada_domingo: normalizarHora(editHoraEntradaDomingo),
+					hora_saida_domingo: normalizarHora(editHoraSaidaDomingo)
 				})
 			});
 			const json = await res.json();
@@ -506,6 +643,73 @@
 				toaster.success({ title: 'Datas/horários atualizados' });
 			}
 			editandoDatasHorarios = false;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+ 
+	function normalizarHora(v: string): string | null {
+		if (!v) return null;
+		return v.replace(/[.,]/g, ':');
+	}
+	function validarHora(v: string): boolean {
+		if (!v) return true;
+		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
+	}
+
+	async function salvarHorariosSec(secId: number) {
+		const horas = [editSecHoraEntSab, editSecHoraSaiSab, editSecHoraEntDom, editSecHoraSaiDom].filter(Boolean);
+		if (horas.some(h => !validarHora(h))) {
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			return;
+		}
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					hora_entrada_sabado: normalizarHora(editSecHoraEntSab),
+					hora_saida_sabado: normalizarHora(editSecHoraSaiSab),
+					hora_entrada_domingo: normalizarHora(editSecHoraEntDom),
+					hora_saida_domingo: normalizarHora(editSecHoraSaiDom)
+				})
+			});
+			if (!res.ok) throw new Error((await res.json()).error);
+			toaster.success({ title: 'Horários da seccional atualizados' });
+			editandoHorariosSecId = null;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+ 
+	async function salvarHorariosEquipe(eqId: number) {
+		const horas = [editEqHoraEntSab, editEqHoraSaiSab, editEqHoraEntDom, editEqHoraSaiDom].filter(Boolean);
+		if (horas.some(h => !validarHora(h))) {
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			return;
+		}
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/equipes/${eqId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					hora_entrada_sabado: normalizarHora(editEqHoraEntSab),
+					hora_saida_sabado: normalizarHora(editEqHoraSaiSab),
+					hora_entrada_domingo: normalizarHora(editEqHoraEntDom),
+					hora_saida_domingo: normalizarHora(editEqHoraSaiDom)
+				})
+			});
+			if (!res.ok) throw new Error((await res.json()).error);
+			toaster.success({ title: 'Horários da equipe atualizados' });
+			editandoHorariosEquipeId = null;
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -558,7 +762,15 @@
 	}
 
 	const podeFinalizar = $derived(isAdminGeral && gise?.status === 'assinada');
-	const podeAssinar = $derived(isSupervisor && gise?.status === 'aguardando_assinatura');
+	const temDiaPendente = $derived(
+		(gise?.supervisor_sabado_id === data.usuarioAtual?.id && !(documentosAssinados.sabado || documentosAssinados.ambos)) ||
+		(gise?.supervisor_domingo_id === data.usuarioAtual?.id && !(documentosAssinados.domingo || documentosAssinados.ambos))
+	);
+	const podeAssinar = $derived(
+		isSupervisor &&
+		(gise?.status === 'aguardando_assinatura' || gise?.status === 'assinada') &&
+		temDiaPendente
+	);
 	// Admin Geral: pode editar sempre (via modal de datas/horários)
 	// Admin Seccional: pode editar exceto quando finalizada (Feature 4: pode alterar mesmo assinada → vira 'retificada')
 	const podeEditar = $derived(
@@ -572,6 +784,9 @@
 	const podeDownload = $derived(
 		(isAdminGeral || isSeccional) &&
 		(gise?.status === 'assinada' || gise?.status === 'finalizada')
+	);
+	const editaBloqueado = $derived(
+		gise?.status === 'assinada' || gise?.status === 'finalizada'
 	);
 
 	function downloadGise(format: string) {
@@ -588,7 +803,7 @@
 	<div class="flex items-start justify-between flex-wrap gap-3">
 		<div>
 			<button
-				class="text-xs text-surface-500 hover:text-primary-500 transition-colors mb-1 flex items-center gap-1"
+				class="text-sm text-surface-500 hover:text-primary-500 transition-colors mb-1 flex items-center gap-1"
 				onclick={() => goto('/gise')}
 			>
 				← Voltar
@@ -598,10 +813,10 @@
 					Escala GISE — {fmtDate(gise.data_inicio)} a {fmtDate(gise.data_fim)}
 				</h1>
 				<div class="flex items-center gap-2 mt-1">
-					<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
+					<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 						{statusLabel(gise.status)}
 					</span>
-					<span class="text-xs text-surface-500">
+					<span class="text-sm text-surface-500">
 						Sáb: {gise.hora_entrada_sabado ?? gise.hora_entrada}h–{gise.hora_saida_sabado ?? gise.hora_saida}h
 						· Dom: {gise.hora_entrada_domingo ?? gise.hora_entrada}h–{gise.hora_saida_domingo ?? gise.hora_saida}h
 					</span>
@@ -609,50 +824,48 @@
 			{/if}
 		</div>
 
-		<div class="flex items-center gap-2 flex-wrap">
+		<div class="flex items-center gap-1.5 flex-wrap">
 			{#if (isAdminGeral || isSeccional) && gise}
-				{#if documentoAssinadoInfo}
-					<a
-						href={`/api/gise/${gise.id}/documento-assinado`}
-						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
-						target="_blank"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-						PDF Assinado
-					</a>
-				{/if}
-				{#if podeDownload}
+					{#if podeDownload}
 					<button
-						class="btn preset-tonal-success text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
+						class="btn preset-outlined-success-500 text-sm px-3 py-1.5 rounded-lg"
 						onclick={() => downloadGise('xlsx')}
 					>
 						Baixar XLSX
 					</button>
+					<button
+						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg"
+						onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=sabado`, '_blank')}
+					>
+						Relatório Extra (Sáb)
+					</button>
+					<button
+						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg"
+						onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=domingo`, '_blank')}
+					>
+						Relatório Extra (Dom)
+					</button>
 				{/if}
-				<button
-					class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl flex items-center gap-1.5"
-					onclick={() => downloadGise('pdf')}
-				>
-					PDF sem Assinatura
-				</button>
 			{/if}
 			{#if isAdminGeral && gise}
 				<button
-					class="btn preset-tonal-primary text-sm px-4 py-2 rounded-xl"
-					onclick={abrirEdicaoDatasHorarios}
-				>
-					Editar Datas/Horários
-				</button>
+				class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+				onclick={abrirEdicaoDatasHorarios}
+				disabled={editaBloqueado}
+			>
+				Editar Datas/Horários
+			</button>
 				<button
-					class="btn preset-tonal-error text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showExcluirGiseConfirm = true)}
-				>
-					Excluir GISE
-				</button>
+				class="btn preset-outlined-error-500 text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+				onclick={() => (showExcluirGiseConfirm = true)}
+				disabled={editaBloqueado}
+			>
+				Excluir GISE
+			</button>
 			{/if}
 			{#if podeReabrir}
 				<button
-					class="btn preset-tonal-warning text-sm px-4 py-2 rounded-xl"
+					class="btn preset-outlined-warning-500 text-sm px-3 py-1.5 rounded-lg"
 					onclick={() => (showReabrirConfirm = true)}
 				>
 					Reabrir para Edição
@@ -660,7 +873,7 @@
 			{/if}
 			{#if podeFinalizar}
 				<button
-					class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
+					class="btn preset-filled-error-500 text-sm px-3 py-1.5 rounded-lg"
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
@@ -674,14 +887,14 @@
 	{:else}
 		<!-- Supervisores -->
 		<div class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5">
-			<div class="flex items-center justify-between mb-3">
+			<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
 				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisores</h2>
 				{#if isAdminGeral && podeEditar && !editandoSupervisores}
 					<button
-						class="text-xs text-primary-600 hover:text-primary-500 transition-colors"
+						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_sabado_id || !gise.supervisor_domingo_id ? 'btn preset-filled-warning-500 animate-pulse' : 'btn preset-outlined-primary-500'}"
 						onclick={() => (editandoSupervisores = true)}
 					>
-						Editar
+						{!gise.supervisor_sabado_id || !gise.supervisor_domingo_id ? 'Definir Supervisores' : 'Editar Supervisores'}
 					</button>
 				{/if}
 			</div>
@@ -689,7 +902,7 @@
 			{#if editandoSupervisores}
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
 					<div>
-						<label for="supSabado" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Sábado (DPC)</label>
+						<label for="supSabado" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Sábado (DPC)</label>
 						<select
 							id="supSabado"
 							bind:value={supSabadoId}
@@ -702,7 +915,7 @@
 						</select>
 					</div>
 					<div>
-						<label for="supDomingo" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Domingo (DPC)</label>
+						<label for="supDomingo" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Domingo (DPC)</label>
 						<select
 							id="supDomingo"
 							bind:value={supDomingoId}
@@ -717,363 +930,137 @@
 				</div>
 				<div class="flex gap-2">
 					<button
-						class="btn preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg"
+						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
 						onclick={salvarSupervisores}
 						disabled={salvando}
 					>
-						{salvando ? 'Salvando...' : 'Salvar'}
+						{#if salvando}<Spinner size="sm" />{/if}
+						{#if salvando}<Spinner size="sm" />{/if}
+					{salvando ? 'Salvando...' : 'Salvar'}
 					</button>
 					<button
-						class="btn preset-tonal-surface text-xs px-3 py-1.5 rounded-lg"
+						class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
 						onclick={() => (editandoSupervisores = false)}
 					>
 						Cancelar
 					</button>
 				</div>
 			{:else}
-				<div class="grid grid-cols-2 gap-4 text-sm">
-					<div>
-						<p class="text-xs text-surface-500 mb-0.5">Sábado</p>
-						<p class="font-medium text-surface-900 dark:text-surface-100">
-							{gise.supervisor_sabado_nome ?? '—'}
-						</p>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+					<!-- Sábado -->
+					<div class="space-y-3">
+						<div class="flex items-center justify-between">
+							<p class="text-sm font-bold text-surface-500 uppercase tracking-wider">Sábado</p>
+							{#if documentosAssinados.sabado || documentosAssinados.ambos}
+								<span class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold">ASSINADA</span>
+							{:else}
+								<span class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold">PENDENTE</span>
+							{/if}
+						</div>
+						
+						<div class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
+							<p class="font-semibold text-surface-900 dark:text-surface-100">{gise.supervisor_sabado_nome ?? 'Não definido'}</p>
+							{#if documentosAssinados.sabado || documentosAssinados.ambos}
+								<div class="mt-2 text-sm text-surface-500 space-y-1">
+									<p>Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium">{(documentosAssinados.sabado || documentosAssinados.ambos).assinante_nome}</span></p>
+									<a href={`/api/gise/${gise.id}/documento-assinado?dia=${documentosAssinados.sabado ? 'sabado' : 'ambos'}`} 
+										target="_blank" class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1">
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+										Baixar PDF Sábado
+									</a>
+								</div>
+							{/if}
+					{#if isAdminGeral || isSeccional}
+						<a href={`/api/gise/${gise.id}/download?format=pdf&dia=sabado`}
+							target="_blank" class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1">
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+							PDF sem Assinatura (Sáb)
+						</a>
+					{/if}
+						</div>
 					</div>
-					<div>
-						<p class="text-xs text-surface-500 mb-0.5">Domingo</p>
-						<p class="font-medium text-surface-900 dark:text-surface-100">
-							{gise.supervisor_domingo_nome ?? '—'}
-						</p>
+
+					<!-- Domingo -->
+					<div class="space-y-3">
+						<div class="flex items-center justify-between">
+							<p class="text-sm font-bold text-surface-500 uppercase tracking-wider">Domingo</p>
+							{#if documentosAssinados.domingo || documentosAssinados.ambos}
+								<span class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold">ASSINADA</span>
+							{:else}
+								<span class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold">PENDENTE</span>
+							{/if}
+						</div>
+						
+						<div class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
+							<p class="font-semibold text-surface-900 dark:text-surface-100">{gise.supervisor_domingo_nome ?? 'Não definido'}</p>
+							{#if documentosAssinados.domingo || documentosAssinados.ambos}
+								<div class="mt-2 text-sm text-surface-500 space-y-1">
+									<p>Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium">{(documentosAssinados.domingo || documentosAssinados.ambos).assinante_nome}</span></p>
+									<a href={`/api/gise/${gise.id}/documento-assinado?dia=${documentosAssinados.domingo ? 'domingo' : 'ambos'}`} 
+										target="_blank" class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1">
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+										Baixar PDF Domingo
+									</a>
+								</div>
+							{/if}
+					{#if isAdminGeral || isSeccional}
+						<a href={`/api/gise/${gise.id}/download?format=pdf&dia=domingo`}
+							target="_blank" class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1">
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+							PDF sem Assinatura (Dom)
+						</a>
+					{/if}
+						</div>
 					</div>
 				</div>
 			{/if}
 		</div>
 
-		<!-- Seccionais -->
-		<div>
-			<h2 class="font-semibold text-surface-900 dark:text-surface-50 mb-3">
-				Seccionais ({gise.seccionais?.length ?? 0})
-			</h2>
-
-			{#each (gise.seccionais ?? []) as sec}
-				<!-- Mostrar só a seccional do Admin Seccional, ou todas para Admin Geral / Supervisor -->
-				{#if isAdminGeral || isSupervisor || sec.seccional_id === minhaSeccionalId}
-					<div class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-hidden">
-						<!-- Cabeçalho da seccional -->
-						<div class="flex items-center justify-between px-5 py-3 bg-surface-100 dark:bg-surface-800">
-							<div class="flex items-center gap-3">
-								<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
-									{sec.seccional_nome}
-								</span>
-								<span class="text-[0.65rem] px-1.5 py-0.5 rounded-full font-bold {sec.status === 'preenchida' ? 'bg-success-500/20 text-success-700 dark:text-success-400' : sec.status === 'retificada' ? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40' : 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}">
-									{sec.status === 'preenchida' ? 'Preenchida' : sec.status === 'retificada' ? 'Finalizada (Retificada)' : 'Pendente'}
-								</span>
-							</div>
-
-							<!-- Finalizar seccional (Admin Seccional) -->
-							{#if (isSeccional && sec.seccional_id === minhaSeccionalId || isAdminGeral) && sec.status === 'pendente' && podeEditar}
-								<button
-									class="text-xs btn preset-tonal-success px-3 py-1 rounded-lg"
-									onclick={() => finalizarSeccional(sec.id)}
-									disabled={salvando}
-								>
-									Finalizar envio
-								</button>
-							{/if}
-						</div>
-
-						<div class="p-5 space-y-4">
-							<!-- Unidade Operacional -->
-							{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
-								<div>
-									<label for="unidadeOperacional" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">
-										Unidade Operacional
-									</label>
-									<div class="flex gap-2">
-										<select
-											id="unidadeOperacional"
-											bind:value={unidadeOperacionalId}
-											class="flex-1 px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-										>
-											<option value={null}>Selecionar unidade...</option>
-											{#each delegacias as u}
-												<option value={u.id}>{u.nome}</option>
-											{/each}
-										</select>
-										<button
-											class="btn preset-filled-primary-500 text-xs px-3 py-1.5 rounded-xl"
-											onclick={() => salvarUnidadeOperacional(sec.id)}
-											disabled={salvando}
-										>
-											Salvar
-										</button>
-									</div>
-								</div>
-							{:else if sec.unidade_operacional_nome}
-								<p class="text-xs text-surface-500">
-									Unidade Operacional: <span class="font-semibold text-surface-900 dark:text-surface-100">{sec.unidade_operacional_nome}</span>
-								</p>
-							{/if}
-
-							<!-- Equipes -->
-							{#each (sec.equipes ?? []) as equipe}
-								<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
-									<div class="flex items-center justify-between mb-3">
-										<div class="flex items-center gap-2">
-											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100 capitalize">
-												Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
-											</span>
-											{#if editandoEquipe === equipe.id}
-												<div class="flex items-center gap-1.5">
-													<label for="edit-dpc-{equipe.id}" class="text-xs text-surface-500">DPC:</label>
-													<input id="edit-dpc-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsDpc}
-														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
-													<label for="edit-oip-{equipe.id}" class="text-xs text-surface-500">OIP:</label>
-													<input id="edit-oip-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsOip}
-														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
-													<button
-														class="btn preset-filled-primary-500 text-xs px-2 py-1 rounded-lg"
-														onclick={() => salvarSlotsEquipe(equipe.id)}
-														disabled={salvando}
-													>Salvar</button>
-													<button
-														class="btn preset-tonal-surface text-xs px-2 py-1 rounded-lg"
-														onclick={() => (editandoEquipe = null)}
-													>×</button>
-												</div>
-											{:else}
-												<span class="text-xs text-surface-500">
-													{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP
-												</span>
-												{#if isAdminGeral && podeEditar}
-													<button
-														class="text-xs text-primary-600 hover:text-primary-500 transition-colors"
-														onclick={() => { editandoEquipe = equipe.id; editSlotsDpc = equipe.slots_dpc; editSlotsOip = equipe.slots_oip; }}
-													>
-														Editar vagas
-													</button>
-												{/if}
-											{/if}
-										</div>
-										{#if isAdminGeral && podeEditar}
-											<button
-												class="text-xs text-error-600 hover:text-error-500"
-												onclick={async () => {
-													const r = await fetch(`/api/gise/${gise.id}/equipes/${equipe.id}`, { method: 'DELETE' });
-													if (r.ok) { toaster.success({ title: 'Equipe removida' }); await invalidateAll(); }
-													else { const j = await r.json(); toaster.error({ title: j.error }); }
-												}}
-											>
-												Remover equipe
-											</button>
-										{/if}
-									</div>
-
-									<!-- Feature 3: Membros separados por dia (sábado/domingo) -->
-									{#if equipe.membros?.length}
-										{@const memsSab = equipe.membros.filter((m: any) => m.dia === 'sabado' || m.dia === 'ambos')}
-										{@const memsDom = equipe.membros.filter((m: any) => m.dia === 'domingo' || m.dia === 'ambos')}
-										<div class="space-y-2 mb-3">
-											<div>
-												<p class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wide mb-1">Sábado</p>
-												{#if memsSab.length}
-													<div class="space-y-1">
-														{#each memsSab as m}
-															<div class="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
-																<div class="flex items-center gap-2">
-																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
-																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-																	{#if m.dia === 'ambos'}<span class="text-[0.55rem] px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
-																</div>
-																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
-																	<button class="text-error-500 hover:text-error-400 transition-colors" onclick={() => removerMembro(m.id)}>×</button>
-																{/if}
-															</div>
-														{/each}
-													</div>
-												{:else}
-													<p class="text-xs text-surface-400 italic">Nenhum escalado</p>
-												{/if}
-											</div>
-											<div>
-												<p class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wide mb-1">Domingo</p>
-												{#if memsDom.length}
-													<div class="space-y-1">
-														{#each memsDom as m}
-															<div class="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
-																<div class="flex items-center gap-2">
-																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
-																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-																	{#if m.dia === 'ambos'}<span class="text-[0.55rem] px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
-																</div>
-																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
-																	<button class="text-error-500 hover:text-error-400 transition-colors" onclick={() => removerMembro(m.id)}>×</button>
-																{/if}
-															</div>
-														{/each}
-													</div>
-												{:else}
-													<p class="text-xs text-surface-400 italic">Nenhum escalado</p>
-												{/if}
-											</div>
-										</div>
-									{:else}
-										<p class="text-xs text-surface-400 italic mb-3">Nenhum membro alocado</p>
-									{/if}
-
-									<!-- Adicionar membro -->
-									{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId))}
-										{#if equipeParaAdicionar === equipe.id}
-											<div class="flex flex-wrap gap-2 items-end">
-												<div class="flex-1 min-w-32">
-													<select
-														bind:value={policialParaAdicionar}
-														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs"
-													>
-														<option value="">Selecionar policial...</option>
-														{#each policiais as p}
-															<option value={p.id}>{p.nome} ({p.cargo} · {p.matricula})</option>
-														{/each}
-													</select>
-												</div>
-												<select
-													bind:value={diaParaAdicionar}
-													class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs"
-												>
-													<option value="ambos">Sáb + Dom</option>
-													<option value="sabado">Só Sáb</option>
-													<option value="domingo">Só Dom</option>
-												</select>
-												<button
-													class="btn preset-filled-primary-500 text-xs px-2 py-1.5 rounded-lg"
-													onclick={() => adicionarMembro(sec.id)}
-													disabled={!policialParaAdicionar || salvando}
-												>Adicionar</button>
-												<button
-													class="btn preset-tonal-surface text-xs px-2 py-1.5 rounded-lg"
-													onclick={() => { equipeParaAdicionar = null; policialParaAdicionar = ''; }}
-												>×</button>
-											</div>
-										{:else}
-											<button
-												class="text-xs text-primary-600 hover:text-primary-500 transition-colors"
-												onclick={() => { equipeParaAdicionar = equipe.id; policialParaAdicionar = ''; }}
-											>
-												+ Adicionar policial
-											</button>
-										{/if}
-									{/if}
-								</div>
-							{/each}
-
-							<!-- Adicionar equipe (Admin Geral) -->
-							{#if isAdminGeral && podeEditar}
-								{#if adicionandoEquipeSec === sec.id}
-									<div class="flex flex-wrap gap-2 items-end mt-3 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600">
-										<div>
-											<label for="novaEquipeTipo-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Tipo</label>
-											<select id="novaEquipeTipo-{sec.id}" bind:value={novaEquipeTipo}
-												onchange={() => { if (novaEquipeTipo === 'operacional') { novaEquipeDpc = 1; novaEquipeOip = 3; } else { novaEquipeDpc = 0; novaEquipeOip = 2; } }}
-												class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs">
-												<option value="operacional">Operacional</option>
-												<option value="seint">SEINT</option>
-											</select>
-										</div>
-										<div>
-											<label for="novaEquipeDpc-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">DPC</label>
-											<input id="novaEquipeDpc-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeDpc}
-												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
-										</div>
-										<div>
-											<label for="novaEquipeOip-{sec.id}" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">OIP</label>
-											<input id="novaEquipeOip-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeOip}
-												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-center" />
-										</div>
-										<button
-											class="btn preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg"
-											onclick={() => adicionarEquipe(sec.id)}
-											disabled={salvando}
-										>Adicionar</button>
-										<button
-											class="btn preset-tonal-surface text-xs px-2 py-1.5 rounded-lg"
-											onclick={() => (adicionandoEquipeSec = null)}
-										>Cancelar</button>
-									</div>
-								{:else}
-									<button
-										class="text-xs text-primary-600 hover:text-primary-500 transition-colors mt-2"
-										onclick={() => { adicionandoEquipeSec = sec.id; novaEquipeTipo = 'operacional'; novaEquipeDpc = 1; novaEquipeOip = 3; }}
-									>
-										+ Adicionar equipe
-									</button>
-								{/if}
-							{/if}
-						</div>
-					</div>
-				{/if}
-			{/each}
-		</div>
-
-		<!-- Banner: Escala Assinada -->
-		{#if documentoAssinadoInfo}
-			<div class="rounded-2xl border-2 border-success-500/30 bg-success-500/10 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-				<div>
-					<h3 class="font-bold text-success-700 dark:text-success-400 flex items-center gap-2">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-						Escala GISE Oficialmente Assinada
-					</h3>
-					<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-						Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ''}</strong>.
-					</p>
-				</div>
-				<div class="flex gap-2">
-					<a
-						href={`/api/gise/${gise.id}/documento-assinado`}
-						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-						target="_blank"
-					>
-						Baixar PDF Assinado
-					</a>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Feature 4: Aviso para Admin Seccional sobre retificação -->
-		{#if isSeccional && minhaSeccional?.status === 'retificada'}
-			<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
-				<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
-				<p class="text-warning-600 dark:text-warning-300 mt-1 text-xs">
-					Você realizou alterações após o envio. A assinatura digital da escala foi revogada.
-					Finalize o envio novamente para prosseguir com a assinatura.
-				</p>
-			</div>
-		{/if}
-
-		<!-- Aviso: Supervisor aguardando seccionais -->
-		{#if isSupervisor && gise.status === 'em_preenchimento'}
-			<div class="rounded-2xl border border-warning-500/30 bg-warning-500/5 p-5 text-center">
-				<p class="text-warning-700 dark:text-warning-400 text-sm font-medium">
-					A escala ainda não está concluída pelas seccionais.
-				</p>
-			</div>
-		{/if}
 
 		<!-- Seção de assinatura (Supervisor) -->
-		{#if podeAssinar && !documentoAssinadoInfo}
-			<div class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5 space-y-4">
-				<!-- Assinatura Simples (Confirmação) -->
-				<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-					<div>
-						<h3 class="font-semibold text-surface-900 dark:text-surface-50">Confirmar Escala GISE</h3>
-						<p class="text-xs text-surface-500 mt-1">Gera um PDF com confirmação administrativa (sem certificado digital).</p>
-					</div>
-					<button
-						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-						disabled={assinandoSimples}
-						onclick={assinarSimples}
-					>
-						{assinandoSimples ? 'Gerando PDF...' : 'Confirmar Escala'}
-					</button>
+		{#if podeAssinar}
+			<div id="secao-assinatura-digital" class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5 space-y-4">
+				<div class="flex items-center gap-2 mb-2">
+					<h3 class="font-bold text-surface-900 dark:text-surface-50">Assinar Escala GISE</h3>
+					{#if diaSendoAssinado}
+						<span class="text-sm px-2 py-0.5 rounded bg-primary-500/20 text-primary-700 dark:text-primary-400 font-bold uppercase transition-all">
+							Dia: {diaSendoAssinado}
+						</span>
+					{/if}
 				</div>
+
+				{#if !diaSendoAssinado}
+					<p class="text-sm font-semibold text-surface-600 dark:text-surface-400 mb-3">Selecione o dia para assinar:</p>
+					<div class="flex gap-3 flex-wrap">
+						{#if gise.supervisor_sabado_id === data.usuarioAtual?.id && !(documentosAssinados.sabado || documentosAssinados.ambos)}
+							<button class="btn preset-filled-primary-500 text-sm px-5 py-2 rounded-xl font-bold"
+								onclick={() => (diaSendoAssinado = 'sabado')}>
+								Assinar Sábado
+							</button>
+						{/if}
+						{#if gise.supervisor_domingo_id === data.usuarioAtual?.id && !(documentosAssinados.domingo || documentosAssinados.ambos)}
+							<button class="btn preset-filled-primary-500 text-sm px-5 py-2 rounded-xl font-bold"
+								onclick={() => (diaSendoAssinado = 'domingo')}>
+								Assinar Domingo
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<!-- Assinatura Simples (Confirmação) -->
+					<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+						<div>
+							<h4 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">Assinar na Tela (Manual)</h4>
+							<p class="text-sm text-surface-500 mt-1">Gera o PDF com sua rubrica manual (validade interna).</p>
+						</div>
+						<button
+							class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+							disabled={assinandoSimples}
+							onclick={() => abrirModalRubrica(diaSendoAssinado!, 'simples')}
+						>
+							{#if assinandoSimples}<Spinner size="sm" />{/if}
+							{assinandoSimples ? 'Gerando PDF...' : `Assinar na Tela (${diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'})`}
+						</button>
+					</div>
 
 				<hr class="border-surface-200 dark:border-surface-700" />
 
@@ -1092,11 +1079,12 @@
 							Leitura de Tokens
 						</h4>
 						<button
-							class="btn text-xs preset-outlined-primary-500 px-3 py-1.5 rounded-lg"
+							class="btn text-sm preset-outlined-primary-500 px-3 py-1.5 rounded-lg"
 							onclick={carregarCertificadosLocais}
 							disabled={lendoCertificados}
 						>
-							{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
+							{#if lendoCertificados}<Spinner size="sm" />{/if}
+						{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
 						</button>
 					</div>
 
@@ -1114,11 +1102,11 @@
 							{/each}
 						</select>
 					{:else if tentouLerCertificados}
-						<p class="text-xs text-error-500 mt-2 bg-error-500/10 p-2 rounded">
+						<p class="text-sm text-error-500 mt-2 bg-error-500/10 p-2 rounded">
 							Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Lacuna Web PKI</strong> está instalada.
 						</p>
 					{:else}
-						<p class="text-xs text-surface-500 mt-1">
+						<p class="text-sm text-surface-500 mt-1">
 							Clique no botão para listar os certificados disponíveis.
 						</p>
 					{/if}
@@ -1127,41 +1115,556 @@
 				<div class="flex gap-2 items-center flex-wrap">
 					<button
 						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-						onclick={assinarComWebPKI}
+						onclick={() => abrirModalRubrica(diaSendoAssinado!, 'webpki')}
 						disabled={assinando || !certSelecionado}
 					>
 						{#if assinando && certificados.length > 0}
 							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 							{etapaAssinatura}
 						{:else}
-							Assinar com Web PKI
+							Assinar {diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'} com Web PKI
 						{/if}
 					</button>
 
 					<button
 						class="btn preset-filled-tertiary-500 text-sm px-4 py-2 rounded-xl"
-						onclick={assinarComSerpro}
+						onclick={() => abrirModalRubrica(diaSendoAssinado!, 'serpro')}
 						disabled={assinando || !certSelecionado}
 					>
 						{#if assinando && serproClient}
 							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 							{etapaAssinatura}
 						{:else}
-							Assinar com SERPRO
+							Assinar {diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'} com SERPRO
 						{/if}
 					</button>
+				</div>
+				{/if}
+			</div>
+		{/if}
 
-					{#if certificados.length > 0 && !assinando}
-						<button
-							class="btn preset-tonal-surface text-xs px-3 py-1.5 rounded-lg"
-							onclick={() => { certificados = []; certSelecionado = ''; tentouLerCertificados = false; }}
-						>
-							Limpar lista
-						</button>
-					{/if}
+		<!-- Seccionais -->
+		<div>
+			<h2 class="font-semibold text-surface-900 dark:text-surface-50 mb-3">
+				Seccionais ({gise.seccionais?.length ?? 0})
+			</h2>
+
+			{#each (gise.seccionais ?? []) as sec}
+				<!-- Mostrar só a seccional do Admin Seccional, ou todas para Admin Geral / Supervisor -->
+				{#if isAdminGeral || isSupervisor || sec.seccional_id === minhaSeccionalId}
+					<div class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-hidden">
+						<!-- Cabeçalho da seccional -->
+						<div class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 bg-surface-100 dark:bg-surface-800">
+							<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+								<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
+									{sec.seccional_nome}
+								</span>
+								<span class="text-sm px-1.5 py-0.5 rounded-full font-bold {sec.status === 'preenchida' || sec.status === 'preenchida_retificada' ? 'bg-success-500/20 text-success-700 dark:text-success-400' : sec.status === 'retificada' ? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40' : 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}">
+									{sec.status === 'preenchida' ? 'Preenchida' : sec.status === 'preenchida_retificada' ? 'Preenchida (Retificada)' : sec.status === 'retificada' ? 'Preenchida (Retificada)' : 'Pendente'}
+								</span>
+															{#if editandoHorariosSecId === sec.id}
+								<div class="flex flex-wrap items-center gap-2">
+									<span class="text-sm font-semibold opacity-50 uppercase">Sáb:</span>
+									<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEntSab && !validarHora(editSecHoraEntSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraEntSab} />
+									<span class="opacity-30">-</span>
+									<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSaiSab && !validarHora(editSecHoraSaiSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraSaiSab} />
+									<span class="opacity-30 mx-1">|</span>
+									<span class="text-sm font-semibold opacity-50 uppercase">Dom:</span>
+									<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEntDom && !validarHora(editSecHoraEntDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraEntDom} />
+									<span class="opacity-30">-</span>
+									<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSaiDom && !validarHora(editSecHoraSaiDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraSaiDom} />
+									<button class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded" onclick={() => salvarHorariosSec(sec.id)}>✓</button>
+									<button class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded" onclick={() => (editandoHorariosSecId = null)}>×</button>
+								</div>
+							{:else}
+								<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
+									<span>Sáb: {sec.hora_entrada_sabado ?? gise.hora_entrada_sabado}h-{sec.hora_saida_sabado ?? gise.hora_saida_sabado}h</span>
+									<span class="opacity-30">|</span>
+									<span>Dom: {sec.hora_entrada_domingo ?? gise.hora_entrada_domingo}h-{sec.hora_saida_domingo ?? gise.hora_saida_domingo}h</span>
+									{#if (sec.hora_entrada_sabado || sec.hora_saida_sabado || sec.hora_entrada_domingo || sec.hora_saida_domingo)}
+										<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">PERSONALIZADO</span>
+									{/if}
+								</div>
+								{#if isAdminGeral && podeEditar}
+									<button
+										class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
+										onclick={() => {
+											editandoHorariosSecId = sec.id;
+											editSecHoraEntSab = sec.hora_entrada_sabado ?? gise.hora_entrada_sabado ?? '';
+											editSecHoraSaiSab = sec.hora_saida_sabado ?? gise.hora_saida_sabado ?? '';
+											editSecHoraEntDom = sec.hora_entrada_domingo ?? gise.hora_entrada_domingo ?? '';
+											editSecHoraSaiDom = sec.hora_saida_domingo ?? gise.hora_saida_domingo ?? '';
+										}}
+									>Editar Horários</button>
+								{/if}
+							{/if}
+							</div>
+
+							<!-- Finalizar seccional (Admin Seccional) -->
+							<div class="flex items-center gap-2">
+								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && !modoEdicaoSeccional}
+									<button
+										class="text-sm btn preset-outlined-primary-500 px-3 py-1 rounded-lg"
+										onclick={() => (modoEdicaoSeccional = true)}
+									>Editar</button>
+								{/if}
+								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && modoEdicaoSeccional}
+									<button
+										class="text-sm btn preset-outlined-surface px-3 py-1 rounded-lg"
+										onclick={() => { modoEdicaoSeccional = false; editandoUnidade = false; equipeParaAdicionar = null; cargoParaAdicionar = null; }}
+									>Fechar Edição</button>
+								{/if}
+								{#if (isSeccional && sec.seccional_id === minhaSeccionalId || isAdminGeral) && (sec.status === 'pendente' || sec.status === 'retificada') && podeEditar}
+									<button
+										class="text-sm btn preset-outlined-success-500 px-3 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+										onclick={() => finalizarSeccional(sec.id)}
+										disabled={salvando || !sec.unidade_operacional_id || !(sec.equipes ?? []).some(eq => (eq.membros ?? []).length > 0)}
+										title={!sec.unidade_operacional_id ? 'Preencha a unidade operacional antes de finalizar' : !(sec.equipes ?? []).some(eq => (eq.membros ?? []).length > 0) ? 'Adicione pelo menos 1 policial antes de finalizar' : ''}
+									>
+										{#if salvando}<Spinner size="xs" />{/if} {sec.status === 'retificada' ? 'Confirmar retificação' : 'Finalizar envio'}
+									</button>
+								{/if}
+								{#if isAdminGeral && podeEditar}
+									<button
+										class="text-sm btn preset-outlined-error-500 px-2 py-1 rounded-lg flex items-center gap-1"
+										onclick={() => removerSeccional(sec.id)}
+										disabled={salvando}
+										title="Excluir seccional desta escala"
+									>
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+										Excluir
+									</button>
+								{/if}
+								{#if podeDownload}
+									<div class="flex flex-wrap items-center gap-1 self-center border-l border-surface-300 dark:border-surface-600 pl-2 ml-1">
+										<!-- Sábado -->
+										<button
+											class="text-[0.6rem] font-bold btn preset-tonal-success text-success-700 dark:text-success-400 px-2 py-1 rounded-lg disabled:opacity-40"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!sec.temRespostasSabado}
+											title={!sec.temRespostasSabado ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Sábado'}
+										>
+											Resultados Sáb {!sec.temRespostasSabado ? '(aguardando preenchimento)' : ''}
+										</button>
+										<button
+											class="text-[0.6rem] font-bold btn preset-tonal-primary text-primary-700 dark:text-primary-400 px-2 py-1 rounded-lg disabled:opacity-40"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!checkAllSigned(sec, 'sabado')}
+											title={!checkAllSigned(sec, 'sabado') ? getFaltandoRubrica(sec, 'sabado') : 'Baixar Relatório de Sábado'}
+										>
+											Relat. Extra Sáb {!checkAllSigned(sec, 'sabado') ? '(aguardando assinatura)' : ''}
+										</button>
+
+										<div class="w-px h-4 bg-surface-300 dark:bg-surface-600 mx-1 hidden md:block"></div>
+
+										<!-- Domingo -->
+										<button
+											class="text-[0.6rem] font-bold btn preset-tonal-success text-success-700 dark:text-success-400 px-2 py-1 rounded-lg disabled:opacity-40"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!sec.temRespostasDomingo}
+											title={!sec.temRespostasDomingo ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Domingo'}
+										>
+											Resultados Dom {!sec.temRespostasDomingo ? '(aguardando preenchimento)' : ''}
+										</button>
+										<button
+											class="text-[0.6rem] font-bold btn preset-tonal-primary text-primary-700 dark:text-primary-400 px-2 py-1 rounded-lg disabled:opacity-40"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!checkAllSigned(sec, 'domingo')}
+											title={!checkAllSigned(sec, 'domingo') ? getFaltandoRubrica(sec, 'domingo') : 'Baixar Relatório de Domingo'}
+										>
+											Relat. Extra Dom {!checkAllSigned(sec, 'domingo') ? '(aguardando assinatura)' : ''}
+										</button>
+									</div>
+								{/if}
+							</div>
+						</div>
+
+						<div class="p-5 space-y-4">
+							<!-- Unidade Operacional -->
+							{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && modoEdicaoSeccional}
+								<div>
+									<label class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+										Unidade Operacional
+									</label>
+									{#if sec.unidade_operacional_nome && !editandoUnidade}
+										<!-- Modo exibição -->
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">{sec.unidade_operacional_nome}</span>
+											<button
+												class="btn preset-outlined-primary-500 text-sm px-3 py-1 rounded-xl"
+												onclick={() => (editandoUnidade = true)}
+											>
+												Editar
+											</button>
+										</div>
+									{:else}
+										<!-- Modo edição -->
+										<div class="flex flex-wrap gap-2">
+											<select
+												id="unidadeOperacional"
+												bind:value={unidadeOperacionalId}
+												class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+											>
+												<option value={null}>Selecionar unidade...</option>
+												{#each delegacias as u}
+													<option value={u.id}>{u.nome}</option>
+												{/each}
+											</select>
+											<div class="flex gap-2 shrink-0">
+												<button
+													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl"
+													onclick={() => salvarUnidadeOperacional(sec.id)}
+													disabled={salvando}
+												>
+													Salvar
+												</button>
+												{#if sec.unidade_operacional_nome}
+													<button
+														class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl"
+														onclick={() => (editandoUnidade = false)}
+													>
+														Cancelar
+													</button>
+												{/if}
+											</div>
+										</div>
+									{/if}
+								</div>
+							{:else if sec.unidade_operacional_nome}
+								<p class="text-sm text-surface-500">
+									Unidade Operacional: <span class="font-semibold text-surface-900 dark:text-surface-100">{sec.unidade_operacional_nome}</span>
+								</p>
+							{/if}
+
+							<!-- Equipes -->
+							{#each (sec.equipes ?? []) as equipe}
+								<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+									<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
+										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100 capitalize">
+												Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
+											</span>
+											{#if editandoEquipe === equipe.id}
+												<div class="flex items-center gap-1.5">
+													<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-500">DPC:</label>
+													<input id="edit-dpc-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsDpc}
+														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center" />
+													<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500">OIP:</label>
+													<input id="edit-oip-{equipe.id}" type="number" min="0" max="20" bind:value={editSlotsOip}
+														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center" />
+													<button
+														class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg"
+														onclick={() => salvarSlotsEquipe(equipe.id)}
+														disabled={salvando}
+													>Salvar</button>
+													<button
+														class="btn preset-outlined-surface text-sm px-2 py-1 rounded-lg"
+														onclick={() => (editandoEquipe = null)}
+													>×</button>
+												</div>
+											{:else}
+												<span class="text-sm text-surface-500">
+													{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP
+												</span>
+												{#if editandoHorariosEquipeId === equipe.id}
+													<div class="flex flex-wrap items-center gap-2">
+														<span class="text-sm font-semibold opacity-50 uppercase">Sáb:</span>
+														<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEntSab && !validarHora(editEqHoraEntSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraEntSab} />
+														<span class="opacity-30">-</span>
+														<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSaiSab && !validarHora(editEqHoraSaiSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraSaiSab} />
+														<span class="opacity-30 mx-1">|</span>
+														<span class="text-sm font-semibold opacity-50 uppercase">Dom:</span>
+														<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEntDom && !validarHora(editEqHoraEntDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraEntDom} />
+														<span class="opacity-30">-</span>
+														<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSaiDom && !validarHora(editEqHoraSaiDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraSaiDom} />
+														<button class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded" onclick={() => salvarHorariosEquipe(equipe.id)}>✓</button>
+														<button class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded" onclick={() => (editandoHorariosEquipeId = null)}>×</button>
+													</div>
+												{:else}
+													<div class="flex items-center gap-1.5 text-sm text-surface-400 font-medium ml-2">
+													<span>Sáb: {equipe.hora_entrada_sabado ?? sec.hora_entrada_sabado ?? gise.hora_entrada_sabado}h-{equipe.hora_saida_sabado ?? sec.hora_saida_sabado ?? gise.hora_saida_sabado}h</span>
+													<span class="opacity-30">|</span>
+													<span>Dom: {equipe.hora_entrada_domingo ?? sec.hora_entrada_domingo ?? gise.hora_entrada_domingo}h-{equipe.hora_saida_domingo ?? sec.hora_saida_domingo ?? gise.hora_saida_domingo}h</span>
+													{#if (equipe.hora_entrada_sabado || equipe.hora_saida_sabado || equipe.hora_entrada_domingo || equipe.hora_saida_domingo)}
+														<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase">Horário Equipe</span>
+													{/if}
+												</div>
+													{#if isAdminGeral && podeEditar}
+														<button
+															class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
+															onclick={() => {
+																editandoHorariosEquipeId = equipe.id;
+																editEqHoraEntSab = equipe.hora_entrada_sabado ?? sec.hora_entrada_sabado ?? gise.hora_entrada_sabado ?? '';
+																editEqHoraSaiSab = equipe.hora_saida_sabado ?? sec.hora_saida_sabado ?? gise.hora_saida_sabado ?? '';
+																editEqHoraEntDom = equipe.hora_entrada_domingo ?? sec.hora_entrada_domingo ?? gise.hora_entrada_domingo ?? '';
+																editEqHoraSaiDom = equipe.hora_saida_domingo ?? sec.hora_saida_domingo ?? gise.hora_saida_domingo ?? '';
+															}}
+														>Editar Horários</button>
+													{/if}
+												{/if}
+												{#if isAdminGeral && podeEditar}
+													<button
+														class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+														onclick={() => { editandoEquipe = equipe.id; editSlotsDpc = equipe.slots_dpc; editSlotsOip = equipe.slots_oip; }}
+													>
+														Editar vagas
+													</button>
+												{/if}
+											{/if}
+										</div>
+										{#if isAdminGeral && podeEditar}
+											<button
+												class="text-sm text-error-600 hover:text-error-500 p-1"
+												onclick={async () => {
+													const r = await fetch(`/api/gise/${gise.id}/equipes/${equipe.id}`, { method: 'DELETE' });
+													if (r.ok) { toaster.success({ title: 'Equipe removida' }); await invalidateAll(); }
+													else { const j = await r.json(); toaster.error({ title: j.error }); }
+												}}
+											>
+												Remover equipe
+											</button>
+										{/if}
+									</div>
+
+									<!-- Feature 3: Membros separados por dia (sábado/domingo) -->
+									{#if equipe.membros?.length}
+										{@const memsSab = equipe.membros.filter((m: any) => m.dia === 'sabado' || m.dia === 'ambos')}
+										{@const memsDom = equipe.membros.filter((m: any) => m.dia === 'domingo' || m.dia === 'ambos')}
+										<div class="space-y-2 mb-3">
+											<div>
+												<p class="text-sm font-bold text-surface-500 uppercase tracking-wide mb-1">Sábado</p>
+												{#if memsSab.length}
+													<div class="space-y-1">
+														{#each memsSab as m}
+															<div class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
+																<div class="flex items-center gap-2">
+																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
+																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+																	{#if m.dia === 'ambos'}<span class="text-sm px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
+																</div>
+																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && modoEdicaoSeccional))}
+																	<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
+																{/if}
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<p class="text-sm text-surface-400 italic">Nenhum escalado</p>
+												{/if}
+											</div>
+											<div>
+												<p class="text-sm font-bold text-surface-500 uppercase tracking-wide mb-1">Domingo</p>
+												{#if memsDom.length}
+													<div class="space-y-1">
+														{#each memsDom as m}
+															<div class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
+																<div class="flex items-center gap-2">
+																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
+																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+																	{#if m.dia === 'ambos'}<span class="text-sm px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
+																</div>
+																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && modoEdicaoSeccional))}
+																	<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
+																{/if}
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<p class="text-sm text-surface-400 italic">Nenhum escalado</p>
+												{/if}
+											</div>
+										</div>
+									{:else}
+										<p class="text-sm text-surface-400 italic mb-3">Nenhum membro alocado</p>
+									{/if}
+
+									<!-- Adicionar membro -->
+									{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && modoEdicaoSeccional))}
+										{#if equipeParaAdicionar === equipe.id}
+											<div class="flex flex-wrap gap-2 items-end">
+												<div class="flex-1 min-w-32">
+													<select
+														bind:value={policialParaAdicionar}
+														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+													>
+														<option value="">Selecionar {cargoParaAdicionar}...</option>
+														{#each policiais.filter(p => p.cargo === cargoParaAdicionar) as p}
+															<option value={p.id}>{p.nome} ({p.matricula})</option>
+														{/each}
+													</select>
+												</div>
+												<select
+													bind:value={diaParaAdicionar}
+													class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+												>
+													<option value="ambos">Sáb + Dom</option>
+													<option value="sabado">Só Sáb</option>
+													<option value="domingo">Só Dom</option>
+												</select>
+												<button
+													class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
+													onclick={() => adicionarMembro(sec.id)}
+													disabled={!policialParaAdicionar || salvando}
+												>Adicionar</button>
+												<button
+													class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
+													onclick={() => { equipeParaAdicionar = null; policialParaAdicionar = ''; cargoParaAdicionar = null; }}
+												>×</button>
+											</div>
+										{:else}
+											<div class="flex gap-3">
+												<button
+													class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+													onclick={() => { equipeParaAdicionar = equipe.id; cargoParaAdicionar = 'OIP'; policialParaAdicionar = ''; }}
+												>
+													+ Adicionar OIP
+												</button>
+												{#if equipe.slots_dpc > 0}
+													<button
+														class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+														onclick={() => { equipeParaAdicionar = equipe.id; cargoParaAdicionar = 'DPC'; policialParaAdicionar = ''; }}
+													>
+														+ Adicionar DPC
+													</button>
+												{/if}
+											</div>
+										{/if}
+									{/if}
+								</div>
+							{/each}
+
+							<!-- Adicionar equipe (Admin Geral) -->
+							{#if isAdminGeral && podeEditar}
+								{#if adicionandoEquipeSec === sec.id}
+									<div class="flex flex-wrap gap-2 items-end mt-3 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600">
+										<div>
+											<label for="novaEquipeTipo-{sec.id}" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Tipo</label>
+											<select id="novaEquipeTipo-{sec.id}" bind:value={novaEquipeTipo}
+												onchange={() => { if (novaEquipeTipo === 'operacional') { novaEquipeDpc = 1; novaEquipeOip = 3; } else { novaEquipeDpc = 0; novaEquipeOip = 2; } }}
+												class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm">
+												<option value="operacional">Operacional</option>
+												<option value="seint">SEINT</option>
+											</select>
+										</div>
+										<div>
+											<label for="novaEquipeDpc-{sec.id}" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">DPC</label>
+											<input id="novaEquipeDpc-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeDpc}
+												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center" />
+										</div>
+										<div>
+											<label for="novaEquipeOip-{sec.id}" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">OIP</label>
+											<input id="novaEquipeOip-{sec.id}" type="number" min="0" max="20" bind:value={novaEquipeOip}
+												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center" />
+										</div>
+										<button
+											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+											onclick={() => adicionarEquipe(sec.id)}
+											disabled={salvando}
+										>Adicionar</button>
+										<button
+											class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
+											onclick={() => (adicionandoEquipeSec = null)}
+										>Cancelar</button>
+									</div>
+								{:else}
+									<button
+										class="text-sm text-primary-600 hover:text-primary-500 transition-colors mt-2"
+										onclick={() => { adicionandoEquipeSec = sec.id; novaEquipeTipo = 'operacional'; novaEquipeDpc = 1; novaEquipeOip = 3; }}
+									>
+										+ Adicionar equipe
+									</button>
+								{/if}
+							{/if}
+						</div>
+					</div>
+				{/if}
+			{/each}
+
+			{#if isAdminGeral && podeEditar}
+				{#if adicionandoSeccional}
+					<div class="mt-4 p-5 rounded-2xl border border-dashed border-primary-500/50 bg-primary-500/5 flex flex-wrap items-end gap-3">
+						<div class="flex-1 min-w-[200px]">
+							<label for="novaSeccional" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Adicionar Seccional</label>
+							<select
+								id="novaSeccional"
+								bind:value={seccionalParaAdicionarIdx}
+								class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+							>
+								<option value="">Selecione a seccional...</option>
+								{#each seccionaisDisponiveis as s}
+									<option value={s.id}>{s.nome}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="flex gap-2">
+							<button
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+								onclick={adicionarSeccional}
+								disabled={!seccionalParaAdicionarIdx || salvando}
+							>
+								{salvando ? 'Adicionando...' : 'Confirmar'}
+							</button>
+							<button
+								class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
+								onclick={() => (adicionandoSeccional = false)}
+							>
+								Cancelar
+							</button>
+						</div>
+					</div>
+				{:else}
+					<button
+						class="btn preset-outlined-primary-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
+						onclick={buscarSeccionaisDisponiveis}
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+						Adicionar Seccional
+					</button>
+				{/if}
+			{/if}
+		</div>
+
+		<!-- Banner: Escala Assinada -->
+		{#if documentoAssinadoInfo}
+			<div class="rounded-2xl border-2 border-success-500/30 bg-success-500/10 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+				<div>
+					<h3 class="font-bold text-success-700 dark:text-success-400 flex items-center gap-2">
+						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+						Escala GISE Assinada
+					</h3>
+					<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
+						{#if documentosAssinados.sabado && documentosAssinados.domingo}
+							Escala totalmente assinada (Sábado e Domingo).
+						{:else if documentosAssinados.ambos}
+							Escala assinada (formato unificado).
+						{:else}
+							Aguardando assinatura do supervisor restante.
+						{/if}
+					</p>
 				</div>
 			</div>
 		{/if}
+
+		<!-- Feature 4: Aviso para Admin Seccional sobre retificação -->
+		{#if isSeccional && minhaSeccional?.status === 'retificada'}
+			<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
+				<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
+				<p class="text-warning-600 dark:text-warning-300 mt-1 text-sm">
+					Você realizou alterações após o envio. A assinatura digital da escala foi revogada.
+					Finalize o envio novamente para prosseguir com a assinatura.
+				</p>
+			</div>
+		{/if}
+
+		<!-- Aviso: Supervisor aguardando seccionais -->
+		{#if isSupervisor && gise.status === 'em_preenchimento'}
+			<div class="rounded-2xl border border-warning-500/30 bg-warning-500/5 p-5 text-center">
+				<p class="text-warning-700 dark:text-warning-400 text-sm font-medium">
+					A escala ainda não está concluída pelas seccionais.
+				</p>
+			</div>
+		{/if}
+
 	{/if}
 </div>
 
@@ -1171,54 +1674,56 @@
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Datas e Horários</h2>
 			{#if gise?.status === 'assinada' || gise?.status === 'finalizada'}
-				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-xs text-warning-700 dark:text-warning-400">
+				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-sm text-warning-700 dark:text-warning-400">
 					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
 				</div>
 			{/if}
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="editDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
+					<label for="editDataInicio" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
 					<input id="editDataInicio" type="date" bind:value={editDataInicio}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 				</div>
 				<div>
-					<label for="editDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
+					<label for="editDataFim" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
 					<input id="editDataFim" type="date" bind:value={editDataFim}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 				</div>
 			</div>
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
+				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="editHoraEntradaSabado" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="editHoraEntradaSabado" type="number" min="0" max="23" bind:value={editHoraEntradaSabado}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+						<label for="editHoraEntradaSabado" class="text-sm text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="editHoraEntradaSabado" type="text" placeholder="Ex: 08:00" bind:value={editHoraEntradaSabado}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntradaSabado && !validarHora(editHoraEntradaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
-						<label for="editHoraSaidaSabado" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="editHoraSaidaSabado" type="number" min="0" max="23" bind:value={editHoraSaidaSabado}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+						<label for="editHoraSaidaSabado" class="text-sm text-surface-500 block mb-1">Saída (h)</label>
+						<input id="editHoraSaidaSabado" type="text" placeholder="Ex: 16:00" bind:value={editHoraSaidaSabado}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaidaSabado && !validarHora(editHoraSaidaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
+				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
 			</div>
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
+				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="editHoraEntradaDomingo" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="editHoraEntradaDomingo" type="number" min="0" max="23" bind:value={editHoraEntradaDomingo}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+						<label for="editHoraEntradaDomingo" class="text-sm text-surface-500 block mb-1">Entrada (h)</label>
+						<input id="editHoraEntradaDomingo" type="text" placeholder="Ex: 08:00" bind:value={editHoraEntradaDomingo}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntradaDomingo && !validarHora(editHoraEntradaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
-						<label for="editHoraSaidaDomingo" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="editHoraSaidaDomingo" type="number" min="0" max="23" bind:value={editHoraSaidaDomingo}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
+						<label for="editHoraSaidaDomingo" class="text-sm text-surface-500 block mb-1">Saída (h)</label>
+						<input id="editHoraSaidaDomingo" type="text" placeholder="Ex: 16:00" bind:value={editHoraSaidaDomingo}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaidaDomingo && !validarHora(editHoraSaidaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
+				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
 			</div>
 			<div class="flex justify-end gap-3">
-				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (editandoDatasHorarios = false)}>Cancelar</button>
+				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (editandoDatasHorarios = false)}>Cancelar</button>
 				<button class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl" onclick={salvarDatasHorarios} disabled={salvando}>
 					{salvando ? 'Salvando...' : 'Salvar'}
 				</button>
@@ -1236,8 +1741,9 @@
 				Esta ação é <strong>irreversível</strong>. Todos os dados desta escala GISE serão permanentemente removidos, incluindo equipes, membros e assinatura digital.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button>
+				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button>
 				<button class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl" onclick={excluirGise} disabled={excluindo}>
+					{#if excluindo}<Spinner size="sm" />{/if}
 					{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
 				</button>
 			</div>
@@ -1255,7 +1761,7 @@
 				Será necessário que as seccionais reenviem e o supervisor assine novamente.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showReabrirConfirm = false)}>
+				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showReabrirConfirm = false)}>
 					Cancelar
 				</button>
 				<button
@@ -1263,6 +1769,7 @@
 					onclick={reabrirEscala}
 					disabled={reabrindo}
 				>
+					{#if reabrindo}<Spinner size="sm" />{/if}
 					{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
 				</button>
 			</div>
@@ -1279,7 +1786,7 @@
 				A escala será marcada como <strong>Finalizada</strong> e o sistema criará automaticamente a escala do próximo final de semana.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button class="btn preset-tonal-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showFinalizarConfirm = false)}>
+				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showFinalizarConfirm = false)}>
 					Cancelar
 				</button>
 				<button
@@ -1287,9 +1794,29 @@
 					onclick={finalizarGise}
 					disabled={finalizando}
 				>
+					{#if finalizando}<Spinner size="sm" />{/if}
 					{finalizando ? 'Finalizando...' : 'Confirmar'}
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+{#if showRubricaModal}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-lg p-8 space-y-6 border border-white/10">
+			<div class="text-center space-y-2">
+				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Rubrica do Supervisor</h2>
+				<p class="text-sm text-surface-500">Desenhe sua rubrica no quadro abaixo para assinar a escala de <span class="font-bold text-primary-500 uppercase">{diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'}</span>.</p>
+			</div>
+
+			<SignaturePad 
+				onConfirm={confirmarRubrica} 
+				onCancel={() => (showRubricaModal = false)} 
+			/>
+			
+			<p class="text-sm text-surface-400 text-center italic">
+				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
+			</p>
 		</div>
 	</div>
 {/if}

@@ -5,6 +5,7 @@ import {
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as QRCode from 'qrcode';
 import type { Escala, EscalaPolicialComDados } from './types';
 
 interface DiaPlantao {
@@ -775,8 +776,11 @@ export interface GisePdfData {
 	hora_saida: string;
 	status: string;
 	supervisor_sabado_nome: string | null;
+	supervisor_sabado_matricula: string | null;
 	supervisor_domingo_nome: string | null;
+	supervisor_domingo_matricula: string | null;
 	seccionais: Array<{
+		seccional_id: number;
 		seccional_nome: string;
 		unidade_operacional_nome: string | null;
 		status: string;
@@ -788,10 +792,17 @@ export interface GisePdfData {
 				policial_nome: string;
 				policial_cargo: string;
 				policial_matricula: string;
+				policial_telefone: string | null;
+				policial_lotacao: string;
 				dia: string;
 			}>;
 		}>;
 	}>;
+	documentos: {
+		sabado: { rubrica?: string | null; verificacao_hash?: string | null } | null;
+		domingo: { rubrica?: string | null; verificacao_hash?: string | null } | null;
+		ambos?: { rubrica?: string | null; verificacao_hash?: string | null } | null;
+	};
 }
 
 function diaLabelPdf(dia: string): string {
@@ -800,22 +811,44 @@ function diaLabelPdf(dia: string): string {
 	return 'Sáb + Dom';
 }
 
-export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
+function fmtHoraGise(h: any): string {
+	const n = parseInt(String(h ?? ''));
+	if (isNaN(n)) return String(h ?? '');
+	return `${String(n).padStart(2, '0')}:00`;
+}
+
+export function gerarPdfGise(gise: GisePdfData, dia?: 'sabado' | 'domingo'): PdfExportResult {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 
+	const titulo = dia ? `ESCALA GISE - ${dia.toUpperCase()}` : 'ESCALA GISE';
 	doc.setFontSize(14);
-	doc.text('ESCALA GISE', pageWidth / 2, 12, { align: 'center' });
+	doc.text(titulo, pageWidth / 2, 12, { align: 'center' });
+
+	let periodoText = `Período: ${formatarData(gise.data_inicio)} (Sábado) a ${formatarData(gise.data_fim)} (Domingo)`;
+	if (dia === 'sabado') {
+		const hEnt = (gise as any).hora_entrada_sabado || gise.hora_entrada;
+		const hSai = (gise as any).hora_saida_sabado || gise.hora_saida;
+		periodoText = `Data: ${formatarData(gise.data_inicio)} (Sábado)  —  Horário: ${hEnt}h às ${hSai}h`;
+	} else if (dia === 'domingo') {
+		const hEnt = (gise as any).hora_entrada_domingo || gise.hora_entrada;
+		const hSai = (gise as any).hora_saida_domingo || gise.hora_saida;
+		periodoText = `Data: ${formatarData(gise.data_fim)} (Domingo)  —  Horário: ${hEnt}h às ${hSai}h`;
+	} else {
+		periodoText += `  —  Horário Médio: ${gise.hora_entrada}h às ${gise.hora_saida}h`;
+	}
 
 	doc.setFontSize(10);
-	doc.text(
-		`Período: ${formatarData(gise.data_inicio)} (Sábado) a ${formatarData(gise.data_fim)} (Domingo)  —  Horário: ${gise.hora_entrada}h às ${gise.hora_saida}h`,
-		pageWidth / 2, 19, { align: 'center' }
-	);
+	doc.text(periodoText, pageWidth / 2, 19, { align: 'center' });
 
 	doc.setFontSize(9);
-	doc.text(`Supervisor Sábado: ${gise.supervisor_sabado_nome ?? '—'}`, 10, 26);
-	doc.text(`Supervisor Domingo: ${gise.supervisor_domingo_nome ?? '—'}`, 155, 26);
+	if (!dia || dia === 'sabado') {
+		doc.text(`Supervisor Sábado: ${gise.supervisor_sabado_nome ?? '—'}`, 10, 26);
+	}
+	if (!dia || dia === 'domingo') {
+		const labelX = dia === 'domingo' ? 10 : 155;
+		doc.text(`Supervisor Domingo: ${gise.supervisor_domingo_nome ?? '—'}`, labelX, 26);
+	}
 
 	let y = 32;
 
@@ -824,7 +857,11 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 
 		doc.setFontSize(11);
 		doc.setFont('helvetica', 'bold');
-		doc.text(`${sec.seccional_nome}`, 10, y);
+		const secHoraSab = (sec as any).hora_entrada_sabado ? `${(sec as any).hora_entrada_sabado}h-${(sec as any).hora_saida_sabado}h` : null;
+		const secHoraDom = (sec as any).hora_entrada_domingo ? `${(sec as any).hora_entrada_domingo}h-${(sec as any).hora_saida_domingo}h` : null;
+		const secHorariosText = secHoraSab || secHoraDom ? ` (H. ${secHoraSab ?? gise.hora_entrada + 'h-' + gise.hora_saida + 'h'} Sáb / ${secHoraDom ?? gise.hora_entrada + 'h-' + gise.hora_saida + 'h'} Dom)` : '';
+		
+		doc.text(`${sec.seccional_nome}${secHorariosText}`, 10, y);
 		if (sec.unidade_operacional_nome) {
 			doc.setFontSize(8);
 			doc.setFont('helvetica', 'normal');
@@ -833,40 +870,66 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 		} else {
 			y += 4;
 		}
-
+ 
 		for (const equipe of sec.equipes) {
 			if (y > 175) { doc.addPage(); y = 15; }
+ 
+			const eqHoraSab = (equipe as any).hora_entrada_sabado ? `${(equipe as any).hora_entrada_sabado}h-${(equipe as any).hora_saida_sabado}h` : null;
+			const eqHoraDom = (equipe as any).hora_entrada_domingo ? `${(equipe as any).hora_entrada_domingo}h-${(equipe as any).hora_saida_domingo}h` : null;
+			const eqHorariosText = eqHoraSab || eqHoraDom ? ` (H. ${eqHoraSab ?? secHoraSab ?? gise.hora_entrada + 'h-' + gise.hora_saida + 'h'} Sáb / ${eqHoraDom ?? secHoraDom ?? gise.hora_entrada + 'h-' + gise.hora_saida + 'h'} Dom)` : '';
 
-			const tipoLabel = equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT';
-			const tableData = equipe.membros.map(m => [
-				m.policial_nome,
-				m.policial_matricula,
-				m.policial_cargo,
-				diaLabelPdf(m.dia)
-			]);
+			const tipoLabel = (equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT') + eqHorariosText;
+			const membrosFiltrados = dia 
+				? equipe.membros.filter(m => m.dia === dia || m.dia === 'ambos')
+				: equipe.membros;
+
+			const tableData = membrosFiltrados.map(m => {
+				const diaMembro = m.dia === 'ambos' ? (dia || 'sabado') : m.dia;
+				const dataEfetiva = diaMembro === 'sabado' ? gise.data_inicio : gise.data_fim;
+				
+				const hEnt = (equipe as any)[`hora_entrada_${diaMembro}`] || (sec as any)[`hora_entrada_${diaMembro}`] || (gise as any)[`hora_entrada_${diaMembro}`] || gise.hora_entrada;
+				const hSai = (equipe as any)[`hora_saida_${diaMembro}`] || (sec as any)[`hora_saida_${diaMembro}`] || (gise as any)[`hora_saida_${diaMembro}`] || gise.hora_saida;
+
+				return [
+					m.policial_nome,
+					m.policial_cargo,
+					m.policial_matricula,
+					m.policial_telefone || '—',
+					m.policial_lotacao,
+					formatarData(dataEfetiva),
+					fmtHoraGise(hEnt),
+					formatarData(dataEfetiva),
+					fmtHoraGise(hSai)
+				];
+			});
 
 			if (tableData.length === 0) {
-				tableData.push(['(sem membros alocados)', '', '', '']);
+				tableData.push(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
 			}
 
 			autoTable(doc, {
-				head: [[`Equipe ${tipoLabel} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`, 'Matrícula', 'Cargo', 'Dia']],
+				head: [['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']],
 				body: tableData,
 				startY: y,
 				theme: 'grid',
 				headStyles: {
 					fillColor: equipe.tipo === 'operacional' ? [26, 92, 87] : [59, 59, 118],
 					textColor: 255,
-					fontSize: 8,
+					fontSize: 7.5,
 					fontStyle: 'bold',
 					halign: 'center'
 				},
-				bodyStyles: { fontSize: 8 },
+				bodyStyles: { fontSize: 7.5 },
 				columnStyles: {
-					0: { cellWidth: 70 },
-					1: { halign: 'center', cellWidth: 30 },
-					2: { halign: 'center', cellWidth: 20 },
-					3: { halign: 'center', cellWidth: 30 }
+					0: { cellWidth: 55 },
+					1: { halign: 'center', cellWidth: 15 },
+					2: { halign: 'center', cellWidth: 25 },
+					3: { halign: 'center', cellWidth: 25 },
+					4: { cellWidth: 70 },
+					5: { halign: 'center', cellWidth: 23 },
+					6: { halign: 'center', cellWidth: 15 },
+					7: { halign: 'center', cellWidth: 23 },
+					8: { halign: 'center', cellWidth: 15 }
 				},
 				margin: { left: 10, right: 10 }
 			});
@@ -893,7 +956,267 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 	const giseSigCenterX = pageWidth * 0.75;
 	doc.line(giseSigCenterX - 45, giseSigY, giseSigCenterX + 45, giseSigY);
 	doc.setFontSize(8);
-	doc.text('Supervisor GISE / assinado digitalmente', giseSigCenterX, giseSigY + 5, { align: 'center' });
+	const sigLabel = dia ? `Supervisor GISE (${dia === 'sabado' ? 'Sábado' : 'Domingo'}) / assinado digitalmente` : 'Supervisor GISE / assinado digitalmente';
+	doc.text(sigLabel, giseSigCenterX, giseSigY + 5, { align: 'center' });
+
 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: giseSigY };
+}
+
+export interface GiseProdutividadeData {
+	gise: any;
+	seccional: any;
+	dia: 'sabado' | 'domingo';
+	supervisorDoc?: any;
+	baseUrl?: string;
+	respostas?: any[];
+}
+
+export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) {
+	const { gise, seccional, dia, respostas = [] } = data;
+	const doc = new jsPDF('p', 'mm', 'a4');
+	const margin = 15;
+	const pageWidth = doc.internal.pageSize.getWidth();
+	let y = 20;
+
+	// Cabeçalho
+	doc.setFont('helvetica', 'bold');
+	doc.setFontSize(14);
+	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	y += 7;
+	doc.setFontSize(12);
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', pageWidth / 2, y, { align: 'center' });
+	y += 10;
+	
+	doc.setFontSize(14);
+	doc.text('RELATÓRIO DE PRODUTIVIDADE GISE', pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	// Info Escala
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	doc.text(`Escala: ${formatarData(gise.data_inicio)} a ${formatarData(gise.data_fim)}`, margin, y);
+	doc.text(`Dia: ${dia.toUpperCase()}`, pageWidth - margin, y, { align: 'right' });
+	y += 5;
+	doc.text(`Seccional: ${seccional.seccional_nome || seccional.nome}`, margin, y);
+	y += 10;
+
+	if (respostas.length === 0) {
+		doc.setFont('helvetica', 'italic');
+		doc.text('Nenhum dado de produtividade preenchido para este período.', margin, y);
+	} else {
+		// Group responses by team
+		const teams = seccional.equipes || [];
+		
+		for (const team of teams) {
+			const teamResponses = respostas.filter(r => r.equipe_id === team.id);
+			if (teamResponses.length === 0) continue;
+
+			// Equipe Header
+			doc.setFont('helvetica', 'bold');
+			doc.setFillColor(245, 245, 245);
+			doc.rect(margin, y, pageWidth - 2 * margin, 8, 'F');
+			doc.text(`EQUIPE: ${team.tipo === 'operacional' ? 'OPERACIONAL' : 'SEINT'}`, margin + 2, y + 6);
+			y += 12;
+
+			// Table for answers
+			const rows = teamResponses.map(r => [r.pergunta, r.resposta]);
+			
+			autoTable(doc, {
+				startY: y,
+				head: [['Pergunta', 'Resposta']],
+				body: rows,
+				margin: { left: margin, right: margin },
+				theme: 'grid',
+				styles: { fontSize: 9, cellPadding: 3 },
+				headStyles: { fillColor: [60, 60, 60], textColor: 255 },
+				columnStyles: {
+					0: { cellWidth: 100 },
+					1: { cellWidth: 'auto' }
+				}
+			});
+
+			y = (doc as any).lastAutoTable.finalY + 15;
+
+			// New page if y is too high
+			if (y > doc.internal.pageSize.getHeight() - 30) {
+				doc.addPage();
+				y = 20;
+			}
+		}
+	}
+
+	// Footer: Data e Local
+	const now = new Date();
+	const dataExtenso = `${now.getDate()} de ${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][now.getMonth()]} de ${now.getFullYear()}`;
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	doc.text(`Gerado em: ${dataExtenso}`, margin, doc.internal.pageSize.getHeight() - 10);
+
+	return doc;
+}
+
+export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, dia: 'sabado' | 'domingo', presencas: any[], seccionalId?: number, baseUrl?: string): Promise<PdfExportResult> {
+	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+	const pageWidth = 297;
+	const margin = 10;
+
+	// Header
+	let y = 14;
+	doc.setFontSize(11);
+	doc.setFont('helvetica', 'bold');
+	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	doc.setFontSize(10);
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	const primeiraSec = gise.seccionais.find(s => s.seccional_id === seccionalId)?.seccional_nome || gise.seccionais[0]?.seccional_nome || '';
+	doc.text(`${primeiraSec.toUpperCase()}`, pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	doc.setFontSize(12);
+	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO', pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	// Período
+	const dataEfetiva = dia === 'sabado' ? gise.data_inicio : gise.data_fim;
+	const dataSaidaEfetiva = dataEfetiva;
+	
+	const hEnt = (gise as any)[`hora_entrada_${dia}`] || gise.hora_entrada;
+	const hSai = (gise as any)[`hora_saida_${dia}`] || gise.hora_saida;
+
+	// Cálculo real de horas para o cabeçalho
+	let hEntNum = parseInt(hEnt.split(':')[0]);
+	let hSaiNum = parseInt(hSai.split(':')[0]);
+	let diff = hSaiNum - hEntNum;
+	if (diff <= 0) diff += 24;
+
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	const textoData = `DATA: das ${hEnt} de ${formatarData(dataEfetiva)} às ${hSai} horas de ${formatarData(dataSaidaEfetiva)} (${diff} horas)`;
+	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	doc.text('BREVE RELATÓRIO:', margin, y);
+	y += 5;
+	doc.setFont('helvetica', 'bold');
+	const boxY = y;
+	doc.rect(margin, boxY, pageWidth - 20, 15);
+	const relatorioTexto = 'EM RAZÃO DE SERVIÇO EXTRAORDINÁRIO (GISE) OS SERVIDORES ABAIXO RELACIONADOS RECEBERÃO GRATIFICAÇÃO NA FORMA DE DIÁRIAS DE REFORÇO OPERACIONAL.';
+	const splitText = doc.splitTextToSize(relatorioTexto, pageWidth - 30);
+	doc.text(splitText, margin + 5, boxY + 7);
+	y += 25;
+
+	// Tabela
+	const allMembros: any[] = [];
+	for (const sec of gise.seccionais) {
+		if (seccionalId && sec.seccional_id !== seccionalId) continue;
+		for (const eq of sec.equipes) {
+			for (const m of eq.membros) {
+				if (m.dia === dia || m.dia === 'ambos') {
+					const pres = presencas.find(p => p.policial_id === (m as any).policial_id && p.dia === dia);
+					allMembros.push({ ...m, seccional: sec.seccional_nome, presenca: pres });
+				}
+			}
+		}
+	}
+
+	const tableData = allMembros.map(m => [
+		m.policial_nome,
+		m.policial_cargo,
+		m.policial_matricula,
+		m.policial_classe || '',
+		m.policial_lotacao || m.seccional,
+		`${formatarData(dataEfetiva)}\n${(m as any).presenca?.entrada_timestamp ? new Date((m as any).presenca.entrada_timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : ''}`,
+		{ content: '', image: (m as any).presenca?.entrada_rubrica },
+		`${formatarData(dataEfetiva)}\n${(m as any).presenca?.saida_timestamp ? new Date((m as any).presenca.saida_timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : ''}`,
+		{ content: '', image: (m as any).presenca?.saida_rubrica }
+	]);
+
+
+	autoTable(doc, {
+		head: [['NOME COMPLETO', 'CARGO', 'MATRÍCULA', 'CLASSE', 'LOTAÇÃO', 'HORA DE INÍCIO', 'RUBRICA', 'HORA DE SAÍDA', 'RUBRICA']],
+		body: tableData,
+		startY: y,
+		theme: 'grid',
+		margin: { left: margin, right: margin },
+		styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', minCellHeight: 16 },
+		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
+		didDrawCell: (data) => {
+			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
+				const imgData = (data.cell.raw as any).image;
+				if (imgData) {
+					const targetW = data.cell.width - 4;
+					const targetH = targetW / 2; // Ratio 2:1 do SignaturePad
+					const xPos = data.cell.x + 2;
+					const yPos = data.cell.y + (data.cell.height - targetH) / 2;
+					doc.addImage(imgData, 'PNG', xPos, yPos, targetW, targetH);
+				}
+			}
+		},
+		columnStyles: {
+			0: { halign: 'left', cellWidth: 70 },
+			1: { cellWidth: 15 },
+			2: { cellWidth: 25 },
+			3: { cellWidth: 15 },
+			4: { cellWidth: 42 },
+			5: { cellWidth: 25 },
+			6: { cellWidth: 30 },
+			7: { cellWidth: 25 },
+			8: { cellWidth: 30 }
+		}
+	});
+
+	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	let sigY = lastY + 30;
+	if (sigY > 180) { doc.addPage(); sigY = 30; }
+
+	// Footer
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	const cidade = gise.seccionais[0]?.seccional_nome.split('-')[1]?.trim() || 'Iguatu';
+	doc.text(`${cidade}/CE, ${formatarData(dataEfetiva)}.`, pageWidth - margin, sigY - 15, { align: 'right' });
+
+	const supervisorDoc = dia === 'sabado' ? (gise.documentos.sabado || gise.documentos.ambos) : (gise.documentos.domingo || gise.documentos.ambos);
+	const supervisorNome = dia === 'sabado' ? gise.supervisor_sabado_nome : gise.supervisor_domingo_nome;
+	const sigCenterX = pageWidth / 2;
+
+	if (supervisorDoc?.rubrica) {
+		const rW = 40;
+		const rH = 15;
+		doc.addImage(supervisorDoc.rubrica, 'PNG', sigCenterX - (rW / 2), sigY - rH - 2, rW, rH);
+	}
+
+	// QR Code para validação
+	if (supervisorDoc?.verificacao_hash && baseUrl) {
+		try {
+			const qrUrl = `${baseUrl}/validar/${supervisorDoc.verificacao_hash}`;
+			const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1 });
+			const qrSize = 22;
+			const qrX = margin;
+			const qrY = 210 - margin - qrSize - 5;
+			doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+			doc.setFontSize(6);
+			doc.setFont('helvetica', 'normal');
+			doc.text('Aponte a câmera do', qrX, qrY + qrSize + 2.5);
+			doc.text('celular para validar', qrX, qrY + qrSize + 5);
+			doc.setFont('helvetica', 'bold');
+			doc.text(`COD.: ${supervisorDoc.verificacao_hash}`, qrX, qrY + qrSize + 8);
+		} catch (err) {
+			console.error('Erro ao gerar QR Code para relatório extra:', err);
+		}
+	}
+
+	doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
+	doc.setFont('helvetica', 'bold');
+	const supervisorMatricula = dia === 'sabado' ? gise.supervisor_sabado_matricula : gise.supervisor_domingo_matricula;
+	const sigText = `${supervisorNome?.toUpperCase() || ''}${supervisorMatricula ? ` - Mat.: ${supervisorMatricula}` : ''}`;
+	doc.text(sigText, sigCenterX, sigY + 5, { align: 'center' });
+	doc.setFont('helvetica', 'normal');
+	doc.setFontSize(9);
+	doc.text('Delegado Supervisor / assinado digitalmente', sigCenterX, sigY + 10, { align: 'center' });
+
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
 }

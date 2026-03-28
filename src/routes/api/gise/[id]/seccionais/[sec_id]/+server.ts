@@ -23,6 +23,7 @@ import {
 	verificarGiseCompleta,
 	atualizarGiseEscala,
 	excluirGiseEquipe,
+	excluirGiseSeccional,
 	criarGiseEquipe,
 	verificarSlotEquipe,
 	verificarConflitoMembroGise
@@ -71,7 +72,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		equipes,
 		adicionar_membro,
 		remover_membro_id,
-		adicionar_equipe
+		adicionar_equipe,
+		hora_entrada_sabado,
+		hora_saida_sabado,
+		hora_entrada_domingo,
+		hora_saida_domingo
 	} = body as {
 		unidade_operacional_id?: number | null;
 		supervisor_sabado_id?: number | null;
@@ -80,10 +85,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		adicionar_membro?: { equipe_id: number; policial_id: number; dia?: 'sabado' | 'domingo' | 'ambos' };
 		remover_membro_id?: number;
 		adicionar_equipe?: { tipo: 'operacional' | 'seint'; slots_dpc: number; slots_oip: number };
+		hora_entrada_sabado?: string | null;
+		hora_saida_sabado?: string | null;
+		hora_entrada_domingo?: string | null;
+		hora_saida_domingo?: string | null;
 	};
 
 	// Feature 4: Detectar se esta seccional já estava 'preenchida' e está sendo alterada
-	const seccionalJaPreenchida = sec.status === 'preenchida' || sec.status === 'retificada';
+	const seccionalJaPreenchida = sec.status === 'preenchida' || sec.status === 'retificada' || sec.status === 'preenchida_retificada';
 	let revogouAssinatura = false;
 
 	if (seccionalJaPreenchida && isAdminSeccional(u)) {
@@ -108,9 +117,19 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		}
 	}
 
-	// Atualizar unidade operacional
-	if (unidade_operacional_id !== undefined) {
-		await atualizarGiseSeccional(db, secId, { unidade_operacional_id });
+	// Atualizar unidade operacional e horários customizados
+	if (unidade_operacional_id !== undefined || 
+		hora_entrada_sabado !== undefined || hora_saida_sabado !== undefined ||
+		hora_entrada_domingo !== undefined || hora_saida_domingo !== undefined) {
+		
+		const secUpdate: any = {};
+		if (unidade_operacional_id !== undefined) secUpdate.unidade_operacional_id = unidade_operacional_id;
+		if (hora_entrada_sabado !== undefined) secUpdate.hora_entrada_sabado = hora_entrada_sabado;
+		if (hora_saida_sabado !== undefined) secUpdate.hora_saida_sabado = hora_saida_sabado;
+		if (hora_entrada_domingo !== undefined) secUpdate.hora_entrada_domingo = hora_entrada_domingo;
+		if (hora_saida_domingo !== undefined) secUpdate.hora_saida_domingo = hora_saida_domingo;
+		
+		await atualizarGiseSeccional(db, secId, secUpdate);
 	}
 
 	// Supervisor: apenas Admin Seccional ou Admin Geral podem definir (DPC obrigatório)
@@ -227,8 +246,9 @@ export const POST: RequestHandler = async ({ locals, params, request, platform }
 		return json({ error: 'Sem permissão para esta seccional' }, { status: 403 });
 	}
 
-	// Marcar seccional como preenchida
-	await atualizarGiseSeccional(db, secId, { status: 'preenchida' });
+	// Marcar seccional como preenchida (mantém histórico de retificação)
+	const novoStatus = sec.status === 'retificada' ? 'preenchida_retificada' : 'preenchida';
+	await atualizarGiseSeccional(db, secId, { status: novoStatus });
 
 	// Verificar se todas as seccionais estão preenchidas (pendente ou retificada = não preenchida)
 	const todasPreenchidas = await verificarGiseCompleta(db, giseId);
@@ -238,4 +258,53 @@ export const POST: RequestHandler = async ({ locals, params, request, platform }
 	}
 
 	return json({ ok: true, gise_status: 'em_preenchimento' });
+};
+
+export const DELETE: RequestHandler = async ({ locals, params, platform }: any) => {
+	const u = locals.usuario;
+	const giseId = parseInt(params.id);
+	const secId = parseInt(params.sec_id);
+
+	if (!u || !isAdminGeral(u)) {
+		return json({ error: 'Somente administradores gerais podem excluir seccionais de uma escala' }, { status: 403 });
+	}
+
+	const db = getDB(platform);
+
+	// Verificar se a seccional pertence à GISE
+	const sec = await db
+		.select({ id: giseSeccionais.id })
+		.from(giseSeccionais)
+		.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
+		.get();
+
+	if (!sec) {
+		return json({ error: 'Seccional não encontrada nesta escala' }, { status: 404 });
+	}
+
+	await excluirGiseSeccional(db, secId);
+
+	// Se a escala estava aguardando assinatura ou assinada, pode ser necessário voltar para em_preenchimento
+	// ou apenas invalidar as assinaturas se a estrutura mudou drasticamente.
+	// Por segurança, vamos remover assinaturas se existirem.
+	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+
+	// Feature: Re-verificar se a GISE está completa após a exclusão da seccional.
+	// Se houver seccionais restantes e todas estiverem finalizadas, o status deve ser 'aguardando_assinatura'.
+	// Se não sobrarem seccionais, volta para 'em_preenchimento'.
+	const seccionaisRestantes = await db
+		.select({ id: giseSeccionais.id })
+		.from(giseSeccionais)
+		.where(eq(giseSeccionais.gise_id, giseId))
+		.all();
+
+	let novoStatus: 'em_preenchimento' | 'aguardando_assinatura' = 'em_preenchimento';
+	if (seccionaisRestantes.length > 0) {
+		const todasPreenchidas = await verificarGiseCompleta(db, giseId);
+		if (todasPreenchidas) novoStatus = 'aguardando_assinatura';
+	}
+
+	await atualizarGiseEscala(db, giseId, { status: novoStatus });
+
+	return json({ ok: true, gise_status: novoStatus });
 };
