@@ -1,4 +1,33 @@
 /**
+ * Formata uma data no formato "YYYY-MM-DD" para "DD/MM/YYYY".
+ */
+export function formatarData(dateStr: string): string {
+	if (!dateStr) return '';
+	const [year, month, day] = dateStr.split('-');
+	return `${day}/${month}/${year}`;
+}
+
+/**
+ * Retorna a data do dia seguinte no formato "YYYY-MM-DD".
+ */
+export function proximoDia(dateStr: string): string {
+	const d = new Date(dateStr + 'T00:00:00');
+	d.setDate(d.getDate() + 1);
+	return d.toISOString().split('T')[0];
+}
+
+/**
+ * Formata uma data por extenso. Ex: "01 de Janeiro de 2025".
+ */
+export function formatarDataExtenso(date: Date): string {
+	const d = date.getDate();
+	const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+	const m = meses[date.getMonth()];
+	const a = date.getFullYear();
+	return `${String(d).padStart(2, '0')} de ${m} de ${a}`;
+}
+
+/**
  * Remove pontos e hifens da matrícula para padronização.
  * Ex: "301.095-1-1" -> "30109511"
  */
