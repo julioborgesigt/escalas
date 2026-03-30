@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { toaster } from "$lib/toast";
 	import {
 		initWebPKI,
@@ -46,7 +47,7 @@
 
 	// SERPRO – nome/CPF pré-preenchidos com dados do usuário; sobrescritos pelo certificado selecionado
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(usuario?.nome ?? "");
+	let serproSignerName = $state(untrack(() => usuario?.nome ?? ""));
 	let serproSignerCpf = $state("");
 
 	// === Funções utilitárias ===
