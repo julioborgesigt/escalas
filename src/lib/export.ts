@@ -7,30 +7,11 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as QRCode from 'qrcode';
 import type { Escala, EscalaPolicialComDados } from './types';
+import { formatarData, proximoDia, formatarDataExtenso } from './utils';
 
 interface DiaPlantao {
 	data: string;
 	policiais: EscalaPolicialComDados[];
-}
-
-function formatarData(dateStr: string): string {
-	if (!dateStr) return '';
-	const [year, month, day] = dateStr.split('-');
-	return `${day}/${month}/${year}`;
-}
-
-function formatarDataExtenso(date: Date): string {
-	const d = date.getDate();
-	const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-	const m = meses[date.getMonth()];
-	const a = date.getFullYear();
-	return `${String(d).padStart(2, '0')} de ${m} de ${a}`;
-}
-
-function proximoDia(dateStr: string): string {
-	const d = new Date(dateStr + 'T00:00:00');
-	d.setDate(d.getDate() + 1);
-	return d.toISOString().split('T')[0];
 }
 
 function getHoraEntrada(p: EscalaPolicialComDados, escala: Escala): string {
