@@ -1,6 +1,7 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	
+	import { formatarData } from '$lib/utils';
+
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
 		assinante_cpf?: string;
@@ -23,11 +24,7 @@
 		return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 	}
 
-	function formatarData(dateStr: string) {
-		if (!dateStr) return '-';
-		const [y, m, d] = dateStr.split('-');
-		return `${d}/${m}/${y}`;
-	}
+
 </script>
 
 <svelte:head>

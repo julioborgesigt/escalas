@@ -6,6 +6,7 @@
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
+	import { formatarData } from '$lib/utils';
 
 
 	let escalas = $state<EscalaListagem[]>([]);
@@ -63,11 +64,6 @@
 		{ value: 10, label: 'Outubro' }, { value: 11, label: 'Novembro' }, { value: 12, label: 'Dezembro' }
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
-
-	function formatarData(dateStr: string): string {
-		const [year, month, day] = dateStr.split('-');
-		return `${day}/${month}/${year}`;
-	}
 
 	async function carregar() {
 		if (isAdmin && !filtroLotacao) {
