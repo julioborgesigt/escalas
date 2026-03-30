@@ -3,7 +3,7 @@ import { getDB, buscarEscala, salvarDocumentoEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
 import type { RequestEvent } from '@sveltejs/kit';
 
-export const POST = async ({ platform, params, request, locals }: RequestEvent) => {
+export const POST = async ({ platform, params, request, locals, getClientAddress }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
 	const usuario = locals.usuario;
@@ -13,13 +13,16 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
+
 	const escala = await buscarEscala(db, escalaId);
 	if (!escala) {
 		return json({ error: 'Escala não encontrada' }, { status: 404 });
 	}
 
 	const body = await request.json();
-	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms, signerName, signerCpf, verificationHash } = body;
+	const { preparedPdf, rawSignature, certificateBase64, messageDigest, signingTimeISO, serproCms, signerName, signerCpf, verificationHash, latitude, longitude } = body;
 
 	if (!preparedPdf) {
 		return json({ error: 'preparedPdf é obrigatório' }, { status: 400 });
@@ -54,11 +57,12 @@ export const POST = async ({ platform, params, request, locals }: RequestEvent) 
 		}
 
 		// Salva o PDF no Cloudflare R2 e registra no banco
-		if (p?.env?.escalas_docs) {
+		const env = p?.env as any;
+		if (env?.escalas_docs) {
 			const r2Key = `escala_${escalaId}_assinada.pdf`;
 			try {
-				await p.env.escalas_docs.put(r2Key, signedPdf);
-				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '', verificationHash);
+				await env.escalas_docs.put(r2Key, signedPdf);
+				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '', verificationHash, ip, ua, latitude, longitude);
 			} catch (err) {
 				console.error('[finalizar-assinatura] Erro ao salvar no R2 ou BD:', err);
 			}

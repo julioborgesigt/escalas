@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
-import { getDB, buscarGiseDetalhado, listarPoliciais, isSupervisorGiseAtiva } from '$lib/db';
+import { getDB, buscarGiseDetalhado, listarPoliciais, isSupervisorGiseAtiva, buscarAssinaturasRelatoriosGise } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { unidades, policiais } from '$lib/server/schema';
 import { eq, asc, inArray, or, and } from 'drizzle-orm';
@@ -54,14 +54,16 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		}
 
 		const todasUnidades = await db.select().from(unidades).orderBy(asc(unidades.nome));
+		const assinaturasRelatorios = await buscarAssinaturasRelatoriosGise(db, id);
 
 		return {
 			gise,
 			policiais: policiaisListResult,
 			todasUnidades,
-			papelGise: isGeral ? 'admin_geral' : isSeccional ? 'admin_seccional' : 'supervisor',
-			minhaSeccionalId: u.papel_unidade_id ?? null,
-			usuarioAtual: { nome: u.nome, id: u.id }
+			assinaturasRelatorios,
+			papelGise: isGeral ? 'admin_geral' : (isSeccional ? 'admin_seccional' : (isSupervisor ? 'supervisor' : 'policial')),
+			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
+			usuarioAtual: u
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e; // re-throw SvelteKit errors

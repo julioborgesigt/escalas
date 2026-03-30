@@ -759,45 +759,58 @@ export async function adicionarRodapeSimples(
 	const lastPage = pages[pages.length - 1];
 	const { width, height: pageHeight } = lastPage.getSize();
 
-	// --- Posicionamento simplificado ---
-	const marginX = 25;
-	const bottomY = 15; // 15mm do fundo do PDF (pdf-lib usa 0 no fundo)
+	// --- Posicionamento simplificado (conversão mm para pontos) ---
+	const mmToPts = 2.8346;
+	const marginX = 20 * mmToPts; // 20mm
+	const bottomY = 15 * mmToPts; // 15mm do fundo do PDF
+
 	const dataHora = formatarDataHora();
 
-	// Rubrica
-	if (rubricBase64) {
-		try {
-			const rubricImage = await pdfDoc.embedPng(rubricBase64);
-			const rubW = 130; // Aumentado novamente
-			const rubH = (rubricImage.height / rubricImage.width) * rubW;
-			
-			const rx = customRubricX !== undefined ? customRubricX : width - rubW - marginX;
-			const ry = customRubricY !== undefined ? customRubricY : bottomY + 20;
+	const cBlack = rgb(0, 0, 0);
+	const cDark = rgb(0.05, 0.08, 0.22);
+	const cGray = rgb(0.40, 0.40, 0.45);
 
-			lastPage.drawImage(rubricImage, {
-				x: rx,
-				y: ry,
-				width: rubW,
-				height: rubH,
-				opacity: 0.85
+	// 1 — QR Code (com fundo branco)
+	const qrSize = 35; // Aumentado para melhor visibilidade
+	const qrX = marginX;
+	const qrY = bottomY - 5; // Centralizado verticalmente com o texto
+
+	if (verificationUrl) {
+		try {
+			// Usando errorCorrectionLevel H (mais robusto para câmeras)
+			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
+			const moduleCount = qr.modules.size;
+			const dotSize = qrSize / moduleCount;
+			
+			// Fundo branco sutil
+			lastPage.drawRectangle({ 
+				x: qrX - 2, y: qrY - 2, 
+				width: qrSize + 4, height: qrSize + 4, 
+				color: rgb(1, 1, 1) 
 			});
-		} catch (err) {
-			console.error('Erro ao embutir rubrica no rodape simples:', err);
+			
+			for (let row = 0; row < moduleCount; row++) {
+				for (let col = 0; col < moduleCount; col++) {
+					if (qr.modules.get(row, col)) {
+						lastPage.drawRectangle({
+							x: qrX + col * dotSize,
+							y: qrY + (moduleCount - row - 1) * dotSize,
+							width: dotSize + 0.1, height: dotSize + 0.1, 
+							color: cBlack // Preto puro para máximo contraste
+						});
+					}
+				}
+			}
+		} catch (err: any) {
+			console.error('Erro ao gerar QR Code para rodape simples:', err);
 		}
 	}
 
-	const cDark = rgb(0.05, 0.08, 0.22);
-	const cBlue = rgb(0.18, 0.32, 0.72);
-	const cGray = rgb(0.40, 0.40, 0.45);
+	const textX = marginX + qrSize + 10;
 
-	// 1 — Mensagem principal solicitada pelo usuário
-	lastPage.drawText('Assinatura digital simples - Validade interna', {
-		x: marginX, y: bottomY + 12, size: 7, font: fontBold, color: cBlue
-	});
-
-	// 2 — Informações do assinante
+	// 2 — Informações do assinante - Padrão solicitado pelo usuário
 	lastPage.drawText(`Confirmado eletronicamente por: ${assinante.toUpperCase()}`, {
-		x: marginX, y: bottomY + 6, size: 6.5, font, color: cDark
+		x: textX, y: qrY + 24, size: 8.5, font: fontBold, color: cDark
 	});
 
 	// 3 — Data e validadores
@@ -806,12 +819,13 @@ export async function adicionarRodapeSimples(
 		infoLine += `  |  Código: ${verificationHash}`;
 	}
 	lastPage.drawText(infoLine, {
-		x: marginX, y: bottomY, size: 6, font, color: cGray
+		x: textX, y: qrY + 12, size: 7, font, color: cGray
 	});
 
 	if (verificationUrl) {
-		lastPage.drawText(`Verificar em: ${verificationUrl.replace('https://', '')}`, {
-			x: marginX, y: bottomY - 5, size: 5, font, color: cGray
+		const cleanUrl = verificationUrl.replace('https://', '').replace('http://', '');
+		lastPage.drawText(`Verificar em: ${cleanUrl}`, {
+			x: textX, y: qrY + 4, size: 7, font, color: cGray
 		});
 	}
 

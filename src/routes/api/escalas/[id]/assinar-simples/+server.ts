@@ -5,7 +5,7 @@ import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
 import type { RequestEvent } from '@sveltejs/kit';
 
-export const POST = async ({ platform, params, locals, url }: RequestEvent) => {
+export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
 	const usuario = locals.usuario;
@@ -31,6 +31,11 @@ export const POST = async ({ platform, params, locals, url }: RequestEvent) => {
 
 	// Formatar data/hora no fuso de Brasília (usado internamente se necessário)
 	// No entanto, o adicionarRodapeSimples agora gera sua própria dataHoraFormatada.
+
+	const { latitude, longitude } = await request.json().catch(() => ({ latitude: null, longitude: null }));
+	
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
 
 	try {
 		// Gerar o PDF da escala correto conforme o tipo
@@ -61,8 +66,8 @@ export const POST = async ({ platform, params, locals, url }: RequestEvent) => {
 			await p.env.escalas_docs.put(r2Key, pdfComRodape);
 		}
 
-		// Registrar no banco
-		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '', verificationHash);
+		// Registrar no banco com auditoria
+		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '', verificationHash, ip, ua, latitude, longitude);
 
 		const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_confirmada.pdf`;
 		return new Response(pdfComRodape as unknown as BodyInit, {

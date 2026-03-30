@@ -142,6 +142,10 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	assinante_nome: text('assinante_nome').notNull(),
 	assinante_cpf: text('assinante_cpf'),
 	verificacao_hash: text('verificacao_hash').unique(),
+	ip_address: text('ip_address'),
+	user_agent: text('user_agent'),
+	latitude: integer('latitude', { mode: 'number' }),
+	longitude: integer('longitude', { mode: 'number' }),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 });
 
@@ -248,6 +252,10 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	assinante_cpf: text('assinante_cpf').notNull().default(''),
 	verificacao_hash: text('verificacao_hash').unique(),
 	rubrica: text('rubrica'),
+	ip_address: text('ip_address'),
+	user_agent: text('user_agent'),
+	latitude: integer('latitude', { mode: 'number' }),
+	longitude: integer('longitude', { mode: 'number' }),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 }, (table) => [
 	unique('uq_gise_documento_dia').on(table.gise_id, table.dia)
@@ -270,11 +278,13 @@ export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', 
 		.notNull()
 		.references(() => policiais.id, { onDelete: 'cascade' }),
 	dia: text('dia', { enum: ['sabado', 'domingo'] }).notNull().default('sabado'),
+	equipe_id: integer('equipe_id').references(() => giseEquipes.id, { onDelete: 'cascade' }),
 	respostas: text('respostas').notNull().default('{}'), // JSON object {perguntaId: resposta}
 	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_resposta_policial_dia').on(table.gise_id, table.policial_id, table.dia)
+	unique('uq_gise_resposta_policial_dia').on(table.gise_id, table.policial_id, table.dia),
+	index('idx_gise_respostas_equipe_dia').on(table.gise_id, table.equipe_id, table.dia)
 ]);
 
 export const gisePresencas = sqliteTable('gise_presencas', {
@@ -290,10 +300,40 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	entrada_rubrica: text('entrada_rubrica'),   // Base64 da rubrica
 	saida_timestamp: text('saida_timestamp'),   // ISO string da hora que clicou
 	saida_rubrica: text('saida_rubrica'),     // Base64 da rubrica
+	ip_address: text('ip_address'),
+	user_agent: text('user_agent'),
+	latitude: integer('latitude', { mode: 'number' }),
+	longitude: integer('longitude', { mode: 'number' }),
 	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
 }, (table) => [
 	unique('uq_gise_presenca_policial_dia').on(table.gise_id, table.policial_id, table.dia)
+]);
+
+export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorios', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	gise_id: integer('gise_id')
+		.notNull()
+		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+	seccional_id: integer('seccional_id')
+		.notNull()
+		.references(() => unidades.id, { onDelete: 'cascade' }),
+	dia: text('dia', { enum: ['sabado', 'domingo'] }).notNull(),
+	tipo: text('tipo', { enum: ['extraordinario', 'produtividade'] }).notNull(),
+	assinante_id: integer('assinante_id'),
+	assinante_nome: text('assinante_nome').notNull(),
+	assinante_cpf: text('assinante_cpf'),
+	tipo_assinatura: text('tipo_assinatura', { enum: ['simples', 'webpki', 'serpro'] }).notNull(),
+	rubrica: text('rubrica'),
+	verification_hash: text('verification_hash').unique(),
+	ip_address: text('ip_address'),
+	user_agent: text('user_agent'),
+	latitude: integer('latitude', { mode: 'number' }),
+	longitude: integer('longitude', { mode: 'number' }),
+	created_at: text('created_at').default(sql`(datetime('now'))`)
+}, (table) => [
+	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.dia, table.tipo),
+	index('idx_gise_ass_rel_gise').on(table.gise_id)
 ]);
 
 

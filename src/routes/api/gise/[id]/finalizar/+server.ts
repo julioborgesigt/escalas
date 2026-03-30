@@ -17,7 +17,7 @@ import {
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 
-export const POST: RequestHandler = async ({ locals, params, platform }) => {
+export const POST: RequestHandler = async ({ locals, params, platform, request }) => {
 	const u = locals.usuario;
 	if (!isAdminGeral(u)) {
 		return json({ error: 'Apenas o Administrador Geral pode finalizar escalas GISE' }, { status: 403 });
@@ -43,8 +43,12 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 	// Marcar como finalizada
 	await atualizarGiseEscala(db, id, { status: 'finalizada' });
 
+	// Obter o modo de criação da próxima escala (clonada ou completa)
+	const body = await request.json().catch(() => ({}));
+	const modo = (body.modo === 'completa') ? 'completa' : 'clonada';
+
 	// Clonar para próximo FDS (sem supervisores, sem membros)
-	const novoId = await clonarGiseParaProximoFDS(db, id);
+	const novoId = await clonarGiseParaProximoFDS(db, id, modo);
 
 	return json({ ok: true, nova_gise_id: novoId });
 };

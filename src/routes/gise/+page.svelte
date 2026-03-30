@@ -194,14 +194,21 @@
 						>
 							Assinar Escala
 						</button>
-					{:else if isSupervisor && ativa.status !== 'aguardando_assinatura'}
+					{:else if isSupervisor && (ativa.status === 'assinada' || ativa.status === 'finalizada')}
 						<button
-							class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl opacity-60 cursor-default"
+							class="btn preset-outlined-primary-500 text-sm px-4 py-2 rounded-xl font-bold"
+							onclick={() => goto(`/gise/${ativa.id}`)}
+						>
+							Ver Escala
+						</button>
+					{:else if isSupervisor && ativa.status === 'em_preenchimento'}
+						<button
+							class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl opacity-60"
 							onclick={() => {
 								toaster.warning({ title: 'A escala não está concluída', description: 'Aguarde todas as seccionais finalizarem o preenchimento.' });
 							}}
 						>
-							Ver Escala
+							Ver Escala (Pendente)
 						</button>
 					{:else}
 						<button
@@ -233,7 +240,7 @@
 		<div>
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 			<div class="space-y-2">
-				{#each escalas as escala}
+				{#each escalas.filter(e => e.id !== ativa?.id) as escala}
 					<button
 						class="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl border
 							border-surface-200 dark:border-surface-800

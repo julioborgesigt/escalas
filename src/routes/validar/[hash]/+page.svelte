@@ -1,6 +1,19 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	const { data } = $props();
+	
+	interface DocumentoComAuditoria {
+		assinante_nome: string;
+		assinante_cpf?: string;
+		created_at: string;
+		tipo: string;
+		ip_address?: string;
+		user_agent?: string;
+		latitude?: number;
+		longitude?: number;
+	}
+
+	let { data }: { data: any } = $props();
+	const documento = $derived(data.documento as DocumentoComAuditoria);
 
 	function formatarDataHora(dateStr: string | null) {
 		if (!dateStr) return 'Não informada';
@@ -74,9 +87,9 @@
 							</div>
 							<div class="min-w-0">
 								<span class="block text-[10px] uppercase font-bold text-surface-400">Assinado por</span>
-								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{data.documento.assinante_nome}</span>
-								{#if data.documento.assinante_cpf}
-									<span class="block text-xs text-surface-500 mt-1">CPF: ***.{data.documento.assinante_cpf.slice(4, 7)}.***-**</span>
+								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{documento.assinante_nome}</span>
+								{#if documento.assinante_cpf}
+									<span class="block text-xs text-surface-500 mt-1">CPF: ***.{documento.assinante_cpf.slice(4, 7)}.***-**</span>
 								{/if}
 							</div>
 						</div>
@@ -84,7 +97,46 @@
 							<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 							</svg>
-							<span>Data e Hora: <strong>{formatarDataHora(data.documento.created_at)}</strong></span>
+							<span>Data e Hora: <strong>{formatarDataHora(documento.created_at)}</strong></span>
+						</div>
+					</div>
+				</section>
+
+				<!-- Trilha de Auditoria Técnica (Lei 14.063/2020) -->
+				<section class="p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/30 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-surface-800">
+					<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">Evidências de Integridade (Lei 14.063/20)</h2>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="space-y-3">
+							<div>
+								<span class="block text-[9px] uppercase font-bold text-surface-400">Endereço IP</span>
+								<span class="text-xs font-mono text-surface-700 dark:text-surface-300">{documento.ip_address || 'Não registrado'}</span>
+							</div>
+							<div>
+								<span class="block text-[9px] uppercase font-bold text-surface-400">Dispositivo / Navegador</span>
+								<span class="text-[10px] text-surface-600 dark:text-surface-400 leading-tight block">
+									{documento.user_agent ? (documento.user_agent.length > 60 ? documento.user_agent.substring(0, 60) + '...' : documento.user_agent) : 'Não registrado'}
+								</span>
+							</div>
+						</div>
+						<div class="flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-surface-200 dark:border-surface-800 pt-3 sm:pt-0 sm:pl-4">
+							<span class="block text-[9px] uppercase font-bold text-surface-400 mb-1">Localização Geográfica</span>
+							{#if documento.latitude && documento.longitude}
+								<div class="flex flex-col gap-2">
+									<div class="flex items-center gap-1.5">
+										<span class="w-2 h-2 rounded-full bg-success-500"></span>
+										<span class="text-xs font-bold text-success-600">GPS Capturado</span>
+									</div>
+									<span class="text-xs font-mono text-surface-700 dark:text-surface-300 bg-surface-200/50 dark:bg-surface-700/50 px-2 py-1 rounded">
+										Lat: {documento.latitude.toFixed(6)} <br/>
+										Log: {documento.longitude.toFixed(6)}
+									</span>
+								</div>
+							{:else}
+								<div class="flex items-center gap-1.5 opacity-50">
+									<span class="w-2 h-2 rounded-full bg-surface-400"></span>
+									<span class="text-xs italic text-surface-500">GPS não disponível</span>
+								</div>
+							{/if}
 						</div>
 					</div>
 				</section>

@@ -1,12 +1,6 @@
 <script lang="ts">
 	let { respostas = $bindable(), modelo = [] } = $props<{ respostas: any, modelo: any[] }>();
 
-	// Garante inicialização básica se vazio
-	$effect(() => {
-		if (Object.keys(respostas).length === 0 && modelo.length > 0) {
-			respostas = {}; // Reinicializa explicitamente
-		}
-	});
 
 	function handleSimNao(key: string, val: string, q: any) {
 		respostas[key] = val;

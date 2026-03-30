@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { getDB, buscarGiseModeloFormulario, isMembroGiseAtiva } from '$lib/db';
-import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos } from '$lib/server/schema';
+import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios } from '$lib/server/schema';
 import { eq, and, ne, or } from 'drizzle-orm';
 
 export const load = async ({ locals, platform }: any) => {
@@ -9,20 +9,27 @@ export const load = async ({ locals, platform }: any) => {
 
 	const db = getDB(platform);
 
-	// Apenas admin geral e membros de GISE ativa podem acessar
+	// Checar se é supervisor de algum GISE
+	const giseSupervisor = await db.select({ id: giseEscalas.id })
+		.from(giseEscalas)
+		.where(or(
+			eq(giseEscalas.supervisor_sabado_id, u.id), 
+			eq(giseEscalas.supervisor_domingo_id, u.id)
+		))
+		.limit(1)
+		.get();
+	const isSupervisorGise = !!giseSupervisor;
+
+	// Apenas admin geral e membros de GISE ativa podem acessar o preenchimento de formulário
 	if (u.tipo !== 'admin') {
 		const isMembro = await isMembroGiseAtiva(db, u.id);
 		if (!isMembro) throw redirect(302, '/');
 	}
 
-	// Se for admin, talvez queira ver estatísticas?
-	// Por enquanto, se for admin geral, carregamos o modelo.
-	// Se for policial, carregamos as escalas que ele participou.
-
 	let minhasEscalas: any[] = [];
 	let listaAdmin: any[] = [];
 	
-	if (u.tipo === 'policial') {
+	if (u.tipo === 'policial' && !isSupervisorGise) {
 		const rawEscalas = await db
 			.select({
 				id: giseEscalas.id,
@@ -43,11 +50,15 @@ export const load = async ({ locals, platform }: any) => {
 				eq_h_ent_sab: giseEquipes.hora_entrada_sabado,
 				eq_h_sai_sab: giseEquipes.hora_saida_sabado,
 				eq_h_ent_dom: giseEquipes.hora_entrada_domingo,
-				eq_h_sai_dom: giseEquipes.hora_saida_domingo
+				eq_h_sai_dom: giseEquipes.hora_saida_domingo,
+				equipe_tipo: giseEquipes.tipo,
+				seccional_id: giseSeccionais.seccional_id,
+				seccional_nome: unidades.nome
 			})
 			.from(giseMembros)
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
 			.where(eq(giseMembros.policial_id, u.id))
 			.all();
@@ -71,14 +82,25 @@ export const load = async ({ locals, platform }: any) => {
 					))
 					.get();
 				
-				// Checar se ALGUÉM da mesma EQUIPE já respondeu
+				// Checar se o relatório EXTRAORDINÁRIO específico desta seccional foi assinado
+				const extraAssinado = await db.select({ id: giseAssinaturasRelatorios.id })
+					.from(giseAssinaturasRelatorios)
+					.where(and(
+						eq(giseAssinaturasRelatorios.gise_id, e.id),
+						eq(giseAssinaturasRelatorios.seccional_id, e.seccional_id),
+						eq(giseAssinaturasRelatorios.dia, d),
+						eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
+					))
+					.get();
+				
+				// Checar se ALGUÉM da mesma EQUIPE já respondeu (usando agora o equipe_id direto)
+				const { giseRespostasFormulario } = await import('$lib/server/schema');
 				const respostaEquipe = await db.select({ id: giseRespostasFormulario.id })
 					.from(giseRespostasFormulario)
-					.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 					.where(and(
 						eq(giseRespostasFormulario.gise_id, e.id),
 						eq(giseRespostasFormulario.dia, d),
-						eq(giseMembros.equipe_id, e.equipe_id)
+						eq(giseRespostasFormulario.equipe_id, e.equipe_id)
 					))
 					.get();
 
@@ -91,6 +113,7 @@ export const load = async ({ locals, platform }: any) => {
 					dia: d,
 					presenca,
 					assinada: !!docAssinado,
+					extraAssinado: !!extraAssinado,
 					equipeRespondida: !!respostaEquipe,
 					horarioPrevisto: { inicio: hEnt, fimb: hSai }
 				});
@@ -98,13 +121,12 @@ export const load = async ({ locals, platform }: any) => {
 		}
 	} else {
 		// Admin Geral: Lista todas as escalas e suas seccionais
-		const { unidades } = await import('$lib/server/schema');
 		const rawAdmin = await db.select({
 			id: giseEscalas.id,
 			data_inicio: giseEscalas.data_inicio,
 			data_fim: giseEscalas.data_fim,
 			status: giseEscalas.status,
-			seccional_id: giseSeccionais.id,
+			seccional_id: giseSeccionais.seccional_id,
 			seccional_nome: unidades.nome,
 			equipe_id: giseEquipes.id,
 			equipe_tipo: giseEquipes.tipo
@@ -122,11 +144,20 @@ export const load = async ({ locals, platform }: any) => {
 			for (const dia of ['sabado' as const, 'domingo' as const]) {
 				const respostaEquipe = await db.select({ id: giseRespostasFormulario.id })
 					.from(giseRespostasFormulario)
-					.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 					.where(and(
 						eq(giseRespostasFormulario.gise_id, row.id),
 						eq(giseRespostasFormulario.dia, dia),
-						eq(giseMembros.equipe_id, row.equipe_id)
+						eq(giseRespostasFormulario.equipe_id, row.equipe_id)
+					))
+					.get();
+
+				const extraAssinado = await db.select({ id: giseAssinaturasRelatorios.id })
+					.from(giseAssinaturasRelatorios)
+					.where(and(
+						eq(giseAssinaturasRelatorios.gise_id, row.id),
+						eq(giseAssinaturasRelatorios.seccional_id, row.seccional_id),
+						eq(giseAssinaturasRelatorios.dia, dia),
+						eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 					))
 					.get();
 
@@ -134,6 +165,7 @@ export const load = async ({ locals, platform }: any) => {
 					...row,
 					dia,
 					equipeRespondida: !!respostaEquipe,
+					extraAssinado: !!extraAssinado,
                     isAdminView: true
 				});
 			}
@@ -168,6 +200,7 @@ export const load = async ({ locals, platform }: any) => {
 	return {
 		minhasEscalas,
 		listaAdmin,
+		isSupervisorGise,
 		modeloConteudo: modeloFinal,
 		modeloPadrao: defaultGiseQuestions
 	};

@@ -448,6 +448,22 @@
 
 	// ── Helpers compartilhados ──────────────────────────────────────────────
 
+	async function getCoordinates(): Promise<{ lat: number; lng: number } | null> {
+		if (typeof window === "undefined" || !("geolocation" in navigator)) return null;
+		try {
+			return await new Promise((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(
+					(pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+					(err) => reject(err),
+					{ enableHighAccuracy: true, timeout: 5000 }
+				);
+			});
+		} catch (e) {
+			console.warn("Erro ao capturar GPS:", e);
+			return null;
+		}
+	}
+
 	/**
 	 * Envia o PDF preparado pelo servidor, assina o hash e baixa o resultado.
 	 * Reutilizado por ambos os métodos (Web PKI e SERPRO).
@@ -459,6 +475,7 @@
 			signedAttrsHashHex: string,
 		) => Promise<{ rawSignature: string; certificateBase64: string }>,
 	) {
+		const coords = await getCoordinates();
 		// 1. Preparar PDF no servidor (cria carimbo + placeholder + hash)
 		etapaAssinatura = "Gerando PDF e preparando assinatura...";
 		const prepRes = await fetch(
@@ -501,6 +518,8 @@
 					signerName,
 					signerCpf,
 					verificationHash,
+					latitude: coords?.lat,
+					longitude: coords?.lng
 				}),
 			},
 		);
@@ -684,6 +703,8 @@
 			const certCpfMatch = result.signerAlias?.match(/:([\d]{11})$/);
 			const certCpf = certCpfMatch ? certCpfMatch[1] : "";
 
+			const coords = await getCoordinates();
+
 			// 4. Embutir CMS SERPRO diretamente no PDF (servidor usa embedSerproCms)
 			etapaAssinatura = "Finalizando PDF assinado...";
 			const finRes = await fetch(
@@ -696,7 +717,9 @@
 						serproCms,
 						signerName: certName || serproSignerName,
 						signerCpf: certCpf || serproSignerCpf,
-						verificationHash: serproVerificationHash
+						verificationHash: serproVerificationHash,
+						latitude: coords?.lat,
+						longitude: coords?.lng
 					}),
 				},
 			);
@@ -778,7 +801,12 @@
 		}
 		assinandoSimples = true;
 		try {
-			const res = await fetch(`/api/escalas/${page.params.id}/assinar-simples`, { method: 'POST' });
+			const coords = await getCoordinates();
+			const res = await fetch(`/api/escalas/${page.params.id}/assinar-simples`, {
+				method: 'POST',
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ latitude: coords?.lat, longitude: coords?.lng })
+			});
 			if (!res.ok) {
 				const err = await res.json();
 				throw new Error(err.error || 'Erro ao confirmar escala');

@@ -9,11 +9,12 @@
 	let filterInicio = $state('');
 	let filterFim = $state('');
 
-	// Derived Data (Exclusive to "Operacional" teams as requested)
+	// Derived Data (Exclusive to "Operacional" teams)
 	let filteredData = $derived(
 		(data.lista || []).filter((item: any) => {
 			const date = item.data_inicio;
-			if (item.equipe_tipo !== 'operacional') return false; // Filter only Operacional
+			const tipo = (item.equipe_tipo || '').toLowerCase();
+			if (tipo === 'seint') return false; // Explicitamente oculta SEINT
 			if (filterSeccional && item.seccional_id !== Number(filterSeccional)) return false;
 			if (filterInicio && date < filterInicio) return false;
 			if (filterFim && date > filterFim) return false;
@@ -21,25 +22,15 @@
 		})
 	);
 
-	// Stats Calculation based on the 19 questions (specifically 4-19)
+	// Stats Calculation
 	let stats = $derived.by(() => {
 		let s = { 
-			procedimentos: 0, // Q4
-			mandados: 0,      // Q5
-			apreensoes: 0,    // Q6
-			presos: 0,        // Q7
-			armas: 0,         // Q11
-			local_crime: 0,   // Q12
-			ordem_missao: 0,  // Q13
-			abordagens: 0,    // Q18
-			oitivas: 0,       // Q15
-			drogasGeral: 0,   // Q10 (g)
-			drogasPorTipo: {} as Record<string, number>
+			procedimentos: 0, mandados: 0, apreensoes: 0, presos: 0, armas: 0,
+			local_crime: 0, ordem_missao: 0, abordagens: 0, oitivas: 0,
+			drogasGeral: 0, drogasPorTipo: {} as Record<string, number>
 		};
-		
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || '{}');
-			
 			s.procedimentos += Number(res.procedimentos_inteiros) || 0;
 			s.mandados += Number(res.mandados_qtd) || 0;
 			s.apreensoes += Number(res.apreensoes_qtd) || 0;
@@ -49,7 +40,6 @@
 			s.ordem_missao += Number(res.ordem_missao) || 0;
 			s.abordagens += Number(res.abordagens) || 0;
 			s.oitivas += Number(res.oitivas) || 0;
-			
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
 					const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
@@ -63,245 +53,229 @@
 		return s;
 	});
 
-	let chartEvolucao: any;
-	let chartResumo: any;
-	let canvasEvolucao: HTMLCanvasElement;
-	let canvasResumo: HTMLCanvasElement;
+	// Charts references
+	let chartPresos: any, chartMandados: any, chartArmas: any, chartResumo: any;
+	let canvasPresos: HTMLCanvasElement, canvasMandados: HTMLCanvasElement, canvasArmas: HTMLCanvasElement, canvasResumo: HTMLCanvasElement;
 
-	function updateCharts(list: any[]) {
-		if (!canvasEvolucao || !canvasResumo) return;
-
-		// 1. Evolução da Produção Bruta (Soma de resultados chaves: Mandados + Presos + Armas)
-		const evolucaoMap = new Map();
-		list.forEach((item: any) => {
-			const d = item.data_inicio;
-			const res = JSON.parse(item.respostas || '{}');
-			const producao = (Number(res.mandados_qtd) || 0) + (Number(res.prisoes_apreensoes_flagrante) || 0) + (Number(res.apreensoes_armas) || 0);
-			evolucaoMap.set(d, (evolucaoMap.get(d) || 0) + producao);
-		});
-		const sortedDates = Array.from(evolucaoMap.keys()).sort();
-		
-		if (chartEvolucao) chartEvolucao.destroy();
-		chartEvolucao = new Chart(canvasEvolucao, {
+	function createTrendChart(canvas: HTMLCanvasElement, label: string, color: string, dataMap: Map<string, number>) {
+		if (!canvas) return null;
+		const sortedDates = Array.from(dataMap.keys()).sort();
+		return new Chart(canvas, {
 			type: 'line',
 			data: {
-				labels: sortedDates.map((d: any) => d.split('-').reverse().join('/')),
+				labels: sortedDates.map(d => d.split('-').reverse().join('/')),
 				datasets: [{
-					label: 'Volume de Produção (Presos+Mandados+Armas)',
-					data: sortedDates.map(d => evolucaoMap.get(d)),
-					borderColor: '#10b981',
-					backgroundColor: 'rgba(16, 185, 129, 0.1)',
-					tension: 0.4,
-					fill: true,
-					pointRadius: 4,
-					pointHoverRadius: 6
+					label, data: sortedDates.map(d => dataMap.get(d)),
+					borderColor: color, backgroundColor: color + '15',
+					tension: 0.4, fill: true, pointRadius: 2, borderWidth: 2
 				}]
 			},
 			options: {
-				responsive: true,
-				maintainAspectRatio: false,
+				responsive: true, maintainAspectRatio: false,
 				plugins: { legend: { display: false } },
-				scales: { y: { beginAtZero: true } }
-			}
-		});
-
-		// 2. Resumo Comparativo das 19 Perguntas (Principais Pontos Operacionais)
-		if (chartResumo) chartResumo.destroy();
-		chartResumo = new Chart(canvasResumo, {
-			type: 'bar',
-			data: {
-				labels: ['Procedimentos', 'Mandados', 'Apreensões ECA', 'Prisões Flagrante', 'Armas', 'Intervenções Crime', 'Abordagens', 'Oitivas'],
-				datasets: [{
-					label: 'Acumulado Total',
-					data: [
-						stats.procedimentos,
-						stats.mandados,
-						stats.apreensoes,
-						stats.presos,
-						stats.armas,
-						stats.local_crime,
-						stats.abordagens,
-						stats.oitivas
-					],
-					backgroundColor: [
-						'#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
-						'#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'
-					],
-					borderRadius: 12
-				}]
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: { legend: { display: false } },
-				scales: { 
-					x: { ticks: { font: { size: 10, weight: 'bold' } } },
-					y: { beginAtZero: true }
-				}
+				scales: { x: { display: false }, y: { beginAtZero: true, ticks: { display: false }, grid: { display: false } } }
 			}
 		});
 	}
 
-	$effect(() => {
-		untrack(() => updateCharts(filteredData));
-	});
+	function updateCharts(list: any[]) {
+		if (!canvasPresos || !canvasMandados || !canvasArmas || !canvasResumo) return;
 
-	onMount(() => {
-		updateCharts(filteredData);
-	});
+		// Data processing for trends
+		const mapPresos = new Map(), mapMandados = new Map(), mapArmas = new Map();
+		list.forEach(item => {
+			const d = item.data_inicio;
+			const res = JSON.parse(item.respostas || '{}');
+			mapPresos.set(d, (mapPresos.get(d) || 0) + (Number(res.prisoes_apreensoes_flagrante) || 0));
+			mapMandados.set(d, (mapMandados.get(d) || 0) + (Number(res.mandados_qtd) || 0));
+			mapArmas.set(d, (mapArmas.get(d) || 0) + (Number(res.apreensoes_armas) || 0));
+		});
+
+		if (chartPresos) chartPresos.destroy();
+		chartPresos = createTrendChart(canvasPresos, 'Prisões', '#f43f5e', mapPresos);
+
+		if (chartMandados) chartMandados.destroy();
+		chartMandados = createTrendChart(canvasMandados, 'Mandados', '#10b981', mapMandados);
+
+		if (chartArmas) chartArmas.destroy();
+		chartArmas = createTrendChart(canvasArmas, 'Armas', '#8b5cf6', mapArmas);
+
+		// Bar Chart
+		if (chartResumo) chartResumo.destroy();
+		chartResumo = new Chart(canvasResumo, {
+			type: 'bar',
+			data: {
+				labels: ['Procedimentos', 'Apreensões ECA', 'Intervenção Crime', 'Abordagens', 'Oitivas'],
+				datasets: [{
+					label: 'Volume Total',
+					data: [stats.procedimentos, stats.apreensoes, stats.local_crime, stats.abordagens, stats.oitivas],
+					backgroundColor: ['#3b82f6', '#f59e0b', '#06b6d4', '#ec4899', '#6366f1'],
+					borderRadius: 10
+				}]
+			},
+			options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+		});
+	}
+
+	$effect(() => { untrack(() => updateCharts(filteredData)); });
+	onMount(() => { updateCharts(filteredData); });
 </script>
 
 <div class="space-y-8 pb-12">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-6">
 		<div class="space-y-1">
 			<h1 class="text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Produção Operacional GISE</h1>
-			<p class="text-surface-500 font-medium">Análise fiel das 19 perguntas de produtividade (P4-P19)</p>
+			<p class="text-surface-500 font-medium">Análise filtrada e segmentada dos resultados reais (P4-P19)</p>
 		</div>
-		
-		<div class="flex gap-2">
-			<button class="btn preset-filled-surface-200 dark:preset-filled-surface-800 text-xs font-bold uppercase py-3 px-6 rounded-2xl" onclick={() => window.print()}>
-				<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-				Exportar PDF
-			</button>
-		</div>
+		<button class="btn preset-filled-surface-200 dark:preset-filled-surface-800 text-xs font-bold uppercase py-3 px-6 rounded-2xl" onclick={() => window.print()}>
+			Exportar PDF
+		</button>
 	</header>
 
 	<!-- Filters -->
-	<section class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm transition-all hover:shadow-md">
+	<section class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 			<div class="space-y-1.5">
-				<label for="f-sec" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">Seccional / Regional</label>
-				<select id="f-sec" bind:value={filterSeccional} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all">
+				<label for="f-sec" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">Regional</label>
+				<select id="f-sec" bind:value={filterSeccional} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold">
 					<option value="">Todas as Regionais</option>
-					{#each data.seccionais as sec}
-						<option value={sec.id}>{sec.nome}</option>
-					{/each}
+					{#each data.seccionais as sec} <option value={sec.id}>{sec.nome}</option> {/each}
 				</select>
 			</div>
-
 			<div class="space-y-1.5">
-				<label for="f-ini" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">Início do Período</label>
-				<input id="f-ini" type="date" bind:value={filterInicio} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all" />
+				<label for="f-ini" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">De</label>
+				<input id="f-ini" type="date" bind:value={filterInicio} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold" />
 			</div>
-
 			<div class="space-y-1.5">
-				<label for="f-fim" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">Fim do Período</label>
-				<input id="f-fim" type="date" bind:value={filterFim} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all" />
+				<label for="f-fim" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">Até</label>
+				<input id="f-fim" type="date" bind:value={filterFim} class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold" />
 			</div>
 		</div>
 	</section>
 
-	<!-- Principal Stats Grid -->
-	<section class="grid grid-cols-2 lg:grid-cols-4 gap-6">
-		<div class="card p-6 bg-surface-900 dark:bg-white text-white dark:text-surface-900 rounded-3xl shadow-xl overflow-hidden relative group">
-			<p class="text-[0.6rem] font-black uppercase tracking-widest opacity-60">Prisões Flagrante (P7)</p>
-			<h3 class="text-5xl font-black mt-2 leading-none">{stats.presos}</h3>
-			<div class="mt-4 flex items-center gap-2 text-[0.6rem] font-bold text-emerald-400">
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
-				Resultados Reais
+	<!-- Evolutionary Trends (3 Graphs as requested) -->
+	<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl overflow-hidden shadow-sm">
+			<div class="flex justify-between items-start mb-2">
+				<div>
+					<p class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Evolução Prisões (P7)</p>
+					<h3 class="text-3xl font-black text-rose-500">{stats.presos}</h3>
+				</div>
+				<span class="text-[0.6rem] font-bold bg-rose-500/10 text-rose-500 px-2 py-1 rounded">Total Período</span>
+			</div>
+			<div class="h-24 w-full -mx-2 -mb-2">
+				<canvas bind:this={canvasPresos}></canvas>
 			</div>
 		</div>
 
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 rounded-3xl shadow-sm">
-			<p class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400">Mandados Cumpridos (P5)</p>
-			<h3 class="text-4xl font-black mt-2 text-surface-900 dark:text-surface-50">{stats.mandados}</h3>
-			<p class="text-[0.6rem] mt-2 font-medium text-surface-500">Ordens judiciais</p>
+		<div class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl overflow-hidden shadow-sm">
+			<div class="flex justify-between items-start mb-2">
+				<div>
+					<p class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Evolução Mandados (P5)</p>
+					<h3 class="text-3xl font-black text-emerald-500">{stats.mandados}</h3>
+				</div>
+				<span class="text-[0.6rem] font-bold bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded">Total Período</span>
+			</div>
+			<div class="h-24 w-full -mx-2 -mb-2">
+				<canvas bind:this={canvasMandados}></canvas>
+			</div>
 		</div>
 
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 rounded-3xl shadow-sm">
-			<p class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400">Procedimentos (P4)</p>
-			<h3 class="text-4xl font-black mt-2 text-surface-900 dark:text-surface-50">{stats.procedimentos}</h3>
-			<p class="text-[0.6rem] mt-2 font-medium text-surface-500">Flagrantes lavrados</p>
-		</div>
-
-		<div class="card p-6 border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 rounded-3xl shadow-sm">
-			<p class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400">Armas de Fogo (P11)</p>
-			<h3 class="text-4xl font-black mt-2 text-surface-900 dark:text-surface-50">{stats.armas}</h3>
-			<p class="text-[0.6rem] mt-2 font-medium text-surface-500">Apreensões totais</p>
+		<div class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl overflow-hidden shadow-sm">
+			<div class="flex justify-between items-start mb-2">
+				<div>
+					<p class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Evolução Armas (P11)</p>
+					<h3 class="text-3xl font-black text-violet-500">{stats.armas}</h3>
+				</div>
+				<span class="text-[0.6rem] font-bold bg-violet-500/10 text-violet-500 px-2 py-1 rounded">Total Período</span>
+			</div>
+			<div class="h-24 w-full -mx-2 -mb-2">
+				<canvas bind:this={canvasArmas}></canvas>
+			</div>
 		</div>
 	</section>
 
-	<!-- Main Analytics -->
 	<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 		<!-- Summary Bar Chart -->
 		<div class="card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
 			<div class="flex items-center justify-between mb-8">
 				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Resumo por Ponto Operacional</h3>
-				<span class="text-[0.6rem] font-bold text-primary-500 bg-primary-500/10 px-2 py-1 rounded">Questões 4 a 18</span>
+				<span class="text-[0.6rem] font-bold text-primary-500 bg-primary-500/10 px-2 py-1 rounded">Métricas Adicionais</span>
 			</div>
-			<div class="h-[350px] w-full relative">
+			<div class="h-[300px] w-full relative">
 				<canvas bind:this={canvasResumo}></canvas>
 			</div>
 		</div>
 
-		<!-- Evolution Line Chart -->
+		<!-- Drugs Section -->
 		<div class="card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
-			<div class="flex items-center justify-between mb-8">
-				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Volume de Produção Bruta</h3>
-				<span class="text-[0.6rem] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">Produtividade x Tempo</span>
+			<div class="flex items-center gap-3 mb-8">
+				<div class="p-2 bg-error-500/10 rounded-lg">
+					<svg class="w-5 h-5 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.392 1.177a2 2 0 001.414 2.526l2.354.47a2 2 0 002.526-1.414l.392-1.177a2 2 0 00-.925-2.472z" /></svg>
+				</div>
+				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Apreensão de Drogas (P10)</h3>
 			</div>
-			<div class="h-[350px] w-full relative">
-				<canvas bind:this={canvasEvolucao}></canvas>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div class="space-y-4">
+					{#each Object.entries(stats.drogasPorTipo).sort((a,b) => b[1] - a[1]) as [tipo, peso]}
+						<div class="space-y-1">
+							<div class="flex justify-between text-[0.6rem] font-black uppercase">
+								<span>{tipo}</span> <span class="text-error-500">{peso.toLocaleString()}g</span>
+							</div>
+							<div class="h-1.5 w-full bg-surface-100 dark:bg-surface-800 rounded-full overflow-hidden">
+								<div class="h-full bg-error-500 transition-all duration-1000" style="width: {(peso / (stats.drogasGeral || 1) * 100) || 0}%"></div>
+							</div>
+						</div>
+					{:else}
+						<p class="text-center text-xs text-surface-400 italic py-8">Sem registros.</p>
+					{/each}
+				</div>
+				<div class="bg-surface-950 p-6 rounded-3xl flex flex-col items-center justify-center text-center">
+					<p class="text-[0.5rem] font-black uppercase tracking-widest text-surface-500 mb-1">Massa Total</p>
+					<h4 class="text-4xl font-black text-white">{(stats.drogasGeral / 1000).toFixed(2)}</h4>
+					<p class="text-xs font-bold text-error-500">KILOGRAMAS</p>
+				</div>
 			</div>
 		</div>
 	</section>
 
-	<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- More Stats List -->
-		<div class="lg:col-span-1 card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
-			<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50 mb-6">Outras Métricas</h3>
-			<div class="space-y-4">
-				<div class="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-800/50 rounded-2xl">
-					<span class="text-xs font-bold text-surface-500 uppercase">Apreensões ECA (P6)</span>
-					<span class="text-lg font-black text-surface-900 dark:text-surface-50">{stats.apreensoes}</span>
-				</div>
-				<div class="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-800/50 rounded-2xl">
-					<span class="text-xs font-bold text-surface-500 uppercase">Intervenções Crime (P12)</span>
-					<span class="text-lg font-black text-surface-900 dark:text-surface-50">{stats.local_crime}</span>
-				</div>
-				<div class="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-800/50 rounded-2xl">
-					<span class="text-xs font-bold text-surface-500 uppercase">Abordagens (P18)</span>
-					<span class="text-lg font-black text-surface-900 dark:text-surface-50">{stats.abordagens}</span>
-				</div>
-				<div class="flex items-center justify-between p-4 bg-surface-50 dark:bg-surface-800/50 rounded-2xl">
-					<span class="text-xs font-bold text-surface-500 uppercase">Oitivas Realizadas (P15)</span>
-					<span class="text-lg font-black text-surface-900 dark:text-surface-50">{stats.oitivas}</span>
-				</div>
+	<!-- Secondary Analytics -->
+	<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="md:col-span-1 space-y-4">
+			<div class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+				<p class="text-[0.6rem] font-black text-surface-400 uppercase mb-4">Procedimentos (P4)</p>
+				<h3 class="text-3xl font-black text-surface-900 dark:text-surface-50">{stats.procedimentos}</h3>
+				<p class="text-[0.6rem] font-medium text-surface-500">Flagrantes lavrados</p>
+			</div>
+			<div class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+				<p class="text-[0.6rem] font-black text-surface-400 uppercase mb-4">Apreensões ECA (P6)</p>
+				<h3 class="text-3xl font-black text-surface-900 dark:text-surface-50">{stats.apreensoes}</h3>
+				<p class="text-[0.6rem] font-medium text-surface-500">Menores em conflito</p>
 			</div>
 		</div>
 
-		<!-- Drugs Section -->
-		<div class="lg:col-span-2 card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
-			<div class="flex items-center gap-3 mb-8">
-				<div class="p-2 bg-error-500/10 rounded-lg">
-					<svg class="w-5 h-5 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.392 1.177a2 2 0 001.414 2.526l2.354.47a2 2 0 002.526-1.414l.392-1.177a2 2 0 00-.925-2.472zM4.572 15.428a2 2 0 011.022-.547l2.387-.477a2 2 0 011.96 1.414l.392 1.177a2 2 0 01-1.414 2.526l-2.354.47a2 2 0 01-2.526-1.414l-.392-1.177a2 2 0 01.925-2.472zM12 2a2 2 0 012 2v12a2 2 0 01-2 2 2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
-				</div>
-				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Produção de Apreensão (Drogas - P10)</h3>
+		<div class="md:col-span-2 card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+			<div class="flex items-center gap-3 mb-6">
+				<svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Últimos Resultados Operacionais</h3>
 			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-				<div class="space-y-4">
-					{#each Object.entries(stats.drogasPorTipo).sort((a,b) => b[1] - a[1]) as [tipo, peso]}
-						<div class="space-y-1.5 p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 rounded-2xl transition-all">
-							<div class="flex justify-between text-xs font-bold uppercase">
-								<span class="text-surface-600">{tipo}</span>
-								<span class="text-error-500">{peso.toLocaleString()}g</span>
-							</div>
-							<div class="h-2 w-full bg-surface-100 dark:bg-surface-800 rounded-full overflow-hidden">
-								<div class="h-full bg-error-500 rounded-full transition-all duration-1000" style="width: {(peso / (stats.drogasGeral || 1) * 100) || 0}%"></div>
-							</div>
-						</div>
-					{:else}
-						<p class="text-center text-xs text-surface-400 italic py-12">Nenhuma apreensão detalhada registrada.</p>
-					{/each}
-				</div>
-				
-				<div class="bg-surface-900 p-8 rounded-[2.5rem] flex flex-col items-center justify-center text-center">
-					<p class="text-[0.6rem] font-black uppercase tracking-[0.2em] text-surface-400 mb-2">Total Apreendido</p>
-					<h4 class="text-4xl font-black text-white">{(stats.drogasGeral / 1000).toFixed(2)}</h4>
-					<p class="text-xl font-bold text-error-500">KILOGRAMAS</p>
-					<div class="mt-4 w-12 h-1 bg-error-500 rounded-full"></div>
-				</div>
+			<div class="overflow-x-auto">
+				<table class="w-full text-left">
+					<thead class="text-[0.6rem] font-black text-surface-400 uppercase border-b border-surface-100 dark:border-surface-800">
+						<tr><th class="pb-3">Regional</th><th class="pb-3 text-center">Data</th><th class="pb-3 text-right">Prisões</th><th class="pb-3 text-right">Mandados</th></tr>
+					</thead>
+					<tbody class="divide-y divide-surface-100 dark:divide-surface-800">
+						{#each filteredData.slice(0, 5) as item}
+							{@const res = JSON.parse(item.respostas || '{}')}
+							<tr class="group">
+								<td class="py-3 text-xs font-bold text-surface-800 dark:text-surface-200 uppercase">{item.seccional_nome}</td>
+								<td class="py-3 text-center text-xs text-surface-500">{item.data_inicio?.split('-').reverse().join('/')}</td>
+								<td class="py-3 text-right text-xs font-black text-rose-500">{res.prisoes_apreensoes_flagrante || 0}</td>
+								<td class="py-3 text-right text-xs font-black text-emerald-500">{res.mandados_qtd || 0}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</section>
