@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import type { RequestEvent } from '@sveltejs/kit';
 
-export const GET = async ({ platform, params }: RequestEvent) => {
+export const GET = async ({ platform, params, url }: RequestEvent) => {
 	const db = getDB(platform);
 	const hash = params.hash;
 
@@ -10,9 +10,66 @@ export const GET = async ({ platform, params }: RequestEvent) => {
 		return json({ error: 'Código de verificação ausente' }, { status: 400 });
 	}
 
-	const documento = await buscarDocumentoPorHash(db, hash);
+	const documento = await buscarDocumentoPorHash(db, hash) as any;
 	if (!documento) {
 		return json({ error: 'Documento não encontrado' }, { status: 404 });
+	}
+
+	// Se for um relatório GISE (Extra ou Produtividade), geramos na hora pois não são salvos como arquivo fixo no R2
+	if (documento.tipo_doc === 'gise_relatorio') {
+		try {
+			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioProdutividadeGisePdf } = await import('$lib/export');
+			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
+
+			const gise = await buscarGiseDetalhado(db, documento.escala_id);
+			if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
+
+			const dia = documento.dia;
+			const seccionalId = documento.seccional_id;
+			const relTipo = documento.rel_tipo;
+
+			// Buscar a assinatura original para garantir que as rubricas apareçam
+			const reportSignature = await buscarAssinaturaRelatorioGise(db, documento.escala_id, seccionalId, dia, relTipo);
+
+			let finalPdf: Uint8Array;
+
+			if (relTipo === 'extraordinario') {
+				const presencas = await buscarPresencasGise(db, documento.escala_id, dia);
+				const result = await gerarRelatorioExtraordinarioPdf(gise, dia, presencas, seccionalId, url.origin, reportSignature);
+				finalPdf = result.pdf;
+			} else {
+				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
+				if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
+
+				const respostas = await buscarRespostasProdutividadeSeccional(db, documento.escala_id, seccional.id, dia);
+				const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, dia, respostas });
+				finalPdf = result.pdf;
+			}
+
+			// Aplicar o rodapé de certificação estilo GISE
+			if (reportSignature) {
+				const qrUrl = `${url.origin}/validar/${hash}`;
+				finalPdf = await adicionarRodapeSimples(
+					finalPdf,
+					reportSignature.assinante_nome,
+					hash,
+					qrUrl
+				);
+			}
+
+			const filename = `relatorio_${relTipo}_${hash}.pdf`;
+			return new Response(finalPdf as any, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': `attachment; filename="${filename}"`,
+					'Cache-Control': 'no-cache'
+				}
+			});
+		} catch (err: any) {
+			console.error('[VALIDAR-DOWNLOAD-GISE]', err);
+			return json({ error: 'Erro ao gerar o PDF do relatório: ' + err.message }, { status: 500 });
+		}
 	}
 
 	if (!platform?.env?.escalas_docs) {

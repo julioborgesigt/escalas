@@ -10,16 +10,19 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, salvarGiseDocumento } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
 
-export const POST = async ({ platform, params, locals, request }: RequestEvent) => {
+export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
+
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
-	const { preparedPdf, rawSignature, serproCms, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash, dia } = await request.json();
+	const { preparedPdf, rawSignature, serproCms, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash, dia, latitude, longitude } = await request.json();
 
 	try {
 		const gise = await buscarGiseEscala(db, id);
@@ -50,8 +53,8 @@ export const POST = async ({ platform, params, locals, request }: RequestEvent) 
 			});
 		}
 
-		// Registrar no banco
-		await salvarGiseDocumento(db, id, documentKey, u.id, signerName || u.nome, signerCpf || '', verificationHash, diaFinal);
+		// Registrar no banco com auditoria
+		await salvarGiseDocumento(db, id, documentKey, u.id, signerName || u.nome, signerCpf || '', verificationHash, diaFinal, undefined, ip, ua, latitude, longitude);
 
 		return new Response(signedPdfBytes as any, {
 			headers: {

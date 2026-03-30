@@ -13,12 +13,15 @@ import { gerarPdfGise } from '$lib/export';
 import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
 
-export const POST = async ({ platform, params, locals, url, request }: RequestEvent) => {
-	const { dia, rubrica } = await request.json().catch(() => ({ dia: 'ambos', rubrica: null }));
+export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
+	const { dia, rubrica, latitude, longitude } = await request.json().catch(() => ({ dia: 'ambos', rubrica: null, latitude: null, longitude: null }));
 	const u = locals.usuario;
 	if (!u) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
+
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
@@ -76,8 +79,8 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 			});
 		}
 
-		// Registrar no banco
-		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, diaFinal as any, rubrica);
+		// Registrar no banco com auditoria
+		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, diaFinal as any, rubrica, ip, ua, latitude, longitude);
 		
 		// Atualizar status da escala (opcional: só 'assinada' se todos os dias estiverem assinados)
 		// Por simplicidade, mantemos 'assinada' ao receber qualquer assinatura, 

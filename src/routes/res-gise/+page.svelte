@@ -6,10 +6,12 @@
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 
 	let { data } = $props();
-	const isAdminGeral = data.usuario?.tipo === 'admin';
+	const isAdminGeral = $derived(data.usuario?.tipo === 'admin');
+	const isSupervisorGise = $derived(data.isSupervisorGise);
+	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
 
 	let activeTab = $state('relatorios'); // relatorios | configurador
-	let perguntas = $state<any[]>(data.modeloConteudo || []);
+	let perguntas = $state<any[]>([]); // Sincronizado via effect abaixo
 	let salvandoModelo = $state(false);
 
 	let escalaSelecionada = $state<any>(null);
@@ -20,6 +22,26 @@
 
 	let capturandoRubrica = $state(false);
 	let salvandoPresenca = $state(false);
+
+	// Filtros da lista
+	let seccionalFilter = $state('todas');
+	let tipoFilter = $state('todos');
+
+	const seccionaisUnicas = $derived(
+		['todas', ...Array.from(new Set(data.listaAdmin?.map((e: any) => e.seccional_nome) || []))].sort((a, b) => {
+			if (a === 'todas') return -1;
+			if (b === 'todas') return 1;
+			return a.localeCompare(b);
+		})
+	);
+
+	const listaFiltrada = $derived(
+		(data.listaAdmin || []).filter((e: any) => {
+			const bSeccional = seccionalFilter === 'todas' || e.seccional_nome === seccionalFilter;
+			const bTipo = tipoFilter === 'todos' || e.equipe_tipo === tipoFilter;
+			return bSeccional && bTipo;
+		})
+	);
 
 	$effect(() => {
 		perguntas = data.modeloConteudo || [];
@@ -82,10 +104,14 @@
 	}
 
 	async function selecionarEscala(escala: any) {
+		const isSame = escalaSelecionada?.id === escala.id && escalaSelecionada?.dia === escala.dia && escalaSelecionada?.equipe_id === escala.equipe_id;
 		escalaSelecionada = escala;
 		carregandoResposta = true;
-		respostas = {};
-		exibirRelatorio = isAdminGeral || !escala.equipeRespondida;
+		
+		// Se não for a mesma, limpa respostas para evitar mostrar dado de outra escala enquanto carrega
+		if (!isSame) respostas = {};
+		
+		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
 		try {
 			const url = `/api/gise/${escala.id}/resposta?dia=${escala.dia}${escala.equipe_id ? `&equipeId=${escala.equipe_id}` : ''}`;
 			const res = await fetch(url);
@@ -114,7 +140,7 @@
 			});
 			if (!res.ok) throw new Error('Erro ao salvar resposta');
 			toaster.success({ title: 'Relatório salvo com sucesso' });
-			if (!isAdminGeral) exibirRelatorio = false;
+			if (!podeVerListaGeral) exibirRelatorio = false;
 			await invalidateAll();
 			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id && e.dia === escalaSelecionada.dia);
 			if (atualizada) escalaSelecionada = atualizada;
@@ -132,7 +158,7 @@
 	}
 
 	function isHorarioLiberado(escala: any) {
-		if (isAdminGeral) return true;
+		if (podeVerListaGeral) return true;
 		if (!escala?.horarioPrevisto?.inicio) return true;
 		const agora = new Date();
 		const dataEscala = (escala.dia === 'sabado' ? escala.data_inicio : (escala.data_fim || escala.data_inicio));
@@ -141,14 +167,14 @@
 		return agora >= dataInicioPrevista;
 	}
 
-	async function salvarEntrada(rubrica: string) {
+	async function salvarEntrada(rubrica: string, latitude?: number, longitude?: number) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
 		try {
 			const res = await fetch(`/api/gise/${escalaSelecionada.id}/presenca/entrada`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ dia: escalaSelecionada.dia, rubrica })
+				body: JSON.stringify({ dia: escalaSelecionada.dia, rubrica, latitude, longitude })
 			});
 			if (!res.ok) throw new Error('Erro ao salvar entrada');
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
@@ -163,14 +189,14 @@
 		}
 	}
 
-	async function salvarSaida(rubrica: string) {
+	async function salvarSaida(rubrica: string, latitude?: number, longitude?: number) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
 		try {
 			const res = await fetch(`/api/gise/${escalaSelecionada.id}/presenca/saida`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ dia: escalaSelecionada.dia, rubrica })
+				body: JSON.stringify({ dia: escalaSelecionada.dia, rubrica, latitude, longitude })
 			});
 			if (!res.ok) throw new Error('Erro ao salvar saída');
 			toaster.success({ title: 'Saída confirmada com sucesso' });
@@ -184,6 +210,48 @@
 			salvandoPresenca = false;
 		}
 	}
+
+	async function baixarRelatorio(escala: any) {
+		try {
+			const url = `/api/gise/${escala.id}/download?format=produtividade&dia=${escala.dia}&seccionalId=${escala.seccional_id}`;
+			const res = await fetch(url);
+			if (!res.ok) {
+				const err = await res.json();
+				throw new Error(err.error || 'Erro ao baixar relatório');
+			}
+			const blob = await res.blob();
+			const downloadUrl = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = downloadUrl;
+			a.download = `relatorio_produtividade_${escala.seccional_nome}_${escala.dia}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro no Download', description: e.message });
+		}
+	}
+
+	async function baixarRelatorioExtra(escala: any) {
+		try {
+			const url = `/api/gise/${escala.id}/download?format=extraordinario&dia=${escala.dia}&seccionalId=${escala.seccional_id}`;
+			const res = await fetch(url);
+			if (!res.ok) {
+				const err = await res.json();
+				throw new Error(err.error || 'Erro ao baixar relatório');
+			}
+			const blob = await res.blob();
+			const downloadUrl = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = downloadUrl;
+			a.download = `relatorio_extraordinario_${escala.seccional_nome}_${escala.dia}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro no Download', description: e.message });
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -193,7 +261,7 @@
 			<p class="text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
 		</div>
 
-		{#if isAdminGeral}
+		{#if podeVerListaGeral}
 			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner">
 				<button 
 					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'relatorios' ? 'bg-white dark:bg-surface-700 shadow-md text-primary-600' : 'text-surface-500 hover:text-surface-700'}"
@@ -201,12 +269,14 @@
 				>
 					Relatórios
 				</button>
-				<button 
-					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'configurador' ? 'bg-white dark:bg-surface-700 shadow-md text-primary-600' : 'text-surface-500 hover:text-surface-700'}"
-					onclick={() => activeTab = 'configurador'}
-				>
-					Configurar Form
-				</button>
+				{#if isAdminGeral}
+					<button 
+						class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'configurador' ? 'bg-white dark:bg-surface-700 shadow-md text-primary-600' : 'text-surface-500 hover:text-surface-700'}"
+						onclick={() => activeTab = 'configurador'}
+					>
+						Configurar Form
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</header>
@@ -364,7 +434,7 @@
 				</button>
 			</div>
 		</section>
-	{:else if isAdminGeral && activeTab === 'relatorios'}
+	{:else if podeVerListaGeral && activeTab === 'relatorios'}
 		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 			<div class="md:col-span-1 space-y-4">
 				<div class="flex items-center justify-between px-2">
@@ -372,11 +442,33 @@
 					<span class="badge preset-filled-primary-500 text-[0.6rem]">{data.listaAdmin.length}</span>
 				</div>
 				
-				<div class="space-y-2 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-					{#each data.listaAdmin as escala}
-						<button 
-							class="w-full text-left p-3 rounded-2xl border transition-all {escalaSelecionada?.equipe_id === escala.equipe_id && escalaSelecionada?.dia === escala.dia && escalaSelecionada?.id === escala.id ? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500' : 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-surface-300'}"
+				<div class="space-y-3 px-2 mb-4">
+					<div class="space-y-1">
+						<label for="f-sec" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Seccional</label>
+						<select id="f-sec" bind:value={seccionalFilter} class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500">
+							{#each seccionaisUnicas as s}
+								<option value={s}>{s === 'todas' ? 'Todas Seccionais' : s}</option>
+							{/each}
+						</select>
+					</div>
+					<div class="space-y-1">
+						<label for="f-tipo" class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Tipo de Equipe</label>
+						<select id="f-tipo" bind:value={tipoFilter} class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500">
+							<option value="todos">Todos os Tipos</option>
+							<option value="operacional">Operacional</option>
+							<option value="seint">SEINT (Inteligência)</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+					{#each listaFiltrada as escala}
+						<div 
+							role="button"
+							tabindex="0"
+							class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer {escalaSelecionada?.equipe_id === escala.equipe_id && escalaSelecionada?.dia === escala.dia && escalaSelecionada?.id === escala.id ? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500' : 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-surface-300'}"
 							onclick={() => selecionarEscala(escala)}
+							onkeydown={(e) => e.key === 'Enter' && selecionarEscala(escala)}
 						>
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
@@ -389,13 +481,36 @@
 								</div>
 							</div>
 							
-							<div class="mt-2 flex items-center gap-1.5">
-								<div class="w-1.5 h-1.5 rounded-full {escala.equipeRespondida ? 'bg-success-500' : 'bg-warning-500'}"></div>
-								<p class="text-[0.6rem] font-bold {escala.equipeRespondida ? 'text-success-600' : 'text-warning-600'} uppercase">
-									{escala.equipeRespondida ? 'Relatório Pronto' : 'Pendente'}
-								</p>
+							<div class="mt-2 flex items-center justify-between">
+								<div class="flex items-center gap-1.5">
+									<div class="w-1.5 h-1.5 rounded-full {escala.equipeRespondida ? 'bg-success-500' : 'bg-warning-500'}"></div>
+									<p class="text-[0.6rem] font-bold {escala.equipeRespondida ? 'text-success-600' : 'text-warning-600'} uppercase">
+										{escala.equipeRespondida ? 'Relatório Pronto' : 'Pendente'}
+									</p>
+								</div>
+
+								<div class="flex items-center gap-1">
+									{#if escala.equipeRespondida}
+										<button 
+											class="btn-icon btn-icon-sm bg-primary-500/10 text-primary-600 hover:bg-primary-500 hover:text-white transition-all rounded-lg"
+											onclick={(e) => { e.stopPropagation(); baixarRelatorio(escala); }}
+											title="Baixar PDF de Produtividade"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+										</button>
+									{/if}
+									{#if escala.extraAssinado}
+										<button 
+											class="btn-icon btn-icon-sm bg-secondary-500/10 text-secondary-600 hover:bg-secondary-500 hover:text-white transition-all rounded-lg"
+											onclick={(e) => { e.stopPropagation(); baixarRelatorioExtra(escala); }}
+											title="Baixar Relatório Extraordinário (Assinado)"
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+										</button>
+									{/if}
+								</div>
 							</div>
-						</button>
+						</div>
 					{:else}
 						<div class="p-8 text-center border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-3xl">
 							<p class="text-xs text-surface-500 italic">Nenhum relatório encontrado no período.</p>
@@ -431,7 +546,7 @@
 										<svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
 									</div>
 									<p class="text-[0.65rem] md:text-xs font-medium text-primary-700 dark:text-primary-400 leading-relaxed">
-										<strong>Modo Administrador:</strong> Você está visualizando o formulário de produtividade. Todas as alterações feitas aqui serão refletidas nos relatórios finais da seccional.
+										<strong>Modo Supervisor:</strong> Você está visualizando o formulário de produtividade. Todas as alterações feitas aqui serão refletidas nos relatórios finais da seccional.
 									</p>
 								</div>
 
@@ -462,9 +577,12 @@
 			<div class="md:col-span-1 space-y-4">
 				<h2 class="text-lg font-bold px-2">Minhas Escalas GISE</h2>
 				{#each data.minhasEscalas as escala}
-					<button 
-						class="w-full text-left p-4 rounded-2xl border transition-all {escalaSelecionada?.id === escala.id && escalaSelecionada?.dia === escala.dia ? 'border-primary-500 bg-primary-500/10' : 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
+					<div 
+						role="button"
+						tabindex="0"
+						class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {escalaSelecionada?.id === escala.id && escalaSelecionada?.dia === escala.dia ? 'border-primary-500 bg-primary-500/10' : 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
 						onclick={() => selecionarEscala(escala)}
+						onkeydown={(e) => e.key === 'Enter' && selecionarEscala(escala)}
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-sm font-bold text-surface-900 dark:text-surface-100">{fmtDate(escala.data_inicio)} - {fmtDate(escala.data_fim)}</p>
@@ -472,10 +590,41 @@
 						</div>
 						<div class="flex items-center justify-between mt-1">
 							<p class="text-xs uppercase tracking-wider {escala.assinada ? 'text-success-500 font-bold' : 'text-surface-500'}">
-								{escala.assinada ? 'ASSINADA' : 'EM ABERTO'}
+								{escala.assinada ? 'POLICIAL ASSINOU' : 'EM ABERTO'}
 							</p>
+
+							<div class="flex items-center gap-1.5">
+								{#if escala.equipeRespondida}
+									<button 
+										class="btn btn-sm preset-tonal-success text-[0.6rem] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
+										onclick={(e) => { e.stopPropagation(); baixarRelatorio(escala); }}
+										title="Baixar PDF de Produtividade"
+									>
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+										<span>Produtividade</span>
+									</button>
+								{/if}
+								{#if escala.extraAssinado}
+									<button 
+										class="btn btn-sm preset-tonal-primary text-[0.6rem] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
+										onclick={(e) => { e.stopPropagation(); baixarRelatorioExtra(escala); }}
+										title="Baixar Relatório Extraordinário (Assinado)"
+									>
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+										<span>Relat. Extra</span>
+									</button>
+								{/if}
+							</div>
 						</div>
-					</button>
+
+						{#if escala.presenca?.saida_timestamp && !escala.extraAssinado}
+							<div class="mt-2 p-2 bg-surface-100 dark:bg-surface-800 rounded-lg border border-primary-500/20">
+								<p class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold italic text-center leading-tight">
+									Relatório de Extraordinário enviado para assinatura do supervisor. Estará disponível para download após assinado.
+								</p>
+							</div>
+						{/if}
+					</div>
 				{:else}
 					<p class="text-sm text-surface-500 italic px-2">Nenhuma escala gise encontrada para o seu perfil.</p>
 				{/each}
@@ -572,6 +721,23 @@
 									{#if carregandoResposta}
 										<div class="flex justify-center py-12">
 											<span class="loading loading-spinner loading-lg text-primary-500"></span>
+										</div>
+									{:else if escalaSelecionada.equipe_tipo === 'seint'}
+										<div class="p-12 bg-surface-50 dark:bg-surface-950 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-[2.5rem] text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
+											<div class="bg-surface-200 dark:bg-surface-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+												<svg class="w-10 h-10 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+											</div>
+											<div>
+												<h4 class="text-xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Em Construção</h4>
+												<p class="text-xs text-surface-500 max-w-xs mx-auto mt-2 font-medium">O formulário de produtividade para a equipe de <strong>Inteligência (SEINT)</strong> está sendo desenvolvido e será liberado em breve.</p>
+											</div>
+											<div class="inline-flex items-center gap-2 px-4 py-2 bg-surface-200 dark:bg-surface-800 rounded-full text-[0.6rem] font-black uppercase text-surface-600 tracking-widest">
+												<span class="relative flex h-2 w-2">
+													<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-surface-400 opacity-75"></span>
+													<span class="relative inline-flex rounded-full h-2 w-2 bg-surface-500"></span>
+												</span>
+												Aguarde Atualizações
+											</div>
 										</div>
 									{:else}
 										<div class="space-y-5">

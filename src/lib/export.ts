@@ -940,29 +940,40 @@ export function gerarPdfGise(gise: GisePdfData, dia?: 'sabado' | 'domingo'): Pdf
 		y += 4;
 	}
 
-	// Assinatura
+	// FOOTER E ASSINATURAS GISE
 	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
-	let giseSigY = lastY + 35;
-	if (giseSigY > 185) {
+	let sigY = lastY + 30;
+	if (sigY > 185) {
 		doc.addPage();
-		giseSigY = 35;
+		sigY = 30;
 	}
 
-	doc.setFontSize(9);
-	doc.setFont('helvetica', 'normal');
-	const cidadeSig = gise.seccionais[0]?.seccional_nome.split('-')[1]?.trim() || 'IGUATU';
-	const dataSig = dia === 'sabado' ? gise.data_inicio : (dia === 'domingo' ? gise.data_fim : gise.data_inicio);
-	const textoLocalData = `${cidadeSig}/CE, ${formatarData(dataSig)}.`;
-	doc.text(textoLocalData, 10, giseSigY);
+	const sigCenterX = pageWidth * 0.75;
+	const diaEfetivo = dia || 'sabado';
+	const docData = gise.documentos[diaEfetivo];
 
-	const giseSigCenterX = pageWidth * 0.75;
-	doc.line(giseSigCenterX - 45, giseSigY, giseSigCenterX + 45, giseSigY);
+	// Rubrica Visual (se houver)
+	if (docData?.rubrica) {
+		try {
+			doc.addImage(docData.rubrica, 'PNG', sigCenterX - 30, sigY - 25, 60, 22);
+		} catch (e) {
+			console.error('Erro ao inserir rubrica no PDF GISE:', e);
+		}
+	}
+
+	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
-	const sigLabel = dia ? `Supervisor GISE (${dia === 'sabado' ? 'Sábado' : 'Domingo'}) / assinado digitalmente` : 'Supervisor GISE / assinado digitalmente';
-	doc.text(sigLabel, giseSigCenterX, giseSigY + 5, { align: 'center' });
+	doc.setFont('helvetica', 'bold');
+	
+	const supervisorNome = diaEfetivo === 'sabado' ? gise.supervisor_sabado_nome : gise.supervisor_domingo_nome;
+	const supervisorMatricula = diaEfetivo === 'sabado' ? gise.supervisor_sabado_matricula : gise.supervisor_domingo_matricula;
+	
+	doc.text(supervisorNome || 'Supervisor(a) do GISE', sigCenterX, sigY + 4, { align: 'center' });
+	doc.setFont('helvetica', 'normal');
+	doc.text(`Matrícula: ${supervisorMatricula || '—'}`, sigCenterX, sigY + 8, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
 
-
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: giseSigY };
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
 }
 
 export interface GiseProdutividadeData {
@@ -1055,10 +1066,10 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 	doc.setFont('helvetica', 'normal');
 	doc.text(`Gerado em: ${dataExtenso}`, margin, doc.internal.pageSize.getHeight() - 10);
 
-	return doc;
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: y };
 }
 
-export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, dia: 'sabado' | 'domingo', presencas: any[], seccionalId?: number, baseUrl?: string): Promise<PdfExportResult> {
+export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, dia: 'sabado' | 'domingo', presencas: any[], seccionalId?: number, baseUrl?: string, reportSignature?: any): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 	const margin = 10;
@@ -1177,55 +1188,39 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, dia: 's
 			8: { cellWidth: 30 }
 		}
 	});
-
-	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
-	let sigY = lastY + 30;
+	const lastAutoY = (doc as any).lastAutoTable?.finalY ?? y;
+	let sigY = lastAutoY + 30;
 	if (sigY > 180) { doc.addPage(); sigY = 30; }
 
-	// Footer
+	// Footer: Cidade e Data
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
-	const cidade = gise.seccionais[0]?.seccional_nome.split('-')[1]?.trim() || 'Iguatu';
+	const cidade = gise.seccionais.find(s => s.seccional_id === seccionalId)?.seccional_nome.split('-')[1]?.trim() || 'Iguatu';
 	doc.text(`${cidade}/CE, ${formatarData(dataEfetiva)}.`, pageWidth - margin, sigY - 15, { align: 'right' });
 
-	const supervisorDoc = dia === 'sabado' ? (gise.documentos.sabado || gise.documentos.ambos) : (gise.documentos.domingo || gise.documentos.ambos);
-	const supervisorNome = dia === 'sabado' ? gise.supervisor_sabado_nome : gise.supervisor_domingo_nome;
 	const sigCenterX = pageWidth / 2;
 
-	if (supervisorDoc?.rubrica) {
-		const rW = 40;
-		const rH = 15;
-		doc.addImage(supervisorDoc.rubrica, 'PNG', sigCenterX - (rW / 2), sigY - rH - 2, rW, rH);
-	}
-
-	// QR Code para validação
-	if (supervisorDoc?.verificacao_hash && baseUrl) {
-		try {
-			const qrUrl = `${baseUrl}/validar/${supervisorDoc.verificacao_hash}`;
-			const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1 });
-			const qrSize = 22;
-			const qrX = margin;
-			const qrY = 210 - margin - qrSize - 5;
-			doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-			doc.setFontSize(6);
-			doc.setFont('helvetica', 'normal');
-			doc.text('Aponte a câmera do', qrX, qrY + qrSize + 2.5);
-			doc.text('celular para validar', qrX, qrY + qrSize + 5);
-			doc.setFont('helvetica', 'bold');
-			doc.text(`COD.: ${supervisorDoc.verificacao_hash}`, qrX, qrY + qrSize + 8);
-		} catch (err) {
-			console.error('Erro ao gerar QR Code para relatório extra:', err);
+	// Se não houver assinatura ainda, mostramos a linha e o aviso
+	if (!reportSignature) {
+		doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
+		doc.setFont('helvetica', 'italic');
+		doc.setFontSize(10);
+		doc.text('AGUARDANDO CONFERÊNCIA E ASSINATURA DO SUPERVISOR', sigCenterX, sigY + 8, { align: 'center' });
+	} else {
+		// Se já estiver assinado por aqui, mostramos apenas o básico pois o pdf-signing vira por cima
+		if (reportSignature.rubrica) {
+			const rubW = 65; 
+			const rubH = 25; 
+			doc.addImage(reportSignature.rubrica, 'PNG', sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
 		}
-	}
 
-	doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
-	doc.setFont('helvetica', 'bold');
-	const supervisorMatricula = dia === 'sabado' ? gise.supervisor_sabado_matricula : gise.supervisor_domingo_matricula;
-	const sigText = `${supervisorNome?.toUpperCase() || ''}${supervisorMatricula ? ` - Mat.: ${supervisorMatricula}` : ''}`;
-	doc.text(sigText, sigCenterX, sigY + 5, { align: 'center' });
-	doc.setFont('helvetica', 'normal');
-	doc.setFontSize(9);
-	doc.text('Delegado Supervisor / assinado digitalmente', sigCenterX, sigY + 10, { align: 'center' });
+		doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
+		doc.setFont('helvetica', 'bold');
+		doc.text(reportSignature.assinante_nome.toUpperCase(), sigCenterX, sigY + 5, { align: 'center' });
+		doc.setFont('helvetica', 'normal');
+		doc.setFontSize(9);
+		doc.text('Delegado Supervisor', sigCenterX, sigY + 10, { align: 'center' });
+	}
 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
 }

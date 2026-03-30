@@ -362,26 +362,29 @@
 		showRubricaModal = true;
 	}
 
-	async function confirmarRubrica(dataUrl: string) {
+	async function confirmarRubrica(dataUrl: string, lat?: number, lng?: number) {
 		rubricaCapturada = dataUrl;
 		showRubricaModal = false;
 		
-		if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples();
+		if (relatorioSendoAssinado) {
+			await executarAssinarRelatorio(dataUrl, lat, lng);
+			relatorioSendoAssinado = null;
+		} else if (tipoAssinaturaPendente === 'simples') {
+			await executarAssinarSimples(lat, lng);
 		} else if (tipoAssinaturaPendente === 'webpki') {
-			await executarAssinarComWebPKI();
+			await executarAssinarComWebPKI(lat, lng);
 		} else if (tipoAssinaturaPendente === 'serpro') {
-			await executarAssinarComSerpro();
+			await executarAssinarComSerpro(lat, lng);
 		}
 	}
 
-	async function executarAssinarSimples() {
+	async function executarAssinarSimples(latitude?: number, longitude?: number) {
 		if (!diaSendoAssinado) return;
 		assinandoSimples = true;
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
-				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada })
+				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada, latitude, longitude })
 			});
 			if (r.ok) {
 				const blob = await r.blob();
@@ -426,7 +429,7 @@
 		}
 	}
 
-	async function executarAssinarComWebPKI() {
+	async function executarAssinarComWebPKI(latitude?: number, longitude?: number) {
 		if (!diaSendoAssinado || !certSelecionado) return;
 		assinando = true;
 		etapaAssinatura = 'Preparando PDF...';
@@ -463,7 +466,9 @@
 					signerName: cert?.subjectName ?? serproSignerName,
 					signerCpf: cert?.cpf ?? serproSignerCpf,
 					verificationHash,
-					dia: diaSendoAssinado
+					dia: diaSendoAssinado,
+					latitude,
+					longitude
 				})
 			});
 
@@ -485,7 +490,7 @@
 		}
 	}
 
-	async function executarAssinarComSerpro() {
+	async function executarAssinarComSerpro(latitude?: number, longitude?: number) {
 		if (!diaSendoAssinado) return;
 		assinando = true;
 		etapaAssinatura = 'Iniciando SERPRO...';
@@ -524,7 +529,9 @@
 					signerName: serproSignerName,
 					signerCpf: serproSignerCpf,
 					verificationHash,
-					dia: diaSendoAssinado
+					dia: diaSendoAssinado,
+					latitude,
+					longitude
 				})
 			});
 
@@ -550,10 +557,14 @@
 	function assinarComWebPKI() { abrirModalRubrica('ambos', 'webpki'); }
 	function assinarComSerpro() { abrirModalRubrica('ambos', 'serpro'); }
 
-	async function finalizarGise() {
+	async function finalizarGise(modo: 'clonada' | 'completa' = 'clonada') {
 		finalizando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/finalizar`, { method: 'POST' });
+			const res = await fetch(`/api/gise/${gise.id}/finalizar`, { 
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ modo })
+			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
 			toaster.success({ title: 'Escala finalizada!', description: `Nova escala criada (ID ${json.nova_gise_id})` });
@@ -599,6 +610,38 @@
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			salvando = false;
+		}
+	}
+
+	let relatorioSendoAssinado = $state<{ seccionalId: number; dia: 'sabado' | 'domingo'; tipo: 'extraordinario' | 'produtividade' } | null>(null);
+
+	function abrirAssinaturaRelatorio(seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario' | 'produtividade') {
+		relatorioSendoAssinado = { seccionalId, dia, tipo };
+		abrirModalRubrica(dia, 'simples'); // Por enquanto apenas simples
+	}
+
+	async function executarAssinarRelatorio(rubrica: string, latitude?: number, longitude?: number) {
+		if (!relatorioSendoAssinado) return;
+		salvando = true;
+		try {
+			const res = await fetch(`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/${relatorioSendoAssinado.dia}/assinar`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					tipo: relatorioSendoAssinado.tipo,
+					rubrica,
+					latitude,
+					longitude
+				})
+			});
+			if (!res.ok) throw new Error((await res.json()).error);
+			toaster.success({ title: 'Relatório assinado com sucesso!' });
+			relatorioSendoAssinado = null;
+			await invalidateAll();
+		} catch (e: any) {
+			toaster.error({ title: 'Erro ao assinar relatório', description: e.message });
 		} finally {
 			salvando = false;
 		}
@@ -804,8 +847,7 @@
 		isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada')
 	);
 	const podeDownload = $derived(
-		(isAdminGeral || isSeccional) &&
-		(gise?.status === 'assinada' || gise?.status === 'finalizada')
+		(isAdminGeral || isSeccional || isSupervisor)
 	);
 	const editaBloqueado = $derived(
 		gise?.status === 'assinada' || gise?.status === 'finalizada'
@@ -1251,8 +1293,104 @@
 							{/if}
 							</div>
 
-										<!-- Ações Seccional (Admin Seccional) -->
-							<div class="flex items-center gap-2">
+							{#if isAdminGeral && podeEditar}
+								<button
+									class="text-sm btn preset-outlined-error-500 px-2 py-1 rounded-lg flex items-center gap-1"
+									onclick={() => removerSeccional(sec.id)}
+									disabled={salvando}
+									title="Excluir seccional desta escala"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+									Excluir
+								</button>
+							{/if}
+						</div>
+
+						<!-- Ações Seccional & Downloads -->
+						<div class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+							<!-- Container Downloads -->
+							{#if podeDownload}
+								{@const assRelSab = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'sabado' && a.tipo === 'extraordinario')}
+								{@const assRelDom = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'domingo' && a.tipo === 'extraordinario')}
+								<div class="flex flex-wrap items-center gap-3">
+									<!-- Sábado -->
+									<div class="flex flex-wrap items-center gap-2">
+										<button
+											class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!sec.temRespostasSabado}
+											title={!sec.temRespostasSabado ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Sábado'}
+										>
+											<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+											<span>Resultados Sáb</span>
+											{#if !sec.temRespostasSabado}
+												<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">(aguardando)</span>
+											{/if}
+										</button>
+										
+										<div class="flex flex-col gap-1 w-full sm:w-auto">
+											<button
+												class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRelSab ? 'preset-filled-primary-500' : 'preset-tonal-primary'} w-full "
+												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
+												disabled={!checkAllSigned(sec, 'sabado') || (!assRelSab && !(isAdminGeral || isSeccional || isSupervisor))}
+												title={!checkAllSigned(sec, 'sabado') ? getFaltandoRubrica(sec, 'sabado') : (assRelSab ? `Assinado por ${assRelSab.assinante_nome}` : 'Aguardando assinatura do supervisor')}
+											>
+												<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+												<span class="whitespace-nowrap">Relat. Extra Sáb</span>
+												{#if !assRelSab}
+													<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">({!checkAllSigned(sec, 'sabado') ? 'não concluído' : 'conferência'})</span>
+												{/if}
+											</button>
+											{#if isSupervisor && !assRelSab && checkAllSigned(sec, 'sabado')}
+												<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'sabado', 'extraordinario')}>
+													Assinar Relatório
+												</button>
+											{/if}
+										</div>
+									</div>
+
+									<div class="w-px h-6 bg-surface-300 dark:bg-surface-600 mx-1 hidden lg:block"></div>
+
+									<!-- Domingo -->
+									<div class="flex flex-wrap items-center gap-2">
+										<button
+											class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!sec.temRespostasDomingo}
+											title={!sec.temRespostasDomingo ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Domingo'}
+										>
+											<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 1 2 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+											<span>Resultados Dom</span>
+											{#if !sec.temRespostasDomingo}
+												<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">(aguardando)</span>
+											{/if}
+										</button>
+										
+										<div class="flex flex-col gap-1 w-full sm:w-auto">
+											<button
+												class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRelDom ? 'preset-filled-primary-500' : 'preset-tonal-primary'} w-full"
+												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
+												disabled={!checkAllSigned(sec, 'domingo') || (!assRelDom && !(isAdminGeral || isSeccional || isSupervisor))}
+												title={!checkAllSigned(sec, 'domingo') ? getFaltandoRubrica(sec, 'domingo') : (assRelDom ? `Assinado por ${assRelDom.assinante_nome}` : 'Aguardando assinatura do supervisor')}
+											>
+												<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+												<span class="whitespace-nowrap">Relat. Extra Dom</span>
+												{#if !assRelDom}
+													<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">({!checkAllSigned(sec, 'domingo') ? 'não concluído' : 'conferência'})</span>
+												{/if}
+											</button>
+											{#if isSupervisor && !assRelDom && checkAllSigned(sec, 'domingo')}
+												<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'domingo', 'extraordinario')}>
+													Assinar Relatório
+												</button>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{/if}
+
+							<!-- Container Ações -->
+							<div class="flex items-center gap-2 sm:ml-auto">
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
 										<button
@@ -1277,79 +1415,6 @@
 											>Cancelar</button>
 										{/if}
 									{/if}
-								{/if}
-								
-								{#if isAdminGeral && podeEditar}
-									<button
-										class="text-sm btn preset-outlined-error-500 px-2 py-1 rounded-lg flex items-center gap-1"
-										onclick={() => removerSeccional(sec.id)}
-										disabled={salvando}
-										title="Excluir seccional desta escala"
-									>
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-										Excluir
-									</button>
-								{/if}
-								{#if podeDownload}
-									<div class="flex flex-wrap items-center gap-3 self-center border-l border-surface-300 dark:border-surface-600 pl-4 ml-2">
-										<!-- Sábado -->
-										<div class="flex items-center gap-2">
-											<button
-												class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-30"
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!sec.temRespostasSabado}
-												title={!sec.temRespostasSabado ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Sábado'}
-											>
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-												<span>Resultados Sáb</span>
-												{#if !sec.temRespostasSabado}
-													<span class="text-[0.6rem] opacity-70 font-normal italic ml-1">(aguardando)</span>
-												{/if}
-											</button>
-											<button
-												class="btn btn-sm preset-tonal-primary text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-30"
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!checkAllSigned(sec, 'sabado')}
-												title={!checkAllSigned(sec, 'sabado') ? getFaltandoRubrica(sec, 'sabado') : 'Baixar Relatório de Sábado'}
-											>
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-												<span>Relat. Extra Sáb</span>
-												{#if !checkAllSigned(sec, 'sabado')}
-													<span class="text-[0.6rem] opacity-70 font-normal italic ml-1">(aguardando)</span>
-												{/if}
-											</button>
-										</div>
-
-										<div class="w-px h-6 bg-surface-300 dark:bg-surface-600 mx-1 hidden lg:block"></div>
-
-										<!-- Domingo -->
-										<div class="flex items-center gap-2">
-											<button
-												class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-30"
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!sec.temRespostasDomingo}
-												title={!sec.temRespostasDomingo ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Domingo'}
-											>
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-												<span>Resultados Dom</span>
-												{#if !sec.temRespostasDomingo}
-													<span class="text-[0.6rem] opacity-70 font-normal italic ml-1">(aguardando)</span>
-												{/if}
-											</button>
-											<button
-												class="btn btn-sm preset-tonal-primary text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-30"
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!checkAllSigned(sec, 'domingo')}
-												title={!checkAllSigned(sec, 'domingo') ? getFaltandoRubrica(sec, 'domingo') : 'Baixar Relatório de Domingo'}
-											>
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-												<span>Relat. Extra Dom</span>
-												{#if !checkAllSigned(sec, 'domingo')}
-													<span class="text-[0.6rem] opacity-70 font-normal italic ml-1">(aguardando)</span>
-												{/if}
-											</button>
-										</div>
-									</div>
 								{/if}
 							</div>
 						</div>
@@ -1835,22 +1900,42 @@
 <!-- Confirmar Finalizar -->
 {#if showFinalizarConfirm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Finalizar Escala GISE</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				A escala será marcada como <strong>Finalizada</strong> e o sistema criará automaticamente a escala do próximo final de semana.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showFinalizarConfirm = false)}>
-					Cancelar
-				</button>
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-6 border border-white/10">
+			<div class="text-center space-y-2">
+				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Finalizar Escala GISE</h2>
+				<p class="text-sm text-surface-500">
+					A escala atual será marcada como <span class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span>. 
+					Como deseja abrir a escala do próximo final de semana?
+				</p>
+			</div>
+			
+			<div class="space-y-3 pt-2">
 				<button
-					class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
-					onclick={finalizarGise}
+					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-primary-500/30 hover:bg-primary-500/10 text-primary-600 dark:text-primary-400"
+					onclick={() => finalizarGise('completa')}
 					disabled={finalizando}
 				>
-					{#if finalizando}<Spinner size="sm" />{/if}
-					{finalizando ? 'Finalizando...' : 'Confirmar'}
+					<span class="font-bold text-base">1 — Abrir nova escala completa</span>
+					<span class="text-xs opacity-70">Inclui todas as seccionais padrão do sistema</span>
+				</button>
+				
+				<button
+					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-secondary-500/30 hover:bg-secondary-500/10 text-secondary-600 dark:text-secondary-400"
+					onclick={() => finalizarGise('clonada')}
+					disabled={finalizando}
+				>
+					<span class="font-bold text-base">2 — Abrir nos moldes atual</span>
+					<span class="text-xs opacity-70">Copia as seccionais e equipes desta escala</span>
+				</button>
+			</div>
+
+			<div class="pt-2">
+				<button 
+					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-2" 
+					onclick={() => (showFinalizarConfirm = false)}
+					disabled={finalizando}
+				>
+					Cancelar e voltar
 				</button>
 			</div>
 		</div>

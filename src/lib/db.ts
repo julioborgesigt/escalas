@@ -456,7 +456,11 @@ export async function salvarDocumentoEscala(
 	r2Key: string,
 	assinanteNome: string,
 	assinanteCpf?: string,
-	verificacaoHash?: string
+	verificacaoHash?: string,
+	ipAddress?: string,
+	userAgent?: string,
+	latitude?: number,
+	longitude?: number
 ) {
 	return db.insert(escalaDocumentos)
 		.values({
@@ -464,7 +468,11 @@ export async function salvarDocumentoEscala(
 			r2_key: r2Key,
 			assinante_nome: assinanteNome,
 			assinante_cpf: assinanteCpf || '',
-			verificacao_hash: verificacaoHash
+			verificacao_hash: verificacaoHash,
+			ip_address: ipAddress,
+			user_agent: userAgent,
+			latitude,
+			longitude
 		})
 		.onConflictDoUpdate({
 			target: escalaDocumentos.escala_id,
@@ -473,6 +481,10 @@ export async function salvarDocumentoEscala(
 				assinante_nome: assinanteNome,
 				assinante_cpf: assinanteCpf || '',
 				verificacao_hash: verificacaoHash,
+				ip_address: ipAddress,
+				user_agent: userAgent,
+				latitude,
+				longitude,
 				created_at: sql`datetime('now')`
 			}
 		});
@@ -486,8 +498,36 @@ export async function excluirDocumentoEscala(db: Database, escalaId: number) {
 	return db.delete(escalaDocumentos).where(eq(escalaDocumentos.escala_id, escalaId));
 }
 
-export async function buscarDocumentoPorHash(db: Database, hash: string): Promise<schema.EscalaDocumento | undefined> {
-	return db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get();
+export async function buscarDocumentoPorHash(db: Database, hash: string) {
+	// 1. Escalas comuns
+	const esc = await db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get();
+	if (esc) return { ...esc, tipo_doc: 'escala' as const };
+
+	// 2. Escalas GISE (gerais)
+	const gise = await db.select().from(giseDocumentos).where(eq(giseDocumentos.verificacao_hash, hash)).get();
+	if (gise) return { ...gise, escala_id: gise.gise_id, tipo_doc: 'gise' as const };
+
+	// 3. Relatórios GISE (extraordinário/produtividade)
+	const rel = await db.select().from(schema.giseAssinaturasRelatorios).where(eq(schema.giseAssinaturasRelatorios.verification_hash, hash)).get();
+	if (rel) {
+		return { 
+			id: rel.id,
+			escala_id: rel.gise_id, 
+			assinante_nome: rel.assinante_nome,
+			assinante_cpf: rel.assinante_cpf,
+			created_at: rel.created_at,
+			tipo_doc: 'gise_relatorio' as const,
+			rel_tipo: rel.tipo,
+			seccional_id: rel.seccional_id,
+			dia: rel.dia,
+			ip_address: rel.ip_address,
+			user_agent: rel.user_agent,
+			latitude: rel.latitude,
+			longitude: rel.longitude
+		};
+	}
+
+	return undefined;
 }
 
 // ---- RBAC: Papéis de Policiais ----
@@ -880,7 +920,8 @@ export async function verificarGiseCompleta(db: Database, giseId: number): Promi
 /** Clona a GISE para o próximo final de semana (sábado seguinte) */
 export async function clonarGiseParaProximoFDS(
 	db: Database,
-	giseId: number
+	giseId: number,
+	modo: 'clonada' | 'completa' = 'clonada'
 ): Promise<number> {
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
 	if (!gise) throw new Error('GISE não encontrada');
@@ -904,12 +945,20 @@ export async function clonarGiseParaProximoFDS(
 	);
 
 	// Clonar seccionais e suas equipes (sem membros, sem unidade operacional, sem supervisor)
-	const secsOriginais = await db
-		.select()
-		.from(giseSeccionais)
-		.where(eq(giseSeccionais.gise_id, giseId));
+	let secsParaClonar: any[] = [];
+	
+	if (modo === 'clonada') {
+		secsParaClonar = await db
+			.select()
+			.from(giseSeccionais)
+			.where(eq(giseSeccionais.gise_id, giseId));
+	} else {
+		// Modo 'completa': Busca TODAS as seccionais cadastradas no sistema
+		const todas = await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all();
+		secsParaClonar = todas.map(s => ({ seccional_id: s.id }));
+	}
 
-	for (const sec of secsOriginais) {
+	for (const sec of secsParaClonar) {
 		const novaSecResult = await db
 			.insert(giseSeccionais)
 			.values({
@@ -922,10 +971,14 @@ export async function clonarGiseParaProximoFDS(
 		const novaSecId = novaSecResult[0].id;
 
 		// Clonar equipes com seus slots (mas sem membros)
-		const equipesOriginais = await db
-			.select()
-			.from(giseEquipes)
-			.where(eq(giseEquipes.gise_seccional_id, sec.id));
+		let equipesOriginais: any[] = [];
+		
+		if (modo === 'clonada' && sec.id) {
+			equipesOriginais = await db
+				.select()
+				.from(giseEquipes)
+				.where(eq(giseEquipes.gise_seccional_id, sec.id));
+		}
 
 		if (equipesOriginais.length > 0) {
 			await db.insert(giseEquipes).values(
@@ -936,6 +989,12 @@ export async function clonarGiseParaProximoFDS(
 					slots_oip: eq_.slots_oip
 				}))
 			);
+		} else {
+			// Se for modo 'completa' ou seccional nova sem equipes, cria as padrão
+			await db.insert(giseEquipes).values([
+				{ gise_seccional_id: novaSecId, tipo: 'operacional', slots_dpc: 1, slots_oip: 3 },
+				{ gise_seccional_id: novaSecId, tipo: 'seint', slots_dpc: 0, slots_oip: 2 }
+			]);
 		}
 	}
 
@@ -1039,15 +1098,35 @@ export async function verificarConflitoMembroGise(
 
 export async function buscarRespostasProdutividadeSeccional(db: any, giseId: number, seccionalId: number, dia: 'sabado' | 'domingo') {
 	const configRow = await db.select().from(giseModeloFormulario).get();
-	const modeloPerguntas = configRow ? JSON.parse(configRow.config) : [];
+	const defaultQuestions = [
+		{ id: 1, texto: '1. VTR E PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
+		{ id: 2, texto: '2. KM INICIAL', tipo: 'numero', key: 'km_inicial', filhos: [] },
+		{ id: 3, texto: '3. KM FINAL', tipo: 'numero', key: 'km_final', filhos: [] },
+		{ id: 4, texto: '4. PROCEDIMENTOS FLAGRANTE', tipo: 'select_99', key: 'procedimentos_inteiros', filhos: [] },
+		{ id: 5, texto: '5. MANDADOS CUMPRIDOS (MAIORES)', tipo: 'mandados_maiores', key: 'mandados_cumpridos', filhos: [] },
+		{ id: 6, texto: '6. APREENSÕES CUMPRIDAS (MENORES)', tipo: 'apreensoes_menores', key: 'apreensoes_cumpridas', filhos: [] },
+		{ id: 7, texto: '7. PRISÕES/APREENSÕES FLAGRANTE', tipo: 'select_99', key: 'prisoes_apreensoes_flagrante', filhos: [] },
+		{ id: 8, texto: '8. TENTATIVA CUMPRIMENTO MANDADO', tipo: 'sim_nao', key: 'tentativa_mandado', filhos: [] },
+		{ id: 9, texto: '9. MANDADO BUSCA E APREENSÃO', tipo: 'sim_nao', key: 'busca_apreensao', filhos: [] },
+		{ id: 10, texto: '10. APREENSÃO DE DROGAS', tipo: 'drogas_complex', key: 'apreensoes_drogas', filhos: [] },
+		{ id: 11, texto: '11. APREENSÕES ARMAS', tipo: 'select_99', key: 'apreensoes_armas', filhos: [] },
+		{ id: 12, texto: '12. LOCAL DE CRIME', tipo: 'select_99', key: 'local_crime', filhos: [] },
+		{ id: 13, texto: '13. ORDEM DE MISSÃO CUMPRIDA', tipo: 'select_99', key: 'ordem_missao', filhos: [] },
+		{ id: 14, texto: '14. LEVANTAMENTO DE ALVOS', tipo: 'select_99', key: 'levantamento_alvos', filhos: [] },
+		{ id: 15, texto: '15. OITIVAS REALIZADAS', tipo: 'select_99', key: 'oitivas', filhos: [] },
+		{ id: 16, texto: '16. REPRESENTAÇÃO PRISÃO', tipo: 'select_99', key: 'representacao_prisao', filhos: [] },
+		{ id: 17, texto: '17. REPRESENTAÇÃO BUSCA', tipo: 'select_99', key: 'representacao_busca', filhos: [] },
+		{ id: 18, texto: '18. Nº ABORDAGENS', tipo: 'select_99', key: 'abordagens', filhos: [] },
+		{ id: 19, texto: '19. RESUMO DILIGÊNCIAS', tipo: 'textarea', key: 'descricao', filhos: [] }
+	];
+	const modeloPerguntas = configRow ? JSON.parse(configRow.config) : defaultQuestions;
 	
 	const rows = await db.select({
-		equipe_id: giseMembros.equipe_id,
+		equipe_id: giseRespostasFormulario.equipe_id,
 		respostas: giseRespostasFormulario.respostas
 	})
 	.from(giseRespostasFormulario)
-	.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
-	.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+	.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
 	.where(and(
 		eq(giseRespostasFormulario.gise_id, giseId),
 		eq(giseRespostasFormulario.dia, dia),
@@ -1057,18 +1136,53 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 
 	const allResults: { equipe_id: number, pergunta: string, resposta: string }[] = [];
 
-	for (const r of rows) {
-		const resps = JSON.parse(r.respostas);
-		for (const p of modeloPerguntas) {
-			const resp = resps[p.id];
-			if (resp !== undefined) {
+	const processarPerguntas = (listaPerguntas: any[], resps: any, eqId: number) => {
+		for (const p of listaPerguntas) {
+			const resp = resps[p.key] ?? resps[String(p.id)] ?? resps[p.id];
+			
+			if (resp !== undefined && resp !== null && resp !== '') {
 				allResults.push({
-					equipe_id: r.equipe_id!,
+					equipe_id: eqId,
 					pergunta: p.texto,
 					resposta: String(resp)
 				});
+
+				// Tratamento de tipos complexos (listas e detalhes)
+				if (resp === 'Sim') {
+					if (p.tipo === 'mandados_maiores' && resps.mandados_lista) {
+						resps.mandados_lista.forEach((item: any, idx: number) => {
+							if (item.nome || item.mandado) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Mandado ${idx+1}`, resposta: `${item.nome} - ${item.mandado}` });
+							}
+						});
+					}
+					if (p.tipo === 'apreensoes_menores' && resps.apreensoes_lista) {
+						resps.apreensoes_lista.forEach((item: any, idx: number) => {
+							if (item.nome || item.mandado) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Apreensão ${idx+1}`, resposta: `${item.nome} - ${item.mandado}` });
+							}
+						});
+					}
+					if (p.tipo === 'drogas_complex' && resps.drogas_selecionadas) {
+						resps.drogas_selecionadas.forEach((d: string) => {
+							const peso = resps.drogas_detalhe?.[d] || '0';
+							const unid = resps.drogas_unidade?.[d] || 'g';
+							allResults.push({ equipe_id: eqId, pergunta: `  ↳ Droga: ${d}`, resposta: `${peso}${unid}` });
+						});
+					}
+
+					// Processa sub-perguntas se houver
+					if (p.filhos && p.filhos.length > 0) {
+						processarPerguntas(p.filhos, resps, eqId);
+					}
+				}
 			}
 		}
+	};
+
+	for (const r of rows) {
+		const resps = JSON.parse(r.respostas);
+		processarPerguntas(modeloPerguntas, resps, r.equipe_id!);
 	}
 
 	return allResults;
@@ -1083,7 +1197,11 @@ export async function salvarGiseDocumento(
 	assinanteCpf: string,
 	verificacaoHash: string,
 	dia: 'sabado' | 'domingo' | 'ambos' = 'ambos',
-	rubrica?: string
+	rubrica?: string,
+	ipAddress?: string,
+	userAgent?: string,
+	latitude?: number,
+	longitude?: number
 ) {
 	return db.insert(giseDocumentos).values({
 		gise_id: giseId,
@@ -1093,7 +1211,11 @@ export async function salvarGiseDocumento(
 		assinante_nome: assinanteNome,
 		assinante_cpf: assinanteCpf,
 		verificacao_hash: verificacaoHash,
-		rubrica: rubrica || null
+		rubrica: rubrica || null,
+		ip_address: ipAddress,
+		user_agent: userAgent,
+		latitude,
+		longitude
 	}).onConflictDoUpdate({
 		target: [giseDocumentos.gise_id, giseDocumentos.dia],
 		set: {
@@ -1103,6 +1225,10 @@ export async function salvarGiseDocumento(
 			assinante_cpf: assinanteCpf,
 			verificacao_hash: verificacaoHash,
 			rubrica: rubrica || null,
+			ip_address: ipAddress,
+			user_agent: userAgent,
+			latitude,
+			longitude,
 			created_at: sql`datetime('now')`
 		}
 	});
@@ -1178,7 +1304,19 @@ export async function buscarRespostaGise(db: Database, giseId: number, policialI
 
 	if (!targetEquipeId) return null;
 
-	// Acha qualquer resposta da mesma equipe
+	if (targetEquipeId) {
+		const r = await db.select()
+			.from(giseRespostasFormulario)
+			.where(and(
+				eq(giseRespostasFormulario.gise_id, giseId),
+				eq(giseRespostasFormulario.equipe_id, targetEquipeId),
+				eq(giseRespostasFormulario.dia, dia)
+			))
+			.get();
+		if (r) return r;
+	}
+
+	// Fallback para respostas legadas ligadas apenas ao policial_id
 	return db.select()
 		.from(giseRespostasFormulario)
 		.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
@@ -1204,6 +1342,7 @@ export async function salvarRespostaGise(db: Database, giseId: number, policialI
 	return db.insert(giseRespostasFormulario).values({
 		gise_id: giseId,
 		policial_id: policialId,
+		equipe_id: equipeId ?? null,
 		dia,
 		respostas,
 		updated_at: sql`datetime('now')`
@@ -1218,7 +1357,7 @@ export async function listarTodasRespostasGise(db: Database) {
 		dia: giseRespostasFormulario.dia,
 		respostas: giseRespostasFormulario.respostas,
 		updated_at: giseRespostasFormulario.updated_at,
-		// Dados da escala
+		// Dados da escala vinculada à equipe
 		data_inicio: giseEscalas.data_inicio,
 		seccional_id: giseSeccionais.seccional_id,
 		seccional_nome: unidades.nome,
@@ -1226,11 +1365,10 @@ export async function listarTodasRespostasGise(db: Database) {
 		equipe_tipo: giseEquipes.tipo
 	})
 	.from(giseRespostasFormulario)
-	.innerJoin(giseEscalas, eq(giseRespostasFormulario.gise_id, giseEscalas.id))
-	.innerJoin(giseSeccionais, eq(giseEscalas.id, giseSeccionais.gise_id))
+	.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
+	.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 	.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-	.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
-	.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+	.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
 	.all();
 }
 
@@ -1247,28 +1385,40 @@ export async function buscarPresencaGise(db: Database, giseId: number, policialI
 		.get();
 }
 
-export async function salvarEntradaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string) {
+export async function salvarEntradaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
 	return db.insert(schema.gisePresencas).values({
 		gise_id: giseId,
 		policial_id: policialId,
 		dia,
 		entrada_timestamp: new Date().toISOString(),
 		entrada_rubrica: rubrica,
+		ip_address: ipAddress,
+		user_agent: userAgent,
+		latitude,
+		longitude,
 		updated_at: sql`datetime('now')`
 	}).onConflictDoUpdate({
 		target: [schema.gisePresencas.gise_id, schema.gisePresencas.policial_id, schema.gisePresencas.dia],
 		set: {
 			entrada_timestamp: new Date().toISOString(),
 			entrada_rubrica: rubrica,
+			ip_address: ipAddress,
+			user_agent: userAgent,
+			latitude,
+			longitude,
 			updated_at: sql`datetime('now')`
 		}
 	});
 }
 
-export async function salvarSaidaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string) {
+export async function salvarSaidaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
 	return db.update(schema.gisePresencas).set({
 		saida_timestamp: new Date().toISOString(),
 		saida_rubrica: rubrica,
+		ip_address: ipAddress,
+		user_agent: userAgent,
+		latitude,
+		longitude,
 		updated_at: sql`datetime('now')`
 	}).where(and(
 		eq(schema.gisePresencas.gise_id, giseId),
@@ -1307,3 +1457,78 @@ export async function buscarSeccionaisUnidades(db: Database) {
 		.all();
 }
 
+
+// ---- GISE Assinaturas de Relatórios ----
+
+export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
+	return db.select()
+		.from(schema.giseAssinaturasRelatorios)
+		.where(eq(schema.giseAssinaturasRelatorios.gise_id, giseId))
+		.all();
+}
+
+export async function buscarAssinaturaRelatorioGise(
+	db: Database, 
+	giseId: number, 
+	seccionalId: number, 
+	dia: 'sabado' | 'domingo', 
+	tipo: 'extraordinario' | 'produtividade'
+) {
+	return db.select()
+		.from(schema.giseAssinaturasRelatorios)
+		.where(and(
+			eq(schema.giseAssinaturasRelatorios.gise_id, giseId),
+			eq(schema.giseAssinaturasRelatorios.seccional_id, seccionalId),
+			eq(schema.giseAssinaturasRelatorios.dia, dia),
+			eq(schema.giseAssinaturasRelatorios.tipo, tipo)
+		))
+		.get();
+}
+
+export async function salvarAssinaturaRelatorioGise(
+	db: Database,
+	data: {
+		gise_id: number;
+		seccional_id: number;
+		dia: 'sabado' | 'domingo';
+		tipo: 'extraordinario' | 'produtividade';
+		assinante_id?: number | null;
+		assinante_nome: string;
+		assinante_cpf?: string | null;
+		tipo_assinatura: 'simples' | 'webpki' | 'serpro';
+		rubrica?: string;
+		verification_hash?: string;
+		ip_address?: string;
+		user_agent?: string;
+		latitude?: number;
+		longitude?: number;
+	}
+) {
+	return db.insert(schema.giseAssinaturasRelatorios)
+		.values({
+			...data,
+			assinante_id: data.assinante_id ?? null,
+			assinante_cpf: data.assinante_cpf ?? ''
+		})
+		.onConflictDoUpdate({
+			target: [
+				schema.giseAssinaturasRelatorios.gise_id, 
+				schema.giseAssinaturasRelatorios.seccional_id, 
+				schema.giseAssinaturasRelatorios.dia, 
+				schema.giseAssinaturasRelatorios.tipo
+			],
+			set: {
+				assinante_id: data.assinante_id ?? null,
+				assinante_nome: data.assinante_nome,
+				assinante_cpf: data.assinante_cpf ?? '',
+				tipo_assinatura: data.tipo_assinatura,
+				rubrica: data.rubrica,
+				verification_hash: data.verification_hash,
+				ip_address: data.ip_address,
+				user_agent: data.user_agent,
+				latitude: data.latitude,
+				longitude: data.longitude,
+				created_at: sql`datetime('now')`
+			}
+		});
+}

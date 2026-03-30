@@ -11,15 +11,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as XLSX from 'xlsx';
-import { getDB, buscarGiseDetalhado, buscarPresencasGise } from '$lib/db';
+import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { gerarPdfGise, gerarRelatorioExtraordinarioPdf } from '$lib/export';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
-	if (!u || (!isAdminGeral(u) && !isAdminSeccional(u))) {
-		return json({ error: 'Sem permissão para baixar a escala GISE' }, { status: 403 });
-	}
+	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
 
 	const id = parseInt(params.id);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
@@ -27,6 +25,13 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	const db = getDB(platform);
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+
+	const isSupervisor = u.tipo === 'policial' && (gise.supervisor_sabado_id === u.id || gise.supervisor_domingo_id === u.id);
+
+	// Checagem de permissão básica: Admin ou Supervisor ou Policial comum (membro checado depois no format extraordinario)
+	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && u.tipo !== 'policial') {
+		return json({ error: 'Sem permissão para acessar downloads desta escala GISE' }, { status: 403 });
+	}
 
 	const format = url.searchParams.get('format') || 'xlsx';
 
@@ -39,11 +44,42 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const seccionalId = secIdParam ? parseInt(secIdParam) : undefined;
 		
 		const presencas = await buscarPresencasGise(db, id, diaParam);
-		const result = await gerarRelatorioExtraordinarioPdf(gise, diaParam, presencas, seccionalId, url.origin);
+		
+		let reportSignature = seccionalId ? await buscarAssinaturaRelatorioGise(db, id, seccionalId, diaParam, 'extraordinario') : null;
+		
+		// Fallback para assinaturas salvas incorretamente com o PK da gise_seccionais (sec.id) em vez do seccional_id
+		if (!reportSignature && seccionalId) {
+			const junction = (gise.seccionais as any[]).find(s => s.seccional_id === seccionalId || s.id === seccionalId);
+			if (junction && junction.id !== seccionalId) {
+				reportSignature = await buscarAssinaturaRelatorioGise(db, id, junction.id, diaParam, 'extraordinario');
+			}
+		}
+
+		// Bloqueio para policiais comuns: só baixam se estiver assinado pelo supervisor
+		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !reportSignature) {
+			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor para download pelo escalado.' }, { status: 403 });
+		}
+
+		const result = await gerarRelatorioExtraordinarioPdf(gise, diaParam, presencas, seccionalId, url.origin, reportSignature);
+		let finalPdf = result.pdf;
+
+		// Se houver assinatura, aplicamos o rodapé visual estilo GISE (com QR Code etc)
+		if (reportSignature) {
+			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
+			const qrUrl = reportSignature.verification_hash ? `${url.origin}/validar/${reportSignature.verification_hash}` : undefined;
+			
+			finalPdf = await adicionarRodapeSimples(
+				finalPdf,
+				reportSignature.assinante_nome,
+				reportSignature.verification_hash || undefined,
+				qrUrl,
+				reportSignature.rubrica || undefined
+			);
+		}
 		
 		const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
 		const filename = `relatorio_extraordinario_${gise.data_inicio}_${diaParam}${secSuffix}.pdf`;
-		return new Response(result.pdf as any, {
+		return new Response(finalPdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`,
@@ -81,10 +117,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
 		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id, diaParam);
-		const doc = gerarRelatorioProdutividadeGisePdf({ gise, seccional, dia: diaParam, respostas });
+		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, dia: diaParam, respostas });
 		
 		const filename = `resumo_produtividade_${gise.data_inicio}_${diaParam}_sec_${seccionalId}.pdf`;
-		return new Response(doc.output('arraybuffer') as any, {
+		return new Response(result.pdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`,
