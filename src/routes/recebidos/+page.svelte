@@ -4,6 +4,7 @@
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -259,7 +260,10 @@
 	<!-- Tabela de Cx. de Entrada -->
 	<div class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5">
 		{#if loading}
-			<p class="text-center py-16 text-surface-500">Carregando recebimentos...</p>
+			<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+				<Spinner size="xl" />
+				<span class="text-sm">Carregando recebimentos...</span>
+			</div>
 		{:else if escalasFiltradas.length === 0}
 			<div class="text-center py-20 px-4">
 				<p class="text-4xl mb-4">📥</p>
