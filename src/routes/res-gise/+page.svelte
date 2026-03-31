@@ -257,7 +257,7 @@
 <div class="space-y-6">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
 		<div>
-			<h1 class="text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Relatórios GISE</h1>
+			<h1 class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Relatórios GISE</h1>
 			<p class="text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
 		</div>
 
@@ -282,13 +282,13 @@
 	</header>
 
 	{#if isAdminGeral && activeTab === 'configurador'}
-		<section class="card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-8 animate-in fade-in zoom-in-95 duration-500">
-			<div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-6">
+		<section class="card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-8 animate-in fade-in zoom-in-95 duration-500">
+			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6">
 				<div>
-					<h2 class="text-2xl font-black uppercase tracking-tight">Configurar Formulário</h2>
+					<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">Configurar Formulário</h2>
 					<p class="text-sm text-surface-500 mt-1">Defina os textos e campos do relatório de produtividade oficial.</p>
 				</div>
-				<div class="flex items-center gap-3">
+				<div class="flex flex-wrap items-center gap-2">
 					<button class="btn preset-outlined-surface-500 px-4 py-2 rounded-xl text-xs font-bold" onclick={() => {
 						if (confirm('Deseja restaurar o modelo oficial de 19 pontos? Isso substituirá as perguntas atuais.')) {
 							perguntas = JSON.parse(JSON.stringify(data.modeloPadrao));
@@ -296,7 +296,7 @@
 					}} title="Restaurar Modelo Oficial">
 						Restaurar 19 Pontos
 					</button>
-					<button class="btn preset-filled-primary-500 px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary-500/30" onclick={adicionarPergunta} title="Adicionar Nova Pergunta">
+					<button class="btn preset-filled-primary-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary-500/30" onclick={adicionarPergunta} title="Adicionar Nova Pergunta">
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
 						Nova Pergunta
 					</button>
@@ -429,7 +429,7 @@
 			</div>
 
 			<div class="flex justify-end pt-6 border-t border-surface-200 dark:border-surface-800">
-				<button class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-black text-xl shadow-xl shadow-primary-500/30 transition-all hover:scale-105 active:scale-95" onclick={salvarModelo} disabled={salvandoModelo}>
+				<button class="btn preset-filled-primary-500 w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 rounded-2xl font-black text-base sm:text-xl shadow-xl shadow-primary-500/30 transition-all hover:scale-105 active:scale-95" onclick={salvarModelo} disabled={salvandoModelo}>
 					{salvandoModelo ? 'Salvando...' : 'Publicar Alterações'}
 				</button>
 			</div>

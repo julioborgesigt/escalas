@@ -5,6 +5,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	import type { Unidade } from '$lib/types';
 
@@ -257,16 +258,14 @@
 	<div class="p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-5">
 		
 		<!-- Regime Row -->
-		<div class="flex items-center gap-3">
-			<span class="text-sm font-bold text-surface-500">Regime:</span>
-			<div class="flex gap-2">
-				{#each [['todos','Todos'],['plantao','Plantão'],['expediente','Expediente'],['fds','FDS']] as [val, label]}
-					<button
-						class="btn btn-sm px-4 rounded-full transition-all text-sm font-medium {filtroRegime === val ? 'bg-[#00ADC8] text-white shadow-sm' : 'text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'}"
-						onclick={() => { filtroRegime = val as typeof filtroRegime; mostrarIgnorados = false; }}
-					>{label}</button>
-				{/each}
-			</div>
+		<div class="flex flex-wrap items-center gap-2">
+			<span class="text-sm font-bold text-surface-500 mr-1">Regime:</span>
+			{#each [['todos','Todos'],['plantao','Plantão'],['expediente','Expediente'],['fds','FDS']] as [val, label]}
+				<button
+					class="btn btn-sm px-4 rounded-full transition-all text-sm font-medium {filtroRegime === val ? 'bg-[#00ADC8] text-white shadow-sm' : 'text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'}"
+					onclick={() => { filtroRegime = val as typeof filtroRegime; mostrarIgnorados = false; }}
+				>{label}</button>
+			{/each}
 		</div>
 
 		<!-- Main Filters Row -->
@@ -301,7 +300,7 @@
 				</select>
 			</label>
 
-			<div class="flex items-center gap-5 pb-1 h-9">
+			<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
 				{#if !mostrarIgnorados}
 					<label class="flex items-center gap-2 cursor-pointer group">
 						<input type="checkbox" class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none" bind:checked={filtroPendentes} />
@@ -353,7 +352,10 @@
 	<!-- Tabela -->
 	<div class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5">
 		{#if loading}
-			<p class="text-center py-16 text-surface-500">Carregando...</p>
+			<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+				<Spinner size="xl" />
+				<span class="text-sm">Carregando...</span>
+			</div>
 		{:else if dadosFiltrados.length === 0}
 			<div class="text-center py-20">
 				<p class="text-4xl mb-4">{mostrarIgnorados ? '🔕' : '🎉'}</p>

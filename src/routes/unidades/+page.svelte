@@ -5,6 +5,7 @@
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -340,8 +341,8 @@
 								{/each}
 							</select>
 						</label>
-						<div class="flex items-end gap-2">
-							<label class="label w-24">
+						<div class="grid grid-cols-[6rem_1fr] gap-2">
+							<label class="label">
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={delegaciaPrefixo}>
 									<option value="">—</option>
@@ -350,19 +351,16 @@
 									{/each}
 								</select>
 							</label>
-							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
-								Delegacia de Polícia Civil de
-							</div>
-							<label class="label flex-1">
-								<span class="label-text">Local</span>
+							<label class="label">
+								<span class="label-text">Local (cidade / nome)</span>
 								<input class="input" type="text" bind:value={delegaciaSufixo} placeholder="Iguatu" />
 							</label>
 						</div>
 					</div>
 				{:else}
 					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
-						<div class="flex items-end gap-2">
-							<label class="label w-24">
+						<div class="grid grid-cols-[6rem_1fr] gap-2">
+							<label class="label">
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={seccionalPrefixo}>
 									<option value="">—</option>
@@ -371,10 +369,7 @@
 									{/each}
 								</select>
 							</label>
-							<div class="flex-1 text-center py-2 text-surface-500 font-medium italic">
-								Seccional do
-							</div>
-							<label class="label flex-1">
+							<label class="label">
 								<span class="label-text">Local</span>
 								<input class="input" type="text" bind:value={seccionalSufixo} placeholder="Interior Sul" />
 							</label>
@@ -397,7 +392,8 @@
 			</div>
 				<div class="flex justify-end gap-3 pt-1">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button type="submit" class="btn preset-filled-primary-500" disabled={salvando || !novoNome.trim() || (tipoUnidade === 'delegacia' && !novoSeccionalId)}>
+					<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={salvando || !novoNome.trim() || (tipoUnidade === 'delegacia' && !novoSeccionalId)}>
+						{#if salvando}<Spinner size="sm" />{/if}
 						{salvando ? 'Salvando...' : 'Cadastrar'}
 					</button>
 				</div>
@@ -409,7 +405,10 @@
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
 	{#if loading}
-		<p class="text-center py-12 text-surface-500">Carregando...</p>
+		<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+			<Spinner size="xl" />
+			<span class="text-sm">Carregando...</span>
+		</div>
 	{:else if unidades.length === 0}
 		<div class="text-center py-20">
 			<div class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">
@@ -487,7 +486,8 @@
 								<td>
 									{#if editandoId === u.id}
 										<div class="flex gap-2">
-											<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+											<button class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+												{#if salvandoEdicao}<Spinner size="xs" />{/if}
 												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 											</button>
 											<button class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}>Cancelar</button>
@@ -538,7 +538,8 @@
 								</div>
 							</div>
 							<div class="flex gap-2">
-								<button class="btn btn-sm preset-filled-primary-500 flex-1" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+								<button class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+									{#if salvandoEdicao}<Spinner size="xs" />{/if}
 									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 								</button>
 								<button class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}>Cancelar</button>

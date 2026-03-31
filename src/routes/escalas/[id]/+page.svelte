@@ -547,7 +547,10 @@
 </script>
 
 {#if loading}
-	<p class="text-center py-12 text-surface-500">Carregando...</p>
+	<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+		<Spinner size="xl" />
+		<span class="text-sm">Carregando...</span>
+	</div>
 {:else if !escala}
 	<div class="text-center py-12 text-surface-500">
 		<p>Escala não encontrada.</p>
@@ -624,16 +627,12 @@
 					</p>
 				</div>
 				<button
-					class="btn preset-filled-primary-500 shrink-0 font-semibold"
+					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
 					onclick={adicionarTodos}
 					disabled={adicionandoTodos}
 				>
-					{#if adicionandoTodos}
-						<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-						Adicionando...
-					{:else}
-						+ Adicionar Todos
-					{/if}
+					{#if adicionandoTodos}<Spinner size="md" />{/if}
+					{adicionandoTodos ? 'Adicionando...' : '+ Adicionar Todos'}
 				</button>
 			</div>
 		</div>
@@ -658,16 +657,12 @@
 					</p>
 				</div>
 				<button
-					class="btn preset-outlined-primary-500 shrink-0 font-semibold"
+					class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
 					onclick={gerarProximoMes}
 					disabled={gerandoProximoMes}
 				>
-					{#if gerandoProximoMes}
-						<span class="inline-block w-4 h-4 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"></span>
-						Gerando...
-					{:else}
-						Gerar Próximo Mês →
-					{/if}
+					{#if gerandoProximoMes}<Spinner size="md" />{/if}
+					{gerandoProximoMes ? 'Gerando...' : 'Gerar Próximo Mês →'}
 				</button>
 			</div>
 		</div>
