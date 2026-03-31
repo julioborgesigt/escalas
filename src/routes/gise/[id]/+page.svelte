@@ -1053,47 +1053,43 @@
 			{/if}
 		</div>
 
-		<div class="flex items-center gap-1.5 flex-wrap">
-			{#if (isAdminGeral || isSeccional) && gise}
-					{#if podeDownload}
-					<button
-						class="btn preset-outlined-success-500 text-sm px-3 py-1.5 rounded-lg"
-						onclick={() => downloadGise('xlsx')}
-					>
-						Baixar XLSX
-					</button>
-				{/if}
+		<div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mt-1">
+			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
+				<button
+					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold"
+					onclick={() => downloadGise('xlsx')}
+				>
+					Baixar XLSX
+				</button>
 			{/if}
 			{#if isAdminGeral && gise}
-				<div class="flex items-center gap-2">
-					{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
-						<button
-							class="btn preset-filled-success-500 text-sm px-3 py-1.5 rounded-lg shadow-sm"
-							onclick={solicitarAssinatura}
-							disabled={salvando}
-						>
-							{#if salvando}<Spinner size="xs" />{/if} Solicitar Assinatura
-						</button>
-					{/if}
+				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
 					<button
-						class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-						onclick={abrirEdicaoDatasHorarios}
-						disabled={editaBloqueado}
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-auto flex items-center justify-center gap-1.5"
+						onclick={solicitarAssinatura}
+						disabled={salvando}
 					>
-						Editar Datas/Horários
+						{#if salvando}<Spinner size="xs" />{/if} Solicitar Assinatura
 					</button>
-				</div>
+				{/if}
 				<button
-				class="btn preset-outlined-error-500 text-sm px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-				onclick={() => (showExcluirGiseConfirm = true)}
-				disabled={editaBloqueado}
-			>
-				Excluir GISE
-			</button>
+					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+					onclick={abrirEdicaoDatasHorarios}
+					disabled={editaBloqueado}
+				>
+					Editar Datas/Horários
+				</button>
+				<button
+					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+					onclick={() => (showExcluirGiseConfirm = true)}
+					disabled={editaBloqueado}
+				>
+					Excluir GISE
+				</button>
 			{/if}
 			{#if podeReabrir}
 				<button
-					class="btn preset-outlined-warning-500 text-sm px-3 py-1.5 rounded-lg"
+					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold"
 					onclick={() => (showReabrirConfirm = true)}
 				>
 					Reabrir para Edição
@@ -1101,7 +1097,7 @@
 			{/if}
 			{#if podeFinalizar}
 				<button
-					class="btn preset-filled-error-500 text-sm px-3 py-1.5 rounded-lg"
+					class="btn btn-sm preset-outlined-error-500 col-span-2 sm:col-auto rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15"
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
