@@ -444,7 +444,10 @@
 	{/if}
 
 	{#if loading}
-		<p class="text-center py-12 text-surface-500">Carregando...</p>
+		<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+			<Spinner size="xl" />
+			<span class="text-sm">Carregando...</span>
+		</div>
 	{:else if isAdmin && !filtroLotacao}
 		<div class="text-center py-20">
 			<div class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">

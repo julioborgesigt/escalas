@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { alterarSenhaSchema } from '$lib/schemas';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -163,18 +164,11 @@
 
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide"
+					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
 					disabled={loading || !senhaOk || !confirmaOk}
 				>
-					{#if loading}
-						<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-						</svg>
-						Salvando...
-					{:else}
-						{primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha'}
-					{/if}
+					{#if loading}<Spinner size="md" />{/if}
+					{loading ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
 				</button>
 
 			</form>

@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
@@ -92,7 +93,8 @@
 				/>
 			</label>
 
-			<button type="submit" class="btn preset-filled-primary-500 w-full py-3" disabled={loading}>
+			<button type="submit" class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2" disabled={loading}>
+				{#if loading}<Spinner size="md" />{/if}
 				{loading ? 'Entrando...' : 'Entrar'}
 			</button>
 		</form>
