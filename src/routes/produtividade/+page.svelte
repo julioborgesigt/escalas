@@ -124,7 +124,7 @@
 <div class="space-y-8 pb-12">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-6">
 		<div class="space-y-1">
-			<h1 class="text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Produção Operacional GISE</h1>
+			<h1 class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter">Produção Operacional GISE</h1>
 			<p class="text-surface-500 font-medium">Análise filtrada e segmentada dos resultados reais (P4-P19)</p>
 		</div>
 		<button class="btn preset-filled-surface-200 dark:preset-filled-surface-800 text-xs font-bold uppercase py-3 px-6 rounded-2xl" onclick={() => window.print()}>
@@ -197,8 +197,8 @@
 
 	<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 		<!-- Summary Bar Chart -->
-		<div class="card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
-			<div class="flex items-center justify-between mb-8">
+		<div class="card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+			<div class="flex items-center justify-between mb-6 sm:mb-8">
 				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Resumo por Ponto Operacional</h3>
 				<span class="text-[0.6rem] font-bold text-primary-500 bg-primary-500/10 px-2 py-1 rounded">Métricas Adicionais</span>
 			</div>
@@ -208,8 +208,8 @@
 		</div>
 
 		<!-- Drugs Section -->
-		<div class="card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
-			<div class="flex items-center gap-3 mb-8">
+		<div class="card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+			<div class="flex items-center gap-3 mb-6 sm:mb-8">
 				<div class="p-2 bg-error-500/10 rounded-lg">
 					<svg class="w-5 h-5 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.392 1.177a2 2 0 001.414 2.526l2.354.47a2 2 0 002.526-1.414l.392-1.177a2 2 0 00-.925-2.472z" /></svg>
 				</div>
@@ -254,7 +254,7 @@
 			</div>
 		</div>
 
-		<div class="md:col-span-2 card p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
+		<div class="md:col-span-2 card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm">
 			<div class="flex items-center gap-3 mb-6">
 				<svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
 				<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">Últimos Resultados Operacionais</h3>
