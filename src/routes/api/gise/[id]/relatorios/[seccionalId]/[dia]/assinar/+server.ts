@@ -1,17 +1,19 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, salvarAssinaturaRelatorioGise } from '$lib/db';
+import { getDB, salvarAssinaturaRelatorioGise, buscarGiseDetalhado, buscarPresencasGise } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
+import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 
-export const POST: RequestHandler = async ({ locals, params, request, platform, getClientAddress }: { locals: any, params: Record<string, string>, request: Request, platform?: any, getClientAddress: any }) => {
+export const POST: RequestHandler = async ({ locals, params, request, platform, getClientAddress, url }: any) => {
 	const u = locals.usuario;
 	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
 		return json({ error: 'Somente policiais supervisores ou administradores podem assinar' }, { status: 403 });
 	}
 
 	const { id, seccionalId, dia } = params;
-	const body = await request.json();
-	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude } = body;
+	const body = await request.json().catch(() => ({}));
+	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude, selfieBase64 } = body;
 	
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -26,9 +28,73 @@ export const POST: RequestHandler = async ({ locals, params, request, platform, 
 	const db = getDB(platform);
 
 	try {
+		// Gerar o PDF temporário para extrair o hash da assinatura
+		const giseIdNum = parseInt(id);
+		const secIdNum = parseInt(seccionalId);
+		
+		const gise = await buscarGiseDetalhado(db, giseIdNum);
+		if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
+		
+		const presencas = await buscarPresencasGise(db, giseIdNum, dia as any);
+		
+		const mockSignature = {
+			assinante_nome: signerName || u.nome,
+			verification_hash: hash,
+			rubrica: rubrica
+		};
+		
+		const result = await gerarRelatorioExtraordinarioPdf(gise, dia as any, presencas, secIdNum, url.origin, mockSignature as any);
+		let finalPdf = result.pdf;
+		const qrUrl = `${url.origin}/validar/${hash}`;
+		
+		finalPdf = await adicionarRodapeSimples(
+			finalPdf,
+			mockSignature.assinante_nome,
+			{
+				verificationHash: hash,
+				verificationUrl: qrUrl,
+				rubricBase64: rubrica || undefined
+			}
+		);
+
+		// Calcular Hash SHA-256 do arquivo final
+		const hashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
+		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		// Salvar PDF e Selfie no R2
+		const p = platform as any;
+		const r2 = p?.env?.escalas_docs;
+		const mesAno = gise.data_inicio.substring(0, 7);
+		const folder = `gise/${mesAno}/escala_${id}`;
+		const prefixBase = `${folder}/gise_rel_${id}_sec_${seccionalId}_${dia}_${hash}`;
+		
+		let selfieKey: string | undefined = undefined;
+
+		if (r2) {
+			await r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' });
+
+			if (selfieBase64) {
+				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+				const matches = selfieBase64.match(regex);
+				if (matches) {
+					const ext = matches[1] === 'png' ? 'png' : 'jpg';
+					const dataBase64 = selfieBase64.replace(regex, '');
+					const binaryString = atob(dataBase64);
+					const bytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						bytes[i] = binaryString.charCodeAt(i);
+					}
+					selfieKey = `${prefixBase}_selfie.${ext}`;
+					await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+				}
+			}
+		}
+
 		await salvarAssinaturaRelatorioGise(db, {
-			gise_id: parseInt(id),
-			seccional_id: parseInt(seccionalId),
+			gise_id: giseIdNum,
+			seccional_id: secIdNum,
 			dia: dia as 'sabado' | 'domingo',
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
@@ -40,7 +106,9 @@ export const POST: RequestHandler = async ({ locals, params, request, platform, 
 			ip_address: ip,
 			user_agent: ua,
 			latitude,
-			longitude
+			longitude,
+			selfie_key: selfieKey,
+			arquivo_hash: arquivo_hash
 		});
 
 		return json({ success: true });

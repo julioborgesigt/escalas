@@ -53,8 +53,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 				finalPdf = await adicionarRodapeSimples(
 					finalPdf,
 					reportSignature.assinante_nome,
-					hash,
-					qrUrl
+					{
+						verificationHash: hash,
+						verificationUrl: qrUrl
+					}
 				);
 			}
 
