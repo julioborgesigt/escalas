@@ -460,7 +460,9 @@ export async function salvarDocumentoEscala(
 	ipAddress?: string,
 	userAgent?: string,
 	latitude?: number,
-	longitude?: number
+	longitude?: number,
+	selfieKey?: string,
+	arquivoHash?: string
 ) {
 	return db.insert(escalaDocumentos)
 		.values({
@@ -469,6 +471,8 @@ export async function salvarDocumentoEscala(
 			assinante_nome: assinanteNome,
 			assinante_cpf: assinanteCpf || '',
 			verificacao_hash: verificacaoHash,
+			selfie_key: selfieKey,
+			arquivo_hash: arquivoHash,
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
@@ -481,6 +485,8 @@ export async function salvarDocumentoEscala(
 				assinante_nome: assinanteNome,
 				assinante_cpf: assinanteCpf || '',
 				verificacao_hash: verificacaoHash,
+				selfie_key: selfieKey,
+				arquivo_hash: arquivoHash,
 				ip_address: ipAddress,
 				user_agent: userAgent,
 				latitude,
@@ -1201,7 +1207,9 @@ export async function salvarGiseDocumento(
 	ipAddress?: string,
 	userAgent?: string,
 	latitude?: number,
-	longitude?: number
+	longitude?: number,
+	selfieKey?: string,
+	arquivoHash?: string
 ) {
 	return db.insert(giseDocumentos).values({
 		gise_id: giseId,
@@ -1211,6 +1219,8 @@ export async function salvarGiseDocumento(
 		assinante_nome: assinanteNome,
 		assinante_cpf: assinanteCpf,
 		verificacao_hash: verificacaoHash,
+		selfie_key: selfieKey,
+		arquivo_hash: arquivoHash,
 		rubrica: rubrica || null,
 		ip_address: ipAddress,
 		user_agent: userAgent,
@@ -1224,6 +1234,8 @@ export async function salvarGiseDocumento(
 			assinante_nome: assinanteNome,
 			assinante_cpf: assinanteCpf,
 			verificacao_hash: verificacaoHash,
+			selfie_key: selfieKey,
+			arquivo_hash: arquivoHash,
 			rubrica: rubrica || null,
 			ip_address: ipAddress,
 			user_agent: userAgent,
@@ -1502,6 +1514,8 @@ export async function salvarAssinaturaRelatorioGise(
 		user_agent?: string;
 		latitude?: number;
 		longitude?: number;
+		selfie_key?: string;
+		arquivo_hash?: string;
 	}
 ) {
 	return db.insert(schema.giseAssinaturasRelatorios)
@@ -1528,6 +1542,8 @@ export async function salvarAssinaturaRelatorioGise(
 				user_agent: data.user_agent,
 				latitude: data.latitude,
 				longitude: data.longitude,
+				selfie_key: data.selfie_key,
+				arquivo_hash: data.arquivo_hash,
 				created_at: sql`datetime('now')`
 			}
 		});

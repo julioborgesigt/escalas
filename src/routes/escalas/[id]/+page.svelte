@@ -6,6 +6,7 @@
 	import type { Escala, Policial, EscalaPolicialComDados } from "$lib/types";
 	import { formatarData, proximoDia } from "$lib/utils";
 	import PainelAssinaturaEscala from "$lib/components/PainelAssinaturaEscala.svelte";
+	import Spinner from "$lib/components/Spinner.svelte";
 
 	const horas = Array.from({ length: 24 }, (_, i) =>
 		String(i).padStart(2, "0"),
@@ -571,7 +572,7 @@
 
 
 	<PainelAssinaturaEscala
-		escalaId={page.params.id}
+		escalaId={page.params.id || ""}
 		{isFDS}
 		policiaisCount={policiaisEscala.length}
 		usuario={page.data.usuario}
@@ -772,6 +773,7 @@
 					class="btn preset-filled-primary-500"
 					disabled={adding || !policialId || addDatasSelecionadas.length === 0}
 				>
+					{#if adding}<Spinner size="sm" />{/if}
 					{adding ? 'Adicionando...' : '+ Adicionar à Escala de Plantão'}
 				</button>
 			</form>
@@ -852,6 +854,7 @@
 							class="btn preset-filled-primary-500 w-full"
 							disabled={adding || !policialId || !dataPlantao}
 						>
+							{#if adding}<Spinner size="sm" />{/if}
 							{adding ? "Adicionando..." : "Adicionar"}
 						</button>
 					</div>

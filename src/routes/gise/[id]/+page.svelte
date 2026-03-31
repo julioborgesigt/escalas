@@ -35,6 +35,13 @@
 	let finalizando = $state(false);
 	let showFinalizarConfirm = $state(false);
 
+	let isMobile = $state(true);
+	$effect(() => {
+		if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+			isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
+		}
+	});
+
 	// Edição de supervisores (Admin Geral / Admin Seccional)
 	let editandoSupervisores = $state(false);
 	let supSabadoId = $state<number | null>(null);
@@ -337,6 +344,7 @@
 	let diaSendoAssinado = $state<'sabado' | 'domingo' | 'ambos' | null>(null);
 	let tipoAssinaturaPendente = $state<'simples' | 'webpki' | 'serpro' | null>(null);
 	let rubricaCapturada = $state<string | null>(null);
+	let selfieCapturada = $state<string | null>(null);
 
 	// Carregar info do documento ao montar
 	$effect(() => {
@@ -362,12 +370,13 @@
 		showRubricaModal = true;
 	}
 
-	async function confirmarRubrica(dataUrl: string, lat?: number, lng?: number) {
+	async function confirmarRubrica(dataUrl: string, lat?: number, lng?: number, selfie?: string | null) {
 		rubricaCapturada = dataUrl;
+		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
 		
 		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng);
+			await executarAssinarRelatorio(dataUrl, lat, lng, selfie);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
 			await executarAssinarSimples(lat, lng);
@@ -384,7 +393,7 @@
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
-				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada, latitude, longitude })
+				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada, latitude, longitude, selfieBase64: selfieCapturada })
 			});
 			if (r.ok) {
 				const blob = await r.blob();
@@ -615,17 +624,168 @@
 		}
 	}
 
-	let relatorioSendoAssinado = $state<{ seccionalId: number; dia: 'sabado' | 'domingo'; tipo: 'extraordinario' | 'produtividade' } | null>(null);
+	const pendentesExtra = $derived.by(() => {
+		if (!isSupervisor) return [];
+		const lista: Array<{seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario'}> = [];
+		for (const sec of (gise.seccionais || [])) {
+			// sabado
+			const relSab = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'sabado' && a.tipo === 'extraordinario');
+			if (!relSab && checkAllSigned(sec, 'sabado')) {
+				lista.push({ seccionalId: sec.seccional_id, dia: 'sabado', tipo: 'extraordinario' });
+			}
+			// domingo
+			const relDom = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'domingo' && a.tipo === 'extraordinario');
+			if (!relDom && checkAllSigned(sec, 'domingo')) {
+				lista.push({ seccionalId: sec.seccional_id, dia: 'domingo', tipo: 'extraordinario' });
+			}
+		}
+		return lista;
+	});
+
+	let assinandoLote = $state(false);
+	let progressoLote = $state({ atual: 0, total: 0 });
+
+	let relatorioSendoAssinado = $state<{ 
+		lote?: Array<{seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario'}>;
+		seccionalId?: number; 
+		dia?: 'sabado' | 'domingo'; 
+		tipo?: 'extraordinario' | 'produtividade' 
+	} | null>(null);
+
+	function abrirAssinaturaLote() {
+		relatorioSendoAssinado = { lote: pendentesExtra };
+		abrirModalRubrica('ambos', 'simples');
+	}
 
 	function abrirAssinaturaRelatorio(seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario' | 'produtividade') {
 		relatorioSendoAssinado = { seccionalId, dia, tipo };
-		abrirModalRubrica(dia, 'simples'); // Por enquanto apenas simples
+		abrirModalRubrica(dia, 'simples'); 
 	}
 
-	async function executarAssinarRelatorio(rubrica: string, latitude?: number, longitude?: number) {
+	async function executarAssinarRelatorioLotePKI(certSelecionadoLote: string, ltype: 'webpki'|'serpro') {
+		if (!certSelecionadoLote || pendentesExtra.length === 0) return;
+		assinandoLote = true;
+		progressoLote = { atual: 0, total: pendentesExtra.length };
+		etapaAssinatura = 'Iniciando assinatura em lote...';
+
+		try {
+			const cert = certificados.find(c => c.thumbprint === certSelecionadoLote);
+			const signerName = cert?.subjectName ?? serproSignerName;
+			const signerCpf = cert?.cpf ?? serproSignerCpf;
+
+			let pki: any = null;
+			let clientSerpro: any = null;
+
+			if (ltype === 'webpki') {
+				pki = await initWebPKI();
+				etapaAssinatura = 'Conectando ao Web PKI...';
+			} else {
+				clientSerpro = serproClient ?? (await conectarSerpro());
+				serproClient = clientSerpro;
+			}
+
+			for (let i = 0; i < pendentesExtra.length; i++) {
+				const item = pendentesExtra[i];
+				progressoLote.atual = i + 1;
+				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
+
+				const prepResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/preparar-assinatura`, {
+					method: 'POST',
+					body: JSON.stringify({ signerName, signerCpf, rubrica: null })
+				});
+				if (!prepResp.ok) throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
+				const prepData = await prepResp.json();
+
+				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
+
+				let rawSignature, certificateBase64, serproCms;
+
+				if (ltype === 'webpki') {
+					if (i === 0) certificateBase64 = await lerCertificado(pki, certSelecionadoLote);
+					rawSignature = await assinarHash(pki, certSelecionadoLote, prepData.signedAttrsHashHex);
+				} else {
+					const messageDigestBase64 = btoa(
+						prepData.messageDigest.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join('')
+					);
+					const serproRes = await clientSerpro.sign(messageDigestBase64);
+					serproCms = serproRes.rawSignature;
+				}
+
+				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
+
+				const finResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/finalizar-assinatura`, {
+					method: 'POST',
+					body: JSON.stringify({
+						preparedPdf: prepData.preparedPdf,
+						rawSignature,
+						serproCms,
+						certificateBase64: certificateBase64 || '',
+						messageDigest: prepData.messageDigest,
+						signingTimeISO: prepData.signingTimeISO,
+						signerName,
+						signerCpf,
+						verificationHash: prepData.verificationHash,
+						dia: item.dia,
+					})
+				});
+
+				if (!finResp.ok) throw new Error(`Falha ao finalizar item ${item.seccionalId}: ` + (await finResp.json()).error);
+			}
+
+			toaster.success({ title: 'Lote assinado com sucesso!', description: `${pendentesExtra.length} relatórios assinados digitalmente.` });
+			await invalidateAll();
+
+		} catch (err: any) {
+			toaster.error({ title: 'Erro no lote', description: err.message });
+		} finally {
+			assinandoLote = false;
+			etapaAssinatura = '';
+			progressoLote = { atual: 0, total: 0 };
+		}
+	}
+
+	async function executarAssinarRelatorio(rubrica: string, latitude?: number, longitude?: number, selfieBase64?: string | null) {
 		if (!relatorioSendoAssinado) return;
 		salvando = true;
+		
+		if (relatorioSendoAssinado.lote) {
+			assinandoLote = true;
+			progressoLote = { atual: 0, total: relatorioSendoAssinado.lote.length };
+			try {
+				for (let i = 0; i < relatorioSendoAssinado.lote.length; i++) {
+					const item = relatorioSendoAssinado.lote[i];
+					progressoLote.atual = i + 1;
+					etapaAssinatura = `Assinando ${i + 1} de ${relatorioSendoAssinado.lote.length}...`;
+					
+					const res = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/assinar`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							tipo: item.tipo,
+							rubrica,
+							latitude,
+							longitude,
+							selfieBase64
+						})
+					});
+					if (!res.ok) throw new Error((await res.json()).error);
+				}
+				toaster.success({ title: 'Lote assinado com sucesso!' });
+				relatorioSendoAssinado = null;
+				await invalidateAll();
+			} catch (e: any) {
+				toaster.error({ title: 'Erro ao assinar lote', description: e.message });
+			} finally {
+				salvando = false;
+				assinandoLote = false;
+				etapaAssinatura = '';
+				progressoLote = { atual: 0, total: 0 };
+			}
+			return;
+		}
+
 		try {
+			etapaAssinatura = 'Processando assinatura...';
 			const res = await fetch(`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/${relatorioSendoAssinado.dia}/assinar`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -633,7 +793,8 @@
 					tipo: relatorioSendoAssinado.tipo,
 					rubrica,
 					latitude,
-					longitude
+					longitude,
+					selfieBase64
 				})
 			});
 			if (!res.ok) throw new Error((await res.json()).error);
@@ -644,6 +805,7 @@
 			toaster.error({ title: 'Erro ao assinar relatório', description: e.message });
 		} finally {
 			salvando = false;
+			etapaAssinatura = '';
 		}
 	}
 
@@ -1145,14 +1307,20 @@
 							<h4 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">Assinar na Tela (Manual)</h4>
 							<p class="text-sm text-surface-500 mt-1">Gera o PDF com sua rubrica manual (validade interna).</p>
 						</div>
-						<button
-							class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-							disabled={assinandoSimples}
-							onclick={() => abrirModalRubrica(diaSendoAssinado!, 'simples')}
-						>
-							{#if assinandoSimples}<Spinner size="sm" />{/if}
-							{assinandoSimples ? 'Gerando PDF...' : `Assinar na Tela (${diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'})`}
-						</button>
+						{#if isMobile}
+							<button
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+								disabled={assinandoSimples}
+								onclick={() => abrirModalRubrica(diaSendoAssinado!, 'simples')}
+							>
+								{#if assinandoSimples}<Spinner size="sm" />{/if}
+								{assinandoSimples ? 'Gerando PDF...' : `Assinar na Tela (${diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'})`}
+							</button>
+						{:else}
+							<div class="text-xs text-error-500 max-w-xs text-right italic font-semibold border-l-2 border-error-500 pl-2">
+								A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 abaixo no computador.
+							</div>
+						{/if}
 					</div>
 
 				<hr class="border-surface-200 dark:border-surface-700" />
@@ -1208,7 +1376,7 @@
 				<div class="flex gap-2 items-center flex-wrap">
 					<button
 						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-						onclick={() => abrirModalRubrica(diaSendoAssinado!, 'webpki')}
+						onclick={() => executarAssinarComWebPKI()}
 						disabled={assinando || !certSelecionado}
 					>
 						{#if assinando && certificados.length > 0}
@@ -1221,7 +1389,7 @@
 
 					<button
 						class="btn preset-filled-tertiary-500 text-sm px-4 py-2 rounded-xl"
-						onclick={() => abrirModalRubrica(diaSendoAssinado!, 'serpro')}
+						onclick={() => executarAssinarComSerpro()}
 						disabled={assinando || !certSelecionado}
 					>
 						{#if assinando && serproClient}
@@ -1233,6 +1401,48 @@
 					</button>
 				</div>
 				{/if}
+			</div>
+		{/if}
+
+		<!-- Bloco de Lote de Assinaturas (Supervisor) -->
+		{#if pendentesExtra.length > 0}
+			<div class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm">
+				<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+					<div>
+						<h3 class="font-bold text-warning-800 dark:text-warning-400 flex items-center gap-2">
+							<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+							Assinaturas Pendentes
+						</h3>
+						<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
+							Você possui <strong>{pendentesExtra.length} relatórios extraordinários</strong> aptos para assinatura. Você pode assinar todos de uma vez.
+						</p>
+					</div>
+
+					<div class="flex flex-col gap-2 w-full md:w-auto">
+						{#if assinandoLote}
+							<div class="w-full flex flex-col items-center">
+								<div class="text-xs font-bold text-warning-700 mb-1">{etapaAssinatura}</div>
+								<progress class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2" value={progressoLote.atual} max={progressoLote.total}></progress>
+							</div>
+						{:else}
+							<div class="flex flex-col sm:flex-row gap-2">
+								<button class="btn preset-filled-warning-500 font-bold justify-center w-full" onclick={() => abrirAssinaturaLote()}>
+									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+									Lote: Manual
+								</button>
+								<div class="flex gap-2 w-full">
+									<button class="btn preset-tonal-primary font-bold justify-center flex-1" onclick={() => executarAssinarRelatorioLotePKI(certSelecionado, 'webpki')} disabled={!certSelecionado || lendoCertificados}>
+										<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+										Lote: Token A3
+									</button>
+									<button class="btn preset-tonal-secondary font-bold justify-center flex-1" onclick={() => executarAssinarRelatorioLotePKI('', 'serpro')}>
+										Lote: SERPRO
+									</button>
+								</div>
+							</div>
+						{/if}
+					</div>
+				</div>
 			</div>
 		{/if}
 
@@ -1342,9 +1552,13 @@
 												{/if}
 											</button>
 											{#if isSupervisor && !assRelSab && checkAllSigned(sec, 'sabado')}
-												<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'sabado', 'extraordinario')}>
-													Assinar Relatório
-												</button>
+												{#if isMobile}
+													<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'sabado', 'extraordinario')}>
+														Assinatura Manual
+													</button>
+												{:else}
+													<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">Use o Painel de Lote (acima) para Token A3</div>
+												{/if}
 											{/if}
 										</div>
 									</div>
@@ -1380,9 +1594,13 @@
 												{/if}
 											</button>
 											{#if isSupervisor && !assRelDom && checkAllSigned(sec, 'domingo')}
-												<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'domingo', 'extraordinario')}>
-													Assinar Relatório
-												</button>
+												{#if isMobile}
+													<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'domingo', 'extraordinario')}>
+														Assinatura Manual
+													</button>
+												{:else}
+													<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">Use o Painel de Lote (acima) para Token A3</div>
+												{/if}
 											{/if}
 										</div>
 									</div>

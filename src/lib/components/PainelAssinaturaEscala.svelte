@@ -9,6 +9,8 @@
 		type WebPKICertificate,
 	} from "$lib/webpki";
 	import { conectarSerpro, type SerproSignerClient } from "$lib/serpro";
+	import { Dialog } from "@skeletonlabs/skeleton-svelte";
+	import SignaturePad from "./SignaturePad.svelte";
 	import type { UsuarioLogado } from "$lib/auth";
 
 	interface DocumentoAssinadoInfo {
@@ -36,6 +38,12 @@
 	let assinando = $state(false);
 	let etapaAssinatura = $state("");
 	let assinandoSimples = $state(false);
+	let dialogSignOpen = $state(false);
+
+	let isMobile = $state(true);
+	$effect(() => {
+		isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
+	});
 
 	// Web PKI
 	let certificados = $state<WebPKICertificate[]>([]);
@@ -112,9 +120,9 @@
 		}
 	}
 
-	// === Assinatura simples (FDS) ===
+	// === Assinatura simples (FDS ou sem PKI) ===
 
-	async function assinarSimples() {
+	function abrirModalAssinatura() {
 		if (policiaisCount === 0) {
 			toaster.create({
 				title: "Adicione ao menos um policial antes de confirmar",
@@ -122,15 +130,22 @@
 			});
 			return;
 		}
+		dialogSignOpen = true;
+	}
+
+	async function assinarSimples(rubricBase64: string, gpsLat?: number, gpsLng?: number, selfieBase64?: string | null) {
+		dialogSignOpen = false;
 		assinandoSimples = true;
 		try {
-			const coords = await getCoordinates();
+			const coords = (gpsLat && gpsLng) ? { lat: gpsLat, lng: gpsLng } : await getCoordinates();
 			const res = await fetch(`/api/escalas/${escalaId}/assinar-simples`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					latitude: coords?.lat,
 					longitude: coords?.lng,
+					rubricBase64,
+					selfieBase64
 				}),
 			});
 			if (!res.ok) {
@@ -557,41 +572,47 @@
 					superior
 				</p>
 			</div>
-			<button
-				class="btn preset-filled-primary-500 shrink-0 font-bold px-5 py-2.5"
-				disabled={assinandoSimples || policiaisCount === 0}
-				onclick={assinarSimples}
-			>
-				{#if assinandoSimples}
-					<svg
-						class="w-4 h-4 mr-2 animate-spin"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-						/></svg
-					>
-					Gerando PDF...
-				{:else}
-					<svg
-						class="w-4 h-4 mr-2"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 13l4 4L19 7"
-						/></svg
-					>
-					Confirmar Escala
-				{/if}
-			</button>
+			{#if isMobile}
+				<button
+					class="btn preset-filled-primary-500 shrink-0 font-bold px-5 py-2.5"
+					disabled={assinandoSimples || policiaisCount === 0}
+					onclick={abrirModalAssinatura}
+				>
+					{#if assinandoSimples}
+						<svg
+							class="w-4 h-4 mr-2 animate-spin"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/></svg
+						>
+						Gerando PDF...
+					{:else}
+						<svg
+							class="w-4 h-4 mr-2"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							/></svg
+						>
+						Confirmar Escala
+					{/if}
+				</button>
+			{:else}
+				<div class="text-xs text-error-500 max-w-xs text-right italic font-semibold border-l-2 border-error-500 pl-2">
+					A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 (Aba abaixo) no computador.
+				</div>
+			{/if}
 		</div>
 		{#if policiaisCount === 0}
 			<p class="text-xs text-warning-600 dark:text-warning-400 mt-2">
@@ -791,3 +812,20 @@
 		{/if}
 	</div>
 {/if}
+
+<Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+		<div class="card p-6 max-w-lg w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
+			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
+				Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).
+			</Dialog.Description>
+			
+			<SignaturePad 
+				message="Rubrica do Organizador"
+				onConfirm={assinarSimples} 
+				onCancel={() => dialogSignOpen = false} 
+			/>
+		</div>
+	</Dialog.Content>
+</Dialog>

@@ -14,7 +14,7 @@ import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const { dia, rubrica, latitude, longitude } = await request.json().catch(() => ({ dia: 'ambos', rubrica: null, latitude: null, longitude: null }));
+	const { dia, rubrica, latitude, longitude, selfieBase64 } = await request.json().catch(() => ({}) as any);
 	const u = locals.usuario;
 	if (!u) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
@@ -63,24 +63,57 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		const pdfComRodape = await adicionarRodapeSimples(
 			pdfBytes,
 			u.nome,
-			verificationHash,
-			verificationUrl,
-			rubrica || undefined,
-			rx_pts,
-			ry_pts
+			{
+				verificationHash,
+				verificationUrl,
+				rubricBase64: rubrica || undefined,
+				customRubricX: rx_pts,
+				customRubricY: ry_pts,
+				ip,
+				latitude,
+				longitude
+			}
 		);
 
+		// Calcular Hash SHA-256 do arquivo final
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfComRodape.slice());
+		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
 		// Salvar no R2
-		const documentKey = `gise_${id}_${diaFinal}_assinada.pdf`;
-		const env = (platform as any)?.env || (platform as any);
-		if (env?.escalas_docs) {
-			await env.escalas_docs.put(documentKey, pdfComRodape, {
-				contentType: 'application/pdf'
-			});
+		const r2 = (platform as any)?.env?.escalas_docs;
+		const mesAno = gise.data_inicio.substring(0, 7);
+		const folder = `gise/${mesAno}/escala_${id}`;
+		const prefixBase = `${folder}/gise_${id}_${diaFinal}_${verificationHash}`;
+
+		const documentKey = `${prefixBase}_assinada.pdf`;
+		let selfieKey: string | undefined = undefined;
+
+		if (r2) {
+			await r2.put(documentKey, pdfComRodape, { contentType: 'application/pdf' });
+
+			if (selfieBase64) {
+				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+				const matches = selfieBase64.match(regex);
+				if (matches) {
+					const ext = matches[1] === 'png' ? 'png' : 'jpg';
+					const dataBase64 = selfieBase64.replace(regex, '');
+					
+					const binaryString = atob(dataBase64);
+					const bytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						bytes[i] = binaryString.charCodeAt(i);
+					}
+					
+					selfieKey = `${prefixBase}_selfie.${ext}`;
+					await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+				}
+			}
 		}
 
 		// Registrar no banco com auditoria
-		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, diaFinal as any, rubrica, ip, ua, latitude, longitude);
+		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, diaFinal as any, rubrica, ip, ua, latitude, longitude, selfieKey, arquivo_hash);
 		
 		// Atualizar status da escala (opcional: só 'assinada' se todos os dias estiverem assinados)
 		// Por simplicidade, mantemos 'assinada' ao receber qualquer assinatura, 

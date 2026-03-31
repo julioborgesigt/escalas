@@ -32,7 +32,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	// Formatar data/hora no fuso de Brasília (usado internamente se necessário)
 	// No entanto, o adicionarRodapeSimples agora gera sua própria dataHoraFormatada.
 
-	const { latitude, longitude } = await request.json().catch(() => ({ latitude: null, longitude: null }));
+	const body = await request.json().catch(() => ({}));
+	const { latitude, longitude, rubricBase64, selfieBase64 } = body;
 	
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -47,7 +48,6 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		
 		const pdfBytes = result.pdf;
 
-
 		const verificationHash = gerarCodigoValidacao();
 		const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
@@ -55,19 +55,57 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		const pdfComRodape = await adicionarRodapeSimples(
 			pdfBytes,
 			usuario.nome,
-			verificationHash,
-			verificationUrl
+			{
+				verificationHash,
+				verificationUrl,
+				ip,
+				latitude,
+				longitude,
+				rubricBase64: rubricBase64 || undefined
+			}
 		);
 
-		// Salva no R2
-		const p = platform as App.Platform | undefined;
-		const r2Key = `escala_${escalaId}_assinada.pdf`;
-		if (p?.env?.escalas_docs) {
-			await p.env.escalas_docs.put(r2Key, pdfComRodape);
+		// Calcular Hash SHA-256 do arquivo final
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfComRodape.slice());
+		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		const p = platform as any;
+		const r2 = p?.env?.escalas_docs;
+		
+		// Criar pasta mensal ex: escalas/2026-03
+		const mesAno = escala.data_inicio.substring(0, 7);
+		const folder = `escalas/${mesAno}/escala_${escalaId}`;
+		const prefixBase = `${folder}/escala_${escalaId}_${verificationHash}`;
+
+		const r2Key = `${prefixBase}_assinada.pdf`;
+		let selfieKey: string | undefined = undefined;
+
+		if (r2) {
+			await r2.put(r2Key, pdfComRodape);
+
+			if (selfieBase64) {
+				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+				const matches = selfieBase64.match(regex);
+				if (matches) {
+					const ext = matches[1] === 'png' ? 'png' : 'jpg';
+					const dataBase64 = selfieBase64.replace(regex, '');
+					
+					const binaryString = atob(dataBase64);
+					const bytes = new Uint8Array(binaryString.length);
+					for (let i = 0; i < binaryString.length; i++) {
+						bytes[i] = binaryString.charCodeAt(i);
+					}
+					
+					selfieKey = `${prefixBase}_selfie.${ext}`;
+					await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+				}
+			}
 		}
 
-		// Registrar no banco com auditoria
-		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '', verificationHash, ip, ua, latitude, longitude);
+		// Registrar no banco com auditoria completa
+		await salvarDocumentoEscala(db, escalaId, r2Key, usuario.nome, '', verificationHash, ip, ua, latitude, longitude, selfieKey, arquivo_hash);
 
 		const filename = `escala_${escala.cidade.toLowerCase().replace(/\s+/g, '_')}_${escala.data_inicio}_confirmada.pdf`;
 		return new Response(pdfComRodape as unknown as BodyInit, {

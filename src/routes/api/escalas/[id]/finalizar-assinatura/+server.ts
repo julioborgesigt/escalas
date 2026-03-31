@@ -59,7 +59,9 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		// Salva o PDF no Cloudflare R2 e registra no banco
 		const env = p?.env as any;
 		if (env?.escalas_docs) {
-			const r2Key = `escala_${escalaId}_assinada.pdf`;
+			const mesAno = escala.data_inicio.substring(0, 7);
+			const folder = `escalas/${mesAno}/escala_${escalaId}`;
+			const r2Key = `${folder}/escala_${escalaId}_${verificationHash}_assinada.pdf`;
 			try {
 				await env.escalas_docs.put(r2Key, signedPdf);
 				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '', verificationHash, ip, ua, latitude, longitude);

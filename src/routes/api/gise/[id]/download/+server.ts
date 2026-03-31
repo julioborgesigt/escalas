@@ -71,9 +71,11 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			finalPdf = await adicionarRodapeSimples(
 				finalPdf,
 				reportSignature.assinante_nome,
-				reportSignature.verification_hash || undefined,
-				qrUrl,
-				reportSignature.rubrica || undefined
+				{
+					verificationHash: reportSignature.verification_hash || undefined,
+					verificationUrl: qrUrl,
+					rubricBase64: reportSignature.rubrica || undefined
+				}
 			);
 		}
 		

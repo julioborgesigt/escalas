@@ -741,15 +741,32 @@ export async function finalizarAssinatura(
  * Adiciona um rodapé de confirmação administrativa no PDF.
  * Não é uma assinatura PKI — é um carimbo textual com data/hora e nome do responsável.
  */
+export interface RodapeSimplesOptions {
+	verificationHash?: string;
+	verificationUrl?: string;
+	rubricBase64?: string;
+	customRubricX?: number;
+	customRubricY?: number;
+	ip?: string;
+	latitude?: number | null;
+	longitude?: number | null;
+}
+
 export async function adicionarRodapeSimples(
 	pdfBytes: Uint8Array,
 	assinante: string,
-	verificationHash?: string,
-	verificationUrl?: string,
-	rubricBase64?: string,
-	customRubricX?: number,
-	customRubricY?: number
+	options: RodapeSimplesOptions = {}
 ): Promise<Uint8Array> {
+	const {
+		verificationHash,
+		verificationUrl,
+		rubricBase64,
+		customRubricX,
+		customRubricY,
+		ip,
+		latitude,
+		longitude
+	} = options;
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -827,6 +844,40 @@ export async function adicionarRodapeSimples(
 		lastPage.drawText(`Verificar em: ${cleanUrl}`, {
 			x: textX, y: qrY + 4, size: 7, font, color: cGray
 		});
+	}
+
+	// 4 — IP e Coordenadas e Rubrica Visual
+	let auditY = qrY - 4;
+	
+	if (ip) {
+		lastPage.drawText(`IP: ${ip}`, { x: textX, y: auditY, size: 6, font: fontMono, color: cGray });
+		auditY -= 8;
+	}
+	
+	if (latitude && longitude) {
+		lastPage.drawText(`GPS: Lat ${latitude}, Lng ${longitude}`, { x: textX, y: auditY, size: 6, font: fontMono, color: cGray });
+	}
+
+	if (rubricBase64) {
+		try {
+			const rubricImage = await pdfDoc.embedPng(rubricBase64);
+			const rubW = 100; // Tamanho menor do que na assinatura com PKI (que é 130)
+			const rubH = (rubricImage.height / rubricImage.width) * rubW;
+			
+			// Se houver coordenadas personalizadas, usamos. Senão, colocamos no canto direito
+			const rx = customRubricX !== undefined ? customRubricX : width - marginX - rubW;
+			const ry = customRubricY !== undefined ? customRubricY : qrY - (rubH / 2) + (qrSize / 2);
+
+			lastPage.drawImage(rubricImage, {
+				x: rx,
+				y: ry,
+				width: rubW,
+				height: rubH,
+				opacity: 0.90
+			});
+		} catch (err) {
+			console.error('Erro ao embutir rubrica simples:', err);
+		}
 	}
 
 	return pdfDoc.save();
