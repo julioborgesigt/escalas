@@ -663,7 +663,8 @@
 	}
 
 	async function executarAssinarRelatorioLotePKI(certSelecionadoLote: string, ltype: 'webpki'|'serpro') {
-		if (!certSelecionadoLote || pendentesExtra.length === 0) return;
+		if (pendentesExtra.length === 0) return;
+		if (ltype === 'webpki' && !certSelecionadoLote) return;
 		assinandoLote = true;
 		progressoLote = { atual: 0, total: pendentesExtra.length };
 		etapaAssinatura = 'Iniciando assinatura em lote...';
@@ -1402,43 +1403,81 @@
 
 		<!-- Bloco de Lote de Assinaturas (Supervisor) -->
 		{#if pendentesExtra.length > 0}
-			<div class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm">
-				<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-					<div>
-						<h3 class="font-bold text-warning-800 dark:text-warning-400 flex items-center gap-2">
-							<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-							Assinaturas Pendentes
-						</h3>
-						<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
-							Você possui <strong>{pendentesExtra.length} relatórios extraordinários</strong> aptos para assinatura. Você pode assinar todos de uma vez.
-						</p>
-					</div>
+			<div class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm space-y-4">
+				<div>
+					<h3 class="font-bold text-warning-800 dark:text-warning-400 flex items-center gap-2">
+						<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+						Assinaturas Pendentes
+					</h3>
+					<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
+						Você possui <strong>{pendentesExtra.length} relatórios extraordinários</strong> aptos para assinatura em lote.
+					</p>
+				</div>
 
-					<div class="flex flex-col gap-2 w-full md:w-auto">
-						{#if assinandoLote}
-							<div class="w-full flex flex-col items-center">
-								<div class="text-xs font-bold text-warning-700 mb-1">{etapaAssinatura}</div>
-								<progress class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2" value={progressoLote.atual} max={progressoLote.total}></progress>
-							</div>
-						{:else}
-							<div class="flex flex-col sm:flex-row gap-2">
-								<button class="btn preset-filled-warning-500 font-bold justify-center w-full" onclick={() => abrirAssinaturaLote()}>
-									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-									Lote: Manual
+				{#if assinandoLote}
+					<div class="flex flex-col items-center gap-1">
+						<div class="text-xs font-bold text-warning-700">{etapaAssinatura}</div>
+						<progress class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2" value={progressoLote.atual} max={progressoLote.total}></progress>
+					</div>
+				{:else}
+					<!-- Assinatura Manual (tela — celular) -->
+					<button class="btn preset-filled-warning-500 font-bold justify-center w-full sm:w-auto flex items-center gap-2" onclick={() => abrirAssinaturaLote()}>
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+						Assinar na Tela (Manual)
+					</button>
+
+					<!-- Assinatura Digital em Lote -->
+					<div class="border-t border-warning-200 dark:border-warning-800/40 pt-3 space-y-3">
+						<p class="text-xs font-bold text-warning-700 dark:text-warning-400 uppercase tracking-wide">Assinatura Digital em Lote — Token A3 / SERPRO</p>
+
+						<!-- Seletor de certificado — visível aqui quando o supervisor já assinou a escala principal e a seção de assinatura acima não aparece -->
+						{#if !podeAssinar}
+							<div class="p-3 bg-white/60 dark:bg-surface-800/60 rounded-xl border border-warning-200 dark:border-warning-800/30 flex flex-col sm:flex-row sm:items-center gap-2">
+								<button
+									class="btn btn-sm preset-outlined-primary-500 rounded-lg whitespace-nowrap shrink-0"
+									onclick={carregarCertificadosLocais}
+									disabled={lendoCertificados}
+								>
+									{#if lendoCertificados}<Spinner size="xs" />{/if}
+									{lendoCertificados ? 'Lendo...' : 'Ler Token A3'}
 								</button>
-								<div class="flex gap-2 w-full">
-									<button class="btn preset-tonal-primary font-bold justify-center flex-1" onclick={() => executarAssinarRelatorioLotePKI(certSelecionado, 'webpki')} disabled={!certSelecionado || lendoCertificados}>
-										<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-										Lote: Token A3
-									</button>
-									<button class="btn preset-tonal-secondary font-bold justify-center flex-1" onclick={() => executarAssinarRelatorioLotePKI('', 'serpro')}>
-										Lote: SERPRO
-									</button>
-								</div>
+								{#if certificados.length > 0}
+									<select
+										bind:value={certSelecionado}
+										onchange={(e) => { const c = certificados.find(x => x.thumbprint === e.currentTarget.value); if (c) { serproSignerName = c.subjectName; serproSignerCpf = c.cpf || ''; } }}
+										class="w-full px-3 py-1.5 rounded-lg border border-warning-300 dark:border-warning-700 bg-white dark:bg-surface-800 text-xs"
+									>
+										<option value="">Selecione o certificado...</option>
+										{#each certificados as cert (cert.thumbprint)}
+											<option value={cert.thumbprint}>{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''}</option>
+										{/each}
+									</select>
+								{:else if tentouLerCertificados}
+									<p class="text-xs text-error-500">Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Web PKI</strong> instalada.</p>
+								{:else}
+									<p class="text-xs text-surface-500 italic">Clique em "Ler Token A3" para listar os certificados disponíveis.</p>
+								{/if}
 							</div>
 						{/if}
+
+						<div class="flex flex-col sm:flex-row gap-2">
+							<button
+								class="btn preset-tonal-primary font-bold justify-center flex-1 flex items-center gap-2"
+								onclick={() => executarAssinarRelatorioLotePKI(certSelecionado, 'webpki')}
+								disabled={!certSelecionado || lendoCertificados}
+							>
+								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+								Lote: Token A3 (Web PKI)
+							</button>
+							<button
+								class="btn preset-tonal-secondary font-bold justify-center flex-1"
+								onclick={() => executarAssinarRelatorioLotePKI('', 'serpro')}
+							>
+								Lote: SERPRO Desktop
+							</button>
+						</div>
 					</div>
-				</div>
+				{/if}
 			</div>
 		{/if}
 
