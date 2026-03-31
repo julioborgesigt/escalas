@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { escalaSchema } from '$lib/schemas';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	interface UnidadeRegime {
 		nome: string;
@@ -230,9 +231,9 @@
 {#if selecionando}
 	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 		{#if unidadesComRegime.length === 0}
-			<div class="text-center py-10">
-				<p class="text-4xl mb-3">⚙️</p>
-				<p class="text-surface-500">Carregando tipos de escala...</p>
+			<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+				<Spinner size="xl" />
+				<span class="text-sm">Carregando tipos de escala...</span>
 			</div>
 
 		{:else if temVariasUnidades && !unidadeEscolhida}
@@ -375,7 +376,8 @@
 			</label>
 
 			<div class="flex gap-3 pt-2">
-				<button type="submit" class="btn preset-filled-primary-500" disabled={saving}>
+				<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={saving}>
+					{#if saving}<Spinner size="md" />{/if}
 					{saving ? 'Criando...' : 'Criar Escala'}
 				</button>
 				<a href="/escalas" class="btn preset-outlined-primary-500">Cancelar</a>

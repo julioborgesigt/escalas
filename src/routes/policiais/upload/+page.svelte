@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	let file = $state<File | null>(null);
 	let uploading = $state(false);
@@ -151,13 +152,9 @@
 			<span class="label-text">Arquivo (.xlsx, .xls, .ods, .csv)</span>
 			<input class="input" type="file" accept=".xlsx,.xls,.ods,.csv" onchange={onFileChange} required />
 		</label>
-		<button type="submit" class="btn preset-filled-primary-500" disabled={uploading || !file}>
-			{#if uploading}
-				<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-				Importando...
-			{:else}
-				Importar
-			{/if}
+		<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={uploading || !file}>
+			{#if uploading}<Spinner size="md" />{/if}
+			{uploading ? 'Importando...' : 'Importar'}
 		</button>
 	</form>
 </div>

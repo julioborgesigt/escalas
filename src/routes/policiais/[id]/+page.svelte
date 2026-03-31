@@ -4,6 +4,7 @@
 	import { toaster } from '$lib/toast';
 	import type { Policial } from '$lib/types';
 	import { formatarTelefone } from '$lib/utils';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -130,7 +131,10 @@
 </div>
 
 {#if loading}
-	<p class="text-center py-8">Carregando...</p>
+	<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+		<Spinner size="xl" />
+		<span class="text-sm">Carregando...</span>
+	</div>
 {:else}
 	<div class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
 		<form onsubmit={salvar} class="space-y-2">
@@ -195,7 +199,8 @@
 			</div>
 
 			<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
-				<button type="submit" class="btn btn-sm sm:btn-md preset-filled-primary-500" disabled={saving}>
+				<button type="submit" class="btn btn-sm sm:btn-md preset-filled-primary-500 flex items-center gap-2" disabled={saving}>
+					{#if saving}<Spinner size="sm" />{/if}
 					{saving ? 'Guardando...' : 'Salvar'}
 				</button>
 				<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
@@ -235,7 +240,8 @@
 					{/if}
 				</div>
 				<div class="flex gap-2 pt-1 border-t border-surface-200 dark:border-white/5 mt-2">
-					<button type="submit" class="btn btn-sm preset-filled-primary-500" disabled={salvandoPapel}>
+					<button type="submit" class="btn btn-sm preset-filled-primary-500 flex items-center gap-2" disabled={salvandoPapel}>
+						{#if salvandoPapel}<Spinner size="sm" />{/if}
 						{salvandoPapel ? 'Salvando...' : 'Salvar papel'}
 					</button>
 				</div>
