@@ -54,7 +54,8 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 					reportSignature.assinante_nome,
 					{
 						verificationHash: hash,
-						verificationUrl: qrUrl
+						verificationUrl: qrUrl,
+						rubricBase64: reportSignature.rubrica ?? undefined
 					}
 				);
 			}

@@ -333,7 +333,9 @@ export async function prepararPdfParaAssinatura(
 	// 0 — Rubrica (se fornecida)
 	if (rubricBase64) {
 		try {
-			const rubricImage = await pdfDoc.embedPng(rubricBase64);
+			const rubricImage = rubricBase64.includes('image/jpeg')
+				? await pdfDoc.embedJpg(rubricBase64)
+				: await pdfDoc.embedPng(rubricBase64);
 			const rubW = 130; // Aumentado novamente para ser mais proeminente
 			const rubH = (rubricImage.height / rubricImage.width) * rubW;
 
@@ -860,7 +862,9 @@ export async function adicionarRodapeSimples(
 
 	if (rubricBase64) {
 		try {
-			const rubricImage = await pdfDoc.embedPng(rubricBase64);
+			const rubricImage = rubricBase64.includes('image/jpeg')
+				? await pdfDoc.embedJpg(rubricBase64)
+				: await pdfDoc.embedPng(rubricBase64);
 			const rubW = 100; // Tamanho menor do que na assinatura com PKI (que é 130)
 			const rubH = (rubricImage.height / rubricImage.width) * rubW;
 
