@@ -1140,35 +1140,44 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		doc.text('AGUARDANDO CONFERÊNCIA E ASSINATURA DO SUPERVISOR', sigCenterX, sigY + 8, { align: 'center' });
 	} else {
 		if (reportSignature.rubrica) {
-			const rubW = 65;
-			const rubH = 25;
-			doc.addImage(reportSignature.rubrica, 'PNG', sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
+			try {
+				const rubW = 65;
+				const rubH = 25;
+				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
+				doc.addImage(reportSignature.rubrica, rubricaFormat, sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
+			} catch (e) {
+				console.warn('[relatorio-extra] Erro ao inserir rubrica do supervisor:', e);
+			}
 		}
 		doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
 		doc.setFont('helvetica', 'bold');
-		doc.text(reportSignature.assinante_nome.toUpperCase(), sigCenterX, sigY + 5, { align: 'center' });
+		doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), sigCenterX, sigY + 5, { align: 'center' });
 		doc.setFont('helvetica', 'normal');
 		doc.setFontSize(9);
 		doc.text('Delegado Supervisor', sigCenterX, sigY + 10, { align: 'center' });
 	}
 
 	if (reportSignature && qrCodeBase64) {
-		const qrSize = 14; 
-		const qrX = margin;
-		const qrY = sigY - 2;
-		doc.addImage(qrCodeBase64, 'PNG', qrX, qrY, qrSize, qrSize);
-		
-		const txtX = qrX + qrSize + 2;
-		doc.setFontSize(6);
-		doc.setFont('helvetica', 'bold');
-		doc.text(`Confirmado eletronicamente por: ${reportSignature.assinante_nome.toUpperCase()}`, txtX, qrY + 3);
-		
-		doc.setFont('helvetica', 'normal');
-		const dataH = reportSignature.created_at ? new Date(reportSignature.created_at).toLocaleString('pt-BR', {timeZone: 'America/Sao_Paulo'}) : '';
-		doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 7);
-		
-		const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-		doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
+		try {
+			const qrSize = 14;
+			const qrX = margin;
+			const qrY = sigY - 2;
+			doc.addImage(qrCodeBase64, 'PNG', qrX, qrY, qrSize, qrSize);
+
+			const txtX = qrX + qrSize + 2;
+			doc.setFontSize(6);
+			doc.setFont('helvetica', 'bold');
+			doc.text(`Confirmado eletronicamente por: ${(reportSignature.assinante_nome ?? '').toUpperCase()}`, txtX, qrY + 3);
+
+			doc.setFont('helvetica', 'normal');
+			const dataH = reportSignature.created_at ? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
+			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 7);
+
+			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
+			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
+		} catch (e) {
+			console.warn('[relatorio-extra] Erro ao inserir QR code:', e);
+		}
 	}
 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
