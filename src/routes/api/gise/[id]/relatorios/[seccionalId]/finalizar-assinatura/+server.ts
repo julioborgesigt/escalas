@@ -1,8 +1,7 @@
 /**
- * POST /api/gise/[id]/relatorios/[seccionalId]/[dia]/finalizar-assinatura
+ * POST /api/gise/[id]/relatorios/[seccionalId]/finalizar-assinatura
  *
  * Finaliza a assinatura digital (PKCS#7) no PDF do Relatório Extraordinário (GISE).
- * Salva o documento no R2 e registra no banco de dados.
  */
 
 import { json } from '@sveltejs/kit';
@@ -23,9 +22,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 	const id = parseInt(params.id!);
 	const secIdNum = parseInt(params.seccionalId!);
-	const dia = params.dia!;
-	
-	if (isNaN(id) || isNaN(secIdNum) || !['sabado', 'domingo'].includes(dia)) {
+
+	if (isNaN(id) || isNaN(secIdNum)) {
 		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
 	}
 
@@ -46,8 +44,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	} = payload;
 
 	try {
-		// Finalizar o PDF (assinado)
-		const pdfBytesInput = new Uint8Array(Object.values(preparedPdf));
+		const pdfBytesInput = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
 		let signedPdfBytes: Uint8Array;
 		let type: 'webpki' | 'serpro' = 'webpki';
 
@@ -64,28 +61,24 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			);
 		}
 
-		// Calcular Hash SHA-256 do arquivo final
 		const hashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		// Salvar PDF no R2
 		const r2 = (p as any)?.env?.escalas_docs;
 		const dateObj = new Date();
 		const mesAno = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
 		const folder = `gise/${mesAno}/escala_${id}`;
-		const prefixBase = `${folder}/gise_rel_${id}_sec_${secIdNum}_${dia}_${verificationHash}`;
-		
+		const prefixBase = `${folder}/gise_rel_${id}_sec_${secIdNum}_${verificationHash}`;
+
 		if (r2) {
 			await r2.put(`${prefixBase}_assinada.pdf`, signedPdfBytes, { contentType: 'application/pdf' });
 		}
 
-		// Registrar no DB
 		await salvarAssinaturaRelatorioGise(db, {
 			gise_id: id,
 			seccional_id: secIdNum,
-			dia: dia as 'sabado' | 'domingo',
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
 			assinante_nome: signerName || u.nome,
@@ -97,7 +90,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			user_agent: ua,
 			latitude,
 			longitude,
-			selfie_key: undefined, // Digital signature does not require selfie
+			selfie_key: undefined,
 			arquivo_hash: arquivo_hash
 		});
 

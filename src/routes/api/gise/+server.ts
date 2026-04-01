@@ -1,13 +1,12 @@
 /**
- * GET  /api/gise  → lista escalas GISE (Admin Geral, Admin Seccional, Supervisor)
- * POST /api/gise  → cria nova escala GISE manualmente (Admin Geral)
+ * GET  /api/gise  → lista escalas GISE
+ * POST /api/gise  → cria escalas GISE para um intervalo de datas (uma por dia)
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, listarGiseEscalas, criarGiseEscala, upsertGiseSeccional } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { listarUnidades } from '$lib/db';
+import { isAdminGeral } from '$lib/auth';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
@@ -37,59 +36,54 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 	const {
 		data_inicio,
 		data_fim,
-		hora_entrada = '08',
-		hora_saida = '16',
-		hora_entrada_sabado,
-		hora_saida_sabado,
-		hora_entrada_domingo,
-		hora_saida_domingo,
+		hora_entrada = '08:00',
+		hora_saida = '16:00',
 		seccional_ids
 	} = body as {
 		data_inicio: string;
 		data_fim: string;
 		hora_entrada?: string;
 		hora_saida?: string;
-		hora_entrada_sabado?: string;
-		hora_saida_sabado?: string;
-		hora_entrada_domingo?: string;
-		hora_saida_domingo?: string;
 		seccional_ids?: number[];
 	};
 
-	if (!data_inicio || !data_fim) {
-		return json({ error: 'data_inicio e data_fim são obrigatórios' }, { status: 400 });
+	if (!data_inicio) {
+		return json({ error: 'data_inicio é obrigatório' }, { status: 400 });
+	}
+
+	// Gerar array de datas do intervalo (inclusivo)
+	const fim = data_fim || data_inicio;
+	const datas: string[] = [];
+	const cursor = new Date(data_inicio + 'T00:00:00Z');
+	const dataFimObj = new Date(fim + 'T00:00:00Z');
+	while (cursor <= dataFimObj) {
+		datas.push(cursor.toISOString().slice(0, 10));
+		cursor.setUTCDate(cursor.getUTCDate() + 1);
 	}
 
 	try {
-		const novoId = await criarGiseEscala(
-			db,
-			data_inicio,
-			data_fim,
-			hora_entrada,
-			hora_saida,
-			hora_entrada_sabado,
-			hora_saida_sabado,
-			hora_entrada_domingo,
-			hora_saida_domingo
-		);
-
-		// Adicionar seccionais informadas (ou todas as seccionais cadastradas)
+		// Buscar seccionais que serão adicionadas
+		let seccionalIdsFinal: number[] = [];
 		if (seccional_ids && seccional_ids.length > 0) {
-			for (const sid of seccional_ids) {
-				await upsertGiseSeccional(db, novoId, sid);
-			}
+			seccionalIdsFinal = seccional_ids;
 		} else {
-			// Adicionar todas as seccionais
 			const todasSeccionais = await db
 				.select({ id: unidades.id })
 				.from(unidades)
 				.where(eq(unidades.tipo, 'seccional'));
-			for (const sec of todasSeccionais) {
-				await upsertGiseSeccional(db, novoId, sec.id);
-			}
+			seccionalIdsFinal = todasSeccionais.map(s => s.id);
 		}
 
-		return json({ id: novoId }, { status: 201 });
+		const ids: number[] = [];
+		for (const data of datas) {
+			const novoId = await criarGiseEscala(db, data, hora_entrada, hora_saida);
+			for (const sid of seccionalIdsFinal) {
+				await upsertGiseSeccional(db, novoId, sid);
+			}
+			ids.push(novoId);
+		}
+
+		return json({ ids, count: ids.length }, { status: 201 });
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
 		console.error('[POST /api/gise]', msg);

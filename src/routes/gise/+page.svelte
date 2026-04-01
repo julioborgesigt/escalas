@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -7,7 +6,8 @@
 	let { data } = $props();
 
 	const escalas = $derived(data.escalas ?? []);
-	const ativa = $derived(data.ativa);
+	const ativas = $derived(escalas.filter(e => e.status !== 'finalizada'));
+	const historico = $derived(escalas.filter(e => e.status === 'finalizada'));
 	const papelGise = $derived(data.papelGise);
 	const isAdminGeral = $derived(papelGise === 'admin_geral');
 	const isSeccional = $derived(papelGise === 'admin_seccional');
@@ -18,47 +18,32 @@
 	let showCriarModal = $state(false);
 	let novaDataInicio = $state('');
 	let novaDataFim = $state('');
-	// Feature 1: horários separados por dia
-	let novaHoraEntradaSabado = $state('08:00');
-	let novaHoraSaidaSabado = $state('16:00');
-	let novaHoraEntradaDomingo = $state('08:00');
-	let novaHoraSaidaDomingo = $state('16:00');
+	let novaHoraEntrada = $state('08:00');
+	let novaHoraSaida = $state('16:00');
 	let criando = $state(false);
 
-	function normalizarHora(v: string): string {
-		return v.replace(/[.,]/g, ':');
-	}
 	function validarHora(v: string): boolean {
 		if (!v) return true;
-		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v));
+		return /^\d{1,2}:\d{2}$/.test(v);
 	}
 
-	function proximoSabado(): string {
-		const hoje = new Date();
-		const dia = hoje.getDay();
-		const diasAteSabado = (6 - dia + 7) % 7 || 7;
-		const sabado = new Date(hoje);
-		sabado.setDate(hoje.getDate() + diasAteSabado);
-		return sabado.toISOString().slice(0, 10);
+	function hoje(): string {
+		return new Date().toISOString().slice(0, 10);
 	}
 
 	function abrirCriarModal() {
-		const sabado = proximoSabado();
-		const domingo = new Date(sabado);
-		domingo.setDate(new Date(sabado).getDate() + 1);
-		novaDataInicio = sabado;
-		novaDataFim = domingo.toISOString().slice(0, 10);
+		novaDataInicio = hoje();
+		novaDataFim = hoje();
 		showCriarModal = true;
 	}
 
 	async function criarGise() {
-		const horas = [novaHoraEntradaSabado, novaHoraSaidaSabado, novaHoraEntradaDomingo, novaHoraSaidaDomingo];
-		if (horas.some(h => !h)) {
-			toaster.error({ title: 'Preencha todos os horários' });
+		if (!novaHoraEntrada || !novaHoraSaida) {
+			toaster.error({ title: 'Preencha os horários' });
 			return;
 		}
-		if (horas.some(h => !validarHora(h))) {
-			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+		if (!validarHora(novaHoraEntrada) || !validarHora(novaHoraSaida)) {
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 08:00' });
 			return;
 		}
 		criando = true;
@@ -68,21 +53,19 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					data_inicio: novaDataInicio,
-					data_fim: novaDataFim,
-					hora_entrada: normalizarHora(novaHoraEntradaSabado),
-					hora_saida: normalizarHora(novaHoraSaidaSabado),
-					hora_entrada_sabado: normalizarHora(novaHoraEntradaSabado),
-					hora_saida_sabado: normalizarHora(novaHoraSaidaSabado),
-					hora_entrada_domingo: normalizarHora(novaHoraEntradaDomingo),
-					hora_saida_domingo: normalizarHora(novaHoraSaidaDomingo)
+					data_fim: novaDataFim || novaDataInicio,
+					hora_entrada: novaHoraEntrada,
+					hora_saida: novaHoraSaida
 				})
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error ?? 'Erro ao criar GISE');
-			toaster.success({ title: 'Escala GISE criada', description: `ID ${json.id}` });
+			const count = json.count ?? 1;
+			const primeiroId = json.ids?.[0] ?? json.id;
+			toaster.success({ title: `${count} escala(s) GISE criada(s)` });
 			showCriarModal = false;
 			await invalidateAll();
-			goto(`/gise/${json.id}`);
+			if (primeiroId) goto(`/gise/${primeiroId}`);
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {
@@ -90,15 +73,17 @@
 		}
 	}
 
-	function statusLabel(status: string): string {
+	function statusLabel(ativa: any): string {
+		if (ativa.status === 'aguardando_assinatura' && ativa.temSaidaConfirmada && (isAdminGeral || isSupervisor)) {
+			return 'Aguardando supervisor assinar relatório de extra';
+		}
 		const labels: Record<string, string> = {
 			em_preenchimento: 'Em Preenchimento',
 			aguardando_assinatura: 'Aguardando Assinatura',
 			assinada: 'Assinada',
-			finalizada: 'Finalizada',
-			retificada: 'Finalizada (Retificada)'
+			finalizada: 'Finalizada'
 		};
-		return labels[status] ?? status;
+		return labels[ativa.status] ?? ativa.status;
 	}
 
 	function statusColor(status: string): string {
@@ -115,6 +100,12 @@
 		if (!iso) return '';
 		const [y, m, d] = iso.split('-');
 		return `${d}/${m}/${y}`;
+	}
+
+	function diaSemana(iso: string): string {
+		if (!iso) return '';
+		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+		return dias[new Date(iso + 'T12:00:00').getDay()];
 	}
 </script>
 
@@ -146,82 +137,72 @@
 		{/if}
 	</div>
 
-	<!-- Card informativo para servidores escalados (membros comuns) -->
+	<!-- Card informativo para membros comuns -->
 	{#if isMembro}
 		<div class="rounded-2xl border border-primary-500/20 bg-primary-500/5 dark:bg-primary-500/10 p-6 text-center space-y-2">
-			<svg class="w-10 h-10 mx-auto text-primary-500 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-			</svg>
 			<p class="text-base font-semibold text-surface-900 dark:text-surface-100">
 				Você está escalado na GISE
 			</p>
 			<p class="text-sm text-surface-500 dark:text-surface-400">
-				Os formulários de produtividade estarão disponíveis em breve nesta área.
+				Os formulários de produtividade estarão disponíveis nesta área.
 			</p>
-			{#if ativa}
-				<p class="text-xs text-surface-400 mt-1">
-					Escala vigente: <span class="font-medium">{fmtDate(ativa.data_inicio)} – {fmtDate(ativa.data_fim)}</span>
-				</p>
+			{#if ativas.length > 0}
+				<div class="mt-2 space-y-1">
+					{#each ativas as ativa}
+						<p class="text-xs text-surface-400">
+							Escala vigente: <span class="font-medium">{diaSemana(ativa.data_inicio)} {fmtDate(ativa.data_inicio)}</span>
+						</p>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	{/if}
 
 	<!-- Escala Ativa -->
-	{#if ativa && !isMembro}
-		<div class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5">
-			<div class="flex items-start justify-between flex-wrap gap-3">
-				<div>
-					<div class="flex items-center gap-2">
-						<span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
-						<span class="text-sm font-semibold text-primary-700 dark:text-primary-400">Escala Ativa</span>
-					</div>
-					<p class="text-xl font-bold mt-1 text-surface-900 dark:text-surface-50">
-						{fmtDate(ativa.data_inicio)} – {fmtDate(ativa.data_fim)}
-					</p>
-					<div class="flex items-center gap-2 mt-2">
-						<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}">
-							{statusLabel(ativa.status)}
-						</span>
-						<span class="text-xs text-surface-500">Sáb: {ativa.hora_entrada_sabado ?? ativa.hora_entrada}h–{ativa.hora_saida_sabado ?? ativa.hora_saida}h · Dom: {ativa.hora_entrada_domingo ?? ativa.hora_entrada}h–{ativa.hora_saida_domingo ?? ativa.hora_saida}h</span>
-					</div>
-				</div>
+	{#if ativas.length > 0 && !isMembro}
+		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">Escalas Ativas</h2>
+		<div class="space-y-3">
+			{#each ativas as ativa}
+				<div class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5">
+					<div class="flex items-start justify-between flex-wrap gap-3">
+						<div>
+							<div class="flex items-center gap-2">
+								<span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+								<span class="text-sm font-semibold text-primary-700 dark:text-primary-400">Escala Ativa</span>
+							</div>
+							<p class="text-xl font-bold mt-1 text-surface-900 dark:text-surface-50">
+								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
+							</p>
+							<div class="flex items-center gap-2 mt-2">
+								<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}">
+									{statusLabel(ativa)}
+								</span>
+								<span class="text-xs text-surface-500">{ativa.hora_entrada} às {ativa.hora_saida}</span>
+							</div>
+						</div>
 
-				<div class="flex items-center gap-3">
-					{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
-						<button
-							class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-							onclick={() => goto(`/gise/${ativa.id}`)}
-						>
-							Assinar Escala
-						</button>
-					{:else if isSupervisor && (ativa.status === 'assinada' || ativa.status === 'finalizada')}
-						<button
-							class="btn preset-outlined-primary-500 text-sm px-4 py-2 rounded-xl font-bold"
-							onclick={() => goto(`/gise/${ativa.id}`)}
-						>
-							Ver Escala
-						</button>
-					{:else if isSupervisor && ativa.status === 'em_preenchimento'}
-						<button
-							class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl opacity-60"
-							onclick={() => {
-								toaster.warning({ title: 'A escala não está concluída', description: 'Aguarde todas as seccionais finalizarem o preenchimento.' });
-							}}
-						>
-							Ver Escala (Pendente)
-						</button>
-					{:else}
-						<button
-							class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-							onclick={() => goto(`/gise/${ativa.id}`)}
-						>
-							Acessar
-						</button>
-					{/if}
+						<div class="flex items-center gap-3">
+							{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
+								<button
+									class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
+									onclick={() => goto(`/gise/${ativa.id}`)}
+								>
+									{ativa.temSaidaConfirmada ? 'Assinar Rel. extra' : 'Assinar Escala'}
+								</button>
+							{:else}
+								<button
+									class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+									onclick={() => goto(`/gise/${ativa.id}`)}
+								>
+									Acessar
+								</button>
+							{/if}
+						</div>
+					</div>
 				</div>
-			</div>
+			{/each}
 		</div>
-	{:else}
+	{:else if !isMembro}
 		<div class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-8 text-center">
 			<p class="text-surface-500 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 			{#if isAdminGeral}
@@ -235,12 +216,12 @@
 		</div>
 	{/if}
 
-	<!-- Histórico (oculto para membros comuns) -->
-	{#if escalas.length > 0 && !isMembro}
-		<div>
+	<!-- Histórico -->
+	{#if historico.length > 0 && !isMembro}
+		<div class="mt-8">
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 			<div class="space-y-2">
-				{#each escalas.filter(e => e.id !== ativa?.id) as escala}
+				{#each historico as escala}
 					<button
 						class="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl border
 							border-surface-200 dark:border-surface-800
@@ -251,9 +232,9 @@
 					>
 						<div>
 							<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
-								{fmtDate(escala.data_inicio)} – {fmtDate(escala.data_fim)}
+								{diaSemana(escala.data_inicio)}, {fmtDate(escala.data_inicio)}
 							</p>
-							<p class="text-xs text-surface-500 mt-0.5">Sáb: {escala.hora_entrada_sabado ?? escala.hora_entrada}h–{escala.hora_saida_sabado ?? escala.hora_saida}h · Dom: {escala.hora_entrada_domingo ?? escala.hora_entrada}h–{escala.hora_saida_domingo ?? escala.hora_saida}h</p>
+							<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada} às {escala.hora_saida}</p>
 						</div>
 						<span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(escala.status)}">
 							{statusLabel(escala.status)}
@@ -270,11 +251,12 @@
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Nova Escala GISE</h2>
+			<p class="text-xs text-surface-500">Selecione uma data ou intervalo de datas. O sistema criará uma escala independente por dia.</p>
 
 			<!-- Datas -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label for="novaDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
+					<label for="novaDataInicio" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Data início</label>
 					<input
 						id="novaDataInicio"
 						type="date"
@@ -283,53 +265,34 @@
 					/>
 				</div>
 				<div>
-					<label for="novaDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
+					<label for="novaDataFim" class="text-xs font-medium text-surface-600 dark:text-surface-400 block mb-1">Data fim (opcional)</label>
 					<input
 						id="novaDataFim"
 						type="date"
 						bind:value={novaDataFim}
+						min={novaDataInicio}
 						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					/>
 				</div>
 			</div>
 
-			<!-- Feature 1: Horários separados por dia -->
+			<!-- Horários -->
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horário padrão (aplicado a todos os dias)</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="novaHoraEntradaSab" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="novaHoraEntradaSab" type="text" placeholder="Ex: 08:00"
-							bind:value={novaHoraEntradaSabado}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraEntradaSabado && !validarHora(novaHoraEntradaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
+						<label for="novaHoraEntrada" class="text-xs text-surface-500 block mb-1">Entrada</label>
+						<input id="novaHoraEntrada" type="text" placeholder="Ex: 08:00"
+							bind:value={novaHoraEntrada}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraEntrada && !validarHora(novaHoraEntrada) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
-						<label for="novaHoraSaidaSab" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="novaHoraSaidaSab" type="text" placeholder="Ex: 16:00"
-							bind:value={novaHoraSaidaSabado}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraSaidaSabado && !validarHora(novaHoraSaidaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
+						<label for="novaHoraSaida" class="text-xs text-surface-500 block mb-1">Saída</label>
+						<input id="novaHoraSaida" type="text" placeholder="Ex: 16:00"
+							bind:value={novaHoraSaida}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraSaida && !validarHora(novaHoraSaida) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
-				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
-			</div>
-
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="novaHoraEntradaDom" class="text-xs text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="novaHoraEntradaDom" type="text" placeholder="Ex: 08:00"
-							bind:value={novaHoraEntradaDomingo}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraEntradaDomingo && !validarHora(novaHoraEntradaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
-					</div>
-					<div>
-						<label for="novaHoraSaidaDom" class="text-xs text-surface-500 block mb-1">Saída (h)</label>
-						<input id="novaHoraSaidaDom" type="text" placeholder="Ex: 16:00"
-							bind:value={novaHoraSaidaDomingo}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {novaHoraSaidaDomingo && !validarHora(novaHoraSaidaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
-					</div>
-				</div>
-				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
 			</div>
 
 			<div class="flex justify-end gap-3 pt-2">
@@ -342,7 +305,7 @@
 				<button
 					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
 					onclick={criarGise}
-					disabled={criando || !novaDataInicio || !novaDataFim}
+					disabled={criando || !novaDataInicio}
 				>
 					{#if criando}<Spinner size="sm" />{/if}
 					{criando ? 'Criando...' : 'Criar'}

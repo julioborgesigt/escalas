@@ -1,11 +1,8 @@
 /**
- * GET /api/gise/[id]/download?format=xlsx|pdf
+ * GET /api/gise/[id]/download?format=xlsx|pdf|extraordinario|produtividade
  *
- * Exporta a Escala GISE em XLSX ou PDF (sem assinatura digital).
- *
+ * Exporta a Escala GISE diária em XLSX ou PDF.
  * Permissão: Admin Geral ou Admin Seccional.
- * Para XLSX/PDF assinado: download só é liberado após assinatura.
- * Para PDF sem assinatura: disponível a qualquer momento para admins.
  */
 
 import { json } from '@sveltejs/kit';
@@ -26,61 +23,39 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
-	const isSupervisor = u.tipo === 'policial' && (gise.supervisor_sabado_id === u.id || gise.supervisor_domingo_id === u.id);
+	const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
 
-	// Checagem de permissão básica: Admin ou Supervisor ou Policial comum (membro checado depois no format extraordinario)
 	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && u.tipo !== 'policial') {
 		return json({ error: 'Sem permissão para acessar downloads desta escala GISE' }, { status: 403 });
 	}
 
 	const format = url.searchParams.get('format') || 'xlsx';
 
-	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Com rubricas)
+	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO
 	if (format === 'extraordinario') {
-		const diaParam = url.searchParams.get('dia') as 'sabado' | 'domingo';
-		if (!diaParam) return json({ error: 'Dia é obrigatório para o relatório extraordinário' }, { status: 400 });
-		
 		const secIdParam = url.searchParams.get('seccionalId');
 		const seccionalId = secIdParam ? parseInt(secIdParam) : undefined;
-		
-		const presencas = await buscarPresencasGise(db, id, diaParam);
-		
-		let reportSignature = seccionalId ? await buscarAssinaturaRelatorioGise(db, id, seccionalId, diaParam, 'extraordinario') : null;
-		
-		// Fallback para assinaturas salvas incorretamente com o PK da gise_seccionais (sec.id) em vez do seccional_id
-		if (!reportSignature && seccionalId) {
-			const junction = (gise.seccionais as any[]).find(s => s.seccional_id === seccionalId || s.id === seccionalId);
-			if (junction && junction.id !== seccionalId) {
-				reportSignature = await buscarAssinaturaRelatorioGise(db, id, junction.id, diaParam, 'extraordinario');
-			}
-		}
 
-		// Bloqueio para policiais comuns: só baixam se estiver assinado pelo supervisor
+		const presencas = await buscarPresencasGise(db, id);
+
+		let reportSignature = seccionalId ? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario') : null;
+
 		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !reportSignature) {
-			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor para download pelo escalado.' }, { status: 403 });
+			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor.' }, { status: 403 });
 		}
 
-		const result = await gerarRelatorioExtraordinarioPdf(gise, diaParam, presencas, seccionalId, url.origin, reportSignature);
-		let finalPdf = result.pdf;
-
-		// Se houver assinatura, aplicamos o rodapé visual estilo GISE (com QR Code etc)
-		if (reportSignature) {
-			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
-			const qrUrl = reportSignature.verification_hash ? `${url.origin}/validar/${reportSignature.verification_hash}` : undefined;
-			
-			finalPdf = await adicionarRodapeSimples(
-				finalPdf,
-				reportSignature.assinante_nome,
-				{
-					verificationHash: reportSignature.verification_hash || undefined,
-					verificationUrl: qrUrl,
-					rubricBase64: reportSignature.rubrica || undefined
-				}
-			);
+		let qrCodeBase64: string | undefined;
+		if (reportSignature && reportSignature.verification_hash) {
+			const QRCode = await import('qrcode');
+			const qrUrl = `${url.origin}/validar/${reportSignature.verification_hash}`;
+			qrCodeBase64 = await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: 'H' });
 		}
-		
+
+		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
+		const finalPdf = result.pdf;
+
 		const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
-		const filename = `relatorio_extraordinario_${gise.data_inicio}_${diaParam}${secSuffix}.pdf`;
+		const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
 		return new Response(finalPdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
@@ -90,11 +65,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	}
 
-	// PDF sem assinatura pode ser gerado a qualquer momento
 	if (format === 'pdf') {
-		const diaParam = url.searchParams.get('dia') as 'sabado' | 'domingo' | 'ambos' || 'ambos';
-		const result = gerarPdfGise(gise, diaParam === 'ambos' ? undefined : diaParam as 'sabado' | 'domingo');
-		const filename = `gise_${gise.data_inicio}_${diaParam}.pdf`;
+		const result = gerarPdfGise(gise);
+		const filename = `gise_${gise.data_inicio}.pdf`;
 		return new Response(result.pdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
@@ -105,9 +78,6 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	if (format === 'produtividade') {
-		const diaParam = url.searchParams.get('dia') as 'sabado' | 'domingo';
-		if (!diaParam) return json({ error: 'Dia é obrigatório' }, { status: 400 });
-		
 		const secIdParam = url.searchParams.get('seccionalId');
 		if (!secIdParam) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
 		const seccionalId = parseInt(secIdParam);
@@ -118,10 +88,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
 		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
-		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id, diaParam);
-		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, dia: diaParam, respostas });
-		
-		const filename = `resumo_produtividade_${gise.data_inicio}_${diaParam}_sec_${seccionalId}.pdf`;
+		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);
+		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, respostas });
+
+		const filename = `resumo_produtividade_${gise.data_inicio}_sec_${seccionalId}.pdf`;
 		return new Response(result.pdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
@@ -130,6 +100,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		});
 	}
+
 	if (gise.status !== 'assinada' && gise.status !== 'finalizada') {
 		return json(
 			{ error: 'A escala ainda não foi assinada. O download só é liberado após a assinatura do Supervisor.' },
@@ -137,66 +108,49 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		);
 	}
 
+	// XLSX
 	const wb = XLSX.utils.book_new();
 
-	// Aba de resumo geral
 	const resumoRows: (string | number)[][] = [
 		['ESCALA GISE'],
-		[`Período: ${fmtDate(gise.data_inicio)} (Sábado) a ${fmtDate(gise.data_fim)} (Domingo)`],
-		[`Horário: ${gise.hora_entrada}h às ${gise.hora_saida}h`],
-		[`Supervisor Sábado: ${gise.supervisor_sabado_nome ?? '—'}`],
-		[`Supervisor Domingo: ${gise.supervisor_domingo_nome ?? '—'}`],
+		[`Data: ${fmtDate(gise.data_inicio)}`],
+		[`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`],
+		[`Supervisor: ${gise.supervisor_nome ?? '—'}`],
 		[`Status: ${statusLabel(gise.status)}`],
-		gise.documentos.sabado?.assinante_nome ? [`Assinado Sábado por: ${gise.documentos.sabado.assinante_nome}`] : [],
-		gise.documentos.domingo?.assinante_nome ? [`Assinado Domingo por: ${gise.documentos.domingo.assinante_nome}`] : [],
+		gise.documento?.assinante_nome ? [`Assinado por: ${gise.documento.assinante_nome}`] : [],
 		[],
-		['Seccional', 'Unidade Operacional', 'Equipe', 'Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']
+		['Seccional', 'Unidade Operacional', 'Equipe', 'Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']
 	];
-
-	const pushMembroRows = (target: (string | number)[][], s: any, e: any, m: any, prefixColumns: (string | number)[] = []) => {
-		const dias = m.dia === 'ambos' ? ['sabado', 'domingo'] : [m.dia];
-		for (const d of dias) {
-			const dataEf = d === 'sabado' ? gise.data_inicio : gise.data_fim;
-			const hEnt = e[`hora_entrada_${d}`] || s[`hora_entrada_${d}`] || (gise as any)[`hora_entrada_${d}`] || gise.hora_entrada;
-			const hSai = e[`hora_saida_${d}`] || s[`hora_saida_${d}`] || (gise as any)[`hora_saida_${d}`] || gise.hora_saida;
-			
-			target.push([
-				...prefixColumns,
-				m.policial_nome,
-				m.policial_cargo,
-				m.policial_matricula,
-				m.policial_telefone || '—',
-				m.policial_lotacao,
-				fmtDate(dataEf),
-				fmtHora(hEnt),
-				fmtDate(dataEf),
-				fmtHora(hSai)
-			]);
-		}
-	};
 
 	for (const sec of gise.seccionais ?? []) {
 		for (const equipe of sec.equipes ?? []) {
-			for (const membro of equipe.membros ?? []) {
-				pushMembroRows(resumoRows, sec, equipe, membro, [
+			for (const m of equipe.membros ?? []) {
+				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+				resumoRows.push([
 					sec.seccional_nome,
 					sec.unidade_operacional_nome ?? '—',
-					equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'
+					equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT',
+					m.policial_nome,
+					m.policial_cargo,
+					m.policial_matricula,
+					m.policial_telefone || '—',
+					m.policial_lotacao ?? '—',
+					hEnt,
+					hSai
 				]);
 			}
 		}
 	}
 
 	const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
-	// Largura das colunas
 	wsResumo['!cols'] = [
 		{ wch: 24 }, { wch: 24 }, { wch: 16 },
 		{ wch: 30 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 30 },
-		{ wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }
+		{ wch: 10 }, { wch: 10 }
 	];
 	XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo Geral');
 
-	// Uma aba por seccional
 	for (const sec of gise.seccionais ?? []) {
 		const rows: (string | number)[][] = [
 			[`SECCIONAL: ${sec.seccional_nome}`],
@@ -207,13 +161,19 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		for (const equipe of sec.equipes ?? []) {
 			rows.push([`Equipe ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`]);
-			rows.push(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']);
+			rows.push(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']);
 			if (equipe.membros?.length) {
 				for (const m of equipe.membros) {
-					pushMembroRows(rows, sec, equipe, m);
+					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+					rows.push([
+						m.policial_nome, m.policial_cargo, m.policial_matricula,
+						m.policial_telefone || '—', m.policial_lotacao ?? '—',
+						hEnt, hSai
+					]);
 				}
 			} else {
-				rows.push(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
+				rows.push(['(sem membros alocados)', '', '', '', '', '', '']);
 			}
 			rows.push([]);
 		}
@@ -221,11 +181,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const ws = XLSX.utils.aoa_to_sheet(rows);
 		ws['!cols'] = [
 			{ wch: 30 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 30 },
-			{ wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }
+			{ wch: 10 }, { wch: 10 }
 		];
-		// Truncar nome da aba para 31 caracteres (limite do XLSX)
-		const nomAba = sec.seccional_nome.slice(0, 31);
-		XLSX.utils.book_append_sheet(wb, ws, nomAba);
+		XLSX.utils.book_append_sheet(wb, ws, sec.seccional_nome.slice(0, 31));
 	}
 
 	const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -245,18 +203,6 @@ function fmtDate(iso: string): string {
 	if (!iso) return '';
 	const [y, m, d] = iso.split('-');
 	return `${d}/${m}/${y}`;
-}
-
-function fmtHora(h: any): string {
-	const n = parseInt(String(h ?? ''));
-	if (isNaN(n)) return String(h ?? '');
-	return `${String(n).padStart(2, '0')}:00`;
-}
-
-function diaLabel(dia: string): string {
-	if (dia === 'sabado') return 'Sábado';
-	if (dia === 'domingo') return 'Domingo';
-	return 'Sáb + Dom';
 }
 
 function statusLabel(status: string): string {

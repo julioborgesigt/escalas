@@ -20,7 +20,6 @@
 	const isSeccional = $derived(papelGise === 'admin_seccional');
 	const isSupervisor = $derived(papelGise === 'supervisor');
 
-	// Minha seccional (para Admin Seccional)
 	const minhaSeccional = $derived(
 		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
 	);
@@ -29,7 +28,6 @@
 		gise?.seccionais?.length > 0 && gise.seccionais.every((s: any) => s.status === 'preenchida')
 	);
 
-	// Estado de UI
 	let salvando = $state(false);
 	let assinando = $state(false);
 	let finalizando = $state(false);
@@ -42,15 +40,13 @@
 		}
 	});
 
-	// Edição de supervisores (Admin Geral / Admin Seccional)
+	// Supervisor (único por escala)
 	let editandoSupervisores = $state(false);
-	let supSabadoId = $state<number | null>(null);
-	let supDomingoId = $state<number | null>(null);
+	let supervisorId = $state<number | null>(null);
 
-	// Equipe selecionada para adicionar membro
+	// Adicionar membro
 	let equipeParaAdicionar = $state<number | null>(null);
 	let policialParaAdicionar = $state<number | ''>('');
-	let diaParaAdicionar = $state<'sabado' | 'domingo' | 'ambos'>('ambos');
 	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
 	let modoEdicaoSeccional = $state(false);
 
@@ -63,14 +59,11 @@
 	let reabrindo = $state(false);
 	let showReabrirConfirm = $state(false);
 
-	// Feature 5: Editar datas/horários e excluir GISE (Admin Geral)
+	// Editar data/horários
 	let editandoDatasHorarios = $state(false);
 	let editDataInicio = $state('');
-	let editDataFim = $state('');
-	let editHoraEntradaSabado = $state('');
-	let editHoraSaidaSabado = $state('');
-	let editHoraEntradaDomingo = $state('');
-	let editHoraSaidaDomingo = $state('');
+	let editHoraEntrada = $state('');
+	let editHoraSaida = $state('');
 	let showExcluirGiseConfirm = $state(false);
 	let excluindo = $state(false);
 
@@ -89,23 +82,19 @@
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 
-	// Feature: Horários customizados
+	// Horários customizados por seccional
 	let editandoHorariosSecId = $state<number | null>(null);
-	let editSecHoraEntSab = $state('');
-	let editSecHoraSaiSab = $state('');
-	let editSecHoraEntDom = $state('');
-	let editSecHoraSaiDom = $state('');
+	let editSecHoraEnt = $state('');
+	let editSecHoraSai = $state('');
 
+	// Horários customizados por equipe
 	let editandoHorariosEquipeId = $state<number | null>(null);
-	let editEqHoraEntSab = $state('');
-	let editEqHoraSaiSab = $state('');
-	let editEqHoraEntDom = $state('');
-	let editEqHoraSaiDom = $state('');
+	let editEqHoraEnt = $state('');
+	let editEqHoraSai = $state('');
 
 	$effect(() => {
 		if (gise) {
-			supSabadoId = gise.supervisor_sabado_id ?? null;
-			supDomingoId = gise.supervisor_domingo_id ?? null;
+			supervisorId = gise.supervisor_id ?? null;
 			if (minhaSeccional) {
 				unidadeOperacionalId = minhaSeccional.unidade_operacional_id ?? null;
 			}
@@ -122,6 +111,7 @@
 		};
 		return m[status] ?? status;
 	}
+
 	function statusColor(status: string) {
 		const m: Record<string, string> = {
 			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
@@ -131,32 +121,31 @@
 		};
 		return m[status] ?? '';
 	}
+
 	function fmtDate(iso: string) {
 		const [y, m, d] = iso.split('-');
 		return `${d}/${m}/${y}`;
 	}
 
-	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
-
-	function checkAllSigned(sec: any, diaTarget: 'sabado' | 'domingo') {
-		const members = (sec.equipes ?? []).flatMap((eq: any) => eq.membros ?? []);
-		const relevantMembers = members.filter((m: any) => m.dia === 'ambos' || m.dia === diaTarget);
-		if (relevantMembers.length === 0) return false;
-		return relevantMembers.every((m: any) => {
-			const presenca = m.presencas?.find((p: any) => p.dia === diaTarget);
-			return presenca?.entrada_timestamp && presenca?.saida_timestamp;
-		});
+	function diaSemana(iso: string): string {
+		if (!iso) return '';
+		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+		return dias[new Date(iso + 'T12:00:00').getDay()];
 	}
 
-	function getFaltandoRubrica(sec: any, diaTarget: 'sabado' | 'domingo') {
+	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
+
+	function checkAllSigned(sec: any) {
 		const members = (sec.equipes ?? []).flatMap((eq: any) => eq.membros ?? []);
-		const relevantMembers = members.filter((m: any) => m.dia === 'ambos' || m.dia === diaTarget);
-		const faltantes = relevantMembers.filter((m: any) => {
-			const p = m.presencas?.find((pr: any) => pr.dia === diaTarget);
-			return !p?.entrada_timestamp || !p?.saida_timestamp;
-		});
+		if (members.length === 0) return false;
+		return members.every((m: any) => m.presenca?.entrada_timestamp && m.presenca?.saida_timestamp);
+	}
+
+	function getFaltandoRubrica(sec: any) {
+		const members = (sec.equipes ?? []).flatMap((eq: any) => eq.membros ?? []);
+		const faltantes = members.filter((m: any) => !m.presenca?.entrada_timestamp || !m.presenca?.saida_timestamp);
 		if (faltantes.length === 0) return '';
-		return 'Faltando rubrica de: ' + faltantes.map((m: any) => m.policial_nome.split(' ')[0]).join(', '); // Use first name to keep it compact
+		return 'Faltando rubrica de: ' + faltantes.map((m: any) => m.policial_nome.split(' ')[0]).join(', ');
 	}
 
 	async function salvarSupervisores() {
@@ -165,14 +154,11 @@
 			const res = await fetch(`/api/gise/${gise.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					supervisor_sabado_id: supSabadoId,
-					supervisor_domingo_id: supDomingoId
-				})
+				body: JSON.stringify({ supervisor_id: supervisorId })
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
-			toaster.success({ title: 'Supervisores salvos' });
+			toaster.success({ title: 'Supervisor salvo' });
 			editandoSupervisores = false;
 			await invalidateAll();
 		} catch (e: any) {
@@ -266,8 +252,7 @@
 				body: JSON.stringify({
 					adicionar_membro: {
 						equipe_id: equipeParaAdicionar,
-						policial_id: Number(policialParaAdicionar),
-						dia: diaParaAdicionar
+						policial_id: Number(policialParaAdicionar)
 					}
 				})
 			});
@@ -320,11 +305,9 @@
 		}
 	}
 
-	// === Documento assinado ===
+	// Documento assinado
 	let documentoAssinadoInfo = $state<any>(null);
-	let documentosAssinados = $state<Record<string, any>>({});
 	let assinandoSimples = $state(false);
-	// assinando is already declared above
 	let etapaAssinatura = $state('');
 
 	// Web PKI
@@ -339,33 +322,22 @@
 	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
 	let serproSignerCpf = $state('');
 
-	// Feature 5: Signature Rubric
+	// Rubrica modal
 	let showRubricaModal = $state(false);
-	let diaSendoAssinado = $state<'sabado' | 'domingo' | 'ambos' | null>(null);
 	let tipoAssinaturaPendente = $state<'simples' | 'webpki' | 'serpro' | null>(null);
 	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
 
-	// Carregar info do documento ao montar
 	$effect(() => {
 		if (gise?.id) {
 			fetch(`/api/gise/${gise.id}/documento-assinado/info`)
 				.then(r => r.ok ? r.json() : null)
-				.then(info => {
-					if (info?.existe) {
-						documentoAssinadoInfo = info;
-						documentosAssinados = info.documentos || {};
-					} else {
-						documentoAssinadoInfo = null;
-						documentosAssinados = {};
-					}
-				})
+				.then(info => { documentoAssinadoInfo = info?.existe ? info : null; })
 				.catch(() => {});
 		}
 	});
 
-	function abrirModalRubrica(dia: 'sabado' | 'domingo' | 'ambos', tipo: 'simples' | 'webpki' | 'serpro') {
-		diaSendoAssinado = dia;
+	function abrirModalRubrica(tipo: 'simples' | 'webpki' | 'serpro') {
 		tipoAssinaturaPendente = tipo;
 		showRubricaModal = true;
 	}
@@ -374,7 +346,7 @@
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
-		
+
 		if (relatorioSendoAssinado) {
 			await executarAssinarRelatorio(dataUrl, lat, lng, selfie);
 			relatorioSendoAssinado = null;
@@ -388,20 +360,18 @@
 	}
 
 	async function executarAssinarSimples(latitude?: number, longitude?: number) {
-		if (!diaSendoAssinado) return;
 		assinandoSimples = true;
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
-				body: JSON.stringify({ dia: diaSendoAssinado, rubrica: rubricaCapturada, latitude, longitude, selfieBase64: selfieCapturada })
+				body: JSON.stringify({ rubrica: rubricaCapturada, latitude, longitude, selfieBase64: selfieCapturada })
 			});
 			if (r.ok) {
 				const blob = await r.blob();
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				const diaSuffix = diaSendoAssinado === 'ambos' ? '' : `_${diaSendoAssinado}`;
-				a.download = `gise_${gise.data_inicio}${diaSuffix}_confirmada.pdf`;
+				a.download = `gise_${gise.data_inicio}_confirmada.pdf`;
 				a.click();
 				toaster.success({ title: 'Escala confirmada com sucesso' });
 				await invalidateAll();
@@ -413,7 +383,6 @@
 			toaster.error({ title: 'Erro de conexão' });
 		} finally {
 			assinandoSimples = false;
-			diaSendoAssinado = null;
 			rubricaCapturada = null;
 		}
 	}
@@ -439,20 +408,19 @@
 	}
 
 	async function executarAssinarComWebPKI(latitude?: number, longitude?: number) {
-		if (!diaSendoAssinado || !certSelecionado) return;
+		if (!certSelecionado) return;
 		assinando = true;
 		etapaAssinatura = 'Preparando PDF...';
 
 		try {
 			const pki = await initWebPKI();
 			const cert = certificados.find(c => c.thumbprint === certSelecionado);
-			
+
 			const prepResp = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
 				method: 'POST',
 				body: JSON.stringify({
 					signerName: cert?.subjectName ?? serproSignerName,
 					signerCpf: cert?.cpf ?? serproSignerCpf,
-					dia: diaSendoAssinado,
 					rubrica: rubricaCapturada
 				})
 			});
@@ -475,14 +443,13 @@
 					signerName: cert?.subjectName ?? serproSignerName,
 					signerCpf: cert?.cpf ?? serproSignerCpf,
 					verificationHash,
-					dia: diaSendoAssinado,
 					latitude,
 					longitude
 				})
 			});
 
 			if (!finResp.ok) throw new Error((await finResp.json()).error);
-			
+
 			const blob = await finResp.blob();
 			const url = URL.createObjectURL(blob);
 			window.open(url, '_blank');
@@ -493,14 +460,12 @@
 			toaster.error({ title: 'Erro na assinatura Web PKI', description: err.message });
 		} finally {
 			assinando = false;
-			diaSendoAssinado = null;
 			rubricaCapturada = null;
 			etapaAssinatura = '';
 		}
 	}
 
 	async function executarAssinarComSerpro(latitude?: number, longitude?: number) {
-		if (!diaSendoAssinado) return;
 		assinando = true;
 		etapaAssinatura = 'Iniciando SERPRO...';
 
@@ -514,7 +479,6 @@
 				body: JSON.stringify({
 					signerName: serproSignerName,
 					signerCpf: serproSignerCpf,
-					dia: diaSendoAssinado,
 					rubrica: rubricaCapturada
 				})
 			});
@@ -538,14 +502,13 @@
 					signerName: serproSignerName,
 					signerCpf: serproSignerCpf,
 					verificationHash,
-					dia: diaSendoAssinado,
 					latitude,
 					longitude
 				})
 			});
 
 			if (!finResp.ok) throw new Error((await finResp.json()).error);
-			
+
 			const blob = await finResp.blob();
 			const url = URL.createObjectURL(blob);
 			window.open(url, '_blank');
@@ -556,20 +519,15 @@
 			toaster.error({ title: 'Erro na assinatura SERPRO', description: err.message });
 		} finally {
 			assinando = false;
-			diaSendoAssinado = null;
 			rubricaCapturada = null;
 			etapaAssinatura = '';
 		}
 	}
 
-	function assinarSimples() { abrirModalRubrica('ambos', 'simples'); }
-	function assinarComWebPKI() { abrirModalRubrica('ambos', 'webpki'); }
-	function assinarComSerpro() { abrirModalRubrica('ambos', 'serpro'); }
-
 	async function finalizarGise(modo: 'clonada' | 'completa' = 'clonada') {
 		finalizando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/finalizar`, { 
+			const res = await fetch(`/api/gise/${gise.id}/finalizar`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ modo })
@@ -624,19 +582,16 @@
 		}
 	}
 
+	// Relatórios extraordinários pendentes de assinatura
 	const pendentesExtra = $derived.by(() => {
 		if (!isSupervisor) return [];
-		const lista: Array<{seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario'}> = [];
-		for (const sec of (gise.seccionais || [])) {
-			// sabado
-			const relSab = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'sabado' && a.tipo === 'extraordinario');
-			if (!relSab && checkAllSigned(sec, 'sabado')) {
-				lista.push({ seccionalId: sec.seccional_id, dia: 'sabado', tipo: 'extraordinario' });
-			}
-			// domingo
-			const relDom = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'domingo' && a.tipo === 'extraordinario');
-			if (!relDom && checkAllSigned(sec, 'domingo')) {
-				lista.push({ seccionalId: sec.seccional_id, dia: 'domingo', tipo: 'extraordinario' });
+		const lista: Array<{ seccionalId: number; tipo: 'extraordinario' }> = [];
+		for (const sec of (gise?.seccionais || [])) {
+			const relAssinado = data.assinaturasRelatorios?.find(
+				(a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.tipo === 'extraordinario'
+			);
+			if (!relAssinado && checkAllSigned(sec)) {
+				lista.push({ seccionalId: sec.seccional_id, tipo: 'extraordinario' });
 			}
 		}
 		return lista;
@@ -645,24 +600,23 @@
 	let assinandoLote = $state(false);
 	let progressoLote = $state({ atual: 0, total: 0 });
 
-	let relatorioSendoAssinado = $state<{ 
-		lote?: Array<{seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario'}>;
-		seccionalId?: number; 
-		dia?: 'sabado' | 'domingo'; 
-		tipo?: 'extraordinario' | 'produtividade' 
+	let relatorioSendoAssinado = $state<{
+		lote?: Array<{ seccionalId: number; tipo: 'extraordinario' }>;
+		seccionalId?: number;
+		tipo?: 'extraordinario' | 'produtividade';
 	} | null>(null);
 
 	function abrirAssinaturaLote() {
 		relatorioSendoAssinado = { lote: pendentesExtra };
-		abrirModalRubrica('ambos', 'simples');
+		abrirModalRubrica('simples');
 	}
 
-	function abrirAssinaturaRelatorio(seccionalId: number, dia: 'sabado' | 'domingo', tipo: 'extraordinario' | 'produtividade') {
-		relatorioSendoAssinado = { seccionalId, dia, tipo };
-		abrirModalRubrica(dia, 'simples'); 
+	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
+		relatorioSendoAssinado = { seccionalId, tipo };
+		abrirModalRubrica('simples');
 	}
 
-	async function executarAssinarRelatorioLotePKI(certSelecionadoLote: string, ltype: 'webpki'|'serpro') {
+	async function executarAssinarRelatorioLotePKI(certSelecionadoLote: string, ltype: 'webpki' | 'serpro') {
 		if (pendentesExtra.length === 0) return;
 		if (ltype === 'webpki' && !certSelecionadoLote) return;
 		assinandoLote = true;
@@ -690,7 +644,7 @@
 				progressoLote.atual = i + 1;
 				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
 
-				const prepResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/preparar-assinatura`, {
+				const prepResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/preparar-assinatura`, {
 					method: 'POST',
 					body: JSON.stringify({ signerName, signerCpf, rubrica: null })
 				});
@@ -714,7 +668,7 @@
 
 				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
 
-				const finResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/finalizar-assinatura`, {
+				const finResp = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/finalizar-assinatura`, {
 					method: 'POST',
 					body: JSON.stringify({
 						preparedPdf: prepData.preparedPdf,
@@ -725,8 +679,7 @@
 						signingTimeISO: prepData.signingTimeISO,
 						signerName,
 						signerCpf,
-						verificationHash: prepData.verificationHash,
-						dia: item.dia,
+						verificationHash: prepData.verificationHash
 					})
 				});
 
@@ -735,7 +688,6 @@
 
 			toaster.success({ title: 'Lote assinado com sucesso!', description: `${pendentesExtra.length} relatórios assinados digitalmente.` });
 			await invalidateAll();
-
 		} catch (err: any) {
 			toaster.error({ title: 'Erro no lote', description: err.message });
 		} finally {
@@ -748,7 +700,7 @@
 	async function executarAssinarRelatorio(rubrica: string, latitude?: number, longitude?: number, selfieBase64?: string | null) {
 		if (!relatorioSendoAssinado) return;
 		salvando = true;
-		
+
 		if (relatorioSendoAssinado.lote) {
 			assinandoLote = true;
 			progressoLote = { atual: 0, total: relatorioSendoAssinado.lote.length };
@@ -757,17 +709,10 @@
 					const item = relatorioSendoAssinado.lote[i];
 					progressoLote.atual = i + 1;
 					etapaAssinatura = `Assinando ${i + 1} de ${relatorioSendoAssinado.lote.length}...`;
-					
-					const res = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/${item.dia}/assinar`, {
+					const res = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/assinar`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							tipo: item.tipo,
-							rubrica,
-							latitude,
-							longitude,
-							selfieBase64
-						})
+						body: JSON.stringify({ tipo: item.tipo, rubrica, latitude, longitude, selfieBase64 })
 					});
 					if (!res.ok) throw new Error((await res.json()).error);
 				}
@@ -787,16 +732,10 @@
 
 		try {
 			etapaAssinatura = 'Processando assinatura...';
-			const res = await fetch(`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/${relatorioSendoAssinado.dia}/assinar`, {
+			const res = await fetch(`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					tipo: relatorioSendoAssinado.tipo,
-					rubrica,
-					latitude,
-					longitude,
-					selfieBase64
-				})
+				body: JSON.stringify({ tipo: relatorioSendoAssinado.tipo, rubrica, latitude, longitude, selfieBase64 })
 			});
 			if (!res.ok) throw new Error((await res.json()).error);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
@@ -826,19 +765,15 @@
 		}
 	}
 
-	// Feature 5: Editar datas/horários da GISE (com revogação de assinatura se necessário)
 	async function abrirEdicaoDatasHorarios() {
 		editDataInicio = gise.data_inicio;
-		editDataFim = gise.data_fim;
-		editHoraEntradaSabado = gise.hora_entrada_sabado ?? gise.hora_entrada;
-		editHoraSaidaSabado = gise.hora_saida_sabado ?? gise.hora_saida;
-		editHoraEntradaDomingo = gise.hora_entrada_domingo ?? gise.hora_entrada;
-		editHoraSaidaDomingo = gise.hora_saida_domingo ?? gise.hora_saida;
+		editHoraEntrada = gise.hora_entrada ?? '';
+		editHoraSaida = gise.hora_saida ?? '';
 		editandoDatasHorarios = true;
 	}
 
 	async function salvarDatasHorarios() {
-		const horas = [editHoraEntradaSabado, editHoraSaidaSabado, editHoraEntradaDomingo, editHoraSaidaDomingo];
+		const horas = [editHoraEntrada, editHoraSaida];
 		if (horas.some(h => !h)) {
 			toaster.error({ title: 'Preencha todos os horários' });
 			return;
@@ -854,13 +789,8 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					data_inicio: editDataInicio,
-					data_fim: editDataFim,
-					hora_entrada: normalizarHora(editHoraEntradaSabado),
-					hora_saida: normalizarHora(editHoraSaidaSabado),
-					hora_entrada_sabado: normalizarHora(editHoraEntradaSabado),
-					hora_saida_sabado: normalizarHora(editHoraSaidaSabado),
-					hora_entrada_domingo: normalizarHora(editHoraEntradaDomingo),
-					hora_saida_domingo: normalizarHora(editHoraSaidaDomingo)
+					hora_entrada: normalizarHora(editHoraEntrada),
+					hora_saida: normalizarHora(editHoraSaida)
 				})
 			});
 			const json = await res.json();
@@ -878,18 +808,19 @@
 			salvando = false;
 		}
 	}
- 
+
 	function normalizarHora(v: string): string | null {
 		if (!v) return null;
 		return v.replace(/[.,]/g, ':');
 	}
+
 	function validarHora(v: string): boolean {
 		if (!v) return true;
 		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
 	}
 
 	async function salvarHorariosSec(secId: number) {
-		const horas = [editSecHoraEntSab, editSecHoraSaiSab, editSecHoraEntDom, editSecHoraSaiDom].filter(Boolean);
+		const horas = [editSecHoraEnt, editSecHoraSai].filter(Boolean);
 		if (horas.some(h => !validarHora(h))) {
 			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
 			return;
@@ -900,10 +831,8 @@
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					hora_entrada_sabado: normalizarHora(editSecHoraEntSab),
-					hora_saida_sabado: normalizarHora(editSecHoraSaiSab),
-					hora_entrada_domingo: normalizarHora(editSecHoraEntDom),
-					hora_saida_domingo: normalizarHora(editSecHoraSaiDom)
+					hora_entrada: normalizarHora(editSecHoraEnt),
+					hora_saida: normalizarHora(editSecHoraSai)
 				})
 			});
 			if (!res.ok) throw new Error((await res.json()).error);
@@ -916,9 +845,9 @@
 			salvando = false;
 		}
 	}
- 
+
 	async function salvarHorariosEquipe(eqId: number) {
-		const horas = [editEqHoraEntSab, editEqHoraSaiSab, editEqHoraEntDom, editEqHoraSaiDom].filter(Boolean);
+		const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
 		if (horas.some(h => !validarHora(h))) {
 			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
 			return;
@@ -929,10 +858,8 @@
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					hora_entrada_sabado: normalizarHora(editEqHoraEntSab),
-					hora_saida_sabado: normalizarHora(editEqHoraSaiSab),
-					hora_entrada_domingo: normalizarHora(editEqHoraEntDom),
-					hora_saida_domingo: normalizarHora(editEqHoraSaiDom)
+					hora_entrada: normalizarHora(editEqHoraEnt),
+					hora_saida: normalizarHora(editEqHoraSai)
 				})
 			});
 			if (!res.ok) throw new Error((await res.json()).error);
@@ -946,7 +873,6 @@
 		}
 	}
 
-	// Feature 5: Excluir GISE (mesmo finalizada)
 	async function excluirGise() {
 		excluindo = true;
 		try {
@@ -990,38 +916,22 @@
 	}
 
 	const podeFinalizar = $derived(isAdminGeral && gise?.status === 'assinada');
-	const temDiaPendente = $derived(
-		(gise?.supervisor_sabado_id === data.usuarioAtual?.id && !(documentosAssinados.sabado || documentosAssinados.ambos)) ||
-		(gise?.supervisor_domingo_id === data.usuarioAtual?.id && !(documentosAssinados.domingo || documentosAssinados.ambos))
-	);
 	const podeAssinar = $derived(
 		isSupervisor &&
 		(gise?.status === 'aguardando_assinatura' || gise?.status === 'assinada') &&
-		temDiaPendente
+		gise?.supervisor_id === data.usuarioAtual?.id &&
+		!documentoAssinadoInfo?.existe
 	);
-	// Admin Geral: pode editar sempre (via modal de datas/horários)
-	// Admin Seccional: pode editar exceto quando finalizada (Feature 4: pode alterar mesmo assinada → vira 'retificada')
-	const podeEditar = $derived(
-		isAdminGeral
-			? gise?.status !== 'finalizada'  // Admin geral só não edita conteúdo se finalizada (usa o modal de datas para editar)
-			: gise?.status !== 'finalizada'   // Seccional: pode editar em qualquer status exceto finalizada (gerará retificação)
-	);
-	const podeReabrir = $derived(
-		isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada')
-	);
-	const podeDownload = $derived(
-		(isAdminGeral || isSeccional || isSupervisor)
-	);
-	const editaBloqueado = $derived(
-		gise?.status === 'assinada' || gise?.status === 'finalizada'
-	);
+	const podeEditar = $derived(gise?.status !== 'finalizada');
+	const podeReabrir = $derived(isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada'));
+	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);
+	const editaBloqueado = $derived(gise?.status === 'assinada' || gise?.status === 'finalizada');
 
 	function downloadGise(format: string) {
 		if (!gise) return;
 		window.open(`/api/gise/${gise.id}/download?format=${format}`, '_blank');
 	}
 
-	// Filtra delegacias (unidades tipo delegacia) para unidade operacional
 	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
 </script>
 
@@ -1040,15 +950,14 @@
 			</button>
 			{#if gise}
 				<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Escala GISE — {fmtDate(gise.data_inicio)} a {fmtDate(gise.data_fim)}
+					Escala GISE — {diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
 				</h1>
 				<div class="flex items-center gap-2 mt-1">
 					<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 						{statusLabel(gise.status)}
 					</span>
 					<span class="text-sm text-surface-500">
-						Sáb: {gise.hora_entrada_sabado ?? gise.hora_entrada}h–{gise.hora_saida_sabado ?? gise.hora_saida}h
-						· Dom: {gise.hora_entrada_domingo ?? gise.hora_entrada}h–{gise.hora_saida_domingo ?? gise.hora_saida}h
+						{gise.hora_entrada}h–{gise.hora_saida}h
 					</span>
 				</div>
 			{/if}
@@ -1078,7 +987,7 @@
 					onclick={abrirEdicaoDatasHorarios}
 					disabled={editaBloqueado}
 				>
-					Editar Datas/Horários
+					Editar Data/Horários
 				</button>
 				<button
 					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1110,48 +1019,33 @@
 	{#if !gise}
 		<p class="text-surface-500">Escala não encontrada.</p>
 	{:else}
-		<!-- Supervisores -->
+		<!-- Supervisor -->
 		<div class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5">
 			<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
-				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisores</h2>
+				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisor</h2>
 				{#if isAdminGeral && podeEditar && !editandoSupervisores}
 					<button
-						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_sabado_id || !gise.supervisor_domingo_id ? 'btn preset-filled-warning-500 animate-pulse' : 'btn preset-outlined-primary-500'}"
+						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_id ? 'btn preset-filled-warning-500 animate-pulse' : 'btn preset-outlined-primary-500'}"
 						onclick={() => (editandoSupervisores = true)}
 					>
-						{!gise.supervisor_sabado_id || !gise.supervisor_domingo_id ? 'Definir Supervisores' : 'Editar Supervisores'}
+						{!gise.supervisor_id ? 'Definir Supervisor' : 'Editar Supervisor'}
 					</button>
 				{/if}
 			</div>
 
 			{#if editandoSupervisores}
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-					<div>
-						<label for="supSabado" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Sábado (DPC)</label>
-						<select
-							id="supSabado"
-							bind:value={supSabadoId}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-						>
-							<option value={null}>Não definido</option>
-							{#each dpcs as p}
-								<option value={p.id}>{p.nome} ({p.matricula})</option>
-							{/each}
-						</select>
-					</div>
-					<div>
-						<label for="supDomingo" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor Domingo (DPC)</label>
-						<select
-							id="supDomingo"
-							bind:value={supDomingoId}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-						>
-							<option value={null}>Não definido</option>
-							{#each dpcs as p}
-								<option value={p.id}>{p.nome} ({p.matricula})</option>
-							{/each}
-						</select>
-					</div>
+				<div class="mb-3">
+					<label for="supId" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Supervisor (DPC)</label>
+					<select
+						id="supId"
+						bind:value={supervisorId}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					>
+						<option value={null}>Não definido</option>
+						{#each dpcs as p}
+							<option value={p.id}>{p.nome} ({p.matricula})</option>
+						{/each}
+					</select>
 				</div>
 				<div class="flex gap-2">
 					<button
@@ -1160,8 +1054,7 @@
 						disabled={salvando}
 					>
 						{#if salvando}<Spinner size="sm" />{/if}
-						{#if salvando}<Spinner size="sm" />{/if}
-					{salvando ? 'Salvando...' : 'Salvar'}
+						{salvando ? 'Salvando...' : 'Salvar'}
 					</button>
 					<button
 						class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
@@ -1171,154 +1064,77 @@
 					</button>
 				</div>
 			{:else}
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-					<!-- Sábado -->
-					<div class="space-y-3">
-						<div class="flex items-center justify-between">
-							<p class="text-sm font-bold text-surface-500 uppercase tracking-wider">Sábado</p>
-							{#if documentosAssinados.sabado || documentosAssinados.ambos}
-								<span class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold">ASSINADA</span>
-							{:else}
-								<span class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold">PENDENTE</span>
-							{/if}
+				<div class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
+					<div class="flex items-center justify-between">
+						<p class="font-semibold text-surface-900 dark:text-surface-100">{gise.supervisor_nome ?? 'Não definido'}</p>
+						{#if documentoAssinadoInfo?.existe}
+							<span class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold">ASSINADA</span>
+						{:else}
+							<span class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold">PENDENTE</span>
+						{/if}
+					</div>
+					{#if documentoAssinadoInfo?.existe}
+						<div class="mt-2 text-sm text-surface-500 space-y-1">
+							<p>Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium">{documentoAssinadoInfo.assinante_nome}</span></p>
+							<a href={`/api/gise/${gise.id}/documento-assinado`}
+								target="_blank" class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1">
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+								Baixar PDF Assinado
+							</a>
 						</div>
-						
-						<div class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
-							<p class="font-semibold text-surface-900 dark:text-surface-100">{gise.supervisor_sabado_nome ?? 'Não definido'}</p>
-							{#if documentosAssinados.sabado || documentosAssinados.ambos}
-								<div class="mt-2 text-sm text-surface-500 space-y-1">
-									<p>Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium">{(documentosAssinados.sabado || documentosAssinados.ambos).assinante_nome}</span></p>
-									<a href={`/api/gise/${gise.id}/documento-assinado?dia=${documentosAssinados.sabado ? 'sabado' : 'ambos'}`} 
-										target="_blank" class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1">
-										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-										Baixar PDF Sábado
-									</a>
-								</div>
-							{/if}
+					{/if}
 					{#if isAdminGeral || isSeccional}
-						<a href={`/api/gise/${gise.id}/download?format=pdf&dia=sabado`}
+						<a href={`/api/gise/${gise.id}/download?format=pdf`}
 							target="_blank" class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1">
 							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-							PDF sem Assinatura (Sáb)
+							PDF sem Assinatura
 						</a>
 					{/if}
-						</div>
-					</div>
-
-					<!-- Domingo -->
-					<div class="space-y-3">
-						<div class="flex items-center justify-between">
-							<p class="text-sm font-bold text-surface-500 uppercase tracking-wider">Domingo</p>
-							{#if documentosAssinados.domingo || documentosAssinados.ambos}
-								<span class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold">ASSINADA</span>
-							{:else}
-								<span class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold">PENDENTE</span>
-							{/if}
-						</div>
-						
-						<div class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
-							<p class="font-semibold text-surface-900 dark:text-surface-100">{gise.supervisor_domingo_nome ?? 'Não definido'}</p>
-							{#if documentosAssinados.domingo || documentosAssinados.ambos}
-								<div class="mt-2 text-sm text-surface-500 space-y-1">
-									<p>Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium">{(documentosAssinados.domingo || documentosAssinados.ambos).assinante_nome}</span></p>
-									<a href={`/api/gise/${gise.id}/documento-assinado?dia=${documentosAssinados.domingo ? 'domingo' : 'ambos'}`} 
-										target="_blank" class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1">
-										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-										Baixar PDF Domingo
-									</a>
-								</div>
-							{/if}
-					{#if isAdminGeral || isSeccional}
-						<a href={`/api/gise/${gise.id}/download?format=pdf&dia=domingo`}
-							target="_blank" class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1">
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-							PDF sem Assinatura (Dom)
-						</a>
-					{/if}
-						</div>
-					</div>
 				</div>
 			{/if}
 		</div>
 
-		<!-- Card de Escala Totalmente Assinada -->
-		{#if documentosAssinados.sabado || documentosAssinados.domingo || documentosAssinados.ambos}
-			<div class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-500">
+		<!-- Card de Escala Assinada -->
+		{#if documentoAssinadoInfo?.existe}
+			<div class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm">
 				<div class="bg-success-500 text-white p-2 rounded-full mt-1">
-					<svg class="w-5 h-5 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
 				</div>
 				<div class="flex-1">
-					<h3 class="font-bold text-success-800 dark:text-success-400">
-						Escala GISE Assinada
-					</h3>
+					<h3 class="font-bold text-success-800 dark:text-success-400">Escala GISE Assinada</h3>
 					<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-						{#if documentosAssinados.sabado && documentosAssinados.domingo}
-							Escala totalmente assinada (Sábado e Domingo).
-						{:else if documentosAssinados.ambos}
-							Escala assinada (formato unificado).
-						{:else if documentosAssinados.sabado}
-							Sábado assinado. Aguardando supervisor de Domingo.
-						{:else if documentosAssinados.domingo}
-							Domingo assinado. Aguardando supervisor de Sábado.
-						{:else}
-							Aguardando assinatura do supervisor restante.
-						{/if}
+						Assinado por {documentoAssinadoInfo.assinante_nome}.
 					</p>
 				</div>
 			</div>
 		{/if}
 
-
 		<!-- Seção de assinatura (Supervisor) -->
 		{#if podeAssinar}
 			<div id="secao-assinatura-digital" class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5 space-y-4">
-				<div class="flex items-center gap-2 mb-2">
-					<h3 class="font-bold text-surface-900 dark:text-surface-50">Assinar Escala GISE</h3>
-					{#if diaSendoAssinado}
-						<span class="text-sm px-2 py-0.5 rounded bg-primary-500/20 text-primary-700 dark:text-primary-400 font-bold uppercase transition-all">
-							Dia: {diaSendoAssinado}
-						</span>
+				<h3 class="font-bold text-surface-900 dark:text-surface-50">Assinar Escala GISE</h3>
+
+				<!-- Assinatura Simples -->
+				<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+					<div>
+						<h4 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">Assinar na Tela (Manual)</h4>
+						<p class="text-sm text-surface-500 mt-1">Gera o PDF com sua rubrica manual (validade interna).</p>
+					</div>
+					{#if isMobile}
+						<button
+							class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+							disabled={assinandoSimples}
+							onclick={() => abrirModalRubrica('simples')}
+						>
+							{#if assinandoSimples}<Spinner size="sm" />{/if}
+							{assinandoSimples ? 'Gerando PDF...' : 'Assinar na Tela'}
+						</button>
+					{:else}
+						<div class="text-xs text-error-500 max-w-xs text-right italic font-semibold border-l-2 border-error-500 pl-2">
+							A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 abaixo no computador.
+						</div>
 					{/if}
 				</div>
-
-				{#if !diaSendoAssinado}
-					<p class="text-sm font-semibold text-surface-600 dark:text-surface-400 mb-3">Selecione o dia para assinar:</p>
-					<div class="flex gap-3 flex-wrap">
-						{#if gise.supervisor_sabado_id === data.usuarioAtual?.id && !(documentosAssinados.sabado || documentosAssinados.ambos)}
-							<button class="btn preset-filled-primary-500 text-sm px-5 py-2 rounded-xl font-bold"
-								onclick={() => (diaSendoAssinado = 'sabado')}>
-								Assinar Sábado
-							</button>
-						{/if}
-						{#if gise.supervisor_domingo_id === data.usuarioAtual?.id && !(documentosAssinados.domingo || documentosAssinados.ambos)}
-							<button class="btn preset-filled-primary-500 text-sm px-5 py-2 rounded-xl font-bold"
-								onclick={() => (diaSendoAssinado = 'domingo')}>
-								Assinar Domingo
-							</button>
-						{/if}
-					</div>
-				{:else}
-					<!-- Assinatura Simples (Confirmação) -->
-					<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-						<div>
-							<h4 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">Assinar na Tela (Manual)</h4>
-							<p class="text-sm text-surface-500 mt-1">Gera o PDF com sua rubrica manual (validade interna).</p>
-						</div>
-						{#if isMobile}
-							<button
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-								disabled={assinandoSimples}
-								onclick={() => abrirModalRubrica(diaSendoAssinado!, 'simples')}
-							>
-								{#if assinandoSimples}<Spinner size="sm" />{/if}
-								{assinandoSimples ? 'Gerando PDF...' : `Assinar na Tela (${diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'})`}
-							</button>
-						{:else}
-							<div class="text-xs text-error-500 max-w-xs text-right italic font-semibold border-l-2 border-error-500 pl-2">
-								A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 abaixo no computador.
-							</div>
-						{/if}
-					</div>
 
 				<hr class="border-surface-200 dark:border-surface-700" />
 
@@ -1327,7 +1143,6 @@
 					Assinatura Digital (eToken / Certificado A3)
 				</h3>
 
-				<!-- Seletor de certificados -->
 				<div class="p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10">
 					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
 						<h4 class="font-semibold text-sm flex items-center gap-2">
@@ -1342,7 +1157,7 @@
 							disabled={lendoCertificados}
 						>
 							{#if lendoCertificados}<Spinner size="sm" />{/if}
-						{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
+							{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
 						</button>
 					</div>
 
@@ -1380,7 +1195,7 @@
 							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 							{etapaAssinatura}
 						{:else}
-							Assinar {diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'} com Web PKI
+							Assinar com Web PKI
 						{/if}
 					</button>
 
@@ -1393,15 +1208,14 @@
 							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 							{etapaAssinatura}
 						{:else}
-							Assinar {diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'} com SERPRO
+							Assinar com SERPRO
 						{/if}
 					</button>
 				</div>
-				{/if}
 			</div>
 		{/if}
 
-		<!-- Bloco de Lote de Assinaturas (Supervisor) -->
+		<!-- Bloco de Lote de Assinaturas Extraordinárias (Supervisor) -->
 		{#if pendentesExtra.length > 0}
 			<div class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm space-y-4">
 				<div>
@@ -1410,7 +1224,7 @@
 						Assinaturas Pendentes
 					</h3>
 					<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
-						Você possui <strong>{pendentesExtra.length} relatórios extraordinários</strong> aptos para assinatura em lote.
+						Você possui <strong>{pendentesExtra.length} relatório(s) extraordinário(s)</strong> aptos para assinatura em lote.
 					</p>
 				</div>
 
@@ -1420,17 +1234,14 @@
 						<progress class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2" value={progressoLote.atual} max={progressoLote.total}></progress>
 					</div>
 				{:else}
-					<!-- Assinatura Manual (tela — celular) -->
 					<button class="btn preset-filled-warning-500 font-bold justify-center w-full sm:w-auto flex items-center gap-2" onclick={() => abrirAssinaturaLote()}>
 						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
 						Assinar na Tela (Manual)
 					</button>
 
-					<!-- Assinatura Digital em Lote -->
 					<div class="border-t border-warning-200 dark:border-warning-800/40 pt-3 space-y-3">
 						<p class="text-xs font-bold text-warning-700 dark:text-warning-400 uppercase tracking-wide">Assinatura Digital em Lote — Token A3 / SERPRO</p>
 
-						<!-- Seletor de certificado — visível aqui quando o supervisor já assinou a escala principal e a seção de assinatura acima não aparece -->
 						{#if !podeAssinar}
 							<div class="p-3 bg-white/60 dark:bg-surface-800/60 rounded-xl border border-warning-200 dark:border-warning-800/30 flex flex-col sm:flex-row sm:items-center gap-2">
 								<button
@@ -1488,7 +1299,6 @@
 			</h2>
 
 			{#each (gise.seccionais ?? []) as sec}
-				<!-- Mostrar só a seccional do Admin Seccional, ou todas para Admin Geral / Supervisor -->
 				{#if isAdminGeral || isSupervisor || sec.seccional_id === minhaSeccionalId}
 					<div class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-hidden">
 						<!-- Cabeçalho da seccional -->
@@ -1500,42 +1310,32 @@
 								<span class="text-sm px-1.5 py-0.5 rounded-full font-bold {sec.status === 'preenchida' || sec.status === 'preenchida_retificada' ? 'bg-success-500/20 text-success-700 dark:text-success-400' : sec.status === 'retificada' ? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40' : 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}">
 									{sec.status === 'preenchida' ? 'Preenchida' : sec.status === 'preenchida_retificada' ? 'Preenchida (Retificada)' : sec.status === 'retificada' ? 'Preenchida (Retificada)' : 'Pendente'}
 								</span>
-															{#if editandoHorariosSecId === sec.id}
-								<div class="flex flex-wrap items-center gap-2">
-									<span class="text-sm font-semibold opacity-50 uppercase">Sáb:</span>
-									<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEntSab && !validarHora(editSecHoraEntSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraEntSab} />
-									<span class="opacity-30">-</span>
-									<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSaiSab && !validarHora(editSecHoraSaiSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraSaiSab} />
-									<span class="opacity-30 mx-1">|</span>
-									<span class="text-sm font-semibold opacity-50 uppercase">Dom:</span>
-									<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEntDom && !validarHora(editSecHoraEntDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraEntDom} />
-									<span class="opacity-30">-</span>
-									<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSaiDom && !validarHora(editSecHoraSaiDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraSaiDom} />
-									<button class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded" onclick={() => salvarHorariosSec(sec.id)}>✓</button>
-									<button class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded" onclick={() => (editandoHorariosSecId = null)}>×</button>
-								</div>
-							{:else}
-								<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
-									<span>Sáb: {sec.hora_entrada_sabado ?? gise.hora_entrada_sabado}h-{sec.hora_saida_sabado ?? gise.hora_saida_sabado}h</span>
-									<span class="opacity-30">|</span>
-									<span>Dom: {sec.hora_entrada_domingo ?? gise.hora_entrada_domingo}h-{sec.hora_saida_domingo ?? gise.hora_saida_domingo}h</span>
-									{#if (sec.hora_entrada_sabado || sec.hora_saida_sabado || sec.hora_entrada_domingo || sec.hora_saida_domingo)}
-										<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">PERSONALIZADO</span>
+								{#if editandoHorariosSecId === sec.id}
+									<div class="flex flex-wrap items-center gap-2">
+										<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEnt && !validarHora(editSecHoraEnt) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraEnt} />
+										<span class="opacity-30">-</span>
+										<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSai && !validarHora(editSecHoraSai) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editSecHoraSai} />
+										<button class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded" onclick={() => salvarHorariosSec(sec.id)}>✓</button>
+										<button class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded" onclick={() => (editandoHorariosSecId = null)}>×</button>
+									</div>
+								{:else}
+									<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
+										<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
+										{#if sec.hora_entrada || sec.hora_saida}
+											<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">PERSONALIZADO</span>
+										{/if}
+									</div>
+									{#if isAdminGeral && podeEditar}
+										<button
+											class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
+											onclick={() => {
+												editandoHorariosSecId = sec.id;
+												editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
+												editSecHoraSai = sec.hora_saida ?? gise.hora_saida ?? '';
+											}}
+										>Editar Horários</button>
 									{/if}
-								</div>
-								{#if isAdminGeral && podeEditar}
-									<button
-										class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
-										onclick={() => {
-											editandoHorariosSecId = sec.id;
-											editSecHoraEntSab = sec.hora_entrada_sabado ?? gise.hora_entrada_sabado ?? '';
-											editSecHoraSaiSab = sec.hora_saida_sabado ?? gise.hora_saida_sabado ?? '';
-											editSecHoraEntDom = sec.hora_entrada_domingo ?? gise.hora_entrada_domingo ?? '';
-											editSecHoraSaiDom = sec.hora_saida_domingo ?? gise.hora_saida_domingo ?? '';
-										}}
-									>Editar Horários</button>
 								{/if}
-							{/if}
 							</div>
 
 							{#if isAdminGeral && podeEditar}
@@ -1553,96 +1353,49 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
-							<!-- Container Downloads -->
 							{#if podeDownload}
-								{@const assRelSab = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'sabado' && a.tipo === 'extraordinario')}
-								{@const assRelDom = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.dia === 'domingo' && a.tipo === 'extraordinario')}
+								{@const assRel = data.assinaturasRelatorios?.find((a: any) => (a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) && a.tipo === 'extraordinario')}
 								<div class="flex flex-wrap items-center gap-3">
-									<!-- Sábado -->
-									<div class="flex flex-wrap items-center gap-2">
+									<button
+										class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
+										onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}`, '_blank')}
+										disabled={!sec.temRespostas}
+										title={!sec.temRespostas ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Produtividade'}
+									>
+										<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+										<span>Resultados</span>
+										{#if !sec.temRespostas}
+											<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">(aguardando)</span>
+										{/if}
+									</button>
+
+									<div class="flex flex-col gap-1 w-full sm:w-auto">
 										<button
-											class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
-											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
-											disabled={!sec.temRespostasSabado}
-											title={!sec.temRespostasSabado ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Sábado'}
+											class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRel ? 'preset-filled-primary-500' : 'preset-tonal-primary'} w-full"
+											onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`, '_blank')}
+											disabled={!checkAllSigned(sec) || (!assRel && !(isAdminGeral || isSeccional || isSupervisor))}
+											title={!checkAllSigned(sec) ? getFaltandoRubrica(sec) : (assRel ? `Assinado por ${assRel.assinante_nome}` : 'Aguardando assinatura do supervisor')}
 										>
-											<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-											<span>Resultados Sáb</span>
-											{#if !sec.temRespostasSabado}
-												<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">(aguardando)</span>
+											<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+											<span class="whitespace-nowrap">Relat. Extraordinário</span>
+											{#if !assRel}
+												<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span>
 											{/if}
 										</button>
-										
-										<div class="flex flex-col gap-1 w-full sm:w-auto">
-											<button
-												class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRelSab ? 'preset-filled-primary-500' : 'preset-tonal-primary'} w-full "
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=sabado&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!checkAllSigned(sec, 'sabado') || (!assRelSab && !(isAdminGeral || isSeccional || isSupervisor))}
-												title={!checkAllSigned(sec, 'sabado') ? getFaltandoRubrica(sec, 'sabado') : (assRelSab ? `Assinado por ${assRelSab.assinante_nome}` : 'Aguardando assinatura do supervisor')}
-											>
-												<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-												<span class="whitespace-nowrap">Relat. Extra Sáb</span>
-												{#if !assRelSab}
-													<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">({!checkAllSigned(sec, 'sabado') ? 'não concluído' : 'conferência'})</span>
-												{/if}
-											</button>
-											{#if isSupervisor && !assRelSab && checkAllSigned(sec, 'sabado')}
-												{#if isMobile}
-													<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'sabado', 'extraordinario')}>
-														Assinatura Manual
-													</button>
-												{:else}
-													<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">Use o Painel de Lote (acima) para Token A3</div>
-												{/if}
+										{#if isSupervisor && !assRel && checkAllSigned(sec)}
+											{#if isMobile}
+												<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario')}>
+													Assinatura Manual
+												</button>
+											{:else}
+												<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">Use o Painel de Lote (acima) para Token A3</div>
 											{/if}
-										</div>
-									</div>
-
-									<div class="w-px h-6 bg-surface-300 dark:bg-surface-600 mx-1 hidden lg:block"></div>
-
-									<!-- Domingo -->
-									<div class="flex flex-wrap items-center gap-2">
-										<button
-											class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
-											onclick={() => window.open(`/api/gise/${gise.id}/download?format=produtividade&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
-											disabled={!sec.temRespostasDomingo}
-											title={!sec.temRespostasDomingo ? 'Aguardando preenchimento do formulário' : 'Baixar Resultados de Domingo'}
-										>
-											<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 1 2 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-											<span>Resultados Dom</span>
-											{#if !sec.temRespostasDomingo}
-												<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">(aguardando)</span>
-											{/if}
-										</button>
-										
-										<div class="flex flex-col gap-1 w-full sm:w-auto">
-											<button
-												class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRelDom ? 'preset-filled-primary-500' : 'preset-tonal-primary'} w-full"
-												onclick={() => window.open(`/api/gise/${gise.id}/download?format=extraordinario&dia=domingo&seccionalId=${sec.seccional_id}`, '_blank')}
-												disabled={!checkAllSigned(sec, 'domingo') || (!assRelDom && !(isAdminGeral || isSeccional || isSupervisor))}
-												title={!checkAllSigned(sec, 'domingo') ? getFaltandoRubrica(sec, 'domingo') : (assRelDom ? `Assinado por ${assRelDom.assinante_nome}` : 'Aguardando assinatura do supervisor')}
-											>
-												<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-												<span class="whitespace-nowrap">Relat. Extra Dom</span>
-												{#if !assRelDom}
-													<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1">({!checkAllSigned(sec, 'domingo') ? 'não concluído' : 'conferência'})</span>
-												{/if}
-											</button>
-											{#if isSupervisor && !assRelDom && checkAllSigned(sec, 'domingo')}
-												{#if isMobile}
-													<button class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all" onclick={() => abrirAssinaturaRelatorio(sec.seccional_id, 'domingo', 'extraordinario')}>
-														Assinatura Manual
-													</button>
-												{:else}
-													<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">Use o Painel de Lote (acima) para Token A3</div>
-												{/if}
-											{/if}
-										</div>
+										{/if}
 									</div>
 								</div>
 							{/if}
 
-							<!-- Container Ações -->
+							<!-- Ações -->
 							<div class="flex items-center gap-2 sm:ml-auto">
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
@@ -1660,7 +1413,7 @@
 											{#if salvando}<Spinner size="xs" />{/if}
 											{sec.status === 'preenchida' ? 'Finalizar edição' : (sec.status === 'retificada' ? 'Confirmar retificação' : 'Finalizar envio')}
 										</button>
-										
+
 										{#if modoEdicaoSeccional}
 											<button
 												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg"
@@ -1680,7 +1433,6 @@
 										Unidade Operacional
 									</label>
 									{#if sec.unidade_operacional_nome && !editandoUnidade}
-										<!-- Modo exibição -->
 										<div class="flex flex-wrap items-center gap-2">
 											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">{sec.unidade_operacional_nome}</span>
 											<button
@@ -1691,7 +1443,6 @@
 											</button>
 										</div>
 									{:else}
-										<!-- Modo edição -->
 										<div class="flex flex-wrap gap-2">
 											<select
 												id="unidadeOperacional"
@@ -1761,36 +1512,26 @@
 												</span>
 												{#if editandoHorariosEquipeId === equipe.id}
 													<div class="flex flex-wrap items-center gap-2">
-														<span class="text-sm font-semibold opacity-50 uppercase">Sáb:</span>
-														<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEntSab && !validarHora(editEqHoraEntSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraEntSab} />
+														<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEnt && !validarHora(editEqHoraEnt) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraEnt} />
 														<span class="opacity-30">-</span>
-														<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSaiSab && !validarHora(editEqHoraSaiSab) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraSaiSab} />
-														<span class="opacity-30 mx-1">|</span>
-														<span class="text-sm font-semibold opacity-50 uppercase">Dom:</span>
-														<input type="text" placeholder="08:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEntDom && !validarHora(editEqHoraEntDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraEntDom} />
-														<span class="opacity-30">-</span>
-														<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSaiDom && !validarHora(editEqHoraSaiDom) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraSaiDom} />
+														<input type="text" placeholder="16:00" class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSai && !validarHora(editEqHoraSai) ? 'border-error-500' : 'border-surface-300 dark:border-surface-600'}" bind:value={editEqHoraSai} />
 														<button class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded" onclick={() => salvarHorariosEquipe(equipe.id)}>✓</button>
 														<button class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded" onclick={() => (editandoHorariosEquipeId = null)}>×</button>
 													</div>
 												{:else}
 													<div class="flex items-center gap-1.5 text-sm text-surface-400 font-medium ml-2">
-													<span>Sáb: {equipe.hora_entrada_sabado ?? sec.hora_entrada_sabado ?? gise.hora_entrada_sabado}h-{equipe.hora_saida_sabado ?? sec.hora_saida_sabado ?? gise.hora_saida_sabado}h</span>
-													<span class="opacity-30">|</span>
-													<span>Dom: {equipe.hora_entrada_domingo ?? sec.hora_entrada_domingo ?? gise.hora_entrada_domingo}h-{equipe.hora_saida_domingo ?? sec.hora_saida_domingo ?? gise.hora_saida_domingo}h</span>
-													{#if (equipe.hora_entrada_sabado || equipe.hora_saida_sabado || equipe.hora_entrada_domingo || equipe.hora_saida_domingo)}
-														<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase">Horário Equipe</span>
-													{/if}
-												</div>
+														<span>{equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada}h-{equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida}h</span>
+														{#if equipe.hora_entrada || equipe.hora_saida}
+															<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase">Horário Equipe</span>
+														{/if}
+													</div>
 													{#if isAdminGeral && podeEditar}
 														<button
 															class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
-																editEqHoraEntSab = equipe.hora_entrada_sabado ?? sec.hora_entrada_sabado ?? gise.hora_entrada_sabado ?? '';
-																editEqHoraSaiSab = equipe.hora_saida_sabado ?? sec.hora_saida_sabado ?? gise.hora_saida_sabado ?? '';
-																editEqHoraEntDom = equipe.hora_entrada_domingo ?? sec.hora_entrada_domingo ?? gise.hora_entrada_domingo ?? '';
-																editEqHoraSaiDom = equipe.hora_saida_domingo ?? sec.hora_saida_domingo ?? gise.hora_saida_domingo ?? '';
+																editEqHoraEnt = equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
+																editEqHoraSai = equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
 															}}
 														>Editar Horários</button>
 													{/if}
@@ -1819,53 +1560,25 @@
 										{/if}
 									</div>
 
-									<!-- Feature 3: Membros separados por dia (sábado/domingo) -->
+									<!-- Membros -->
 									{#if equipe.membros?.length}
-										{@const memsSab = equipe.membros.filter((m: any) => m.dia === 'sabado' || m.dia === 'ambos')}
-										{@const memsDom = equipe.membros.filter((m: any) => m.dia === 'domingo' || m.dia === 'ambos')}
-										<div class="space-y-2 mb-3">
-											<div>
-												<p class="text-sm font-bold text-surface-500 uppercase tracking-wide mb-1">Sábado</p>
-												{#if memsSab.length}
-													<div class="space-y-1">
-														{#each memsSab as m}
-															<div class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
-																<div class="flex items-center gap-2">
-																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
-																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-																	{#if m.dia === 'ambos'}<span class="text-sm px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
-																</div>
-																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
-																	<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
-																{/if}
-															</div>
-														{/each}
+										<div class="space-y-1 mb-3">
+											{#each equipe.membros as m}
+												<div class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
+													<div class="flex items-center gap-2">
+														<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
+														<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
+														{#if m.presenca?.entrada_timestamp && m.presenca?.saida_timestamp}
+															<span class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400">✓</span>
+														{:else if m.presenca?.entrada_timestamp}
+															<span class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400">Entrada</span>
+														{/if}
 													</div>
-												{:else}
-													<p class="text-sm text-surface-400 italic">Nenhum escalado</p>
-												{/if}
-											</div>
-											<div>
-												<p class="text-sm font-bold text-surface-500 uppercase tracking-wide mb-1">Domingo</p>
-												{#if memsDom.length}
-													<div class="space-y-1">
-														{#each memsDom as m}
-															<div class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800">
-																<div class="flex items-center gap-2">
-																	<span class="font-semibold text-surface-900 dark:text-surface-100">{m.policial_nome}</span>
-																	<span class="text-surface-500">{m.policial_cargo} · {m.policial_matricula}</span>
-																	{#if m.dia === 'ambos'}<span class="text-sm px-1 py-0.5 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300">Sáb+Dom</span>{/if}
-																</div>
-																{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
-																	<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
-																{/if}
-															</div>
-														{/each}
-													</div>
-												{:else}
-													<p class="text-sm text-surface-400 italic">Nenhum escalado</p>
-												{/if}
-											</div>
+													{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
+														<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
+													{/if}
+												</div>
+											{/each}
 										</div>
 									{:else}
 										<p class="text-sm text-surface-400 italic mb-3">Nenhum membro alocado</p>
@@ -1886,14 +1599,6 @@
 														{/each}
 													</select>
 												</div>
-												<select
-													bind:value={diaParaAdicionar}
-													class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-												>
-													<option value="ambos">Sáb + Dom</option>
-													<option value="sabado">Só Sáb</option>
-													<option value="domingo">Só Dom</option>
-												</select>
 												<button
 													class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
 													onclick={() => adicionarMembro(sec.id)}
@@ -2017,8 +1722,7 @@
 			{/if}
 		</div>
 
-
-		<!-- Feature 4: Aviso para Admin Seccional sobre retificação -->
+		<!-- Aviso para Admin Seccional sobre retificação -->
 		{#if isSeccional && minhaSeccional?.status === 'retificada'}
 			<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
 				<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
@@ -2041,59 +1745,36 @@
 	{/if}
 </div>
 
-<!-- Feature 5: Modal Editar Datas/Horários -->
+<!-- Modal Editar Data/Horários -->
 {#if editandoDatasHorarios}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Datas e Horários</h2>
+			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Data e Horários</h2>
 			{#if gise?.status === 'assinada' || gise?.status === 'finalizada'}
 				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-sm text-warning-700 dark:text-warning-400">
 					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
 				</div>
 			{/if}
-			<div class="grid grid-cols-2 gap-3">
-				<div>
-					<label for="editDataInicio" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Sábado (data)</label>
-					<input id="editDataInicio" type="date" bind:value={editDataInicio}
-						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
-				</div>
-				<div>
-					<label for="editDataFim" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Domingo (data)</label>
-					<input id="editDataFim" type="date" bind:value={editDataFim}
-						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
-				</div>
+			<div>
+				<label for="editDataInicio" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Data</label>
+				<input id="editDataInicio" type="date" bind:value={editDataInicio}
+					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm" />
 			</div>
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários — Sábado</p>
+				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários</p>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="editHoraEntradaSabado" class="text-sm text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="editHoraEntradaSabado" type="text" placeholder="Ex: 08:00" bind:value={editHoraEntradaSabado}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntradaSabado && !validarHora(editHoraEntradaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
+						<label for="editHoraEntrada" class="text-sm text-surface-500 block mb-1">Entrada</label>
+						<input id="editHoraEntrada" type="text" placeholder="Ex: 08:00" bind:value={editHoraEntrada}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntrada && !validarHora(editHoraEntrada) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 					<div>
-						<label for="editHoraSaidaSabado" class="text-sm text-surface-500 block mb-1">Saída (h)</label>
-						<input id="editHoraSaidaSabado" type="text" placeholder="Ex: 16:00" bind:value={editHoraSaidaSabado}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaidaSabado && !validarHora(editHoraSaidaSabado) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
+						<label for="editHoraSaida" class="text-sm text-surface-500 block mb-1">Saída</label>
+						<input id="editHoraSaida" type="text" placeholder="Ex: 16:00" bind:value={editHoraSaida}
+							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaida && !validarHora(editHoraSaida) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
 					</div>
 				</div>
-				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
-			</div>
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários — Domingo</p>
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="editHoraEntradaDomingo" class="text-sm text-surface-500 block mb-1">Entrada (h)</label>
-						<input id="editHoraEntradaDomingo" type="text" placeholder="Ex: 08:00" bind:value={editHoraEntradaDomingo}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntradaDomingo && !validarHora(editHoraEntradaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
-					</div>
-					<div>
-						<label for="editHoraSaidaDomingo" class="text-sm text-surface-500 block mb-1">Saída (h)</label>
-						<input id="editHoraSaidaDomingo" type="text" placeholder="Ex: 16:00" bind:value={editHoraSaidaDomingo}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaidaDomingo && !validarHora(editHoraSaidaDomingo) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}" />
-					</div>
-				</div>
-				<p class="text-xs text-surface-400">Formato: HH:MM &nbsp;·&nbsp; ex: 08:00 · 14:30</p>
+				<p class="text-xs text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
 			</div>
 			<div class="flex justify-end gap-3">
 				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (editandoDatasHorarios = false)}>Cancelar</button>
@@ -2105,7 +1786,7 @@
 	</div>
 {/if}
 
-<!-- Feature 5: Modal Confirmar Exclusão GISE -->
+<!-- Modal Confirmar Exclusão GISE -->
 {#if showExcluirGiseConfirm}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
@@ -2157,11 +1838,11 @@
 			<div class="text-center space-y-2">
 				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Finalizar Escala GISE</h2>
 				<p class="text-sm text-surface-500">
-					A escala atual será marcada como <span class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span>. 
-					Como deseja abrir a escala do próximo final de semana?
+					A escala atual será marcada como <span class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span>.
+					Como deseja abrir a próxima escala?
 				</p>
 			</div>
-			
+
 			<div class="space-y-3 pt-2">
 				<button
 					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-primary-500/30 hover:bg-primary-500/10 text-primary-600 dark:text-primary-400"
@@ -2171,7 +1852,7 @@
 					<span class="font-bold text-base">1 — Abrir nova escala completa</span>
 					<span class="text-xs opacity-70">Inclui todas as seccionais padrão do sistema</span>
 				</button>
-				
+
 				<button
 					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-secondary-500/30 hover:bg-secondary-500/10 text-secondary-600 dark:text-secondary-400"
 					onclick={() => finalizarGise('clonada')}
@@ -2183,8 +1864,8 @@
 			</div>
 
 			<div class="pt-2">
-				<button 
-					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-2" 
+				<button
+					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-2"
 					onclick={() => (showFinalizarConfirm = false)}
 					disabled={finalizando}
 				>
@@ -2194,19 +1875,20 @@
 		</div>
 	</div>
 {/if}
+
 {#if showRubricaModal}
 	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-		<div class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-lg p-8 space-y-6 border border-white/10">
+		<div class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-6 border border-white/10">
 			<div class="text-center space-y-2">
 				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Rubrica do Supervisor</h2>
-				<p class="text-sm text-surface-500">Desenhe sua rubrica no quadro abaixo para assinar a escala de <span class="font-bold text-primary-500 uppercase">{diaSendoAssinado === 'sabado' ? 'Sábado' : 'Domingo'}</span>.</p>
+				<p class="text-sm text-surface-500">Desenhe sua rubrica no quadro abaixo para assinar a escala.</p>
 			</div>
 
-			<SignaturePad 
-				onConfirm={confirmarRubrica} 
-				onCancel={() => (showRubricaModal = false)} 
+			<SignaturePad
+				onConfirm={confirmarRubrica}
+				onCancel={() => (showRubricaModal = false)}
 			/>
-			
+
 			<p class="text-sm text-surface-400 text-center italic">
 				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
 			</p>

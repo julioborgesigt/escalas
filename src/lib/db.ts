@@ -1,4 +1,4 @@
-import { eq, and, or, isNull, sql, desc, asc, inArray, ne } from 'drizzle-orm';
+import { eq, and, or, isNull, isNotNull, sql, desc, asc, inArray, ne } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './server/schema';
 import {
@@ -525,7 +525,6 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 			tipo_doc: 'gise_relatorio' as const,
 			rel_tipo: rel.tipo,
 			seccional_id: rel.seccional_id,
-			dia: rel.dia,
 			ip_address: rel.ip_address,
 			user_agent: rel.user_agent,
 			latitude: rel.latitude,
@@ -561,8 +560,7 @@ export interface GiseDetalhado extends schema.GiseEscala {
 		schema.GiseSeccional & {
 			seccional_nome: string;
 			unidade_operacional_nome: string | null;
-			temRespostasSabado: boolean;
-			temRespostasDomingo: boolean;
+			temRespostas: boolean;
 			equipes: Array<
 				schema.GiseEquipe & {
 					membros: Array<
@@ -573,63 +571,64 @@ export interface GiseDetalhado extends schema.GiseEscala {
 							policial_telefone: string | null;
 							policial_lotacao: string | null;
 							policial_classe: string | null;
-							presencas: schema.GisePresenca[];
+							presenca: schema.GisePresenca | null;
 						}
 					>;
 				}
 			>;
 		}
 	>;
-	supervisor_sabado_nome: string | null;
-	supervisor_sabado_matricula: string | null;
-	supervisor_domingo_nome: string | null;
-	supervisor_domingo_matricula: string | null;
-	documentos: {
-		sabado: schema.GiseDocumento | null;
-		domingo: schema.GiseDocumento | null;
-		ambos?: schema.GiseDocumento | null;
-	};
+	supervisor_nome: string | null;
+	supervisor_matricula: string | null;
+	documento: schema.GiseDocumento | null;
 }
 
-export async function listarGiseEscalas(db: Database): Promise<schema.GiseEscala[]> {
-	return db.select().from(giseEscalas).orderBy(desc(giseEscalas.data_inicio));
+export async function listarGiseEscalas(db: Database) {
+	const escalas = await db.select().from(giseEscalas).orderBy(desc(giseEscalas.data_inicio)).all();
+	const results = await Promise.all(escalas.map(async (e) => {
+		const temSaida = await db.select({ id: gisePresencas.id })
+			.from(gisePresencas)
+			.where(and(eq(gisePresencas.gise_id, e.id), isNotNull(gisePresencas.saida_timestamp)))
+			.limit(1).get();
+		return { ...e, temSaidaConfirmada: !!temSaida };
+	}));
+	return results;
 }
 
 export async function buscarGiseEscala(db: Database, id: number): Promise<schema.GiseEscala | undefined> {
 	return db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
 }
 
-export async function buscarGiseAtiva(db: Database): Promise<schema.GiseEscala | undefined> {
-	return db
+export async function buscarGiseAtiva(db: Database) {
+	const ativa = await db
 		.select()
 		.from(giseEscalas)
 		.where(ne(giseEscalas.status, 'finalizada'))
 		.orderBy(desc(giseEscalas.data_inicio))
 		.get();
+	
+	if (!ativa) return undefined;
+
+	const temSaida = await db.select({ id: gisePresencas.id })
+		.from(gisePresencas)
+		.where(and(eq(gisePresencas.gise_id, ativa.id), isNotNull(gisePresencas.saida_timestamp)))
+		.limit(1).get();
+
+	return { ...ativa, temSaidaConfirmada: !!temSaida };
 }
 
 export async function criarGiseEscala(
 	db: Database,
 	dataInicio: string,
-	dataFim: string,
 	horaEntrada: string,
-	horaSaida: string,
-	horaEntradaSabado?: string,
-	horaSaidaSabado?: string,
-	horaEntradaDomingo?: string,
-	horaSaidaDomingo?: string
+	horaSaida: string
 ): Promise<number> {
 	const result = await db
 		.insert(giseEscalas)
 		.values({
 			data_inicio: dataInicio,
-			data_fim: dataFim,
 			hora_entrada: horaEntrada,
-			hora_saida: horaSaida,
-			hora_entrada_sabado: horaEntradaSabado ?? horaEntrada,
-			hora_saida_sabado: horaSaidaSabado ?? horaSaida,
-			hora_entrada_domingo: horaEntradaDomingo ?? horaEntrada,
-			hora_saida_domingo: horaSaidaDomingo ?? horaSaida
+			hora_saida: horaSaida
 		})
 		.returning({ id: giseEscalas.id });
 	return result[0].id;
@@ -639,33 +638,17 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
 	if (!gise) return null;
 
-	// Supervisores
-	let supervisor_sabado_nome: string | null = null;
-	let supervisor_sabado_matricula: string | null = null;
-	let supervisor_domingo_nome: string | null = null;
-	let supervisor_domingo_matricula: string | null = null;
-
-	if (gise.supervisor_sabado_id) {
-		const p = await db.select({ nome: policiais.nome, matricula: policiais.matricula }).from(policiais).where(eq(policiais.id, gise.supervisor_sabado_id)).get();
-		supervisor_sabado_nome = p?.nome ?? null;
-		supervisor_sabado_matricula = p?.matricula ?? null;
-	}
-	if (gise.supervisor_domingo_id && gise.supervisor_domingo_id !== gise.supervisor_sabado_id) {
-		const p = await db.select({ nome: policiais.nome, matricula: policiais.matricula }).from(policiais).where(eq(policiais.id, gise.supervisor_domingo_id)).get();
-		supervisor_domingo_nome = p?.nome ?? null;
-		supervisor_domingo_matricula = p?.matricula ?? null;
-	} else if (gise.supervisor_domingo_id) {
-		supervisor_domingo_nome = supervisor_sabado_nome;
-		supervisor_domingo_matricula = supervisor_sabado_matricula;
+	// Supervisor
+	let supervisor_nome: string | null = null;
+	let supervisor_matricula: string | null = null;
+	if (gise.supervisor_id) {
+		const p = await db.select({ nome: policiais.nome, matricula: policiais.matricula }).from(policiais).where(eq(policiais.id, gise.supervisor_id)).get();
+		supervisor_nome = p?.nome ?? null;
+		supervisor_matricula = p?.matricula ?? null;
 	}
 
-	// Documentos
-	const docs = await db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id));
-	const documentos = {
-		sabado: docs.find(d => d.dia === 'sabado') ?? null,
-		domingo: docs.find(d => d.dia === 'domingo') ?? null,
-		ambos: docs.find(d => d.dia === 'ambos') ?? null
-	};
+	// Documento
+	const documento = await db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).get() ?? null;
 
 	// Seccionais
 	const secsRows = await db
@@ -675,10 +658,8 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 			seccional_id: giseSeccionais.seccional_id,
 			unidade_operacional_id: giseSeccionais.unidade_operacional_id,
 			status: giseSeccionais.status,
-			hora_entrada_sabado: giseSeccionais.hora_entrada_sabado,
-			hora_saida_sabado: giseSeccionais.hora_saida_sabado,
-			hora_entrada_domingo: giseSeccionais.hora_entrada_domingo,
-			hora_saida_domingo: giseSeccionais.hora_saida_domingo,
+			hora_entrada: giseSeccionais.hora_entrada,
+			hora_saida: giseSeccionais.hora_saida,
 			seccional_nome: unidades.nome
 		})
 		.from(giseSeccionais)
@@ -706,7 +687,6 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 							id: giseMembros.id,
 							equipe_id: giseMembros.equipe_id,
 							policial_id: giseMembros.policial_id,
-							dia: giseMembros.dia,
 							policial_nome: policiais.nome,
 							policial_cargo: policiais.cargo,
 							policial_matricula: policiais.matricula,
@@ -720,50 +700,36 @@ export async function buscarGiseDetalhado(db: Database, id: number): Promise<Gis
 
 					const membros = await Promise.all(
 						mRows.map(async (m) => {
-							const presencas = await db.select().from(gisePresencas).where(and(eq(gisePresencas.gise_id, id), eq(gisePresencas.policial_id, m.policial_id))).all();
-							return { ...m, presencas };
+							const presenca = await db.select().from(gisePresencas).where(and(eq(gisePresencas.gise_id, id), eq(gisePresencas.policial_id, m.policial_id))).get() ?? null;
+							return { ...m, presenca };
 						})
 					);
 					return { ...eq_, membros };
 				})
 			);
 
-			// Checar se houve qualquer resposta de formulário para esta seccional nestes dias
-			const respSab = await db.select({ id: giseRespostasFormulario.id })
+			// Checar se houve resposta de formulário para esta seccional
+			const temRespostas = !!(await db.select({ id: giseRespostasFormulario.id })
 				.from(giseRespostasFormulario)
 				.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 				.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 				.where(and(
 					eq(giseRespostasFormulario.gise_id, id),
-					eq(giseRespostasFormulario.dia, 'sabado'),
 					eq(giseEquipes.gise_seccional_id, sec.id)
 				))
 				.limit(1)
-				.get();
-			
-			const respDom = await db.select({ id: giseRespostasFormulario.id })
-				.from(giseRespostasFormulario)
-				.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
-				.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-				.where(and(
-					eq(giseRespostasFormulario.gise_id, id),
-					eq(giseRespostasFormulario.dia, 'domingo'),
-					eq(giseEquipes.gise_seccional_id, sec.id)
-				))
-				.limit(1)
-				.get();
+				.get());
 
-			return { 
-				...sec, 
-				unidade_operacional_nome, 
+			return {
+				...sec,
+				unidade_operacional_nome,
 				equipes,
-				temRespostasSabado: !!respSab,
-				temRespostasDomingo: !!respDom
+				temRespostas
 			};
 		})
 	);
 
-	return { ...gise, seccionais, supervisor_sabado_nome, supervisor_sabado_matricula, supervisor_domingo_nome, supervisor_domingo_matricula, documentos };
+	return { ...gise, seccionais, supervisor_nome, supervisor_matricula, documento };
 }
 
 export async function atualizarGiseEscala(
@@ -771,16 +737,10 @@ export async function atualizarGiseEscala(
 	id: number,
 	data: Partial<{
 		data_inicio: string;
-		data_fim: string;
 		hora_entrada: string;
 		hora_saida: string;
-		hora_entrada_sabado: string;
-		hora_saida_sabado: string;
-		hora_entrada_domingo: string;
-		hora_saida_domingo: string;
 		status: 'em_preenchimento' | 'aguardando_assinatura' | 'assinada' | 'finalizada';
-		supervisor_sabado_id: number | null;
-		supervisor_domingo_id: number | null;
+		supervisor_id: number | null;
 	}>
 ) {
 	return db.update(giseEscalas).set(data).where(eq(giseEscalas.id, id));
@@ -831,39 +791,35 @@ export async function upsertGiseSeccional(
 export async function atualizarGiseSeccional(
 	db: Database,
 	id: number,
-	data: Partial<{ 
-		unidade_operacional_id: number | null; 
+	data: Partial<{
+		unidade_operacional_id: number | null;
 		status: 'pendente' | 'preenchida' | 'retificada' | 'preenchida_retificada';
-		hora_entrada_sabado: string | null;
-		hora_saida_sabado: string | null;
-		hora_entrada_domingo: string | null;
-		hora_saida_domingo: string | null;
+		hora_entrada: string | null;
+		hora_saida: string | null;
 	}>
 ) {
 	return db.update(giseSeccionais).set(data).where(eq(giseSeccionais.id, id));
 }
- 
+
 export async function excluirGiseSeccional(db: Database, id: number) {
 	return db.delete(giseSeccionais).where(eq(giseSeccionais.id, id));
 }
- 
+
 export async function atualizarGiseEquipe(
 	db: Database,
 	id: number,
 	slots_dpc?: number,
 	slots_oip?: number,
 	customHours?: Partial<{
-		hora_entrada_sabado: string | null;
-		hora_saida_sabado: string | null;
-		hora_entrada_domingo: string | null;
-		hora_saida_domingo: string | null;
+		hora_entrada: string | null;
+		hora_saida: string | null;
 	}>
 ) {
 	const data: any = {};
 	if (slots_dpc !== undefined) data.slots_dpc = slots_dpc;
 	if (slots_oip !== undefined) data.slots_oip = slots_oip;
 	if (customHours) Object.assign(data, customHours);
-	
+
 	return db.update(giseEquipes).set(data).where(eq(giseEquipes.id, id));
 }
 
@@ -887,22 +843,16 @@ export async function criarGiseEquipe(
 
 /** Reabre uma escala GISE assinada/finalizada: revoga assinatura, permite nova edição */
 export async function reabrirGiseEscala(db: Database, giseId: number) {
-	// Remover documentos de assinatura (revogar assinatura)
 	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
-	// IMPORTANTE: NÃO resetamos as seccionais para 'pendente' mais, 
-	// para que o Admin Geral possa editar dados globais sem invalidar o preenchimento das seccionais.
-	
-	// Voltar status da escala para em_preenchimento
 	await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 }
 
 export async function adicionarGiseMembro(
 	db: Database,
 	equipeId: number,
-	policialId: number,
-	dia: 'sabado' | 'domingo' | 'ambos' = 'ambos'
+	policialId: number
 ) {
-	return db.insert(giseMembros).values({ equipe_id: equipeId, policial_id: policialId, dia });
+	return db.insert(giseMembros).values({ equipe_id: equipeId, policial_id: policialId });
 }
 
 export async function removerGiseMembro(db: Database, id: number) {
@@ -923,43 +873,31 @@ export async function verificarGiseCompleta(db: Database, giseId: number): Promi
 	return naoPreenchidas.length === 0;
 }
 
-/** Clona a GISE para o próximo final de semana (sábado seguinte) */
-export async function clonarGiseParaProximoFDS(
+/** Clona uma escala GISE para uma nova data, copiando seccionais e equipes */
+export async function clonarGiseParaData(
 	db: Database,
 	giseId: number,
+	novaData: string,
 	modo: 'clonada' | 'completa' = 'clonada'
 ): Promise<number> {
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
 	if (!gise) throw new Error('GISE não encontrada');
 
-	// Calcular próximo sábado
-	const dataAtual = new Date(gise.data_inicio + 'T00:00:00Z');
-	const proximoSabado = new Date(dataAtual.getTime() + 7 * 24 * 60 * 60 * 1000);
-	const proximoDomingo = new Date(proximoSabado.getTime() + 24 * 60 * 60 * 1000);
-	const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
-
 	const novoId = await criarGiseEscala(
 		db,
-		fmtDate(proximoSabado),
-		fmtDate(proximoDomingo),
+		novaData,
 		gise.hora_entrada,
-		gise.hora_saida,
-		gise.hora_entrada_sabado,
-		gise.hora_saida_sabado,
-		gise.hora_entrada_domingo,
-		gise.hora_saida_domingo
+		gise.hora_saida
 	);
 
-	// Clonar seccionais e suas equipes (sem membros, sem unidade operacional, sem supervisor)
 	let secsParaClonar: any[] = [];
-	
+
 	if (modo === 'clonada') {
 		secsParaClonar = await db
 			.select()
 			.from(giseSeccionais)
 			.where(eq(giseSeccionais.gise_id, giseId));
 	} else {
-		// Modo 'completa': Busca TODAS as seccionais cadastradas no sistema
 		const todas = await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all();
 		secsParaClonar = todas.map(s => ({ seccional_id: s.id }));
 	}
@@ -976,9 +914,8 @@ export async function clonarGiseParaProximoFDS(
 			.returning({ id: giseSeccionais.id });
 		const novaSecId = novaSecResult[0].id;
 
-		// Clonar equipes com seus slots (mas sem membros)
 		let equipesOriginais: any[] = [];
-		
+
 		if (modo === 'clonada' && sec.id) {
 			equipesOriginais = await db
 				.select()
@@ -988,7 +925,7 @@ export async function clonarGiseParaProximoFDS(
 
 		if (equipesOriginais.length > 0) {
 			await db.insert(giseEquipes).values(
-				equipesOriginais.map((eq_) => ({
+				equipesOriginais.map((eq_: any) => ({
 					gise_seccional_id: novaSecId,
 					tipo: eq_.tipo,
 					slots_dpc: eq_.slots_dpc,
@@ -996,7 +933,6 @@ export async function clonarGiseParaProximoFDS(
 				}))
 			);
 		} else {
-			// Se for modo 'completa' ou seccional nova sem equipes, cria as padrão
 			await db.insert(giseEquipes).values([
 				{ gise_seccional_id: novaSecId, tipo: 'operacional', slots_dpc: 1, slots_oip: 3 },
 				{ gise_seccional_id: novaSecId, tipo: 'seint', slots_dpc: 0, slots_oip: 2 }
@@ -1008,14 +944,12 @@ export async function clonarGiseParaProximoFDS(
 }
 
 /**
- * Feature 8: Verifica se uma equipe ainda tem slots disponíveis para o cargo do policial.
- * Retorna { ok: true } ou { ok: false, motivo: string }
+ * Verifica se uma equipe ainda tem slots disponíveis para o cargo do policial.
  */
 export async function verificarSlotEquipe(
 	db: Database,
 	equipeId: number,
-	policialId: number,
-	dia: 'sabado' | 'domingo' | 'ambos'
+	policialId: number
 ): Promise<{ ok: boolean; motivo?: string }> {
 	const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
 	if (!equipe) return { ok: false, motivo: 'Equipe não encontrada' };
@@ -1027,26 +961,13 @@ export async function verificarSlotEquipe(
 		.get();
 	if (!policial) return { ok: false, motivo: 'Policial não encontrado' };
 
-	// Contar membros já alocados na equipe para este cargo e dia compatível
 	const membrosEquipe = await db
-		.select({ policial_id: giseMembros.policial_id, dia: giseMembros.dia })
+		.select({ policial_id: giseMembros.policial_id })
 		.from(giseMembros)
 		.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
 		.where(and(eq(giseMembros.equipe_id, equipeId), eq(policiais.cargo, policial.cargo)));
 
-	// Contar ocupação: 'ambos' ocupa sábado e domingo; 'sabado'/'domingo' ocupa só o respectivo
-	let ocupados = 0;
-	for (const m of membrosEquipe) {
-		if (dia === 'ambos') {
-			// Novo membro para ambos os dias: conflita com qualquer alocação existente
-			ocupados++;
-		} else if (dia === 'sabado' && (m.dia === 'sabado' || m.dia === 'ambos')) {
-			ocupados++;
-		} else if (dia === 'domingo' && (m.dia === 'domingo' || m.dia === 'ambos')) {
-			ocupados++;
-		}
-	}
-
+	const ocupados = membrosEquipe.length;
 	const limite = policial.cargo === 'DPC' ? equipe.slots_dpc : equipe.slots_oip;
 	if (ocupados >= limite) {
 		return {
@@ -1059,19 +980,16 @@ export async function verificarSlotEquipe(
 }
 
 /**
- * Feature 8: Verifica se o policial já está alocado em outra equipe desta GISE no mesmo dia.
- * Retorna { ok: true } ou { ok: false, motivo: string }
+ * Verifica se o policial já está alocado em outra equipe desta GISE.
  */
 export async function verificarConflitoMembroGise(
 	db: Database,
 	giseId: number,
-	policialId: number,
-	dia: 'sabado' | 'domingo' | 'ambos'
+	policialId: number
 ): Promise<{ ok: boolean; motivo?: string }> {
 	const membros = await db
 		.select({
 			id: giseMembros.id,
-			dia: giseMembros.dia,
 			equipe_id: giseMembros.equipe_id,
 			seccional_nome: unidades.nome
 		})
@@ -1083,26 +1001,17 @@ export async function verificarConflitoMembroGise(
 			and(eq(giseMembros.policial_id, policialId), eq(giseSeccionais.gise_id, giseId))
 		);
 
-	for (const m of membros) {
-		const conflito =
-			dia === 'ambos' ||
-			m.dia === 'ambos' ||
-			(dia === 'sabado' && m.dia === 'sabado') ||
-			(dia === 'domingo' && m.dia === 'domingo');
-
-		if (conflito) {
-			const diaLabel = m.dia === 'ambos' ? 'Sáb+Dom' : m.dia === 'sabado' ? 'Sábado' : 'Domingo';
-			return {
-				ok: false,
-				motivo: `Policial já escalado nesta GISE (${diaLabel}) na seccional ${m.seccional_nome}`
-			};
-		}
+	if (membros.length > 0) {
+		return {
+			ok: false,
+			motivo: `Policial já escalado nesta GISE na seccional ${membros[0].seccional_nome}`
+		};
 	}
 
 	return { ok: true };
 }
 
-export async function buscarRespostasProdutividadeSeccional(db: any, giseId: number, seccionalId: number, dia: 'sabado' | 'domingo') {
+export async function buscarRespostasProdutividadeSeccional(db: any, giseId: number, seccionalId: number) {
 	const configRow = await db.select().from(giseModeloFormulario).get();
 	const defaultQuestions = [
 		{ id: 1, texto: '1. VTR E PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
@@ -1126,7 +1035,7 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 		{ id: 19, texto: '19. RESUMO DILIGÊNCIAS', tipo: 'textarea', key: 'descricao', filhos: [] }
 	];
 	const modeloPerguntas = configRow ? JSON.parse(configRow.config) : defaultQuestions;
-	
+
 	const rows = await db.select({
 		equipe_id: giseRespostasFormulario.equipe_id,
 		respostas: giseRespostasFormulario.respostas
@@ -1135,7 +1044,6 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 	.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
 	.where(and(
 		eq(giseRespostasFormulario.gise_id, giseId),
-		eq(giseRespostasFormulario.dia, dia),
 		eq(giseEquipes.gise_seccional_id, seccionalId)
 	))
 	.all();
@@ -1145,7 +1053,7 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 	const processarPerguntas = (listaPerguntas: any[], resps: any, eqId: number) => {
 		for (const p of listaPerguntas) {
 			const resp = resps[p.key] ?? resps[String(p.id)] ?? resps[p.id];
-			
+
 			if (resp !== undefined && resp !== null && resp !== '') {
 				allResults.push({
 					equipe_id: eqId,
@@ -1153,7 +1061,6 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 					resposta: String(resp)
 				});
 
-				// Tratamento de tipos complexos (listas e detalhes)
 				if (resp === 'Sim') {
 					if (p.tipo === 'mandados_maiores' && resps.mandados_lista) {
 						resps.mandados_lista.forEach((item: any, idx: number) => {
@@ -1177,7 +1084,6 @@ export async function buscarRespostasProdutividadeSeccional(db: any, giseId: num
 						});
 					}
 
-					// Processa sub-perguntas se houver
 					if (p.filhos && p.filhos.length > 0) {
 						processarPerguntas(p.filhos, resps, eqId);
 					}
@@ -1202,7 +1108,6 @@ export async function salvarGiseDocumento(
 	assinanteNome: string,
 	assinanteCpf: string,
 	verificacaoHash: string,
-	dia: 'sabado' | 'domingo' | 'ambos' = 'ambos',
 	rubrica?: string,
 	ipAddress?: string,
 	userAgent?: string,
@@ -1213,7 +1118,6 @@ export async function salvarGiseDocumento(
 ) {
 	return db.insert(giseDocumentos).values({
 		gise_id: giseId,
-		dia,
 		r2_key: r2Key,
 		assinante_id: assinanteId,
 		assinante_nome: assinanteNome,
@@ -1227,7 +1131,7 @@ export async function salvarGiseDocumento(
 		latitude,
 		longitude
 	}).onConflictDoUpdate({
-		target: [giseDocumentos.gise_id, giseDocumentos.dia],
+		target: [giseDocumentos.gise_id],
 		set: {
 			r2_key: r2Key,
 			assinante_id: assinanteId,
@@ -1246,26 +1150,20 @@ export async function salvarGiseDocumento(
 	});
 }
 
-export async function buscarGiseDocumento(db: Database, giseId: number, dia?: string): Promise<schema.GiseDocumento | undefined> {
-	if (dia) {
-		return db.select()
-			.from(giseDocumentos)
-			.where(and(eq(giseDocumentos.gise_id, giseId), eq(giseDocumentos.dia, dia as any)))
-			.get();
-	}
+export async function buscarGiseDocumento(db: Database, giseId: number): Promise<schema.GiseDocumento | undefined> {
 	return db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId)).get();
 }
 
-/** Verifica se um policial é supervisor (sábado ou domingo) da GISE ativa */
+/** Verifica se um policial é supervisor da GISE ativa */
 export async function isSupervisorGiseAtiva(db: Database, policialId: number): Promise<boolean> {
 	const gise = await db
-		.select({ sup_sab: giseEscalas.supervisor_sabado_id, sup_dom: giseEscalas.supervisor_domingo_id })
+		.select({ sup: giseEscalas.supervisor_id })
 		.from(giseEscalas)
 		.where(ne(giseEscalas.status, 'finalizada'))
 		.orderBy(desc(giseEscalas.data_inicio))
 		.get();
 	if (!gise) return false;
-	return gise.sup_sab === policialId || gise.sup_dom === policialId;
+	return gise.sup === policialId;
 }
 
 /** Verifica se um policial é membro de alguma equipe na GISE ativa (não finalizada) */
@@ -1304,11 +1202,10 @@ export async function salvarGiseModeloFormulario(db: Database, config: string) {
 	});
 }
 
-export async function buscarRespostaGise(db: Database, giseId: number, policialId: number | null, dia: 'sabado' | 'domingo' = 'sabado', equipeId?: number) {
+export async function buscarRespostaGise(db: Database, giseId: number, policialId: number | null, equipeId?: number) {
 	let targetEquipeId = equipeId;
 
 	if (!targetEquipeId && policialId) {
-		// Acha a equipe desse policial
 		const meuMembro = await db.select({ equipe_id: giseMembros.equipe_id }).from(giseMembros).where(eq(giseMembros.policial_id, policialId)).get();
 		if (!meuMembro) return null;
 		targetEquipeId = meuMembro.equipe_id;
@@ -1316,36 +1213,20 @@ export async function buscarRespostaGise(db: Database, giseId: number, policialI
 
 	if (!targetEquipeId) return null;
 
-	if (targetEquipeId) {
-		const r = await db.select()
-			.from(giseRespostasFormulario)
-			.where(and(
-				eq(giseRespostasFormulario.gise_id, giseId),
-				eq(giseRespostasFormulario.equipe_id, targetEquipeId),
-				eq(giseRespostasFormulario.dia, dia)
-			))
-			.get();
-		if (r) return r;
-	}
-
-	// Fallback para respostas legadas ligadas apenas ao policial_id
 	return db.select()
 		.from(giseRespostasFormulario)
-		.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 		.where(and(
 			eq(giseRespostasFormulario.gise_id, giseId),
-			eq(giseRespostasFormulario.dia, dia),
-			eq(giseMembros.equipe_id, targetEquipeId)
+			eq(giseRespostasFormulario.equipe_id, targetEquipeId)
 		))
-		.get() as any;
+		.get();
 }
 
-export async function salvarRespostaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', respostas: string, equipeId?: number) {
-	// Checa se já existe uma resposta para a equipe
-	const existente = await buscarRespostaGise(db, giseId, policialId, dia, equipeId);
-	
+export async function salvarRespostaGise(db: Database, giseId: number, policialId: number, respostas: string, equipeId?: number) {
+	const existente = await buscarRespostaGise(db, giseId, policialId, equipeId);
+
 	if (existente) {
-		const targetId = (existente as any).gise_respostas_formulario?.id || (existente as any).id;
+		const targetId = (existente as any).id;
 		return db.update(giseRespostasFormulario)
 			.set({ respostas, updated_at: sql`datetime('now')` })
 			.where(eq(giseRespostasFormulario.id, targetId));
@@ -1355,7 +1236,6 @@ export async function salvarRespostaGise(db: Database, giseId: number, policialI
 		gise_id: giseId,
 		policial_id: policialId,
 		equipe_id: equipeId ?? null,
-		dia,
 		respostas,
 		updated_at: sql`datetime('now')`
 	});
@@ -1366,10 +1246,8 @@ export async function listarTodasRespostasGise(db: Database) {
 		id: giseRespostasFormulario.id,
 		gise_id: giseRespostasFormulario.gise_id,
 		policial_id: giseRespostasFormulario.policial_id,
-		dia: giseRespostasFormulario.dia,
 		respostas: giseRespostasFormulario.respostas,
 		updated_at: giseRespostasFormulario.updated_at,
-		// Dados da escala vinculada à equipe
 		data_inicio: giseEscalas.data_inicio,
 		seccional_id: giseSeccionais.seccional_id,
 		seccional_nome: unidades.nome,
@@ -1386,22 +1264,20 @@ export async function listarTodasRespostasGise(db: Database) {
 
 // ---- GISE Presenças ----
 
-export async function buscarPresencaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo') {
+export async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
 	return db.select()
 		.from(schema.gisePresencas)
 		.where(and(
 			eq(schema.gisePresencas.gise_id, giseId),
-			eq(schema.gisePresencas.policial_id, policialId),
-			eq(schema.gisePresencas.dia, dia)
+			eq(schema.gisePresencas.policial_id, policialId)
 		))
 		.get();
 }
 
-export async function salvarEntradaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
+export async function salvarEntradaGise(db: Database, giseId: number, policialId: number, rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
 	return db.insert(schema.gisePresencas).values({
 		gise_id: giseId,
 		policial_id: policialId,
-		dia,
 		entrada_timestamp: new Date().toISOString(),
 		entrada_rubrica: rubrica,
 		ip_address: ipAddress,
@@ -1410,7 +1286,7 @@ export async function salvarEntradaGise(db: Database, giseId: number, policialId
 		longitude,
 		updated_at: sql`datetime('now')`
 	}).onConflictDoUpdate({
-		target: [schema.gisePresencas.gise_id, schema.gisePresencas.policial_id, schema.gisePresencas.dia],
+		target: [schema.gisePresencas.gise_id, schema.gisePresencas.policial_id],
 		set: {
 			entrada_timestamp: new Date().toISOString(),
 			entrada_rubrica: rubrica,
@@ -1423,7 +1299,7 @@ export async function salvarEntradaGise(db: Database, giseId: number, policialId
 	});
 }
 
-export async function salvarSaidaGise(db: Database, giseId: number, policialId: number, dia: 'sabado' | 'domingo', rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
+export async function salvarSaidaGise(db: Database, giseId: number, policialId: number, rubrica: string, ipAddress?: string, userAgent?: string, latitude?: number, longitude?: number) {
 	return db.update(schema.gisePresencas).set({
 		saida_timestamp: new Date().toISOString(),
 		saida_rubrica: rubrica,
@@ -1434,32 +1310,23 @@ export async function salvarSaidaGise(db: Database, giseId: number, policialId: 
 		updated_at: sql`datetime('now')`
 	}).where(and(
 		eq(schema.gisePresencas.gise_id, giseId),
-		eq(schema.gisePresencas.policial_id, policialId),
-		eq(schema.gisePresencas.dia, dia)
+		eq(schema.gisePresencas.policial_id, policialId)
 	));
 }
 
-/** Verifica se um documento GISE para um dia específico já foi assinado. */
-export async function isDailyGiseSigned(db: Database, giseId: number, dia: 'sabado' | 'domingo') {
+/** Verifica se um documento GISE já foi assinado. */
+export async function isDailyGiseSigned(db: Database, giseId: number) {
 	const doc = await db.select({ id: schema.giseDocumentos.id })
 		.from(schema.giseDocumentos)
-		.where(and(
-			eq(schema.giseDocumentos.gise_id, giseId),
-			or(eq(schema.giseDocumentos.dia, dia), eq(schema.giseDocumentos.dia, 'ambos'))
-		))
+		.where(eq(schema.giseDocumentos.gise_id, giseId))
 		.get();
 	return !!doc;
 }
 
-export async function buscarPresencasGise(db: Database, giseId: number, dia?: 'sabado' | 'domingo') {
-	if (dia) {
-		return db.select()
-			.from(schema.gisePresencas)
-			.where(and(eq(schema.gisePresencas.gise_id, giseId), eq(schema.gisePresencas.dia, dia)))
-			.all();
-	}
+export async function buscarPresencasGise(db: Database, giseId: number) {
 	return db.select().from(schema.gisePresencas).where(eq(schema.gisePresencas.gise_id, giseId)).all();
 }
+
 
 export async function buscarSeccionaisUnidades(db: Database) {
 	return db.select()
@@ -1480,10 +1347,9 @@ export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: numb
 }
 
 export async function buscarAssinaturaRelatorioGise(
-	db: Database, 
-	giseId: number, 
-	seccionalId: number, 
-	dia: 'sabado' | 'domingo', 
+	db: Database,
+	giseId: number,
+	seccionalId: number,
 	tipo: 'extraordinario' | 'produtividade'
 ) {
 	return db.select()
@@ -1491,7 +1357,6 @@ export async function buscarAssinaturaRelatorioGise(
 		.where(and(
 			eq(schema.giseAssinaturasRelatorios.gise_id, giseId),
 			eq(schema.giseAssinaturasRelatorios.seccional_id, seccionalId),
-			eq(schema.giseAssinaturasRelatorios.dia, dia),
 			eq(schema.giseAssinaturasRelatorios.tipo, tipo)
 		))
 		.get();
@@ -1502,7 +1367,6 @@ export async function salvarAssinaturaRelatorioGise(
 	data: {
 		gise_id: number;
 		seccional_id: number;
-		dia: 'sabado' | 'domingo';
 		tipo: 'extraordinario' | 'produtividade';
 		assinante_id?: number | null;
 		assinante_nome: string;
@@ -1526,9 +1390,8 @@ export async function salvarAssinaturaRelatorioGise(
 		})
 		.onConflictDoUpdate({
 			target: [
-				schema.giseAssinaturasRelatorios.gise_id, 
-				schema.giseAssinaturasRelatorios.seccional_id, 
-				schema.giseAssinaturasRelatorios.dia, 
+				schema.giseAssinaturasRelatorios.gise_id,
+				schema.giseAssinaturasRelatorios.seccional_id,
 				schema.giseAssinaturasRelatorios.tipo
 			],
 			set: {

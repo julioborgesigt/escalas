@@ -74,7 +74,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 			titulo: titulo,
 			cidade: (escala as any).cidade || 'Iguatu',
 			data_inicio: escala.data_inicio,
-			data_fim: escala.data_fim,
+			data_fim: (escala as any).data_fim,
 			lotacao: (escala as any).lotacao || 'Sertão Central / Centro Sul'
 		},
 		hash

@@ -1,7 +1,7 @@
 /**
  * POST /api/gise/[id]/preparar-assinatura
  *
- * Prepara o PDF da escala GISE com placeholder de assinatura digital.
+ * Prepara o PDF da escala GISE diária com placeholder de assinatura digital.
  * Retorna hash dos SignedAttributes para assinatura via Web PKI ou SERPRO.
  * Permissão: Supervisor designado (DPC).
  */
@@ -19,7 +19,7 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
-	const { signerName, signerCpf, dia, rubrica } = await request.json();
+	const { signerName, signerCpf, rubrica } = await request.json();
 
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
@@ -32,42 +32,35 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 		return json({ error: 'A escala não está pronta para assinatura' }, { status: 400 });
 	}
 
-	const isSupervisor = gise.supervisor_sabado_id === u.id || gise.supervisor_domingo_id === u.id;
-	if (!isSupervisor) {
+	if (gise.supervisor_id !== u.id) {
 		return json({ error: 'Apenas o Supervisor designado pode assinar esta escala' }, { status: 403 });
 	}
 
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
 
-	const result = gerarPdfGise(giseDetalhado, dia === 'ambos' ? undefined : dia as 'sabado' | 'domingo');
+	const result = gerarPdfGise(giseDetalhado);
 	const pdfBytes = result.pdf;
-	const sigY = result.finalY; // mm from top
+	const sigY = result.finalY;
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
-	// Calcular posição da rubrica (pdf-lib usa pontos do bottom: 1mm = 2.8346 pts)
-	// giseSigCenterX = 0.75 * 297mm = 222.75mm
-	const rubW_pts = 130; 
-	const rx_pts = (222.75 * 2.8346) - (rubW_pts / 2);
-	const ry_pts = (210 - sigY + 2) * 2.8346; // 2mm acima da linha
+	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
 
+	// Use default positions for rubrica so it goes directly above the PKI box.
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfBytes,
-		signerName || u.nome, // Use u.nome as fallback for signerName
-		signerCpf || '', // Use empty string as fallback for signerCpf
+		signerName || u.nome,
+		signerCpf || '',
 		'right',
 		verificationHash,
 		verificationUrl,
-		undefined, // boxY is now undefined
-		rubrica || undefined,
-		rx_pts,
-		ry_pts
+		boxY_pts,
+		rubrica || undefined
 	);
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } = prepResult;
-
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
 	return json({

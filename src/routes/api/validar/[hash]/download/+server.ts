@@ -25,25 +25,24 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
 
-			const dia = documento.dia;
 			const seccionalId = documento.seccional_id;
 			const relTipo = documento.rel_tipo;
 
 			// Buscar a assinatura original para garantir que as rubricas apareçam
-			const reportSignature = await buscarAssinaturaRelatorioGise(db, documento.escala_id, seccionalId, dia, relTipo);
+			const reportSignature = await buscarAssinaturaRelatorioGise(db, documento.escala_id, seccionalId, relTipo);
 
 			let finalPdf: Uint8Array;
 
 			if (relTipo === 'extraordinario') {
-				const presencas = await buscarPresencasGise(db, documento.escala_id, dia);
-				const result = await gerarRelatorioExtraordinarioPdf(gise, dia, presencas, seccionalId, url.origin, reportSignature);
+				const presencas = await buscarPresencasGise(db, documento.escala_id);
+				const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature);
 				finalPdf = result.pdf;
 			} else {
 				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
 				if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
-				const respostas = await buscarRespostasProdutividadeSeccional(db, documento.escala_id, seccional.id, dia);
-				const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, dia, respostas });
+				const respostas = await buscarRespostasProdutividadeSeccional(db, documento.escala_id, seccional.id);
+				const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, respostas });
 				finalPdf = result.pdf;
 			}
 
@@ -74,11 +73,12 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		}
 	}
 
-	if (!platform?.env?.escalas_docs) {
+	const p = platform as any;
+	if (!p?.env?.escalas_docs) {
 		return json({ error: 'Storage não configurado' }, { status: 500 });
 	}
 
-	const object = await platform.env.escalas_docs.get(documento.r2_key);
+	const object = await p.env.escalas_docs.get(documento.r2_key);
 	if (!object) {
 		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
 	}

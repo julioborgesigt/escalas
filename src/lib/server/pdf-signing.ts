@@ -297,17 +297,17 @@ export async function prepararPdfParaAssinatura(
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
-	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
-	const pages    = pdfDoc.getPages();
+	const pages = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
 	const { width } = lastPage.getSize();
-	const dataHora  = formatarDataHora();
+	const dataHora = formatarDataHora();
 
 	// --- Dimensões do carimbo (+5% largura conforme pedido) ---
-	const boxW = 158; 
-	const boxH = 70;  
+	const boxW = 158;
+	const boxH = 70;
 
 
 	const marginY = customBoxY !== undefined ? customBoxY : 40;
@@ -322,12 +322,12 @@ export async function prepararPdfParaAssinatura(
 	const boxY = marginY;
 
 	// --- Paleta ---
-	const cNavy  = rgb(0.07, 0.14, 0.42);
-	const cBlue  = rgb(0.18, 0.32, 0.72);
-	const cBg    = rgb(0.94, 0.96, 0.99);
+	const cNavy = rgb(0.07, 0.14, 0.42);
+	const cBlue = rgb(0.18, 0.32, 0.72);
+	const cBg = rgb(0.94, 0.96, 0.99);
 	const cHatch = rgb(0.82, 0.88, 0.96);
-	const cDark  = rgb(0.05, 0.08, 0.22);
-	const cGray  = rgb(0.40, 0.40, 0.45);
+	const cDark = rgb(0.05, 0.08, 0.22);
+	const cGray = rgb(0.40, 0.40, 0.45);
 	const cWhite = rgb(1, 1, 1);
 
 	// 0 — Rubrica (se fornecida)
@@ -336,7 +336,7 @@ export async function prepararPdfParaAssinatura(
 			const rubricImage = await pdfDoc.embedPng(rubricBase64);
 			const rubW = 130; // Aumentado novamente para ser mais proeminente
 			const rubH = (rubricImage.height / rubricImage.width) * rubW;
-			
+
 			const rx = customRubricX !== undefined ? customRubricX : boxX + (boxW - rubW) / 2;
 			const ry = customRubricY !== undefined ? customRubricY : boxY + boxH + 2;
 
@@ -362,7 +362,7 @@ export async function prepararPdfParaAssinatura(
 		if (tStart < tEnd) {
 			lastPage.drawLine({
 				start: { x: boxX + i + tStart * boxH, y: boxY + tStart * boxH },
-				end:   { x: boxX + i + tEnd * boxH,   y: boxY + tEnd * boxH   },
+				end: { x: boxX + i + tEnd * boxH, y: boxY + tEnd * boxH },
 				thickness: 0.18, color: cHatch
 			});
 		}
@@ -389,7 +389,7 @@ export async function prepararPdfParaAssinatura(
 		x: boxX, y: boxY + boxH - headerH,
 		width: boxW, height: headerH, color: cNavy
 	});
-	
+
 	const headerTitle = 'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ';
 	const headerFontSize = 4.2;
 	const titleWidth = fontBold.widthOfTextAtSize(headerTitle, headerFontSize);
@@ -438,13 +438,13 @@ export async function prepararPdfParaAssinatura(
 	// 6 — Linha divisória vertical entre conteúdo e QR
 	lastPage.drawLine({
 		start: { x: qrX - 5, y: boxY + 5 },
-		end:   { x: qrX - 5, y: boxY + boxH - headerH - 5 },
+		end: { x: qrX - 5, y: boxY + boxH - headerH - 5 },
 		thickness: 0.3, color: cBlue
 	});
 
 
 	// 7 — Conteúdo textual
-	const txtX    = boxX + 6;
+	const txtX = boxX + 6;
 	const textMaxW = qrX - boxX - 12;
 	const cpfFormatado = signerCpf
 		? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**`
@@ -538,7 +538,7 @@ export async function prepararPdfParaAssinatura(
 	// 9 — Texto de verificação vertical na margem esquerda
 	if (verificationHash) {
 		lastPage.drawText(
-			`Para verificar acesse https://escalas.policiacivil.ce.gov.br/validar · Código: ${verificationHash}`,
+			`Para verificar acesse https://escalas.pages.dev/validar · Código: ${verificationHash}`,
 			{ x: 9, y: 32, size: 5, font, color: rgb(0.55, 0.55, 0.55), rotate: degrees(90) }
 		);
 	}
@@ -584,9 +584,9 @@ export async function prepararPdfParaAssinatura(
 	const byteRangePlaceholderFull = pdfString.substring(bracketStart, bracketEnd + 1);
 	const byteRangeReplacement = `[${br.join(' ')}]`.padEnd(byteRangePlaceholderFull.length, ' ');
 
-	const preparedPdfStr = pdfString.substring(0, bracketStart) + 
-						   byteRangeReplacement + 
-						   pdfString.substring(bracketEnd + 1);
+	const preparedPdfStr = pdfString.substring(0, bracketStart) +
+		byteRangeReplacement +
+		pdfString.substring(bracketEnd + 1);
 
 	const preparedPdf = Buffer.from(preparedPdfStr, 'latin1');
 
@@ -768,11 +768,11 @@ export async function adicionarRodapeSimples(
 		longitude
 	} = options;
 	const pdfDoc = await PDFDocument.load(pdfBytes);
-	const font     = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
 
-	const pages    = pdfDoc.getPages();
+	const pages = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
 	const { width, height: pageHeight } = lastPage.getSize();
 
@@ -798,21 +798,21 @@ export async function adicionarRodapeSimples(
 			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
 			const moduleCount = qr.modules.size;
 			const dotSize = qrSize / moduleCount;
-			
+
 			// Fundo branco sutil
-			lastPage.drawRectangle({ 
-				x: qrX - 2, y: qrY - 2, 
-				width: qrSize + 4, height: qrSize + 4, 
-				color: rgb(1, 1, 1) 
+			lastPage.drawRectangle({
+				x: qrX - 2, y: qrY - 2,
+				width: qrSize + 4, height: qrSize + 4,
+				color: rgb(1, 1, 1)
 			});
-			
+
 			for (let row = 0; row < moduleCount; row++) {
 				for (let col = 0; col < moduleCount; col++) {
 					if (qr.modules.get(row, col)) {
 						lastPage.drawRectangle({
 							x: qrX + col * dotSize,
 							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1, height: dotSize + 0.1, 
+							width: dotSize + 0.1, height: dotSize + 0.1,
 							color: cBlack // Preto puro para máximo contraste
 						});
 					}
@@ -848,12 +848,12 @@ export async function adicionarRodapeSimples(
 
 	// 4 — IP e Coordenadas e Rubrica Visual
 	let auditY = qrY - 4;
-	
+
 	if (ip) {
 		lastPage.drawText(`IP: ${ip}`, { x: textX, y: auditY, size: 6, font: fontMono, color: cGray });
 		auditY -= 8;
 	}
-	
+
 	if (latitude && longitude) {
 		lastPage.drawText(`GPS: Lat ${latitude}, Lng ${longitude}`, { x: textX, y: auditY, size: 6, font: fontMono, color: cGray });
 	}
@@ -863,7 +863,7 @@ export async function adicionarRodapeSimples(
 			const rubricImage = await pdfDoc.embedPng(rubricBase64);
 			const rubW = 100; // Tamanho menor do que na assinatura com PKI (que é 130)
 			const rubH = (rubricImage.height / rubricImage.width) * rubW;
-			
+
 			// Se houver coordenadas personalizadas, usamos. Senão, colocamos no canto direito
 			const rx = customRubricX !== undefined ? customRubricX : width - marginX - rubW;
 			const ry = customRubricY !== undefined ? customRubricY : qrY - (rubH / 2) + (qrSize / 2);
