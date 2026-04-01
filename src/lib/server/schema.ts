@@ -32,28 +32,36 @@ export const policiais = sqliteTable(
 	},
 	(table) => [
 		index('idx_policiais_lotacao').on(table.lotacao),
-		index('idx_policiais_cargo').on(table.cargo)
+		index('idx_policiais_cargo').on(table.cargo),
+		index('idx_policiais_ativo').on(table.ativo)
 	]
 );
 
 // ---- Escalas ----
 
-export const escalas = sqliteTable('escalas', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	titulo: text('titulo').notNull(),
-	cidade: text('cidade').notNull(),
-	data_inicio: text('data_inicio').notNull(),
-	data_fim: text('data_fim').notNull(),
-	horario: text('horario').notNull().default('08H A 08H'),
-	hora_entrada: text('hora_entrada').notNull().default('08'),
-	hora_saida: text('hora_saida').notNull().default('08'),
-	lotacao: text('lotacao').notNull().default(''),
-	tipo: text('tipo', { enum: ['plantao', 'expediente', 'fds'] }),
-	visto_por_admin: integer('visto_por_admin').notNull().default(0),
-	created_at: text('created_at')
-		.notNull()
-		.default(sql`(datetime('now'))`)
-});
+export const escalas = sqliteTable(
+	'escalas',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		titulo: text('titulo').notNull(),
+		cidade: text('cidade').notNull(),
+		data_inicio: text('data_inicio').notNull(),
+		data_fim: text('data_fim').notNull(),
+		horario: text('horario').notNull().default('08H A 08H'),
+		hora_entrada: text('hora_entrada').notNull().default('08'),
+		hora_saida: text('hora_saida').notNull().default('08'),
+		lotacao: text('lotacao').notNull().default(''),
+		tipo: text('tipo', { enum: ['plantao', 'expediente', 'fds'] }),
+		visto_por_admin: integer('visto_por_admin').notNull().default(0),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [
+		index('idx_escalas_lotacao').on(table.lotacao),
+		index('idx_escalas_created_at').on(table.created_at)
+	]
+);
 
 // ---- Escala Policiais ----
 
@@ -153,21 +161,25 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 
 // ---- GISE ----
 
-export const giseEscalas = sqliteTable('gise_escalas', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	data_inicio: text('data_inicio').notNull(),
-	hora_entrada: text('hora_entrada').notNull().default('08:00'),
-	hora_saida: text('hora_saida').notNull().default('16:00'),
-	status: text('status', {
-		enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
-	})
-		.notNull()
-		.default('em_preenchimento'),
-	supervisor_id: integer('supervisor_id'),
-	created_at: text('created_at')
-		.notNull()
-		.default(sql`(datetime('now'))`)
-});
+export const giseEscalas = sqliteTable(
+	'gise_escalas',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		data_inicio: text('data_inicio').notNull(),
+		hora_entrada: text('hora_entrada').notNull().default('08:00'),
+		hora_saida: text('hora_saida').notNull().default('16:00'),
+		status: text('status', {
+			enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
+		})
+			.notNull()
+			.default('em_preenchimento'),
+		supervisor_id: integer('supervisor_id'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_gise_escalas_status').on(table.status)]
+);
 
 export const giseSeccionais = sqliteTable(
 	'gise_seccionais',
@@ -292,7 +304,8 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id)
+	unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id),
+	index('idx_gise_presencas_gise').on(table.gise_id)
 ]);
 
 export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorios', {
