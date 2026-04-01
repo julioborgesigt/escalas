@@ -56,6 +56,31 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		}, { status: 400 });
 	}
 
+	// Validação de MIME type para evitar upload de arquivos disfarçados
+	const validMimeTypes = [
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+		'application/vnd.ms-excel', // .xls
+		'application/vnd.oasis.opendocument.spreadsheet', // .ods
+		'text/csv',
+		'text/plain', // alguns sistemas enviam CSV como text/plain
+		'application/octet-stream' // fallback genérico aceito quando extensão já foi validada
+	];
+	if (file.type && !validMimeTypes.includes(file.type)) {
+		return json({
+			error: `Tipo de arquivo inválido: "${file.type}". Envie uma planilha válida.`,
+			errorType: 'validation'
+		}, { status: 400 });
+	}
+
+	// Limite de tamanho: 5 MB
+	const MAX_SIZE = 5 * 1024 * 1024;
+	if (file.size > MAX_SIZE) {
+		return json({
+			error: 'Arquivo muito grande. O tamanho máximo permitido é 5 MB.',
+			errorType: 'validation'
+		}, { status: 400 });
+	}
+
 	let workbook;
 	try {
 		const buffer = await file.arrayBuffer();

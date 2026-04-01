@@ -140,7 +140,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 		const stack = e instanceof Error ? e.stack : '';
 		console.error('[PUT policiais] erro:', msg);
 		console.error('[PUT policiais] stack:', stack);
-		return json({ error: 'Erro ao adicionar servidores', detail: msg }, { status: 500 });
+		return json({ error: 'Erro ao adicionar servidores' }, { status: 500 });
 	}
 };
 
