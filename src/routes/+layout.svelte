@@ -92,6 +92,13 @@
 	<div class="nav-progress-wrap" aria-hidden="true">
 		<div class="nav-progress-bar"></div>
 	</div>
+
+	{#if navigating.to?.url.pathname.startsWith('/res-gise')}
+		<div class="fixed inset-0 z-[10000] bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
+			<div class="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
+			<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium animate-pulse">Carregando Relatórios GISE...</p>
+		</div>
+	{/if}
 {/if}
 
 <!-- Global Toast Provider -->

@@ -3,7 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
 
-const ROTAS_PUBLICAS = ['/login', '/api/auth/login'];
+const ROTAS_PUBLICAS = ['/login', '/api/auth/login', '/validar', '/api/validar'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;

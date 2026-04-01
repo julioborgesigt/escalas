@@ -1,4 +1,7 @@
 <script lang="ts">
+	let faceapi: any = $state(null);
+
+
 	let { onConfirm, onCancel, message = "" } = $props();
 
 	let canvas: HTMLCanvasElement;
@@ -16,6 +19,13 @@
 	
 	let step = $state<'signature' | 'camera'>('signature');
 
+	// Face Liveness states
+	let faceDetected = $state(false);
+	let isFaceModelLoaded = $state(false);
+	let faceDetectionInterval: any = null;
+	let faceStatusMessage = $state('Inicializando IA...');
+	let faceLoadError = $state<string | null>(null);
+
 	$effect(() => {
 		if (step === 'camera') {
 			if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -24,6 +34,10 @@
 						stream = s;
 						if (videoElement) {
 							videoElement.srcObject = s;
+							videoElement.onloadedmetadata = () => {
+								videoElement?.play().catch(() => {});
+								initFaceDetection();
+							};
 						}
 					})
 					.catch((err) => {
@@ -33,14 +47,60 @@
 			} else {
 				cameraError = "Navegador não suporta acesso à câmera.";
 			}
+		} else {
+			// se voltar para a tela de assinatura
+			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
 		}
 		
 		return () => {
 			if (stream) {
 				stream.getTracks().forEach(track => track.stop());
 			}
+			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
 		};
 	});
+
+	async function initFaceDetection() {
+		try {
+			if (!faceapi && typeof window !== 'undefined') {
+				faceapi = await import('@vladmandic/face-api');
+			}
+			if (faceapi && !isFaceModelLoaded) {
+				await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+				isFaceModelLoaded = true;
+			}
+			startDetectionLoop();
+		} catch (e: any) {
+			console.error("Erro ao carregar face-api:", e);
+			faceLoadError = "Falha ao baixar modelo facial. Verifique internet.";
+		}
+	}
+
+	function startDetectionLoop() {
+		if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+		faceDetectionInterval = setInterval(async () => {
+			if (videoElement && !videoElement.paused && isFaceModelLoaded) {
+				try {
+					const detections = await faceapi.detectAllFaces(
+						videoElement,
+						new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+					);
+					if (detections.length === 1) {
+						faceDetected = true;
+						faceStatusMessage = "Rosto Detectado ✅";
+					} else if (detections.length === 0) {
+						faceDetected = false;
+						faceStatusMessage = "Posicione seu rosto na frente da câmera.";
+					} else {
+						faceDetected = false;
+						faceStatusMessage = "Apenas 1 rosto é permitido!";
+					}
+				} catch (e) {
+					// Ignora erros ocasionais de cross-origin taint / canvas context
+				}
+			}
+		}, 800);
+	}
 
 	$effect(() => {
 		if (canvas) {
@@ -170,12 +230,12 @@
 				<div class="flex justify-between items-end">
 					<span class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wider">Sua Rubrica</span>
 				</div>
-				<div class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[200px]">
+				<div class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[320px]">
 					<canvas
 					bind:this={canvas}
 					width="400"
-					height="200"
-					class="w-full h-[200px] cursor-crosshair touch-none"
+					height="320"
+					class="w-full h-[320px] cursor-crosshair touch-none"
 					onmousedown={startDrawing}
 					onmousemove={draw}
 					onmouseup={stopDrawing}
@@ -203,7 +263,7 @@
 		
 		{#if step === 'camera'}
 			<!-- Camera Preview -->
-			<div class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] sm:aspect-video object-cover">
+			<div class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] md:aspect-[4/5] min-h-[350px] object-cover">
 				<span class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5">
 					<span class="w-2.5 h-2.5 rounded-full {stream ? 'bg-error-500 animate-pulse' : 'bg-surface-300'}"></span>
 					Prova de Vida
@@ -213,8 +273,26 @@
 					autoplay 
 					playsinline 
 					muted 
-					class="w-full h-full object-cover bg-surface-200 dark:bg-surface-900"
+					class="w-full h-[90%] object-cover bg-surface-200 dark:bg-surface-900 {faceDetected ? 'ring-4 ring-success-500/50' : 'ring-2 ring-warning-500/30'}"
 				></video>
+
+				<!-- Indicador Liveness na Câmera -->
+				<div class="absolute bottom-4 left-0 right-0 max-w-xs mx-auto px-4 z-20 pointer-events-none">
+					{#if faceLoadError}
+						<div class="bg-error-500/90 text-white backdrop-blur-md px-4 py-2 rounded-xl text-center shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+							<p class="text-[0.65rem] font-bold uppercase tracking-wide">{faceLoadError}</p>
+						</div>
+					{:else}
+						<div class="{faceDetected ? 'bg-success-600/90' : 'bg-surface-900/90'} text-white backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all duration-300">
+							{#if faceDetected}
+								<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+							{:else}
+								<span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+							{/if}
+							<p class="text-[0.7rem] font-black uppercase tracking-widest">{faceStatusMessage}</p>
+						</div>
+					{/if}
+				</div>
 				{#if cameraError}
 					<div class="absolute inset-0 bg-surface-900/80 flex items-center justify-center p-4 text-center z-10 backdrop-blur-sm">
 						<p class="text-sm font-bold text-error-400 uppercase">{cameraError}</p>
@@ -261,11 +339,13 @@
 			</button>
 			
 			<button 
-				class="btn preset-filled-primary-500 rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale ml-auto" 
+				class="btn {faceDetected ? 'preset-filled-primary-500' : 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto" 
 				onclick={confirm}
-				disabled={capturingLocation || capturingImage || !!cameraError || !stream}
+				disabled={capturingLocation || capturingImage || !!cameraError || !stream || !faceDetected}
 			>
-				{#if capturingImage}
+				{#if !faceDetected}
+					Aguardando Rosto...
+				{:else if capturingImage}
 					Fotografando...
 				{:else}
 					Tirar Foto e Assinar

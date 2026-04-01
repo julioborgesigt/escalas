@@ -1,7 +1,7 @@
 /**
  * GET /api/gise/[id]/documento-assinado/info
  *
- * Retorna informações sobre os documentos assinados da GISE (se existe, quem assinou, etc. para sáb/dom)
+ * Retorna informações sobre o documento assinado da GISE (se existe, quem assinou, etc.)
  */
 
 import { json } from '@sveltejs/kit';
@@ -18,25 +18,17 @@ export const GET = async ({ params, locals, platform }: RequestEvent) => {
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const db = getDB(platform);
-	const documentos = await db.select().from(schema.giseDocumentos).where(eq(schema.giseDocumentos.gise_id, id));
+	const doc = await db.select().from(schema.giseDocumentos).where(eq(schema.giseDocumentos.gise_id, id)).get();
 
-	if (documentos.length === 0) {
+	if (!doc) {
 		return json({ existe: false });
-	}
-
-	const docsMapped: Record<string, any> = {};
-	for (const doc of documentos) {
-		docsMapped[doc.dia] = {
-			existe: true,
-			assinante_nome: doc.assinante_nome,
-			assinante_cpf: doc.assinante_cpf ?? '',
-			data: doc.created_at,
-			verificacao_hash: doc.verificacao_hash
-		};
 	}
 
 	return json({
 		existe: true,
-		documentos: docsMapped
+		assinante_nome: doc.assinante_nome,
+		assinante_cpf: doc.assinante_cpf ?? '',
+		data: doc.created_at,
+		verificacao_hash: doc.verificacao_hash
 	});
 };

@@ -1,75 +1,62 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, salvarAssinaturaRelatorioGise, buscarGiseDetalhado, buscarPresencasGise } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 
-export const POST: RequestHandler = async ({ locals, params, request, platform, getClientAddress, url }: any) => {
+export const POST = async ({ locals, params, request, platform, getClientAddress, url }: RequestEvent) => {
 	const u = locals.usuario;
 	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
 		return json({ error: 'Somente policiais supervisores ou administradores podem assinar' }, { status: 403 });
 	}
 
-	const { id, seccionalId, dia } = params;
+	const { id, seccionalId } = params;
 	const body = await request.json().catch(() => ({}));
 	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude, selfieBase64 } = body;
-	
+
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	// Gera um hash aleatório se não for fornecido (assinatura simples)
 	const hash = inputHash || Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-
-	if (!['sabado', 'domingo'].includes(dia)) {
-		return json({ error: 'Dia inválido' }, { status: 400 });
-	}
 
 	const db = getDB(platform);
 
 	try {
-		// Gerar o PDF temporário para extrair o hash da assinatura
-		const giseIdNum = parseInt(id);
-		const secIdNum = parseInt(seccionalId);
-		
+		const giseIdNum = parseInt(id!);
+		const secIdNum = parseInt(seccionalId!);
+
 		const gise = await buscarGiseDetalhado(db, giseIdNum);
 		if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
-		
-		const presencas = await buscarPresencasGise(db, giseIdNum, dia as any);
-		
+
+		const presencas = await buscarPresencasGise(db, giseIdNum);
+
 		const mockSignature = {
 			assinante_nome: signerName || u.nome,
 			verification_hash: hash,
 			rubrica: rubrica
 		};
-		
-		const result = await gerarRelatorioExtraordinarioPdf(gise, dia as any, presencas, secIdNum, url.origin, mockSignature as any);
+
+		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature as any);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
-		
-		finalPdf = await adicionarRodapeSimples(
-			finalPdf,
-			mockSignature.assinante_nome,
-			{
-				verificationHash: hash,
-				verificationUrl: qrUrl,
-				rubricBase64: rubrica || undefined
-			}
-		);
 
-		// Calcular Hash SHA-256 do arquivo final
+		finalPdf = await adicionarRodapeSimples(finalPdf, mockSignature.assinante_nome, {
+			verificationHash: hash,
+			verificationUrl: qrUrl,
+			rubricBase64: rubrica || undefined
+		});
+
 		const hashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		// Salvar PDF e Selfie no R2
 		const p = platform as any;
 		const r2 = p?.env?.escalas_docs;
 		const mesAno = gise.data_inicio.substring(0, 7);
 		const folder = `gise/${mesAno}/escala_${id}`;
-		const prefixBase = `${folder}/gise_rel_${id}_sec_${seccionalId}_${dia}_${hash}`;
-		
+		const prefixBase = `${folder}/gise_rel_${id}_sec_${seccionalId}_${hash}`;
+
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
@@ -95,7 +82,6 @@ export const POST: RequestHandler = async ({ locals, params, request, platform, 
 		await salvarAssinaturaRelatorioGise(db, {
 			gise_id: giseIdNum,
 			seccional_id: secIdNum,
-			dia: dia as 'sabado' | 'domingo',
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
 			assinante_nome: signerName || u.nome,
@@ -113,11 +99,10 @@ export const POST: RequestHandler = async ({ locals, params, request, platform, 
 
 		return json({ success: true });
 	} catch (e: any) {
-		console.error(`[GISE-SIGN] Falha ao salvar assinatura: GISE ${id}, Sec ${seccionalId}, Dia ${dia}. Erro:`, e);
-		return json({ 
-			error: 'Falha técnica ao gravar a assinatura no banco de dados.', 
-			details: e.message,
-			context: { giseId: id, seccionalId, dia, usuario: u.nome }
+		console.error(`[GISE-SIGN] Falha ao salvar assinatura: GISE ${id}, Sec ${seccionalId}. Erro:`, e);
+		return json({
+			error: 'Falha técnica ao gravar a assinatura no banco de dados.',
+			details: e.message
 		}, { status: 500 });
 	}
 };

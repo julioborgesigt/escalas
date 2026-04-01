@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: false,
-			maxAge: 7 * 24 * 60 * 60
+			maxAge: 12 * 60 * 60
 		});
 
 		return json({
@@ -64,7 +64,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 		httpOnly: true,
 		sameSite: 'lax',
 		secure: false,
-		maxAge: 7 * 24 * 60 * 60
+		maxAge: 12 * 60 * 60
 	});
 
 	return json({

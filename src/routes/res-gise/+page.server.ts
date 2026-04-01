@@ -1,21 +1,21 @@
 import { redirect } from '@sveltejs/kit';
 import { getDB, buscarGiseModeloFormulario, isMembroGiseAtiva } from '$lib/db';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios } from '$lib/server/schema';
-import { eq, and, ne, or } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
-export const load = async ({ locals, platform }: any) => {
+export const load = async ({ locals, platform, url }: any) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
+	const isAdminGeral = u.tipo === 'admin';
+	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
+
 	const db = getDB(platform);
 
-	// Checar se é supervisor de algum GISE
+	// Checar se é supervisor de alguma GISE
 	const giseSupervisor = await db.select({ id: giseEscalas.id })
 		.from(giseEscalas)
-		.where(or(
-			eq(giseEscalas.supervisor_sabado_id, u.id), 
-			eq(giseEscalas.supervisor_domingo_id, u.id)
-		))
+		.where(eq(giseEscalas.supervisor_id, u.id))
 		.limit(1)
 		.get();
 	const isSupervisorGise = !!giseSupervisor;
@@ -28,29 +28,21 @@ export const load = async ({ locals, platform }: any) => {
 
 	let minhasEscalas: any[] = [];
 	let listaAdmin: any[] = [];
-	
+
 	if (u.tipo === 'policial' && !isSupervisorGise) {
 		const rawEscalas = await db
 			.select({
 				id: giseEscalas.id,
 				data_inicio: giseEscalas.data_inicio,
-				data_fim: giseEscalas.data_fim,
 				status: giseEscalas.status,
-				dia: giseMembros.dia,
+				hora_entrada: giseEscalas.hora_entrada,
+				hora_saida: giseEscalas.hora_saida,
 				equipe_id: giseEquipes.id,
-				// Horas (joins para prioridades)
-				h_ent_sab: giseEscalas.hora_entrada_sabado,
-				h_sai_sab: giseEscalas.hora_saida_sabado,
-				h_ent_dom: giseEscalas.hora_entrada_domingo,
-				h_sai_dom: giseEscalas.hora_saida_domingo,
-				sec_h_ent_sab: giseSeccionais.hora_entrada_sabado,
-				sec_h_sai_sab: giseSeccionais.hora_saida_sabado,
-				sec_h_ent_dom: giseSeccionais.hora_entrada_domingo,
-				sec_h_sai_dom: giseSeccionais.hora_saida_domingo,
-				eq_h_ent_sab: giseEquipes.hora_entrada_sabado,
-				eq_h_sai_sab: giseEquipes.hora_saida_sabado,
-				eq_h_ent_dom: giseEquipes.hora_entrada_domingo,
-				eq_h_sai_dom: giseEquipes.hora_saida_domingo,
+				// Horas por nível (equipe > seccional > escala)
+				sec_hora_entrada: giseSeccionais.hora_entrada,
+				sec_hora_saida: giseSeccionais.hora_saida,
+				eq_hora_entrada: giseEquipes.hora_entrada,
+				eq_hora_saida: giseEquipes.hora_saida,
 				equipe_tipo: giseEquipes.tipo,
 				seccional_id: giseSeccionais.seccional_id,
 				seccional_nome: unidades.nome
@@ -63,112 +55,125 @@ export const load = async ({ locals, platform }: any) => {
 			.where(eq(giseMembros.policial_id, u.id))
 			.all();
 
-		// Import schema only if needed, but we have them at the top
-		const { giseRespostasFormulario } = await import('$lib/server/schema');
+		const giseIds = [...new Set(rawEscalas.map(e => e.id))];
 
-		// Split 'ambos' e checar presença
+		let presencasMap = new Map<number, any>();
+		let docsAssinadosMap = new Map<number, boolean>();
+		let extrasAssinadosMap = new Map<string, boolean>();
+		let respostasEquipeMap = new Map<string, boolean>();
+
+		if (giseIds.length > 0) {
+			const presencas = await db.select().from(gisePresencas)
+				.where(and(inArray(gisePresencas.gise_id, giseIds), eq(gisePresencas.policial_id, u.id))).all();
+			presencas.forEach((p: any) => presencasMap.set(p.gise_id, p));
+
+			const docs = await db.select({ gise_id: giseDocumentos.gise_id })
+				.from(giseDocumentos)
+				.where(inArray(giseDocumentos.gise_id, giseIds)).all();
+			docs.forEach((doc: any) => docsAssinadosMap.set(doc.gise_id, true));
+
+			const extras = await db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+				.from(giseAssinaturasRelatorios)
+				.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIds), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all();
+			extras.forEach((ext: any) => extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true));
+
+			const { giseRespostasFormulario } = await import('$lib/server/schema');
+			const respostas = await db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
+				.from(giseRespostasFormulario)
+				.where(inArray(giseRespostasFormulario.gise_id, giseIds)).all();
+			respostas.forEach((res: any) => respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true));
+		}
+
 		for (const e of rawEscalas) {
-			const dias = e.dia === 'ambos' ? ['sabado' as const, 'domingo' as const] : [e.dia as 'sabado' | 'domingo'];
-			
-			for (const d of dias) {
-				const presenca = await db.select().from(gisePresencas).where(and(eq(gisePresencas.gise_id, e.id), eq(gisePresencas.policial_id, u.id), eq(gisePresencas.dia, d))).get();
-				
-				// Checar se o supervisor assinou o documento deste dia específico (ou 'ambos')
-				const docAssinado = await db.select({ id: giseDocumentos.id })
-					.from(giseDocumentos)
-					.where(and(
-						eq(giseDocumentos.gise_id, e.id), 
-						or(eq(giseDocumentos.dia, d), eq(giseDocumentos.dia, 'ambos'))
-					))
-					.get();
-				
-				// Checar se o relatório EXTRAORDINÁRIO específico desta seccional foi assinado
-				const extraAssinado = await db.select({ id: giseAssinaturasRelatorios.id })
-					.from(giseAssinaturasRelatorios)
-					.where(and(
-						eq(giseAssinaturasRelatorios.gise_id, e.id),
-						eq(giseAssinaturasRelatorios.seccional_id, e.seccional_id),
-						eq(giseAssinaturasRelatorios.dia, d),
-						eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-					))
-					.get();
-				
-				// Checar se ALGUÉM da mesma EQUIPE já respondeu (usando agora o equipe_id direto)
-				const { giseRespostasFormulario } = await import('$lib/server/schema');
-				const respostaEquipe = await db.select({ id: giseRespostasFormulario.id })
-					.from(giseRespostasFormulario)
-					.where(and(
-						eq(giseRespostasFormulario.gise_id, e.id),
-						eq(giseRespostasFormulario.dia, d),
-						eq(giseRespostasFormulario.equipe_id, e.equipe_id)
-					))
-					.get();
+			const presenca = presencasMap.get(e.id);
 
-				// Prioridade de horário: equipe > seccional > escala
-				const hEnt = (d === 'sabado' ? (e.eq_h_ent_sab ?? e.sec_h_ent_sab ?? e.h_ent_sab) : (e.eq_h_ent_dom ?? e.sec_h_ent_dom ?? e.h_ent_dom)) || '08:00';
-				const hSai = (d === 'sabado' ? (e.eq_h_sai_sab ?? e.sec_h_sai_sab ?? e.h_sai_sab) : (e.eq_h_sai_dom ?? e.sec_h_sai_dom ?? e.h_sai_dom)) || '16:00';
-
-				minhasEscalas.push({
-					...e,
-					dia: d,
-					presenca,
-					assinada: !!docAssinado,
-					extraAssinado: !!extraAssinado,
-					equipeRespondida: !!respostaEquipe,
-					horarioPrevisto: { inicio: hEnt, fimb: hSai }
-				});
+			// Mostrar apenas escalas sem saída confirmada
+			if (presenca && presenca.saida_timestamp) {
+				continue;
 			}
+
+			const docAssinado = docsAssinadosMap.get(e.id);
+			const extraAssinado = extrasAssinadosMap.get(`${e.id}_${e.seccional_id}`);
+			const respostaEquipe = respostasEquipeMap.get(`${e.id}_${e.equipe_id}`);
+
+			// Prioridade de horário: equipe > seccional > escala
+			const hEnt = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.hora_entrada ?? '08:00';
+			const hSai = e.eq_hora_saida ?? e.sec_hora_saida ?? e.hora_saida ?? '16:00';
+
+			minhasEscalas.push({
+				...e,
+				presenca,
+				assinada: !!docAssinado,
+				extraAssinado: !!extraAssinado,
+				equipeRespondida: !!respostaEquipe,
+				horarioPrevisto: { inicio: hEnt, fim: hSai }
+			});
 		}
 	} else {
-		// Admin Geral: Lista todas as escalas e suas seccionais
-		const rawAdmin = await db.select({
-			id: giseEscalas.id,
-			data_inicio: giseEscalas.data_inicio,
-			data_fim: giseEscalas.data_fim,
-			status: giseEscalas.status,
-			seccional_id: giseSeccionais.seccional_id,
-			seccional_nome: unidades.nome,
-			equipe_id: giseEquipes.id,
-			equipe_tipo: giseEquipes.tipo
-		})
-		.from(giseEquipes)
-		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-		.orderBy(giseEscalas.data_inicio)
-		.all();
+		// Admin Geral / Supervisor: Lista escalas de acordo com o filtro principal
+		let rawAdmin: any[] = [];
+		let giseIdsAdmin: number[] = [];
 
-		const { giseRespostasFormulario, giseMembros } = await import('$lib/server/schema');
+		if (statusFilter === 'ativas' || statusFilter === 'finalizadas') {
+			let filters = [];
+			if (statusFilter === 'ativas') {
+				filters.push(inArray(giseEscalas.status, ['em_preenchimento', 'aguardando_assinatura', 'assinada']));
+			} else if (statusFilter === 'finalizadas') {
+				filters.push(eq(giseEscalas.status, 'finalizada'));
+			}
+
+			// Se for supervisor, ver apenas as suas GISEs, senão vê tudo
+			if (!isAdminGeral && isSupervisorGise) {
+				filters.push(eq(giseEscalas.supervisor_id, u.id));
+			}
+
+			rawAdmin = await db.select({
+				id: giseEscalas.id,
+				data_inicio: giseEscalas.data_inicio,
+				status: giseEscalas.status,
+				seccional_id: giseSeccionais.seccional_id,
+				seccional_nome: unidades.nome,
+				equipe_id: giseEquipes.id,
+				equipe_tipo: giseEquipes.tipo
+			})
+			.from(giseEquipes)
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+			.where(and(...filters))
+			.orderBy(giseEscalas.data_inicio)
+			.all();
+
+			giseIdsAdmin = [...new Set(rawAdmin.map(r => r.id))];
+		}
+
+		let respostasEquipeMapAdmin = new Map<string, boolean>();
+		let extrasAssinadosMapAdmin = new Map<string, boolean>();
+
+		if (giseIdsAdmin.length > 0) {
+			const { giseRespostasFormulario } = await import('$lib/server/schema');
+
+			const respostas = await db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
+				.from(giseRespostasFormulario)
+				.where(inArray(giseRespostasFormulario.gise_id, giseIdsAdmin)).all();
+			respostas.forEach((res: any) => respostasEquipeMapAdmin.set(`${res.gise_id}_${res.equipe_id}`, true));
+
+			const extras = await db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+				.from(giseAssinaturasRelatorios)
+				.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIdsAdmin), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all();
+			extras.forEach((ext: any) => extrasAssinadosMapAdmin.set(`${ext.gise_id}_${ext.seccional_id}`, true));
+		}
 
 		for (const row of rawAdmin) {
-			for (const dia of ['sabado' as const, 'domingo' as const]) {
-				const respostaEquipe = await db.select({ id: giseRespostasFormulario.id })
-					.from(giseRespostasFormulario)
-					.where(and(
-						eq(giseRespostasFormulario.gise_id, row.id),
-						eq(giseRespostasFormulario.dia, dia),
-						eq(giseRespostasFormulario.equipe_id, row.equipe_id)
-					))
-					.get();
+			const respostaEquipe = respostasEquipeMapAdmin.get(`${row.id}_${row.equipe_id}`);
+			const extraAssinado = extrasAssinadosMapAdmin.get(`${row.id}_${row.seccional_id}`);
 
-				const extraAssinado = await db.select({ id: giseAssinaturasRelatorios.id })
-					.from(giseAssinaturasRelatorios)
-					.where(and(
-						eq(giseAssinaturasRelatorios.gise_id, row.id),
-						eq(giseAssinaturasRelatorios.seccional_id, row.seccional_id),
-						eq(giseAssinaturasRelatorios.dia, dia),
-						eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-					))
-					.get();
-
-				listaAdmin.push({
-					...row,
-					dia,
-					equipeRespondida: !!respostaEquipe,
-					extraAssinado: !!extraAssinado,
-                    isAdminView: true
-				});
-			}
+			listaAdmin.push({
+				...row,
+				equipeRespondida: !!respostaEquipe,
+				extraAssinado: !!extraAssinado,
+				isAdminView: true
+			});
 		}
 	}
 
@@ -196,7 +201,7 @@ export const load = async ({ locals, platform }: any) => {
 
 	const modelo = await buscarGiseModeloFormulario(db);
 	const modeloFinal = modelo ? JSON.parse(modelo.config) : defaultGiseQuestions;
- 
+
 	return {
 		minhasEscalas,
 		listaAdmin,

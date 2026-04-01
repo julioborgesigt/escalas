@@ -156,22 +156,14 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 export const giseEscalas = sqliteTable('gise_escalas', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	data_inicio: text('data_inicio').notNull(),
-	data_fim: text('data_fim').notNull(),
-	// Horários legados (mantidos para compatibilidade)
-	hora_entrada: text('hora_entrada').notNull().default('08'),
-	hora_saida: text('hora_saida').notNull().default('16'),
-	// Horários separados por dia (Feature 1)
-	hora_entrada_sabado: text('hora_entrada_sabado').notNull().default('08'),
-	hora_saida_sabado: text('hora_saida_sabado').notNull().default('16'),
-	hora_entrada_domingo: text('hora_entrada_domingo').notNull().default('08'),
-	hora_saida_domingo: text('hora_saida_domingo').notNull().default('16'),
+	hora_entrada: text('hora_entrada').notNull().default('08:00'),
+	hora_saida: text('hora_saida').notNull().default('16:00'),
 	status: text('status', {
 		enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
 	})
 		.notNull()
 		.default('em_preenchimento'),
-	supervisor_sabado_id: integer('supervisor_sabado_id'),
-	supervisor_domingo_id: integer('supervisor_domingo_id'),
+	supervisor_id: integer('supervisor_id'),
 	created_at: text('created_at')
 		.notNull()
 		.default(sql`(datetime('now'))`)
@@ -188,20 +180,16 @@ export const giseSeccionais = sqliteTable(
 			.notNull()
 			.references(() => unidades.id),
 		unidade_operacional_id: integer('unidade_operacional_id'),
-		// Feature 4: 'retificada' = seccional já enviada mas depois alterada pelo admin seccional
 		status: text('status', { enum: ['pendente', 'preenchida', 'retificada', 'preenchida_retificada'] }).notNull().default('pendente'),
-		// Customização de horários por seccional (se nulo, usa o da escala gise)
-		hora_entrada_sabado: text('hora_entrada_sabado'),
-		hora_saida_sabado: text('hora_saida_sabado'),
-		hora_entrada_domingo: text('hora_entrada_domingo'),
-		hora_saida_domingo: text('hora_saida_domingo')
+		hora_entrada: text('hora_entrada'),
+		hora_saida: text('hora_saida')
 	},
 	(table) => [
 		index('idx_gise_seccionais_gise').on(table.gise_id),
 		unique('uq_gise_seccional').on(table.gise_id, table.seccional_id)
 	]
 );
- 
+
 export const giseEquipes = sqliteTable(
 	'gise_equipes',
 	{
@@ -212,11 +200,8 @@ export const giseEquipes = sqliteTable(
 		tipo: text('tipo', { enum: ['operacional', 'seint'] }).notNull(),
 		slots_dpc: integer('slots_dpc').notNull().default(0),
 		slots_oip: integer('slots_oip').notNull().default(0),
-		// Customização de horários por equipe (se nulo, usa o da seccional/escala)
-		hora_entrada_sabado: text('hora_entrada_sabado'),
-		hora_saida_sabado: text('hora_saida_sabado'),
-		hora_entrada_domingo: text('hora_entrada_domingo'),
-		hora_saida_domingo: text('hora_saida_domingo')
+		hora_entrada: text('hora_entrada'),
+		hora_saida: text('hora_saida')
 	},
 	(table) => [
 		index('idx_gise_equipes_sec').on(table.gise_seccional_id),
@@ -233,8 +218,7 @@ export const giseMembros = sqliteTable(
 			.references(() => giseEquipes.id, { onDelete: 'cascade' }),
 		policial_id: integer('policial_id')
 			.notNull()
-			.references(() => policiais.id, { onDelete: 'cascade' }),
-		dia: text('dia', { enum: ['sabado', 'domingo', 'ambos'] }).notNull().default('ambos')
+			.references(() => policiais.id, { onDelete: 'cascade' })
 	},
 	(table) => [
 		index('idx_gise_membros_equipe').on(table.equipe_id),
@@ -247,7 +231,6 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	gise_id: integer('gise_id')
 		.notNull()
 		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
-	dia: text('dia', { enum: ['sabado', 'domingo', 'ambos'] }).notNull().default('ambos'),
 	r2_key: text('r2_key').notNull(),
 	assinante_id: integer('assinante_id'),
 	assinante_nome: text('assinante_nome').notNull().default(''),
@@ -262,7 +245,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	longitude: integer('longitude', { mode: 'number' }),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_documento_dia').on(table.gise_id, table.dia)
+	unique('uq_gise_documento').on(table.gise_id)
 ]);
 
 // ---- Resultados GISE ----
@@ -281,14 +264,13 @@ export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', 
 	policial_id: integer('policial_id')
 		.notNull()
 		.references(() => policiais.id, { onDelete: 'cascade' }),
-	dia: text('dia', { enum: ['sabado', 'domingo'] }).notNull().default('sabado'),
 	equipe_id: integer('equipe_id').references(() => giseEquipes.id, { onDelete: 'cascade' }),
-	respostas: text('respostas').notNull().default('{}'), // JSON object {perguntaId: resposta}
+	respostas: text('respostas').notNull().default('{}'),
 	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_resposta_policial_dia').on(table.gise_id, table.policial_id, table.dia),
-	index('idx_gise_respostas_equipe_dia').on(table.gise_id, table.equipe_id, table.dia)
+	unique('uq_gise_resposta_policial').on(table.gise_id, table.policial_id),
+	index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id)
 ]);
 
 export const gisePresencas = sqliteTable('gise_presencas', {
@@ -299,11 +281,10 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	policial_id: integer('policial_id')
 		.notNull()
 		.references(() => policiais.id, { onDelete: 'cascade' }),
-	dia: text('dia', { enum: ['sabado', 'domingo'] }).notNull(),
-	entrada_timestamp: text('entrada_timestamp'), // ISO string da hora que clicou
-	entrada_rubrica: text('entrada_rubrica'),   // Base64 da rubrica
-	saida_timestamp: text('saida_timestamp'),   // ISO string da hora que clicou
-	saida_rubrica: text('saida_rubrica'),     // Base64 da rubrica
+	entrada_timestamp: text('entrada_timestamp'),
+	entrada_rubrica: text('entrada_rubrica'),
+	saida_timestamp: text('saida_timestamp'),
+	saida_rubrica: text('saida_rubrica'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
@@ -311,7 +292,7 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_presenca_policial_dia').on(table.gise_id, table.policial_id, table.dia)
+	unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id)
 ]);
 
 export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorios', {
@@ -322,7 +303,6 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	seccional_id: integer('seccional_id')
 		.notNull()
 		.references(() => unidades.id, { onDelete: 'cascade' }),
-	dia: text('dia', { enum: ['sabado', 'domingo'] }).notNull(),
 	tipo: text('tipo', { enum: ['extraordinario', 'produtividade'] }).notNull(),
 	assinante_id: integer('assinante_id'),
 	assinante_nome: text('assinante_nome').notNull(),
@@ -338,7 +318,7 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	longitude: integer('longitude', { mode: 'number' }),
 	created_at: text('created_at').default(sql`(datetime('now'))`)
 }, (table) => [
-	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.dia, table.tipo),
+	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
 	index('idx_gise_ass_rel_gise').on(table.gise_id)
 ]);
 

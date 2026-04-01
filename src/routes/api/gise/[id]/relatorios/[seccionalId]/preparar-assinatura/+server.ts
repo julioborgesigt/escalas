@@ -1,5 +1,5 @@
 /**
- * POST /api/gise/[id]/relatorios/[seccionalId]/[dia]/preparar-assinatura
+ * POST /api/gise/[id]/relatorios/[seccionalId]/preparar-assinatura
  *
  * Prepara o PDF do Relatório Extraordinário (GISE) com placeholder de assinatura digital.
  */
@@ -10,7 +10,6 @@ import { getDB, buscarGiseDetalhado, buscarPresencasGise } from '$lib/db';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { prepararPdfParaAssinatura } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 
 export const POST = async ({ platform, params, locals, url, request }: RequestEvent) => {
 	const u = locals.usuario;
@@ -23,9 +22,8 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 
 	const id = parseInt(params.id!);
 	const secIdNum = parseInt(params.seccionalId!);
-	const dia = params.dia!;
-	
-	if (isNaN(id) || isNaN(secIdNum) || !['sabado', 'domingo'].includes(dia)) {
+
+	if (isNaN(id) || isNaN(secIdNum)) {
 		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
 	}
 
@@ -33,21 +31,18 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
-	const presencas = await buscarPresencasGise(db, id, dia as any);
+	const presencas = await buscarPresencasGise(db, id);
 
-	// Gerar PDF temporário para extrair a altura da assinatura (sigY)
-	const result = await gerarRelatorioExtraordinarioPdf(gise, dia as any, presencas, secIdNum, url.origin);
+	const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin);
 	const pdfBytes = result.pdf;
-	const sigY = result.finalY; // mm do topo
+	const sigY = result.finalY;
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
-	// Relatório Extraordinário usa layout A4 Retrato (210mm x 297mm) com assinatura centralizada
-	// sigCenterX = 210 / 2 = 105mm
-	const rubW_pts = 130; 
+	const rubW_pts = 130;
 	const rx_pts = (105 * 2.8346) - (rubW_pts / 2);
-	const ry_pts = (297 - sigY + 2) * 2.8346; // 2mm acima da linha de assinatura
+	const ry_pts = (297 - sigY + 2) * 2.8346;
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfBytes,

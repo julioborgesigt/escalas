@@ -31,12 +31,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const diaFinal = dia || 'ambos';
 
 		// Finalizar o PDF (assinado)
+		const pdfBytesInput = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
 		let signedPdfBytes: Uint8Array;
 		if (serproCms) {
-			signedPdfBytes = await embedSerproCms(new Uint8Array(Object.values(preparedPdf)), serproCms);
+			signedPdfBytes = await embedSerproCms(pdfBytesInput, serproCms);
 		} else {
 			signedPdfBytes = await finalizarAssinatura(
-				new Uint8Array(Object.values(preparedPdf)),
+				pdfBytesInput,
 				rawSignature,
 				certificateBase64,
 				messageDigest,
@@ -54,7 +55,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		}
 
 		// Registrar no banco com auditoria
-		await salvarGiseDocumento(db, id, documentKey, u.id, signerName || u.nome, signerCpf || '', verificationHash, diaFinal, undefined, ip, ua, latitude, longitude);
+		await salvarGiseDocumento(db, id, documentKey, u.id, signerName || u.nome, signerCpf || '', verificationHash, undefined, ip, ua, latitude, longitude);
 
 		return new Response(signedPdfBytes as any, {
 			headers: {
