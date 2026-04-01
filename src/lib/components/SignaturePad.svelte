@@ -215,7 +215,7 @@
 			}
 		}
 
-		const dataUrl = canvas.toDataURL('image/png');
+		const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
 		onConfirm(dataUrl, coords?.lat, coords?.lng, selfieBase64);
 	}
 </script>
