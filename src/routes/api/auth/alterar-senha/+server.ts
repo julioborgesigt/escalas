@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, validarSessao } from '$lib/auth';
+import { hashSenha, verificarSenha, validarSessao } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
@@ -28,24 +28,23 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 		if (!senha_atual) {
 			return json({ error: 'Senha atual é obrigatória' }, { status: 400 });
 		}
-		const senhaAtualHash = await hashSenha(senha_atual);
 
 		if (usuario.tipo === 'admin') {
 			const registro = await db
-				.select({ id: administradores.id })
+				.select({ senha: administradores.senha })
 				.from(administradores)
-				.where(and(eq(administradores.id, usuario.id), eq(administradores.senha, senhaAtualHash)))
+				.where(eq(administradores.id, usuario.id))
 				.get();
-			if (!registro) {
+			if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
 				return json({ error: 'Senha atual incorreta' }, { status: 401 });
 			}
 		} else {
 			const registro = await db
-				.select({ id: policiais.id })
+				.select({ senha: policiais.senha })
 				.from(policiais)
-				.where(and(eq(policiais.id, usuario.id), eq(policiais.senha, senhaAtualHash)))
+				.where(eq(policiais.id, usuario.id))
 				.get();
-			if (!registro) {
+			if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
 				return json({ error: 'Senha atual incorreta' }, { status: 401 });
 			}
 		}

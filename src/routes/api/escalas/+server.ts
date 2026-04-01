@@ -86,7 +86,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 	} catch (err) {
 		console.error('[POST /api/escalas] erro ao criar escala:', err);
 		const message = err instanceof Error ? err.message : String(err);
-		return json({ error: 'Erro interno ao criar escala', detail: message }, { status: 500 });
+		return json({ error: 'Erro interno ao criar escala' }, { status: 500 });
 	}
 };
 

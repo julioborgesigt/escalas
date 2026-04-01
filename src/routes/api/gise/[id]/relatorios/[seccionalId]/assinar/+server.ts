@@ -101,8 +101,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 	} catch (e: any) {
 		console.error(`[GISE-SIGN] Falha ao salvar assinatura: GISE ${id}, Sec ${seccionalId}. Erro:`, e);
 		return json({
-			error: 'Falha técnica ao gravar a assinatura no banco de dados.',
-			details: e.message
+			error: 'Falha técnica ao gravar a assinatura no banco de dados.'
 		}, { status: 500 });
 	}
 };
