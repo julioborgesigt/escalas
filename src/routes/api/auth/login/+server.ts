@@ -1,12 +1,22 @@
 import { json } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, criarSessao } from '$lib/auth';
+import { hashSenha, verificarSenha, isHashLegado, criarSessao } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ platform, request, cookies }) => {
+function cookieOptions(url: URL) {
+	return {
+		path: '/',
+		httpOnly: true,
+		sameSite: 'lax' as const,
+		secure: url.protocol === 'https:',
+		maxAge: 12 * 60 * 60
+	};
+}
+
+export const POST: RequestHandler = async ({ platform, request, cookies, url }) => {
 	const db = getDB(platform);
 	const body = await request.json();
 
@@ -16,27 +26,26 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 	}
 
 	const { matricula, senha, tipo } = parsed.data;
-	const senhaHash = await hashSenha(senha);
 
 	if (tipo === 'admin') {
 		const admin = await db
 			.select()
 			.from(administradores)
-			.where(and(eq(administradores.login, matricula), eq(administradores.senha, senhaHash)))
+			.where(eq(administradores.login, matricula))
 			.get();
 
-		if (!admin) {
+		if (!admin || !(await verificarSenha(senha, admin.senha))) {
 			return json({ error: 'Login ou senha inválidos' }, { status: 401 });
 		}
 
+		// Migração transparente: se o hash é legado (SHA-256), atualiza para PBKDF2
+		if (isHashLegado(admin.senha)) {
+			const novoHash = await hashSenha(senha);
+			await db.update(administradores).set({ senha: novoHash }).where(eq(administradores.id, admin.id));
+		}
+
 		const token = await criarSessao(db, 'admin', admin.id);
-		cookies.set('session_token', token, {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'lax',
-			secure: false,
-			maxAge: 12 * 60 * 60
-		});
+		cookies.set('session_token', token, cookieOptions(url));
 
 		return json({
 			success: true,
@@ -49,23 +58,21 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 	const policial = await db
 		.select()
 		.from(policiais)
-		.where(
-			and(eq(policiais.matricula, matricula), eq(policiais.senha, senhaHash), eq(policiais.ativo, 1))
-		)
+		.where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial) {
+	if (!policial || !(await verificarSenha(senha, policial.senha))) {
 		return json({ error: 'Matrícula ou senha inválidos' }, { status: 401 });
 	}
 
+	// Migração transparente: se o hash é legado (SHA-256), atualiza para PBKDF2
+	if (isHashLegado(policial.senha)) {
+		const novoHash = await hashSenha(senha);
+		await db.update(policiais).set({ senha: novoHash }).where(eq(policiais.id, policial.id));
+	}
+
 	const token = await criarSessao(db, 'policial', policial.id);
-	cookies.set('session_token', token, {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax',
-		secure: false,
-		maxAge: 12 * 60 * 60
-	});
+	cookies.set('session_token', token, cookieOptions(url));
 
 	return json({
 		success: true,

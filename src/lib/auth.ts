@@ -35,12 +35,69 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 	return isAdminGeral(u) || isAdminSeccional(u) || isAdminUnidade(u);
 }
 
+// ---- Hashing de senha ----
+
+const PBKDF2_PREFIX = 'pbkdf2v1:';
+const PBKDF2_ITERATIONS = 100_000;
+
+async function derivarPBKDF2(senha: string, salt: Uint8Array<ArrayBuffer>): Promise<string> {
+	const keyMaterial = await crypto.subtle.importKey(
+		'raw',
+		new TextEncoder().encode(senha) as BufferSource,
+		'PBKDF2',
+		false,
+		['deriveBits']
+	);
+	const hashBuffer = await crypto.subtle.deriveBits(
+		{ name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+		keyMaterial,
+		256
+	);
+	return Array.from(new Uint8Array(hashBuffer))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+/**
+ * Gera um hash seguro da senha usando PBKDF2 com salt aleatório.
+ * Formato: `pbkdf2v1:<salt_hex>:<hash_hex>`
+ */
 export async function hashSenha(senha: string): Promise<string> {
-	const encoder = new TextEncoder();
-	const data = encoder.encode(senha);
+	const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
+	const saltHex = Array.from(salt)
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+	const hashHex = await derivarPBKDF2(senha, salt);
+	return `${PBKDF2_PREFIX}${saltHex}:${hashHex}`;
+}
+
+/**
+ * Verifica se uma senha corresponde ao hash armazenado.
+ * Suporta hashes PBKDF2 (novo) e SHA-256 legado (migração automática).
+ */
+export async function verificarSenha(senha: string, storedHash: string): Promise<boolean> {
+	if (storedHash.startsWith(PBKDF2_PREFIX)) {
+		const parts = storedHash.slice(PBKDF2_PREFIX.length).split(':');
+		if (parts.length !== 2) return false;
+		const [saltHex, expectedHex] = parts;
+		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
+		if (!saltBytes) return false;
+		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
+		const actualHex = await derivarPBKDF2(senha, salt);
+		return actualHex === expectedHex;
+	}
+	// Suporte legado: SHA-256 sem salt — mantido para migração transparente
+	const data = new TextEncoder().encode(senha);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+	const legacyHash = Array.from(new Uint8Array(hashBuffer))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+	return legacyHash === storedHash;
+}
+
+/** Retorna true se o hash armazenado é legado (SHA-256 sem salt) e precisa ser migrado */
+export function isHashLegado(storedHash: string): boolean {
+	return !storedHash.startsWith(PBKDF2_PREFIX);
 }
 
 export function gerarToken(): string {
