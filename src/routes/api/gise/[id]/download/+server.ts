@@ -38,31 +38,40 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		const presencas = await buscarPresencasGise(db, id);
 
-		let reportSignature = seccionalId ? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario') : null;
+		const reportSignature = seccionalId
+			? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario')
+			: null;
 
 		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !reportSignature) {
 			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor.' }, { status: 403 });
 		}
 
 		let qrCodeBase64: string | undefined;
-		if (reportSignature && reportSignature.verification_hash) {
-			const QRCode = await import('qrcode');
-			const qrUrl = `${url.origin}/validar/${reportSignature.verification_hash}`;
-			qrCodeBase64 = await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: 'H' });
+		if (reportSignature?.verification_hash) {
+			try {
+				const QRCode = await import('qrcode');
+				const qrUrl = `${url.origin}/validar/${reportSignature.verification_hash}`;
+				qrCodeBase64 = await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: 'H' });
+			} catch (e) {
+				console.warn('[download-extraordinario] Falha ao gerar QR code, prosseguindo sem ele:', e);
+			}
 		}
 
-		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
-		const finalPdf = result.pdf;
-
-		const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
-		const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
-		return new Response(finalPdf as any, {
-			headers: {
-				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${filename}"`,
-				'Cache-Control': 'no-cache'
-			}
-		});
+		try {
+			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
+			const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
+			const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
+			return new Response(result.pdf as any, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': `attachment; filename="${filename}"`,
+					'Cache-Control': 'no-cache'
+				}
+			});
+		} catch (err) {
+			console.error(`[download-extraordinario] Erro ao gerar PDF — GISE ${id}, seccional ${seccionalId}:`, err);
+			return json({ error: 'Erro ao gerar o PDF do relatório extraordinário.' }, { status: 500 });
+		}
 	}
 
 	if (format === 'pdf') {
