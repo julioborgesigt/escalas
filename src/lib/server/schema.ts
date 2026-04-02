@@ -169,10 +169,19 @@ export const giseEscalas = sqliteTable(
 		hora_entrada: text('hora_entrada').notNull().default('08:00'),
 		hora_saida: text('hora_saida').notNull().default('16:00'),
 		status: text('status', {
-			enum: ['em_preenchimento', 'aguardando_assinatura', 'assinada', 'finalizada']
+			enum: [
+				'em_definicao_supervisor',
+				'em_preenchimento',
+				'aguardando_assinatura',
+				'em_andamento',
+				'aguardando_relatorios',
+				'aguardando_assinatura_relat',
+				'pronta_para_finalizar',
+				'finalizada'
+			]
 		})
 			.notNull()
-			.default('em_preenchimento'),
+			.default('em_definicao_supervisor'),
 		supervisor_id: integer('supervisor_id'),
 		created_at: text('created_at')
 			.notNull()

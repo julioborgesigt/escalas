@@ -33,9 +33,9 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 		return json({ error: 'Escala já finalizada' }, { status: 400 });
 	}
 
-	if (gise.status !== 'assinada') {
+	if (gise.status !== 'pronta_para_finalizar' && gise.status !== 'em_andamento') {
 		return json({
-			error: 'A escala deve estar assinada pelo Supervisor antes de ser finalizada'
+			error: 'A escala precisa estar com todos os relatórios de extra assinados antes de ser finalizada'
 		}, { status: 400 });
 	}
 

@@ -117,7 +117,15 @@ export const load = async ({ locals, platform, url }: any) => {
 		if (statusFilter === 'ativas' || statusFilter === 'finalizadas') {
 			let filters = [];
 			if (statusFilter === 'ativas') {
-				filters.push(inArray(giseEscalas.status, ['em_preenchimento', 'aguardando_assinatura', 'assinada']));
+				filters.push(inArray(giseEscalas.status, [
+					'em_definicao_supervisor',
+					'em_preenchimento',
+					'aguardando_assinatura',
+					'em_andamento',
+					'aguardando_relatorios',
+					'aguardando_assinatura_relat',
+					'pronta_para_finalizar'
+				]));
 			} else if (statusFilter === 'finalizadas') {
 				filters.push(eq(giseEscalas.status, 'finalizada'));
 			}

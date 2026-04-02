@@ -20,6 +20,8 @@
 	let novaDataFim = $state('');
 	let novaHoraEntrada = $state('08:00');
 	let novaHoraSaida = $state('16:00');
+	let modoCriacao = $state<'completa' | 'clonada'>('completa');
+	let clonarDeId = $state<number | ''>('');
 	let criando = $state(false);
 
 	function validarHora(v: string): boolean {
@@ -34,6 +36,12 @@
 	function abrirCriarModal() {
 		novaDataInicio = hoje();
 		novaDataFim = hoje();
+		modoCriacao = 'completa';
+		if (escalas.length > 0) {
+			clonarDeId = escalas[0].id;
+		} else {
+			clonarDeId = '';
+		}
 		showCriarModal = true;
 	}
 
@@ -55,7 +63,9 @@
 					data_inicio: novaDataInicio,
 					data_fim: novaDataFim || novaDataInicio,
 					hora_entrada: novaHoraEntrada,
-					hora_saida: novaHoraSaida
+					hora_saida: novaHoraSaida,
+					modo: modoCriacao,
+					clonar_de: modoCriacao === 'clonada' ? clonarDeId : undefined
 				})
 			});
 			const json = await res.json();
@@ -73,24 +83,29 @@
 		}
 	}
 
-	function statusLabel(ativa: any): string {
-		if (ativa.status === 'aguardando_assinatura' && ativa.temSaidaConfirmada && (isAdminGeral || isSupervisor)) {
-			return 'Aguardando supervisor assinar relatório de extra';
-		}
+	function statusLabel(status: string): string {
 		const labels: Record<string, string> = {
-			em_preenchimento: 'Em Preenchimento',
-			aguardando_assinatura: 'Aguardando Assinatura',
-			assinada: 'Assinada',
-			finalizada: 'Finalizada'
+			em_definicao_supervisor: 'Em definição do supervisor',
+			em_preenchimento: 'Preenchendo escalados',
+			aguardando_assinatura: 'Aguardando assinatura do supervisor',
+			em_andamento: 'GISE em operação',
+			aguardando_relatorios: 'Aguardando relatórios',
+			aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+			pronta_para_finalizar: 'Pronta para finalizar',
+			finalizada: 'Concluída'
 		};
-		return labels[ativa.status] ?? ativa.status;
+		return labels[status] ?? status;
 	}
 
 	function statusColor(status: string): string {
 		const colors: Record<string, string> = {
+			em_definicao_supervisor: 'bg-surface-500/15 text-surface-600 dark:text-surface-300',
 			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
 			aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
-			assinada: 'bg-success-500/15 text-success-700 dark:text-success-400',
+			em_andamento: 'bg-success-500/15 text-success-700 dark:text-success-400',
+			aguardando_relatorios: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
+			aguardando_assinatura_relat: 'bg-tertiary-500/15 text-tertiary-700 dark:text-tertiary-400',
+			pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
 			finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
 		};
 		return colors[status] ?? '';
@@ -175,7 +190,7 @@
 							</p>
 							<div class="flex items-center gap-2 mt-2">
 								<span class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}">
-									{statusLabel(ativa)}
+									{statusLabel(ativa.status)}
 								</span>
 								<span class="text-xs text-surface-500">{ativa.hora_entrada} às {ativa.hora_saida}</span>
 							</div>
@@ -295,6 +310,45 @@
 				</div>
 			</div>
 
+			<!-- Tipo de Criação -->
+			<div class="space-y-3">
+				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Tipo de Escala</p>
+				<div class="grid grid-cols-2 gap-3">
+					<button
+						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao === 'completa' ? 'border-primary-500 bg-primary-500/10 text-primary-600' : 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'completa')}
+					>
+						<span class="font-bold text-xs">Escala Completa</span>
+						<span class="text-[0.6rem] opacity-70">Seccionais padrão</span>
+					</button>
+					<button
+						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao === 'clonada' ? 'border-primary-500 bg-primary-500/10 text-primary-600' : 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'clonada')}
+						disabled={escalas.length === 0}
+					>
+						<span class="font-bold text-xs">Copiar de...</span>
+						<span class="text-[0.6rem] opacity-70">Equipes de outra escala</span>
+					</button>
+				</div>
+
+				{#if modoCriacao === 'clonada'}
+					<div class="mt-2 animate-in fade-in slide-in-from-top-1 duration-300">
+						<label for="clonarDe" class="text-[0.65rem] font-medium text-surface-500 dark:text-surface-400 block mb-1">Escolha a escala de origem</label>
+						<select
+							id="clonarDe"
+							bind:value={clonarDeId}
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+						>
+							{#each escalas.slice(0, 10) as esc}
+								<option value={esc.id}>
+									GISE — {diaSemana(esc.data_inicio)} {fmtDate(esc.data_inicio)} ({esc.status})
+								</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
+			</div>
+
 			<div class="flex justify-end gap-3 pt-2">
 				<button
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
@@ -305,10 +359,10 @@
 				<button
 					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
 					onclick={criarGise}
-					disabled={criando || !novaDataInicio}
+					disabled={criando || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
 				>
 					{#if criando}<Spinner size="sm" />{/if}
-					{criando ? 'Criando...' : 'Criar'}
+					{criando ? 'Criando...' : 'Criar Escala'}
 				</button>
 			</div>
 		</div>

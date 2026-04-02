@@ -28,7 +28,7 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'assinada') {
+	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
 		return json({ error: 'A escala não está pronta para assinatura' }, { status: 400 });
 	}
 
@@ -48,11 +48,14 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 
 	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
 
+	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
+	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : '';
+
 	// Use default positions for rubrica so it goes directly above the PKI box.
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfBytes,
-		signerName || u.nome,
-		signerCpf || '',
+		finalSignerName,
+		finalSignerCpf,
 		'right',
 		verificationHash,
 		verificationUrl,

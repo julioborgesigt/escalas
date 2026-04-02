@@ -6,6 +6,18 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	build: {
 		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (id.includes('node_modules')) {
+						if (id.includes('@vladmandic/face-api')) return 'face-api';
+						if (id.includes('pdf-lib') || id.includes('jspdf') || id.includes('@signpdf')) return 'pdf';
+						if (id.includes('docx') || id.includes('xlsx')) return 'office';
+						if (id.includes('chart.js')) return 'charts';
+						if (id.includes('node-forge') || id.includes('web-pki')) return 'crypto';
+						return 'vendor';
+					}
+				}
+			},
 			onwarn(warning, warn) {
 				if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
 				warn(warning);

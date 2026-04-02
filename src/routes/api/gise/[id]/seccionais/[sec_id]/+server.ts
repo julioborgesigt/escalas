@@ -56,7 +56,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
 
-	if (!isAdminGeral(u) && (gise.status === 'finalizada' || gise.status === 'assinada')) {
+	if (!isAdminGeral(u) && (
+		gise.status === 'finalizada' ||
+		gise.status === 'em_andamento' ||
+		gise.status === 'aguardando_relatorios' ||
+		gise.status === 'aguardando_assinatura_relat' ||
+		gise.status === 'pronta_para_finalizar'
+	)) {
 		return json({ error: 'Escala já está fechada para edição' }, { status: 400 });
 	}
 
@@ -97,7 +103,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 			revogouAssinatura = true;
 		}
 
-		if (gise.status === 'aguardando_assinatura' || gise.status === 'assinada') {
+		if (gise.status === 'aguardando_assinatura' || gise.status === 'em_andamento') {
 			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 		}
 	}

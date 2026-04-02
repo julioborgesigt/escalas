@@ -238,7 +238,7 @@
 			toaster.success({ title: "Entrada confirmada com sucesso" });
 			capturandoRubrica = false;
 			await invalidateAll();
-			
+
 			const atualizada = data.minhasEscalas?.find(
 				(e: any) => e.id === escalaSelecionada.id,
 			);
@@ -248,7 +248,7 @@
 				// Fallback manual para garantir que o UI reaja imediatamente
 				escalaSelecionada.presenca = {
 					...escalaSelecionada.presenca,
-					entrada_timestamp: new Date().toISOString()
+					entrada_timestamp: new Date().toISOString(),
 				};
 			}
 		} catch (e: any) {
@@ -278,7 +278,7 @@
 			toaster.success({ title: "Saída confirmada com sucesso" });
 			capturandoRubrica = false;
 			await invalidateAll();
-			
+
 			// Força a atualização local do estado para garantir que o botão suma mediatamente
 			// caso o invalidateAll demore um pouco para atualizar as props
 			const atualizada = data.minhasEscalas?.find(
@@ -290,7 +290,7 @@
 				// Fallback manual se a lista ainda não tiver atualizado
 				escalaSelecionada.presenca = {
 					...escalaSelecionada.presenca,
-					saida_timestamp: new Date().toISOString()
+					saida_timestamp: new Date().toISOString(),
 				};
 			}
 		} catch (e: any) {
@@ -301,7 +301,6 @@
 	}
 
 	let lendoA3 = $state(false);
-
 
 	async function baixarRelatorio(escala: any) {
 		try {
@@ -1219,7 +1218,8 @@
 					</div>
 				{:else}
 					<p class="text-sm text-surface-500 italic px-2">
-						Nenhuma escala gise encontrada para o seu perfil.
+						Nenhuma escala gise encontrada para o seu perfil ou você
+						já enviou o relatório.
 					</p>
 				{/each}
 			</div>
@@ -1340,7 +1340,9 @@
 						{:else if !escalaSelecionada.presenca?.entrada_timestamp}
 							<div class="p-4 sm:p-6 space-y-8">
 								<div class="space-y-2">
-									<h3 class="font-bold uppercase text-sm tracking-wider">
+									<h3
+										class="font-bold uppercase text-sm tracking-wider"
+									>
 										Confirmação de Entrada
 									</h3>
 									<p class="text-xs text-surface-500">
@@ -1780,7 +1782,8 @@
 						</div>
 						<p class="text-surface-500">
 							Selecione uma escala à esquerda para preencher o
-							formulário de resultados.
+							formulário de resultados. Só irá aparecer alguma
+							opção, caso o envio esteja pendente.
 						</p>
 					</div>
 				{/if}

@@ -1,8 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, salvarAssinaturaRelatorioGise, buscarGiseDetalhado, buscarPresencasGise } from '$lib/db';
+import {
+	getDB,
+	salvarAssinaturaRelatorioGise,
+	buscarGiseDetalhado,
+	buscarPresencasGise,
+	buscarGiseEscala,
+	verificarTodosRelatoriosExtraAssinados,
+	atualizarGiseEscala
+} from '$lib/db';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
-import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
+import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
 export const POST = async ({ locals, params, request, platform, getClientAddress, url }: RequestEvent) => {
 	const u = locals.usuario;
@@ -42,8 +50,32 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 		finalPdf = await adicionarRodapeSimples(finalPdf, mockSignature.assinante_nome, {
 			verificationHash: hash,
+			verificationUrl: qrUrl
+		});
+
+		// Calcular Hash do original (Integridade)
+		const originalHashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
+		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		// Adicionar folha de auditoria (Manifesto) profissional
+		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
+			signerName: signerName || u.nome,
+			signerCpf: signerCpf || (u as any).cpf,
+			signingTime: new Date(),
+			verificationHash: hash,
 			verificationUrl: qrUrl,
-			rubricBase64: rubrica || undefined
+			ip,
+			userAgent: ua,
+			latitude,
+			longitude,
+			selfieBase64: selfieBase64,
+			rubricBase64: rubrica || undefined,
+			documentHash,
+			token: crypto.randomUUID(),
+			documentName: `Relatório Extraordinário - GISE ${id}`,
+			signatureLevel: 'avancada'
 		});
 
 		const hashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
@@ -53,8 +85,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 		const p = platform as any;
 		const r2 = p?.env?.escalas_docs;
-		const mesAno = gise.data_inicio.substring(0, 7);
-		const folder = `gise/${mesAno}/escala_${id}`;
+		const [yyyy, mm, dd] = (gise as any).data_inicio.split('-');
+		const mesAno = `${yyyy}-${mm}`;
+		const folder = `gise/${mesAno}/${dd}/${id}/relatorios_extra`;
 		const prefixBase = `${folder}/gise_rel_${id}_sec_${seccionalId}_${hash}`;
 
 		let selfieKey: string | undefined = undefined;
@@ -96,6 +129,15 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			selfie_key: selfieKey,
 			arquivo_hash: arquivo_hash
 		});
+
+		// Transição automática: se todos os relatórios de extra foram assinados → pronta_para_finalizar
+		const giseAtual = await buscarGiseEscala(db, giseIdNum);
+		if (giseAtual && giseAtual.status === 'aguardando_assinatura_relat') {
+			const todosAssinados = await verificarTodosRelatoriosExtraAssinados(db, giseIdNum);
+			if (todosAssinados) {
+				await atualizarGiseEscala(db, giseIdNum, { status: 'pronta_para_finalizar' });
+			}
+		}
 
 		return json({ success: true });
 	} catch (e: any) {

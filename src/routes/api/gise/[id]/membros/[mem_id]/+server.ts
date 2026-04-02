@@ -21,7 +21,7 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, giseId);
-	if (!gise || gise.status === 'finalizada' || gise.status === 'assinada') {
+	if (!gise || gise.status === 'finalizada' || gise.status === 'em_andamento' || gise.status === 'aguardando_relatorios' || gise.status === 'aguardando_assinatura_relat' || gise.status === 'pronta_para_finalizar') {
 		return json({ error: 'Escala não disponível para edição' }, { status: 400 });
 	}
 
