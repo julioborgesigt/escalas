@@ -33,25 +33,50 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 
 	const presencas = await buscarPresencasGise(db, id);
 
-	const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin);
+	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
+	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '';
+
+	const mockSignature = {
+		assinante_nome: finalSignerName,
+		assinante_matricula: (u as any)?.matricula || '—'
+	};
+
+	const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature, undefined, true);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
+	// Conversão de mm (jsPDF) para pts (pdf-lib)
+	const mmToPts = 2.8346;
+	const pageHeight_mm = 210; // A4 landscape height is 210mm? NO, it's orientation: landscape, so height is 210, width 297.
+	// Wait, jsPDF {orientation: 'landscape', format: 'a4'} means 297mm width, 210mm height.
+	// Let's check export.ts: doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+	// Page height for A4 landscape is 210mm.
+
 	const rubW_pts = 130;
-	const rx_pts = (105 * 2.8346) - (rubW_pts / 2);
-	const ry_pts = (297 - sigY + 2) * 2.8346;
+	const rx_pts = (297 / 2 - (rubW_pts / mmToPts) / 2) * mmToPts; // Centralizado
+	
+	// A linha de assinatura está em sigY (mm do topo). 
+	// Em pdf-lib (pts da base): 
+	const sigY_pts = (210 - sigY) * mmToPts;
+	
+	// Queremos a rubrica logo acima da linha
+	const ry_pts = sigY_pts + (2 * mmToPts); 
+	
+	// O carimbo (box azul) deve ficar acima da linha também.
+	// O box tem 70pts de altura. Vamos colocar sua base 5mm acima da linha.
+	const boxY_pts = sigY_pts + (5 * mmToPts);
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfBytes,
-		signerName || u.nome,
-		signerCpf || (u as any)?.cpf || '',
+		finalSignerName,
+		finalSignerCpf,
 		'center',
 		verificationHash,
 		verificationUrl,
-		undefined,
+		boxY_pts,
 		rubrica || undefined,
 		rx_pts,
 		ry_pts

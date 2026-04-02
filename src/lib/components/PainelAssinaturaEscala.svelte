@@ -744,9 +744,9 @@
 			</div>
 
 			<div class="flex gap-2 items-center flex-wrap">
-				<!-- Botão Web PKI -->
+				<!-- Botão Web PKI (Oculto conforme solicitação, mas mantendo lógica para leitura de certificados) -->
 				<button
-					class="btn btn-sm preset-filled-success-500"
+					class="btn btn-sm preset-filled-success-500 hidden"
 					onclick={assinarComWebPKI}
 					disabled={assinando || !certSelecionado}
 					title="Requer usar o Leitor de Tokens primeiro"

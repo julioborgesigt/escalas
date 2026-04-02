@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarRespostaGise, salvarRespostaGise } from '$lib/db';
+import { getDB, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala } from '$lib/db';
 
 export const GET = async ({ locals, params, url, platform }: any) => {
 	const u = locals.usuario;
@@ -31,5 +31,18 @@ export const POST = async ({ locals, params, request, platform }: any) => {
 
 	const db = getDB(platform);
 	await salvarRespostaGise(db, giseId, u.id, JSON.stringify(respostas), equipeId);
+
+	// Verificar transição de status: se todos saíram e todos enviaram, avança para aguardando_assinatura_relat
+	const gise = await buscarGiseEscala(db, giseId);
+	if (gise && gise.status === 'aguardando_relatorios') {
+		const [todosSairam, todosEnviaram] = await Promise.all([
+			verificarTodosSairam(db, giseId),
+			verificarTodosRelatoriosEnviados(db, giseId)
+		]);
+		if (todosSairam && todosEnviaram) {
+			await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura_relat' });
+		}
+	}
+
 	return json({ ok: true });
 };

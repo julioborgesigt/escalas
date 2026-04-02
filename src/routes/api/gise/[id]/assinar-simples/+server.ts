@@ -10,7 +10,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { gerarPdfGise } from '$lib/export';
-import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
+import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
@@ -30,7 +30,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
-	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'assinada') {
+	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
 		return json({ error: 'A escala não está pronta para assinatura' }, { status: 400 });
 	}
 
@@ -68,21 +68,47 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			}
 		);
 
-		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfComRodape.slice());
+		// Calcular Hash do original (Integridade)
+		const originalHashBuffer = await crypto.subtle.digest('SHA-256', pdfComRodape.slice());
+		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		// Adicionar folha de auditoria (Manifesto) profissional
+		const pdfFinal = await adicionarPaginaAuditoria(pdfComRodape, {
+			signerName: u.nome,
+			signerCpf: (u as any).cpf,
+			signingTime: new Date(),
+			verificationHash,
+			verificationUrl: `${url.origin}/validar/${verificationHash}`,
+			ip,
+			userAgent: ua,
+			latitude,
+			longitude,
+			selfieBase64: selfieBase64,
+			rubricBase64: rubrica || undefined,
+			documentHash,
+			token: crypto.randomUUID(),
+			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
+			signatureLevel: 'avancada'
+		});
+
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfFinal.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		const r2 = (platform as any)?.env?.escalas_docs;
-		const mesAno = gise.data_inicio.substring(0, 7);
-		const folder = `gise/${mesAno}/escala_${id}`;
+		const [yyyy, mm, dd] = gise.data_inicio.split('-');
+		const mesAno = `${yyyy}-${mm}`;
+		const folder = `gise/${mesAno}/${dd}/${id}/escala`;
 		const prefixBase = `${folder}/gise_${id}_${verificationHash}`;
 
 		const documentKey = `${prefixBase}_assinada.pdf`;
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(documentKey, pdfComRodape, { contentType: 'application/pdf' });
+			await r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' });
 
 			if (selfieBase64) {
 				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
@@ -102,10 +128,10 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		}
 
 		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, rubrica, ip, ua, latitude, longitude, selfieKey, arquivo_hash);
-		await atualizarGiseEscala(db, id, { status: 'assinada' });
+		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
 
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
-		return new Response(pdfComRodape as any, {
+		return new Response(pdfFinal as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`

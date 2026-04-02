@@ -8,9 +8,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as XLSX from 'xlsx';
-import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise } from '$lib/db';
+import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise, buscarGiseEscala } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { gerarPdfGise, gerarRelatorioExtraordinarioPdf } from '$lib/export';
+import { adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
@@ -46,6 +47,38 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor.' }, { status: 403 });
 		}
 
+		const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
+		const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
+
+		// Tentar buscar no R2 (independente de ser token ou manual)
+		if (reportSignature?.verification_hash) {
+			const p = platform as any;
+			const r2 = p?.env?.escalas_docs;
+			if (r2) {
+				try {
+					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
+					const mesAno = `${yyyy}-${mm}`;
+					const folder = `gise/${mesAno}/${dd_escala}/${id}/relatorios_extra`;
+					const r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
+					
+					const r2Object = await r2.get(r2Key);
+					if (r2Object) {
+						const pdfBytes = await r2Object.arrayBuffer();
+						return new Response(pdfBytes, {
+							headers: {
+								'Content-Type': 'application/pdf',
+								'Content-Disposition': `attachment; filename="${filename}"`,
+								'Cache-Control': 'no-cache'
+							}
+						});
+					}
+				} catch (e) {
+					console.warn('[download-extraordinario] Falha ao buscar PDF do R2:', e);
+				}
+			}
+		}
+
+		// Fallback: gerar via jsPDF (assinatura simples ou PDF não encontrado no R2)
 		let qrCodeBase64: string | undefined;
 		if (reportSignature?.verification_hash) {
 			try {
@@ -59,9 +92,26 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		try {
 			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
-			const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
-			const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
-			return new Response(result.pdf as any, {
+			let finalPdf = result.pdf;
+
+			// Fallback: Adicionar manifesto se tiver dados de assinatura mas PDF não estava no R2
+			if (reportSignature && reportSignature.verification_hash) {
+				finalPdf = await adicionarPaginaAuditoria(finalPdf, {
+					signerName: reportSignature.assinante_nome,
+					signerCpf: reportSignature.assinante_cpf ?? undefined,
+					signingTime: new Date(reportSignature.created_at || Date.now()),
+					verificationHash: reportSignature.verification_hash,
+					verificationUrl: `${url.origin}/validar/${reportSignature.verification_hash}`,
+					ip: (reportSignature as any).ip_address,
+					userAgent: (reportSignature as any).user_agent,
+					latitude: (reportSignature as any).latitude,
+					longitude: (reportSignature as any).longitude,
+					selfieBase64: (reportSignature as any).selfie_key ? undefined : undefined,
+					signatureLevel: 'avancada'
+				});
+			}
+
+			return new Response(finalPdf as any, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': `attachment; filename="${filename}"`,
@@ -74,13 +124,39 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 	}
 
+
 	if (format === 'pdf') {
+		const filename = `gise_${gise.data_inicio}_assinada.pdf`;
+		
+		// Prioridade total: buscar o PDF assinado (com manifesto) no R2
+		if (gise.documento?.r2_key) {
+			const p = platform as any;
+			const r2 = p?.env?.escalas_docs;
+			if (r2) {
+				try {
+					const r2Object = await r2.get(gise.documento.r2_key);
+					if (r2Object) {
+						const pdfBytes = await r2Object.arrayBuffer();
+						return new Response(pdfBytes, {
+							headers: {
+								'Content-Type': 'application/pdf',
+								'Content-Disposition': `attachment; filename="${filename}"`,
+								'Cache-Control': 'no-cache'
+							}
+						});
+					}
+				} catch (e) {
+					console.warn('[download-pdf] Falha ao buscar PDF assinado de R2:', e);
+				}
+			}
+		}
+
+		// Fallback: gerar PDF normal (rascunho ou erro no R2)
 		const result = gerarPdfGise(gise);
-		const filename = `gise_${gise.data_inicio}.pdf`;
 		return new Response(result.pdf as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${filename}"`,
+				'Content-Disposition': `attachment; filename="rascunho_${gise.data_inicio}.pdf"`,
 				'Cache-Control': 'no-cache'
 			}
 		});
@@ -110,7 +186,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	}
 
-	if (gise.status !== 'assinada' && gise.status !== 'finalizada') {
+	if (gise.status !== 'em_andamento' && gise.status !== 'aguardando_relatorios' && gise.status !== 'aguardando_assinatura_relat' && gise.status !== 'pronta_para_finalizar' && gise.status !== 'finalizada') {
 		return json(
 			{ error: 'A escala ainda não foi assinada. O download só é liberado após a assinatura do Supervisor.' },
 			{ status: 400 }
@@ -216,10 +292,14 @@ function fmtDate(iso: string): string {
 
 function statusLabel(status: string): string {
 	const m: Record<string, string> = {
-		em_preenchimento: 'Em Preenchimento',
-		aguardando_assinatura: 'Aguardando Assinatura',
-		assinada: 'Assinada',
-		finalizada: 'Finalizada'
+		em_definicao_supervisor: 'Em definição do supervisor',
+		em_preenchimento: 'Preenchendo escalados',
+		aguardando_assinatura: 'Aguardando assinatura do supervisor',
+		em_andamento: 'GISE em operação',
+		aguardando_relatorios: 'Aguardando relatórios',
+		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+		pronta_para_finalizar: 'Pronta para finalizar',
+		finalizada: 'Concluída'
 	};
 	return m[status] ?? status;
 }

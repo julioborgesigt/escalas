@@ -423,10 +423,9 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 	});
 
 	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
-	// Footer e assinatura logo após a tabela
-	let sigY = lastY + 35;
-	if (sigY > 180) {
-
+	// Footer e assinatura logo após a tabela - aumentado offset para evitar sobreposição
+	let sigY = lastY + 45;
+	if (sigY > 185) {
 		doc.addPage();
 		sigY = 35;
 	}
@@ -720,9 +719,9 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 
 	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
 
-	// Footer e assinatura logo após a tabela - aumentado para evitar sobreposição do carimbo
-	let sigY = lastY + 35;
-	if (sigY > 180) {
+	// Footer e assinatura logo após a tabela - aumentado offset para evitar sobreposição
+	let sigY = lastY + 45;
+	if (sigY > 190) {
 		doc.addPage();
 		sigY = 35;
 	}
@@ -885,10 +884,10 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 
 	// Assinatura
 	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
-	let sigY = lastY + 30;
+	let sigY = lastY + 40;
 	if (sigY > 185) {
 		doc.addPage();
-		sigY = 30;
+		sigY = 35;
 	}
 
 	const sigCenterX = pageWidth * 0.75;
@@ -998,7 +997,7 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: y };
 }
 
-export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presencas: any[], seccionalId?: number, baseUrl?: string, reportSignature?: any, qrCodeBase64?: string): Promise<PdfExportResult> {
+export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presencas: any[], seccionalId?: number, baseUrl?: string, reportSignature?: any, qrCodeBase64?: string, isPreparando = false): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 	const margin = 10;
@@ -1085,28 +1084,34 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
 		didDrawCell: (data) => {
 			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
-				const imgData = (data.cell.raw as any).image;
-				if (imgData) {
-					const targetW = data.cell.width - 4;
-					const targetH = targetW / 2;
-					const xPos = data.cell.x + 2;
-					const yPos = data.cell.y + (data.cell.height - targetH) / 2;
-					
-					// Verifica se o dado é uma imagem base64 válida
-					if (typeof imgData === 'string' && imgData.startsWith('data:image/')) {
-						try {
-							const format = getImgFormat(imgData);
-							doc.addImage(imgData, format || 'PNG', xPos, yPos, targetW, targetH);
-						} catch (e) {
-							console.warn('Erro ao inserir imagem no PDF:', e);
-							doc.setFontSize(6);
-							doc.text('Assinatura Inválida', xPos, yPos + 4);
-						}
-					} else if (typeof imgData === 'string' && imgData.length > 0) {
-						// Se for um texto (assinatura antiga via A3), escreve o texto
-						doc.setFontSize(5);
-						doc.text(doc.splitTextToSize(imgData, targetW), xPos, yPos);
+				const rawCell = data.cell.raw as any;
+				const imgData = rawCell?.image ?? rawCell;
+
+				// Só tenta inserir se for uma string base64 com prefixo data:image/
+				// Qualquer outro valor (URL, string sem prefixo, null) é ignorado
+				// para evitar o quadrado preto gerado pelo jsPDF quando recebe dados inválidos
+				const isValidBase64Image = typeof imgData === 'string' &&
+					imgData.startsWith('data:image/') &&
+					imgData.includes(';base64,') &&
+					imgData.length > 200; // base64 real tem pelo menos 200 caracteres
+
+				if (!isValidBase64Image) return;
+
+				const targetW = data.cell.width - 4;
+				const targetH = targetW / 2;
+				const xPos = data.cell.x + 2;
+				const yPos = data.cell.y + (data.cell.height - targetH) / 2;
+
+				try {
+					const format = getImgFormat(imgData);
+					if (!format) {
+						// Formato indeterminado — não renderizar para evitar quadro preto
+						return;
 					}
+					doc.addImage(imgData, format, xPos, yPos, targetW, targetH, undefined, 'FAST');
+				} catch (e) {
+					// Em caso de erro, não renderizar nada (melhor que quadro preto)
+					console.warn('[relatorio-extra] Erro ao inserir rúbrica na célula:', e);
 				}
 			}
 		},
@@ -1123,8 +1128,8 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		}
 	});
 	const lastAutoY = (doc as any).lastAutoTable?.finalY ?? y;
-	let sigY = lastAutoY + 30;
-	if (sigY > 180) { doc.addPage(); sigY = 30; }
+	let sigY = lastAutoY + 40;
+	if (sigY > 185) { doc.addPage(); sigY = 40; }
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
@@ -1134,10 +1139,12 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	const sigCenterX = pageWidth / 2;
 
 	if (!reportSignature) {
-		doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
-		doc.setFont('helvetica', 'italic');
-		doc.setFontSize(10);
-		doc.text('AGUARDANDO CONFERÊNCIA E ASSINATURA DO SUPERVISOR', sigCenterX, sigY + 8, { align: 'center' });
+		if (!isPreparando) {
+			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
+			doc.setFont('helvetica', 'italic');
+			doc.setFontSize(10);
+			doc.text('Aguardando Conferência e Assinatura do Supervisor', sigCenterX, sigY + 8, { align: 'center' });
+		}
 	} else {
 		if (reportSignature.rubrica) {
 			try {
@@ -1151,7 +1158,8 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		}
 		doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
 		doc.setFont('helvetica', 'bold');
-		doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), sigCenterX, sigY + 5, { align: 'center' });
+		const textoAssinatura = `Assinado digitalmente por "${(reportSignature.assinante_nome ?? '').toUpperCase()} - Mat.: ${reportSignature.assinante_matricula ?? '—'}"`;
+		doc.text(textoAssinatura, sigCenterX, sigY + 5, { align: 'center' });
 		doc.setFont('helvetica', 'normal');
 		doc.setFontSize(9);
 		doc.text('Delegado Supervisor', sigCenterX, sigY + 10, { align: 'center' });

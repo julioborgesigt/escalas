@@ -2,6 +2,8 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
+	// Imports necessários para assinatura em lote de relatórios extraordinários
 	import { initWebPKI, listarCertificados, assinarHash, lerCertificado, type WebPKICertificate } from '$lib/webpki';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 
@@ -103,20 +105,27 @@
 
 	function statusLabel(status: string) {
 		const m: Record<string, string> = {
-			em_preenchimento: 'Em Preenchimento',
-			aguardando_assinatura: 'Aguardando Assinatura',
-			assinada: 'Assinada',
-			finalizada: 'Finalizada',
-			retificada: 'Preenchida (Retificada)'
+			em_definicao_supervisor: 'Em definição do supervisor',
+			em_preenchimento: 'Preenchendo escalados',
+			aguardando_assinatura: 'Aguardando assinatura do supervisor',
+			em_andamento: 'GISE em operação',
+			aguardando_relatorios: 'Aguardando relatórios',
+			aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+			pronta_para_finalizar: 'Pronta para finalizar',
+			finalizada: 'Concluída'
 		};
 		return m[status] ?? status;
 	}
 
 	function statusColor(status: string) {
 		const m: Record<string, string> = {
+			em_definicao_supervisor: 'bg-surface-500/15 text-surface-600 dark:text-surface-300',
 			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
 			aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
-			assinada: 'bg-success-500/15 text-success-700 dark:text-success-400',
+			em_andamento: 'bg-success-500/15 text-success-700 dark:text-success-400',
+			aguardando_relatorios: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
+			aguardando_assinatura_relat: 'bg-tertiary-500/15 text-tertiary-700 dark:text-tertiary-400',
+			pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
 			finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
 		};
 		return m[status] ?? '';
@@ -310,17 +319,23 @@
 	let assinandoSimples = $state(false);
 	let etapaAssinatura = $state('');
 
-	// Web PKI
+	// Componente PainelAssinaturaToken (GISE principal)
+	let painelTokenGise = $state<ReturnType<typeof PainelAssinaturaToken> | null>(null);
+	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
+	let serproSignerCpf = $state('');
+
+	// Web PKI e SERPRO — usados pelo bloco de assinatura em LOTE de relatórios
 	let certificados = $state<WebPKICertificate[]>([]);
 	let certSelecionado = $state('');
 	let lendoCertificados = $state(false);
 	let tentouLerCertificados = $state(false);
 	let pkInstance = $state<any>(null);
-
-	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
-	let serproSignerCpf = $state('');
+
+	// Componente PainelAssinaturaToken (relatório extraordinário por seccional)
+	let painelTokenRelatorio = $state<ReturnType<typeof PainelAssinaturaToken> | null>(null);
+	let relatorioSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
+	let relatorioSignerCpf = $state('');
 
 	// Rubrica modal
 	let showRubricaModal = $state(false);
@@ -387,6 +402,16 @@
 		}
 	}
 
+	/** Delega ao PainelAssinaturaToken (executa via bind:this) */
+	async function executarAssinarComWebPKI(_lat?: number, _lng?: number) {
+		await painelTokenGise?.assinarComWebPKI();
+	}
+
+	async function executarAssinarComSerpro(_lat?: number, _lng?: number) {
+		await painelTokenGise?.assinarComSerpro();
+	}
+
+	/** Carrega certificados para o bloco de assinatura em LOTE de relatórios extraordinários */
 	async function carregarCertificadosLocais() {
 		lendoCertificados = true;
 		tentouLerCertificados = false;
@@ -407,136 +432,18 @@
 		}
 	}
 
-	async function executarAssinarComWebPKI(latitude?: number, longitude?: number) {
-		if (!certSelecionado) return;
-		assinando = true;
-		etapaAssinatura = 'Preparando PDF...';
-
-		try {
-			const pki = await initWebPKI();
-			const cert = certificados.find(c => c.thumbprint === certSelecionado);
-
-			const prepResp = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({
-					signerName: cert?.subjectName ?? serproSignerName,
-					signerCpf: cert?.cpf ?? serproSignerCpf,
-					rubrica: rubricaCapturada
-				})
-			});
-			if (!prepResp.ok) throw new Error((await prepResp.json()).error);
-			const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, verificationHash } = await prepResp.json();
-
-			etapaAssinatura = 'Lendo certificado e assinando (digite o PIN)...';
-			const certificateBase64 = await lerCertificado(pki, certSelecionado);
-			const signature = await assinarHash(pki, certSelecionado, signedAttrsHashHex);
-
-			etapaAssinatura = 'Finalizando...';
-			const finResp = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({
-					preparedPdf,
-					rawSignature: signature,
-					certificateBase64,
-					messageDigest,
-					signingTimeISO,
-					signerName: cert?.subjectName ?? serproSignerName,
-					signerCpf: cert?.cpf ?? serproSignerCpf,
-					verificationHash,
-					latitude,
-					longitude
-				})
-			});
-
-			if (!finResp.ok) throw new Error((await finResp.json()).error);
-
-			const blob = await finResp.blob();
-			const url = URL.createObjectURL(blob);
-			window.open(url, '_blank');
-
-			toaster.success({ title: 'Escala assinada com sucesso!' });
-			await invalidateAll();
-		} catch (err: any) {
-			toaster.error({ title: 'Erro na assinatura Web PKI', description: err.message });
-		} finally {
-			assinando = false;
-			rubricaCapturada = null;
-			etapaAssinatura = '';
-		}
-	}
-
-	async function executarAssinarComSerpro(latitude?: number, longitude?: number) {
-		assinando = true;
-		etapaAssinatura = 'Iniciando SERPRO...';
-
-		try {
-			const client = serproClient ?? (await conectarSerpro());
-			serproClient = client;
-
-			etapaAssinatura = 'Gerando PDF e preparando assinatura...';
-			const prepResp = await fetch(`/api/gise/${gise.id}/preparar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({
-					signerName: serproSignerName,
-					signerCpf: serproSignerCpf,
-					rubrica: rubricaCapturada
-				})
-			});
-			if (!prepResp.ok) throw new Error((await prepResp.json()).error);
-			const { preparedPdf, messageDigest: messageDigestHex, verificationHash } = await prepResp.json();
-
-			const messageDigestBase64 = btoa(
-				messageDigestHex.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join('')
-			);
-
-			etapaAssinatura = 'Assinando no SERPRO...';
-			const result = await client.sign(messageDigestBase64);
-			const serproCms = result.rawSignature;
-
-			etapaAssinatura = 'Finalizando...';
-			const finResp = await fetch(`/api/gise/${gise.id}/finalizar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({
-					preparedPdf,
-					serproCms,
-					signerName: serproSignerName,
-					signerCpf: serproSignerCpf,
-					verificationHash,
-					latitude,
-					longitude
-				})
-			});
-
-			if (!finResp.ok) throw new Error((await finResp.json()).error);
-
-			const blob = await finResp.blob();
-			const url = URL.createObjectURL(blob);
-			window.open(url, '_blank');
-
-			toaster.success({ title: 'Escala assinada com sucesso!' });
-			await invalidateAll();
-		} catch (err: any) {
-			toaster.error({ title: 'Erro na assinatura SERPRO', description: err.message });
-		} finally {
-			assinando = false;
-			rubricaCapturada = null;
-			etapaAssinatura = '';
-		}
-	}
-
-	async function finalizarGise(modo: 'clonada' | 'completa' = 'clonada') {
+	async function finalizarGise() {
 		finalizando = true;
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/finalizar`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ modo })
+				headers: { 'Content-Type': 'application/json' }
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
-			toaster.success({ title: 'Escala finalizada!', description: `Nova escala criada (ID ${json.nova_gise_id})` });
+			toaster.success({ title: 'Escala finalizada!' });
 			showFinalizarConfirm = false;
-			goto(`/gise/${json.nova_gise_id}`);
+			goto('/gise');
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {
@@ -915,17 +822,29 @@
 		}
 	}
 
-	const podeFinalizar = $derived(isAdminGeral && gise?.status === 'assinada');
+	const podeFinalizar = $derived(isAdminGeral && (gise?.status === 'pronta_para_finalizar' || gise?.status === 'em_andamento'));
 	const podeAssinar = $derived(
 		isSupervisor &&
-		(gise?.status === 'aguardando_assinatura' || gise?.status === 'assinada') &&
+		gise?.status === 'aguardando_assinatura' &&
 		gise?.supervisor_id === data.usuarioAtual?.id &&
 		!documentoAssinadoInfo?.existe
 	);
 	const podeEditar = $derived(gise?.status !== 'finalizada');
-	const podeReabrir = $derived(isAdminGeral && (gise?.status === 'assinada' || gise?.status === 'finalizada'));
+	const podeReabrir = $derived(isAdminGeral && (
+		gise?.status === 'em_andamento' ||
+		gise?.status === 'aguardando_relatorios' ||
+		gise?.status === 'aguardando_assinatura_relat' ||
+		gise?.status === 'pronta_para_finalizar' ||
+		gise?.status === 'finalizada'
+	));
 	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);
-	const editaBloqueado = $derived(gise?.status === 'assinada' || gise?.status === 'finalizada');
+	const editaBloqueado = $derived(
+		gise?.status === 'em_andamento' ||
+		gise?.status === 'aguardando_relatorios' ||
+		gise?.status === 'aguardando_assinatura_relat' ||
+		gise?.status === 'pronta_para_finalizar' ||
+		gise?.status === 'finalizada'
+	);
 
 	function downloadGise(format: string) {
 		if (!gise) return;
@@ -1094,20 +1013,42 @@
 			{/if}
 		</div>
 
-		<!-- Card de Escala Assinada -->
-		{#if documentoAssinadoInfo?.existe}
-			<div class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm">
-				<div class="bg-success-500 text-white p-2 rounded-full mt-1">
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+		<!-- Banners de Sucesso (Assinaturas) -->
+		<div class="space-y-3">
+			<!-- Card de Escala Assinada -->
+			{#if documentoAssinadoInfo?.existe}
+				<div class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm">
+					<div class="bg-success-500 text-white p-2 rounded-full mt-1">
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+					</div>
+					<div class="flex-1">
+						<h3 class="font-bold text-success-800 dark:text-success-400 uppercase tracking-tight">Escala GISE Assinada</h3>
+						<p class="text-sm text-surface-600 dark:text-surface-300 mt-1 font-medium">
+							Assinado por {documentoAssinadoInfo.assinante_nome}.
+						</p>
+					</div>
 				</div>
-				<div class="flex-1">
-					<h3 class="font-bold text-success-800 dark:text-success-400">Escala GISE Assinada</h3>
-					<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-						Assinado por {documentoAssinadoInfo.assinante_nome}.
-					</p>
-				</div>
-			</div>
-		{/if}
+			{/if}
+
+			<!-- Relatórios Extraordinários Assinados -->
+			{#if data.assinaturasRelatorios?.length > 0}
+				{#each data.assinaturasRelatorios.filter((a: any) => a.tipo === 'extraordinario') as assRel}
+					<div class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm">
+						<div class="bg-success-500 text-white p-2 rounded-full mt-1">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+						</div>
+						<div class="flex-1">
+							<h3 class="font-bold text-success-800 dark:text-success-400 uppercase tracking-tight">
+								Relatório Extraordinário Assinado — {todasUnidades.find((u: any) => u.id === assRel.seccional_id)?.nome ?? 'Seccional'}
+							</h3>
+							<p class="text-sm text-surface-600 dark:text-surface-300 mt-1 font-medium">
+								Assinado por {assRel.assinante_nome}.
+							</p>
+						</div>
+					</div>
+				{/each}
+			{/if}
+		</div>
 
 		<!-- Seção de assinatura (Supervisor) -->
 		{#if podeAssinar}
@@ -1138,80 +1079,25 @@
 
 				<hr class="border-surface-200 dark:border-surface-700" />
 
-				<!-- Assinatura Digital -->
+				<!-- Assinatura Digital com TOKEN A3 -->
 				<h3 class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
 					Assinatura Digital (eToken / Certificado A3)
 				</h3>
 
-				<div class="p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10">
-					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-						<h4 class="font-semibold text-sm flex items-center gap-2">
-							<svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-							</svg>
-							Leitura de Tokens
-						</h4>
-						<button
-							class="btn text-sm preset-outlined-primary-500 px-3 py-1.5 rounded-lg"
-							onclick={carregarCertificadosLocais}
-							disabled={lendoCertificados}
-						>
-							{#if lendoCertificados}<Spinner size="sm" />{/if}
-							{lendoCertificados ? 'Lendo tokens...' : 'Ler Tokens Plugados'}
-						</button>
-					</div>
-
-					{#if certificados.length > 0}
-						<select
-							bind:value={certSelecionado}
-							onchange={(e) => { const c = certificados.find(x => x.thumbprint === e.currentTarget.value); if (c) { serproSignerName = c.subjectName; serproSignerCpf = c.cpf || ''; } }}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm mt-2"
-						>
-							<option value="">Selecione...</option>
-							{#each certificados as cert (cert.thumbprint)}
-								<option value={cert.thumbprint}>
-									{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''} - Emissor: {cert.issuerName}
-								</option>
-							{/each}
-						</select>
-					{:else if tentouLerCertificados}
-						<p class="text-sm text-error-500 mt-2 bg-error-500/10 p-2 rounded">
-							Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Lacuna Web PKI</strong> está instalada.
-						</p>
-					{:else}
-						<p class="text-sm text-surface-500 mt-1">
-							Clique no botão para listar os certificados disponíveis.
-						</p>
-					{/if}
-				</div>
-
-				<div class="flex gap-2 items-center flex-wrap">
-					<button
-						class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
-						onclick={() => executarAssinarComWebPKI()}
-						disabled={assinando || !certSelecionado}
-					>
-						{#if assinando && certificados.length > 0}
-							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-							{etapaAssinatura}
-						{:else}
-							Assinar com Web PKI
-						{/if}
-					</button>
-
-					<button
-						class="btn preset-filled-tertiary-500 text-sm px-4 py-2 rounded-xl"
-						onclick={() => executarAssinarComSerpro()}
-						disabled={assinando || !certSelecionado}
-					>
-						{#if assinando && serproClient}
-							<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-							{etapaAssinatura}
-						{:else}
-							Assinar com SERPRO
-						{/if}
-					</button>
-				</div>
+				<PainelAssinaturaToken
+					bind:this={painelTokenGise}
+					bind:signerName={serproSignerName}
+					bind:signerCpf={serproSignerCpf}
+					prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
+					finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
+					nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
+					extraPayload={{ rubrica: rubricaCapturada }}
+					disabled={assinando}
+					onSuccess={async () => {
+						rubricaCapturada = null;
+						await invalidateAll();
+					}}
+				/>
 			</div>
 		{/if}
 
@@ -1234,29 +1120,36 @@
 						<progress class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2" value={progressoLote.atual} max={progressoLote.total}></progress>
 					</div>
 				{:else}
-					<button class="btn preset-filled-warning-500 font-bold justify-center w-full sm:w-auto flex items-center gap-2" onclick={() => abrirAssinaturaLote()}>
-						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-						Assinar na Tela (Manual)
-					</button>
+					{#if isMobile}
+						<button class="btn preset-filled-warning-500 font-bold justify-center w-full sm:w-auto flex items-center gap-2" onclick={() => abrirAssinaturaLote()}>
+							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+							Assinar na Tela (Manual)
+						</button>
+					{:else}
+						<div class="text-xs text-error-500 italic font-semibold border-l-2 border-error-500 pl-2">
+							A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 abaixo no computador.
+						</div>
+					{/if}
 
 					<div class="border-t border-warning-200 dark:border-warning-800/40 pt-3 space-y-3">
 						<p class="text-xs font-bold text-warning-700 dark:text-warning-400 uppercase tracking-wide">Assinatura Digital em Lote — Token A3 / SERPRO</p>
 
 						{#if !podeAssinar}
-							<div class="p-3 bg-white/60 dark:bg-surface-800/60 rounded-xl border border-warning-200 dark:border-warning-800/30 flex flex-col sm:flex-row sm:items-center gap-2">
+							<div class="p-2 sm:p-2.5 bg-white/60 dark:bg-surface-800/60 rounded-xl border border-warning-200 dark:border-warning-800/30 flex flex-col sm:flex-row sm:items-center gap-2">
 								<button
 									class="btn btn-sm preset-outlined-primary-500 rounded-lg whitespace-nowrap shrink-0"
 									onclick={carregarCertificadosLocais}
-									disabled={lendoCertificados}
+									disabled={lendoCertificados || assinandoLote}
 								>
 									{#if lendoCertificados}<Spinner size="xs" />{/if}
 									{lendoCertificados ? 'Lendo...' : 'Ler Token A3'}
 								</button>
+
 								{#if certificados.length > 0}
 									<select
 										bind:value={certSelecionado}
 										onchange={(e) => { const c = certificados.find(x => x.thumbprint === e.currentTarget.value); if (c) { serproSignerName = c.subjectName; serproSignerCpf = c.cpf || ''; } }}
-										class="w-full px-3 py-1.5 rounded-lg border border-warning-300 dark:border-warning-700 bg-white dark:bg-surface-800 text-xs"
+										class="flex-1 min-w-[150px] px-3 py-1.5 rounded-lg border border-warning-300 dark:border-warning-700 bg-white dark:bg-surface-800 text-xs shadow-sm"
 									>
 										<option value="">Selecione o certificado...</option>
 										{#each certificados as cert (cert.thumbprint)}
@@ -1264,29 +1157,41 @@
 										{/each}
 									</select>
 								{:else if tentouLerCertificados}
-									<p class="text-xs text-error-500">Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Web PKI</strong> instalada.</p>
+									<div class="flex-1 px-3 py-1.5 rounded-lg bg-error-500/10 border border-error-500/30">
+										<p class="text-[0.65rem] text-error-600 leading-tight">Nenhum certificado encontrado. Verifique se o token está conectado e a extensão <strong>Web PKI</strong> instalada.</p>
+									</div>
 								{:else}
-									<p class="text-xs text-surface-500 italic">Clique em "Ler Token A3" para listar os certificados disponíveis.</p>
+									<div class="flex-1 flex items-center px-3 h-8 bg-surface-200/30 dark:bg-surface-700/20 rounded-lg border border-warning-200 dark:border-warning-800/20 border-dashed">
+										<p class="text-[0.65rem] text-surface-500 italic">Clique no botão à esquerda para listar certificados.</p>
+									</div>
 								{/if}
+
+								<!-- Botão SERPRO integrado na mesma linha -->
+								<button
+									class="btn btn-sm preset-filled-tertiary-500 font-bold whitespace-nowrap rounded-lg shadow-sm shrink-0 {!certSelecionado || lendoCertificados || assinandoLote ? 'opacity-50 grayscale' : ''}"
+									onclick={() => executarAssinarRelatorioLotePKI('', 'serpro')}
+									disabled={!certSelecionado || lendoCertificados || assinandoLote}
+								>
+									Assinar com SERPRO
+								</button>
+
+								<!-- Botão Web PKI (Oculto) -->
+								<button
+									class="hidden"
+									onclick={() => executarAssinarRelatorioLotePKI(certSelecionado, 'webpki')}
+									disabled={!certSelecionado || lendoCertificados || assinandoLote}
+								>
+									Assinar Lote Web PKI
+								</button>
 							</div>
 						{/if}
 
-						<div class="flex flex-col sm:flex-row gap-2">
-							<button
-								class="btn preset-tonal-primary font-bold justify-center flex-1 flex items-center gap-2"
-								onclick={() => executarAssinarRelatorioLotePKI(certSelecionado, 'webpki')}
-								disabled={!certSelecionado || lendoCertificados}
-							>
-								<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-								Lote: Token A3 (Web PKI)
-							</button>
-							<button
-								class="btn preset-tonal-secondary font-bold justify-center flex-1"
-								onclick={() => executarAssinarRelatorioLotePKI('', 'serpro')}
-							>
-								Lote: SERPRO Desktop
-							</button>
-						</div>
+						<p class="text-[0.6rem] text-surface-400 dark:text-surface-500 mt-2 px-1">
+							<strong>Web PKI:</strong> requer extensão
+							<a href="https://get.webpkiplugin.com/" target="_blank" rel="noopener" class="underline">Lacuna Web PKI</a>.
+							<strong>SERPRO:</strong> requer
+							<a href="https://www.serpro.gov.br/menu/noticias/noticias-2015/assinador-serpro" target="_blank" rel="noopener" class="underline">Assinador Desktop SERPRO</a>.
+						</p>
 					</div>
 				{/if}
 			</div>
@@ -1750,7 +1655,7 @@
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Data e Horários</h2>
-			{#if gise?.status === 'assinada' || gise?.status === 'finalizada'}
+			{#if editaBloqueado}
 				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-sm text-warning-700 dark:text-warning-400">
 					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
 				</div>
@@ -1838,34 +1743,23 @@
 			<div class="text-center space-y-2">
 				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Finalizar Escala GISE</h2>
 				<p class="text-sm text-surface-500">
-					A escala atual será marcada como <span class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span>.
-					Como deseja abrir a próxima escala?
+					A escala atual será marcada como <span class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span>. 
+					Esta ação não poderá ser desfeita e a escala sairá da lista de escalas ativas.
 				</p>
-			</div>
-
-			<div class="space-y-3 pt-2">
-				<button
-					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-primary-500/30 hover:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-					onclick={() => finalizarGise('completa')}
-					disabled={finalizando}
-				>
-					<span class="font-bold text-base">1 — Abrir nova escala completa</span>
-					<span class="text-xs opacity-70">Inclui todas as seccionais padrão do sistema</span>
-				</button>
-
-				<button
-					class="w-full btn py-4 rounded-2xl flex flex-col items-center gap-1 group transition-all duration-300 border border-secondary-500/30 hover:bg-secondary-500/10 text-secondary-600 dark:text-secondary-400"
-					onclick={() => finalizarGise('clonada')}
-					disabled={finalizando}
-				>
-					<span class="font-bold text-base">2 — Abrir nos moldes atual</span>
-					<span class="text-xs opacity-70">Copia as seccionais e equipes desta escala</span>
-				</button>
 			</div>
 
 			<div class="pt-2">
 				<button
-					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-2"
+					class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
+					onclick={() => finalizarGise()}
+					disabled={finalizando}
+				>
+					{#if finalizando}<Spinner size="sm" />{/if}
+					Finalizar Agora
+				</button>
+
+				<button
+					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
 					onclick={() => (showFinalizarConfirm = false)}
 					disabled={finalizando}
 				>

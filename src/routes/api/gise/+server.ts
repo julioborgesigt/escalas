@@ -5,8 +5,8 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, listarGiseEscalas, criarGiseEscala, upsertGiseSeccional } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
+import { getDB, listarGiseEscalas, criarGiseEscala, upsertGiseSeccional, clonarGiseParaData, isSupervisorGiseAtiva } from '$lib/db';
+import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
@@ -16,7 +16,10 @@ export const GET: RequestHandler = async ({ locals, platform }) => {
 
 	const db = getDB(platform);
 	try {
-		const escalas = await listarGiseEscalas(db);
+		const isGeral = isAdminGeral(u);
+		const isSeccional = isAdminSeccional(u);
+		const supervisorId = (!isGeral && !isSeccional) ? u.id : undefined;
+		const escalas = await listarGiseEscalas(db, supervisorId);
 		return json(escalas);
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
@@ -38,13 +41,17 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 		data_fim,
 		hora_entrada = '08:00',
 		hora_saida = '16:00',
-		seccional_ids
+		seccional_ids,
+		modo = 'completa',
+		clonar_de
 	} = body as {
 		data_inicio: string;
 		data_fim: string;
 		hora_entrada?: string;
 		hora_saida?: string;
 		seccional_ids?: number[];
+		modo?: 'completa' | 'clonada';
+		clonar_de?: number;
 	};
 
 	if (!data_inicio) {
@@ -62,25 +69,33 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 	}
 
 	try {
-		// Buscar seccionais que serão adicionadas
-		let seccionalIdsFinal: number[] = [];
-		if (seccional_ids && seccional_ids.length > 0) {
-			seccionalIdsFinal = seccional_ids;
-		} else {
-			const todasSeccionais = await db
-				.select({ id: unidades.id })
-				.from(unidades)
-				.where(eq(unidades.tipo, 'seccional'));
-			seccionalIdsFinal = todasSeccionais.map(s => s.id);
-		}
-
 		const ids: number[] = [];
-		for (const data of datas) {
-			const novoId = await criarGiseEscala(db, data, hora_entrada, hora_saida);
-			for (const sid of seccionalIdsFinal) {
-				await upsertGiseSeccional(db, novoId, sid);
+
+		if (modo === 'clonada' && clonar_de) {
+			for (const data of datas) {
+				const novoId = await clonarGiseParaData(db, clonar_de, data, 'clonada', hora_entrada, hora_saida);
+				ids.push(novoId);
 			}
-			ids.push(novoId);
+		} else {
+			// Buscar seccionais que serão adicionadas
+			let seccionalIdsFinal: number[] = [];
+			if (seccional_ids && seccional_ids.length > 0) {
+				seccionalIdsFinal = seccional_ids;
+			} else {
+				const todasSeccionais = await db
+					.select({ id: unidades.id })
+					.from(unidades)
+					.where(eq(unidades.tipo, 'seccional'));
+				seccionalIdsFinal = todasSeccionais.map(s => s.id);
+			}
+
+			for (const data of datas) {
+				const novoId = await criarGiseEscala(db, data, hora_entrada, hora_saida, 'em_definicao_supervisor');
+				for (const sid of seccionalIdsFinal) {
+					await upsertGiseSeccional(db, novoId, sid);
+				}
+				ids.push(novoId);
+			}
 		}
 
 		return json({ ids, count: ids.length }, { status: 201 });

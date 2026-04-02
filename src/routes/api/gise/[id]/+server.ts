@@ -74,14 +74,19 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 	if (supervisor_id !== undefined) updateData.supervisor_id = supervisor_id;
 	if (status !== undefined) updateData.status = status;
 
+	// Transição automática: ao designar supervisor numa escala em_definicao_supervisor → em_preenchimento
+	if (supervisor_id != null && gise.status === 'em_definicao_supervisor') {
+		updateData.status = 'em_preenchimento';
+	}
+
 	const editandoTempoOuData = data_inicio !== undefined || hora_entrada !== undefined || hora_saida !== undefined;
-	if (editandoTempoOuData && (gise.status === 'assinada' || gise.status === 'finalizada')) {
+	if (editandoTempoOuData && (gise.status === 'em_andamento' || gise.status === 'aguardando_relatorios' || gise.status === 'aguardando_assinatura_relat' || gise.status === 'pronta_para_finalizar' || gise.status === 'finalizada')) {
 		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, id));
 		updateData.status = 'em_preenchimento';
 	}
 
 	await atualizarGiseEscala(db, id, updateData as any);
-	return json({ ok: true, assinatura_revogada: editandoTempoOuData && (gise.status === 'assinada' || gise.status === 'finalizada') });
+	return json({ ok: true, assinatura_revogada: editandoTempoOuData && (gise.status === 'em_andamento' || gise.status === 'aguardando_relatorios' || gise.status === 'aguardando_assinatura_relat' || gise.status === 'pronta_para_finalizar' || gise.status === 'finalizada') });
 };
 
 export const DELETE: RequestHandler = async ({ locals, params, platform }) => {

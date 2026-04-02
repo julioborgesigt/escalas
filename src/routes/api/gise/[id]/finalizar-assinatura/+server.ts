@@ -7,10 +7,10 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, buscarGiseEscala, salvarGiseDocumento } from '$lib/db';
-import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
+import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
-export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
+export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = locals.usuario;
@@ -45,19 +45,64 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			);
 		}
 
+		// Calcular Hash do original (Integridade)
+		const originalHashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
+		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
+
+		// Adicionar folha de auditoria (Manifesto)
+		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, {
+			signerName: signerName && signerName.trim() ? signerName : u.nome,
+			signerCpf: signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '',
+			signingTime: new Date(signingTimeISO),
+			verificationHash: verificationHash,
+			verificationUrl: `${url.origin}/validar/${verificationHash}`,
+			ip,
+			userAgent: ua,
+			latitude,
+			longitude,
+			documentHash,
+			token: crypto.randomUUID(),
+			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
+			signatureLevel: 'qualificada'
+		});
+
 		// Salvar no R2
-		const documentKey = `gise_${id}_${diaFinal}_assinada.pdf`;
+		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
+		const mesAno = `${yyyy}-${mm}`;
+		const folder = `gise/${mesAno}/${dd_escala}/${id}/escala`;
+
+		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
 		const env = (p as any)?.env || (p as any);
 		if (env?.escalas_docs) {
-			await env.escalas_docs.put(documentKey, signedPdfBytes, {
+			await env.escalas_docs.put(documentKey, pdfFinal, {
 				contentType: 'application/pdf'
 			});
 		}
 
 		// Registrar no banco com auditoria
-		await salvarGiseDocumento(db, id, documentKey, u.id, signerName || u.nome, signerCpf || '', verificationHash, undefined, ip, ua, latitude, longitude);
+		const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
+		const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '';
+		await salvarGiseDocumento(
+			db,
+			id,
+			documentKey,
+			u.id,
+			finalSignerName,
+			finalSignerCpf,
+			verificationHash,
+			undefined,
+			ip,
+			ua,
+			latitude,
+			longitude
+		);
 
-		return new Response(signedPdfBytes as any, {
+		// Avançar status para andamento
+		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
+
+		return new Response(pdfFinal as any, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${documentKey}"`

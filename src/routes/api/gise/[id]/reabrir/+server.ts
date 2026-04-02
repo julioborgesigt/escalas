@@ -24,8 +24,14 @@ export const POST = async ({ locals, params, platform }: RequestEvent) => {
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
-	if (gise.status !== 'assinada' && gise.status !== 'finalizada') {
-		return json({ error: 'Apenas escalas assinadas ou finalizadas podem ser reabertas' }, { status: 400 });
+	if (
+		gise.status !== 'em_andamento' &&
+		gise.status !== 'aguardando_relatorios' &&
+		gise.status !== 'aguardando_assinatura_relat' &&
+		gise.status !== 'pronta_para_finalizar' &&
+		gise.status !== 'finalizada'
+	) {
+		return json({ error: 'Apenas escalas em andamento ou finalizadas podem ser reabertas' }, { status: 400 });
 	}
 
 	await reabrirGiseEscala(db, id);

@@ -93,5 +93,8 @@ export {
 	buscarPresencasGise,
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
-	salvarAssinaturaRelatorioGise
+	salvarAssinaturaRelatorioGise,
+	verificarTodosSairam,
+	verificarTodosRelatoriosEnviados,
+	verificarTodosRelatoriosExtraAssinados
 } from './db/gise';
