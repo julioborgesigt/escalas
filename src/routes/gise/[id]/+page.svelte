@@ -61,8 +61,9 @@
 	let reabrindo = $state(false);
 	let showReabrirConfirm = $state(false);
 
-	// Editar data/horários
-	let editandoDatasHorarios = $state(false);
+	// Modo Edição Geral (Admin Geral)
+	let modoEdicaoGeral = $state(false);
+	let showModalDataHoras = $state(false);
 	let editDataInicio = $state('');
 	let editHoraEntrada = $state('');
 	let editHoraSaida = $state('');
@@ -676,7 +677,7 @@
 		editDataInicio = gise.data_inicio;
 		editHoraEntrada = gise.hora_entrada ?? '';
 		editHoraSaida = gise.hora_saida ?? '';
-		editandoDatasHorarios = true;
+		showModalDataHoras = true;
 	}
 
 	async function salvarDatasHorarios() {
@@ -707,7 +708,7 @@
 			} else {
 				toaster.success({ title: 'Datas/horários atualizados' });
 			}
-			editandoDatasHorarios = false;
+			showModalDataHoras = false;
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -875,8 +876,13 @@
 					<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 						{statusLabel(gise.status)}
 					</span>
-					<span class="text-sm text-surface-500">
+					<span class="text-sm text-surface-500 flex items-center gap-2">
 						{gise.hora_entrada}h–{gise.hora_saida}h
+						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+							<button class="btn btn-xs preset-filled-surface-500 rounded p-1" onclick={abrirEdicaoDatasHorarios} title="Editar Data/Horários">
+								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+							</button>
+						{/if}
 					</span>
 				</div>
 			{/if}
@@ -902,11 +908,11 @@
 					</button>
 				{/if}
 				<button
-					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-					onclick={abrirEdicaoDatasHorarios}
+					class="btn btn-sm {modoEdicaoGeral ? 'preset-filled-primary-500 shadow-xl' : 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all"
+					onclick={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 					disabled={editaBloqueado}
 				>
-					Editar Data/Horários
+					{modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala'}
 				</button>
 				<button
 					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1230,7 +1236,7 @@
 											<span class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20">PERSONALIZADO</span>
 										{/if}
 									</div>
-									{#if isAdminGeral && podeEditar}
+									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 										<button
 											class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
 											onclick={() => {
@@ -1243,7 +1249,7 @@
 								{/if}
 							</div>
 
-							{#if isAdminGeral && podeEditar}
+							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 								<button
 									class="text-sm btn preset-outlined-error-500 px-2 py-1 rounded-lg flex items-center gap-1"
 									onclick={() => removerSeccional(sec.id)}
@@ -1302,6 +1308,16 @@
 
 							<!-- Ações -->
 							<div class="flex items-center gap-2 sm:ml-auto">
+								{#if isAdminGeral && podeEditar}
+									<button
+										class="text-sm btn preset-filled-success-500 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+										onclick={() => finalizarSeccional(sec.id)}
+										disabled={salvando || !sec.unidade_operacional_id || !(sec.equipes ?? []).some(eq => (eq.membros ?? []).length > 0)}
+									>
+										{#if salvando}<Spinner size="xs" />{/if}
+										Finalizar envio
+									</button>
+								{/if}
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
 										<button
@@ -1441,7 +1457,7 @@
 														>Editar Horários</button>
 													{/if}
 												{/if}
-												{#if isAdminGeral && podeEditar}
+												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 													<button
 														class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
 														onclick={() => { editandoEquipe = equipe.id; editSlotsDpc = equipe.slots_dpc; editSlotsOip = equipe.slots_oip; }}
@@ -1451,7 +1467,7 @@
 												{/if}
 											{/if}
 										</div>
-										{#if isAdminGeral && podeEditar}
+										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 											<button
 												class="text-sm text-error-600 hover:text-error-500 p-1"
 												onclick={async () => {
@@ -1479,7 +1495,7 @@
 															<span class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400">Entrada</span>
 														{/if}
 													</div>
-													{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
+													{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
 														<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
 													{/if}
 												</div>
@@ -1490,7 +1506,7 @@
 									{/if}
 
 									<!-- Adicionar membro -->
-									{#if podeEditar && (isAdminGeral || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
+									{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
 										{#if equipeParaAdicionar === equipe.id}
 											<div class="flex flex-wrap gap-2 items-end">
 												<div class="flex-1 min-w-32">
@@ -1537,7 +1553,7 @@
 							{/each}
 
 							<!-- Adicionar equipe (Admin Geral) -->
-							{#if isAdminGeral && podeEditar}
+							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 								{#if adicionandoEquipeSec === sec.id}
 									<div class="flex flex-wrap gap-2 items-end mt-3 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600">
 										<div>
@@ -1583,7 +1599,7 @@
 				{/if}
 			{/each}
 
-			{#if isAdminGeral && podeEditar}
+			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 				{#if adicionandoSeccional}
 					<div class="mt-4 p-5 rounded-2xl border border-dashed border-primary-500/50 bg-primary-500/5 flex flex-wrap items-end gap-3">
 						<div class="flex-1 min-w-[200px]">
@@ -1651,7 +1667,7 @@
 </div>
 
 <!-- Modal Editar Data/Horários -->
-{#if editandoDatasHorarios}
+{#if showModalDataHoras}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 		<div class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Editar Data e Horários</h2>
@@ -1682,7 +1698,7 @@
 				<p class="text-xs text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
 			</div>
 			<div class="flex justify-end gap-3">
-				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (editandoDatasHorarios = false)}>Cancelar</button>
+				<button class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showModalDataHoras = false)}>Cancelar</button>
 				<button class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl" onclick={salvarDatasHorarios} disabled={salvando}>
 					{salvando ? 'Salvando...' : 'Salvar'}
 				</button>

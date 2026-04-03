@@ -668,14 +668,14 @@ const DEFAULT_QUESTIONS = [
 	{ id: 1, texto: '1. VTR E PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
 	{ id: 2, texto: '2. KM INICIAL', tipo: 'numero', key: 'km_inicial', filhos: [] },
 	{ id: 3, texto: '3. KM FINAL', tipo: 'numero', key: 'km_final', filhos: [] },
-	{ id: 4, texto: '4. PROCEDIMENTOS FLAGRANTE', tipo: 'select_99', key: 'procedimentos_inteiros', filhos: [] },
+	{ id: 4, texto: '4. HOUVE PROCEDIMENTOS EM FLAGRANTE REALIZADOS?', tipo: 'prisoes_maiores', key: 'procedimentos_flagrante_bool', subtexto_qtd: '4.1 QUANTIDADE:', subtexto_lista: '4.2 INFORMAR NOMES E PROCEDIMENTOS:', filhos: [] },
 	{ id: 5, texto: '5. MANDADOS CUMPRIDOS (MAIORES)', tipo: 'mandados_maiores', key: 'mandados_cumpridos', filhos: [] },
 	{ id: 6, texto: '6. APREENSÕES CUMPRIDAS (MENORES)', tipo: 'apreensoes_menores', key: 'apreensoes_cumpridas', filhos: [] },
 	{ id: 7, texto: '7. PRISÕES/APREENSÕES FLAGRANTE', tipo: 'select_99', key: 'prisoes_apreensoes_flagrante', filhos: [] },
 	{ id: 8, texto: '8. TENTATIVA CUMPRIMENTO MANDADO', tipo: 'sim_nao', key: 'tentativa_mandado', filhos: [] },
 	{ id: 9, texto: '9. MANDADO BUSCA E APREENSÃO', tipo: 'sim_nao', key: 'busca_apreensao', filhos: [] },
 	{ id: 10, texto: '10. APREENSÃO DE DROGAS', tipo: 'drogas_complex', key: 'apreensoes_drogas', filhos: [] },
-	{ id: 11, texto: '11. APREENSÕES ARMAS', tipo: 'select_99', key: 'apreensoes_armas', filhos: [] },
+	{ id: 11, texto: '11. HOUVE APREENSÃO DE ARMAS/MUNIÇÕES?', tipo: 'armas_complex', key: 'apreensoes_armas_bool', subtexto_tipo: '11.1 TIPO DE ARMA:', subtexto_qtd: '11.1.1 QUANTIDADE:', filhos: [] },
 	{ id: 12, texto: '12. LOCAL DE CRIME', tipo: 'select_99', key: 'local_crime', filhos: [] },
 	{ id: 13, texto: '13. ORDEM DE MISSÃO CUMPRIDA', tipo: 'select_99', key: 'ordem_missao', filhos: [] },
 	{ id: 14, texto: '14. LEVANTAMENTO DE ALVOS', tipo: 'select_99', key: 'levantamento_alvos', filhos: [] },
@@ -724,6 +724,20 @@ export async function buscarRespostasProdutividadeSeccional(
 						resps.mandados_lista.forEach((item: any, idx: number) => {
 							if (item.nome || item.mandado) {
 								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Mandado ${idx + 1}`, resposta: `${item.nome} - ${item.mandado}` });
+							}
+						});
+					}
+					if (p.tipo === 'prisoes_maiores' && resps.prisoes_lista) {
+						resps.prisoes_lista.forEach((item: any, idx: number) => {
+							if (item.nome || item.mandado) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Procedimento ${idx + 1}`, resposta: `${item.nome} - ${item.mandado}` });
+							}
+						});
+					}
+					if (p.tipo === 'armas_complex' && resps.armas_detalhe) {
+						Object.entries(resps.armas_detalhe).forEach(([tipo, qtd]) => {
+							if (Number(qtd) > 0) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Arma: ${tipo}`, resposta: `${qtd}` });
 							}
 						});
 					}
