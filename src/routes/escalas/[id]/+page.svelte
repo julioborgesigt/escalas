@@ -54,6 +54,8 @@
 	let policialParaRemover = $state<{ itemId: number; nome: string } | null>(
 		null,
 	);
+	let salvandoEdicao = $state(false);
+	let removendo = $state(false);
 
 	let editingId = $state<number | null>(null);
 	let editDataEntrada = $state("");
@@ -297,22 +299,30 @@
 	}
 
 	async function salvarEdicao(itemId: number) {
-		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				item_id: itemId,
-				data_plantao: editDataEntrada,
-				data_saida: editDataSaida,
-				hora_entrada: `${editHoraEntrada}:${editMinutoEntrada}`,
-				hora_saida: `${editHoraSaida}:${editMinutoSaida}`,
-				observacoes: editObservacoes,
-			}),
-		});
-
-		if (res.ok) {
-			editingId = null;
-			await recarregarPoliciais();
+		salvandoEdicao = true;
+		try {
+			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					item_id: itemId,
+					data_plantao: editDataEntrada,
+					data_saida: editDataSaida,
+					hora_entrada: `${editHoraEntrada}:${editMinutoEntrada}`,
+					hora_saida: `${editHoraSaida}:${editMinutoSaida}`,
+					observacoes: editObservacoes,
+				}),
+			});
+			if (res.ok) {
+				editingId = null;
+				await recarregarPoliciais();
+			} else {
+				toaster.create({ title: 'Erro ao salvar alterações', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			salvandoEdicao = false;
 		}
 	}
 
@@ -327,23 +337,27 @@
 
 	async function confirmarRemocao() {
 		if (!policialParaRemover) return;
-
 		const itemId = policialParaRemover.itemId;
 		const nome = policialParaRemover.nome;
-		dialogOpen = false;
-
-		const res = await fetch(
-			`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`,
-			{ method: "DELETE" },
-		);
-		if (res.ok) {
-			toaster.create({
-				title: `${nome} removido da escala`,
-				type: "success",
-			});
-			await recarregarPoliciais();
+		removendo = true;
+		try {
+			const res = await fetch(
+				`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`,
+				{ method: "DELETE" },
+			);
+			if (res.ok) {
+				toaster.create({ title: `${nome} removido da escala`, type: "success" });
+				dialogOpen = false;
+				policialParaRemover = null;
+				await recarregarPoliciais();
+			} else {
+				toaster.create({ title: 'Erro ao remover policial', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			removendo = false;
 		}
-		policialParaRemover = null;
 	}
 
 
@@ -599,13 +613,16 @@
 					desta escala?
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface"
+					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={removendo}
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<button
 						class="btn preset-filled-error-500"
-						onclick={confirmarRemocao}>Remover</button
-					>
+						disabled={removendo}
+						onclick={confirmarRemocao}>
+						{#if removendo}<Spinner size="sm" />{/if}
+						{removendo ? 'Removendo...' : 'Remover'}
+					</button>
 				</div>
 			</div>
 		</Dialog.Content>
@@ -969,8 +986,8 @@
 														<div class="space-y-2">
 															<label class="label"><span class="label-text text-xs">Observações</span><textarea bind:value={editObservacoes} class="input text-sm w-full" rows="2"></textarea></label>
 															<div class="flex justify-end gap-2">
-																<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
-																<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
+																<button class="btn btn-sm preset-filled-primary-500" disabled={salvandoEdicao} onclick={() => salvarEdicao(p.id)}>{#if salvandoEdicao}<Spinner size="xs" />{/if}{salvandoEdicao ? 'Salvando...' : 'Salvar'}</button>
+																<button class="btn btn-sm preset-outlined-primary-500" disabled={salvandoEdicao} onclick={cancelEdit}>Cancelar</button>
 															</div>
 														</div>
 													</div>
@@ -1046,7 +1063,7 @@
 													<label class="label"><span class="label-text text-xs">Entrada</span><div class="flex gap-1"><input type="date" bind:value={editDataEntrada} class="input text-sm flex-1" /><select bind:value={editHoraEntrada} class="select text-sm w-16">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select><select bind:value={editMinutoEntrada} class="select text-sm w-16">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select></div></label>
 													<label class="label"><span class="label-text text-xs">Saída</span><div class="flex gap-1"><input type="date" bind:value={editDataSaida} class="input text-sm flex-1" /><select bind:value={editHoraSaida} class="select text-sm w-16">{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select><select bind:value={editMinutoSaida} class="select text-sm w-16">{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select></div></label>
 													<label class="label"><span class="label-text text-xs">Observações</span><textarea bind:value={editObservacoes} class="input text-sm w-full" rows="2"></textarea></label>
-													<div class="flex justify-end gap-2"><button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button><button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button></div>
+													<div class="flex justify-end gap-2"><button class="btn btn-sm preset-filled-primary-500" disabled={salvandoEdicao} onclick={() => salvarEdicao(p.id)}>{#if salvandoEdicao}<Spinner size="xs" />{/if}{salvandoEdicao ? 'Salvando...' : 'Salvar'}</button><button class="btn btn-sm preset-outlined-primary-500" disabled={salvandoEdicao} onclick={cancelEdit}>Cancelar</button></div>
 												</div>
 											{/if}
 										</div>
@@ -1136,8 +1153,8 @@
 													<textarea bind:value={editObservacoes} class="input text-sm w-full mt-1 min-h-[48px] resize-y" placeholder="Férias, licenças, dispensas..." rows="2"></textarea>
 												</div>
 												<div class="flex gap-1">
-													<button class="btn btn-sm preset-filled-primary-500" onclick={() => salvarEdicao(p.id)}>Salvar</button>
-													<button class="btn btn-sm preset-outlined-primary-500" onclick={cancelEdit}>Cancelar</button>
+													<button class="btn btn-sm preset-filled-primary-500" disabled={salvandoEdicao} onclick={() => salvarEdicao(p.id)}>{#if salvandoEdicao}<Spinner size="xs" />{/if}{salvandoEdicao ? 'Salvando...' : 'Salvar'}</button>
+													<button class="btn btn-sm preset-outlined-primary-500" disabled={salvandoEdicao} onclick={cancelEdit}>Cancelar</button>
 												</div>
 											</div>
 										</td>
@@ -1303,11 +1320,12 @@
 								<div class="flex gap-2">
 									<button
 										class="btn btn-sm preset-filled-primary-500"
+										disabled={salvandoEdicao}
 										onclick={() => salvarEdicao(p.id)}
-										>Salvar</button
-									>
+									>{#if salvandoEdicao}<Spinner size="xs" />{/if}{salvandoEdicao ? 'Salvando...' : 'Salvar'}</button>
 									<button
 										class="btn btn-sm preset-outlined-primary-500"
+										disabled={salvandoEdicao}
 										onclick={cancelEdit}>Cancelar</button
 									>
 								</div>
