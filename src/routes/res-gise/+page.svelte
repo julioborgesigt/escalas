@@ -569,18 +569,24 @@
 										<option value="mandados_maiores"
 											>Mandados Maiores (Auto-Listagem)</option
 										>
+										<option value="prisoes_maiores"
+											>Prisões Maiores (Auto-Listagem)</option
+										>
 										<option value="apreensoes_menores"
 											>Apreensões Menores (Auto-Listagem)</option
 										>
 										<option value="drogas_complex"
 											>Drogas Detalhado (Auto-Listagem)</option
 										>
+										<option value="armas_complex"
+											>Armas Detalhado (Auto-Listagem)</option
+										>
 									</optgroup>
 								</select>
 							</div>
 
 							<div class="flex gap-2 shrink-0">
-								{#if p.tipo === "sim_nao" || p.tipo === "mandados_maiores" || p.tipo === "apreensoes_menores" || p.tipo === "drogas_complex"}
+								{#if p.tipo === "sim_nao" || p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores" || p.tipo === "drogas_complex" || p.tipo === "armas_complex"}
 									<button
 										class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
 										onclick={() => adicionarSubPergunta(p)}
@@ -622,7 +628,7 @@
 						</div>
 
 						<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
-						{#if ["mandados_maiores", "apreensoes_menores", "drogas_complex"].includes(p.tipo)}
+						{#if ["mandados_maiores", "prisoes_maiores", "apreensoes_menores", "drogas_complex", "armas_complex"].includes(p.tipo)}
 							<div
 								class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
 							>
@@ -649,7 +655,7 @@
 								<div
 									class="grid grid-cols-1 md:grid-cols-2 gap-4"
 								>
-									{#if p.tipo === "mandados_maiores" || p.tipo === "apreensoes_menores"}
+									{#if p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores"}
 										<div class="space-y-1">
 											<label
 												for="subqtd-{p.id}"
@@ -704,6 +710,35 @@
 												type="text"
 												bind:value={p.subtexto_detalhe}
 												placeholder="Ex: 10.1.1 PESOS:"
+												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+											/>
+										</div>
+									{:else if p.tipo === "armas_complex"}
+										<div class="space-y-1">
+											<label
+												for="subtp-{p.id}"
+												class="text-[0.6rem] font-bold text-surface-400 uppercase"
+												>Lista de Tipos:</label
+											>
+											<input
+												id="subtp-{p.id}"
+												type="text"
+												bind:value={p.subtexto_tipo}
+												placeholder="Ex: 11.1 TIPO DE ARMA:"
+												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
+											/>
+										</div>
+										<div class="space-y-1">
+											<label
+												for="subdet-{p.id}"
+												class="text-[0.6rem] font-bold text-surface-400 uppercase"
+												>Legenda Quantidade:</label
+											>
+											<input
+												id="subdet-{p.id}"
+												type="text"
+												bind:value={p.subtexto_detalhe}
+												placeholder="Ex: 11.1.1 QUANTIDADE:"
 												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
 											/>
 										</div>
