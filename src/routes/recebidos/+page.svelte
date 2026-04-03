@@ -82,22 +82,30 @@
 		loading = false;
 	}
 
-	async function toggleVisto(escala: EscalaListagem) {
-		const novoStatus = !escala.visto_por_admin;
-		const res = await fetch(`/api/escalas/${escala.id}/visto`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ visto: novoStatus })
-		});
+	let togglingId = $state<number | null>(null);
 
-		if (res.ok) {
-			escala.visto_por_admin = novoStatus ? 1 : 0;
-			toaster.create({ 
-				title: novoStatus ? 'Marcado como visto' : 'Marcado como não visto', 
-				type: 'success' 
+	async function toggleVisto(escala: EscalaListagem) {
+		if (togglingId === escala.id) return;
+		const novoStatus = !escala.visto_por_admin;
+		// Atualização otimista — feedback instantâneo
+		escala.visto_por_admin = novoStatus ? 1 : 0;
+		togglingId = escala.id;
+		try {
+			const res = await fetch(`/api/escalas/${escala.id}/visto`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ visto: novoStatus })
 			});
-		} else {
-			toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
+			if (!res.ok) {
+				// Reverte em caso de falha
+				escala.visto_por_admin = novoStatus ? 0 : 1;
+				toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
+			}
+		} catch {
+			escala.visto_por_admin = novoStatus ? 0 : 1;
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			togglingId = null;
 		}
 	}
 
@@ -288,10 +296,11 @@
 						{#each escalasRecebidasPaginadas as escala (escala.id)}
 							<tr class={escala.visto_por_admin ? 'opacity-60 grayscale-[0.5]' : 'bg-primary-500/5'}>
 								<td class="text-center">
-									<input 
-										type="checkbox" 
-										class="checkbox mx-auto" 
-										checked={!!escala.visto_por_admin} 
+									<input
+										type="checkbox"
+										class="checkbox mx-auto"
+										disabled={togglingId === escala.id}
+										checked={!!escala.visto_por_admin}
 										onchange={() => toggleVisto(escala)}
 									/>
 								</td>
@@ -361,10 +370,11 @@
 							</div>
 							<label class="flex flex-col items-center gap-1 shrink-0">
 								<span class="text-[10px] uppercase font-bold text-surface-500">Lida</span>
-								<input 
-									type="checkbox" 
-									class="checkbox checkbox-sm" 
-									checked={!!escala.visto_por_admin} 
+								<input
+									type="checkbox"
+									class="checkbox checkbox-sm"
+									disabled={togglingId === escala.id}
+									checked={!!escala.visto_por_admin}
 									onchange={() => toggleVisto(escala)}
 								/>
 							</label>
