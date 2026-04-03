@@ -12,6 +12,7 @@ import {
 	policiais,
 	unidades
 } from '../server/schema';
+import { getNowBR } from '../utils';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 
@@ -849,7 +850,7 @@ export async function salvarGiseDocumento(
 				user_agent: userAgent,
 				latitude,
 				longitude,
-				created_at: sql`datetime('now')`
+				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
 }
@@ -897,7 +898,7 @@ export async function salvarGiseModeloFormulario(db: Database, config: string) {
 		.values({ id: 1, config, updated_at: sql`datetime('now')` })
 		.onConflictDoUpdate({
 			target: [giseModeloFormulario.id],
-			set: { config, updated_at: sql`datetime('now')` }
+			set: { config, updated_at: sql`datetime('now', '-3 hours')` }
 		});
 }
 
@@ -948,7 +949,7 @@ export async function salvarRespostaGise(
 		const targetId = (existente as any).id;
 		return db
 			.update(giseRespostasFormulario)
-			.set({ respostas, updated_at: sql`datetime('now')` })
+			.set({ respostas, updated_at: sql`datetime('now', '-3 hours')` })
 			.where(eq(giseRespostasFormulario.id, targetId));
 	}
 
@@ -957,7 +958,7 @@ export async function salvarRespostaGise(
 		policial_id: policialId,
 		equipe_id: equipeId ?? null,
 		respostas,
-		updated_at: sql`datetime('now')`
+		updated_at: sql`datetime('now', '-3 hours')`
 	});
 }
 
@@ -1004,7 +1005,7 @@ export async function salvarEntradaGise(
 	longitude?: number,
 	selfieKey?: string
 ) {
-	const now = new Date().toISOString();
+	const now = getNowBR().toISOString();
 	return db
 		.insert(gisePresencas)
 		.values({
@@ -1017,7 +1018,7 @@ export async function salvarEntradaGise(
 			user_agent: userAgent,
 			latitude,
 			longitude,
-			updated_at: sql`datetime('now')`
+			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.onConflictDoUpdate({
 			target: [gisePresencas.gise_id, gisePresencas.policial_id],
@@ -1029,7 +1030,7 @@ export async function salvarEntradaGise(
 				user_agent: userAgent,
 				latitude,
 				longitude,
-				updated_at: sql`datetime('now')`
+				updated_at: sql`datetime('now', '-3 hours')`
 			}
 		});
 }
@@ -1048,14 +1049,14 @@ export async function salvarSaidaGise(
 	return db
 		.update(gisePresencas)
 		.set({
-			saida_timestamp: new Date().toISOString(),
+			saida_timestamp: getNowBR().toISOString(),
 			saida_rubrica: rubrica,
 			saida_selfie_key: selfieKey,
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
 			longitude,
-			updated_at: sql`datetime('now')`
+			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
 }
@@ -1180,7 +1181,7 @@ export async function salvarAssinaturaRelatorioGise(
 				longitude: data.longitude,
 				selfie_key: data.selfie_key,
 				arquivo_hash: data.arquivo_hash,
-				created_at: sql`datetime('now')`
+				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
 }

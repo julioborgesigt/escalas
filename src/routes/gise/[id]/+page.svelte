@@ -1062,7 +1062,7 @@
 				<h1
 					class="text-2xl font-bold text-surface-900 dark:text-surface-50"
 				>
-					Escala GISE — {diaSemana(gise.data_inicio)}, {fmtDate(
+					Escala GISE #{gise.id} — {diaSemana(gise.data_inicio)}, {fmtDate(
 						gise.data_inicio,
 					)}
 				</h1>
@@ -1113,15 +1113,6 @@
 				</button>
 			{/if}
 			{#if isAdminGeral && gise}
-				{#if gise.status === "em_preenchimento" && todasSeccionaisPreenchidas}
-					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-auto flex items-center justify-center gap-1.5"
-						onclick={solicitarAssinatura}
-						disabled={salvando}
-					>
-						{#if salvando}<Spinner size="xs" />{/if} Solicitar Assinatura
-					</button>
-				{/if}
 				<button
 					class="btn btn-sm {modoEdicaoGeral
 						? 'preset-filled-primary-500 shadow-xl'
@@ -1131,6 +1122,15 @@
 				>
 					{modoEdicaoGeral ? "Concluir Edição" : "Editar escala"}
 				</button>
+				{#if gise.status === "em_preenchimento" && todasSeccionaisPreenchidas}
+					<button
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-auto flex items-center justify-center gap-1.5"
+						onclick={solicitarAssinatura}
+						disabled={salvando || modoEdicaoGeral}
+					>
+						{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
+					</button>
+				{/if}
 				<button
 					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
 					onclick={() => (showExcluirGiseConfirm = true)}
@@ -1794,7 +1794,8 @@
 													sec.hora_saida ??
 													gise.hora_saida ??
 													"";
-											}}>Editar Horários</button
+											}}
+											>Editar horários desta seccional</button
 										>
 									{/if}
 								{/if}
@@ -2241,7 +2242,8 @@
 																	gise.hora_saida ??
 																	"";
 															}}
-															>Editar Horários</button
+															>Editar Horários
+															desta equipe</button
 														>
 													{/if}
 												{/if}
@@ -2257,7 +2259,8 @@
 																equipe.slots_oip;
 														}}
 													>
-														Editar vagas
+														Editar vagas desta
+														equipe
 													</button>
 												{/if}
 											{/if}
@@ -2764,9 +2767,8 @@
 				Reabrir Escala GISE
 			</h2>
 			<p class="text-sm text-surface-600 dark:text-surface-400">
-				A assinatura digital será <strong>revogada</strong> e todas as seccionais
-				voltarão ao status pendente. Será necessário que as seccionais reenviem
-				e o supervisor assine novamente.
+				A assinatura digital será <strong>revogada</strong> e será necessário
+				que o supervisor assine novamente.
 			</p>
 			<div class="flex justify-end gap-3">
 				<button

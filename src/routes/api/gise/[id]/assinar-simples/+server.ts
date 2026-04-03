@@ -11,7 +11,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { gerarPdfGise } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { gerarCodigoValidacao } from '$lib/utils';
+import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const { rubrica, latitude, longitude, selfieBase64 } = await request.json().catch(() => ({}) as any);
@@ -78,7 +78,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		const pdfFinal = await adicionarPaginaAuditoria(pdfComRodape, {
 			signerName: u.nome,
 			signerCpf: (u as any).cpf,
-			signingTime: new Date(),
+			signingTime: getNowBR(),
 			verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
 			ip,

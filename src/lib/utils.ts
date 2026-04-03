@@ -97,4 +97,10 @@ export function limparCPF(v: string): string {
 	if (!v) return '';
 	return String(v).replace(/\D/g, '').trim();
 }
-
+/**
+ * Retorna a data/hora atual ajustada para o fuso de Brasília/Fortaleza (UTC-3).
+ * Útil para ambientes como Cloudflare Workers que operam em UTC.
+ */
+export function getNowBR(): Date {
+	return new Date(Date.now() - 3 * 3600 * 1000);
+}

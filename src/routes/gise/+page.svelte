@@ -221,7 +221,7 @@
 								></span>
 								<span
 									class="text-sm font-semibold text-primary-700 dark:text-primary-400"
-									>Escala Ativa</span
+									>Escala Ativa #{ativa.id}</span
 								>
 							</div>
 							<p
@@ -303,6 +303,7 @@
 								{diaSemana(escala.data_inicio)}, {fmtDate(
 									escala.data_inicio,
 								)}
+								<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 							</p>
 							<p class="text-xs text-surface-500 mt-0.5">
 								{escala.hora_entrada} às {escala.hora_saida}

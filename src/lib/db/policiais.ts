@@ -87,7 +87,7 @@ export async function atualizarPolicial(
 	if (data.regime !== undefined) updateData.regime = data.regime;
 	if (data.classe !== undefined) updateData.classe = data.classe;
 
-	updateData.updated_at = sql`datetime('now')`;
+	updateData.updated_at = sql`datetime('now', '-3 hours')`;
 
 	return db.update(policiais).set(updateData).where(eq(policiais.id, id));
 }
@@ -112,7 +112,7 @@ export async function promoverPolicial(
 		.set({
 			papel: papel ?? null,
 			papel_unidade_id: papelUnidadeId ?? null,
-			updated_at: sql`datetime('now')`
+			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.where(eq(policiais.id, policialId));
 }

@@ -26,10 +26,10 @@ export const policiais = sqliteTable(
 		papel_unidade_id: integer('papel_unidade_id'),
 		created_at: text('created_at')
 			.notNull()
-			.default(sql`(datetime('now'))`),
+			.default(sql`(datetime('now', '-3 hours'))`),
 		updated_at: text('updated_at')
 			.notNull()
-			.default(sql`(datetime('now'))`)
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_policiais_lotacao').on(table.lotacao),
@@ -56,7 +56,7 @@ export const escalas = sqliteTable(
 		visto_por_admin: integer('visto_por_admin').notNull().default(0),
 		created_at: text('created_at')
 			.notNull()
-			.default(sql`(datetime('now'))`)
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_escalas_lotacao').on(table.lotacao),
@@ -98,7 +98,7 @@ export const administradores = sqliteTable('administradores', {
 	senha: text('senha').notNull(),
 	nome: text('nome').notNull(),
 	primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
-	created_at: text('created_at').default(sql`(datetime('now'))`)
+	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
 // ---- Sessoes ----
@@ -110,7 +110,7 @@ export const sessoes = sqliteTable(
 		token: text('token').notNull().unique(),
 		tipo: text('tipo', { enum: ['policial', 'admin'] }).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
-		created_at: text('created_at').default(sql`(datetime('now'))`),
+		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`),
 		expires_at: text('expires_at').notNull()
 	},
 	(table) => [
@@ -134,7 +134,7 @@ export const unidades = sqliteTable(
 		tem_fds: integer('tem_fds', { mode: 'boolean' }).default(false).notNull(),
 		created_at: text('created_at')
 			.notNull()
-			.default(sql`(datetime('now'))`)
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [index('idx_unidades_nome').on(table.nome)]
 );
@@ -157,7 +157,7 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
-	created_at: text('created_at').default(sql`(datetime('now'))`)
+	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
 // ---- GISE ----
@@ -186,7 +186,7 @@ export const giseEscalas = sqliteTable(
 		supervisor_id: integer('supervisor_id'),
 		created_at: text('created_at')
 			.notNull()
-			.default(sql`(datetime('now'))`)
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [index('idx_gise_escalas_status').on(table.status)]
 );
@@ -265,7 +265,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
-	created_at: text('created_at').default(sql`(datetime('now'))`)
+	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_documento').on(table.gise_id)
 ]);
@@ -275,7 +275,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	config: text('config').notNull().default('[]'), // JSON array de perguntas
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
+	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 });
 
 export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', {
@@ -288,8 +288,8 @@ export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', 
 		.references(() => policiais.id, { onDelete: 'cascade' }),
 	equipe_id: integer('equipe_id').references(() => giseEquipes.id, { onDelete: 'cascade' }),
 	respostas: text('respostas').notNull().default('{}'),
-	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
+	created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_resposta_policial').on(table.gise_id, table.policial_id),
 	index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id)
@@ -313,8 +313,8 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
-	created_at: text('created_at').notNull().default(sql`(datetime('now'))`),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now'))`)
+	created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id),
 	index('idx_gise_presencas_gise').on(table.gise_id)
@@ -341,7 +341,7 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
-	created_at: text('created_at').default(sql`(datetime('now'))`)
+	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
 	index('idx_gise_ass_rel_gise').on(table.gise_id)

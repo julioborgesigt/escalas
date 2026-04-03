@@ -13,7 +13,7 @@ import {
 	buscarGiseEscala
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
-import { policiais, giseEscalas, giseDocumentos } from '$lib/server/schema';
+import { policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ locals, params, platform }) => {
@@ -112,6 +112,59 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
+	const fileKeys = new Set<string>();
+
+	// 1. Chaves explícitas no banco (Garantia de segurança caso a data tenha sido alterada no histórico)
+	// Manifesto e Selfie do Supervisor
+	const docs = await db.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
+		.from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).all();
+	docs.forEach(d => {
+		if (d.r2) fileKeys.add(d.r2);
+		if (d.selfie) fileKeys.add(d.selfie);
+	});
+
+	// Selfies de Presença (Entrada/Saída)
+	const presencas = await db.select({ entrada: gisePresencas.entrada_selfie_key, saida: gisePresencas.saida_selfie_key })
+		.from(gisePresencas).where(eq(gisePresencas.gise_id, id)).all();
+	presencas.forEach(p => {
+		if (p.entrada) fileKeys.add(p.entrada);
+		if (p.saida) fileKeys.add(p.saida);
+	});
+
+	// Selfies de Relatórios (Supervisor)
+	const assRelat = await db.select({ selfie: giseAssinaturasRelatorios.selfie_key })
+		.from(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, id)).all();
+	assRelat.forEach(a => {
+		if (a.selfie) fileKeys.add(a.selfie);
+	});
+
+	// 2. Limpeza por Prefixo (Pasta virtual no R2)
+	const p = platform as any;
+	const r2 = p?.env?.escalas_docs;
+	if (r2) {
+		try {
+			const [yyyy, mm, dd] = gise.data_inicio.split('-');
+			const prefix = `gise/${yyyy}-${mm}/${dd}/${id}/`;
+			
+			let listed = await r2.list({ prefix });
+			listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
+			
+			while (listed.truncated) {
+				listed = await r2.list({ prefix, cursor: listed.cursor });
+				listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
+			}
+		} catch (e) {
+			console.warn('[GISE DELETE] Erro ao listar prefixo R2:', e);
+		}
+
+		if (fileKeys.size > 0) {
+			// Executa em paralelo para velocidade
+			await Promise.allSettled(Array.from(fileKeys).map(key => r2.delete(key)));
+		}
+	}
+
+	// 3. Apagar do Banco (dispara cascades)
 	await db.delete(giseEscalas).where(eq(giseEscalas.id, id));
-	return json({ ok: true });
+
+	return json({ ok: true, files_deleted: fileKeys.size });
 };
