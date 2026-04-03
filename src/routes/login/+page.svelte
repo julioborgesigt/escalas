@@ -19,25 +19,29 @@
 		}
 
 		loading = true;
+		try {
+			const res = await fetch('/api/auth/login', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(parsed.data)
+			});
 
-		const res = await fetch('/api/auth/login', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(parsed.data)
-		});
-
-		if (res.ok) {
-			const data = await res.json();
-			if (data.primeiro_acesso) {
-				goto('/alterar-senha', { invalidateAll: true });
+			if (res.ok) {
+				const data = await res.json();
+				if (data.primeiro_acesso) {
+					goto('/alterar-senha', { invalidateAll: true });
+				} else {
+					goto(tipo === 'admin' ? '/painel' : '/escalas', { invalidateAll: true });
+				}
 			} else {
-				goto(tipo === 'admin' ? '/painel' : '/escalas', { invalidateAll: true });
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Credenciais inválidas', type: 'error' });
 			}
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Credenciais inválidas', type: 'error' });
+		} catch {
+			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
+		} finally {
+			loading = false;
 		}
-		loading = false;
 	}
 </script>
 

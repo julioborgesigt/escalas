@@ -165,20 +165,27 @@
 		mostrarApenasNaoVistos !== true
 	);
 
+	let excluindo = $state(false);
+
 	async function confirmarExclusao() {
 		if (!escalaParaExcluir) return;
-		
 		const id = escalaParaExcluir.id;
-		dialogOpen = false;
-
-		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
-		if (res.ok) {
-			toaster.create({ title: `Escala removida com sucesso`, type: 'success' });
-			escalas = escalas.filter(e => e.id !== id);
-		} else {
-			toaster.create({ title: 'Erro ao remover escala', type: 'error' });
+		excluindo = true;
+		try {
+			const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+			if (res.ok) {
+				toaster.create({ title: `Escala removida com sucesso`, type: 'success' });
+				escalas = escalas.filter(e => e.id !== id);
+				dialogOpen = false;
+				escalaParaExcluir = null;
+			} else {
+				toaster.create({ title: 'Erro ao remover escala', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			excluindo = false;
 		}
-		escalaParaExcluir = null;
 	}
 </script>
 
@@ -473,8 +480,11 @@
 				Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>? Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo} onclick={confirmarExclusao}>
+					{#if excluindo}<Spinner size="sm" />{/if}
+					{excluindo ? 'Excluindo...' : 'Excluir'}
+				</button>
 			</div>
 		</div>
 	</Dialog.Content>
