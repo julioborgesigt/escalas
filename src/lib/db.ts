@@ -96,5 +96,6 @@ export {
 	salvarAssinaturaRelatorioGise,
 	verificarTodosSairam,
 	verificarTodosRelatoriosEnviados,
-	verificarTodosRelatoriosExtraAssinados
+	verificarTodosRelatoriosExtraAssinados,
+	buscarGiseSeccionalMembros
 } from './db/gise';

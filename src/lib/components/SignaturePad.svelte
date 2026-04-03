@@ -30,6 +30,8 @@
 	let isMoving = $state(false);
 	let lastBox = $state<any>(null);
 	let isFlashActive = $state(false);
+	let stableFrames = $state(0); // Contador para evitar flickering
+	let lastErrorCode = $state<string | null>(null); // Erros de captura final
 
 	$effect(() => {
 		if (step === "camera") {
@@ -106,29 +108,37 @@
 					);
 					if (detections.length === 1) {
 						faceDetected = true;
-
-						// Detecção básica de movimento para evitar fotos tremidas
 						const box = detections[0].box;
+						
 						if (lastBox) {
 							const dx = box.x - lastBox.x;
 							const dy = box.y - lastBox.y;
 							const dist = Math.sqrt(dx * dx + dy * dy);
-							isMoving = dist > 12; // Limiar de sensibilidade
-						}
-						lastBox = box;
+							const movedValue = dist > 12;
 
-						if (isMoving) {
-							faceStatusMessage = "Mantenha o celular firme! ✋";
+							if (movedValue) {
+								isMoving = true;
+								stableFrames = 0;
+								faceStatusMessage = "Mantenha o celular firme! ✋";
+							} else {
+								stableFrames++;
+								if (stableFrames >= 3) {
+									isMoving = false;
+									faceStatusMessage = "Rosto Detectado ✅";
+								}
+							}
 						} else {
 							faceStatusMessage = "Rosto Detectado ✅";
 						}
+						lastBox = box;
 					} else if (detections.length === 0) {
 						faceDetected = false;
-						faceStatusMessage =
-							"Posicione seu rosto na frente da câmera.";
+						stableFrames = 0;
+						faceStatusMessage = "Posicione seu rosto na frente da câmera.";
 						isMoving = false;
 					} else {
 						faceDetected = false;
+						stableFrames = 0;
 						faceStatusMessage = "Apenas 1 rosto é permitido!";
 						isMoving = false;
 					}
@@ -254,24 +264,33 @@
 
 	async function confirm() {
 		capturingImage = true;
+		lastErrorCode = null;
+		let selfieBase64: string | null = null;
 
-		let selfieBase64 = null;
 		if (videoElement && stream) {
-			const sc = document.createElement("canvas");
-			// Usa a proporção exata que o usuário está enxergando no preview
-			const uiRatio =
-				videoElement.clientWidth / videoElement.clientHeight;
+			// VERIFICAÇÃO DE ÚLTIMO MILISSEGUNDO: O rosto ainda está lá?
+			// Isso evita que o usuário "fuja" da câmera no final do countdown
+			const finalDetection = await faceapi.detectAllFaces(
+				videoElement,
+				new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+			);
 
-			// Resolução aumentada de 480 para 600px para maior nitidez
-			const MAX_DIM = 600;
-			let cw, ch;
-			if (uiRatio > 1) {
-				cw = MAX_DIM;
-				ch = MAX_DIM / uiRatio;
-			} else {
-				ch = MAX_DIM;
-				cw = MAX_DIM * uiRatio;
+			if (finalDetection.length !== 1) {
+				lastErrorCode = finalDetection.length === 0 
+					? "Rosto não detectado no momento da foto!" 
+					: "Múltiplos rostos detectados no momento da foto!";
+				capturingImage = false;
+				countdown = 0; // Reseta tentativa
+				return;
 			}
+
+			const sc = document.createElement("canvas");
+			// Força a proporção 3:4 (retrato) para garantir padronização perfeita entre entrada e saída
+			const uiRatio = 0.75; 
+
+			// Resolução aumentada para 600x800 para maior nitidez
+			const ch = 800;
+			const cw = 600;
 			sc.width = cw;
 			sc.height = ch;
 
@@ -367,13 +386,13 @@
 				>
 			</div>
 			<div
-				class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[320px]"
+				class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[280px]"
 			>
 				<canvas
 					bind:this={canvas}
-					width="400"
-					height="320"
-					class="w-full h-[320px] cursor-crosshair touch-none"
+					width="500"
+					height="280"
+					class="w-full h-[280px] cursor-crosshair touch-none"
 					onmousedown={startDrawing}
 					onmousemove={draw}
 					onmouseup={stopDrawing}
@@ -416,7 +435,7 @@
 		{#if step === "camera"}
 			<!-- Camera Preview -->
 			<div
-				class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] md:aspect-[4/5] min-h-[350px] object-cover"
+				class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] min-h-[400px] object-cover"
 			>
 				<span
 					class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
@@ -457,6 +476,16 @@
 						>
 							{countdown}
 						</span>
+					</div>
+				{/if}
+
+				{#if lastErrorCode}
+					<div
+						class="absolute inset-x-4 top-12 bg-error-600/90 text-white backdrop-blur-md px-4 py-3 rounded-2xl text-center shadow-xl z-50 animate-bounce"
+					>
+						<p class="text-[0.65rem] font-black uppercase tracking-widest">
+							{lastErrorCode}
+						</p>
 					</div>
 				{/if}
 

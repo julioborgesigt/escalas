@@ -1,7 +1,7 @@
 import { eq, and, or, isNull, asc, sql } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
-import { limparMatricula } from '../utils';
+import { limparMatricula, limparCPF } from '../utils';
 import type { Database } from './core';
 
 export async function listarPoliciais(
@@ -37,6 +37,7 @@ export async function criarPolicial(
 		nome: string;
 		matricula: string;
 		cargo: string;
+		cpf?: string | null;
 		telefone?: string;
 		lotacao?: string;
 		regime?: string;
@@ -49,6 +50,7 @@ export async function criarPolicial(
 		nome: data.nome,
 		matricula: limparMatricula(data.matricula),
 		cargo: data.cargo as 'DPC' | 'OIP',
+		cpf: data.cpf ? limparCPF(data.cpf) : null,
 		telefone: data.telefone || '',
 		lotacao: data.lotacao || '',
 		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos',
@@ -65,6 +67,7 @@ export async function atualizarPolicial(
 		nome: string;
 		matricula: string;
 		cargo: string;
+		cpf: string;
 		telefone: string;
 		lotacao: string;
 		ativo: number;
@@ -77,6 +80,7 @@ export async function atualizarPolicial(
 	if (data.nome !== undefined) updateData.nome = data.nome;
 	if (data.matricula !== undefined) updateData.matricula = limparMatricula(data.matricula);
 	if (data.cargo !== undefined) updateData.cargo = data.cargo;
+	if (data.cpf !== undefined) updateData.cpf = data.cpf ? limparCPF(data.cpf) : null;
 	if (data.telefone !== undefined) updateData.telefone = data.telefone;
 	if (data.lotacao !== undefined) updateData.lotacao = data.lotacao;
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;

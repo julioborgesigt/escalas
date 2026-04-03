@@ -94,9 +94,95 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
 			let finalPdf = result.pdf;
 
-			// Fallback: Adicionar manifesto se tiver dados de assinatura mas PDF não estava no R2
+			// Coletar assinantes para o Manifesto Misto (Audit Trail)
+			const signers: any[] = [];
+			const p = platform as any;
+			const r2 = p?.env?.escalas_docs;
+
+			// 1. Adicionar Assinaturas dos Policiais (Entradas e Saídas)
+			// Filtrar presenças apenas da seccional se seccionalId estiver definido
+			const presencasFiltradas = seccionalId 
+				? presencas.filter(pr => {
+					// Precisamos saber se o policial pertence a uma equipe desta seccional
+					const membro = gise.seccionais.find(s => s.seccional_id === seccionalId)
+						?.equipes.flatMap(e => e.membros)
+						.find(m => m.policial_id === pr.policial_id);
+					return !!membro;
+				})
+				: presencas;
+
+			for (const pr of presencasFiltradas) {
+				// Entrada
+				if (pr.entrada_rubrica) {
+					let sEntrada: string | undefined = undefined;
+					if (pr.entrada_selfie_key && r2) {
+						try {
+							const obj = await r2.get(pr.entrada_selfie_key);
+							if (obj) {
+								const buf = await obj.arrayBuffer();
+								sEntrada = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+							}
+						} catch (e) {}
+					}
+					signers.push({
+						signerName: `${pr.policial_nome} (ENTRADA)`,
+						signerCpf: pr.policial_cpf ?? undefined,
+						signingTime: new Date(pr.entrada_timestamp || Date.now()),
+						verificationHash: `PRES-${pr.id}-E`,
+						verificationUrl: `${url.origin}/validar/PRES-${pr.id}-E`,
+						ip: pr.ip_address ?? undefined,
+						userAgent: pr.user_agent ?? undefined,
+						latitude: pr.latitude ?? undefined,
+						longitude: pr.longitude ?? undefined,
+						rubricBase64: pr.entrada_rubrica ?? undefined,
+						selfieBase64: sEntrada, 
+						documentHash: '',
+						signatureLevel: 'avancada',
+						documentName: `Relatório Extraordinário - GISE ${id}`
+					});
+				}
+				// Saída
+				if (pr.saida_rubrica) {
+					let sSaida: string | undefined = undefined;
+					if (pr.saida_selfie_key && r2) {
+						try {
+							const obj = await r2.get(pr.saida_selfie_key);
+							if (obj) {
+								const buf = await obj.arrayBuffer();
+								sSaida = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+							}
+						} catch (e) {}
+					}
+					signers.push({
+						signerName: `${pr.policial_nome} (SAÍDA)`,
+						signerCpf: pr.policial_cpf ?? undefined,
+						signingTime: new Date(pr.saida_timestamp || Date.now()),
+						verificationHash: `PRES-${pr.id}-S`,
+						verificationUrl: `${url.origin}/validar/PRES-${pr.id}-S`,
+						ip: pr.ip_address ?? undefined,
+						userAgent: pr.user_agent ?? undefined,
+						latitude: pr.latitude ?? undefined,
+						longitude: pr.longitude ?? undefined,
+						rubricBase64: pr.saida_rubrica ?? undefined,
+						selfieBase64: sSaida,
+						documentHash: '',
+						signatureLevel: 'avancada',
+						documentName: `Relatório Extraordinário - GISE ${id}`
+					});
+				}
+			}
+
+			// 2. Adicionar Assinatura do Supervisor (Relatório)
 			if (reportSignature && reportSignature.verification_hash) {
-				finalPdf = await adicionarPaginaAuditoria(finalPdf, {
+				let supervisorSelfie: string | undefined = undefined;
+				if (r2 && (reportSignature as any).selfie_key) {
+					const obj = await r2.get((reportSignature as any).selfie_key);
+					if (obj) {
+						const buffer = await obj.arrayBuffer();
+						supervisorSelfie = Buffer.from(buffer).toString('base64');
+					}
+				}
+				signers.push({
 					signerName: reportSignature.assinante_nome,
 					signerCpf: reportSignature.assinante_cpf ?? undefined,
 					signingTime: new Date(reportSignature.created_at || Date.now()),
@@ -106,9 +192,14 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					userAgent: (reportSignature as any).user_agent,
 					latitude: (reportSignature as any).latitude,
 					longitude: (reportSignature as any).longitude,
-					selfieBase64: (reportSignature as any).selfie_key ? undefined : undefined,
-					signatureLevel: 'avancada'
+					rubricBase64: reportSignature.rubrica || undefined,
+					selfieBase64: supervisorSelfie,
+					signatureLevel: reportSignature.tipo_assinatura === 'simples' ? 'avancada' : 'qualificada'
 				});
+			}
+
+			if (signers.length > 0) {
+				finalPdf = await adicionarPaginaAuditoria(finalPdf, signers);
 			}
 
 			return new Response(finalPdf as any, {

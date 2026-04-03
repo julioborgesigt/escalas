@@ -72,3 +72,29 @@ export function formatarTelefone(v: string): string {
 	return v;
 }
 
+/**
+ * Formata um CPF no padrão 000.000.000-00.
+ */
+export function formatarCPF(v: string): string {
+	if (!v) return '';
+	v = v.replace(/\D/g, ''); // Remove tudo o que não é dígito
+	if (v.length > 11) v = v.slice(0, 11);
+
+	if (v.length > 9) {
+		return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+	} else if (v.length > 6) {
+		return v.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3');
+	} else if (v.length > 3) {
+		return v.replace(/(\d{3})(\d{3})/, '$1.$2');
+	}
+	return v;
+}
+
+/**
+ * Remove pontos e hifens do CPF.
+ */
+export function limparCPF(v: string): string {
+	if (!v) return '';
+	return String(v).replace(/\D/g, '').trim();
+}
+

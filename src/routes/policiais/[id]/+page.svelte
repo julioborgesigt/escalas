@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import type { Policial } from '$lib/types';
-	import { formatarTelefone } from '$lib/utils';
+	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -12,6 +12,7 @@
 	let nome = $state('');
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
+	let cpf = $state('');
 	let telefone = $state('');
 	let classe = $state('');
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
@@ -40,6 +41,7 @@
 				nome = data.nome;
 				matricula = data.matricula;
 				cargo = data.cargo;
+				cpf = formatarCPF((data as any).cpf || '');
 				telefone = data.telefone || '';
 				classe = (data as unknown as { classe?: string }).classe || '';
 				regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
@@ -88,7 +90,7 @@
 		const res = await fetch(`/api/policiais/${page.params.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ nome, matricula, cargo, telefone, lotacao, regime, classe })
+			body: JSON.stringify({ nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao, regime, classe })
 		});
 
 		if (res.ok) {
@@ -141,7 +143,7 @@
 			<!-- Linha 1 -->
 			<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 				<label class="label sm:col-span-4">
-					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo</span>
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo (Conforme Certificado Digital)</span>
 					<input class="input py-1 px-3 text-sm" type="text" bind:value={nome} required />
 				</label>
 				<label class="label sm:col-span-2">
@@ -158,6 +160,17 @@
 				<label class="label sm:col-span-3">
 					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Telefone</span>
 					<input class="input py-1 px-3 text-sm" type="text" value={telefone} oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))} placeholder="(00) 0.0000-0000" />
+				</label>
+				<label class="label sm:col-span-3">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">CPF (Obrigatório para Token)</span>
+					<input 
+						class="input py-1 px-3 text-sm" 
+						type="text" 
+						value={cpf} 
+						oninput={(e) => (cpf = formatarCPF(e.currentTarget.value))}
+						placeholder="000.000.000-00"
+						maxlength="14"
+					/>
 				</label>
 			</div>
 

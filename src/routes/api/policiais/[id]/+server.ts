@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, buscarPolicial, atualizarPolicial, excluirPolicial, type Database } from '$lib/db';
+import { policialUpdateSchema } from '$lib/schemas/policial';
 import type { RequestHandler } from './$types';
 
 async function verificarPermissao(db: Database, policialId: number, locals: App.Locals): Promise<Response | null> {
@@ -32,6 +33,10 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	if (bloqueio) return bloqueio;
 
 	const data = await request.json();
+	const parsed = policialUpdateSchema.safeParse(data);
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
+	}
 
 	// Policial não pode mudar lotação
 	if (locals.usuario?.tipo === 'policial' && data.lotacao && data.lotacao !== locals.usuario.lotacao) {
@@ -39,7 +44,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	}
 
 	try {
-		await atualizarPolicial(db, id, data);
+		await atualizarPolicial(db, id, parsed.data as any);
 		return json({ success: true });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';

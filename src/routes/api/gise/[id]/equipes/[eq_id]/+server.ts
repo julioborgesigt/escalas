@@ -5,8 +5,10 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, atualizarGiseEquipe, excluirGiseEquipe } from '$lib/db';
+import { getDB, buscarGiseEscala, atualizarGiseEquipe, excluirGiseEquipe, atualizarGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { giseDocumentos } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
 
 export const PATCH: RequestHandler = async ({ locals, params, request, platform }) => {
 	const u = locals.usuario;
@@ -29,7 +31,15 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 	if (hora_saida !== undefined) customHours.hora_saida = hora_saida;
 
 	await atualizarGiseEquipe(db, eqId, slots_dpc, slots_oip, Object.keys(customHours).length ? customHours : undefined);
-	return json({ ok: true });
+
+	// Se a escala estava pronta para assinatura ou além, volta para preenchimento ao alterar equipe
+	const statusString = gise.status as string;
+	if (statusString === 'aguardando_assinatura' || statusString === 'em_andamento' || statusString === 'aguardando_relatorios' || statusString === 'aguardando_assinatura_relat' || statusString === 'pronta_para_finalizar' || statusString === 'finalizada') {
+		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+		await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+	}
+
+	return json({ ok: true, assinatura_revogada: true });
 };
 
 export const DELETE: RequestHandler = async ({ locals, params, platform }) => {

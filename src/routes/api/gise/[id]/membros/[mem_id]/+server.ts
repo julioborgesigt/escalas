@@ -4,9 +4,9 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, removerGiseMembro } from '$lib/db';
+import { getDB, buscarGiseEscala, removerGiseMembro, atualizarGiseEscala } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
+import { giseMembros, giseEquipes, giseSeccionais, giseDocumentos } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 
 export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
@@ -52,5 +52,13 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 	}
 
 	await removerGiseMembro(db, memId);
-	return json({ ok: true });
+
+	// Se a escala estava pronta para assinatura ou além, volta para preenchimento ao remover membro
+	const statusString = gise.status as string;
+	if (statusString === 'aguardando_assinatura' || statusString === 'em_andamento' || statusString === 'aguardando_relatorios' || statusString === 'aguardando_assinatura_relat' || statusString === 'pronta_para_finalizar' || statusString === 'finalizada') {
+		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+		await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+	}
+
+	return json({ ok: true, assinatura_revogada: true });
 };
