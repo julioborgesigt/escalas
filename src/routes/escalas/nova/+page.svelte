@@ -194,31 +194,36 @@
 		}
 
 		saving = true;
-		const res = await fetch('/api/escalas', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				titulo,
-				cidade,
-				data_inicio: dataInicio,
-				data_fim: dataFim,
-				horario: horarioLabel(),
-				hora_entrada: `${horaEntrada}:${minutoEntrada}`,
-				hora_saida: `${horaSaida}:${minutoSaida}`,
-				lotacao: isAdmin ? lotacaoEscala : undefined,
-				tipo: tipoEscolhido
-			})
-		});
+		try {
+			const res = await fetch('/api/escalas', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					titulo,
+					cidade,
+					data_inicio: dataInicio,
+					data_fim: dataFim,
+					horario: horarioLabel(),
+					hora_entrada: `${horaEntrada}:${minutoEntrada}`,
+					hora_saida: `${horaSaida}:${minutoSaida}`,
+					lotacao: isAdmin ? lotacaoEscala : undefined,
+					tipo: tipoEscolhido
+				})
+			});
 
-		if (res.ok) {
-			const data = await res.json();
-			toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
-			goto(`/escalas/${data.id}`);
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao criar', type: 'error' });
+			if (res.ok) {
+				const data = await res.json();
+				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
+				goto(`/escalas/${data.id}`);
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao criar', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 </script>
 

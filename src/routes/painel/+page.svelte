@@ -166,20 +166,28 @@
 	}
 
 
+	let excluindoEscala = $state(false);
+
 	async function confirmarExcluirEscala() {
 		if (!itemParaExcluir?.escala_id) return;
 		const id = itemParaExcluir.escala_id;
-		escalaExcluirOpen = false;
-
-		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
-		if (res.ok) {
-			toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
-			carregar(); // Recarregar painel
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao excluir escala', type: 'error' });
+		excluindoEscala = true;
+		try {
+			const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+			if (res.ok) {
+				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
+				escalaExcluirOpen = false;
+				itemParaExcluir = null;
+				carregar();
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao excluir escala', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			excluindoEscala = false;
 		}
-		itemParaExcluir = null;
 	}
 
 	const temFiltros = $derived(
@@ -342,8 +350,11 @@
 					Tem certeza que deseja excluir esta escala de <strong>{itemParaExcluir?.unidade_nome}</strong>? O status voltará a ser "Não Criada".
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button class="btn preset-filled-error-500" onclick={confirmarExcluirEscala}>Confirmar Exclusão</button>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindoEscala}>Cancelar</Dialog.CloseTrigger>
+					<button class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindoEscala} onclick={confirmarExcluirEscala}>
+						{#if excluindoEscala}<Spinner size="sm" />{/if}
+						{excluindoEscala ? 'Excluindo...' : 'Confirmar Exclusão'}
+					</button>
 				</div>
 			</div>
 		</Dialog.Content>

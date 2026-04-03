@@ -119,27 +119,31 @@
 		}
 
 		saving = true;
+		try {
+			const res = await fetch('/api/policiais', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
+					papel: papel || null,
+					papel_unidade_id: papelUnidadeId || null
+				})
+			});
 
-		const res = await fetch('/api/policiais', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ 
-				nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
-				papel: papel || null,
-				papel_unidade_id: papelUnidadeId || null
-			})
-		});
-
-		if (res.ok) {
-			toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
-			resetForm();
-			cadastroOpen = false;
-			carregarPoliciais();
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao cadastrar', type: 'error' });
+			if (res.ok) {
+				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+				resetForm();
+				cadastroOpen = false;
+				carregarPoliciais();
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao cadastrar', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 
 	const policiaisExibidos = $derived(
@@ -204,18 +208,22 @@
 		excluindo = true;
 		const id = policialParaExcluir.id;
 		const nome = policialParaExcluir.nome;
-
-		const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
-		excluindo = false;
-		dialogOpen = false;
-		if (res.ok) {
-			toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
-			policiais = policiais.filter(p => p.id !== id);
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao remover', type: 'error' });
+		try {
+			const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
+			if (res.ok) {
+				toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
+				policiais = policiais.filter(p => p.id !== id);
+				dialogOpen = false;
+				policialParaExcluir = null;
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao remover', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			excluindo = false;
 		}
-		policialParaExcluir = null;
 	}
 
 	function limparFiltros() {
