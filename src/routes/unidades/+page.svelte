@@ -122,38 +122,42 @@
 		const nomeFinal = novoNome;
 		if (!nomeFinal) return;
 		salvando = true;
+		try {
+			const res = await fetch('/api/unidades', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					nome: nomeFinal,
+					tipo: tipoUnidade,
+					seccional_id: tipoUnidade === 'delegacia' ? novoSeccionalId : null,
+					tem_plantao: novoTemPlantao,
+					tem_expediente: novoTemExpediente,
+					tem_fds: novoTemFds,
+					cidade: buscaCidade
+				})
+			});
 
-		const res = await fetch('/api/unidades', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ 
-				nome: nomeFinal,
-				tipo: tipoUnidade,
-				seccional_id: tipoUnidade === 'delegacia' ? novoSeccionalId : null,
-				tem_plantao: novoTemPlantao,
-				tem_expediente: novoTemExpediente,
-				tem_fds: novoTemFds,
-				cidade: buscaCidade
-			})
-		});
-
-		if (res.ok) {
-			toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-			delegaciaPrefixo = '';
-			delegaciaSufixo = '';
-			seccionalPrefixo = '';
-			seccionalSufixo = 'Interior Sul';
-			novoSeccionalId = null;
-			novoTemPlantao = false;
-			novoTemExpediente = false;
-			novoTemFds = false;
-			cadastroOpen = false;
-			await carregarUnidades();
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao cadastrar unidade', type: 'error' });
+			if (res.ok) {
+				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
+				delegaciaPrefixo = '';
+				delegaciaSufixo = '';
+				seccionalPrefixo = '';
+				seccionalSufixo = 'Interior Sul';
+				novoSeccionalId = null;
+				novoTemPlantao = false;
+				novoTemExpediente = false;
+				novoTemFds = false;
+				cadastroOpen = false;
+				await carregarUnidades();
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao cadastrar unidade', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			salvando = false;
 		}
-		salvando = false;
 	}
 
 	function iniciarEdicao(u: Unidade) {
@@ -181,30 +185,34 @@
 	async function salvarEdicao(id: number) {
 		if (!editNome.trim()) return;
 		salvandoEdicao = true;
+		try {
+			const res = await fetch(`/api/unidades/${id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					nome: editNome.trim(),
+					tipo: editTipo,
+					seccional_id: editSeccionalId,
+					tem_plantao: editTemPlantao,
+					tem_expediente: editTemExpediente,
+					tem_fds: editTemFds,
+					cidade: editCidade
+				})
+			});
 
-		const res = await fetch(`/api/unidades/${id}`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ 
-				nome: editNome.trim(),
-				tipo: editTipo,
-				seccional_id: editSeccionalId,
-				tem_plantao: editTemPlantao,
-				tem_expediente: editTemExpediente,
-				tem_fds: editTemFds,
-				cidade: editCidade
-			})
-		});
-
-		if (res.ok) {
-			toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
-			editandoId = null;
-			await carregarUnidades();
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
+			if (res.ok) {
+				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
+				editandoId = null;
+				await carregarUnidades();
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			salvandoEdicao = false;
 		}
-		salvandoEdicao = false;
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -212,20 +220,28 @@
 		dialogOpen = true;
 	}
 
+	let excluindo = $state(false);
+
 	async function confirmarExclusao() {
 		if (!unidadeParaExcluir) return;
 		const { id, nome } = unidadeParaExcluir;
-		dialogOpen = false;
-
-		const res = await fetch(`/api/unidades/${id}`, { method: 'DELETE' });
-		if (res.ok) {
-			toaster.create({ title: `Unidade "${nome}" removida com sucesso`, type: 'success' });
-			unidades = unidades.filter(u => u.id !== id);
-		} else {
-			const data = await res.json();
-			toaster.create({ title: data.error || 'Erro ao remover unidade', type: 'error' });
+		excluindo = true;
+		try {
+			const res = await fetch(`/api/unidades/${id}`, { method: 'DELETE' });
+			if (res.ok) {
+				toaster.create({ title: `Unidade "${nome}" removida com sucesso`, type: 'success' });
+				unidades = unidades.filter(u => u.id !== id);
+				dialogOpen = false;
+				unidadeParaExcluir = null;
+			} else {
+				const data = await res.json();
+				toaster.create({ title: data.error || 'Erro ao remover unidade', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão', type: 'error' });
+		} finally {
+			excluindo = false;
 		}
-		unidadeParaExcluir = null;
 	}
 
 	function limparFiltros() {
@@ -289,8 +305,11 @@
 				Tem certeza que deseja excluir a unidade "{unidadeParaExcluir?.nome}"? Esta ação não afeta os policiais já lotados nela.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500" onclick={confirmarExclusao}>Excluir</button>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
+				<button class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo} onclick={confirmarExclusao}>
+					{#if excluindo}<Spinner size="sm" />{/if}
+					{excluindo ? 'Excluindo...' : 'Excluir'}
+				</button>
 			</div>
 		</div>
 	</Dialog.Content>
