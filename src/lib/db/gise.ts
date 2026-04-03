@@ -50,17 +50,30 @@ export interface GiseDetalhado extends schema.GiseEscala {
 
 // ---- Listagem e busca ----
 
-export async function listarGiseEscalas(db: Database, supervisorId?: number) {
+export async function listarGiseEscalas(db: Database, supervisorId?: number, policialId?: number) {
 	let query = db.select().from(giseEscalas);
 
 	if (supervisorId) {
 		query = query.where(eq(giseEscalas.supervisor_id, supervisorId)) as any;
+	} else if (policialId) {
+		// Busca escalas onde o policial é supervisor OU membro
+		query = query.where(
+			or(
+				eq(giseEscalas.supervisor_id, policialId),
+				sql`EXISTS (
+					SELECT 1 FROM ${giseMembros} m
+					JOIN ${giseEquipes} eq ON m.equipe_id = eq.id
+					JOIN ${giseSeccionais} s ON eq.gise_seccional_id = s.id
+					WHERE s.gise_id = ${giseEscalas.id} AND m.policial_id = ${policialId}
+				)`
+			)
+		) as any;
 	}
 
 	const escalas = await query.orderBy(desc(giseEscalas.data_inicio)).all();
 	const results = await Promise.all(
 		escalas.map(async (e) => {
-			const [temSaida, totalSecRow, assExtraRow] = await Promise.all([
+			const [temSaida, totalSecRow, assExtraRow, membroSecRow] = await Promise.all([
 				db
 					.select({ id: gisePresencas.id })
 					.from(gisePresencas)
@@ -81,14 +94,24 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number) {
 							eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 						)
 					)
-					.get()
+					.get(),
+				policialId
+					? (db
+							.select({ seccional_id: giseSeccionais.seccional_id })
+							.from(giseMembros)
+							.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+							.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+							.where(and(eq(giseSeccionais.gise_id, e.id), eq(giseMembros.policial_id, policialId)))
+							.get() as any)
+					: Promise.resolve(undefined)
 			]);
 
 			return {
 				...e,
 				temSaidaConfirmada: !!temSaida,
 				totalSeccionais: totalSecRow?.count ?? 0,
-				assinaturasRelatorioExtra: assExtraRow?.count ?? 0
+				assinaturasRelatorioExtra: assExtraRow?.count ?? 0,
+				policialSeccionalId: membroSecRow?.seccional_id ?? null
 			};
 		})
 	);

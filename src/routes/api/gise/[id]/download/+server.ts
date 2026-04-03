@@ -25,9 +25,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
 	const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
+	const isMembro = u.tipo === 'policial' && gise.seccionais.some(s => s.equipes.some(eq => eq.membros.some(m => m.policial_id === u.id)));
 
-	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && u.tipo !== 'policial') {
-		return json({ error: 'Sem permissão para acessar downloads desta escala GISE' }, { status: 403 });
+	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro) {
+		return json({ error: 'Sem permissão para acessar downloads desta escala GISE. Você não faz parte desta equipe.' }, { status: 403 });
 	}
 
 	const format = url.searchParams.get('format') || 'xlsx';

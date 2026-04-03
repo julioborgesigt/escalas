@@ -36,23 +36,48 @@
 
 	// Filtros da lista
 	let statusFilterUrl = $state(page.url.searchParams.get("status") || "");
+	let mesFilterUrl = $state(page.url.searchParams.get("mes") || "");
+	let dataFilterUrl = $state(page.url.searchParams.get("data") || "");
 	let seccionalFilter = $state("todas");
 	let tipoFilter = $state("todos");
 
-	function changeStatusFilter(status: string) {
-		statusFilterUrl = status;
+	function navigateWithFilters(params: Record<string, string | null>) {
 		const navUrl = new URL(page.url);
-		if (status) {
-			navUrl.searchParams.set("status", status);
-		} else {
-			navUrl.searchParams.delete("status");
-		}
+		Object.entries(params).forEach(([key, value]) => {
+			if (value) {
+				navUrl.searchParams.set(key, value);
+			} else {
+				navUrl.searchParams.delete(key);
+			}
+		});
 		import("$app/navigation").then(({ goto }) => {
 			goto(navUrl.pathname + navUrl.search, {
 				keepFocus: true,
 				noScroll: true,
 			});
 		});
+	}
+
+	function changeStatusFilter(status: string) {
+		statusFilterUrl = status;
+		navigateWithFilters({ status });
+	}
+
+	function changeDateFilter(type: "mes" | "data", value: string) {
+		if (type === "mes") {
+			mesFilterUrl = value;
+			navigateWithFilters({ mes: value });
+		} else {
+			dataFilterUrl = value;
+			navigateWithFilters({ data: value });
+		}
+	}
+
+	function limparFiltros() {
+		statusFilterUrl = "";
+		mesFilterUrl = "";
+		dataFilterUrl = "";
+		navigateWithFilters({ status: null, mes: null, data: null });
 	}
 
 	const seccionaisUnicas = $derived(
@@ -233,7 +258,12 @@
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ rubrica, latitude, longitude, selfieBase64 }),
+					body: JSON.stringify({
+						rubrica,
+						latitude,
+						longitude,
+						selfieBase64,
+					}),
 				},
 			);
 			if (!res.ok) throw new Error("Erro ao salvar entrada");
@@ -274,7 +304,12 @@
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ rubrica, latitude, longitude, selfieBase64 }),
+					body: JSON.stringify({
+						rubrica,
+						latitude,
+						longitude,
+						selfieBase64,
+					}),
 				},
 			);
 			if (!res.ok) throw new Error("Erro ao salvar saída");
@@ -1153,7 +1188,94 @@
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 			<!-- Lista de Escalas -->
 			<div class="md:col-span-1 space-y-4">
-				<h2 class="text-lg font-bold px-2">Minhas Escalas GISE</h2>
+				<div class="px-2 space-y-3">
+					<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
+
+					<!-- Filtro de Status para Policiais -->
+					<div
+						class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700"
+					>
+						<button
+							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {(page.url.searchParams.get(
+								'status',
+							) || 'ativas') === 'ativas'
+								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
+								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+							onclick={() => changeStatusFilter("ativas")}
+						>
+							Ativas
+						</button>
+						<button
+							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {page.url.searchParams.get(
+								'status',
+							) === 'finalizadas'
+								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
+								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+							onclick={() => changeStatusFilter("finalizadas")}
+						>
+							Histórico
+						</button>
+					</div>
+
+					<!-- Busca Detalhada -->
+					<div
+						class="space-y-2 pt-2 border-t border-surface-200 dark:border-surface-800"
+					>
+						<div class="flex items-center justify-between">
+							<span
+								class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-wider"
+								>Busca Detalhada</span
+							>
+							{#if page.url.searchParams.get("mes") || page.url.searchParams.get("data") || page.url.searchParams.get("status")}
+								<button
+									class="text-[0.65rem] font-bold text-error-500 hover:underline"
+									onclick={limparFiltros}
+								>
+									Limpar
+								</button>
+							{/if}
+						</div>
+
+						<div class="grid grid-cols-2 gap-2">
+							<div class="space-y-1">
+								<label
+									class="text-[0.6rem] font-medium text-surface-400 ml-1"
+									for="mesMember">Mês/Ano</label
+								>
+								<input
+									id="mesMember"
+									type="month"
+									class="block w-full px-2 py-1.5 text-[0.7rem] rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-1 focus:ring-primary-500 transition-all font-medium"
+									value={page.url.searchParams.get("mes") ||
+										""}
+									onchange={(e) =>
+										changeDateFilter(
+											"mes",
+											e.currentTarget.value,
+										)}
+								/>
+							</div>
+							<div class="space-y-1">
+								<label
+									class="text-[0.6rem] font-medium text-surface-400 ml-1"
+									for="dataMember">Data</label
+								>
+								<input
+									id="dataMember"
+									type="date"
+									class="block w-full px-2 py-1.5 text-[0.7rem] rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-1 focus:ring-primary-500 transition-all font-medium"
+									value={page.url.searchParams.get("data") ||
+										""}
+									onchange={(e) =>
+										changeDateFilter(
+											"data",
+											e.currentTarget.value,
+										)}
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
 				{#each data.minhasEscalas as escala}
 					<div
 						role="button"
@@ -1185,7 +1307,7 @@
 							>
 								{escala.assinada
 									? "SUPERVISOR ASSINOU"
-									: "AGUARDANDO ASSINATUA DO SUPERVISOR"}
+									: "AGUARDANDO ASSINATURA DO SUPERVISOR"}
 							</p>
 
 							<div class="flex items-center gap-1.5">
@@ -1393,9 +1515,15 @@
 								{#if capturandoRubrica}
 									<div class="space-y-4">
 										{#if salvandoPresenca}
-											<div class="flex flex-col items-center gap-3 py-10">
+											<div
+												class="flex flex-col items-center gap-3 py-10"
+											>
 												<Spinner size="lg" />
-												<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Registrando entrada...</p>
+												<p
+													class="text-sm font-semibold text-surface-500 uppercase tracking-wider"
+												>
+													Registrando entrada...
+												</p>
 											</div>
 										{:else}
 											<div
@@ -1712,9 +1840,15 @@
 											</button>
 										{:else if capturandoRubrica}
 											{#if salvandoPresenca}
-												<div class="flex flex-col items-center gap-3 py-10">
+												<div
+													class="flex flex-col items-center gap-3 py-10"
+												>
 													<Spinner size="lg" />
-													<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Registrando saída...</p>
+													<p
+														class="text-sm font-semibold text-surface-500 uppercase tracking-wider"
+													>
+														Registrando saída...
+													</p>
 												</div>
 											{:else}
 												<div
@@ -1723,8 +1857,8 @@
 													<p
 														class="text-xs font-bold text-surface-500 uppercase mb-2"
 													>
-														Câmera e GPS exigidos para
-														prosseguir:
+														Câmera e GPS exigidos
+														para prosseguir:
 													</p>
 													<SignaturePad
 														onConfirm={salvarSaida}
