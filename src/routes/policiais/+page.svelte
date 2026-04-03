@@ -5,8 +5,8 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
-	import { formatarTelefone } from '$lib/utils';
-	import { policialSchema } from '$lib/schemas';
+	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
+	import { policialSchema } from '$lib/schemas/policial';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -58,6 +58,7 @@
 	let nome = $state('');
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
+	let cpf = $state('');
 	let telefone = $state('');
 	let classe = $state('');
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
@@ -97,6 +98,7 @@
 		nome = '';
 		matricula = '';
 		cargo = 'OIP';
+		cpf = '';
 		telefone = '';
 		classe = '';
 		regime = 'ambos';
@@ -109,7 +111,7 @@
 		e.preventDefault();
 
 		const parsed = policialSchema.safeParse({ 
-			nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
+			nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao: lotacaoInput, regime, classe,
 			papel: papel || null,
 			papel_unidade_id: papelUnidadeId || null
 		});
@@ -124,7 +126,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					nome, matricula, cargo, telefone, lotacao: lotacaoInput, regime, classe,
+					nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao: lotacaoInput, regime, classe,
 					papel: papel || null,
 					papel_unidade_id: papelUnidadeId || null
 				})
@@ -273,7 +275,7 @@
 				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-7">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo</span>
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Nome completo (Conforme Certificado Digital)</span>
 						<input class="input py-1 px-3 text-sm" type="text" bind:value={nome} required />
 					</label>
 					<label class="label sm:col-span-2">
@@ -286,6 +288,17 @@
 							<option value="DPC">DPC - Delegado</option>
 							<option value="OIP">OIP - Investigador</option>
 						</select>
+					</label>
+					<label class="label sm:col-span-3">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">CPF (Obrigatório para Token)</span>
+						<input 
+							class="input py-1 px-3 text-sm" 
+							type="text" 
+							value={cpf} 
+							oninput={(e) => (cpf = formatarCPF(e.currentTarget.value))}
+							placeholder="000.000.000-00"
+							maxlength="14"
+						/>
 					</label>
 				</div>
 		

@@ -7,14 +7,17 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import forge from 'node-forge';
 import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
 	buscarGiseEscala,
 	verificarTodosRelatoriosExtraAssinados,
-	atualizarGiseEscala
+	atualizarGiseEscala,
+	buscarPresencasGise,
+	buscarGiseSeccionalMembros
 } from '$lib/db';
-import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria, extrairDadosCertificado, normalizarTexto, type AuditTrailOptions } from '$lib/server/pdf-signing';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -52,6 +55,38 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 	try {
 		const pdfBytesInput = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
+
+		// Validar Certificado (Token) vs Usuário Logado
+		let dadosToken: { nome: string; cpf: string } | null = null;
+		if (serproCms) {
+			dadosToken = extrairDadosCertificado(serproCms);
+		} else if (certificateBase64) {
+			const der = forge.util.decode64(certificateBase64);
+			const cert = forge.pki.certificateFromAsn1(forge.asn1.fromDer(der));
+			const cn = cert.subject.getField('CN')?.value as string || '';
+			const sn = cert.subject.getField('serialNumber')?.value as string || '';
+			dadosToken = { 
+				nome: cn.split(':')[0].trim(), 
+				cpf: sn.replace(/\D/g, '').slice(-11) || cn.split(':').pop()?.replace(/\D/g, '').slice(-11) || ''
+			};
+		}
+
+		if (dadosToken) {
+			const nomeLogado = normalizarTexto(u.nome);
+			const nomeToken = normalizarTexto(dadosToken.nome);
+			const cpfLogado = (u as any).cpf || '';
+			const cpfToken = dadosToken.cpf;
+
+			if (cpfLogado && cpfToken !== cpfLogado) {
+				return json({ error: 'O token não pertence ao usuário logado (CPF incompatível).' }, { status: 400 });
+			}
+			if (nomeLogado && nomeToken !== nomeLogado) {
+				if (!cpfLogado) {
+					return json({ error: 'O token não pertence ao usuário logado (Nome incompatível).' }, { status: 400 });
+				}
+			}
+		}
+
 		let signedPdfBytes: Uint8Array;
 		let type: 'webpki' | 'serpro' = 'webpki';
 
@@ -68,35 +103,110 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			);
 		}
 
-		// Calcular Hash do original (Integridade)
+		// 1. Calcular Hash do original (Integridade do conteúdo assinado)
 		const originalHashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
 		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		// Adicionar folha de auditoria (Manifesto)
-		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, {
-			signerName: signerName && signerName.trim() ? signerName : u.nome,
-			signerCpf: signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '',
+		const r2 = (p as any)?.env?.escalas_docs;
+
+		// 2. Coletar Assinaturas dos Policiais (Entradas e Saídas) dessa Seccional para o Manifesto
+		const signers: AuditTrailOptions[] = [];
+		
+		const membrosSec = await buscarGiseSeccionalMembros(db, id, secIdNum);
+		const idsMembros = membrosSec.map((m: any) => m.policial_id);
+		const todasPresencas = await buscarPresencasGise(db, id);
+		const presencasFiltradas = todasPresencas.filter(p => idsMembros.includes(p.policial_id));
+
+		for (const pr of presencasFiltradas) {
+			// Entrada
+			if (pr.entrada_rubrica) {
+				let sEntrada: string | undefined = undefined;
+				if (pr.entrada_selfie_key && r2) {
+					try {
+						const obj = await r2.get(pr.entrada_selfie_key);
+						if (obj) {
+							const buf = await obj.arrayBuffer();
+							sEntrada = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+						}
+					} catch (e) { console.warn('Falha ao buscar selfie entrada:', e); }
+				}
+
+				signers.push({
+					signerName: `${pr.policial_nome} (ENTRADA)`,
+					signerCpf: pr.policial_cpf ?? undefined,
+					signingTime: new Date(pr.entrada_timestamp || Date.now()),
+					verificationHash: `PRES-${pr.id}-E`,
+					verificationUrl: `${url.origin}/validar/PRES-${pr.id}-E`,
+					ip: pr.ip_address ?? undefined,
+					userAgent: pr.user_agent ?? undefined,
+					latitude: pr.latitude ?? undefined,
+					longitude: pr.longitude ?? undefined,
+					rubricBase64: pr.entrada_rubrica ?? undefined,
+					selfieBase64: sEntrada, 
+					documentHash,
+					signatureLevel: 'avancada',
+					documentName: `Relatório Extraordinário - GISE ${id}`
+				});
+			}
+			// Saída
+			if (pr.saida_rubrica) {
+				let sSaida: string | undefined = undefined;
+				if (pr.saida_selfie_key && r2) {
+					try {
+						const obj = await r2.get(pr.saida_selfie_key);
+						if (obj) {
+							const buf = await obj.arrayBuffer();
+							sSaida = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
+						}
+					} catch (e) { console.warn('Falha ao buscar selfie saida:', e); }
+				}
+
+				signers.push({
+					signerName: `${pr.policial_nome} (SAÍDA)`,
+					signerCpf: pr.policial_cpf ?? undefined,
+					signingTime: new Date(pr.saida_timestamp || Date.now()),
+					verificationHash: `PRES-${pr.id}-S`,
+					verificationUrl: `${url.origin}/validar/PRES-${pr.id}-S`,
+					ip: pr.ip_address ?? undefined,
+					userAgent: pr.user_agent ?? undefined,
+					latitude: pr.latitude ?? undefined,
+					longitude: pr.longitude ?? undefined,
+					rubricBase64: pr.saida_rubrica ?? undefined,
+					selfieBase64: sSaida,
+					documentHash,
+					signatureLevel: 'avancada',
+					documentName: `Relatório Extraordinário - GISE ${id}`
+				});
+			}
+		}
+
+		// 3. Adicionar Assinatura do Supervisor
+		signers.push({
+			signerName: dadosToken?.nome || u.nome,
+			signerCpf: dadosToken?.cpf || (u as any)?.cpf || undefined,
 			signingTime: new Date(signingTimeISO),
 			verificationHash: verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
-			ip,
-			userAgent: ua,
-			latitude,
-			longitude,
+			ip: ip ?? undefined,
+			userAgent: ua ?? undefined,
+			latitude: latitude ?? undefined,
+			longitude: longitude ?? undefined,
 			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Relatório Extraordinário - GISE ${id}`,
 			signatureLevel: 'qualificada'
 		});
 
-		const hashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
+		// 4. Adicionar folhas de auditoria ao PDF final
+		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, signers);
+
+		// Hash do arquivo FINAL (com auditoria) para controle
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfFinal.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
-
-		const r2 = (p as any)?.env?.escalas_docs;
 		
 		const gise = await buscarGiseEscala(db, id);
 		if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
@@ -116,8 +226,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			seccional_id: secIdNum,
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
-			assinante_nome: signerName && signerName.trim() ? signerName : u.nome,
-			assinante_cpf: signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || null,
+			assinante_nome: dadosToken?.nome || u.nome,
+			assinante_cpf: dadosToken?.cpf || (u as any)?.cpf || null,
 			tipo_assinatura: type,
 			rubrica: rubrica,
 			verification_hash: verificationHash,

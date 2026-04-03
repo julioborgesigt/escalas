@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { getDB, salvarEntradaGise } from '$lib/db';
+import { getDB, salvarEntradaGise, buscarGiseEscala } from '$lib/db';
 
 export const POST = async ({ locals, params, request, platform, getClientAddress }: any) => {
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
 	const giseId = parseInt(params.id);
-	const { rubrica, latitude, longitude } = await request.json();
+	const { rubrica, latitude, longitude, selfieBase64 } = await request.json();
 
 	if (!rubrica) return json({ error: 'Rubrica é obrigatória' }, { status: 400 });
 
@@ -14,6 +14,32 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 	const ua = request.headers.get('user-agent') || '';
 
 	const db = getDB(platform);
-	await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude);
+	const gise = await buscarGiseEscala(db, giseId);
+	if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
+
+	let selfieKey: string | undefined = undefined;
+	const r2 = platform?.env?.escalas_docs;
+
+	if (r2 && selfieBase64) {
+		const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+		const matches = selfieBase64.match(regex);
+		if (matches) {
+			const ext = matches[1] === 'png' ? 'png' : 'jpg';
+			const dataBase64 = selfieBase64.replace(regex, '');
+			const binaryString = atob(dataBase64);
+			const bytes = new Uint8Array(binaryString.length);
+			for (let i = 0; i < binaryString.length; i++) {
+				bytes[i] = binaryString.charCodeAt(i);
+			}
+
+			const [yyyy, mm, dd] = gise.data_inicio.split('-');
+			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+			selfieKey = `${folder}/presenca_${u.id}_entrada.${ext}`;
+			
+			await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+		}
+	}
+
+	await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 	return json({ ok: true });
 };

@@ -89,8 +89,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					shading: { fill: '1a5c57' },
 					width: text === 'EQUIPE DE PLANTÃO DA DP' ? { size: 3000, type: WidthType.DXA } :
 						text === 'LOTAÇÃO' ? { size: 2500, type: WidthType.DXA } :
-						text === 'DATA' ? { size: 2000, type: WidthType.DXA } :
-							{ size: 1200, type: WidthType.DXA }
+							text === 'DATA' ? { size: 2000, type: WidthType.DXA } :
+								{ size: 1200, type: WidthType.DXA }
 				})
 			)
 		});
@@ -540,7 +540,7 @@ function formatarDias(dias: string[]): string {
 function formatarMesAno(dateStr: string): string {
 	if (!dateStr) return '';
 	const [year, month] = dateStr.split('-');
-	const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+	const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 	return `${meses[Number(month) - 1]}/${year}`;
 }
 
@@ -850,7 +850,7 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 
 			autoTable(doc, {
 				head: [[`Equipe ${tipoLabel} — ${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP`, '', '', '', '', '', '', '', ''],
-				       ['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']],
+				['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']],
 				body: tableData,
 				startY: y,
 				theme: 'grid',
@@ -905,7 +905,7 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');
-	doc.text(gise.supervisor_nome || 'Supervisor(a) do GISE', sigCenterX, sigY + 4, { align: 'center' });
+	doc.text((gise.supervisor_nome || 'Supervisor(a) do GISE').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
 	doc.setFont('helvetica', 'normal');
 	doc.text(`Matrícula: ${gise.supervisor_matricula || '—'}`, sigCenterX, sigY + 8, { align: 'center' });
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
@@ -1068,9 +1068,9 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		m.policial_matricula,
 		m.policial_classe || '',
 		m.policial_lotacao || m.seccional,
-		`${formatarData(gise.data_inicio)}\n${(m as any).presenca?.entrada_timestamp ? new Date((m as any).presenca.entrada_timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : ''}`,
+		`${formatarData(gise.data_inicio)}\n${(m as any).presenca?.entrada_timestamp ? new Date((m as any).presenca.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
 		{ content: '', image: (m as any).presenca?.entrada_rubrica },
-		`${formatarData(dataSaidaEfetiva)}\n${(m as any).presenca?.saida_timestamp ? new Date((m as any).presenca.saida_timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : ''}`,
+		`${formatarData(dataSaidaEfetiva)}\n${(m as any).presenca?.saida_timestamp ? new Date((m as any).presenca.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
 		{ content: '', image: (m as any).presenca?.saida_rubrica }
 	]);
 
@@ -1156,13 +1156,13 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 				console.warn('[relatorio-extra] Erro ao inserir rubrica do supervisor:', e);
 			}
 		}
-		doc.line(sigCenterX - 60, sigY, sigCenterX + 60, sigY);
+		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
+		doc.setFontSize(8);
 		doc.setFont('helvetica', 'bold');
-		const textoAssinatura = `Assinado digitalmente por "${(reportSignature.assinante_nome ?? '').toUpperCase()} - Mat.: ${reportSignature.assinante_matricula ?? '—'}"`;
-		doc.text(textoAssinatura, sigCenterX, sigY + 5, { align: 'center' });
+		doc.text((reportSignature.assinante_nome ?? 'Supervisor(a)').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
 		doc.setFont('helvetica', 'normal');
-		doc.setFontSize(9);
-		doc.text('Delegado Supervisor', sigCenterX, sigY + 10, { align: 'center' });
+		doc.text(`Matrícula: ${reportSignature.assinante_matricula ?? '—'}`, sigCenterX, sigY + 8, { align: 'center' });
+		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
 	}
 
 	if (reportSignature && qrCodeBase64) {

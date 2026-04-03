@@ -17,6 +17,67 @@ const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 
 // ---------------------------------------------------------------------------
+// UTILITÁRIOS DE VALIDAÇÃO E CERTIFICADOS
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove acentos e padroniza o texto para comparação.
+ */
+export function normalizarTexto(text: string): string {
+    if (!text) return '';
+    return text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+        .trim()
+        .toUpperCase();
+}
+
+/**
+ * Extrai Nome e CPF de uma assinatura CMS (Base64).
+ */
+export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf: string } {
+    try {
+        const der = forge.util.decode64(cmsBase64);
+        const asn1 = forge.asn1.fromDer(der);
+        const p7 = forge.pkcs7.messageFromAsn1(asn1);
+        
+        // O certificado do assinante geralmente é o primeiro da lista
+        const cert = (p7 as any).certificates[0];
+        if (!cert) throw new Error('Certificado não encontrado no CMS');
+
+        // CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
+        const cnField = cert.subject.getField('CN');
+        const commonName = cnField ? String(cnField.value) : '';
+        
+        // Tenta extrair o nome (parte antes dos dois pontos)
+        const nome = commonName.split(':')[0].trim();
+        
+        // Tenta pegar o CPF do serialNumber ou do final do Common Name
+        let cpf = '';
+        const snField = cert.subject.getField('serialNumber');
+        if (snField) {
+            // No ICP-Brasil, serialNumber pode conter o CPF
+            cpf = String(snField.value).replace(/\D/g, '');
+        }
+        
+        // Fallback: se não achou no serialNumber, tenta no CN (comum em e-CPF)
+        if (!cpf && commonName.includes(':')) {
+            cpf = commonName.split(':').pop()?.replace(/\D/g, '') || '';
+        }
+
+        // Se o CPF extraído for muito longo (ex: contém outros dados), pega os últimos 11
+        if (cpf.length > 11) {
+            cpf = cpf.slice(-11);
+        }
+
+        return { nome, cpf };
+    } catch (e) {
+        console.error('[PDF-SIGN] Erro ao extrair dados do certificado:', e);
+        throw new Error('Falha ao processar o certificado digital do Token.');
+    }
+}
+
+// ---------------------------------------------------------------------------
 // BER → DER recursivo
 // ---------------------------------------------------------------------------
 
@@ -914,16 +975,13 @@ export async function adicionarPaginaAuditoria(
 	pdfBytes: Uint8Array,
 	options: AuditTrailOptions | AuditTrailOptions[]
 ): Promise<Uint8Array> {
-	const signers = Array.isArray(options) ? options : [options];
-	const first = signers[0];
+	const allSigners = Array.isArray(options) ? options : [options];
+	const first = allSigners[0];
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
-
-	const page = pdfDoc.addPage();
-	const { width, height } = page.getSize();
 
 	const cNavy = rgb(0.07, 0.14, 0.42);
 	const cText = rgb(0.1, 0.1, 0.15);
@@ -931,147 +989,149 @@ export async function adicionarPaginaAuditoria(
 	const cLightGray = rgb(0.96, 0.97, 0.98);
 	const cBorder = rgb(0.9, 0.92, 0.95);
 
-	// 1 — Topo (Título e Logo tipo ZapSign)
-	page.drawText('Relatório de Assinaturas', { x: 40, y: height - 50, size: 18, font: fontBold, color: cText });
-	const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'medium' }).format(new Date());
-	page.drawText(`Gerado em: ${dataHoraGeral} (Brasília)`, { x: 40, y: height - 65, size: 8, font, color: cGray });
-	page.drawLine({ start: { x: 40, y: height - 80 }, end: { x: width - 40, y: height - 80 }, thickness: 0.5, color: cBorder });
+	// Agrupar assinantes por nível (Qualificada vs Avançada)
+	const qualified = allSigners.filter(s => s.signatureLevel === 'qualificada');
+	const advanced = allSigners.filter(s => s.signatureLevel === 'avancada');
 
-	// 2 — Informações do Documento
-	let currY = height - 105;
-	const drawMetaData = (label: string, value: string, y: number, isBold = false) => {
-		page.drawText(label + ':', { x: 40, y, size: 8, font: fontBold, color: cText });
-		page.drawText(value || 'N/A', { x: 160, y, size: 8.5, font: isBold ? fontBold : font, color: cText });
-		return y - 15;
-	};
+	const groups = [
+		{ title: 'RELATÓRIO DE ASSINATURAS QUALIFICADAS (ICP-BRASIL)', signers: qualified },
+		{ title: 'RELATÓRIO DE ASSINATURAS AVANÇADAS (TELA/MOBILE)', signers: advanced }
+	].filter(g => g.signers.length > 0);
 
-	currY = drawMetaData('Status', 'ASSINADO', currY, true);
-	currY = drawMetaData('Documento', first.documentName || 'Escala de Serviço GISE', currY);
-	currY = drawMetaData('Identificador', first.verificationHash, currY);
-	currY = drawMetaData('Hash do Original', first.documentHash ? first.documentHash.slice(0, 32) + '...' : 'N/A', currY);
-	if (first.documentHash && first.documentHash.length > 32) {
-		page.drawText(first.documentHash.slice(32), { x: 160, y: currY + 6, size: 8, font, color: cText });
-		currY -= 10;
-	}
+	for (const group of groups) {
+		let page = pdfDoc.addPage();
+		const { width, height } = page.getSize();
 
-	// QR Code de Validação no canto superior direito
-	if (first.verificationUrl) {
-		try {
-			const qrSize = 65;
-			const qr = QRCode.create(first.verificationUrl, { errorCorrectionLevel: 'H' });
-			const moduleCount = qr.modules.size;
-			const dotSize = qrSize / moduleCount;
-			const qx = width - 105;
-			const qy = height - 155;
-			for (let r = 0; r < moduleCount; r++) {
-				for (let c = 0; c < moduleCount; c++) {
-					if (qr.modules.get(r, c)) {
-						page.drawRectangle({
-							x: qx + c * dotSize, y: qy + (moduleCount - r - 1) * dotSize,
-							width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
-						});
-					}
-				}
-			}
-		} catch (e) { /* ignore */ }
-	}
+		// 1 — Topo (Título e Logo tipo ZapSign)
+		page.drawText(group.title, { x: 40, y: height - 50, size: 14, font: fontBold, color: cNavy });
+		const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'medium' }).format(new Date());
+		page.drawText(`Gerado em: ${dataHoraGeral} (Brasília)`, { x: 40, y: height - 65, size: 8, font, color: cGray });
+		page.drawLine({ start: { x: 40, y: height - 80 }, end: { x: width - 40, y: height - 80 }, thickness: 0.5, color: cBorder });
 
-	page.drawLine({ start: { x: 40, y: currY - 10 }, end: { x: width - 40, y: currY - 10 }, thickness: 0.5, color: cBorder });
-
-	// 3 — Seção de Assinaturas
-	currY -= 40;
-	page.drawText('ASSINATURAS', { x: 40, y: currY, size: 11, font: fontBold, color: cText });
-	currY -= 25;
-
-	// Loop para cada assinante (Manifesto Misto)
-	for (const s of signers) {
-		const boxH = 145;
-		// Verificamos se cabe na página (limite inferior)
-		if (currY - boxH < 100) break; 
-
-		page.drawRectangle({ x: 40, y: currY - boxH, width: width - 80, height: boxH, color: cLightGray, borderColor: cBorder, borderWidth: 1 });
-		
-		const boxTop = currY;
-
-		// Badge dinâmico por nível de assinatura
-		const isQualified = s.signatureLevel === 'qualificada';
-		const badgeColor = isQualified ? rgb(0.1, 0.3, 0.7) : rgb(0.1, 0.5, 0.2); // Azul para ICP, Verde p/ Eletrônica
-		const badgeBg = isQualified ? rgb(0.9, 0.94, 1.0) : rgb(0.9, 0.98, 0.92);
-		const badgeLabel = isQualified ? 'QUALIFICADA (ICP-BRASIL)' : 'AVANÇADA (TELA)';
-
-		page.drawRectangle({ x: 55, y: boxTop - 25, width: 95, height: 16, color: badgeBg, roundedAlpha: 4 } as any);
-		page.drawText(badgeLabel, { x: 58, y: boxTop - 20, size: 6.5, font: fontBold, color: badgeColor });
-
-		page.drawText(s.signerName.toUpperCase(), { x: 55, y: boxTop - 45, size: 11, font: fontBold, color: cText });
-		const dataAssinatura = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }).format(s.signingTime);
-		page.drawText(`Data e hora da assinatura: ${dataAssinatura}`, { x: 55, y: boxTop - 58, size: 8, font, color: cGray });
-		page.drawText(`Token: ${s.token || s.verificationHash}`, { x: 55, y: boxTop - 70, size: 8, font, color: cGray });
-
-		// Metadata
-		let authY = boxTop - 95;
-		const drawP = (label: string, val: string) => {
-			page.drawText(label + ':', { x: 55, y: authY, size: 7, font: fontBold, color: cGray });
-			page.drawText(val || 'N/A', { x: 130, y: authY, size: 7, font, color: cText });
-			authY -= 12;
+		// 2 — Informações do Documento (Apenas na primeira página de cada grupo)
+		let currY = height - 105;
+		const drawMetaData = (label: string, value: string, y: number, isBold = false) => {
+			page.drawText(label + ':', { x: 40, y, size: 8, font: fontBold, color: cText });
+			page.drawText(value || 'N/A', { x: 160, y, size: 8.5, font: isBold ? fontBold : font, color: cText });
+			return y - 15;
 		};
 
-		drawP('Identificação', s.signerCpf ? `***.${s.signerCpf.slice(3, 6)}.${s.signerCpf.slice(6, 9)}-**` : 'N/A');
-		drawP('IP', s.ip || 'Desconhecido');
-		const ua = s.userAgent || 'N/A';
-		drawP('Dispositivo', ua.slice(0, 45));
-		if (ua.length > 45) {
-			page.drawText(ua.slice(45, 90), { x: 130, y: authY + 4, size: 6, font, color: cGray });
-			authY -= 8;
+		currY = drawMetaData('Status', 'ASSINADO', currY, true);
+		currY = drawMetaData('Documento', first.documentName || 'Extraordinário - GISE', currY);
+		currY = drawMetaData('Identificador', first.verificationHash, currY);
+		currY = drawMetaData('Hash do Original', first.documentHash ? first.documentHash.slice(0, 32) + '...' : 'N/A', currY);
+		if (first.documentHash && first.documentHash.length > 32) {
+			page.drawText(first.documentHash.slice(32), { x: 160, y: currY + 6, size: 8, font, color: cText });
+			currY -= 10;
 		}
-		drawP('Localização', (s.latitude && s.longitude) ? `${s.latitude}, ${s.longitude}` : 'Não capturado');
 
-		// Coluna de assinaturas visuais lado-a-lado (Rubrica / Foto)
-		const rubW = 65;
-		const rubX = width - 165;
-		const fotX = width - 85;
-		const rowY = boxTop - 25;
-
-		page.drawText('RÚBRICA', { x: rubX, y: rowY, size: 7, font: fontBold, color: cGray });
-		page.drawLine({ start: { x: rubX, y: rowY - 5 }, end: { x: rubX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
-		if (s.rubricBase64) {
+		// QR Code de Validação no canto superior direito
+		if (first.verificationUrl) {
 			try {
-				const img = s.rubricBase64.includes('image/jpeg') ? await pdfDoc.embedJpg(s.rubricBase64) : await pdfDoc.embedPng(s.rubricBase64);
-				const iw = 55; const ih = (img.height / img.width) * iw;
-				page.drawImage(img, { x: rubX + (rubW-iw)/2, y: rowY - 10 - ih, width: iw, height: ih });
-			} catch (e) {}
-		} else {
-			page.drawText(isQualified ? '(Via Token)' : '(N/A)', { x: rubX, y: rowY - 20, size: 6, font, color: cGray });
+				const qrSize = 65;
+				const qr = QRCode.create(first.verificationUrl, { errorCorrectionLevel: 'H' });
+				const moduleCount = qr.modules.size;
+				const dotSize = qrSize / moduleCount;
+				for (let r = 0; r < moduleCount; r++) {
+					for (let c = 0; c < moduleCount; c++) {
+						if (qr.modules.get(r, c)) {
+							page.drawRectangle({
+								x: (width - 105) + c * dotSize, y: (height - 155) + (moduleCount - r - 1) * dotSize,
+								width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
+							});
+						}
+					}
+				}
+			} catch (e) { }
 		}
 
-		page.drawText('FOTO', { x: fotX, y: rowY, size: 7, font: fontBold, color: cGray });
-		page.drawLine({ start: { x: fotX, y: rowY - 5 }, end: { x: fotX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
-		if (s.selfieBase64) {
-			try {
-				const bytes = Buffer.from(s.selfieBase64.split(',')[1], 'base64');
-				const img = await pdfDoc.embedJpg(bytes);
-				const iw = 55; const ih = (img.height / img.width) * iw;
-				page.drawImage(img, { x: fotX + (rubW-iw)/2, y: rowY - 10 - ih, width: iw, height: ih });
-			} catch (e) {}
-		} else {
-			page.drawText('(Não capturada)', { x: fotX, y: rowY - 20, size: 6, font, color: cGray });
+		page.drawLine({ start: { x: 40, y: currY - 10 }, end: { x: width - 40, y: currY - 10 }, thickness: 0.5, color: cBorder });
+		currY -= 40;
+
+		// 3 — Seção de Assinaturas do Grupo
+		for (let i = 0; i < group.signers.length; i++) {
+			const s = group.signers[i];
+			const boxH = 145;
+
+			if (currY - boxH < 60) {
+				page = pdfDoc.addPage();
+				const { height: nh } = page.getSize();
+				page.drawText(`${group.title} (Continuação)`, { x: 40, y: nh - 50, size: 12, font: fontBold, color: cNavy });
+				page.drawLine({ start: { x: 40, y: nh - 80 }, end: { x: width - 40, y: nh - 80 }, thickness: 0.5, color: cBorder });
+				currY = nh - 110;
+			}
+
+			page.drawRectangle({ x: 40, y: currY - boxH, width: width - 80, height: boxH, color: cLightGray, borderColor: cBorder, borderWidth: 1 });
+			const boxTop = currY;
+
+			const isQualified = s.signatureLevel === 'qualificada';
+			const badgeColor = isQualified ? rgb(0.1, 0.3, 0.7) : rgb(0.1, 0.5, 0.2);
+			const badgeBg = isQualified ? rgb(0.9, 0.94, 1.0) : rgb(0.9, 0.98, 0.92);
+			const badgeLabel = isQualified ? 'QUALIFICADA (ICP-BRASIL)' : 'AVANÇADA (TELA/MOBILE)';
+
+			page.drawRectangle({ x: 55, y: boxTop - 25, width: 105, height: 16, color: badgeBg, roundedAlpha: 4 } as any);
+			page.drawText(badgeLabel, { x: 58, y: boxTop - 20, size: 6.5, font: fontBold, color: badgeColor });
+
+			page.drawText(s.signerName.toUpperCase(), { x: 55, y: boxTop - 45, size: 11, font: fontBold, color: cText });
+			const dataAssinatura = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }).format(s.signingTime);
+			page.drawText(`Data e hora da assinatura: ${dataAssinatura}`, { x: 55, y: boxTop - 58, size: 8, font, color: cGray });
+			page.drawText(`Token: ${s.token || s.verificationHash}`, { x: 55, y: boxTop - 70, size: 8, font, color: cGray });
+
+			let authY = boxTop - 95;
+			const drawP = (label: string, val: string) => {
+				page.drawText(label + ':', { x: 55, y: authY, size: 7, font: fontBold, color: cGray });
+				page.drawText(val || 'N/A', { x: 130, y: authY, size: 7, font, color: cText });
+				authY -= 12;
+			};
+
+			drawP('Identificação', s.signerCpf ? `***.${s.signerCpf.slice(3, 6)}.${s.signerCpf.slice(6, 9)}-**` : 'N/A');
+			drawP('IP', s.ip || 'Desconhecido');
+			const ua = s.userAgent || 'N/A';
+			drawP('Dispositivo', ua.slice(0, 45));
+			if (ua.length > 45) {
+				page.drawText(ua.slice(45, 90), { x: 130, y: authY + 4, size: 6, font, color: cGray });
+				authY -= 8;
+			}
+			drawP('Localização', (s.latitude && s.longitude) ? `${s.latitude}, ${s.longitude}` : 'Não capturado');
+
+			if (!isQualified) {
+				const rubW = 90; const rubX = 340; const fotX = 445; const rowY = boxTop - 25;
+				page.drawText('RÚBRICA', { x: rubX, y: rowY, size: 7, font: fontBold, color: cGray });
+				page.drawLine({ start: { x: rubX, y: rowY - 5 }, end: { x: rubX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
+				if (s.rubricBase64) {
+					try {
+						const img = s.rubricBase64.includes('image/jpeg') ? await pdfDoc.embedJpg(s.rubricBase64) : await pdfDoc.embedPng(s.rubricBase64);
+						const iw = 80; const ih = (img.height / img.width) * iw;
+						page.drawImage(img, { x: rubX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
+					} catch (e) { }
+				}
+				page.drawText('FOTO', { x: fotX, y: rowY, size: 7, font: fontBold, color: cGray });
+				page.drawLine({ start: { x: fotX, y: rowY - 5 }, end: { x: fotX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
+				if (s.selfieBase64) {
+					try {
+						const data = s.selfieBase64.includes(',') ? s.selfieBase64.split(',')[1] : s.selfieBase64;
+						const bytes = Buffer.from(data, 'base64');
+						const img = await pdfDoc.embedJpg(bytes);
+						const iw = 80; const ih = (img.height / img.width) * iw;
+						page.drawImage(img, { x: fotX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
+					} catch (e) { }
+				}
+			}
+			currY -= boxH + 15;
 		}
 
-		currY -= boxH + 15;
+		// Rodapé de Compliance
+		const hasQualified = group.signers.some(s => s.signatureLevel === 'qualificada');
+		const footerY = 60;
+		if (hasQualified) {
+			page.drawText('INTEGRIDADE CERTIFICADA - ICP-BRASIL', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
+			page.drawText('Assinaturas eletrônicas têm igual validade legal conforme MP 2.200-2/2001 e Lei 14.063/2020.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
+		} else {
+			page.drawText('VALIDADE JURÍDICA ASSEGURADA - LEI 14.063/20', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
+			page.drawText('Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
+		}
+		page.drawText(`Manifesto vinculado ao documento de hash ${first.documentHash?.slice(0, 12)}...`, { x: 40, y: footerY, size: 6, font: fontMono, color: cGray });
 	}
-
-	// 4 — Rodapé de Compliance DINÂMICO
-	const hasQualified = signers.some(s => s.signatureLevel === 'qualificada');
-	const footerY = 60;
-
-	if (hasQualified) {
-		page.drawText('INTEGRIDADE CERTIFICADA - ICP-BRASIL', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
-		page.drawText('Assinaturas eletrônicas têm igual validade legal conforme MP 2.200-2/2001 e Lei 14.063/2020.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
-	} else {
-		page.drawText('VALIDADE JURÍDICA ASSEGURADA - LEI 14.063/20', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
-		page.drawText('Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
-	}
-
-	page.drawText(`Este manifesto é parte integrante do documento assinado sob o hash ${first.documentHash?.slice(0, 12)}...`, { x: 40, y: footerY, size: 6, font: fontMono, color: cGray });
 
 	return pdfDoc.save();
 }

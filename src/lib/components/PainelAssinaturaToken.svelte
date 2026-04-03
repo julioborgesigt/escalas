@@ -18,13 +18,6 @@
 	 */
 
 	import { toaster } from '$lib/toast';
-	import {
-		initWebPKI,
-		listarCertificados,
-		assinarHash,
-		lerCertificado,
-		type WebPKICertificate
-	} from '$lib/webpki';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 
 	let {
@@ -50,13 +43,6 @@
 	// ---- Estado interno ----
 	let assinando = $state(false);
 	let etapa = $state('');
-
-	// WebPKI
-	let certificados = $state<WebPKICertificate[]>([]);
-	let certSelecionado = $state('');
-	let lendoCertificados = $state(false);
-	let tentouLer = $state(false);
-	let pkInstance = $state<any>(null);
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
@@ -96,30 +82,6 @@
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(url);
-	}
-
-	// ---- WebPKI: lista certificados ----
-
-	export async function carregarCertificados() {
-		lendoCertificados = true;
-		tentouLer = false;
-		try {
-			const pki = pkInstance || (await initWebPKI());
-			pkInstance = pki;
-			certificados = await listarCertificados(pki);
-			if (certificados.length === 1) {
-				certSelecionado = certificados[0].thumbprint;
-				signerName = certificados[0].subjectName;
-				signerCpf = certificados[0].cpf || '';
-			}
-		} catch (err) {
-			toaster.error({
-				title: err instanceof Error ? err.message : 'Erro ao inicializar Web PKI'
-			});
-		} finally {
-			lendoCertificados = false;
-			tentouLer = true;
-		}
 	}
 
 	// ---- Fluxo principal: preparar → assinar → finalizar ----
@@ -208,32 +170,6 @@
 		}
 	}
 
-	// ---- Ação: assinar com Web PKI ----
-
-	export async function assinarComWebPKI() {
-		if (!certSelecionado) {
-			toaster.error({ title: 'Selecione um certificado primeiro' });
-			return;
-		}
-		const pki = pkInstance || (await initWebPKI().catch(() => null));
-		if (!pki) return;
-		const cert = certificados.find((c) => c.thumbprint === certSelecionado);
-
-		// CORREÇÃO: atualiza nome/CPF DO CERTIFICADO antes de preparar o PDF,
-		// garantindo que o carimbo visual reflita o dono do token, não o usuário logado.
-		if (cert) {
-			signerName = cert.subjectName;
-			signerCpf = cert.cpf || signerCpf;
-		}
-
-		await executarAssinatura(async (signedAttrsHashHex) => {
-			etapa = 'Aguardando PIN do token (Web PKI)...';
-			const certificateBase64 = await lerCertificado(pki, certSelecionado);
-			const rawSignature = await assinarHash(pki, certSelecionado, signedAttrsHashHex);
-			return { rawSignature, certificateBase64 };
-		});
-	}
-
 	// ---- Ação: assinar com SERPRO ----
 
 	export async function assinarComSerpro() {
@@ -248,11 +184,6 @@
 				const messageDigestBase64 = hexToBase64(messageDigestHex);
 				const result = await client.sign(messageDigestBase64);
 				const serproCms = result.rawSignature;
-				// Atualiza nome/CPF com dados do certificado do SERPRO
-				const certName = result.signerAlias?.replace(/:[\d]+$/, '').trim();
-				const certCpfMatch = result.signerAlias?.match(/:(\d{11})$/);
-				if (certName) signerName = certName;
-				if (certCpfMatch?.[1]) signerCpf = certCpfMatch[1];
 				return { serproCms };
 			});
 		} catch (err: any) {
@@ -270,101 +201,57 @@
 
 <!-- ─── UI ─────────────────────────────────────────────────────────────────── -->
 
-<!-- Leitor de Tokens (Web PKI) -->
+<!-- Dados do Assinante (Dashboard) -->
 <div class="mb-4 p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10">
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-		<h4 class="font-semibold text-sm flex items-center gap-2">
-			<svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-					d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+	<div class="flex items-center gap-3 mb-2">
+		<div class="bg-primary-500/10 p-2 rounded-lg">
+			<svg class="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 			</svg>
-			Leitura de Tokens (Recomendado)
-		</h4>
-		<button
-			class="btn btn-sm preset-outlined-primary-500"
-			onclick={carregarCertificados}
-			disabled={lendoCertificados || disabled}
-		>
-			{#if lendoCertificados}
-				<span class="inline-block w-3 h-3 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"></span>
-				Lendo tokens...
-			{:else}
-				Ler Tokens Plugados
-			{/if}
-		</button>
+		</div>
+		<div>
+			<h4 class="font-bold text-sm">Dados do Assinante</h4>
+			<p class="text-xs text-surface-500 uppercase">Conforme cadastro no sistema</p>
+		</div>
+	</div>
+	
+	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+		<div class="text-sm">
+			<span class="block text-[0.65rem] font-bold uppercase opacity-50">Nome</span>
+			<span class="font-semibold">{signerName || 'Não informado'}</span>
+		</div>
+		<div class="text-sm">
+			<span class="block text-[0.65rem] font-bold uppercase opacity-50">CPF</span>
+			<span class="font-semibold">{signerCpf ? signerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'Não cadastrado'}</span>
+		</div>
 	</div>
 
-	{#if certificados.length > 0}
-		<label class="label mt-3">
-			<span class="label-text text-xs">Selecione o certificado:</span>
-			<select
-				class="select text-sm bg-white dark:bg-surface-900"
-				bind:value={certSelecionado}
-				onchange={(e) => {
-					const c = certificados.find((x) => x.thumbprint === e.currentTarget.value);
-					if (c) { signerName = c.subjectName; signerCpf = c.cpf || ''; }
-				}}
-			>
-				<option value="">Selecione...</option>
-				{#each certificados as cert (cert.thumbprint)}
-					<option value={cert.thumbprint}>
-						{cert.subjectName}{cert.cpf ? ` (CPF: ${cert.cpf})` : ''} — Emissor: {cert.issuerName}
-					</option>
-				{/each}
-			</select>
-		</label>
-	{:else if tentouLer}
-		<p class="text-xs text-error-500 mt-2 bg-error-500/10 p-2 rounded">
-			Nenhum certificado encontrado. Verifique se o token está conectado e a extensão
-			<strong>Lacuna Web PKI</strong> está instalada.
-		</p>
-	{:else}
-		<p class="text-xs text-surface-500 mt-1">
-			Clique no botão ao lado para listar e preencher automaticamente os dados do seu certificado.
+	{#if !signerCpf}
+		<p class="text-[0.7rem] text-error-500 mt-2 flex items-center gap-1">
+			<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+			Atenção: Seu CPF não está cadastrado. A assinatura pode falhar.
 		</p>
 	{/if}
 </div>
 
-<!-- Botões de assinatura + indicador de progresso -->
+<!-- Botão de assinatura -->
 <div class="flex gap-2 items-center flex-wrap">
-	<!-- Web PKI (Botão oculto, mas lógica mantida para leitura de tokens) -->
 	<button
-		class="btn btn-sm preset-filled-success-500 hidden"
-		onclick={assinarComWebPKI}
-		disabled={assinando || !certSelecionado || disabled}
-		title="Requer usar o Leitor de Tokens primeiro"
-	>
-		{#if assinando && !serproClient}
-			<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-			{etapa || 'Assinando...'}
-		{:else}
-			Assinar com Web PKI
-		{/if}
-	</button>
-
-	<!-- SERPRO -->
-	<button
-		class="btn btn-sm preset-filled-tertiary-500"
+		class="btn btn-sm preset-filled-primary-500"
 		onclick={assinarComSerpro}
-		disabled={assinando || !certSelecionado || disabled}
+		disabled={assinando || disabled}
 		title="Requer o Assinador Desktop SERPRO instalado"
 	>
-		{#if assinando && !!serproClient}
+		{#if assinando}
 			<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
 			{etapa || 'Assinando...'}
 		{:else}
-			Assinar com SERPRO
+			<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+			</svg>
+			Assinar com Token A3 (SERPRO)
 		{/if}
 	</button>
-
-	{#if certificados.length > 0 && !assinando}
-		<button
-			class="btn btn-sm preset-outlined-surface"
-			onclick={() => { certificados = []; certSelecionado = ''; tentouLer = false; }}
-		>
-			Limpar lista
-		</button>
-	{/if}
 </div>
 
 <!-- Indicador de etapa (quando assinando) -->
@@ -373,8 +260,7 @@
 {/if}
 
 <p class="text-xs text-surface-400 dark:text-surface-500 mt-2">
-	<strong>Web PKI:</strong> requer extensão
-	<a href="https://get.webpkiplugin.com/" target="_blank" rel="noopener" class="underline">Lacuna Web PKI</a>.
-	<strong>SERPRO:</strong> requer
+	Este fluxo utiliza o 
 	<a href="https://www.serpro.gov.br/menu/noticias/noticias-2015/assinador-serpro" target="_blank" rel="noopener" class="underline">Assinador Desktop SERPRO</a>.
+	Certifique-se de que o aplicativo está aberto e o token conectado.
 </p>

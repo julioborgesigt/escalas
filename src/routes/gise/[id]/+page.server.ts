@@ -62,6 +62,9 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 			todasUnidades,
 			assinaturasRelatorios,
 			papelGise: isGeral ? 'admin_geral' : (isSeccional ? 'admin_seccional' : (isSupervisor ? 'supervisor' : 'policial')),
+			isGeral,
+			isSeccional,
+			isSupervisor,
 			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
 			usuarioAtual: u
 		};

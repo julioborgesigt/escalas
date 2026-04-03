@@ -7,8 +7,9 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import forge from 'node-forge';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
-import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -32,6 +33,40 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		// Finalizar o PDF (assinado)
 		const pdfBytesInput = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
+		// Validar Certificado (Token) vs Usuário Logado
+		let dadosToken: { nome: string; cpf: string } | null = null;
+		if (serproCms) {
+			dadosToken = extrairDadosCertificado(serproCms);
+		} else if (certificateBase64) {
+			// Em caso de PKI antigo (manual)
+			const der = forge.util.decode64(certificateBase64);
+			const cert = forge.pki.certificateFromAsn1(forge.asn1.fromDer(der));
+			// Simplificado: extrai CN e CPF
+			const cn = cert.subject.getField('CN')?.value as string || '';
+			const sn = cert.subject.getField('serialNumber')?.value as string || '';
+			dadosToken = { 
+				nome: cn.split(':')[0].trim(), 
+				cpf: sn.replace(/\D/g, '').slice(-11) || cn.split(':').pop()?.replace(/\D/g, '').slice(-11) || ''
+			};
+		}
+
+		if (dadosToken) {
+			const nomeLogado = normalizarTexto(u.nome);
+			const nomeToken = normalizarTexto(dadosToken.nome);
+			const cpfLogado = (u as any).cpf || '';
+			const cpfToken = dadosToken.cpf;
+
+			if (cpfLogado && cpfToken !== cpfLogado) {
+				return json({ error: 'O token não pertence ao usuário logado (CPF incompatível).' }, { status: 400 });
+			}
+			if (nomeLogado && nomeToken !== nomeLogado) {
+				// Permite uma margem de manobra se o CPF bater, mas se ambos falharem, bloqueia
+				if (!cpfLogado) {
+					return json({ error: 'O token não pertence ao usuário logado (Nome incompatível).' }, { status: 400 });
+				}
+			}
+		}
+
 		let signedPdfBytes: Uint8Array;
 		if (serproCms) {
 			signedPdfBytes = await embedSerproCms(pdfBytesInput, serproCms);
@@ -53,8 +88,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		// Adicionar folha de auditoria (Manifesto)
 		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, {
-			signerName: signerName && signerName.trim() ? signerName : u.nome,
-			signerCpf: signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '',
+			signerName: dadosToken?.nome || u.nome,
+			signerCpf: dadosToken?.cpf || (u as any)?.cpf || '',
 			signingTime: new Date(signingTimeISO),
 			verificationHash: verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
@@ -82,8 +117,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		}
 
 		// Registrar no banco com auditoria
-		const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-		const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '';
+		const finalSignerName = dadosToken?.nome || u.nome;
+		const finalSignerCpf = dadosToken?.cpf || (u as any)?.cpf || '';
 		await salvarGiseDocumento(
 			db,
 			id,

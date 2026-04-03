@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
+import forge from 'node-forge';
 import { getDB, buscarEscala, salvarDocumentoEscala } from '$lib/db';
-import { finalizarAssinatura, embedSerproCms } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const POST = async ({ platform, params, request, locals, getClientAddress }: RequestEvent) => {
@@ -32,15 +33,43 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 
 	try {
 		const preparedPdfBytes = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
+
+		// Validar Certificado (Token) vs Usuário Logado
+		let dadosToken: { nome: string; cpf: string } | null = null;
+		if (serproCms) {
+			dadosToken = extrairDadosCertificado(serproCms);
+		} else if (certificateBase64) {
+			const der = forge.util.decode64(certificateBase64);
+			const cert = forge.pki.certificateFromAsn1(forge.asn1.fromDer(der));
+			const cn = cert.subject.getField('CN')?.value as string || '';
+			const sn = cert.subject.getField('serialNumber')?.value as string || '';
+			dadosToken = { 
+				nome: cn.split(':')[0].trim(), 
+				cpf: sn.replace(/\D/g, '').slice(-11) || cn.split(':').pop()?.replace(/\D/g, '').slice(-11) || ''
+			};
+		}
+
+		if (dadosToken) {
+			const nomeLogado = normalizarTexto(usuario.nome);
+			const nomeToken = normalizarTexto(dadosToken.nome);
+			const cpfLogado = (usuario as any).cpf || '';
+			const cpfToken = dadosToken.cpf;
+
+			if (cpfLogado && cpfToken !== cpfLogado) {
+				return json({ error: 'O token não pertence ao usuário logado (CPF incompatível).' }, { status: 400 });
+			}
+			if (nomeLogado && nomeToken !== nomeLogado) {
+				if (!cpfLogado) {
+					return json({ error: 'O token não pertence ao usuário logado (Nome incompatível).' }, { status: 400 });
+				}
+			}
+		}
+
 		let signedPdf: Uint8Array;
 
 		if (serproCms) {
-			// Fluxo SERPRO: CMS PKCS#7 completo retornado pelo Assinador SERPRO.
-			// O messageDigest já está correto (enviamos o hash do ByteRange ao SERPRO).
-			// Basta embutir o CMS diretamente no placeholder do PDF.
 			signedPdf = await embedSerproCms(preparedPdfBytes, serproCms);
 		} else {
-			// Fluxo Web PKI: assinatura RSA bruta + certificado separados.
 			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
 				return json(
 					{ error: 'rawSignature, certificateBase64, messageDigest e signingTimeISO são obrigatórios para o fluxo Web PKI' },
@@ -57,6 +86,9 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		}
 
 		// Salva o PDF no Cloudflare R2 e registra no banco
+		const finalSignerName = dadosToken?.nome || signerName || usuario.nome;
+		const finalSignerCpf = dadosToken?.cpf || (usuario as any).cpf || '';
+
 		const env = p?.env as any;
 		if (env?.escalas_docs) {
 			const mesAno = escala.data_inicio.substring(0, 7);
@@ -64,7 +96,7 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 			const r2Key = `${folder}/escala_${escalaId}_${verificationHash}_assinada.pdf`;
 			try {
 				await env.escalas_docs.put(r2Key, signedPdf);
-				await salvarDocumentoEscala(db, escalaId, r2Key, signerName || 'Desconhecido', signerCpf || '', verificationHash, ip, ua, latitude, longitude);
+				await salvarDocumentoEscala(db, escalaId, r2Key, finalSignerName, finalSignerCpf, verificationHash, ip, ua, latitude, longitude);
 			} catch (err) {
 				console.error('[finalizar-assinatura] Erro ao salvar no R2 ou BD:', err);
 			}

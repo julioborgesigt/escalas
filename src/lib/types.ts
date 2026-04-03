@@ -10,6 +10,7 @@ export type {
 export interface EscalaPolicialComDados extends EscalaPolicial {
 	nome: string;
 	matricula: string;
+	cpf: string | null;
 	cargo: string;
 	telefone: string | null;
 	lotacao: string;

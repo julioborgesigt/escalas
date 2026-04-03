@@ -223,6 +223,7 @@
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
+		selfieBase64?: string,
 	) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
@@ -232,7 +233,7 @@
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ rubrica, latitude, longitude }),
+					body: JSON.stringify({ rubrica, latitude, longitude, selfieBase64 }),
 				},
 			);
 			if (!res.ok) throw new Error("Erro ao salvar entrada");
@@ -263,6 +264,7 @@
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
+		selfieBase64?: string,
 	) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
@@ -272,7 +274,7 @@
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ rubrica, latitude, longitude }),
+					body: JSON.stringify({ rubrica, latitude, longitude, selfieBase64 }),
 				},
 			);
 			if (!res.ok) throw new Error("Erro ao salvar saída");
@@ -1374,7 +1376,7 @@
 								</div>
 							</div>
 						{:else if !escalaSelecionada.presenca?.entrada_timestamp}
-							<div class="p-4 sm:p-6 space-y-8">
+							<div class="p-4 sm:p-6 space-y-10">
 								<div class="space-y-2">
 									<h3
 										class="font-bold uppercase text-sm tracking-wider"
@@ -1666,7 +1668,7 @@
 
 								<!-- Saída -->
 								<div
-									class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800"
+									class="space-y-10 pt-8 border-t border-surface-200 dark:border-surface-800 p-4 sm:p-6"
 								>
 									<h3
 										class="font-bold uppercase text-sm tracking-wider"

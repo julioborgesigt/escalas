@@ -2,7 +2,10 @@
 	import { onMount, untrack } from "svelte";
 	import Chart from "chart.js/auto";
 
-	interface RankingItem { nome: string; total: number; }
+	interface RankingItem {
+		nome: string;
+		total: number;
+	}
 
 	let { data } = $props();
 
@@ -14,14 +17,17 @@
 	// Export Selection
 	let selectedCharts = $state<(number | string)[]>([]);
 	const TOP_IDS = [
-		'rank-prisoes', 'detail-prisoes',
-		'rank-drogas', 'detail-drogas',
-		'rank-armas', 'detail-armas'
+		"rank-prisoes",
+		"detail-prisoes",
+		"rank-drogas",
+		"detail-drogas",
+		"rank-armas",
+		"detail-armas",
 	];
 
 	const toggleChartSelection = (id: number | string) => {
 		if (selectedCharts.includes(id)) {
-			selectedCharts = selectedCharts.filter(i => i !== id);
+			selectedCharts = selectedCharts.filter((i) => i !== id);
 		} else {
 			selectedCharts = [...selectedCharts, id];
 		}
@@ -51,10 +57,10 @@
 				item.seccional_id !== Number(filterSeccional)
 			)
 				return false;
-			
+
 			const start = filterInicio || defaultStart;
 			const end = filterFim || defaultEnd;
-			
+
 			if (date < start) return false;
 			if (date > end) return false;
 			return true;
@@ -62,21 +68,42 @@
 	);
 
 	// Dynamic Questions Mapping (P4 to P18+)
-	const palette = ["#3b82f6", "#10b981", "#f59e0b", "#f43f5e", "#06b6d4", "#8b5cf6", "#ef4444", "#6366f1", "#14b8a6", "#d946ef", "#f97316", "#ec4899", "#64748b", "#94a3b8", "#a855f7"];
-	
+	const palette = [
+		"#3b82f6",
+		"#10b981",
+		"#f59e0b",
+		"#f43f5e",
+		"#06b6d4",
+		"#8b5cf6",
+		"#ef4444",
+		"#6366f1",
+		"#14b8a6",
+		"#d946ef",
+		"#f97316",
+		"#ec4899",
+		"#64748b",
+		"#94a3b8",
+		"#a855f7",
+	];
+
 	let QUESTIONS = $derived.by(() => {
 		const base = data.modelo && data.modelo.length > 0 ? data.modelo : [];
 		if (base.length === 0) return [];
-		
+
 		return base
-			.filter((q: any) => ['numero', 'select_99', 'select_999', 'sim_nao'].includes(q.tipo))
+			.filter((q: any) =>
+				["numero", "select_99", "select_999", "sim_nao"].includes(
+					q.tipo,
+				),
+			)
 			.map((q: any, idx: number) => ({
 				id: q.id,
 				label: q.texto,
 				key: q.key,
 				color: palette[idx % palette.length],
-				isBool: q.tipo === 'sim_nao',
-				specialStore: q.key === 'apreensoes_drogas' ? 'drogasGeral' : null // Map legacy/special
+				isBool: q.tipo === "sim_nao",
+				specialStore:
+					q.key === "apreensoes_drogas" ? "drogasGeral" : null, // Map legacy/special
 			}));
 	});
 
@@ -88,20 +115,22 @@
 			apreensoes_armas: 0,
 			armasPorTipo: {},
 			prisaoFlagrante: 0,
-			prisaoMandado: 0
+			prisaoMandado: 0,
 		};
 
 		// Initialize dynamic keys
-		QUESTIONS.forEach((q: any) => { if (!s[q.key]) s[q.key] = 0; });
+		QUESTIONS.forEach((q: any) => {
+			if (!s[q.key]) s[q.key] = 0;
+		});
 
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
-			
+
 			// Dynamic Aggregation for all Numeric/Boolean Questions
 			QUESTIONS.forEach((q: any) => {
 				const val = res[q.key];
 				if (q.isBool) {
-					if (val === 'Sim') s[q.key] = (s[q.key] || 0) + 1;
+					if (val === "Sim") s[q.key] = (s[q.key] || 0) + 1;
 				} else {
 					s[q.key] = (s[q.key] || 0) + (Number(val) || 0);
 				}
@@ -111,16 +140,18 @@
 			// P10: Drugs
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-					const unid = (res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
+					const unid =
+						(res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
 					let pNorm = Number(peso) || 0;
 					if (unid === "kg") pNorm *= 1000;
-					s.drogasPorTipo[tipo] = (s.drogasPorTipo[tipo] || 0) + pNorm;
+					s.drogasPorTipo[tipo] =
+						(s.drogasPorTipo[tipo] || 0) + pNorm;
 					s.drogasGeral += pNorm;
 				});
 			}
 
 			// P11: Weapons
-			if (res.apreensoes_armas_bool === 'Sim' && res.armas_detalhe) {
+			if (res.apreensoes_armas_bool === "Sim" && res.armas_detalhe) {
 				Object.entries(res.armas_detalhe).forEach(([tipo, qtd]) => {
 					const n = Number(qtd) || 0;
 					s.apreensoes_armas += n;
@@ -129,7 +160,7 @@
 			}
 
 			// P4 & P5: Prisons (stats auxiliares para totais do detalhamento)
-			if (res.procedimentos_flagrante_bool === 'Sim') {
+			if (res.procedimentos_flagrante_bool === "Sim") {
 				s.prisaoFlagrante += Number(res.prisoes_qtd) || 0;
 			}
 			s.prisaoMandado += Number(res.mandados_qtd) || 0;
@@ -141,8 +172,10 @@
 	// Rankings
 	let rankingPrisoes = $derived.by(() => {
 		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-		
+		(data.seccionais ?? []).forEach((s: any) =>
+			r.set(s.id, { nome: s.nome, total: 0 }),
+		);
+
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
 			const val = Number(res.prisoes_apreensoes_flagrante) || 0;
@@ -154,13 +187,16 @@
 
 	let rankingDrogasPeso = $derived.by(() => {
 		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-		
+		(data.seccionais ?? []).forEach((s: any) =>
+			r.set(s.id, { nome: s.nome, total: 0 }),
+		);
+
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-					const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
+					const unidade =
+						(res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
 					let p = Number(peso) || 0;
 					if (unidade === "kg") p *= 1000;
 					const entry = r.get(item.seccional_id);
@@ -173,13 +209,17 @@
 
 	let rankingArmas = $derived.by(() => {
 		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-		
+		(data.seccionais ?? []).forEach((s: any) =>
+			r.set(s.id, { nome: s.nome, total: 0 }),
+		);
+
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
 			let val = 0;
-			if (res.apreensoes_armas_bool === 'Sim' && res.armas_detalhe) {
-				Object.values(res.armas_detalhe).forEach(q => val += (Number(q) || 0));
+			if (res.apreensoes_armas_bool === "Sim" && res.armas_detalhe) {
+				Object.values(res.armas_detalhe).forEach(
+					(q) => (val += Number(q) || 0),
+				);
 			}
 			const entry = r.get(item.seccional_id);
 			if (entry) entry.total += val;
@@ -193,11 +233,11 @@
 
 	function updateCharts(list: any[]) {
 		const isShowingAll = !filterSeccional;
-		const labels = isShowingAll 
+		const labels = isShowingAll
 			? (data.seccionais ?? []).map((s: any) => s.nome)
-			: Array.from(new Set(list.map(i => i.data_inicio))).sort();
+			: Array.from(new Set(list.map((i) => i.data_inicio))).sort();
 
-		QUESTIONS.forEach(q => {
+		QUESTIONS.forEach((q: any) => {
 			const canvas = canvasElements[q.id];
 			if (!canvas) return;
 
@@ -208,24 +248,30 @@
 
 			// Process Data
 			let chartData: number[] = [];
-			
+
 			if (isShowingAll) {
 				// Compare Seccionais
 				chartData = (data.seccionais ?? []).map((sec: any) => {
 					return list
-						.filter(item => item.seccional_id === sec.id)
+						.filter((item) => item.seccional_id === sec.id)
 						.reduce((acc, item) => {
 							const res = JSON.parse(item.respostas || "{}");
-							if (q.isBool) return acc + (res[q.key] === "Sim" ? 1 : 0);
+							if (q.isBool)
+								return acc + (res[q.key] === "Sim" ? 1 : 0);
 							if (q.specialStore === "drogasGeral") {
 								let drogasTotal = 0;
 								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
-										let pesoV = Number(peso) || 0;
-										if (unidade === "kg") pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
+									Object.entries(res.drogas_detalhe).forEach(
+										([tipo, peso]) => {
+											const unidade =
+												(res.drogas_unidade &&
+													res.drogas_unidade[tipo]) ||
+												"g";
+											let pesoV = Number(peso) || 0;
+											if (unidade === "kg") pesoV *= 1000;
+											drogasTotal += pesoV;
+										},
+									);
 								}
 								return acc + drogasTotal;
 							}
@@ -234,21 +280,27 @@
 				});
 			} else {
 				// Trend for one Seccional
-				chartData = labels.map(date => {
+				chartData = labels.map((date) => {
 					return list
-						.filter(item => item.data_inicio === date)
+						.filter((item) => item.data_inicio === date)
 						.reduce((acc, item) => {
 							const res = JSON.parse(item.respostas || "{}");
-							if (q.isBool) return acc + (res[q.key] === "Sim" ? 1 : 0);
+							if (q.isBool)
+								return acc + (res[q.key] === "Sim" ? 1 : 0);
 							if (q.specialStore === "drogasGeral") {
 								let drogasTotal = 0;
 								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || "g";
-										let pesoV = Number(peso) || 0;
-										if (unidade === "kg") pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
+									Object.entries(res.drogas_detalhe).forEach(
+										([tipo, peso]) => {
+											const unidade =
+												(res.drogas_unidade &&
+													res.drogas_unidade[tipo]) ||
+												"g";
+											let pesoV = Number(peso) || 0;
+											if (unidade === "kg") pesoV *= 1000;
+											drogasTotal += pesoV;
+										},
+									);
 								}
 								return acc + drogasTotal;
 							}
@@ -260,54 +312,62 @@
 			const instance = new Chart(canvas, {
 				type: isShowingAll ? "bar" : "line",
 				data: {
-					labels: isShowingAll ? labels : (labels as string[]).map(d => d.split("-").reverse().join("/")),
-					datasets: [{
-						label: q.label,
-						data: chartData,
-						backgroundColor: q.color + (isShowingAll ? "80" : "20"),
-						borderColor: q.color,
-						borderWidth: 2,
-						tension: 0.4,
-						fill: !isShowingAll,
-						borderRadius: isShowingAll ? 4 : 0,
-						pointRadius: isShowingAll ? 0 : 3
-					}]
+					labels: isShowingAll
+						? labels
+						: (labels as string[]).map((d) =>
+								d.split("-").reverse().join("/"),
+							),
+					datasets: [
+						{
+							label: q.label,
+							data: chartData,
+							backgroundColor:
+								q.color + (isShowingAll ? "80" : "20"),
+							borderColor: q.color,
+							borderWidth: 2,
+							tension: 0.4,
+							fill: !isShowingAll,
+							borderRadius: isShowingAll ? 4 : 0,
+							pointRadius: isShowingAll ? 0 : 3,
+						},
+					],
 				},
 				options: {
 					responsive: true,
 					maintainAspectRatio: false,
-					plugins: { 
+					plugins: {
 						legend: { display: false },
 						tooltip: {
 							callbacks: {
 								label: (context) => {
 									let val = context.parsed.y ?? 0;
-									if (q.specialStore === "drogasGeral") return `${val.toLocaleString()}g`;
+									if (q.specialStore === "drogasGeral")
+										return `${val.toLocaleString()}g`;
 									return val.toLocaleString();
-								}
-							}
-						}
+								},
+							},
+						},
 					},
 					scales: {
-						x: { 
+						x: {
 							display: isShowingAll,
 							grid: { display: false },
-							ticks: { 
+							ticks: {
 								autoSkip: true,
 								maxRotation: 45,
-								font: { size: 8 }
-							}
+								font: { size: 8 },
+							},
 						},
-						y: { 
+						y: {
 							beginAtZero: true,
 							grid: { color: "#e2e8f010" },
-							ticks: { 
+							ticks: {
 								display: true,
-								font: { size: 9 }
-							} 
-						}
-					}
-				}
+								font: { size: 9 },
+							},
+						},
+					},
+				},
 			});
 			chartInstances.set(q.id, instance);
 		});
@@ -319,7 +379,7 @@
 		// Track filteredData and canvasElements keys
 		const _data = filteredData;
 		const _canvases = Object.keys(canvasElements).length;
-		
+
 		if (_data && _canvases === QUESTIONS.length) {
 			tick().then(() => updateCharts(_data));
 		}
@@ -327,7 +387,10 @@
 
 	onMount(() => {
 		// Initial check
-		if (filteredData.length > 0 && Object.keys(canvasElements).length === QUESTIONS.length) {
+		if (
+			filteredData.length > 0 &&
+			Object.keys(canvasElements).length === QUESTIONS.length
+		) {
 			updateCharts(filteredData);
 		}
 	});
@@ -335,7 +398,9 @@
 	async function exportChartsAsImages() {
 		if (selectedCharts.length === 0) return;
 
-		const seccionalName = data.seccionais?.find((s: any) => s.id === Number(filterSeccional))?.nome || "Todas as Seccionais";
+		const seccionalName =
+			data.seccionais?.find((s: any) => s.id === Number(filterSeccional))
+				?.nome || "Todas as Seccionais";
 		const start = filterInicio || defaultStart;
 		const end = filterFim || defaultEnd;
 		const periodText = `${start.split("-").reverse().join("/")} a ${end.split("-").reverse().join("/")}`;
@@ -344,7 +409,7 @@
 			let qLabel = "";
 			let qColor = "#6366f1";
 			let sourceCanvas: HTMLCanvasElement | null = null;
-			let isVirtual = typeof id === 'string';
+			let isVirtual = typeof id === "string";
 
 			if (!isVirtual) {
 				const q = QUESTIONS.find((qi: any) => qi.id === id);
@@ -354,12 +419,25 @@
 				sourceCanvas = canvasElements[id as number];
 			} else {
 				// Virtual IDs mapping
-				if (id === 'rank-prisoes') { qLabel = "Ranking de Prisões (P7)"; qColor = "#f43f5e"; }
-				else if (id === 'detail-prisoes') { qLabel = "Detalhamento de Prisões"; qColor = "#f43f5e"; }
-				else if (id === 'rank-drogas') { qLabel = "Ranking de Drogas (P10)"; qColor = "#ef4444"; }
-				else if (id === 'detail-drogas') { qLabel = "Detalhamento de Substâncias"; qColor = "#ef4444"; }
-				else if (id === 'rank-armas') { qLabel = "Ranking de Armas (P11)"; qColor = "#6366f1"; }
-				else if (id === 'detail-armas') { qLabel = "Detalhamento de Armas"; qColor = "#6366f1"; }
+				if (id === "rank-prisoes") {
+					qLabel = "Ranking de Prisões (P7)";
+					qColor = "#f43f5e";
+				} else if (id === "detail-prisoes") {
+					qLabel = "Detalhamento de Prisões";
+					qColor = "#f43f5e";
+				} else if (id === "rank-drogas") {
+					qLabel = "Ranking de Drogas (P10)";
+					qColor = "#ef4444";
+				} else if (id === "detail-drogas") {
+					qLabel = "Detalhamento de Substâncias";
+					qColor = "#ef4444";
+				} else if (id === "rank-armas") {
+					qLabel = "Ranking de Armas (P11)";
+					qColor = "#6366f1";
+				} else if (id === "detail-armas") {
+					qLabel = "Detalhamento de Armas";
+					qColor = "#6366f1";
+				}
 			}
 
 			// Create off-screen canvas
@@ -370,8 +448,9 @@
 			const footerHeight = 40;
 
 			if (!isVirtual && sourceCanvas) {
-				exportCanvas.width = sourceCanvas.width + (padding * 2);
-				exportCanvas.height = sourceCanvas.height + headerHeight + footerHeight;
+				exportCanvas.width = sourceCanvas.width + padding * 2;
+				exportCanvas.height =
+					sourceCanvas.height + headerHeight + footerHeight;
 			} else {
 				exportCanvas.width = 800; // Standard for rank/details
 				exportCanvas.height = 600;
@@ -387,7 +466,11 @@
 			ctx.fillText(qLabel.toUpperCase(), padding, 50);
 			ctx.fillStyle = "#64748b";
 			ctx.font = "bold 14px Inter, sans-serif, Arial";
-			ctx.fillText(`SECCIONAL: ${seccionalName.toUpperCase()}`, padding, 80);
+			ctx.fillText(
+				`SECCIONAL: ${seccionalName.toUpperCase()}`,
+				padding,
+				80,
+			);
 			ctx.fillText(`PERÍODO: ${periodText}`, padding, 100);
 			ctx.strokeStyle = "#e2e8f0";
 			ctx.lineWidth = 1;
@@ -400,35 +483,64 @@
 				ctx.drawImage(sourceCanvas, padding, headerHeight);
 			} else {
 				// MANUAL DRAWING FOR RANK/DETAIL
-				if (id.toString().startsWith('rank')) {
+				if (id.toString().startsWith("rank")) {
 					let list: any[] = [];
 					let unit = "";
-					if (id === 'rank-prisoes') { list = rankingPrisoes; unit = ""; }
-					else if (id === 'rank-drogas') { list = rankingDrogasPeso; unit = "kg"; }
-					else if (id === 'rank-armas') { list = rankingArmas; unit = ""; }
-					
+					if (id === "rank-prisoes") {
+						list = rankingPrisoes;
+						unit = "";
+					} else if (id === "rank-drogas") {
+						list = rankingDrogasPeso;
+						unit = "kg";
+					} else if (id === "rank-armas") {
+						list = rankingArmas;
+						unit = "";
+					}
+
 					let y = headerHeight + 20;
 					list.slice(0, 10).forEach((item, idx) => {
 						ctx.beginPath();
 						ctx.fillStyle = "#f8fafc";
 						if (ctx.roundRect) {
-							ctx.roundRect(padding, y, exportCanvas.width - (padding * 2), 40, 8);
+							ctx.roundRect(
+								padding,
+								y,
+								exportCanvas.width - padding * 2,
+								40,
+								8,
+							);
 						} else {
-							ctx.rect(padding, y, exportCanvas.width - (padding * 2), 40);
+							ctx.rect(
+								padding,
+								y,
+								exportCanvas.width - padding * 2,
+								40,
+							);
 						}
 						ctx.fill();
-						
+
 						ctx.fillStyle = "#94a3b8";
 						ctx.font = "italic bold 16px Inter";
 						ctx.fillText(`#${idx + 1}`, padding + 15, y + 26);
 						ctx.fillStyle = "#1e293b";
 						ctx.font = "bold 14px Inter";
-						ctx.fillText(item.nome.toUpperCase(), padding + 60, y + 26);
+						ctx.fillText(
+							item.nome.toUpperCase(),
+							padding + 60,
+							y + 26,
+						);
 						ctx.textAlign = "right";
 						ctx.fillStyle = qColor;
 						ctx.font = "black 18px Inter";
-						let val = unit === 'kg' ? (item.total/1000).toFixed(1) : item.total;
-						ctx.fillText(`${val}${unit}`, exportCanvas.width - padding - 15, y + 26);
+						let val =
+							unit === "kg"
+								? (item.total / 1000).toFixed(1)
+								: item.total;
+						ctx.fillText(
+							`${val}${unit}`,
+							exportCanvas.width - padding - 15,
+							y + 26,
+						);
 						ctx.textAlign = "left";
 						y += 45;
 					});
@@ -436,15 +548,46 @@
 					let details: [string, number][] = [];
 					let total = 0;
 					let unit = "";
-					if (id === 'detail-prisoes') {
-						details = [["Flagrantes (P7)", stats['prisoes_apreensoes_flagrante'] || 0], ["Mandados (P5)", stats.prisaoMandado]];
-						total = (stats['prisoes_apreensoes_flagrante'] || 0) + stats.prisaoMandado;
-					} else if (id === 'detail-drogas') {
-						details = (Object.entries(stats.drogasPorTipo) as [string, number][]).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 8);
+					if (id === "detail-prisoes") {
+						details = [
+							["Flagrantes (P4)", stats.prisaoFlagrante],
+							["Mandados (P5)", stats.prisaoMandado],
+							[
+								"Total de Presos (P7)",
+								stats["prisoes_apreensoes_flagrante"] || 0,
+							],
+						];
+						total = Math.max(
+							stats["prisoes_apreensoes_flagrante"] || 0,
+							stats.prisaoFlagrante,
+							stats.prisaoMandado,
+						);
+					} else if (id === "detail-drogas") {
+						details = (
+							Object.entries(stats.drogasPorTipo) as [
+								string,
+								number,
+							][]
+						)
+							.sort(
+								(a: [string, number], b: [string, number]) =>
+									b[1] - a[1],
+							)
+							.slice(0, 8);
 						total = stats.drogasGeral;
 						unit = "g";
-					} else if (id === 'detail-armas') {
-						details = (Object.entries(stats.armasPorTipo) as [string, number][]).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 8);
+					} else if (id === "detail-armas") {
+						details = (
+							Object.entries(stats.armasPorTipo) as [
+								string,
+								number,
+							][]
+						)
+							.sort(
+								(a: [string, number], b: [string, number]) =>
+									b[1] - a[1],
+							)
+							.slice(0, 8);
 						total = stats.apreensoes_armas;
 					}
 
@@ -455,24 +598,50 @@
 						ctx.fillText(label.toUpperCase(), padding, y);
 						ctx.textAlign = "right";
 						ctx.fillStyle = qColor;
-						let displayVal = unit === 'g' && val >= 1000 ? `${(val/1000).toFixed(1)}kg` : `${val}${unit}`;
-						ctx.fillText(displayVal, exportCanvas.width - padding, y);
+						let displayVal =
+							unit === "g" && val >= 1000
+								? `${(val / 1000).toFixed(1)}kg`
+								: `${val}${unit}`;
+						ctx.fillText(
+							displayVal,
+							exportCanvas.width - padding,
+							y,
+						);
 						ctx.textAlign = "left";
-						
+
 						ctx.fillStyle = "#f1f5f9";
 						ctx.beginPath();
 						if (ctx.roundRect) {
-							ctx.roundRect(padding, y + 10, exportCanvas.width - (padding * 2), 12, 6);
+							ctx.roundRect(
+								padding,
+								y + 10,
+								exportCanvas.width - padding * 2,
+								12,
+								6,
+							);
 						} else {
-							ctx.rect(padding, y + 10, exportCanvas.width - (padding * 2), 12);
+							ctx.rect(
+								padding,
+								y + 10,
+								exportCanvas.width - padding * 2,
+								12,
+							);
 						}
 						ctx.fill();
 
 						ctx.fillStyle = qColor;
 						ctx.beginPath();
-						let w = (val / (total || 1)) * (exportCanvas.width - (padding * 2));
+						let w =
+							(val / (total || 1)) *
+							(exportCanvas.width - padding * 2);
 						if (ctx.roundRect) {
-							ctx.roundRect(padding, y + 10, Math.max(w, 4), 12, 6);
+							ctx.roundRect(
+								padding,
+								y + 10,
+								Math.max(w, 4),
+								12,
+								6,
+							);
 						} else {
 							ctx.rect(padding, y + 10, Math.max(w, 4), 12);
 						}
@@ -486,29 +655,72 @@
 			ctx.textAlign = "right";
 			ctx.fillStyle = "#94a3b8";
 			ctx.font = "bold 10px Inter";
-			ctx.fillText("GISE - DASHBOARD DE PRODUTIVIDADE", exportCanvas.width - padding, exportCanvas.height - 15);
+			ctx.fillText(
+				"GISE - DASHBOARD DE PRODUTIVIDADE",
+				exportCanvas.width - padding,
+				exportCanvas.height - 15,
+			);
 
 			// Download
 			const link = document.createElement("a");
-			link.download = `GISE_${qLabel.replace(/\s+/g, '_')}.png`;
+			link.download = `GISE_${qLabel.replace(/\s+/g, "_")}.png`;
 			link.href = exportCanvas.toDataURL("image/png");
 			link.click();
-			await new Promise(r => setTimeout(r, 100));
+			await new Promise((r) => setTimeout(r, 100));
 		}
 	}
 </script>
 
-{#snippet subRanking(id: string, title: string, ranking: any[], color: string, icon: any, labelUnit: string)}
-	<div class="card relative p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selectedCharts.includes(id) ? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10' : 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full">
+{#snippet subRanking(
+	id: string,
+	title: string,
+	ranking: any[],
+	color: string,
+	icon: any,
+	labelUnit: string,
+)}
+	<div
+		class="card relative p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selectedCharts.includes(
+			id,
+		)
+			? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
+			: 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full"
+	>
 		<!-- Selection Badge -->
-		<button 
+		<button
 			onclick={() => toggleChartSelection(id)}
-			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(id) ? 'bg-primary-500 text-white scale-110 shadow-lg' : 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+				id,
+			)
+				? 'bg-primary-500 text-white scale-110 shadow-lg'
+				: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
 		>
 			{#if selectedCharts.includes(id)}
-				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" /></svg>
+				<svg
+					class="w-6 h-6"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="4"
+						d="M5 13l4 4L19 7"
+					/></svg
+				>
 			{:else}
-				<svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+				<svg
+					class="w-5 h-5 opacity-40"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="3"
+						d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+					/></svg
+				>
 			{/if}
 		</button>
 
@@ -516,19 +728,41 @@
 			<div class="p-2 rounded-lg" style="background: {color}20">
 				{@render icon(color)}
 			</div>
-			<h3 class="text-lg font-black uppercase tracking-tighter">{title}</h3>
+			<h3 class="text-lg font-black uppercase tracking-tighter">
+				{title}
+			</h3>
 		</div>
 		<div class="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1">
 			{#each ranking as item, idx}
-				<div class="flex items-center gap-4 p-3 rounded-2xl bg-surface-50 dark:bg-white/5 border border-surface-100 dark:border-white/10 group transition-all hover:bg-surface-100 dark:hover:bg-white/10">
-					<span class="text-lg font-black text-surface-400 dark:text-surface-500 w-6 italic">#{idx + 1}</span>
+				<div
+					class="flex items-center gap-4 p-3 rounded-2xl bg-surface-50 dark:bg-white/5 border border-surface-100 dark:border-white/10 group transition-all hover:bg-surface-100 dark:hover:bg-white/10"
+				>
+					<span
+						class="text-lg font-black text-surface-400 dark:text-surface-500 w-6 italic"
+						>#{idx + 1}</span
+					>
 					<div class="flex-1">
-						<p class="text-[0.6rem] font-black uppercase text-surface-400 leading-none mb-1">Seccional</p>
-						<p class="text-xs font-bold leading-tight line-clamp-1">{item.nome}</p>
+						<p
+							class="text-[0.6rem] font-black uppercase text-surface-400 leading-none mb-1"
+						>
+							Seccional
+						</p>
+						<p class="text-xs font-bold leading-tight line-clamp-1">
+							{item.nome}
+						</p>
 					</div>
 					<div class="text-right">
-						<p class="text-xl font-black" style="color: {color}">{labelUnit === 'kg' ? (item.total / 1000).toFixed(1) : item.total}<span class="text-[0.6rem] ml-0.5 opacity-50">{labelUnit}</span></p>
-						<p class="text-[0.5rem] font-bold uppercase opacity-50">Produção</p>
+						<p class="text-xl font-black" style="color: {color}">
+							{labelUnit === "kg"
+								? (item.total / 1000).toFixed(1)
+								: item.total}<span
+								class="text-[0.6rem] ml-0.5 opacity-50"
+								>{labelUnit}</span
+							>
+						</p>
+						<p class="text-[0.5rem] font-bold uppercase opacity-50">
+							Produção
+						</p>
 					</div>
 				</div>
 			{/each}
@@ -536,49 +770,163 @@
 	</div>
 {/snippet}
 
-{#snippet subDetailing(id: string, title: string, details: [string, number][], total: number, color: string, unit: string)}
-	<div class="card relative p-6 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(id) ? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10' : 'border-surface-200 dark:border-surface-800 shadow-sm'} rounded-3xl flex flex-col h-full">
+{#snippet subDetailing(
+	id: string,
+	title: string,
+	details: [string, number][],
+	total: number,
+	color: string,
+	unit: string,
+)}
+	<div
+		class="card relative p-6 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
+			id,
+		)
+			? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
+			: 'border-surface-200 dark:border-surface-800 shadow-sm'} rounded-3xl flex flex-col h-full"
+	>
 		<!-- Selection Badge -->
-		<button 
+		<button
 			onclick={() => toggleChartSelection(id)}
-			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(id) ? 'bg-primary-500 text-white scale-110 shadow-lg' : 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+				id,
+			)
+				? 'bg-primary-500 text-white scale-110 shadow-lg'
+				: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
 		>
 			{#if selectedCharts.includes(id)}
-				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" /></svg>
+				<svg
+					class="w-6 h-6"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="4"
+						d="M5 13l4 4L19 7"
+					/></svg
+				>
 			{:else}
-				<svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+				<svg
+					class="w-5 h-5 opacity-40"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="3"
+						d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+					/></svg
+				>
 			{/if}
 		</button>
 
 		<div class="flex items-center gap-3 mb-6">
 			<div class="p-2 rounded-lg" style="background: {color}10">
-				<svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+				<svg
+					class="w-5 h-5"
+					style="color: {color}"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+					/></svg
+				>
 			</div>
-			<h3 class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50">{title}</h3>
+			<h3
+				class="text-lg font-black uppercase tracking-tighter text-surface-900 dark:text-surface-50"
+			>
+				{title}
+			</h3>
 		</div>
 		<div class="space-y-4 flex-1">
 			{#each details as [tipo, valor]}
 				<div class="space-y-1">
-					<div class="flex justify-between text-[0.6rem] font-black uppercase">
-						<span class="text-surface-500">{tipo}</span> 
-						<span style="color: {color}">{unit === 'kg' ? (valor/1000).toFixed(1) : valor.toLocaleString()}{unit}</span>
+					<div
+						class="flex justify-between text-[0.6rem] font-black uppercase"
+					>
+						<span class="text-surface-500">{tipo}</span>
+						<span style="color: {color}"
+							>{unit === "kg"
+								? (valor / 1000).toFixed(1)
+								: valor.toLocaleString()}{unit}</span
+						>
 					</div>
-					<div class="h-2 w-full bg-surface-100 dark:bg-surface-800 rounded-full overflow-hidden">
-						<div class="h-full transition-all duration-1000" style="background: {color}; width: {(valor / (total || 1)) * 100}%"></div>
+					<div
+						class="h-2 w-full bg-surface-100 dark:bg-surface-800 rounded-full overflow-hidden"
+					>
+						<div
+							class="h-full transition-all duration-1000"
+							style="background: {color}; width: {(valor /
+								(total || 1)) *
+								100}%"
+						></div>
 					</div>
 				</div>
 			{:else}
-				<p class="text-center text-xs text-surface-400 italic py-8">Sem registros no período.</p>
+				<p class="text-center text-xs text-surface-400 italic py-8">
+					Sem registros no período.
+				</p>
 			{/each}
 		</div>
 	</div>
 {/snippet}
 
-{#snippet iconPrison(color: string)} <svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> {/snippet}
-{#snippet iconDrug(color: string)} <svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg> {/snippet}
-{#snippet iconWeapon(color: string)} <svg class="w-5 h-5" style="color: {color}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> {/snippet}
+{#snippet iconPrison(color: string)}
+	<svg
+		class="w-5 h-5"
+		style="color: {color}"
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+		><path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="2"
+			d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+		/></svg
+	>
+{/snippet}
+{#snippet iconDrug(color: string)}
+	<svg
+		class="w-5 h-5"
+		style="color: {color}"
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+		><path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="2"
+			d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+		/></svg
+	>
+{/snippet}
+{#snippet iconWeapon(color: string)}
+	<svg
+		class="w-5 h-5"
+		style="color: {color}"
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+		><path
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="2"
+			d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+		/></svg
+	>
+{/snippet}
 
-<div class="space-y-8 pb-12 {selectedCharts.length > 0 ? 'has-selections' : ''}">
+<div
+	class="space-y-8 pb-12 {selectedCharts.length > 0 ? 'has-selections' : ''}"
+>
 	<header
 		class="flex flex-col md:flex-row md:items-center justify-between gap-6"
 	>
@@ -594,11 +942,16 @@
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			{#if QUESTIONS.length > 0}
-				<button 
-					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length === QUESTIONS.length ? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950' : 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+				<button
+					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length ===
+					QUESTIONS.length
+						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
+						: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					onclick={selectAllCharts}
 				>
-					{selectedCharts.length === QUESTIONS.length ? 'Desmarcar Todos' : `Selecionar Todos (${QUESTIONS.length})`}
+					{selectedCharts.length === QUESTIONS.length
+						? "Desmarcar Todos"
+						: `Selecionar Todos (${QUESTIONS.length})`}
 				</button>
 			{/if}
 
@@ -607,7 +960,18 @@
 					class="btn bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-500/20 text-xs font-black uppercase py-3 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
 					onclick={exportChartsAsImages}
 				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+					<svg
+						class="w-4 h-4"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="3"
+							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/></svg
+					>
 					Baixar PNGs ({selectedCharts.length})
 				</button>
 			{/if}
@@ -616,7 +980,18 @@
 				class="export-btn btn bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-500/20 text-xs font-black uppercase py-3 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
 				onclick={() => window.print()}
 			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+				<svg
+					class="w-4 h-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="3"
+						d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+					/></svg
+				>
 				Exportar PDF
 			</button>
 		</div>
@@ -639,7 +1014,7 @@
 					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 				>
 					<option value="">Todas as Seccionais</option>
-					{#each (data.seccionais ?? []) as sec}
+					{#each data.seccionais ?? [] as sec}
 						<option value={sec.id}>{sec.nome}</option>
 					{/each}
 				</select>
@@ -677,57 +1052,165 @@
 	<div class="space-y-6">
 		<!-- ROW 1: PRISONS -->
 		<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-			{@render subRanking("rank-prisoes", "Ranking de Prisões (P7)", rankingPrisoes, "#f43f5e", iconPrison, "")}
-			{@render subDetailing("detail-prisoes", "Detalhamento de Prisões", [
-				["Flagrantes (P7)", stats['prisoes_apreensoes_flagrante'] || 0],
-				["Mandados (P5)", stats.prisaoMandado]
-			], (stats['prisoes_apreensoes_flagrante'] || 0) + stats.prisaoMandado, "#f43f5e", "")}
+			{@render subRanking(
+				"rank-prisoes",
+				"Ranking de Prisões (P7)",
+				rankingPrisoes,
+				"#f43f5e",
+				iconPrison,
+				"",
+			)}
+			{@render subDetailing(
+				"detail-prisoes",
+				"Detalhamento de Prisões",
+				[
+					["Flagrantes (P4)", stats.prisaoFlagrante],
+					["Mandados (P5)", stats.prisaoMandado],
+					[
+						"Total de Presos (P7)",
+						stats["prisoes_apreensoes_flagrante"] || 0,
+					],
+				],
+				Math.max(
+					stats["prisoes_apreensoes_flagrante"] || 0,
+					stats.prisaoFlagrante,
+					stats.prisaoMandado,
+				),
+				"#f43f5e",
+				"",
+			)}
 		</section>
 
 		<!-- ROW 2: DRUGS -->
 		<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-			{@render subRanking("rank-drogas", "Ranking de Drogas (P10)", rankingDrogasPeso, "#ef4444", iconDrug, "kg")}
-			{@render subDetailing("detail-drogas", "Detalhamento de Substâncias", (Object.entries(stats.drogasPorTipo) as [string, number][]).sort((a,b) => b[1]-a[1]).slice(0,8), stats.drogasGeral, "#ef4444", "g")}
+			{@render subRanking(
+				"rank-drogas",
+				"Ranking de Drogas (P10)",
+				rankingDrogasPeso,
+				"#ef4444",
+				iconDrug,
+				"kg",
+			)}
+			{@render subDetailing(
+				"detail-drogas",
+				"Detalhamento de Substâncias",
+				(Object.entries(stats.drogasPorTipo) as [string, number][])
+					.sort((a, b) => b[1] - a[1])
+					.slice(0, 8),
+				stats.drogasGeral,
+				"#ef4444",
+				"g",
+			)}
 		</section>
 
 		<!-- ROW 3: WEAPONS -->
 		<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-			{@render subRanking("rank-armas", "Ranking de Armas (P11)", rankingArmas, "#6366f1", iconWeapon, "")}
-			{@render subDetailing("detail-armas", "Detalhamento de Armas", (Object.entries(stats.armasPorTipo) as [string, number][]).sort((a,b) => b[1]-a[1]).slice(0,8), stats.apreensoes_armas, "#6366f1", "")}
+			{@render subRanking(
+				"rank-armas",
+				"Ranking de Armas (P11)",
+				rankingArmas,
+				"#6366f1",
+				iconWeapon,
+				"",
+			)}
+			{@render subDetailing(
+				"detail-armas",
+				"Detalhamento de Armas",
+				(Object.entries(stats.armasPorTipo) as [string, number][])
+					.sort((a, b) => b[1] - a[1])
+					.slice(0, 8),
+				stats.apreensoes_armas,
+				"#6366f1",
+				"",
+			)}
 		</section>
 	</div>
 
 	<!-- Summary Display & Charts Grid (Single Column for better clarity with many regionals) -->
 	<section class="space-y-8">
 		{#each QUESTIONS as q (q.id)}
-			<div 
-				class="card relative p-8 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(q.id) ? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10' : 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-8"
+			<div
+				class="card relative p-8 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
+					q.id,
+				)
+					? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
+					: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-8"
 			>
 				<!-- Selection Badge -->
-				<button 
+				<button
 					onclick={() => toggleChartSelection(q.id)}
-					class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(q.id) ? 'bg-primary-500 text-white scale-110 shadow-lg' : 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
+					class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+						q.id,
+					)
+						? 'bg-primary-500 text-white scale-110 shadow-lg'
+						: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:scale-105'}"
 				>
 					{#if selectedCharts.includes(q.id)}
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" /></svg>
+						<svg
+							class="w-6 h-6"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="4"
+								d="M5 13l4 4L19 7"
+							/></svg
+						>
 					{:else}
-						<svg class="w-5 h-5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+						<svg
+							class="w-5 h-5 opacity-40"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="3"
+								d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+							/></svg
+						>
 					{/if}
 				</button>
 				<div class="md:w-1/4 flex flex-col justify-center">
-					<p class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest mb-1">{q.label}</p>
+					<p
+						class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest mb-1"
+					>
+						{q.label}
+					</p>
 					<h3 class="text-5xl font-black" style="color: {q.color}">
 						{#if q.specialStore === "drogasGeral"}
-							{(stats.drogasGeral / 1000).toFixed(2)}<span class="text-sm ml-1 opacity-60">kg</span>
+							{(stats.drogasGeral / 1000).toFixed(2)}<span
+								class="text-sm ml-1 opacity-60">kg</span
+							>
 						{:else if q.isBool}
-							{filteredData.filter(i => JSON.parse(i.respostas || "{}")[q.key] === "Sim").length}
+							{filteredData.filter(
+								(i) =>
+									JSON.parse(i.respostas || "{}")[q.key] ===
+									"Sim",
+							).length}
 						{:else}
-							{stats[q.key as keyof typeof stats] ?? filteredData.reduce((acc, i) => acc + (Number(JSON.parse(i.respostas || "{}")[q.key]) || 0), 0)}
+							{stats[q.key as keyof typeof stats] ??
+								filteredData.reduce(
+									(acc, i) =>
+										acc +
+										(Number(
+											JSON.parse(i.respostas || "{}")[
+												q.key
+											],
+										) || 0),
+									0,
+								)}
 						{/if}
 					</h3>
 					<div class="mt-4 flex gap-2">
-						<span class="text-[0.5rem] font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500">
-							{filterSeccional ? 'Tendência' : 'Comparação Regional'}
+						<span
+							class="text-[0.5rem] font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
+						>
+							{filterSeccional
+								? "Tendência"
+								: "Comparação Seccional"}
 						</span>
 					</div>
 				</div>
@@ -759,10 +1242,11 @@
 			display: none !important;
 		}
 
-		.export-btn, header p {
+		.export-btn,
+		header p {
 			display: none !important;
 		}
-		
+
 		:global(body) {
 			background: white !important;
 		}

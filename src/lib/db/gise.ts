@@ -978,7 +978,8 @@ export async function salvarEntradaGise(
 	ipAddress?: string,
 	userAgent?: string,
 	latitude?: number,
-	longitude?: number
+	longitude?: number,
+	selfieKey?: string
 ) {
 	const now = new Date().toISOString();
 	return db
@@ -988,6 +989,7 @@ export async function salvarEntradaGise(
 			policial_id: policialId,
 			entrada_timestamp: now,
 			entrada_rubrica: rubrica,
+			entrada_selfie_key: selfieKey,
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
@@ -999,6 +1001,7 @@ export async function salvarEntradaGise(
 			set: {
 				entrada_timestamp: now,
 				entrada_rubrica: rubrica,
+				entrada_selfie_key: selfieKey,
 				ip_address: ipAddress,
 				user_agent: userAgent,
 				latitude,
@@ -1016,13 +1019,15 @@ export async function salvarSaidaGise(
 	ipAddress?: string,
 	userAgent?: string,
 	latitude?: number,
-	longitude?: number
+	longitude?: number,
+	selfieKey?: string
 ) {
 	return db
 		.update(gisePresencas)
 		.set({
 			saida_timestamp: new Date().toISOString(),
 			saida_rubrica: rubrica,
+			saida_selfie_key: selfieKey,
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
@@ -1042,7 +1047,29 @@ export async function isDailyGiseSigned(db: Database, giseId: number) {
 }
 
 export async function buscarPresencasGise(db: Database, giseId: number) {
-	return db.select().from(gisePresencas).where(eq(gisePresencas.gise_id, giseId)).all();
+	return db
+		.select({
+			id: gisePresencas.id,
+			gise_id: gisePresencas.gise_id,
+			policial_id: gisePresencas.policial_id,
+			policial_nome: policiais.nome,
+			policial_matricula: policiais.matricula,
+			policial_cpf: policiais.cpf,
+			entrada_timestamp: gisePresencas.entrada_timestamp,
+			entrada_rubrica: gisePresencas.entrada_rubrica,
+			entrada_selfie_key: gisePresencas.entrada_selfie_key,
+			saida_timestamp: gisePresencas.saida_timestamp,
+			saida_rubrica: gisePresencas.saida_rubrica,
+			saida_selfie_key: gisePresencas.saida_selfie_key,
+			ip_address: gisePresencas.ip_address,
+			user_agent: gisePresencas.user_agent,
+			latitude: gisePresencas.latitude,
+			longitude: gisePresencas.longitude
+		})
+		.from(gisePresencas)
+		.innerJoin(policiais, eq(gisePresencas.policial_id, policiais.id))
+		.where(eq(gisePresencas.gise_id, giseId))
+		.all();
 }
 
 // ---- Assinaturas de Relatórios ----
@@ -1133,4 +1160,20 @@ export async function salvarAssinaturaRelatorioGise(
 				created_at: sql`datetime('now')`
 			}
 		});
+}
+export async function buscarGiseSeccionalMembros(db: Database, giseId: number, seccionalId: number) {
+	return db
+		.select({
+			id: giseMembros.id,
+			equipe_id: giseMembros.equipe_id,
+			policial_id: giseMembros.policial_id,
+			policial_nome: policiais.nome,
+			policial_cpf: policiais.cpf
+		})
+		.from(giseMembros)
+		.innerJoin(policiais, eq(giseMembros.policial_id, policiais.id))
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.seccional_id, seccionalId)))
+		.all();
 }

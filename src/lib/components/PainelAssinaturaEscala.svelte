@@ -42,7 +42,11 @@
 
 	let isMobile = $state(true);
 	$effect(() => {
-		isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
+		isMobile =
+			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+				navigator.userAgent,
+			) ||
+			(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
 	});
 
 	// Web PKI
@@ -61,10 +65,16 @@
 	// === Funções utilitárias ===
 
 	function download(format: string) {
-		window.open(`/api/escalas/${escalaId}/download?format=${format}`, "_blank");
+		window.open(
+			`/api/escalas/${escalaId}/download?format=${format}`,
+			"_blank",
+		);
 	}
 
-	async function getCoordinates(): Promise<{ lat: number; lng: number } | null> {
+	async function getCoordinates(): Promise<{
+		lat: number;
+		lng: number;
+	} | null> {
 		if (typeof window === "undefined" || !("geolocation" in navigator))
 			return null;
 		try {
@@ -113,7 +123,10 @@
 				throw new Error("Falha ao revogar");
 			}
 		} catch {
-			toaster.create({ title: "Erro ao revogar assinatura", type: "error" });
+			toaster.create({
+				title: "Erro ao revogar assinatura",
+				type: "error",
+			});
 		} finally {
 			assinando = false;
 			etapaAssinatura = "";
@@ -133,21 +146,32 @@
 		dialogSignOpen = true;
 	}
 
-	async function assinarSimples(rubricBase64: string, gpsLat?: number, gpsLng?: number, selfieBase64?: string | null) {
+	async function assinarSimples(
+		rubricBase64: string,
+		gpsLat?: number,
+		gpsLng?: number,
+		selfieBase64?: string | null,
+	) {
 		dialogSignOpen = false;
 		assinandoSimples = true;
 		try {
-			const coords = (gpsLat && gpsLng) ? { lat: gpsLat, lng: gpsLng } : await getCoordinates();
-			const res = await fetch(`/api/escalas/${escalaId}/assinar-simples`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					latitude: coords?.lat,
-					longitude: coords?.lng,
-					rubricBase64,
-					selfieBase64
-				}),
-			});
+			const coords =
+				gpsLat && gpsLng
+					? { lat: gpsLat, lng: gpsLng }
+					: await getCoordinates();
+			const res = await fetch(
+				`/api/escalas/${escalaId}/assinar-simples`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						latitude: coords?.lat,
+						longitude: coords?.lng,
+						rubricBase64,
+						selfieBase64,
+					}),
+				},
+			);
 			if (!res.ok) {
 				const err = await res.json();
 				throw new Error(err.error || "Erro ao confirmar escala");
@@ -174,7 +198,8 @@
 				type: "success",
 			});
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Erro ao confirmar";
+			const msg =
+				err instanceof Error ? err.message : "Erro ao confirmar";
 			toaster.create({ title: msg, type: "error" });
 		} finally {
 			assinandoSimples = false;
@@ -305,7 +330,10 @@
 			}
 		}
 		if (!certSelecionado) {
-			toaster.create({ title: "Selecione um certificado", type: "error" });
+			toaster.create({
+				title: "Selecione um certificado",
+				type: "error",
+			});
 			return;
 		}
 		assinando = true;
@@ -313,7 +341,8 @@
 			const pki = await initWebPKI();
 			await executarAssinaturaWebPKI(pki, certSelecionado);
 		} catch (err) {
-			const msg = err instanceof Error ? err.message : "Erro na assinatura";
+			const msg =
+				err instanceof Error ? err.message : "Erro na assinatura";
 			toaster.create({ title: msg, type: "error" });
 			assinando = false;
 			etapaAssinatura = "";
@@ -343,7 +372,10 @@
 					return { rawSignature, certificateBase64 };
 				},
 			);
-			toaster.create({ title: "PDF assinado com sucesso!", type: "success" });
+			toaster.create({
+				title: "PDF assinado com sucesso!",
+				type: "success",
+			});
 		} finally {
 			assinando = false;
 			etapaAssinatura = "";
@@ -466,7 +498,10 @@
 					type: "success",
 				});
 			} else {
-				toaster.create({ title: "PDF assinado com sucesso!", type: "success" });
+				toaster.create({
+					title: "PDF assinado com sucesso!",
+					type: "success",
+				});
 			}
 		} finally {
 			assinando = false;
@@ -502,7 +537,9 @@
 				Escala Oficialmente Assinada
 			</h3>
 			<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-				Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ""}</strong>.
+				Assinado por <strong
+					>{documentoAssinadoInfo.assinante_nome || ""}</strong
+				>.
 				{isFDS
 					? "Confirmação administrativa gerada e guardada para download."
 					: "Arquivo original ICP-Brasil guardado nos servidores para download."}
@@ -553,278 +590,274 @@
 	</div>
 {/if}
 
-<!-- Confirmação de escala de Final de Semana -->
-{#if isFDS && !documentoAssinadoInfo}
-	<div
-		class="mb-6 p-4 sm:p-5 bg-primary-500/8 border border-primary-500/25 rounded-2xl"
-	>
-		<div
-			class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+<!-- SEÇÃO DE ASSINATURA UNIFICADA -->
+{#if !documentoAssinadoInfo && policiaisCount > 0}
+	<div class="space-y-6">
+		<h3
+			class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500"
 		>
-			<div>
-				<h3
-					class="font-bold text-primary-700 dark:text-primary-400 flex items-center gap-2"
-				>
-					<span>📋</span> Confirmar Escala de Final de Semana
-				</h3>
-				<p class="text-sm text-surface-500 mt-1 max-w-md">
-					Ao clicar em Confirmar Escala, ela será enviada ao administrador
-					superior
-				</p>
-			</div>
-			{#if isMobile}
-				<button
-					class="btn preset-filled-primary-500 shrink-0 font-bold px-5 py-2.5"
-					disabled={assinandoSimples || policiaisCount === 0}
-					onclick={abrirModalAssinatura}
-				>
-					{#if assinandoSimples}
-						<svg
-							class="w-4 h-4 mr-2 animate-spin"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/></svg
-						>
-						Gerando PDF...
-					{:else}
-						<svg
-							class="w-4 h-4 mr-2"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/></svg
-						>
-						Confirmar Escala
-					{/if}
-				</button>
-			{:else}
-				<div class="text-xs text-error-500 max-w-xs text-right italic font-semibold border-l-2 border-error-500 pl-2">
-					A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 (Aba abaixo) no computador.
-				</div>
-			{/if}
-		</div>
-		{#if policiaisCount === 0}
-			<p class="text-xs text-warning-600 dark:text-warning-400 mt-2">
-				⚠️ Adicione ao menos um policial para habilitar a confirmação.
-			</p>
-		{/if}
-	</div>
-{/if}
-
-<!-- Exportar e assinatura digital -->
-{#if policiaisCount > 0}
-	<div
-		class="p-4 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
-	>
-		<h3 class="font-semibold text-sm mb-3">
-			Exportar Escala Sem Assinatura Digital
+			<svg
+				class="w-6 h-6"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				><path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+				/></svg
+			>
+			Assinar Escala GISE
 		</h3>
-		<div class="flex gap-2 flex-wrap">
-			<button
-				class="btn btn-sm preset-filled-primary-500"
-				onclick={() => download("docx")}>Word (.docx)</button
-			>
-			<button
-				class="btn btn-sm preset-filled-primary-500"
-				onclick={() => download("odt")}>ODT (.odt)</button
-			>
-			<button
-				class="btn btn-sm preset-filled-primary-500"
-				onclick={() => download("xlsx")}>Excel (.xlsx)</button
-			>
-			<button
-				class="btn btn-sm preset-filled-primary-500"
-				onclick={() => download("ods")}>ODS (.ods)</button
-			>
-			<button
-				class="btn btn-sm preset-filled-primary-500"
-				onclick={() => download("pdf")}>PDF (.pdf)</button
-			>
-		</div>
 
-		{#if !documentoAssinadoInfo && !isFDS}
-			<hr class="my-3 border-surface-200 dark:border-white/10" />
-
-			<h3 class="font-semibold text-sm mb-3">
-				Assinatura Digital (eToken / Certificado A3)
-			</h3>
-
-			<!-- Selecionador Unificado de Certificados (Web PKI) -->
+		<div class="grid grid-cols-1 gap-6">
+			<!-- 1. ASSINATURA MANUAL (TELA/MOBILE) -->
 			<div
-				class="mb-4 p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10"
+				class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {isMobile
+					? 'border-primary-500/30'
+					: 'border-surface-200 dark:border-white/5 opacity-60'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
 			>
-				<div
-					class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"
-				>
-					<h4 class="font-semibold text-sm flex items-center gap-2">
-						<svg
-							class="w-4 h-4 text-primary-500"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-							/>
-						</svg>
-						Leitura de Tokens (Recomendado)
-					</h4>
-					<button
-						class="btn btn-sm preset-outlined-primary-500"
-						onclick={carregarCertificadosLocais}
-						disabled={lendoCertificados}
-					>
-						{#if lendoCertificados}
+				<div>
+					<div class="flex items-center justify-between mb-4">
+						<h4 class="font-bold text-sm flex items-center gap-2">
+							<svg
+								class="w-5 h-5 {isMobile
+									? 'text-primary-500'
+									: 'text-surface-400'}"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+								/></svg
+							>
+							Assinar na Tela
+						</h4>
+						{#if isMobile}
 							<span
-								class="inline-block w-3 h-3 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mr-2"
-							></span>
-							Lendo tokens...
+								class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+								>Disponível</span
+							>
 						{:else}
-							Ler Tokens Plugados
+							<span
+								class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+								>Indisponível no PC</span
+							>
+						{/if}
+					</div>
+					<p class="text-xs text-surface-500 leading-relaxed mb-4">
+						Gera o PDF com sua rubrica manual desenhada na tela. <strong
+							>Ideal para tablets e smartphones.</strong
+						> Possui plena validade jurídica conforme Lei 14.063/20.
+					</p>
+				</div>
+
+				{#if isMobile}
+					<button
+						class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+						disabled={assinandoSimples || policiaisCount === 0}
+						onclick={abrirModalAssinatura}
+					>
+						{#if assinandoSimples}
+							<span
+								class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+							></span>
+							Gerando PDF...
+						{:else}
+							Abrir Painel de Rubrica
 						{/if}
 					</button>
+				{:else}
+					<div
+						class="bg-error-500/10 p-3 rounded-xl border border-error-500/20"
+					>
+						<p
+							class="text-[0.65rem] text-error-600 font-bold uppercase text-center leading-tight"
+						>
+							A assinatura em tela é restrita a dispositivos
+							móveis. Utilize o Token A3 no computador.
+						</p>
+					</div>
+				{/if}
+			</div>
+
+			<!-- 2. ASSINATURA DIGITAL (TOKEN A3) -->
+			<div
+				class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {!isMobile
+					? 'border-tertiary-500/30'
+					: 'border-surface-200 dark:border-white/5'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
+			>
+				<div>
+					<div class="flex items-center justify-between mb-4">
+						<h4 class="font-bold text-sm flex items-center gap-2">
+							<svg
+								class="w-5 h-5 {!isMobile
+									? 'text-tertiary-500'
+									: 'text-surface-400'}"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+								/></svg
+							>
+							Token / Certificado A3
+						</h4>
+						{#if !isMobile}
+							<span
+								class="badge preset-filled-tertiary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+								>Recomendado</span
+							>
+						{:else}
+							<span
+								class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+								>Apenas Desktop</span
+							>
+						{/if}
+					</div>
+					<p class="text-xs text-surface-500 leading-relaxed mb-4">
+						Assinatura com validade <strong
+							>Qualificada (ICP-Brasil)</strong
+						> usando seu certificado digital físico ou e-CPF. Requer
+						o Assinador Desktop instalado.
+					</p>
+
+					<!-- Leitor de Certificados (Apenas Desktop) -->
+					{#if !isMobile}
+						<div class="mb-4 space-y-3">
+							<div
+								class="flex justify-between items-center bg-surface-200/50 dark:bg-surface-900/50 p-3 rounded-xl border border-surface-300/30"
+							>
+								<span
+									class="text-[0.65rem] font-bold uppercase opacity-60"
+									>Leitura de Token</span
+								>
+								<button
+									class="btn btn-sm preset-outlined-tertiary-500 text-[0.6rem] px-3 py-1 font-black"
+									onclick={carregarCertificadosLocais}
+									disabled={lendoCertificados}
+								>
+									{lendoCertificados
+										? "Lendo..."
+										: "Ler Tokens"}
+								</button>
+							</div>
+
+							{#if certificados.length > 0}
+								<select
+									class="select text-xs bg-white dark:bg-surface-900 rounded-lg p-2 w-full border border-surface-300/30"
+									bind:value={certSelecionado}
+								>
+									<option value=""
+										>Selecione seu certificado...</option
+									>
+									{#each certificados as cert}
+										<option value={cert.thumbprint}
+											>{cert.subjectName}</option
+										>
+									{/each}
+								</select>
+							{:else if tentouLerCertificados}
+								<p
+									class="text-[0.6rem] text-error-500 bg-error-500/5 p-2 rounded-lg italic"
+								>
+									Nenhum certificado detectado. Verifique o
+									token ou use o SERPRO diretamente.
+								</p>
+							{/if}
+						</div>
+					{/if}
 				</div>
 
-				{#if certificados.length > 0}
-					<label class="label mt-3">
-						<span class="label-text text-xs"
-							>Selecione o certificado que deseja utilizar:</span
+				{#if !isMobile}
+					<div class="space-y-3">
+						<button
+							class="btn preset-filled-tertiary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-tertiary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+							onclick={assinarComSerpro}
+							disabled={assinando}
 						>
-						<select
-							class="select text-sm bg-white dark:bg-surface-900"
-							bind:value={certSelecionado}
-							onchange={(e) => {
-								const c = certificados.find(
-									(x) => x.thumbprint === e.currentTarget.value,
-								);
-								if (c) {
-									serproSignerName = c.subjectName;
-									serproSignerCpf = c.cpf || "";
-								}
-							}}
+							{#if assinando}
+								<span
+									class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+								></span>
+								{etapaAssinatura || "Finalizando..."}
+							{:else}
+								Assinar Documento Oficial
+							{/if}
+						</button>
+						<p
+							class="text-[0.55rem] text-surface-400 text-center uppercase tracking-tighter"
 						>
-							<option value="">Selecione...</option>
-							{#each certificados as cert (cert.thumbprint)}
-								<option value={cert.thumbprint}>
-									{cert.subjectName}{cert.cpf
-										? ` (CPF: ${cert.cpf})`
-										: ""} - Emissor: {cert.issuerName}
-								</option>
-							{/each}
-						</select>
-					</label>
-				{:else if tentouLerCertificados}
-					<p
-						class="text-xs text-error-500 mt-2 bg-error-500/10 p-2 rounded"
-					>
-						Nenhum certificado encontrado. Verifique se o token está
-						conectado e a extensão <strong>Lacuna Web PKI</strong> está
-						instalada.
-					</p>
+							Usa tecnologia WebPKI e <a
+								href="https://www.serpro.gov.br/"
+								target="_blank"
+								class="underline">SERPRO</a
+							> oficial.
+						</p>
+					</div>
 				{:else}
-					<p class="text-xs text-surface-500 mt-1">
-						Clique no botão ao lado para listar e preencher
-						automaticamente os dados do seu certificado.
-					</p>
-				{/if}
-			</div>
-
-			<div class="flex gap-2 items-center flex-wrap">
-				<!-- Botão Web PKI (Oculto conforme solicitação, mas mantendo lógica para leitura de certificados) -->
-				<button
-					class="btn btn-sm preset-filled-success-500 hidden"
-					onclick={assinarComWebPKI}
-					disabled={assinando || !certSelecionado}
-					title="Requer usar o Leitor de Tokens primeiro"
-				>
-					{#if assinando && certificados.length > 0}
-						<span
-							class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-						></span>
-						{etapaAssinatura}
-					{:else}
-						Assinar com Web PKI
-					{/if}
-				</button>
-
-				<!-- Botão SERPRO -->
-				<button
-					class="btn btn-sm preset-filled-tertiary-500"
-					onclick={assinarComSerpro}
-					disabled={assinando || !certSelecionado}
-					title="Requer usar o Leitor de Tokens primeiro"
-				>
-					{#if assinando && serproClient}
-						<span
-							class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-						></span>
-						{etapaAssinatura}
-					{:else}
-						Assinar com SERPRO
-					{/if}
-				</button>
-
-				{#if certificados.length > 0 && !assinando}
-					<button
-						class="btn btn-sm preset-outlined-surface"
-						onclick={() => {
-							certificados = [];
-							certSelecionado = "";
-							tentouLerCertificados = false;
-						}}
+					<div
+						class="bg-surface-200 dark:bg-surface-700/30 p-3 rounded-xl border border-surface-300 dark:border-surface-600/30"
 					>
-						Limpar lista
-					</button>
+						<p
+							class="text-[0.65rem] text-surface-500 font-bold uppercase text-center leading-tight"
+						>
+							Certificados físicos (USB/Token/Cartão) só podem ser
+							lidos em computadores.
+						</p>
+					</div>
 				{/if}
 			</div>
+		</div>
 
-			<p class="text-xs text-surface-400 dark:text-surface-500 mt-2">
-				<strong>Web PKI:</strong> requer extensão
-				<a
-					href="https://get.webpkiplugin.com/"
-					target="_blank"
-					rel="noopener"
-					class="anchor">Lacuna Web PKI</a
-				>. &nbsp;|&nbsp;
-				<strong>SERPRO:</strong> requer o
-				<a
-					href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
-					target="_blank"
-					rel="noopener"
-					class="anchor">Assinador SERPRO Desktop</a
-				>
-				instalado e em execução.
-			</p>
-		{/if}
+		<!-- Exportações auxiliares -->
+		<div class="pt-4 border-t border-surface-200 dark:border-white/5">
+			<span
+				class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-widest mb-3 block"
+				>Outros Formatos (Sem Assinatura)</span
+			>
+			<div class="flex gap-2 flex-wrap">
+				{#each ["docx", "xlsx", "pdf"] as format}
+					<button
+						class="btn btn-sm preset-tonal-surface text-[0.65rem] font-bold uppercase px-3 py-1.5"
+						onclick={() => download(format)}
+						>{format.toUpperCase()}</button
+					>
+				{/each}
+			</div>
+		</div>
 	</div>
 {/if}
 
 <Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
-	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
-		<div class="card p-6 max-w-lg w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
-			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
-			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
-				Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-lg w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="h3 font-bold mb-2"
+				>Assinatura Digital em Tela</Dialog.Title
+			>
+			<Dialog.Description
+				class="text-xs text-surface-600 dark:text-surface-400 mb-4"
+			>
+				Desenhe sua rubrica no quadro abaixo para assinar este documento
+				da escala com validade jurídica (nos moldes da assinatura
+				eletrônica).
 			</Dialog.Description>
-			
-			<SignaturePad 
+
+			<SignaturePad
 				message="Rubrica do Organizador"
-				onConfirm={assinarSimples} 
-				onCancel={() => dialogSignOpen = false} 
+				onConfirm={assinarSimples}
+				onCancel={() => (dialogSignOpen = false)}
 			/>
 		</div>
 	</Dialog.Content>

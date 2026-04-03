@@ -4,6 +4,7 @@ export const policialSchema = z.object({
 	nome: z.string().min(1, 'Nome é obrigatório'),
 	matricula: z.string().min(1, 'Matrícula é obrigatória'),
 	cargo: z.enum(['DPC', 'OIP'], { message: 'Cargo deve ser DPC ou OIP' }),
+	cpf: z.string().optional().nullable(),
 	telefone: z.string().default(''),
 	lotacao: z.string().default(''),
 	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos'),

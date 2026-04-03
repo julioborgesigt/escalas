@@ -103,8 +103,20 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 			revogouAssinatura = true;
 		}
 
-		if (gise.status === 'aguardando_assinatura' || gise.status === 'em_andamento') {
+		const statusString = gise.status as string;
+		if (statusString === 'aguardando_assinatura' || statusString === 'em_andamento' || statusString === 'aguardando_relatorios' || statusString === 'aguardando_assinatura_relat' || statusString === 'pronta_para_finalizar' || statusString === 'finalizada') {
 			await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+		}
+	} else if (isAdminGeral(u)) {
+		// Admin Geral deteca se precisa resetar status se houver alterações estruturais
+		const statusString = gise.status as string;
+		if (statusString === 'aguardando_assinatura' || statusString === 'em_andamento' || statusString === 'aguardando_relatorios' || statusString === 'aguardando_assinatura_relat' || statusString === 'pronta_para_finalizar' || statusString === 'finalizada') {
+			const temAlteracoes = unidade_operacional_id !== undefined || hora_entrada !== undefined || hora_saida !== undefined || equipes || adicionar_membro || remover_membro_id || adicionar_equipe;
+			if (temAlteracoes) {
+				await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+				await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+				revogouAssinatura = true;
+			}
 		}
 	}
 
