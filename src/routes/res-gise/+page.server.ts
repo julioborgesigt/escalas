@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { getDB, buscarGiseModeloFormulario, isMembroGiseAtiva } from '$lib/db';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios } from '$lib/server/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
 export const load = async ({ locals, platform, url }: any) => {
 	const u = locals.usuario;
@@ -9,6 +9,8 @@ export const load = async ({ locals, platform, url }: any) => {
 
 	const isAdminGeral = u.tipo === 'admin';
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
+	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
+	const dataFilter = url.searchParams.get('data') || ''; // YYYY-MM-DD
 
 	const db = getDB(platform);
 
@@ -20,14 +22,16 @@ export const load = async ({ locals, platform, url }: any) => {
 		.get();
 	const isSupervisorGise = !!giseSupervisor;
 
-	// Apenas admin geral e membros de GISE ativa podem acessar o preenchimento de formulário
+	// Apenas admin geral e membros de GISE podem acessar
 	if (u.tipo !== 'admin') {
-		const isMembro = await isMembroGiseAtiva(db, u.id);
-		if (!isMembro) throw redirect(302, '/');
+		const result = await db.select({ id: giseMembros.id }).from(giseMembros).where(eq(giseMembros.policial_id, u.id)).limit(1).get();
+		if (!result && !isSupervisorGise) throw redirect(302, '/');
 	}
 
 	let minhasEscalas: any[] = [];
 	let listaAdmin: any[] = [];
+
+	const effectiveStatus = statusFilter || 'ativas';
 
 	if (u.tipo === 'policial' && !isSupervisorGise) {
 		const rawEscalas = await db
@@ -52,7 +56,12 @@ export const load = async ({ locals, platform, url }: any) => {
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(eq(giseMembros.policial_id, u.id))
+			.where(and(
+				eq(giseMembros.policial_id, u.id),
+				mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+				dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+			))
+			.orderBy(desc(giseEscalas.data_inicio))
 			.all();
 
 		const giseIds = [...new Set(rawEscalas.map(e => e.id))];
@@ -86,11 +95,10 @@ export const load = async ({ locals, platform, url }: any) => {
 
 		for (const e of rawEscalas) {
 			const presenca = presencasMap.get(e.id);
+			const isFinished = (presenca && presenca.saida_timestamp) || e.status === 'finalizada';
 
-			// Mostrar apenas escalas sem saída confirmada
-			if (presenca && presenca.saida_timestamp) {
-				continue;
-			}
+			if (effectiveStatus === 'ativas' && isFinished) continue;
+			if (effectiveStatus === 'finalizadas' && !isFinished) continue;
 
 			const docAssinado = docsAssinadosMap.get(e.id);
 			const extraAssinado = extrasAssinadosMap.get(`${e.id}_${e.seccional_id}`);
@@ -129,6 +137,9 @@ export const load = async ({ locals, platform, url }: any) => {
 			} else if (statusFilter === 'finalizadas') {
 				filters.push(eq(giseEscalas.status, 'finalizada'));
 			}
+
+			if (mesFilter) filters.push(like(giseEscalas.data_inicio, `${mesFilter}%`));
+			if (dataFilter) filters.push(eq(giseEscalas.data_inicio, dataFilter));
 
 			// Se for supervisor, ver apenas as suas GISEs, senão vê tudo
 			if (!isAdminGeral && isSupervisorGise) {

@@ -26,8 +26,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		throw redirect(302, '/');
 	}
 
-	const supervisorId = (!isGeral && !isSeccional) ? u.id : undefined;
-	const escalas = await listarGiseEscalas(db, supervisorId);
+	const supervisorId = (!isGeral && !isSeccional && isSupervisor && !isMembro) ? u.id : undefined;
+	const policialId = (!isGeral && !isSeccional) ? u.id : undefined;
+	const escalas = await listarGiseEscalas(db, supervisorId, policialId);
 	const ativa = await buscarGiseAtiva(db);
 
 	let papelGise: 'admin_geral' | 'admin_seccional' | 'supervisor' | 'membro';
