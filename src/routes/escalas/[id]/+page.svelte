@@ -182,10 +182,11 @@
 			});
 
 			if (res.ok) {
+				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
 				toaster.create({ title: "Policial adicionado à escala", type: "success" });
 				cargoBusca = "";
 				policialId = "";
-				await recarregarPoliciais();
 			} else {
 				toaster.create({ title: "Erro ao adicionar", type: "error" });
 			}
@@ -217,12 +218,12 @@
 
 			if (res.ok) {
 				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
 				if (data.quantidade === 0) {
 					toaster.create({ title: "Todos os servidores já estão na escala", type: "warning" });
 				} else {
 					toaster.create({ title: `${data.quantidade} servidor(es) adicionado(s) à escala`, type: "success" });
 				}
-				await recarregarPoliciais();
 			} else {
 				toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
 			}
@@ -313,8 +314,9 @@
 				}),
 			});
 			if (res.ok) {
+				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
 				editingId = null;
-				await recarregarPoliciais();
 			} else {
 				toaster.create({ title: 'Erro ao salvar alterações', type: 'error' });
 			}
@@ -345,10 +347,11 @@
 				{ method: "DELETE" },
 			);
 			if (res.ok) {
+				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
 				toaster.create({ title: `${nome} removido da escala`, type: "success" });
 				dialogOpen = false;
 				policialParaRemover = null;
-				await recarregarPoliciais();
 			} else {
 				toaster.create({ title: 'Erro ao remover policial', type: 'error' });
 			}
@@ -460,13 +463,14 @@
 			}),
 		});
 		if (res.ok) {
+			const data = await res.json();
+			if (data.policiais) policiaisEscala = data.policiais;
 			toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
 			cargoBusca = '';
 			policialId = '';
 			addPrimeiroPlantao = '';
 			addEquipe = '1';
 			addDatasSelecionadas = [];
-			await recarregarPoliciais();
 		} else {
 			const err = await res.json().catch(() => ({}));
 			toaster.create({ title: (err as { error?: string }).error || 'Erro ao adicionar', type: 'error' });
@@ -524,10 +528,13 @@
 
 	async function toggleDiaServidor(grupo: any, dataISO: string) {
 		const itemExistente = grupo.itens.find((i: any) => i.data_plantao === dataISO);
-		
+
 		if (itemExistente) {
 			const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemExistente.id}`, { method: 'DELETE' });
-			if (res.ok) await recarregarPoliciais();
+			if (res.ok) {
+				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
+			}
 		} else {
 			const template = grupo.itens[0] || {};
 			const he = template.hora_entrada || escala?.hora_entrada || "08:00";
@@ -546,7 +553,10 @@
 					equipe: grupo.equipe
 				}),
 			});
-			if (res.ok) await recarregarPoliciais();
+			if (res.ok) {
+				const data = await res.json();
+				if (data.policiais) policiaisEscala = data.policiais;
+			}
 		}
 	}
 
