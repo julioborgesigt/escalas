@@ -1293,6 +1293,7 @@
 								class="text-sm font-bold text-surface-900 dark:text-surface-100"
 							>
 								{fmtDate(escala.data_inicio)}
+								<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 							</p>
 							<span
 								class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-bold"

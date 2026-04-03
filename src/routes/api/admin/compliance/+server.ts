@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
+import { getNowBR } from '$lib/utils';
 import type { RequestHandler } from './$types';
 
 export interface ItemCompliance {
@@ -58,7 +59,7 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 	}
 
 	const db = getDB(platform);
-	const hoje = new Date();
+	const hoje = getNowBR();
 	const diaHoje = hoje.getDate();
 	const mesHoje = hoje.getMonth() + 1; // 1-12
 	const anoHoje = hoje.getFullYear();

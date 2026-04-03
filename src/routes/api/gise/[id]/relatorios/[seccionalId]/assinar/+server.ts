@@ -9,6 +9,7 @@ import {
 	verificarTodosRelatoriosExtraAssinados,
 	atualizarGiseEscala
 } from '$lib/db';
+import { getNowBR } from '$lib/utils';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
@@ -63,7 +64,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
 			signerName: signerName || u.nome,
 			signerCpf: signerCpf || (u as any).cpf,
-			signingTime: new Date(),
+			signingTime: getNowBR(),
 			verificationHash: hash,
 			verificationUrl: qrUrl,
 			ip,

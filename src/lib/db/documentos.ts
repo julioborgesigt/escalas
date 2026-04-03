@@ -46,7 +46,7 @@ export async function salvarDocumentoEscala(
 				user_agent: userAgent,
 				latitude,
 				longitude,
-				created_at: sql`datetime('now')`
+				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
 }
