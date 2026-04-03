@@ -4,6 +4,7 @@
 	import RelatorioProdutividade from "./RelatorioProdutividade.svelte";
 	import { page } from "$app/state";
 	import SignaturePad from "$lib/components/SignaturePad.svelte";
+	import Spinner from "$lib/components/Spinner.svelte";
 	import { initWebPKI, listarCertificados } from "$lib/webpki";
 
 	let { data } = $props();
@@ -1389,21 +1390,28 @@
 
 								{#if capturandoRubrica}
 									<div class="space-y-4">
-										<div
-											class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
-										>
-											<p
-												class="text-xs font-bold text-surface-500 uppercase mb-2"
+										{#if salvandoPresenca}
+											<div class="flex flex-col items-center gap-3 py-10">
+												<Spinner size="lg" />
+												<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Registrando entrada...</p>
+											</div>
+										{:else}
+											<div
+												class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
 											>
-												Câmera e GPS exigidos para
-												prosseguir:
-											</p>
-											<SignaturePad
-												onConfirm={salvarEntrada}
-												onCancel={() =>
-													(capturandoRubrica = false)}
-											/>
-										</div>
+												<p
+													class="text-xs font-bold text-surface-500 uppercase mb-2"
+												>
+													Câmera e GPS exigidos para
+													prosseguir:
+												</p>
+												<SignaturePad
+													onConfirm={salvarEntrada}
+													onCancel={() =>
+														(capturandoRubrica = false)}
+												/>
+											</div>
+										{/if}
 									</div>
 								{:else if isMobile}
 									<button
@@ -1701,21 +1709,28 @@
 												Confirmar Saída
 											</button>
 										{:else if capturandoRubrica}
-											<div
-												class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
-											>
-												<p
-													class="text-xs font-bold text-surface-500 uppercase mb-2"
+											{#if salvandoPresenca}
+												<div class="flex flex-col items-center gap-3 py-10">
+													<Spinner size="lg" />
+													<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">Registrando saída...</p>
+												</div>
+											{:else}
+												<div
+													class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
 												>
-													Câmera e GPS exigidos para
-													prosseguir:
-												</p>
-												<SignaturePad
-													onConfirm={salvarSaida}
-													onCancel={() =>
-														(capturandoRubrica = false)}
-												/>
-											</div>
+													<p
+														class="text-xs font-bold text-surface-500 uppercase mb-2"
+													>
+														Câmera e GPS exigidos para
+														prosseguir:
+													</p>
+													<SignaturePad
+														onConfirm={salvarSaida}
+														onCancel={() =>
+															(capturandoRubrica = false)}
+													/>
+												</div>
+											{/if}
 										{:else if isMobile}
 											<button
 												class="btn preset-outlined-primary-500 w-full py-4 rounded-2xl font-bold text-lg"
