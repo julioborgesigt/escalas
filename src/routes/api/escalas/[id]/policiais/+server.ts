@@ -48,7 +48,8 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 			data.equipe || '',
 			data.observacoes || ''
 		);
-		return json({ success: true }, { status: 201 });
+		const policiais = await listarPoliciaisEscala(db, escalaId);
+		return json({ success: true, policiais }, { status: 201 });
 	}
 
 	// Single date (existing behavior)
@@ -72,7 +73,8 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 		'',
 		validated.equipe || ''
 	);
-	return json({ success: true }, { status: 201 });
+	const policiais = await listarPoliciaisEscala(db, escalaId);
+	return json({ success: true, policiais }, { status: 201 });
 };
 
 export const PATCH: RequestHandler = async ({ platform, params, request, locals }) => {
@@ -97,7 +99,8 @@ export const PATCH: RequestHandler = async ({ platform, params, request, locals 
 		data.hora_saida || '',
 		data.observacoes ?? ''
 	);
-	return json({ success: true });
+	const policiais = await listarPoliciaisEscala(db, escalaId);
+	return json({ success: true, policiais });
 };
 
 export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
@@ -134,7 +137,8 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 			horaSaida
 		);
 		console.log(`[PUT policiais] sucesso quantidade=${quantidade}`);
-		return json({ success: true, quantidade }, { status: 200 });
+		const policiais = await listarPoliciaisEscala(db, escalaId);
+		return json({ success: true, quantidade, policiais }, { status: 200 });
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e);
 		const stack = e instanceof Error ? e.stack : '';
@@ -154,5 +158,6 @@ export const DELETE: RequestHandler = async ({ platform, params, url, locals }) 
 	const itemId = url.searchParams.get('item_id');
 	if (!itemId) return json({ error: 'item_id obrigatório' }, { status: 400 });
 	await removerPolicialEscala(db, Number(itemId));
-	return json({ success: true });
+	const policiais = await listarPoliciaisEscala(db, escalaId);
+	return json({ success: true, policiais });
 };
