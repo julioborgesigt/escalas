@@ -54,8 +54,10 @@
 	}
 
 	async function logout() {
-		await fetch('/api/auth/logout', { method: 'POST' });
-		
+		try {
+			await fetch('/api/auth/logout', { method: 'POST' });
+		} catch { /* ignora erros de rede — o redirecionamento ocorre de qualquer forma */ }
+
 		// Limpa filtros salvos no localStorage ao deslogar
 		if (typeof localStorage !== 'undefined') {
 			const keysToRemove = [];

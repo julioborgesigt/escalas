@@ -164,74 +164,73 @@
 		e.preventDefault();
 		if (!policialId || !dataPlantao) return;
 		adding = true;
+		try {
+			const he = escala?.hora_entrada || "08";
+			const hs = escala?.hora_saida || "08";
+			const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
 
-		const he = escala?.hora_entrada || "08";
-		const hs = escala?.hora_saida || "08";
-		const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
-
-		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				policial_id: Number(policialId),
-				data_plantao: dataPlantao,
-				data_saida: ds,
-				hora_entrada: `${addHoraEntrada}:${addMinutoEntrada}`,
-				hora_saida: `${addHoraSaida}:${addMinutoSaida}`,
-			}),
-		});
-
-		if (res.ok) {
-			toaster.create({
-				title: "Policial adicionado à escala",
-				type: "success",
+			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					policial_id: Number(policialId),
+					data_plantao: dataPlantao,
+					data_saida: ds,
+					hora_entrada: `${addHoraEntrada}:${addMinutoEntrada}`,
+					hora_saida: `${addHoraSaida}:${addMinutoSaida}`,
+				}),
 			});
-			cargoBusca = "";
-			policialId = "";
-			await recarregarPoliciais();
-		} else {
-			toaster.create({ title: "Erro ao adicionar", type: "error" });
+
+			if (res.ok) {
+				toaster.create({ title: "Policial adicionado à escala", type: "success" });
+				cargoBusca = "";
+				policialId = "";
+				await recarregarPoliciais();
+			} else {
+				toaster.create({ title: "Erro ao adicionar", type: "error" });
+			}
+		} catch {
+			toaster.create({ title: "Erro de conexão", type: "error" });
+		} finally {
+			adding = false;
 		}
-		adding = false;
 	}
 
 	async function adicionarTodos() {
 		if (!escala || adicionandoTodos) return;
 		adicionandoTodos = true;
+		try {
+			const he = escala.hora_entrada || "08:00";
+			const hs = escala.hora_saida || "08:00";
+			const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
 
-		const he = escala.hora_entrada || "08:00";
-		const hs = escala.hora_saida || "08:00";
-		const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
+			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					data_plantao: escala.data_inicio,
+					data_saida: ds,
+					hora_entrada: he,
+					hora_saida: hs,
+				}),
+			});
 
-		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				data_plantao: escala.data_inicio,
-				data_saida: ds,
-				hora_entrada: he,
-				hora_saida: hs,
-			}),
-		});
-
-		if (res.ok) {
-			const data = await res.json();
-			if (data.quantidade === 0) {
-				toaster.create({
-					title: "Todos os servidores já estão na escala",
-					type: "warning",
-				});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.quantidade === 0) {
+					toaster.create({ title: "Todos os servidores já estão na escala", type: "warning" });
+				} else {
+					toaster.create({ title: `${data.quantidade} servidor(es) adicionado(s) à escala`, type: "success" });
+				}
+				await recarregarPoliciais();
 			} else {
-				toaster.create({
-					title: `${data.quantidade} servidor(es) adicionado(s) à escala`,
-					type: "success",
-				});
+				toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
 			}
-			await recarregarPoliciais();
-		} else {
-			toaster.create({ title: "Erro ao adicionar servidores", type: "error" });
+		} catch {
+			toaster.create({ title: "Erro de conexão", type: "error" });
+		} finally {
+			adicionandoTodos = false;
 		}
-		adicionandoTodos = false;
 	}
 
 	async function gerarProximoMes() {

@@ -280,7 +280,11 @@
 		}
 	}
 
+	let removendoMembroId = $state<number | null>(null);
+
 	async function removerMembro(memId: number) {
+		if (removendoMembroId === memId) return;
+		removendoMembroId = memId;
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/membros/${memId}`, { method: 'DELETE' });
 			const json = await res.json();
@@ -288,6 +292,8 @@
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			removendoMembroId = null;
 		}
 	}
 
@@ -1496,7 +1502,9 @@
 														{/if}
 													</div>
 													{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
-														<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" onclick={() => removerMembro(m.id)}>×</button>
+														<button class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation" disabled={removendoMembroId === m.id} onclick={() => removerMembro(m.id)}>
+															{#if removendoMembroId === m.id}<Spinner size="xs" />{:else}×{/if}
+														</button>
 													{/if}
 												</div>
 											{/each}
