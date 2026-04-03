@@ -128,11 +128,9 @@
 				});
 			}
 
-			// P4 & P5: Prisons
+			// P4 & P5: Prisons (stats auxiliares para totais do detalhamento)
 			if (res.procedimentos_flagrante_bool === 'Sim') {
 				s.prisaoFlagrante += Number(res.prisoes_qtd) || 0;
-			} else {
-				s.prisaoFlagrante += Number(res.procedimentos_inteiros) || 0;
 			}
 			s.prisaoMandado += Number(res.mandados_qtd) || 0;
 		});
@@ -182,8 +180,6 @@
 			let val = 0;
 			if (res.apreensoes_armas_bool === 'Sim' && res.armas_detalhe) {
 				Object.values(res.armas_detalhe).forEach(q => val += (Number(q) || 0));
-			} else {
-				val = Number(res.apreensoes_armas) || 0;
 			}
 			const entry = r.get(item.seccional_id);
 			if (entry) entry.total += val;
@@ -220,10 +216,6 @@
 						.filter(item => item.seccional_id === sec.id)
 						.reduce((acc, item) => {
 							const res = JSON.parse(item.respostas || "{}");
-							if (q.id === 4) {
-								if (res.procedimentos_flagrante_bool === 'Sim') return acc + (Number(res.prisoes_qtd) || 0);
-								return acc + (Number(res.procedimentos_inteiros) || 0);
-							}
 							if (q.isBool) return acc + (res[q.key] === "Sim" ? 1 : 0);
 							if (q.specialStore === "drogasGeral") {
 								let drogasTotal = 0;
@@ -236,14 +228,6 @@
 									});
 								}
 								return acc + drogasTotal;
-							}
-							if (q.id === 11) {
-								if (res.apreensoes_armas_bool === 'Sim' && res.armas_detalhe) {
-									let t = 0;
-									Object.values(res.armas_detalhe).forEach(v => t += (Number(v) || 0));
-									return acc + t;
-								}
-								return acc + (Number(res.apreensoes_armas) || 0);
 							}
 							return acc + (Number(res[q.key]) || 0);
 						}, 0);
@@ -255,10 +239,6 @@
 						.filter(item => item.data_inicio === date)
 						.reduce((acc, item) => {
 							const res = JSON.parse(item.respostas || "{}");
-							if (q.id === 4) {
-								if (res.procedimentos_flagrante_bool === 'Sim') return acc + (Number(res.prisoes_qtd) || 0);
-								return acc + (Number(res.procedimentos_inteiros) || 0);
-							}
 							if (q.isBool) return acc + (res[q.key] === "Sim" ? 1 : 0);
 							if (q.specialStore === "drogasGeral") {
 								let drogasTotal = 0;
@@ -271,14 +251,6 @@
 									});
 								}
 								return acc + drogasTotal;
-							}
-							if (q.id === 11) {
-								if (res.apreensoes_armas_bool === 'Sim' && res.armas_detalhe) {
-									let t = 0;
-									Object.values(res.armas_detalhe).forEach(v => t += (Number(v) || 0));
-									return acc + t;
-								}
-								return acc + (Number(res.apreensoes_armas) || 0);
 							}
 							return acc + (Number(res[q.key]) || 0);
 						}, 0);
@@ -465,8 +437,8 @@
 					let total = 0;
 					let unit = "";
 					if (id === 'detail-prisoes') {
-						details = [["Flagrantes (P4)", stats.prisaoFlagrante], ["Mandados (P5)", stats.prisaoMandado]];
-						total = stats.prisaoFlagrante + stats.prisaoMandado;
+						details = [["Flagrantes (P7)", stats['prisoes_apreensoes_flagrante'] || 0], ["Mandados (P5)", stats.prisaoMandado]];
+						total = (stats['prisoes_apreensoes_flagrante'] || 0) + stats.prisaoMandado;
 					} else if (id === 'detail-drogas') {
 						details = (Object.entries(stats.drogasPorTipo) as [string, number][]).sort((a: [string, number], b: [string, number]) => b[1] - a[1]).slice(0, 8);
 						total = stats.drogasGeral;
@@ -707,9 +679,9 @@
 		<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			{@render subRanking("rank-prisoes", "Ranking de Prisões (P7)", rankingPrisoes, "#f43f5e", iconPrison, "")}
 			{@render subDetailing("detail-prisoes", "Detalhamento de Prisões", [
-				["Flagrantes (P4)", stats.prisaoFlagrante],
+				["Flagrantes (P7)", stats['prisoes_apreensoes_flagrante'] || 0],
 				["Mandados (P5)", stats.prisaoMandado]
-			], stats.prisaoFlagrante + stats.prisaoMandado, "#f43f5e", "")}
+			], (stats['prisoes_apreensoes_flagrante'] || 0) + stats.prisaoMandado, "#f43f5e", "")}
 		</section>
 
 		<!-- ROW 2: DRUGS -->
