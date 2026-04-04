@@ -12,9 +12,10 @@ import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atua
 import { gerarPdfGise } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
+import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const { rubrica, latitude, longitude, selfieBase64 } = await request.json().catch(() => ({}) as any);
+	const { rubrica, latitude, longitude, selfieBase64 } = await request.json().catch(() => ({} as Record<string, unknown>));
 	const u = locals.usuario;
 	if (!u) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
@@ -98,7 +99,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const r2 = (platform as any)?.env?.escalas_docs;
+		const r2 = getR2(platform);
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/escala`;
@@ -131,7 +132,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		]);
 
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
-		return new Response(pdfFinal as any, {
+		return new Response(pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`

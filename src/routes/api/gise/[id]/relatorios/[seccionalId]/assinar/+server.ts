@@ -12,6 +12,7 @@ import {
 import { getNowBR } from '$lib/utils';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ locals, params, request, platform, getClientAddress, url }: RequestEvent) => {
 	const u = locals.usuario;
@@ -45,7 +46,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			rubrica: rubrica
 		};
 
-		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature as any);
+		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
 
@@ -84,9 +85,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const p = platform as any;
-		const r2 = p?.env?.escalas_docs;
-		const [yyyy, mm, dd] = (gise as any).data_inicio.split('-');
+		const p = platform as Record<string, unknown> | undefined;
+		const r2 = getR2(p);
+		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/relatorios_extra`;
 		const prefixBase = `${folder}/gise_rel_${id}_sec_${seccionalId}_${hash}`;

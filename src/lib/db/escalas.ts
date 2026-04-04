@@ -27,7 +27,7 @@ export async function listarEscalas(
 		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}`);
 	}
 	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}`);
-	if (tipo && tipo !== 'todos') conditions.push(eq(escalas.tipo, tipo as any));
+	if (tipo && tipo !== 'todos') conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
 	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}`);
 

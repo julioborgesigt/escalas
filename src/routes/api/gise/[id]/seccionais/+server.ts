@@ -9,7 +9,7 @@ import { json } from '@sveltejs/kit';
 import { getDB, upsertGiseSeccional, atualizarGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { unidades, giseSeccionais, giseDocumentos } from '$lib/server/schema';
-import { eq, notInArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export const GET = async ({ locals, params, platform }: any) => {
 	const u = locals.usuario;
@@ -30,13 +30,6 @@ export const GET = async ({ locals, params, platform }: any) => {
 	const idsPreenchidos = seccionaisNaEscala.map((s) => s.seccional_id);
 
 	// Buscar todas as seccionais que não estão na escala
-	let query = db.select().from(unidades).where(eq(unidades.tipo, 'seccional'));
-	
-	if (idsPreenchidos.length > 0) {
-		query = db.select().from(unidades).where(notInArray(unidades.id, idsPreenchidos)) as any;
-		// A tipagem do Drizzle pode ser chata aqui se usarmos o builder incrementalamente sem cast
-	}
-
 	const todas = await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all();
 	const disponiveis = todas.filter(u => !idsPreenchidos.includes(u.id));
 

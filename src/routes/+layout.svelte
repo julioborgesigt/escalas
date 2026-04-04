@@ -4,6 +4,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
+	import { csrfHeaders } from '$lib/csrf';
 
 	let { children } = $props();
 
@@ -55,7 +56,7 @@
 
 	async function logout() {
 		try {
-			await fetch('/api/auth/logout', { method: 'POST' });
+			await fetch('/api/auth/logout', { method: 'POST', headers: csrfHeaders() });
 		} catch { /* ignora erros de rede — o redirecionamento ocorre de qualquer forma */ }
 
 		// Limpa filtros salvos no localStorage ao deslogar

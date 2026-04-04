@@ -52,10 +52,10 @@ export interface GiseDetalhado extends schema.GiseEscala {
 // ---- Listagem e busca ----
 
 export async function listarGiseEscalas(db: Database, supervisorId?: number, policialId?: number) {
-	let query = db.select().from(giseEscalas);
+	let query = db.select().from(giseEscalas).$dynamic();
 
 	if (supervisorId) {
-		query = query.where(eq(giseEscalas.supervisor_id, supervisorId)) as any;
+		query = query.where(eq(giseEscalas.supervisor_id, supervisorId));
 	} else if (policialId) {
 		// Busca escalas onde o policial é supervisor OU membro
 		query = query.where(
@@ -68,7 +68,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 					WHERE s.gise_id = ${giseEscalas.id} AND m.policial_id = ${policialId}
 				)`
 			)
-		) as any;
+		);
 	}
 
 	const escalas = await query.orderBy(desc(giseEscalas.data_inicio)).all();
@@ -953,7 +953,7 @@ export async function salvarRespostaGise(
 	const existente = await buscarRespostaGise(db, giseId, policialId, equipeId);
 
 	if (existente) {
-		const targetId = (existente as any).id;
+		const targetId = existente.id;
 		return db
 			.update(giseRespostasFormulario)
 			.set({ respostas, updated_at: sql`datetime('now', '-3 hours')` })
@@ -1132,6 +1132,11 @@ export async function buscarAssinaturaRelatorioGise(
 			tipo_assinatura: giseAssinaturasRelatorios.tipo_assinatura,
 			rubrica: giseAssinaturasRelatorios.rubrica,
 			verification_hash: giseAssinaturasRelatorios.verification_hash,
+			selfie_key: giseAssinaturasRelatorios.selfie_key,
+			ip_address: giseAssinaturasRelatorios.ip_address,
+			user_agent: giseAssinaturasRelatorios.user_agent,
+			latitude: giseAssinaturasRelatorios.latitude,
+			longitude: giseAssinaturasRelatorios.longitude,
 			created_at: giseAssinaturasRelatorios.created_at
 		})
 		.from(giseAssinaturasRelatorios)

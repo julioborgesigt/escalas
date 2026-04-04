@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { alterarSenhaSchema } from '$lib/schemas';
+	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	let senhaAtual = $state('');
@@ -39,7 +40,7 @@
 
 		const res = await fetch('/api/auth/alterar-senha', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify(body)
 		});
 
