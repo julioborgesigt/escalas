@@ -84,6 +84,20 @@
 	function isActive(path: string): boolean {
 		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
 	}
+
+	const loadingText = $derived.by(() => {
+		if (!navigating?.to) return 'Carregando...';
+		const path = navigating.to.url.pathname;
+		if (path.startsWith('/res-gise')) return 'Carregando Relatórios GISE...';
+		if (path.startsWith('/gise')) return 'Carregando GISE...';
+		if (path.startsWith('/escalas')) return 'Carregando Escalas...';
+		if (path.startsWith('/policiais')) return 'Carregando Policiais...';
+		if (path.startsWith('/unidades')) return 'Carregando Unidades...';
+		if (path.startsWith('/painel')) return 'Carregando Painel...';
+		if (path.startsWith('/recebidos')) return 'Carregando Caixa de Entrada...';
+		if (path.startsWith('/produtividade')) return 'Carregando Produtividade...';
+		return 'Carregando...';
+	});
 </script>
 
 <svelte:head>
@@ -91,17 +105,15 @@
 </svelte:head>
 
 <!-- Navigation progress bar -->
-{#if navigating}
+{#if navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname)}
 	<div class="nav-progress-wrap" aria-hidden="true">
 		<div class="nav-progress-bar"></div>
 	</div>
 
-	{#if navigating.to?.url.pathname.startsWith('/res-gise')}
-		<div class="fixed inset-0 z-[10000] bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
-			<div class="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
-			<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium animate-pulse">Carregando Relatórios GISE...</p>
-		</div>
-	{/if}
+	<div class="fixed inset-0 z-[10000] bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
+		<div class="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
+		<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium animate-pulse uppercase tracking-widest text-xs">{loadingText}</p>
+	</div>
 {/if}
 
 <!-- Global Toast Provider -->

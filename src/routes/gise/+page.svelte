@@ -2,6 +2,7 @@
 	import { goto, invalidateAll } from "$app/navigation";
 	import { toaster } from "$lib/toast";
 	import Spinner from "$lib/components/Spinner.svelte";
+	import { csrfHeaders } from "$lib/csrf";
 
 	let { data } = $props();
 
@@ -63,7 +64,7 @@
 		try {
 			const res = await fetch("/api/gise", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...csrfHeaders() },
 				body: JSON.stringify({
 					data_inicio: novaDataInicio,
 					data_fim: novaDataFim || novaDataInicio,

@@ -32,41 +32,6 @@
 			selectedCharts = [...selectedCharts, id];
 		}
 	};
-	const selectAllCharts = () => {
-		const allIds = [...QUESTIONS.map((q: any) => q.id), ...TOP_IDS];
-		if (selectedCharts.length === allIds.length) {
-			selectedCharts = [];
-		} else {
-			selectedCharts = allIds;
-		}
-	};
-
-	// Default to current year if no dates set
-	const currentYear = new Date().getFullYear();
-	const defaultStart = `${currentYear}-01-01`;
-	const defaultEnd = `${currentYear}-12-31`;
-
-	// Derived Data (Exclusive to "Operacional" teams)
-	let filteredData = $derived(
-		(data.lista || []).filter((item: any) => {
-			const date = item.data_inicio;
-			const tipo = (item.equipe_tipo || "").toLowerCase();
-			if (tipo === "seint") return false; // Explicitamente oculta SEINT
-			if (
-				filterSeccional &&
-				item.seccional_id !== Number(filterSeccional)
-			)
-				return false;
-
-			const start = filterInicio || defaultStart;
-			const end = filterFim || defaultEnd;
-
-			if (date < start) return false;
-			if (date > end) return false;
-			return true;
-		}),
-	);
-
 	// Dynamic Questions Mapping (P4 to P18+)
 	const palette = [
 		"#3b82f6",
@@ -106,6 +71,43 @@
 					q.key === "apreensoes_drogas" ? "drogasGeral" : null, // Map legacy/special
 			}));
 	});
+
+	const selectAllCharts = () => {
+		const allIds = [...QUESTIONS.map((q: any) => q.id), ...TOP_IDS];
+		if (selectedCharts.length >= allIds.length) {
+			selectedCharts = [];
+		} else {
+			selectedCharts = allIds;
+		}
+	};
+	const allChartsCount = $derived(QUESTIONS.length + TOP_IDS.length);
+
+	// Default to current year if no dates set
+	const currentYear = new Date().getFullYear();
+	const defaultStart = `${currentYear}-01-01`;
+	const defaultEnd = `${currentYear}-12-31`;
+
+	// Derived Data (Exclusive to "Operacional" teams)
+	let filteredData = $derived(
+		(data.lista || []).filter((item: any) => {
+			const date = item.data_inicio;
+			const tipo = (item.equipe_tipo || "").toLowerCase();
+			if (tipo === "seint") return false; // Explicitamente oculta SEINT
+			if (
+				filterSeccional &&
+				item.seccional_id !== Number(filterSeccional)
+			)
+				return false;
+
+			const start = filterInicio || defaultStart;
+			const end = filterFim || defaultEnd;
+
+			if (date < start) return false;
+			if (date > end) return false;
+			return true;
+		}),
+	);
+
 
 	// Stats Calculation (Auto-Aggregated)
 	let stats = $derived.by(() => {
@@ -234,7 +236,7 @@
 	function updateCharts(list: any[]) {
 		const isShowingAll = !filterSeccional;
 		const labels = isShowingAll
-			? (data.seccionais ?? []).map((s: any) => s.nome)
+			? (data.seccionais ?? []).map((s) => s.nome.split(" do ")[0])
 			: Array.from(new Set(list.map((i) => i.data_inicio))).sort();
 
 		QUESTIONS.forEach((q: any) => {
@@ -354,15 +356,17 @@
 							grid: { display: false },
 							ticks: {
 								autoSkip: true,
-								maxRotation: 45,
-								font: { size: 8 },
+								maxRotation: 0,
+								font: { size: 10, weight: 'bold' },
 							},
 						},
 						y: {
 							beginAtZero: true,
+							suggestedMax: 5,
 							grid: { color: "#e2e8f010" },
 							ticks: {
 								display: true,
+								stepSize: 1,
 								font: { size: 9 },
 							},
 						},
@@ -689,7 +693,7 @@
 		<!-- Selection Badge -->
 		<button
 			onclick={() => toggleChartSelection(id)}
-			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id,
 			)
 				? 'bg-primary-500 text-white scale-110 shadow-lg'
@@ -697,7 +701,7 @@
 		>
 			{#if selectedCharts.includes(id)}
 				<svg
-					class="w-6 h-6"
+					class="w-4 h-4 md:w-6 md:h-6"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -710,7 +714,7 @@
 				>
 			{:else}
 				<svg
-					class="w-5 h-5 opacity-40"
+					class="w-3 h-3 md:w-5 md:h-5 opacity-40"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -748,7 +752,7 @@
 							Seccional
 						</p>
 						<p class="text-xs font-bold leading-tight line-clamp-1">
-							{item.nome}
+							{item.nome.split(" do ")[0]}
 						</p>
 					</div>
 					<div class="text-right">
@@ -788,7 +792,7 @@
 		<!-- Selection Badge -->
 		<button
 			onclick={() => toggleChartSelection(id)}
-			class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id,
 			)
 				? 'bg-primary-500 text-white scale-110 shadow-lg'
@@ -796,7 +800,7 @@
 		>
 			{#if selectedCharts.includes(id)}
 				<svg
-					class="w-6 h-6"
+					class="w-4 h-4 md:w-6 md:h-6"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -809,7 +813,7 @@
 				>
 			{:else}
 				<svg
-					class="w-5 h-5 opacity-40"
+					class="w-3 h-3 md:w-5 md:h-5 opacity-40"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -941,47 +945,53 @@
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
-			{#if QUESTIONS.length > 0}
+			{#if allChartsCount > 0}
 				<button
-					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length ===
-					QUESTIONS.length
-						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950'
-						: 'bg-surface-100 dark:bg-surface-800 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700'}"
+					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length >=
+					allChartsCount
+						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950 shadow-lg'
+						: 'bg-surface-200/60 dark:bg-surface-800/60 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'}"
 					onclick={selectAllCharts}
 				>
-					{selectedCharts.length === QUESTIONS.length
+					{selectedCharts.length >= allChartsCount
 						? "Desmarcar Todos"
-						: `Selecionar Todos (${QUESTIONS.length})`}
-				</button>
-			{/if}
-
-			{#if selectedCharts.length > 0}
-				<button
-					class="btn bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-500/20 text-xs font-black uppercase py-3 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-					onclick={exportChartsAsImages}
-				>
-					<svg
-						class="w-4 h-4"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="3"
-							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/></svg
-					>
-					Baixar PNGs ({selectedCharts.length})
+						: `Selecionar Todos (${allChartsCount})`}
 				</button>
 			{/if}
 
 			<button
-				class="export-btn btn bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-500/20 text-xs font-black uppercase py-3 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-				onclick={() => window.print()}
+				class="btn {selectedCharts.length > 0
+					? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 text-white'
+					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length > 0 ? 'hover:scale-105 active:scale-95' : ''} flex items-center gap-2"
+				onclick={exportChartsAsImages}
+				disabled={selectedCharts.length === 0}
 			>
 				<svg
-					class="w-4 h-4"
+					class="w-3.5 h-3.5"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="3"
+						d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+					/></svg
+				>
+				Baixar PNGs {selectedCharts.length > 0
+					? `(${selectedCharts.length})`
+					: ""}
+			</button>
+
+			<button
+				class="export-btn btn {selectedCharts.length > 0
+					? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20 text-white'
+					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length > 0 ? 'hover:scale-105 active:scale-95' : ''} flex items-center gap-2"
+				onclick={() => window.print()}
+				disabled={selectedCharts.length === 0}
+			>
+				<svg
+					class="w-3.5 h-3.5"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -992,7 +1002,9 @@
 						d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 					/></svg
 				>
-				Exportar PDF
+				Exportar PDF {selectedCharts.length > 0
+					? `(${selectedCharts.length})`
+					: ""}
 			</button>
 		</div>
 	</header>
@@ -1134,12 +1146,11 @@
 					q.id,
 				)
 					? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
-					: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-8"
+					: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-4"
 			>
-				<!-- Selection Badge -->
 				<button
 					onclick={() => toggleChartSelection(q.id)}
-					class="absolute top-4 right-4 w-10 h-10 rounded-2xl flex items-center justify-center transition-all {selectedCharts.includes(
+					class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 						q.id,
 					)
 						? 'bg-primary-500 text-white scale-110 shadow-lg'
@@ -1147,7 +1158,7 @@
 				>
 					{#if selectedCharts.includes(q.id)}
 						<svg
-							class="w-6 h-6"
+							class="w-4 h-4 md:w-6 md:h-6"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -1160,7 +1171,7 @@
 						>
 					{:else}
 						<svg
-							class="w-5 h-5 opacity-40"
+							class="w-3 h-3 md:w-5 md:h-5 opacity-40"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -1173,7 +1184,7 @@
 						>
 					{/if}
 				</button>
-				<div class="md:w-1/4 flex flex-col justify-center">
+				<div class="md:w-1/6 flex flex-col justify-center">
 					<p
 						class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest mb-1"
 					>

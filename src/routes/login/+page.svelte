@@ -3,6 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { csrfHeaders } from '$lib/csrf';
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
@@ -22,7 +23,7 @@
 		try {
 			const res = await fetch('/api/auth/login', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify(parsed.data)
 			});
 

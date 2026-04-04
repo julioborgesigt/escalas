@@ -7,6 +7,7 @@
 
 	import SignaturePad from "$lib/components/SignaturePad.svelte";
 	import Spinner from "$lib/components/Spinner.svelte";
+	import { csrfHeaders } from "$lib/csrf";
 
 	let { data } = $props();
 
@@ -211,7 +212,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({ supervisor_id: supervisorId }),
 			});
 			const json = await res.json();
@@ -233,7 +237,10 @@
 				`/api/gise/${gise.id}/seccionais/${secId}`,
 				{
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						unidade_operacional_id: unidadeOperacionalId,
 					}),
@@ -269,7 +276,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/seccionais`, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({
 					seccionalId: seccionalParaAdicionarIdx,
 				}),
@@ -300,7 +310,10 @@
 		try {
 			const res = await fetch(
 				`/api/gise/${gise.id}/seccionais/${secId}`,
-				{ method: "DELETE" },
+				{
+					method: "DELETE",
+					headers: csrfHeaders(),
+				},
 			);
 			if (!res.ok) {
 				const j = await res.json();
@@ -323,7 +336,10 @@
 				`/api/gise/${gise.id}/seccionais/${secId}`,
 				{
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						adicionar_membro: {
 							equipe_id: equipeParaAdicionar,
@@ -354,6 +370,7 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/membros/${memId}`, {
 				method: "DELETE",
+				headers: csrfHeaders(),
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
@@ -372,7 +389,10 @@
 				`/api/gise/${gise.id}/seccionais/${secId}`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: "{}",
 				},
 			);
@@ -472,6 +492,10 @@
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({
 					rubrica: rubricaCapturada,
 					latitude,
@@ -525,7 +549,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/finalizar`, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
@@ -546,7 +573,10 @@
 				`/api/gise/${gise.id}/equipes/${equipeId}`,
 				{
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						slots_dpc: editSlotsDpc,
 						slots_oip: editSlotsOip,
@@ -570,7 +600,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({ status: "aguardando_assinatura" }),
 			});
 			if (!res.ok) throw new Error((await res.json()).error);
@@ -652,6 +685,10 @@
 					`/api/gise/${gise.id}/relatorios/${item.seccionalId}/preparar-assinatura`,
 					{
 						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							...csrfHeaders(),
+						},
 						body: JSON.stringify({
 							signerName,
 							signerCpf,
@@ -685,6 +722,10 @@
 					`/api/gise/${gise.id}/relatorios/${item.seccionalId}/finalizar-assinatura`,
 					{
 						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							...csrfHeaders(),
+						},
 						body: JSON.stringify({
 							preparedPdf: prepData.preparedPdf,
 							serproCms,
@@ -742,7 +783,10 @@
 						`/api/gise/${gise.id}/relatorios/${item.seccionalId}/assinar`,
 						{
 							method: "POST",
-							headers: { "Content-Type": "application/json" },
+							headers: {
+								"Content-Type": "application/json",
+								...csrfHeaders(),
+							},
 							body: JSON.stringify({
 								tipo: item.tipo,
 								rubrica,
@@ -777,7 +821,10 @@
 				`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						tipo: relatorioSendoAssinado.tipo,
 						rubrica,
@@ -807,6 +854,7 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/reabrir`, {
 				method: "POST",
+				headers: csrfHeaders(),
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
@@ -848,7 +896,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({
 					data_inicio: editDataInicio,
 					hora_entrada: normalizarHora(editHoraEntrada),
@@ -900,7 +951,10 @@
 				`/api/gise/${gise.id}/seccionais/${secId}`,
 				{
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						hora_entrada: normalizarHora(editSecHoraEnt),
 						hora_saida: normalizarHora(editSecHoraSai),
@@ -931,7 +985,10 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}/equipes/${eqId}`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({
 					hora_entrada: normalizarHora(editEqHoraEnt),
 					hora_saida: normalizarHora(editEqHoraSai),
@@ -953,6 +1010,7 @@
 		try {
 			const res = await fetch(`/api/gise/${gise.id}`, {
 				method: "DELETE",
+				headers: csrfHeaders(),
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
@@ -973,7 +1031,10 @@
 				`/api/gise/${gise.id}/seccionais/${secId}`,
 				{
 					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						adicionar_equipe: {
 							tipo: novaEquipeTipo,
@@ -2269,13 +2330,19 @@
 										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 											<button
 												class="text-sm text-error-600 hover:text-error-500 p-1 inline-flex items-center gap-1"
-												disabled={removendoEquipeId === equipe.id}
+												disabled={removendoEquipeId ===
+													equipe.id}
 												onclick={async () => {
-													removendoEquipeId = equipe.id;
+													removendoEquipeId =
+														equipe.id;
 													try {
 														const r = await fetch(
 															`/api/gise/${gise.id}/equipes/${equipe.id}`,
-															{ method: "DELETE" },
+															{
+																method: "DELETE",
+																headers:
+																	csrfHeaders(),
+															},
 														);
 														if (r.ok) {
 															toaster.success({
@@ -2290,12 +2357,17 @@
 															});
 														}
 													} finally {
-														removendoEquipeId = null;
+														removendoEquipeId =
+															null;
 													}
 												}}
 											>
-												{#if removendoEquipeId === equipe.id}<Spinner size="sm" />{/if}
-												{removendoEquipeId === equipe.id ? 'Removendo...' : 'Remover equipe'}
+												{#if removendoEquipeId === equipe.id}<Spinner
+														size="sm"
+													/>{/if}
+												{removendoEquipeId === equipe.id
+													? "Removendo..."
+													: "Remover equipe"}
 											</button>
 										{/if}
 									</div>

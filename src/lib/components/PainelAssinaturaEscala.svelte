@@ -12,6 +12,7 @@
 	import { Dialog } from "@skeletonlabs/skeleton-svelte";
 	import SignaturePad from "./SignaturePad.svelte";
 	import type { UsuarioLogado } from "$lib/auth";
+	import { csrfHeaders } from "$lib/csrf";
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -110,7 +111,7 @@
 		try {
 			const res = await fetch(
 				`/api/escalas/${escalaId}/documento-assinado`,
-				{ method: "DELETE" },
+				{ method: "DELETE", headers: csrfHeaders() },
 			);
 			if (res.ok) {
 				documentoAssinadoInfo = null;
@@ -163,7 +164,10 @@
 				`/api/escalas/${escalaId}/assinar-simples`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						latitude: coords?.lat,
 						longitude: coords?.lng,
@@ -247,7 +251,10 @@
 			`/api/escalas/${escalaId}/preparar-assinatura`,
 			{
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({ signerName, signerCpf }),
 			},
 		);
@@ -271,7 +278,10 @@
 			`/api/escalas/${escalaId}/finalizar-assinatura`,
 			{
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...csrfHeaders(),
+				},
 				body: JSON.stringify({
 					preparedPdf,
 					rawSignature,
@@ -409,7 +419,10 @@
 				`/api/escalas/${escalaId}/preparar-assinatura`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						signerName: serproSignerName || undefined,
 						signerCpf: serproSignerCpf || undefined,
@@ -449,7 +462,10 @@
 				`/api/escalas/${escalaId}/finalizar-assinatura`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...csrfHeaders(),
+					},
 					body: JSON.stringify({
 						preparedPdf,
 						serproCms,

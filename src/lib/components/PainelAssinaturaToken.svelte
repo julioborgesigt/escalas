@@ -19,6 +19,7 @@
 
 	import { toaster } from '$lib/toast';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
+	import { csrfHeaders } from '$lib/csrf';
 
 	let {
 		prepararUrl,
@@ -101,7 +102,7 @@
 			// 1. Preparar
 			const prepResp = await fetch(prepararUrl, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					signerName,
 					signerCpf,
@@ -130,7 +131,7 @@
 			etapa = 'Finalizando PDF assinado...';
 			const finResp = await fetch(finalizarUrl, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					preparedPdf,
 					...sigResult,

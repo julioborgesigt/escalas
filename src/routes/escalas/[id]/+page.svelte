@@ -7,6 +7,7 @@
 	import { formatarData, proximoDia } from "$lib/utils";
 	import PainelAssinaturaEscala from "$lib/components/PainelAssinaturaEscala.svelte";
 	import Spinner from "$lib/components/Spinner.svelte";
+	import { csrfHeaders } from "$lib/csrf";
 
 	const horas = Array.from({ length: 24 }, (_, i) =>
 		String(i).padStart(2, "0"),
@@ -171,7 +172,7 @@
 
 			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...csrfHeaders() },
 				body: JSON.stringify({
 					policial_id: Number(policialId),
 					data_plantao: dataPlantao,
@@ -207,7 +208,7 @@
 
 			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 				method: "PUT",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...csrfHeaders() },
 				body: JSON.stringify({
 					data_plantao: escala.data_inicio,
 					data_saida: ds,
@@ -240,6 +241,7 @@
 
 		const res = await fetch(`/api/escalas/${page.params.id}/proximo-mes`, {
 			method: "POST",
+			headers: csrfHeaders()
 		});
 
 		const data = await res.json();
@@ -303,7 +305,7 @@
 		try {
 			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...csrfHeaders() },
 				body: JSON.stringify({
 					item_id: itemId,
 					data_plantao: editDataEntrada,
@@ -344,7 +346,7 @@
 		try {
 			const res = await fetch(
 				`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`,
-				{ method: "DELETE" },
+				{ method: "DELETE", headers: csrfHeaders() },
 			);
 			if (res.ok) {
 				const data = await res.json();
@@ -453,7 +455,7 @@
 		});
 		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				policial_id: Number(policialId),
 				datas,
@@ -530,7 +532,10 @@
 		const itemExistente = grupo.itens.find((i: any) => i.data_plantao === dataISO);
 
 		if (itemExistente) {
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemExistente.id}`, { method: 'DELETE' });
+			const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemExistente.id}`, { 
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
 			if (res.ok) {
 				const data = await res.json();
 				if (data.policiais) policiaisEscala = data.policiais;
@@ -543,7 +548,7 @@
 
 			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					policial_id: grupo.policial_id,
 					data_plantao: dataISO,

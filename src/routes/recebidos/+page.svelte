@@ -5,6 +5,7 @@
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { csrfHeaders } from '$lib/csrf';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -93,7 +94,7 @@
 		try {
 			const res = await fetch(`/api/escalas/${escala.id}/visto`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ visto: novoStatus })
 			});
 			if (!res.ok) {
@@ -172,7 +173,10 @@
 		const id = escalaParaExcluir.id;
 		excluindo = true;
 		try {
-			const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+			const res = await fetch(`/api/escalas?id=${id}`, { 
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
 			if (res.ok) {
 				toaster.create({ title: `Escala removida com sucesso`, type: 'success' });
 				escalas = escalas.filter(e => e.id !== id);
