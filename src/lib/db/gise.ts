@@ -1148,6 +1148,7 @@ export async function buscarAssinaturaRelatorioGise(
 				eq(giseAssinaturasRelatorios.tipo, tipo)
 			)
 		)
+		.orderBy(desc(giseAssinaturasRelatorios.created_at))
 		.get();
 }
 

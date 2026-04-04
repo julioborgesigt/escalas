@@ -104,3 +104,61 @@ export function limparCPF(v: string): string {
 export function getNowBR(): Date {
 	return new Date(Date.now() - 3 * 3600 * 1000);
 }
+
+/**
+ * Mascara o nome para exibição comercial (Ex: MARCOS S*** LIRA)
+ */
+export function mascararNome(nome: string | undefined): string {
+	if (!nome) return '';
+	const partes = nome.trim().split(/\s+/);
+	if (partes.length === 1) return partes[0];
+	const primeiro = partes[0];
+	const ultimo = partes[partes.length - 1];
+
+	// Se tiver 2 nomes: MARCOS LIRA -> MARCOS L***
+	if (partes.length === 2) return `${primeiro} ${ultimo[0]}***`;
+
+	// Se tiver 3+ nomes: MARCOS SANDRO LIRA -> MARCOS S*** LIRA
+	return `${primeiro} ${partes[1][0]}*** ${ultimo}`;
+}
+
+/**
+ * Mascara o CPF (Ex: ***.229.***-**)
+ */
+export function mascararCPF(cpf: string | undefined): string {
+	if (!cpf) return '';
+	const limpo = cpf.replace(/\D/g, '');
+	if (limpo.length !== 11) return cpf;
+	// Exibe apenas os dígitos centrais (4º, 5º e 6º)
+	return `***.${limpo.slice(3, 6)}.***-**`;
+}
+
+/**
+ * Mascara o endereço IP (IPv4 ou IPv6)
+ */
+export function mascararIP(ip: string | undefined): string {
+	if (!ip) return 'Não registrado';
+	if (ip.includes(':')) {
+		// IPv6 (Ex: 2804:d4b:7aa8:2500:bdef:80af:18e7:e2f0 -> 2804:d4b...:e2f0)
+		const partes = ip.split(':');
+		if (partes.length < 3) return ip;
+		return `${partes[0]}:${partes[1]}:${partes[2]}:****:****:****:****:${partes[partes.length - 1]}`;
+	} else {
+		// IPv4 (Ex: 177.1.2.3 -> 177.***.***.3)
+		const partes = ip.split('.');
+		if (partes.length !== 4) return ip;
+		return `${partes[0]}.***.***.${partes[3]}`;
+	}
+}
+
+/**
+ * Mascara coordenadas GPS para privacidade
+ */
+export function mascararCoordenada(valor: number | undefined): string {
+    if (valor === undefined) return '';
+    const str = valor.toFixed(6);
+    const partes = str.split('.');
+    if (partes.length !== 2) return str;
+    // -3.717382 -> -3.71****
+    return `${partes[0]}.${partes[1].slice(0, 2)}****`;
+}
