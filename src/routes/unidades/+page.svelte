@@ -6,6 +6,7 @@
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { csrfHeaders } from '$lib/csrf';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -125,7 +126,7 @@
 		try {
 			const res = await fetch('/api/unidades', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					nome: nomeFinal,
 					tipo: tipoUnidade,
@@ -188,7 +189,7 @@
 		try {
 			const res = await fetch(`/api/unidades/${id}`, {
 				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					nome: editNome.trim(),
 					tipo: editTipo,
@@ -227,7 +228,10 @@
 		const { id, nome } = unidadeParaExcluir;
 		excluindo = true;
 		try {
-			const res = await fetch(`/api/unidades/${id}`, { method: 'DELETE' });
+			const res = await fetch(`/api/unidades/${id}`, {
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
 			if (res.ok) {
 				toaster.create({ title: `Unidade "${nome}" removida com sucesso`, type: 'success' });
 				unidades = unidades.filter(u => u.id !== id);

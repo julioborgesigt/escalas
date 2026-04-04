@@ -6,6 +6,7 @@
 	import SignaturePad from "$lib/components/SignaturePad.svelte";
 	import Spinner from "$lib/components/Spinner.svelte";
 	import { initWebPKI, listarCertificados } from "$lib/webpki";
+	import { csrfHeaders } from "$lib/csrf";
 
 	let { data } = $props();
 	const isAdminGeral = $derived(data.usuario?.tipo === "admin");
@@ -159,7 +160,7 @@
 		try {
 			const res = await fetch("/api/gise/modelo", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...csrfHeaders() },
 				body: JSON.stringify({ config: perguntas }),
 			});
 			if (!res.ok) throw new Error("Erro ao salvar modelo");
@@ -204,7 +205,7 @@
 				`/api/gise/${escalaSelecionada.id}/resposta`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", ...csrfHeaders() },
 					body: JSON.stringify({
 						respostas,
 						equipeId: escalaSelecionada.equipe_id,
@@ -257,7 +258,7 @@
 				`/api/gise/${escalaSelecionada.id}/presenca/entrada`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", ...csrfHeaders() },
 					body: JSON.stringify({
 						rubrica,
 						latitude,
@@ -303,7 +304,7 @@
 				`/api/gise/${escalaSelecionada.id}/presenca/saida`,
 				{
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", ...csrfHeaders() },
 					body: JSON.stringify({
 						rubrica,
 						latitude,

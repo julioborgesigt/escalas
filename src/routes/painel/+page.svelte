@@ -6,6 +6,7 @@
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { csrfHeaders } from '$lib/csrf';
 
 	import type { Unidade } from '$lib/types';
 
@@ -173,7 +174,10 @@
 		const id = itemParaExcluir.escala_id;
 		excluindoEscala = true;
 		try {
-			const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+			const res = await fetch(`/api/escalas?id=${id}`, { 
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
 			if (res.ok) {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
 				escalaExcluirOpen = false;

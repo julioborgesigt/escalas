@@ -7,6 +7,7 @@
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
+	import { csrfHeaders } from '$lib/csrf';
 
 
 	let escalas = $state<EscalaListagem[]>([]);
@@ -104,7 +105,10 @@
 		const id = escalaParaExcluir.id;
 		const titulo = escalaParaExcluir.titulo;
 
-		const res = await fetch(`/api/escalas?id=${id}`, { method: 'DELETE' });
+		const res = await fetch(`/api/escalas?id=${id}`, {
+			method: 'DELETE',
+			headers: csrfHeaders()
+		});
 		excluindo = false;
 		dialogOpen = false;
 		if (res.ok) {
@@ -140,7 +144,10 @@
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
 
-		const res = await fetch(`/api/escalas/${id}/documento-assinado`, { method: 'DELETE' });
+		const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
+			method: 'DELETE',
+			headers: csrfHeaders()
+		});
 		revogando = false;
 		if (res.ok) {
 			toaster.create({ title: 'Assinatura revogada', description: 'A escala agora pode ser editada.', type: 'info' });

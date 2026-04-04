@@ -7,6 +7,7 @@
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { policialSchema } from '$lib/schemas/policial';
+	import { csrfHeaders } from '$lib/csrf';
 
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
@@ -124,7 +125,7 @@
 		try {
 			const res = await fetch('/api/policiais', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao: lotacaoInput, regime, classe,
 					papel: papel || null,
@@ -211,7 +212,10 @@
 		const id = policialParaExcluir.id;
 		const nome = policialParaExcluir.nome;
 		try {
-			const res = await fetch(`/api/policiais/${id}`, { method: 'DELETE' });
+			const res = await fetch(`/api/policiais/${id}`, {
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
 			if (res.ok) {
 				toaster.create({ title: `${nome} removido com sucesso`, type: 'success' });
 				policiais = policiais.filter(p => p.id !== id);

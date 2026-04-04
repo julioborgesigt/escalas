@@ -5,6 +5,7 @@
 	import type { Policial } from '$lib/types';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { csrfHeaders } from '$lib/csrf';
 
 	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
@@ -90,7 +91,7 @@
 
 		const res = await fetch(`/api/policiais/${page.params.id}`, {
 			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao, regime, classe })
 		});
 
@@ -110,7 +111,7 @@
 		try {
 			const res = await fetch('/api/admin/papeis', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					policial_id: Number(page.params.id),
 					papel: papel || null,
