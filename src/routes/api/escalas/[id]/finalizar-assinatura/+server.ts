@@ -52,7 +52,7 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		if (dadosToken) {
 			const nomeLogado = normalizarTexto(usuario.nome);
 			const nomeToken = normalizarTexto(dadosToken.nome);
-			const cpfLogado = (usuario as any).cpf || '';
+			const cpfLogado = usuario.cpf || '';
 			const cpfToken = dadosToken.cpf;
 
 			if (cpfLogado && cpfToken !== cpfLogado) {
@@ -87,7 +87,7 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 
 		// Salva o PDF no Cloudflare R2 e registra no banco
 		const finalSignerName = dadosToken?.nome || signerName || usuario.nome;
-		const finalSignerCpf = dadosToken?.cpf || (usuario as any).cpf || '';
+		const finalSignerCpf = dadosToken?.cpf || usuario.cpf || '';
 
 		const env = p?.env as any;
 		if (!env?.escalas_docs) {

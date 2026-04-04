@@ -34,7 +34,7 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 	const presencas = await buscarPresencasGise(db, id);
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u as any)?.cpf || '';
+	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
 
 	const mockSignature = {
 		assinante_nome: finalSignerName,

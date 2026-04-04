@@ -96,7 +96,13 @@ export async function verificarSenha(senha: string, storedHash: string): Promise
 		const actualHex = await derivarPBKDF2(senha, salt);
 		return actualHex === expectedHex;
 	}
-	// Suporte legado: SHA-256 sem salt — mantido para migração transparente
+	// Suporte legado: SHA-256 sem salt — DEPRECADO, será removido em 2026-07-01.
+	// Policiais com hash legado devem fazer login para migrar automaticamente para PBKDF2.
+	const LEGACY_DEADLINE = new Date('2026-07-01T00:00:00Z');
+	if (new Date() > LEGACY_DEADLINE) {
+		// Após o deadline, hash legado não é mais aceito — forçar reset de senha
+		return false;
+	}
 	const data = new TextEncoder().encode(senha);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 	const legacyHash = toHex(new Uint8Array(hashBuffer));
