@@ -26,35 +26,33 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	}
 
 	try {
-		const gise = await buscarGiseDetalhado(db, id);
+		// Parallelize independent queries
+		const policiaisPromise = isGeral
+			? listarPoliciais(db)
+			: isSeccional && u.papel_unidade_id
+				? db
+						.select({ nome: unidades.nome })
+						.from(unidades)
+						.where(or(eq(unidades.seccional_id, u.papel_unidade_id!), eq(unidades.id, u.papel_unidade_id!)))
+						.then(async (unidadesSubordinadas) => {
+							const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
+							if (nomesUnidades.length === 0) return [];
+							return db
+								.select()
+								.from(policiais)
+								.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
+								.orderBy(asc(policiais.cargo), asc(policiais.nome));
+						})
+				: Promise.resolve([]);
+
+		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios] = await Promise.all([
+			buscarGiseDetalhado(db, id),
+			policiaisPromise,
+			db.select().from(unidades).orderBy(asc(unidades.nome)),
+			buscarAssinaturasRelatoriosGise(db, id)
+		]);
+
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
-
-		// Lista de policiais disponíveis para alocação
-		let policiaisListResult: any[] = [];
-		if (isGeral) {
-			policiaisListResult = await listarPoliciais(db);
-		} else if (isSeccional && u.papel_unidade_id) {
-			const unidadesSubordinadas = await db
-				.select({ nome: unidades.nome })
-				.from(unidades)
-				.where(
-					or(
-						eq(unidades.seccional_id, u.papel_unidade_id),
-						eq(unidades.id, u.papel_unidade_id)
-					)
-				);
-			const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
-			if (nomesUnidades.length > 0) {
-				policiaisListResult = await db
-					.select()
-					.from(policiais)
-					.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
-					.orderBy(asc(policiais.cargo), asc(policiais.nome));
-			}
-		}
-
-		const todasUnidades = await db.select().from(unidades).orderBy(asc(unidades.nome));
-		const assinaturasRelatorios = await buscarAssinaturasRelatoriosGise(db, id);
 
 		return {
 			gise,

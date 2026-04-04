@@ -208,6 +208,7 @@ export const giseSeccionais = sqliteTable(
 	},
 	(table) => [
 		index('idx_gise_seccionais_gise').on(table.gise_id),
+		index('idx_gise_seccionais_seccional').on(table.seccional_id),
 		unique('uq_gise_seccional').on(table.gise_id, table.seccional_id)
 	]
 );

@@ -177,18 +177,18 @@ const OID_RSA_ENCRYPTION = '1.2.840.113549.1.1.1';
 /**
  * Formata a data atual no padrão dd/mm/yy HH:MM no fuso de Brasília.
  */
+const _fmtDataHora = new Intl.DateTimeFormat('pt-BR', {
+	timeZone: 'America/Sao_Paulo',
+	day: '2-digit',
+	month: '2-digit',
+	year: '2-digit',
+	hour: '2-digit',
+	minute: '2-digit',
+	hour12: false
+});
+
 function formatarDataHora(): string {
-	const now = new Date();
-	const fmt = new Intl.DateTimeFormat('pt-BR', {
-		timeZone: 'America/Sao_Paulo',
-		day: '2-digit',
-		month: '2-digit',
-		year: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		hour12: false
-	});
-	const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+	const parts = Object.fromEntries(_fmtDataHora.formatToParts(new Date()).map(p => [p.type, p.value]));
 	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 

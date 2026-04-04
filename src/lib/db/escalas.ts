@@ -140,22 +140,26 @@ export async function adicionarMultiplasDatasPlantao(
 	observacoes: string = ''
 ): Promise<void> {
 	if (datas.length === 0) return;
-	const BATCH_SIZE = 10;
+	const BATCH_SIZE = 50;
+	const batches = [];
 	for (let i = 0; i < datas.length; i += BATCH_SIZE) {
 		const lote = datas.slice(i, i + BATCH_SIZE);
-		await db.insert(escalaPoliciais).values(
-			lote.map((d) => ({
-				escala_id: escalaId,
-				policial_id: policialId,
-				data_plantao: d.data_plantao,
-				data_saida: d.data_saida,
-				hora_entrada: horaEntrada,
-				hora_saida: horaSaida,
-				equipe,
-				observacoes
-			}))
+		batches.push(
+			db.insert(escalaPoliciais).values(
+				lote.map((d) => ({
+					escala_id: escalaId,
+					policial_id: policialId,
+					data_plantao: d.data_plantao,
+					data_saida: d.data_saida,
+					hora_entrada: horaEntrada,
+					hora_saida: horaSaida,
+					equipe,
+					observacoes
+				}))
+			)
 		);
 	}
+	await Promise.all(batches);
 }
 
 export async function atualizarEscalaPolicial(
@@ -214,20 +218,24 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	const BATCH_SIZE = 10;
+	const BATCH_SIZE = 50;
+	const batches = [];
 	for (let i = 0; i < novos.length; i += BATCH_SIZE) {
 		const lote = novos.slice(i, i + BATCH_SIZE);
-		await db.insert(escalaPoliciais).values(
-			lote.map((p) => ({
-				escala_id: escalaId,
-				policial_id: p.id,
-				data_plantao: dataPlantao,
-				data_saida: dataSaida,
-				hora_entrada: horaEntrada,
-				hora_saida: horaSaida
-			}))
+		batches.push(
+			db.insert(escalaPoliciais).values(
+				lote.map((p) => ({
+					escala_id: escalaId,
+					policial_id: p.id,
+					data_plantao: dataPlantao,
+					data_saida: dataSaida,
+					hora_entrada: horaEntrada,
+					hora_saida: horaSaida
+				}))
+			)
 		);
 	}
+	await Promise.all(batches);
 
 	return novos.length;
 }

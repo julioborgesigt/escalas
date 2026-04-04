@@ -114,26 +114,23 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 
 	const fileKeys = new Set<string>();
 
-	// 1. Chaves explícitas no banco (Garantia de segurança caso a data tenha sido alterada no histórico)
-	// Manifesto e Selfie do Supervisor
-	const docs = await db.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
-		.from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).all();
+	// 1. Chaves explícitas no banco — buscar todas em paralelo
+	const [docs, presencas, assRelat] = await Promise.all([
+		db.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
+			.from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)).all(),
+		db.select({ entrada: gisePresencas.entrada_selfie_key, saida: gisePresencas.saida_selfie_key })
+			.from(gisePresencas).where(eq(gisePresencas.gise_id, id)).all(),
+		db.select({ selfie: giseAssinaturasRelatorios.selfie_key })
+			.from(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, id)).all()
+	]);
 	docs.forEach(d => {
 		if (d.r2) fileKeys.add(d.r2);
 		if (d.selfie) fileKeys.add(d.selfie);
 	});
-
-	// Selfies de Presença (Entrada/Saída)
-	const presencas = await db.select({ entrada: gisePresencas.entrada_selfie_key, saida: gisePresencas.saida_selfie_key })
-		.from(gisePresencas).where(eq(gisePresencas.gise_id, id)).all();
 	presencas.forEach(p => {
 		if (p.entrada) fileKeys.add(p.entrada);
 		if (p.saida) fileKeys.add(p.saida);
 	});
-
-	// Selfies de Relatórios (Supervisor)
-	const assRelat = await db.select({ selfie: giseAssinaturasRelatorios.selfie_key })
-		.from(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, id)).all();
 	assRelat.forEach(a => {
 		if (a.selfie) fileKeys.add(a.selfie);
 	});

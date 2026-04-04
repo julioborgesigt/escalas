@@ -118,6 +118,7 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 	if (escalaAtual.tipo === 'expediente') {
 		// Para expediente: copia cada servidor único com as datas do novo mês
 		const policialIdsVistos = new Set<number>();
+		const inserts: Promise<any>[] = [];
 
 		for (const p of policiaisAtuais) {
 			if (policialIdsVistos.has(p.policial_id)) continue;
@@ -127,17 +128,12 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 			const dsSaida = p.hora_saida || horaSaida;
 			const dataSaida = calcularDataSaida(novaDataInicio, dsEntrada, dsSaida);
 
-			await adicionarPolicialEscala(
-				db,
-				novaEscalaId,
-				p.policial_id,
-				novaDataInicio,
-				dataSaida,
-				dsEntrada,
-				dsSaida
-			);
+			inserts.push(adicionarPolicialEscala(
+				db, novaEscalaId, p.policial_id, novaDataInicio, dataSaida, dsEntrada, dsSaida
+			));
 			adicionados++;
 		}
+		await Promise.all(inserts);
 	} else {
 		// Para plantão: agrupa dias por servidor e calcula rotação (preserva equipe)
 		const diasPorPolicial = new Map<number, { nome: string; dias: string[]; equipe: string }>();
@@ -149,6 +145,7 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 			diasPorPolicial.get(p.policial_id)!.dias.push(p.data_plantao);
 		}
 
+		const inserts: Promise<any>[] = [];
 		for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {
 			const { dias: novosDias, rotacao } = calcularProximoMesDias(dias, novoAno, novoMes);
 
@@ -165,20 +162,13 @@ export const POST: RequestHandler = async ({ platform, params, locals }) => {
 
 			for (const dia of novosDias) {
 				const dataSaida = calcularDataSaida(dia, horaEntrada, horaSaida);
-				await adicionarPolicialEscala(
-					db,
-					novaEscalaId,
-					policialId,
-					dia,
-					dataSaida,
-					horaEntrada,
-					horaSaida,
-					'',
-					equipe
-				);
+				inserts.push(adicionarPolicialEscala(
+					db, novaEscalaId, policialId, dia, dataSaida, horaEntrada, horaSaida, '', equipe
+				));
 			}
 			adicionados++;
 		}
+		await Promise.all(inserts);
 	}
 
 	return json({

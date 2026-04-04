@@ -34,33 +34,34 @@
 
 	$effect(() => {
 		const id = page.params.id;
-		fetch(`/api/policiais/${id}`)
-			.then(r => r.json())
-			.then((data: Policial) => {
-				policial = data;
-				nome = data.nome;
-				matricula = data.matricula;
-				cargo = data.cargo;
-				cpf = formatarCPF((data as any).cpf || '');
-				telefone = data.telefone || '';
-				classe = (data as unknown as { classe?: string }).classe || '';
-				regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
-				lotacao = data.lotacao;
-				papel = data.papel ?? null;
-				papelUnidadeId = data.papel_unidade_id ?? null;
-				loading = false;
-			});
 
+		// Parallelize all independent fetches
+		const promises: Promise<any>[] = [
+			fetch(`/api/policiais/${id}`).then(r => r.json())
+		];
 		if (isAdmin) {
-			fetch('/api/lotacoes').then(r => r.json()).then((data: string[]) => {
-				unidades = data;
-			});
+			promises.push(fetch('/api/lotacoes').then(r => r.json()));
 		}
 		if (isAdminOrSeccional || isAdminUnidade) {
-			fetch('/api/unidades').then(r => r.json()).then((data: any[]) => {
-				todasUnidadesObj = data;
-			});
+			promises.push(fetch('/api/unidades').then(r => r.json()));
 		}
+
+		Promise.all(promises).then(([data, lotacoesData, unidadesData]) => {
+			policial = data;
+			nome = data.nome;
+			matricula = data.matricula;
+			cargo = data.cargo;
+			cpf = formatarCPF((data as any).cpf || '');
+			telefone = data.telefone || '';
+			classe = (data as unknown as { classe?: string }).classe || '';
+			regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
+			lotacao = data.lotacao;
+			papel = data.papel ?? null;
+			papelUnidadeId = data.papel_unidade_id ?? null;
+			if (lotacoesData) unidades = lotacoesData;
+			if (unidadesData) todasUnidadesObj = unidadesData;
+			loading = false;
+		});
 	});
 
 	const classesDisponiveis = $derived(

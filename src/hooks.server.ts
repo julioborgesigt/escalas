@@ -3,13 +3,20 @@ import { redirect } from '@sveltejs/kit';
 import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
 
-const ROTAS_PUBLICAS = ['/login', '/api/auth/login', '/validar', '/api/validar'];
+const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/validar', '/api/validar']);
+
+function isRotaPublica(pathname: string): boolean {
+	for (const rota of ROTAS_PUBLICAS) {
+		if (pathname.startsWith(rota)) return true;
+	}
+	return false;
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
 	// Rotas públicas não precisam de autenticação
-	if (ROTAS_PUBLICAS.some(r => pathname.startsWith(r))) {
+	if (isRotaPublica(pathname)) {
 		event.locals.usuario = null;
 		return resolve(event);
 	}

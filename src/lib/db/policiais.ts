@@ -8,7 +8,7 @@ export async function listarPoliciais(
 	db: Database,
 	lotacao?: string,
 	semLotacao?: boolean
-): Promise<schema.Policial[]> {
+): Promise<Omit<schema.Policial, 'senha'>[]> {
 	const conditions = [eq(policiais.ativo, 1)];
 
 	if (semLotacao) {
@@ -18,7 +18,23 @@ export async function listarPoliciais(
 	}
 
 	return db
-		.select()
+		.select({
+			id: policiais.id,
+			nome: policiais.nome,
+			matricula: policiais.matricula,
+			cargo: policiais.cargo,
+			cpf: policiais.cpf,
+			telefone: policiais.telefone,
+			lotacao: policiais.lotacao,
+			ativo: policiais.ativo,
+			regime: policiais.regime,
+			classe: policiais.classe,
+			primeiro_acesso: policiais.primeiro_acesso,
+			papel: policiais.papel,
+			papel_unidade_id: policiais.papel_unidade_id,
+			created_at: policiais.created_at,
+			updated_at: policiais.updated_at
+		})
 		.from(policiais)
 		.where(and(...conditions))
 		.orderBy(asc(policiais.cargo), asc(policiais.nome));
