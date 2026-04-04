@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
+import { getR2 } from '$lib/server/platform';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const GET = async ({ platform, params, url }: RequestEvent) => {
@@ -10,7 +11,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		return json({ error: 'Código de verificação ausente' }, { status: 400 });
 	}
 
-	const documento = await buscarDocumentoPorHash(db, hash) as any;
+	const documento = await buscarDocumentoPorHash(db, hash);
 	if (!documento) {
 		return json({ error: 'Documento não encontrado' }, { status: 404 });
 	}
@@ -61,7 +62,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			}
 
 			const filename = `relatorio_${relTipo}_${hash}.pdf`;
-			return new Response(finalPdf as any, {
+			return new Response(finalPdf as unknown as BodyInit, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': `attachment; filename="${filename}"`,
@@ -74,12 +75,12 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		}
 	}
 
-	const p = platform as any;
-	if (!p?.env?.escalas_docs) {
+	const r2 = getR2(platform);
+	if (!r2) {
 		return json({ error: 'Storage não configurado' }, { status: 500 });
 	}
 
-	const object = await p.env.escalas_docs.get(documento.r2_key);
+	const object = await r2.get(documento.r2_key);
 	if (!object) {
 		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
 	}

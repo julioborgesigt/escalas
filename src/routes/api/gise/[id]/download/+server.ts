@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise, buscarGiseEscala } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { gerarPdfGise, gerarRelatorioExtraordinarioPdf } from '$lib/export';
+import { getR2 } from '$lib/server/platform';
 import { adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -53,8 +54,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Tentar buscar no R2 (independente de ser token ou manual)
 		if (reportSignature?.verification_hash) {
-			const p = platform as any;
-			const r2 = p?.env?.escalas_docs;
+			const r2 = getR2(platform);
 			if (r2) {
 				try {
 					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
@@ -97,8 +97,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 			// Coletar assinantes para o Manifesto Misto (Audit Trail)
 			const signers: any[] = [];
-			const p = platform as any;
-			const r2 = p?.env?.escalas_docs;
+			const r2 = getR2(platform);
 
 			// 1. Adicionar Assinaturas dos Policiais (Entradas e Saídas)
 			// Filtrar presenças apenas da seccional se seccionalId estiver definido
@@ -126,7 +125,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const selfieResults = await Promise.all(
 				selfieKeys.map(async ({ key, type, prId }) => {
 					try {
-						const obj = await r2.get(key);
+						const obj = await r2!.get(key);
 						if (obj) {
 							const buf = await obj.arrayBuffer();
 							return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
@@ -183,8 +182,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			// 2. Adicionar Assinatura do Supervisor (Relatório)
 			if (reportSignature && reportSignature.verification_hash) {
 				let supervisorSelfie: string | undefined = undefined;
-				if (r2 && (reportSignature as any).selfie_key) {
-					const obj = await r2.get((reportSignature as any).selfie_key);
+				if (r2 && reportSignature.selfie_key) {
+					const obj = await r2.get(reportSignature.selfie_key);
 					if (obj) {
 						const buffer = await obj.arrayBuffer();
 						supervisorSelfie = Buffer.from(buffer).toString('base64');
@@ -196,10 +195,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					signingTime: new Date(reportSignature.created_at || Date.now()),
 					verificationHash: reportSignature.verification_hash,
 					verificationUrl: `${url.origin}/validar/${reportSignature.verification_hash}`,
-					ip: (reportSignature as any).ip_address,
-					userAgent: (reportSignature as any).user_agent,
-					latitude: (reportSignature as any).latitude,
-					longitude: (reportSignature as any).longitude,
+					ip: reportSignature.ip_address,
+					userAgent: reportSignature.user_agent,
+					latitude: reportSignature.latitude,
+					longitude: reportSignature.longitude,
 					rubricBase64: reportSignature.rubrica || undefined,
 					selfieBase64: supervisorSelfie,
 					signatureLevel: reportSignature.tipo_assinatura === 'simples' ? 'avancada' : 'qualificada'
@@ -210,7 +209,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				finalPdf = await adicionarPaginaAuditoria(finalPdf, signers);
 			}
 
-			return new Response(finalPdf as any, {
+			return new Response(finalPdf as unknown as BodyInit, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': `attachment; filename="${filename}"`,
@@ -229,8 +228,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		
 		// Prioridade total: buscar o PDF assinado (com manifesto) no R2
 		if (gise.documento?.r2_key) {
-			const p = platform as any;
-			const r2 = p?.env?.escalas_docs;
+			const r2 = getR2(platform);
 			if (r2) {
 				try {
 					const r2Object = await r2.get(gise.documento.r2_key);
@@ -252,7 +250,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Fallback: gerar PDF normal (rascunho ou erro no R2)
 		const result = gerarPdfGise(gise);
-		return new Response(result.pdf as any, {
+		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="rascunho_${gise.data_inicio}.pdf"`,
@@ -276,7 +274,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, respostas });
 
 		const filename = `resumo_produtividade_${gise.data_inicio}_sec_${seccionalId}.pdf`;
-		return new Response(result.pdf as any, {
+		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`,
@@ -373,7 +371,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 	const filename = `gise_${gise.data_inicio}.xlsx`;
 
-	return new Response(buffer as any, {
+	return new Response(buffer as unknown as BodyInit, {
 		status: 200,
 		headers: {
 			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

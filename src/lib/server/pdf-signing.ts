@@ -42,7 +42,7 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
         const p7 = forge.pkcs7.messageFromAsn1(asn1);
         
         // O certificado do assinante geralmente é o primeiro da lista
-        const cert = (p7 as any).certificates[0];
+        const cert = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates[0];
         if (!cert) throw new Error('Certificado não encontrado no CMS');
 
         // CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
@@ -1069,7 +1069,7 @@ export async function adicionarPaginaAuditoria(
 			const badgeBg = isQualified ? rgb(0.9, 0.94, 1.0) : rgb(0.9, 0.98, 0.92);
 			const badgeLabel = isQualified ? 'QUALIFICADA (ICP-BRASIL)' : 'AVANÇADA (TELA/MOBILE)';
 
-			page.drawRectangle({ x: 55, y: boxTop - 25, width: 105, height: 16, color: badgeBg, roundedAlpha: 4 } as any);
+			page.drawRectangle({ x: 55, y: boxTop - 25, width: 105, height: 16, color: badgeBg });
 			page.drawText(badgeLabel, { x: 58, y: boxTop - 20, size: 6.5, font: fontBold, color: badgeColor });
 
 			page.drawText(s.signerName.toUpperCase(), { x: 55, y: boxTop - 45, size: 11, font: fontBold, color: cText });

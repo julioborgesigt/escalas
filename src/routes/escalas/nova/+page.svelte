@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { escalaSchema } from '$lib/schemas';
+	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	interface UnidadeRegime {
@@ -197,7 +198,7 @@
 		try {
 			const res = await fetch('/api/escalas', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					titulo,
 					cidade,

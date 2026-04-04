@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import forge from 'node-forge';
 import { getDB, buscarEscala, salvarDocumentoEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
+import { getR2 } from '$lib/server/platform';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const POST = async ({ platform, params, request, locals, getClientAddress }: RequestEvent) => {
@@ -89,8 +90,8 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		const finalSignerName = dadosToken?.nome || signerName || usuario.nome;
 		const finalSignerCpf = dadosToken?.cpf || usuario.cpf || '';
 
-		const env = p?.env as any;
-		if (!env?.escalas_docs) {
+		const r2 = getR2(p);
+		if (!r2) {
 			return json({ error: 'Armazenamento R2 não configurado. Contate o administrador.' }, { status: 503 });
 		}
 
@@ -99,7 +100,7 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		const r2Key = `${folder}/escala_${escalaId}_${verificationHash}_assinada.pdf`;
 
 		// Salvar no R2 e no banco — falha aqui DEVE impedir retorno de sucesso
-		await env.escalas_docs.put(r2Key, signedPdf);
+		await r2.put(r2Key, signedPdf);
 		await salvarDocumentoEscala(db, escalaId, r2Key, finalSignerName, finalSignerCpf, verificationHash, ip, ua, latitude, longitude);
 
 		return new Response(signedPdf as unknown as BodyInit, {
