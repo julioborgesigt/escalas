@@ -467,7 +467,16 @@ export async function criarGiseEquipe(
 }
 
 export async function reabrirGiseEscala(db: Database, giseId: number) {
+	// 1. Revogar assinatura da escala principal
 	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
+
+	// 2. Revogar todas as assinaturas de relatórios (extra e produtividade) desta escala
+	await db.delete(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, giseId));
+
+	// 3. Revogar todas as presenças (entrada/saída) de todos os policiais nesta escala
+	await db.delete(gisePresencas).where(eq(gisePresencas.gise_id, giseId));
+
+	// 4. Resetar status da escala para permitir novas assinaturas
 	await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 }
 
