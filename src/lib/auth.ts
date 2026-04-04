@@ -54,9 +54,20 @@ async function derivarPBKDF2(senha: string, salt: Uint8Array<ArrayBuffer>): Prom
 		keyMaterial,
 		256
 	);
-	return Array.from(new Uint8Array(hashBuffer))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	const arr = new Uint8Array(hashBuffer);
+	const hex = new Array(arr.length);
+	for (let i = 0; i < arr.length; i++) {
+		hex[i] = arr[i].toString(16).padStart(2, '0');
+	}
+	return hex.join('');
+}
+
+function toHex(bytes: Uint8Array): string {
+	const hex = new Array(bytes.length);
+	for (let i = 0; i < bytes.length; i++) {
+		hex[i] = bytes[i].toString(16).padStart(2, '0');
+	}
+	return hex.join('');
 }
 
 /**
@@ -65,9 +76,7 @@ async function derivarPBKDF2(senha: string, salt: Uint8Array<ArrayBuffer>): Prom
  */
 export async function hashSenha(senha: string): Promise<string> {
 	const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
-	const saltHex = Array.from(salt)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	const saltHex = toHex(salt);
 	const hashHex = await derivarPBKDF2(senha, salt);
 	return `${PBKDF2_PREFIX}${saltHex}:${hashHex}`;
 }
@@ -90,9 +99,7 @@ export async function verificarSenha(senha: string, storedHash: string): Promise
 	// Suporte legado: SHA-256 sem salt — mantido para migração transparente
 	const data = new TextEncoder().encode(senha);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-	const legacyHash = Array.from(new Uint8Array(hashBuffer))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	const legacyHash = toHex(new Uint8Array(hashBuffer));
 	return legacyHash === storedHash;
 }
 
@@ -104,9 +111,7 @@ export function isHashLegado(storedHash: string): boolean {
 export function gerarToken(): string {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
-	return Array.from(bytes)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	return toHex(bytes);
 }
 
 export async function criarSessao(
@@ -139,30 +144,30 @@ export async function validarSessao(
 
 	if (!sessao) return null;
 
+	// Query both tables in parallel — only one will match based on sessao.tipo
+	const [admin, policial] = await Promise.all([
+		sessao.tipo === 'admin'
+			? db.select().from(administradores).where(eq(administradores.id, sessao.usuario_id)).get()
+			: Promise.resolve(null),
+		sessao.tipo === 'policial'
+			? db.select().from(policiais).where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1))).get()
+			: Promise.resolve(null)
+	]);
+
 	if (sessao.tipo === 'admin') {
-		const admin = await db
-			.select()
-			.from(administradores)
-			.where(eq(administradores.id, sessao.usuario_id))
-			.get();
 		if (!admin) return null;
 		return {
 			id: admin.id,
-			tipo: 'admin',
+			tipo: 'admin' as const,
 			nome: admin.nome,
 			primeiro_acesso: admin.primeiro_acesso === 1
 		};
 	}
 
-	const policial = await db
-		.select()
-		.from(policiais)
-		.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
-		.get();
 	if (!policial) return null;
 	return {
 		id: policial.id,
-		tipo: 'policial',
+		tipo: 'policial' as const,
 		nome: policial.nome,
 		matricula: policial.matricula,
 		lotacao: policial.lotacao,
