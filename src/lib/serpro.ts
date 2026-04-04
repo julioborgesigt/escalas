@@ -220,14 +220,11 @@ export class SerproSignerClient {
 	}
 
 	private handleMessage(event: MessageEvent): void {
-		console.log('[SERPRO] ← Resposta recebida:', event.data);
 		if (this.timeoutId) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
 		if (!this.pendingResolve) {
-			// Mensagem não solicitada (ex: notificação do servidor)
-			console.warn('[SERPRO] Mensagem recebida sem comando pendente (ignorada):', event.data);
 			return;
 		}
 		const resolve = this.pendingResolve;

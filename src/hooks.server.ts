@@ -1,5 +1,6 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
+import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
 
@@ -53,6 +54,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
+	// Adicionar contexto do usuário ao Sentry
+	setUser({ id: String(usuario.id), username: usuario.nome });
+
 	// Primeiro acesso: forçar troca de senha
 	if (usuario.primeiro_acesso && !pathname.startsWith('/alterar-senha') && !pathname.startsWith('/api/auth/')) {
 		if (pathname.startsWith('/api/')) {
@@ -84,6 +88,13 @@ function applySecurityHeaders(response: Response, url: URL): void {
 export const handleError: HandleServerError = ({ error, event }) => {
 	const errorId = crypto.randomUUID().slice(0, 8);
 	console.error(`[ERROR ${errorId}] ${event.url.pathname}:`, error);
+
+	// Reportar ao Sentry
+	captureException(error, {
+		tags: { errorId, path: event.url.pathname },
+		extra: { method: event.request.method }
+	});
+
 	return {
 		message: 'Ocorreu um erro interno. Tente novamente.',
 		errorId
