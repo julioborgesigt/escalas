@@ -67,8 +67,6 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		}
 	}
 
-	console.log('[POST /api/escalas] payload:', JSON.stringify(validated));
-
 	try {
 		const result = await criarEscala(db, {
 			titulo: validated.titulo,

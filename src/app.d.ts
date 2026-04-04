@@ -15,6 +15,7 @@ declare global {
 			env: {
 				escalas_db: D1Database;
 				escalas_docs: R2Bucket;
+				SENTRY_DSN?: string;
 			};
 		}
 	}
