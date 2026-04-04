@@ -77,7 +77,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		// Adicionar folha de auditoria (Manifesto) profissional
 		const pdfFinal = await adicionarPaginaAuditoria(pdfComRodape, {
 			signerName: u.nome,
-			signerCpf: (u as any).cpf,
+			signerCpf: u.cpf ?? undefined,
 			signingTime: getNowBR(),
 			verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
