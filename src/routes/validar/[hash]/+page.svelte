@@ -1,6 +1,6 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	import { formatarData } from '$lib/utils';
+	import { formatarData, mascararNome, mascararCPF, mascararIP, mascararCoordenada } from '$lib/utils';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -84,9 +84,9 @@
 							</div>
 							<div class="min-w-0">
 								<span class="block text-[10px] uppercase font-bold text-surface-400">Assinado por</span>
-								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{documento.assinante_nome}</span>
+								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{mascararNome(documento.assinante_nome)}</span>
 								{#if documento.assinante_cpf}
-									<span class="block text-xs text-surface-500 mt-1">CPF: ***.{documento.assinante_cpf.slice(4, 7)}.***-**</span>
+									<span class="block text-xs text-surface-500 mt-1">CPF: {mascararCPF(documento.assinante_cpf)}</span>
 								{/if}
 							</div>
 						</div>
@@ -106,7 +106,7 @@
 						<div class="space-y-3">
 							<div>
 								<span class="block text-[9px] uppercase font-bold text-surface-400">Endereço IP</span>
-								<span class="text-xs font-mono text-surface-700 dark:text-surface-300">{documento.ip_address || 'Não registrado'}</span>
+								<span class="text-xs font-mono text-surface-700 dark:text-surface-300">{mascararIP(documento.ip_address)}</span>
 							</div>
 							<div>
 								<span class="block text-[9px] uppercase font-bold text-surface-400">Dispositivo / Navegador</span>
@@ -124,8 +124,8 @@
 										<span class="text-xs font-bold text-success-600">GPS Capturado</span>
 									</div>
 									<span class="text-xs font-mono text-surface-700 dark:text-surface-300 bg-surface-200/50 dark:bg-surface-700/50 px-2 py-1 rounded">
-										Lat: {documento.latitude.toFixed(6)} <br/>
-										Log: {documento.longitude.toFixed(6)}
+										Lat: {mascararCoordenada(documento.latitude)} <br/>
+										Log: {mascararCoordenada(documento.longitude)}
 									</span>
 								</div>
 							{:else}

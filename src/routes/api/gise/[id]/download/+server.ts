@@ -34,182 +34,62 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 	const format = url.searchParams.get('format') || 'xlsx';
 
-	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO
+	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Prioriza Download do R2)
 	if (format === 'extraordinario') {
 		const secIdParam = url.searchParams.get('seccionalId');
 		const seccionalId = secIdParam ? parseInt(secIdParam) : undefined;
-
-		const presencas = await buscarPresencasGise(db, id);
+		const r2 = getR2(platform);
 
 		const reportSignature = seccionalId
 			? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario')
 			: null;
 
-		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !reportSignature) {
-			return json({ error: 'Este relatório ainda não foi assinado pelo supervisor.' }, { status: 403 });
-		}
-
-		const secSuffix = seccionalId ? `_sec_${seccionalId}` : '';
-		const filename = `relatorio_extraordinario_${gise.data_inicio}${secSuffix}.pdf`;
-
-		// Tentar buscar no R2 (independente de ser token ou manual)
+		// 1. Se existir assinatura, baixar OBRIGATORIAMENTE do R2
 		if (reportSignature?.verification_hash) {
-			const r2 = getR2(platform);
-			if (r2) {
-				try {
-					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
-					const mesAno = `${yyyy}-${mm}`;
-					const folder = `gise/${mesAno}/${dd_escala}/${id}/relatorios_extra`;
-					const r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
-					
-					const r2Object = await r2.get(r2Key);
-					if (r2Object) {
-						const pdfBytes = await r2Object.arrayBuffer();
-						return new Response(pdfBytes, {
-							headers: {
-								'Content-Type': 'application/pdf',
-								'Content-Disposition': `attachment; filename="${filename}"`,
-								'Cache-Control': 'no-cache'
-							}
-						});
-					}
-				} catch (e) {
-					console.warn('[download-extraordinario] Falha ao buscar PDF do R2:', e);
-				}
+			if (!r2) {
+				return json({ error: 'R2 não configurado na plataforma.' }, { status: 500 });
 			}
-		}
 
-		// Fallback: gerar via jsPDF (assinatura simples ou PDF não encontrado no R2)
-		let qrCodeBase64: string | undefined;
-		if (reportSignature?.verification_hash) {
 			try {
-				const QRCode = await import('qrcode');
-				const qrUrl = `${url.origin}/validar/${reportSignature.verification_hash}`;
-				qrCodeBase64 = await QRCode.toDataURL(qrUrl, { errorCorrectionLevel: 'H' });
-			} catch (e) {
-				console.warn('[download-extraordinario] Falha ao gerar QR code, prosseguindo sem ele:', e);
+				const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
+				const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
+				const r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
+				
+				const r2Object = await r2.get(r2Key);
+				if (r2Object) {
+					const pdfBytes = await r2Object.arrayBuffer();
+					const filename = `relatorio_extraordinario_${gise.data_inicio}_sec_${seccionalId}_assinado.pdf`;
+					return new Response(pdfBytes, {
+						headers: {
+							'Content-Type': 'application/pdf',
+							'Content-Disposition': `attachment; filename="${filename}"`,
+							'Cache-Control': 'no-cache'
+						}
+					});
+				} else {
+					console.error(`[download-extra] Arquivo não encontrado no R2: ${r2Key}`);
+					return json({ 
+						error: 'O relatório assinado não foi encontrado no servidor de arquivos (R2).',
+						key: r2Key 
+					}, { status: 404 });
+				}
+			} catch (e: any) {
+				console.error('[download-extra] Erro ao buscar no R2:', e);
+				return json({ error: 'Erro ao recuperar o arquivo assinado do R2: ' + e.message }, { status: 500 });
 			}
+		}
+
+		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO (Fallback dinâmico)
+		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor) {
+			return json({ error: 'Este relatório ainda não foi assinado e você não tem permissão para ver rascunhos.' }, { status: 403 });
 		}
 
 		try {
-			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature, qrCodeBase64);
-			let finalPdf = result.pdf;
+			const presencas = await buscarPresencasGise(db, id);
+			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, null, undefined);
+			const filename = `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
 
-			// Coletar assinantes para o Manifesto Misto (Audit Trail)
-			const signers: any[] = [];
-			const r2 = getR2(platform);
-
-			// 1. Adicionar Assinaturas dos Policiais (Entradas e Saídas)
-			// Filtrar presenças apenas da seccional se seccionalId estiver definido
-			const presencasFiltradas = seccionalId 
-				? presencas.filter(pr => {
-					// Precisamos saber se o policial pertence a uma equipe desta seccional
-					const membro = gise.seccionais.find(s => s.seccional_id === seccionalId)
-						?.equipes.flatMap(e => e.membros)
-						.find(m => m.policial_id === pr.policial_id);
-					return !!membro;
-				})
-				: presencas;
-
-			// Fetch all selfies in parallel instead of sequentially
-			const selfieKeys: Array<{ key: string; type: 'entrada' | 'saida'; prId: number }> = [];
-			for (const pr of presencasFiltradas) {
-				if (pr.entrada_rubrica && pr.entrada_selfie_key && r2) {
-					selfieKeys.push({ key: pr.entrada_selfie_key, type: 'entrada', prId: pr.id });
-				}
-				if (pr.saida_rubrica && pr.saida_selfie_key && r2) {
-					selfieKeys.push({ key: pr.saida_selfie_key, type: 'saida', prId: pr.id });
-				}
-			}
-
-			const selfieResults = await Promise.all(
-				selfieKeys.map(async ({ key, type, prId }) => {
-					try {
-						const obj = await r2!.get(key);
-						if (obj) {
-							const buf = await obj.arrayBuffer();
-							return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
-						}
-					} catch {}
-					return { prId, type, data: undefined };
-				})
-			);
-
-			const selfieMap = new Map<string, string | undefined>();
-			for (const r of selfieResults) {
-				selfieMap.set(`${r.prId}-${r.type}`, r.data);
-			}
-
-			for (const pr of presencasFiltradas) {
-				if (pr.entrada_rubrica) {
-					signers.push({
-						signerName: `${pr.policial_nome} (ENTRADA)`,
-						signerCpf: pr.policial_cpf ?? undefined,
-						signingTime: new Date(pr.entrada_timestamp || Date.now()),
-						verificationHash: `PRES-${pr.id}-E`,
-						verificationUrl: `${url.origin}/validar/PRES-${pr.id}-E`,
-						ip: pr.ip_address ?? undefined,
-						userAgent: pr.user_agent ?? undefined,
-						latitude: pr.latitude ?? undefined,
-						longitude: pr.longitude ?? undefined,
-						rubricBase64: pr.entrada_rubrica ?? undefined,
-						selfieBase64: selfieMap.get(`${pr.id}-entrada`),
-						documentHash: '',
-						signatureLevel: 'avancada',
-						documentName: `Relatório Extraordinário - GISE ${id}`
-					});
-				}
-				if (pr.saida_rubrica) {
-					signers.push({
-						signerName: `${pr.policial_nome} (SAÍDA)`,
-						signerCpf: pr.policial_cpf ?? undefined,
-						signingTime: new Date(pr.saida_timestamp || Date.now()),
-						verificationHash: `PRES-${pr.id}-S`,
-						verificationUrl: `${url.origin}/validar/PRES-${pr.id}-S`,
-						ip: pr.ip_address ?? undefined,
-						userAgent: pr.user_agent ?? undefined,
-						latitude: pr.latitude ?? undefined,
-						longitude: pr.longitude ?? undefined,
-						rubricBase64: pr.saida_rubrica ?? undefined,
-						selfieBase64: selfieMap.get(`${pr.id}-saida`),
-						documentHash: '',
-						signatureLevel: 'avancada',
-						documentName: `Relatório Extraordinário - GISE ${id}`
-					});
-				}
-			}
-
-			// 2. Adicionar Assinatura do Supervisor (Relatório)
-			if (reportSignature && reportSignature.verification_hash) {
-				let supervisorSelfie: string | undefined = undefined;
-				if (r2 && reportSignature.selfie_key) {
-					const obj = await r2.get(reportSignature.selfie_key);
-					if (obj) {
-						const buffer = await obj.arrayBuffer();
-						supervisorSelfie = Buffer.from(buffer).toString('base64');
-					}
-				}
-				signers.push({
-					signerName: reportSignature.assinante_nome,
-					signerCpf: reportSignature.assinante_cpf ?? undefined,
-					signingTime: new Date(reportSignature.created_at || Date.now()),
-					verificationHash: reportSignature.verification_hash,
-					verificationUrl: `${url.origin}/validar/${reportSignature.verification_hash}`,
-					ip: reportSignature.ip_address,
-					userAgent: reportSignature.user_agent,
-					latitude: reportSignature.latitude,
-					longitude: reportSignature.longitude,
-					rubricBase64: reportSignature.rubrica || undefined,
-					selfieBase64: supervisorSelfie,
-					signatureLevel: reportSignature.tipo_assinatura === 'simples' ? 'avancada' : 'qualificada'
-				});
-			}
-
-			if (signers.length > 0) {
-				finalPdf = await adicionarPaginaAuditoria(finalPdf, signers);
-			}
-
-			return new Response(finalPdf as unknown as BodyInit, {
+			return new Response(result.pdf as unknown as BodyInit, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': `attachment; filename="${filename}"`,
@@ -217,8 +97,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				}
 			});
 		} catch (err) {
-			console.error(`[download-extraordinario] Erro ao gerar PDF — GISE ${id}, seccional ${seccionalId}:`, err);
-			return json({ error: 'Erro ao gerar o PDF do relatório extraordinário.' }, { status: 500 });
+			console.error(`[download-extra] Erro no fallback:`, err);
+			return json({ error: 'Erro ao gerar rascunho do relatório.' }, { status: 500 });
 		}
 	}
 
