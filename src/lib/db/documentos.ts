@@ -63,28 +63,15 @@ export async function excluirDocumentoEscala(db: Database, escalaId: number) {
 }
 
 export async function buscarDocumentoPorHash(db: Database, hash: string) {
-	// 1. Escalas comuns
-	const esc = await db
-		.select()
-		.from(escalaDocumentos)
-		.where(eq(escalaDocumentos.verificacao_hash, hash))
-		.get();
+	// Query all 3 tables in parallel instead of sequentially
+	const [esc, gise, rel] = await Promise.all([
+		db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get(),
+		db.select().from(giseDocumentos).where(eq(giseDocumentos.verificacao_hash, hash)).get(),
+		db.select().from(fullSchema.giseAssinaturasRelatorios).where(eq(fullSchema.giseAssinaturasRelatorios.verification_hash, hash)).get()
+	]);
+
 	if (esc) return { ...esc, tipo_doc: 'escala' as const };
-
-	// 2. Escalas GISE (gerais)
-	const gise = await db
-		.select()
-		.from(giseDocumentos)
-		.where(eq(giseDocumentos.verificacao_hash, hash))
-		.get();
 	if (gise) return { ...gise, escala_id: gise.gise_id, tipo_doc: 'gise' as const };
-
-	// 3. Relatórios GISE (extraordinário/produtividade)
-	const rel = await db
-		.select()
-		.from(fullSchema.giseAssinaturasRelatorios)
-		.where(eq(fullSchema.giseAssinaturasRelatorios.verification_hash, hash))
-		.get();
 	if (rel) {
 		return {
 			id: rel.id,
