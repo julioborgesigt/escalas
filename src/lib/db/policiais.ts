@@ -2,6 +2,7 @@ import { eq, and, or, isNull, asc, sql } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
 import { limparMatricula, limparCPF } from '../utils';
+import { gerarSenhaAleatoriaHash } from '../auth';
 import type { Database } from './core';
 
 export async function listarPoliciais(
@@ -62,6 +63,7 @@ export async function criarPolicial(
 		papel_unidade_id?: number | null;
 	}
 ) {
+	const senhaHash = await gerarSenhaAleatoriaHash();
 	return db.insert(policiais).values({
 		nome: data.nome,
 		matricula: limparMatricula(data.matricula),
@@ -71,6 +73,8 @@ export async function criarPolicial(
 		lotacao: data.lotacao || '',
 		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos',
 		classe: data.classe || '',
+		senha: senhaHash,
+		primeiro_acesso: 1,
 		papel: (data.papel as any) || null,
 		papel_unidade_id: data.papel_unidade_id || null
 	});
