@@ -25,7 +25,8 @@ import {
 	excluirGiseSeccional,
 	criarGiseEquipe,
 	verificarSlotEquipe,
-	verificarConflitoMembroGise
+	verificarConflitoMembroGise,
+	revogarAssinaturasSeccional
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { giseSeccionais, giseEquipes, giseMembros, policiais, giseDocumentos } from '$lib/server/schema';
@@ -127,6 +128,17 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		if (hora_entrada !== undefined) secUpdate.hora_entrada = hora_entrada;
 		if (hora_saida !== undefined) secUpdate.hora_saida = hora_saida;
 		await atualizarGiseSeccional(db, secId, secUpdate);
+
+		// Se horários mudaram após a escala já ter tido assinaturas, revogar tudo desta seccional
+		if (hora_entrada !== undefined || hora_saida !== undefined) {
+			const statusString = gise.status as string;
+			// Se a escala está em um estado que implica que assinaturas podem existir
+			if (statusString !== 'em_definicao_supervisor' && statusString !== 'em_preenchimento') {
+				console.log(`[REVOGAÇÃO] Horários da seccional ${secId} alterados. Revogando assinaturas.`);
+				await revogarAssinaturasSeccional(db, giseId, secId);
+				revogouAssinatura = true;
+			}
+		}
 	}
 
 	// Atualizar slots de equipes (Admin Geral somente) — em paralelo
@@ -185,6 +197,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 			}
 		}
 		await removerGiseMembro(db, remover_membro_id);
+
+		// Revogar assinaturas da seccional se um membro for removido com a escala já avançada
+		const statusString = gise.status as string;
+		if (statusString !== 'em_definicao_supervisor' && statusString !== 'em_preenchimento') {
+			console.log(`[REVOGAÇÃO] Membro ${remover_membro_id} removido da seccional ${secId}. Revogando assinaturas.`);
+			await revogarAssinaturasSeccional(db, giseId, secId);
+			revogouAssinatura = true;
+		}
 	}
 
 	return json({ ok: true, assinatura_revogada: revogouAssinatura });

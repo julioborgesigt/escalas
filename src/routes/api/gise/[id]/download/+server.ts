@@ -44,17 +44,24 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario')
 			: null;
 
-		// 1. Se existir assinatura, baixar OBRIGATORIAMENTE do R2
+		// 1. Se existir assinatura, baixar do R2 preferencialmente usando a chave do banco
 		if (reportSignature?.verification_hash) {
 			if (!r2) {
 				return json({ error: 'R2 não configurado na plataforma.' }, { status: 500 });
 			}
 
 			try {
-				const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
-				const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
-				const r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
+				// Prioridade total: usar a chave salva no banco de dados (mais robusto)
+				let r2Key = reportSignature.r2_key;
 				
+				// Fallback apenas para registros legados que ainda não tinham a coluna preenchida
+				if (!r2Key) {
+					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
+					const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
+					r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
+					console.warn(`[download-extra] r2_key ausente no banco. Usando fallback de reconstrução: ${r2Key}`);
+				}
+
 				const r2Object = await r2.get(r2Key);
 				if (r2Object) {
 					const pdfBytes = await r2Object.arrayBuffer();
@@ -63,7 +70,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': `attachment; filename="${filename}"`,
-							'Cache-Control': 'no-cache'
+							'Cache-Control': 'no-cache',
+							'X-Source': 'Database-R2'
 						}
 					});
 				} else {

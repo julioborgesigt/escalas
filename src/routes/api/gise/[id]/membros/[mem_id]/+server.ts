@@ -4,10 +4,10 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, removerGiseMembro, atualizarGiseEscala } from '$lib/db';
+import { getDB, buscarGiseEscala, removerGiseMembro, atualizarGiseEscala, revogarAssinaturasSeccional } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { giseMembros, giseEquipes, giseSeccionais, giseDocumentos } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -51,13 +51,25 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 		}
 	}
 
-	await removerGiseMembro(db, memId);
-
-	// Se a escala estava pronta para assinatura ou além, volta para preenchimento ao remover membro
+	// Se a escala estava avançada, revogar as assinaturas da seccional relacionada
 	const statusString = gise.status as string;
-	if (statusString === 'aguardando_assinatura' || statusString === 'em_andamento' || statusString === 'aguardando_relatorios' || statusString === 'aguardando_assinatura_relat' || statusString === 'pronta_para_finalizar' || statusString === 'finalizada') {
-		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
-		await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+	if (statusString !== 'em_definicao_supervisor' && statusString !== 'em_preenchimento') {
+		// Precisamos identificar a qual seccional este membro pertencia para limpar apenas ela
+		const membroInfo = await db
+			.select({ sec_id: giseEquipes.gise_seccional_id })
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.where(eq(giseMembros.id, memId))
+			.get();
+
+		await removerGiseMembro(db, memId);
+
+		if (membroInfo) {
+			console.log(`[REVOGAÇÃO] Membro ${memId} removido da seccional ${membroInfo.sec_id}. Revogando assinaturas.`);
+			await revogarAssinaturasSeccional(db, giseId, membroInfo.sec_id);
+		}
+	} else {
+		await removerGiseMembro(db, memId);
 	}
 
 	return json({ ok: true, assinatura_revogada: true });

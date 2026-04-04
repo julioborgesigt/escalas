@@ -341,6 +341,7 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
+	r2_key: text('r2_key'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
