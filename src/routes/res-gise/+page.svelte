@@ -67,10 +67,12 @@
 	function changeDateFilter(type: "mes" | "data", value: string) {
 		if (type === "mes") {
 			mesFilterUrl = value;
-			navigateWithFilters({ mes: value });
+			dataFilterUrl = ""; // Limpa o outro filtro
+			navigateWithFilters({ mes: value, data: null });
 		} else {
 			dataFilterUrl = value;
-			navigateWithFilters({ data: value });
+			mesFilterUrl = ""; // Limpa o outro filtro
+			navigateWithFilters({ data: value, mes: null });
 		}
 	}
 
@@ -1232,64 +1234,79 @@
 						</button>
 					</div>
 
-					<!-- Busca Detalhada -->
-					<div
-						class="space-y-2 pt-2 border-t border-surface-200 dark:border-surface-800"
-					>
-						<div class="flex items-center justify-between">
-							<span
-								class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-wider"
-								>Busca Detalhada</span
-							>
-							{#if page.url.searchParams.get("mes") || page.url.searchParams.get("data") || page.url.searchParams.get("status")}
-								<button
-									class="text-[0.65rem] font-bold text-error-500 hover:underline"
-									onclick={limparFiltros}
+					<!-- Busca Detalhada (Apenas no Histórico) -->
+					{#if page.url.searchParams.get('status') === 'finalizadas'}
+						<div
+							class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
+						>
+							<div class="flex items-center justify-between">
+								<span
+									class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
+									>Busca Detalhada</span
 								>
-									Limpar
-								</button>
-							{/if}
-						</div>
+								{#if page.url.searchParams.get("mes") || page.url.searchParams.get("data")}
+									<button
+										class="text-[0.65rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
+										onclick={limparFiltros}
+									>
+										Limpar Filtros
+									</button>
+								{/if}
+							</div>
 
-						<div class="grid grid-cols-2 gap-2">
-							<div class="space-y-1">
-								<label
-									class="text-[0.6rem] font-medium text-surface-400 ml-1"
-									for="mesMember">Mês/Ano</label
-								>
-								<input
-									id="mesMember"
-									type="month"
-									class="block w-full px-2 py-1.5 text-[0.7rem] rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-1 focus:ring-primary-500 transition-all font-medium"
-									value={page.url.searchParams.get("mes") ||
-										""}
-									onchange={(e) =>
-										changeDateFilter(
-											"mes",
-											e.currentTarget.value,
-										)}
-								/>
+							<div
+								class="flex flex-col gap-4 bg-surface-100/50 dark:bg-surface-800/30 p-4 rounded-2xl border border-surface-200 dark:border-surface-800"
+							>
+								<div class="space-y-1.5">
+									<label
+										class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider ml-1"
+										for="mesMember">Por Mês/Ano</label
+									>
+									<input
+										id="mesMember"
+										type="month"
+										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
+										value={page.url.searchParams.get("mes") ||
+											""}
+										onchange={(e) =>
+											changeDateFilter(
+												"mes",
+												e.currentTarget.value,
+											)}
+									/>
+								</div>
+
+								<div class="flex items-center gap-3 px-2">
+									<div class="h-px flex-1 bg-surface-300 dark:bg-surface-700"></div>
+									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest">OU</span>
+									<div class="h-px flex-1 bg-surface-300 dark:bg-surface-700"></div>
+								</div>
+
+								<div class="space-y-1.5">
+									<label
+										class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider ml-1"
+										for="dataMember">Por Data Específica</label
+									>
+									<input
+										id="dataMember"
+										type="date"
+										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
+										value={page.url.searchParams.get("data") ||
+											""}
+										onchange={(e) =>
+											changeDateFilter(
+												"data",
+												e.currentTarget.value,
+											)}
+									/>
+								</div>
 							</div>
-							<div class="space-y-1">
-								<label
-									class="text-[0.6rem] font-medium text-surface-400 ml-1"
-									for="dataMember">Data</label
-								>
-								<input
-									id="dataMember"
-									type="date"
-									class="block w-full px-2 py-1.5 text-[0.7rem] rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-1 focus:ring-primary-500 transition-all font-medium"
-									value={page.url.searchParams.get("data") ||
-										""}
-									onchange={(e) =>
-										changeDateFilter(
-											"data",
-											e.currentTarget.value,
-										)}
-								/>
-							</div>
+							
+							<p class="text-[0.6rem] text-surface-500 italic text-center px-4 leading-tight">
+								Selecione apenas um dos campos acima para refinar sua busca no histórico de escalas.
+							</p>
 						</div>
-					</div>
+					{/if}
 				</div>
 				{#each data.minhasEscalas as escala}
 					<div
@@ -1329,7 +1346,7 @@
 							<div class="flex items-center gap-1.5">
 								{#if escala.equipeRespondida}
 									<button
-										class="btn btn-sm preset-tonal-success text-[0.6rem] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
+										class="btn btn-sm bg-success-500 hover:bg-success-600 text-white text-[0.6rem] font-black px-3 py-2 rounded-xl flex items-center gap-2 transition-all shadow-md shadow-success-500/20 active:scale-95"
 										onclick={(e) => {
 											e.stopPropagation();
 											baixarRelatorio(escala);
@@ -1341,7 +1358,7 @@
 											<Spinner size="sm" />
 										{:else}
 											<svg
-												class="w-3 h-3"
+												class="w-3.5 h-3.5"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
@@ -1353,12 +1370,12 @@
 												/></svg
 											>
 										{/if}
-										<span>Produtividade</span>
+										<span>PRODUTIVIDADE</span>
 									</button>
 								{/if}
 								{#if escala.extraAssinado}
 									<button
-										class="btn btn-sm preset-tonal-primary text-[0.6rem] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
+										class="btn btn-sm bg-primary-500 hover:bg-primary-600 text-white text-[0.6rem] font-black px-3 py-2 rounded-xl flex items-center gap-2 transition-all shadow-md shadow-primary-500/20 active:scale-95"
 										onclick={(e) => {
 											e.stopPropagation();
 											baixarRelatorioExtra(escala);
@@ -1367,7 +1384,7 @@
 										title="Baixar Relatório Extraordinário (Assinado)"
 									>
 										<svg
-											class="w-3 h-3"
+											class="w-3.5 h-3.5"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -1378,7 +1395,7 @@
 												d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 											/></svg
 										>
-										<span>Relat. Extra</span>
+										<span>RELAT. EXTRA</span>
 									</button>
 								{/if}
 							</div>
