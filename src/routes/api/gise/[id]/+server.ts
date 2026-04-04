@@ -97,7 +97,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		}
 	}
 
-	const updateData: Record<string, unknown> = {};
+	const updateData: Partial<{
+		data_inicio: string;
+		hora_entrada: string;
+		hora_saida: string;
+		status: string;
+		supervisor_id: number | null;
+	}> = {};
 	if (data_inicio !== undefined) updateData.data_inicio = data_inicio;
 	if (hora_entrada !== undefined) updateData.hora_entrada = hora_entrada;
 	if (hora_saida !== undefined) updateData.hora_saida = hora_saida;
@@ -125,7 +131,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		updateData.status = 'em_preenchimento';
 	}
 
-	await atualizarGiseEscala(db, id, updateData as any);
+	await atualizarGiseEscala(db, id, updateData as Parameters<typeof atualizarGiseEscala>[2]);
 	return json({ ok: true, assinatura_revogada: deveResetarStatus && updateData.status === 'em_preenchimento' });
 };
 

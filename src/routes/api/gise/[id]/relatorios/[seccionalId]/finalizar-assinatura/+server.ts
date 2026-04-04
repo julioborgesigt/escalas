@@ -74,7 +74,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		if (dadosToken) {
 			const nomeLogado = normalizarTexto(u.nome);
 			const nomeToken = normalizarTexto(dadosToken.nome);
-			const cpfLogado = (u as any).cpf || '';
+			const cpfLogado = u.cpf || '';
 			const cpfToken = dadosToken.cpf;
 
 			if (cpfLogado && cpfToken !== cpfLogado) {
@@ -192,7 +192,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// 3. Adicionar Assinatura do Supervisor
 		signers.push({
 			signerName: dadosToken?.nome || u.nome,
-			signerCpf: dadosToken?.cpf || (u as any)?.cpf || undefined,
+			signerCpf: dadosToken?.cpf || u.cpf || undefined,
 			signingTime: new Date(signingTimeISO),
 			verificationHash: verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
@@ -234,7 +234,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
 			assinante_nome: dadosToken?.nome || u.nome,
-			assinante_cpf: dadosToken?.cpf || (u as any)?.cpf || null,
+			assinante_cpf: dadosToken?.cpf || u.cpf || null,
 			tipo_assinatura: type,
 			rubrica: rubrica,
 			verification_hash: verificationHash,
