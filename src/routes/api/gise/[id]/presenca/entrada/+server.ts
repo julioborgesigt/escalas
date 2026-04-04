@@ -26,16 +26,12 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		if (matches) {
 			const ext = matches[1] === 'png' ? 'png' : 'jpg';
 			const dataBase64 = selfieBase64.replace(regex, '');
-			const binaryString = atob(dataBase64);
-			const bytes = new Uint8Array(binaryString.length);
-			for (let i = 0; i < binaryString.length; i++) {
-				bytes[i] = binaryString.charCodeAt(i);
-			}
+			const bytes = Buffer.from(dataBase64, 'base64');
 
 			const [yyyy, mm, dd] = gise.data_inicio.split('-');
 			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
 			selfieKey = `${folder}/presenca_${u.id}_entrada.${ext}`;
-			
+
 			await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
 		}
 	}
