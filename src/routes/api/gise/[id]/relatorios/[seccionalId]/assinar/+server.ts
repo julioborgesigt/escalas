@@ -63,7 +63,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		// Adicionar folha de auditoria (Manifesto) profissional
 		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
 			signerName: signerName || u.nome,
-			signerCpf: signerCpf || (u as any).cpf,
+			signerCpf: signerCpf || u.cpf,
 			signingTime: getNowBR(),
 			verificationHash: hash,
 			verificationUrl: qrUrl,
@@ -117,7 +117,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
 			assinante_nome: signerName || u.nome,
-			assinante_cpf: signerCpf || (u as any).cpf || null,
+			assinante_cpf: signerCpf || u.cpf || null,
 			tipo_assinatura: type || 'simples',
 			rubrica: rubrica,
 			verification_hash: hash,

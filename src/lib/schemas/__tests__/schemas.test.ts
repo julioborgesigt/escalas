@@ -166,46 +166,60 @@ describe('loginSchema', () => {
 });
 
 describe('alterarSenhaSchema', () => {
-	it('aceita senha de 8 caracteres', () => {
+	it('aceita senha forte com 8+ caracteres', () => {
 		const result = alterarSenhaSchema.safeParse({
-			nova_senha: 'novasen1'
+			nova_senha: 'Segura1x'
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('aceita senha longa e complexa', () => {
+		const result = alterarSenhaSchema.safeParse({
+			nova_senha: 'MinhaSenhaForte123'
 		});
 		expect(result.success).toBe(true);
 	});
 
 	it('rejeita senha com menos de 8 caracteres', () => {
 		const result = alterarSenhaSchema.safeParse({
-			nova_senha: '1234567'
-		});
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues[0].message).toContain('8 caracteres');
-		}
-	});
-
-	it('rejeita senha com mais de 8 caracteres', () => {
-		const result = alterarSenhaSchema.safeParse({
-			nova_senha: '123456789'
+			nova_senha: 'Abc1'
 		});
 		expect(result.success).toBe(false);
 	});
 
-	it('rejeita senha padrão 12345678', () => {
+	it('rejeita senha sem letra maiúscula', () => {
 		const result = alterarSenhaSchema.safeParse({
-			nova_senha: '12345678'
+			nova_senha: 'apenasminuscula1'
 		});
 		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.issues.some((i) => i.message.includes('diferente da padrão'))).toBe(
-				true
-			);
+	});
+
+	it('rejeita senha sem letra minúscula', () => {
+		const result = alterarSenhaSchema.safeParse({
+			nova_senha: 'APENASMAI1'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('rejeita senha sem número', () => {
+		const result = alterarSenhaSchema.safeParse({
+			nova_senha: 'SemNumero'
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it('rejeita senhas comuns', () => {
+		const comuns = ['12345678', 'admin123', 'password', 'qwerty12'];
+		for (const senha of comuns) {
+			const result = alterarSenhaSchema.safeParse({ nova_senha: senha });
+			expect(result.success).toBe(false);
 		}
 	});
 
 	it('aceita senha_atual opcional', () => {
 		const result = alterarSenhaSchema.safeParse({
-			nova_senha: 'novasen1',
-			senha_atual: 'antiga01'
+			nova_senha: 'Segura1x',
+			senha_atual: 'Antiga1x'
 		});
 		expect(result.success).toBe(true);
 	});

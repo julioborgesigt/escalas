@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
+import { logger } from '$lib/server/logger';
 
 const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/validar', '/api/validar', '/api/health']);
 
@@ -87,7 +88,14 @@ function applySecurityHeaders(response: Response, url: URL): void {
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
 	const errorId = crypto.randomUUID().slice(0, 8);
-	console.error(`[ERROR ${errorId}] ${event.url.pathname}:`, error);
+
+	logger.error('Erro não tratado', {
+		errorId,
+		path: event.url.pathname,
+		method: event.request.method,
+		message: error instanceof Error ? error.message : String(error),
+		stack: error instanceof Error ? error.stack : undefined
+	});
 
 	// Reportar ao Sentry
 	captureException(error, {

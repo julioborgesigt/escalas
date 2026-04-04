@@ -53,7 +53,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		if (dadosToken) {
 			const nomeLogado = normalizarTexto(u.nome);
 			const nomeToken = normalizarTexto(dadosToken.nome);
-			const cpfLogado = (u as any).cpf || '';
+			const cpfLogado = u.cpf || '';
 			const cpfToken = dadosToken.cpf;
 
 			if (cpfLogado && cpfToken !== cpfLogado) {
@@ -89,7 +89,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Adicionar folha de auditoria (Manifesto)
 		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, {
 			signerName: dadosToken?.nome || u.nome,
-			signerCpf: dadosToken?.cpf || (u as any)?.cpf || '',
+			signerCpf: dadosToken?.cpf || u.cpf || '',
 			signingTime: new Date(signingTimeISO),
 			verificationHash: verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
@@ -118,7 +118,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		// Registrar no banco com auditoria
 		const finalSignerName = dadosToken?.nome || u.nome;
-		const finalSignerCpf = dadosToken?.cpf || (u as any)?.cpf || '';
+		const finalSignerCpf = dadosToken?.cpf || u.cpf || '';
 		await salvarGiseDocumento(
 			db,
 			id,
