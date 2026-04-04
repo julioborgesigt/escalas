@@ -15,6 +15,7 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
+import { getR2 } from '$lib/server/platform';
 
 /** Verifica se o policial tem acesso a esta GISE específica (supervisor ou membro) */
 async function temAcessoGise(db: ReturnType<typeof getDB>, giseId: number, policialId: number, papelUnidadeId: number | null | undefined): Promise<boolean> {
@@ -172,8 +173,7 @@ export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 	});
 
 	// 2. Limpeza por Prefixo (Pasta virtual no R2)
-	const p = platform as any;
-	const r2 = p?.env?.escalas_docs;
+	const r2 = getR2(platform);
 	if (r2) {
 		try {
 			const [yyyy, mm, dd] = gise.data_inicio.split('-');

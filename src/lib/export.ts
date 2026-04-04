@@ -5,6 +5,11 @@ import {
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+// Type augmentation for jspdf-autotable's lastAutoTable property
+interface JsPDFWithAutoTable extends jsPDF {
+	lastAutoTable?: { finalY: number };
+}
 import * as QRCode from 'qrcode';
 import type { Escala, EscalaPolicialComDados } from './types';
 import { formatarData, proximoDia, formatarDataExtenso } from './utils';
@@ -234,10 +239,10 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 			margin: { left: 10, right: 10 }
 		});
 
-		y = ((doc as any).lastAutoTable?.finalY ?? y) + 10;
+		y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 10;
 	}
 
-	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	const pageWidth = 297;
 	// Footer e assinatura logo após a tabela - aumentado para evitar sobreposição do carimbo
 	let sigY = lastY + 35;
@@ -422,7 +427,7 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 		margin: { left: margin, right: margin }
 	});
 
-	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	// Footer e assinatura logo após a tabela - aumentado offset para evitar sobreposição
 	let sigY = lastY + 45;
 	if (sigY > 185) {
@@ -714,10 +719,10 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 			margin: { left: margin, right: margin }
 		});
 
-		y = ((doc as any).lastAutoTable?.finalY ?? y) + 6;
+		y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 6;
 	}
 
-	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 
 	// Footer e assinatura logo após a tabela - aumentado offset para evitar sobreposição
 	let sigY = lastY + 45;
@@ -770,6 +775,7 @@ export interface GisePdfData {
 			hora_entrada: string | null;
 			hora_saida: string | null;
 			membros: Array<{
+				policial_id: number;
 				policial_nome: string;
 				policial_cargo: string;
 				policial_matricula: string;
@@ -876,14 +882,14 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 				margin: { left: 10, right: 10 }
 			});
 
-			y = ((doc as any).lastAutoTable?.finalY ?? y) + 6;
+			y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 6;
 		}
 
 		y += 4;
 	}
 
 	// Assinatura
-	const lastY = (doc as any).lastAutoTable?.finalY ?? y;
+	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	let sigY = lastY + 40;
 	if (sigY > 185) {
 		doc.addPage();
@@ -979,7 +985,7 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 				}
 			});
 
-			y = (doc as any).lastAutoTable.finalY + 15;
+			y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 15;
 
 			if (y > doc.internal.pageSize.getHeight() - 30) {
 				doc.addPage();
@@ -1051,13 +1057,13 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	doc.text(splitText, margin + 5, boxY + 7);
 	y += 25;
 
-	const allMembros: any[] = [];
+	const allMembros: Array<GisePdfData['seccionais'][number]['equipes'][number]['membros'][number] & { seccional: string; presencaData: typeof presencas[number] | undefined }> = [];
 	for (const sec of gise.seccionais) {
 		if (seccionalId && sec.seccional_id !== seccionalId) continue;
 		for (const eq of sec.equipes) {
 			for (const m of eq.membros) {
-				const pres = presencas.find(p => p.policial_id === (m as any).policial_id);
-				allMembros.push({ ...m, seccional: sec.seccional_nome, presenca: pres });
+				const pres = presencas.find(p => p.policial_id === m.policial_id);
+				allMembros.push({ ...m, seccional: sec.seccional_nome, presencaData: pres });
 			}
 		}
 	}
@@ -1068,10 +1074,10 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		m.policial_matricula,
 		m.policial_classe || '',
 		m.policial_lotacao || m.seccional,
-		`${formatarData(gise.data_inicio)}\n${(m as any).presenca?.entrada_timestamp ? new Date((m as any).presenca.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
-		{ content: '', image: (m as any).presenca?.entrada_rubrica },
-		`${formatarData(dataSaidaEfetiva)}\n${(m as any).presenca?.saida_timestamp ? new Date((m as any).presenca.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
-		{ content: '', image: (m as any).presenca?.saida_rubrica }
+		`${formatarData(gise.data_inicio)}\n${m.presencaData?.entrada_timestamp ? new Date(m.presencaData.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+		{ content: '', image: m.presencaData?.entrada_rubrica },
+		`${formatarData(dataSaidaEfetiva)}\n${m.presencaData?.saida_timestamp ? new Date(m.presencaData.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+		{ content: '', image: m.presencaData?.saida_rubrica }
 	]);
 
 	autoTable(doc, {
@@ -1084,8 +1090,8 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
 		didDrawCell: (data) => {
 			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
-				const rawCell = data.cell.raw as any;
-				const imgData = rawCell?.image ?? rawCell;
+				const rawCell = data.cell.raw as { image?: string; content?: string } | string | null;
+				const imgData = (typeof rawCell === 'object' && rawCell !== null) ? rawCell.image : rawCell;
 
 				// Só tenta inserir se for uma string base64 com prefixo data:image/
 				// Qualquer outro valor (URL, string sem prefixo, null) é ignorado
@@ -1127,7 +1133,7 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			8: { cellWidth: 30 }
 		}
 	});
-	const lastAutoY = (doc as any).lastAutoTable?.finalY ?? y;
+	const lastAutoY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	let sigY = lastAutoY + 40;
 	if (sigY > 185) { doc.addPage(); sigY = 40; }
 

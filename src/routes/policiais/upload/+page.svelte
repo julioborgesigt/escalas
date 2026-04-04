@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
+	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	let file = $state<File | null>(null);
@@ -30,6 +31,7 @@
 
 			const res = await fetch('/api/policiais/upload', {
 				method: 'POST',
+				headers: csrfHeaders(),
 				body: formData
 			});
 

@@ -10,6 +10,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import forge from 'node-forge';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
+import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -109,9 +110,9 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/escala`;
 
 		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
-		const env = (p as any)?.env || (p as any);
-		if (env?.escalas_docs) {
-			await env.escalas_docs.put(documentKey, pdfFinal, {
+		const r2 = getR2(p);
+		if (r2) {
+			await r2.put(documentKey, pdfFinal, {
 				contentType: 'application/pdf'
 			});
 		}
@@ -137,7 +138,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Avançar status para andamento
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
 
-		return new Response(pdfFinal as any, {
+		return new Response(pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${documentKey}"`

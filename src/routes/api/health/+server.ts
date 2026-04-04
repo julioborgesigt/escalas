@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
+import { getR2 } from '$lib/server/platform';
 import { sql } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -19,8 +20,8 @@ export const GET = async ({ platform }: RequestEvent) => {
 
 	// Check R2 bucket binding
 	try {
-		const env = (platform as any)?.env;
-		if (env?.escalas_docs) {
+		const r2 = getR2(platform);
+		if (r2) {
 			checks.r2 = 'ok';
 		} else {
 			checks.r2 = 'error';

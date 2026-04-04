@@ -44,7 +44,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	}
 
 	try {
-		await atualizarPolicial(db, id, parsed.data as any);
+		await atualizarPolicial(db, id, parsed.data);
 		return json({ success: true });
 	} catch (e: unknown) {
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';

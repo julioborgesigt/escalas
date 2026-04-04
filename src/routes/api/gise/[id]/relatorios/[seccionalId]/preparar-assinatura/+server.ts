@@ -38,7 +38,7 @@ export const POST = async ({ platform, params, locals, url, request }: RequestEv
 
 	const mockSignature = {
 		assinante_nome: finalSignerName,
-		assinante_matricula: (u as any)?.matricula || '—'
+		assinante_matricula: u.matricula || '—'
 	};
 
 	const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature, undefined, true);

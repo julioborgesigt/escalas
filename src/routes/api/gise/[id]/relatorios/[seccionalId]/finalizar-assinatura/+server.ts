@@ -18,6 +18,7 @@ import {
 	buscarGiseSeccionalMembros
 } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria, extrairDadosCertificado, normalizarTexto, type AuditTrailOptions } from '$lib/server/pdf-signing';
+import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -109,7 +110,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const r2 = (p as any)?.env?.escalas_docs;
+		const r2 = getR2(p);
 
 		// 2. Coletar Assinaturas dos Policiais (Entradas e Saídas) dessa Seccional para o Manifesto
 		const signers: AuditTrailOptions[] = [];
@@ -135,7 +136,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const selfieResults = await Promise.all(
 			selfieKeys.map(async ({ key, type, prId }) => {
 				try {
-					const obj = await r2.get(key);
+					const obj = await r2!.get(key);
 					if (obj) {
 						const buf = await obj.arrayBuffer();
 						return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
@@ -255,7 +256,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		}
 
 		// Retorna o PDF assinado como bytes binários — igual à escala GISE
-		return new Response(pdfFinal as any, {
+		return new Response(pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${filename}"`

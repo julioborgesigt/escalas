@@ -3,6 +3,7 @@ import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala } fro
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
 import { adicionarRodapeSimples } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
+import { getR2 } from '$lib/server/platform';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
@@ -71,8 +72,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const p = platform as any;
-		const r2 = p?.env?.escalas_docs;
+		const r2 = getR2(platform);
 		
 		// Criar pasta mensal ex: escalas/2026-03
 		const mesAno = escala.data_inicio.substring(0, 7);
