@@ -114,6 +114,17 @@ export function gerarToken(): string {
 	return toHex(bytes);
 }
 
+/**
+ * Gera uma senha aleatória segura e retorna já com hash PBKDF2.
+ * Usada para novos policiais que devem trocar a senha no primeiro acesso.
+ */
+export async function gerarSenhaAleatoriaHash(): Promise<string> {
+	const bytes = new Uint8Array(24);
+	crypto.getRandomValues(bytes);
+	const senhaAleatoria = toHex(bytes); // 48 chars hex — impossível de adivinhar
+	return hashSenha(senhaAleatoria);
+}
+
 export async function criarSessao(
 	db: Database,
 	tipo: 'policial' | 'admin',

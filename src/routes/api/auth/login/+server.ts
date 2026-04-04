@@ -1,10 +1,14 @@
 import { json } from '@sveltejs/kit';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { hashSenha, verificarSenha, isHashLegado, criarSessao } from '$lib/auth';
-import { administradores, policiais } from '$lib/server/schema';
+import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
+import type { Database } from '$lib/db';
+
+const MAX_ATTEMPTS = 5;
+const WINDOW_MINUTES = 15;
 
 function cookieOptions(url: URL) {
 	return {
@@ -16,13 +20,38 @@ function cookieOptions(url: URL) {
 	};
 }
 
-export const POST: RequestHandler = async ({ platform, request, cookies, url }) => {
+async function checkRateLimit(db: Database, ip: string): Promise<{ blocked: boolean; remaining: number }> {
+	const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
+	const attempts = await db
+		.select()
+		.from(loginAttempts)
+		.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowStart), eq(loginAttempts.success, 0)))
+		.all();
+	const count = attempts.length;
+	return { blocked: count >= MAX_ATTEMPTS, remaining: Math.max(0, MAX_ATTEMPTS - count) };
+}
+
+async function recordAttempt(db: Database, ip: string, success: boolean): Promise<void> {
+	await db.insert(loginAttempts).values({ ip, success: success ? 1 : 0 });
+}
+
+export const POST: RequestHandler = async ({ platform, request, cookies, url, getClientAddress }) => {
 	const db = getDB(platform);
+	const ip = getClientAddress();
 	const body = await request.json();
 
 	const parsed = loginSchema.safeParse(body);
 	if (!parsed.success) {
 		return json({ error: parsed.error.issues[0].message }, { status: 400 });
+	}
+
+	// Rate limiting: verificar tentativas do IP
+	const rateLimit = await checkRateLimit(db, ip);
+	if (rateLimit.blocked) {
+		return json(
+			{ error: `Muitas tentativas de login. Tente novamente em ${WINDOW_MINUTES} minutos.` },
+			{ status: 429 }
+		);
 	}
 
 	const { matricula, senha, tipo } = parsed.data;
@@ -35,6 +64,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url }) 
 			.get();
 
 		if (!admin || !(await verificarSenha(senha, admin.senha))) {
+			await recordAttempt(db, ip, false);
 			return json({ error: 'Login ou senha inválidos' }, { status: 401 });
 		}
 
@@ -44,6 +74,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url }) 
 			await db.update(administradores).set({ senha: novoHash }).where(eq(administradores.id, admin.id));
 		}
 
+		await recordAttempt(db, ip, true);
 		const token = await criarSessao(db, 'admin', admin.id);
 		cookies.set('session_token', token, cookieOptions(url));
 
@@ -62,6 +93,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url }) 
 		.get();
 
 	if (!policial || !(await verificarSenha(senha, policial.senha))) {
+		await recordAttempt(db, ip, false);
 		return json({ error: 'Matrícula ou senha inválidos' }, { status: 401 });
 	}
 
@@ -71,6 +103,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url }) 
 		await db.update(policiais).set({ senha: novoHash }).where(eq(policiais.id, policial.id));
 	}
 
+	await recordAttempt(db, ip, true);
 	const token = await criarSessao(db, 'policial', policial.id);
 	cookies.set('session_token', token, cookieOptions(url));
 

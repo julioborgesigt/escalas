@@ -7,6 +7,10 @@ declare global {
 		interface Locals {
 			usuario: UsuarioLogado | null;
 		}
+		interface Error {
+			message: string;
+			errorId?: string;
+		}
 		interface Platform {
 			env: {
 				escalas_db: D1Database;

@@ -17,8 +17,7 @@ export const policiais = sqliteTable(
 		regime: text('regime', { enum: ['plantao', 'expediente', 'ambos'] }).notNull().default('ambos'),
 		classe: text('classe').notNull().default(''),
 		senha: text('senha')
-			.notNull()
-			.default('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f'),
+			.notNull(),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
 		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
@@ -348,6 +347,17 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	index('idx_gise_ass_rel_gise').on(table.gise_id)
 ]);
 
+
+// ---- Rate Limiting ----
+
+export const loginAttempts = sqliteTable('login_attempts', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	ip: text('ip').notNull(),
+	attempted_at: text('attempted_at').notNull().default(sql`(datetime('now'))`),
+	success: integer('success').notNull().default(0)
+}, (table) => [
+	index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)
+]);
 
 // ---- Tipos inferidos ----
 
