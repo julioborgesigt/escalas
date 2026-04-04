@@ -25,6 +25,54 @@
 	}
 
 
+	let baixando = $state(false);
+
+	async function handleDownload() {
+		if (baixando) return;
+		baixando = true;
+		console.log('[Download] Iniciando requisição para:', `/api/validar/${data.hash}/download`);
+		
+		try {
+			const res = await fetch(`/api/validar/${data.hash}/download`);
+			console.log('[Download] Resposta Recebida:', {
+				status: res.status,
+				statusText: res.statusText,
+				headers: Object.fromEntries(res.headers.entries())
+			});
+
+			if (!res.ok) {
+				const errorText = await res.text();
+				console.error('[Download] Erro no corpo da resposta:', errorText);
+				alert(`Erro ao carregar o arquivo (Status ${res.status}). Verifique o console (F12) para detalhes técnicos.`);
+				baixando = false;
+				return;
+			}
+
+			const contentType = res.headers.get('content-type');
+			if (contentType && contentType.includes('application/json')) {
+				const errJson = await res.json();
+				console.error('[Download] Erro do Servidor:', errJson);
+				alert(`Erro do Servidor: ${errJson.error || 'Erro desconhecido'}`);
+				baixando = false;
+				return;
+			}
+
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `relatorio_${data.hash}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+		} catch (err) {
+			console.error('[Download] Erro:', err);
+			alert('Falha na comunicação com o servidor.');
+		} finally {
+			baixando = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -72,18 +120,18 @@
 					</div>
 				</section>
 
-				<!-- Informações da Assinatura -->
+				<!-- Informações da Assinatura (Supervisor) -->
 				<section class="p-4 sm:p-6 border-l-4 border-primary-500 bg-primary-50/30 dark:bg-primary-500/10 rounded-r-xl sm:rounded-r-2xl">
-					<h2 class="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-3 sm:mb-4">Informações da Assinatura</h2>
+					<h2 class="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-3 sm:mb-4">Assinatura Certificadora (Supervisor)</h2>
 					<div class="space-y-3 sm:space-y-4">
 						<div class="flex items-start gap-3 sm:gap-4">
 							<div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-500 shrink-0">
 								<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
 								</svg>
 							</div>
 							<div class="min-w-0">
-								<span class="block text-[10px] uppercase font-bold text-surface-400">Assinado por</span>
+								<span class="block text-[10px] uppercase font-bold text-surface-400">Assinado Digitalmente por</span>
 								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{mascararNome(documento.assinante_nome)}</span>
 								{#if documento.assinante_cpf}
 									<span class="block text-xs text-surface-500 mt-1">CPF: {mascararCPF(documento.assinante_cpf)}</span>
@@ -99,44 +147,53 @@
 					</div>
 				</section>
 
-				<!-- Trilha de Auditoria Técnica (Lei 14.063/2020) -->
-				<section class="p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/30 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-surface-800">
-					<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">Evidências de Integridade (Lei 14.063/20)</h2>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-						<div class="space-y-3">
-							<div>
-								<span class="block text-[9px] uppercase font-bold text-surface-400">Endereço IP</span>
-								<span class="text-xs font-mono text-surface-700 dark:text-surface-300">{mascararIP(documento.ip_address)}</span>
-							</div>
-							<div>
-								<span class="block text-[9px] uppercase font-bold text-surface-400">Dispositivo / Navegador</span>
-								<span class="text-[10px] text-surface-600 dark:text-surface-400 leading-tight block">
-									{documento.user_agent ? (documento.user_agent.length > 60 ? documento.user_agent.substring(0, 60) + '...' : documento.user_agent) : 'Não registrado'}
-								</span>
-							</div>
-						</div>
-						<div class="flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-surface-200 dark:border-surface-800 pt-3 sm:pt-0 sm:pl-4">
-							<span class="block text-[9px] uppercase font-bold text-surface-400 mb-1">Localização Geográfica</span>
-							{#if documento.latitude && documento.longitude}
-								<div class="flex flex-col gap-2">
-									<div class="flex items-center gap-1.5">
-										<span class="w-2 h-2 rounded-full bg-success-500"></span>
-										<span class="text-xs font-bold text-success-600">GPS Capturado</span>
+				<!-- Assinaturas da Equipe (GISE) -->
+				{#if data.membros && data.membros.length > 0}
+					<section class="space-y-3">
+						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest px-1">Confirmações de Presença (Equipe)</h2>
+						<div class="grid grid-cols-1 gap-3">
+							{#each data.membros as membro}
+								<div class="p-4 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5">
+									<div class="flex items-center gap-3 mb-3">
+										<div class="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0">
+											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+											</svg>
+										</div>
+										<div class="min-w-0">
+											<span class="block text-[10px] uppercase font-bold text-surface-400 leading-none mb-1">Assinado por</span>
+											<span class="text-sm font-black text-surface-900 dark:text-white uppercase truncate block">{mascararNome(membro.policial_nome)}</span>
+											<span class="text-[9px] font-bold text-surface-500 uppercase">{membro.policial_cargo} • {membro.policial_matricula}</span>
+										</div>
 									</div>
-									<span class="text-xs font-mono text-surface-700 dark:text-surface-300 bg-surface-200/50 dark:bg-surface-700/50 px-2 py-1 rounded">
-										Lat: {mascararCoordenada(documento.latitude)} <br/>
-										Log: {mascararCoordenada(documento.longitude)}
-									</span>
+									
+									<div class="grid grid-cols-2 gap-4 pt-3 border-t border-surface-200 dark:border-white/5">
+										<div class="flex flex-col">
+											<span class="text-[8px] uppercase font-black text-surface-400 mb-0.5">Entrada</span>
+											{#if membro.presenca?.entrada_timestamp}
+												<span class="text-[10px] font-bold text-success-600 dark:text-success-400">
+													{formatarDataHora(membro.presenca.entrada_timestamp)}
+												</span>
+											{:else}
+												<span class="text-[10px] italic text-surface-400">Pendente</span>
+											{/if}
+										</div>
+										<div class="flex flex-col">
+											<span class="text-[8px] uppercase font-black text-surface-400 mb-0.5">Saída</span>
+											{#if membro.presenca?.saida_timestamp}
+												<span class="text-[10px] font-bold text-success-600 dark:text-success-400">
+													{formatarDataHora(membro.presenca.saida_timestamp)}
+												</span>
+											{:else}
+												<span class="text-[10px] italic text-surface-400">Pendente</span>
+											{/if}
+										</div>
+									</div>
 								</div>
-							{:else}
-								<div class="flex items-center gap-1.5 opacity-50">
-									<span class="w-2 h-2 rounded-full bg-surface-400"></span>
-									<span class="text-xs italic text-surface-500">GPS não disponível</span>
-								</div>
-							{/if}
+							{/each}
 						</div>
-					</div>
-				</section>
+					</section>
+				{/if}
 
 				<!-- Download do Documento -->
 				<section class="p-4 sm:p-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700/30 rounded-xl sm:rounded-2xl">
@@ -145,16 +202,24 @@
 						Faça o download do documento digital assinado e compare com o documento impresso que você possui.
 						As informações devem ser idênticas.
 					</p>
-					<a
-						href="/api/validar/{data.hash}/download"
-						download
-						class="flex items-center justify-center gap-2 w-full sm:w-auto sm:inline-flex px-5 py-3 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-bold rounded-xl transition-colors text-sm touch-manipulation"
+					<button
+						onclick={handleDownload}
+						disabled={baixando}
+						class="flex items-center justify-center gap-2 w-full sm:w-auto sm:inline-flex px-5 py-3 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:bg-surface-400 text-white font-bold rounded-xl transition-colors text-sm touch-manipulation"
 					>
-						<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-						</svg>
-						Baixar Documento Assinado (PDF)
-					</a>
+						{#if baixando}
+							<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							<span>PROCESSANDO...</span>
+						{:else}
+							<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+							</svg>
+							<span>Baixar Documento Assinado (PDF)</span>
+						{/if}
+					</button>
 				</section>
 
 				<!-- Instrução de Comparação -->

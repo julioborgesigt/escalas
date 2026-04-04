@@ -127,6 +127,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			latitude,
 			longitude,
 			selfie_key: selfieKey,
+			r2_key: `${prefixBase}_assinada.pdf`,
 			arquivo_hash: arquivo_hash
 		});
 

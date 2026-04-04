@@ -71,7 +71,7 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 	]);
 
 	if (esc) return { ...esc, tipo_doc: 'escala' as const };
-	if (gise) return { ...gise, escala_id: gise.gise_id, tipo_doc: 'gise' as const };
+	if (gise) return { ...gise, escala_id: gise.gise_id, r2_key: gise.r2_key, tipo_doc: 'gise' as const };
 	if (rel) {
 		return {
 			id: rel.id,
@@ -85,7 +85,8 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 			ip_address: rel.ip_address,
 			user_agent: rel.user_agent,
 			latitude: rel.latitude,
-			longitude: rel.longitude
+			longitude: rel.longitude,
+			r2_key: rel.r2_key
 		};
 	}
 

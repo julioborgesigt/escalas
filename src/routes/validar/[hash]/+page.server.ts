@@ -1,4 +1,4 @@
-import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala } from '$lib/db';
+import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGiseSeccionalMembros, buscarPresencasGise } from '$lib/db';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform }) => {
@@ -72,11 +72,27 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 		lotacao = 'Sertão Central / Centro Sul';
 	}
 
-	if (documento.tipo_doc === 'gise_relatorio') {
-		titulo = `Relatório de Serviço ${documento.rel_tipo === 'extraordinario' ? 'Extraordinário' : 'Produtividade'}`;
+	let membros = [];
+	if (documento.tipo_doc === 'gise_relatorio' && documento.seccional_id) {
+		try {
+			const [membrosSec, todasPresencas] = await Promise.all([
+				buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id),
+				buscarPresencasGise(db, documento.escala_id)
+			]);
+			
+			const presencaMap = new Map(todasPresencas.map(p => [p.policial_id, p]));
+			
+			membros = membrosSec.map((m: any) => ({
+				...m,
+				presenca: presencaMap.get(m.policial_id) || null
+			}));
+		} catch (err) {
+			console.error('[validar] Erro ao buscar assinaturas da equipe:', err);
+		}
 	}
 
 	return {
+// ... (rest of the return block)
 		encontrado: true as const,
 		documento: {
 			assinante_nome: documento.assinante_nome,
@@ -95,6 +111,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 			data_fim,
 			lotacao
 		},
+		membros,
 		hash
 	};
 };

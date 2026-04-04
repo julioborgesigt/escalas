@@ -70,6 +70,7 @@ export {
 	excluirGiseEquipe,
 	criarGiseEquipe,
 	reabrirGiseEscala,
+	revogarAssinaturasSeccional,
 	adicionarGiseMembro,
 	removerGiseMembro,
 	verificarGiseCompleta,

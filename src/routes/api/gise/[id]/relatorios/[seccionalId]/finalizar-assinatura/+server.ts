@@ -244,6 +244,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			latitude,
 			longitude,
 			selfie_key: undefined,
+			r2_key: r2Key,
 			arquivo_hash: arquivo_hash
 		});
 
