@@ -93,6 +93,7 @@
 	let editHoraSaida = $state("");
 	let showExcluirGiseConfirm = $state(false);
 	let excluindo = $state(false);
+	let removendoEquipeId = $state<number | null>(null);
 
 	// Adicionar equipe
 	let adicionandoEquipeSec = $state<number | null>(null);
@@ -2267,27 +2268,34 @@
 										</div>
 										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 											<button
-												class="text-sm text-error-600 hover:text-error-500 p-1"
+												class="text-sm text-error-600 hover:text-error-500 p-1 inline-flex items-center gap-1"
+												disabled={removendoEquipeId === equipe.id}
 												onclick={async () => {
-													const r = await fetch(
-														`/api/gise/${gise.id}/equipes/${equipe.id}`,
-														{ method: "DELETE" },
-													);
-													if (r.ok) {
-														toaster.success({
-															title: "Equipe removida",
-														});
-														await invalidateAll();
-													} else {
-														const j =
-															await r.json();
-														toaster.error({
-															title: j.error,
-														});
+													removendoEquipeId = equipe.id;
+													try {
+														const r = await fetch(
+															`/api/gise/${gise.id}/equipes/${equipe.id}`,
+															{ method: "DELETE" },
+														);
+														if (r.ok) {
+															toaster.success({
+																title: "Equipe removida",
+															});
+															await invalidateAll();
+														} else {
+															const j =
+																await r.json();
+															toaster.error({
+																title: j.error,
+															});
+														}
+													} finally {
+														removendoEquipeId = null;
 													}
 												}}
 											>
-												Remover equipe
+												{#if removendoEquipeId === equipe.id}<Spinner size="sm" />{/if}
+												{removendoEquipeId === equipe.id ? 'Removendo...' : 'Remover equipe'}
 											</button>
 										{/if}
 									</div>

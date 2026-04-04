@@ -108,7 +108,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' });
+			const r2Promises: Promise<any>[] = [r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' })];
 
 			if (selfieBase64) {
 				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
@@ -116,19 +116,19 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				if (matches) {
 					const ext = matches[1] === 'png' ? 'png' : 'jpg';
 					const dataBase64 = selfieBase64.replace(regex, '');
-					const binaryString = atob(dataBase64);
-					const bytes = new Uint8Array(binaryString.length);
-					for (let i = 0; i < binaryString.length; i++) {
-						bytes[i] = binaryString.charCodeAt(i);
-					}
+					const bytes = Buffer.from(dataBase64, 'base64');
 					selfieKey = `${prefixBase}_selfie.${ext}`;
-					await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+					r2Promises.push(r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } }));
 				}
 			}
+
+			await Promise.all(r2Promises);
 		}
 
-		await salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, rubrica, ip, ua, latitude, longitude, selfieKey, arquivo_hash);
-		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
+		await Promise.all([
+			salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, rubrica, ip, ua, latitude, longitude, selfieKey, arquivo_hash),
+			atualizarGiseEscala(db, id, { status: 'em_andamento' })
+		]);
 
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
 		return new Response(pdfFinal as any, {

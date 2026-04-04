@@ -339,8 +339,11 @@
 	}
 
 	let lendoA3 = $state(false);
+	let baixandoProdutividade = $state<number | null>(null);
+	let baixandoExtra = $state<number | null>(null);
 
 	async function baixarRelatorio(escala: any) {
+		baixandoProdutividade = escala.id;
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}`;
 			const res = await fetch(url);
@@ -361,10 +364,13 @@
 				title: "Erro no Download",
 				description: e.message,
 			});
+		} finally {
+			baixandoProdutividade = null;
 		}
 	}
 
 	async function baixarRelatorioExtra(escala: any) {
+		baixandoExtra = escala.id;
 		try {
 			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${escala.seccional_id}`;
 			const res = await fetch(url);
@@ -385,6 +391,8 @@
 				title: "Erro no Download",
 				description: e.message,
 			});
+		} finally {
+			baixandoExtra = null;
 		}
 	}
 </script>
@@ -999,20 +1007,25 @@
 													e.stopPropagation();
 													baixarRelatorio(escala);
 												}}
+												disabled={baixandoProdutividade === escala.id}
 												title="Baixar PDF de Produtividade"
 											>
-												<svg
-													class="w-3.5 h-3.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2.5"
-														d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-													/></svg
-												>
+												{#if baixandoProdutividade === escala.id}
+													<Spinner size="sm" />
+												{:else}
+													<svg
+														class="w-3.5 h-3.5"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														><path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2.5"
+															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+														/></svg
+													>
+												{/if}
 											</button>
 										{/if}
 										{#if escala.extraAssinado}
@@ -1024,6 +1037,7 @@
 														escala,
 													);
 												}}
+												disabled={baixandoExtra === escala.id}
 												title="Baixar Relatório Extraordinário (Assinado)"
 											>
 												<svg
@@ -1319,20 +1333,25 @@
 											e.stopPropagation();
 											baixarRelatorio(escala);
 										}}
+										disabled={baixandoProdutividade === escala.id}
 										title="Baixar PDF de Produtividade"
 									>
-										<svg
-											class="w-3 h-3"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2.5"
-												d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-											/></svg
-										>
+										{#if baixandoProdutividade === escala.id}
+											<Spinner size="sm" />
+										{:else}
+											<svg
+												class="w-3 h-3"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2.5"
+													d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+												/></svg
+											>
+										{/if}
 										<span>Produtividade</span>
 									</button>
 								{/if}
@@ -1343,6 +1362,7 @@
 											e.stopPropagation();
 											baixarRelatorioExtra(escala);
 										}}
+										disabled={baixandoExtra === escala.id}
 										title="Baixar Relatório Extraordinário (Assinado)"
 									>
 										<svg
