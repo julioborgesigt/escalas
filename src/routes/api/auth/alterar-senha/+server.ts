@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, verificarSenha, validarSessao } from '$lib/auth';
+import { hashSenha, verificarSenha, validarSessao, invalidarOutrasSessoes } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
@@ -63,6 +63,9 @@ export const POST: RequestHandler = async ({ platform, request, cookies }) => {
 			.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
 			.where(eq(policiais.id, usuario.id));
 	}
+
+	// Invalidar todas as outras sessões (forçar re-login em outros dispositivos)
+	await invalidarOutrasSessoes(db, usuario.tipo, usuario.id, token!);
 
 	return json({ success: true });
 };

@@ -30,6 +30,7 @@
 		"wrangler": "^4.0.0"
 	},
 	"dependencies": {
+		"@sentry/cloudflare": "^10.47.0",
 		"@signpdf/placeholder-pdf-lib": "^3.3.0",
 		"@signpdf/signpdf": "^3.3.0",
 		"@skeletonlabs/skeleton": "^4.13.0",

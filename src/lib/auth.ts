@@ -1,4 +1,4 @@
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, inArray } from 'drizzle-orm';
 import { sessoes, administradores, policiais } from './server/schema';
 import type { Database } from './db';
 
@@ -192,4 +192,30 @@ export async function validarSessao(
 
 export async function excluirSessao(db: Database, token: string): Promise<void> {
 	await db.delete(sessoes).where(eq(sessoes.token, token));
+}
+
+/**
+ * Invalida todas as sessões do usuário, exceto a sessão atual.
+ * Deve ser chamado após troca de senha para forçar re-login nos outros dispositivos.
+ */
+export async function invalidarOutrasSessoes(
+	db: Database,
+	tipo: 'policial' | 'admin',
+	usuarioId: number,
+	tokenAtual: string
+): Promise<void> {
+	// Buscar todas as sessões do usuário e excluir as que não são a atual
+	const todasSessoes = await db
+		.select({ id: sessoes.id, token: sessoes.token })
+		.from(sessoes)
+		.where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)))
+		.all();
+
+	const idsParaExcluir = todasSessoes
+		.filter((s) => s.token !== tokenAtual)
+		.map((s) => s.id);
+
+	if (idsParaExcluir.length > 0) {
+		await db.delete(sessoes).where(inArray(sessoes.id, idsParaExcluir));
+	}
 }
