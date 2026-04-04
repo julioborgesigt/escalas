@@ -90,19 +90,17 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 		const finalSignerCpf = dadosToken?.cpf || (usuario as any).cpf || '';
 
 		const env = p?.env as any;
-		if (env?.escalas_docs) {
-			const mesAno = escala.data_inicio.substring(0, 7);
-			const folder = `escalas/${mesAno}/escala_${escalaId}`;
-			const r2Key = `${folder}/escala_${escalaId}_${verificationHash}_assinada.pdf`;
-			try {
-				await env.escalas_docs.put(r2Key, signedPdf);
-				await salvarDocumentoEscala(db, escalaId, r2Key, finalSignerName, finalSignerCpf, verificationHash, ip, ua, latitude, longitude);
-			} catch (err) {
-				console.error('[finalizar-assinatura] Erro ao salvar no R2 ou BD:', err);
-			}
-		} else {
-			console.warn('[finalizar-assinatura] R2 (escalas_docs) não configurado no env.');
+		if (!env?.escalas_docs) {
+			return json({ error: 'Armazenamento R2 não configurado. Contate o administrador.' }, { status: 503 });
 		}
+
+		const mesAno = escala.data_inicio.substring(0, 7);
+		const folder = `escalas/${mesAno}/escala_${escalaId}`;
+		const r2Key = `${folder}/escala_${escalaId}_${verificationHash}_assinada.pdf`;
+
+		// Salvar no R2 e no banco — falha aqui DEVE impedir retorno de sucesso
+		await env.escalas_docs.put(r2Key, signedPdf);
+		await salvarDocumentoEscala(db, escalaId, r2Key, finalSignerName, finalSignerCpf, verificationHash, ip, ua, latitude, longitude);
 
 		return new Response(signedPdf as unknown as BodyInit, {
 			headers: {

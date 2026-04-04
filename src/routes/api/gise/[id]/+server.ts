@@ -12,9 +12,32 @@ import {
 	atualizarGiseEscala,
 	buscarGiseEscala
 } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
-import { policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais } from '$lib/server/schema';
+import { eq, and } from 'drizzle-orm';
+
+/** Verifica se o policial tem acesso a esta GISE específica (supervisor ou membro) */
+async function temAcessoGise(db: ReturnType<typeof getDB>, giseId: number, policialId: number, papelUnidadeId: number | null | undefined): Promise<boolean> {
+	// É supervisor desta GISE?
+	const gise = await db.select({ supervisor_id: giseEscalas.supervisor_id }).from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
+	if (gise?.supervisor_id === policialId) return true;
+
+	// É admin seccional de uma seccional desta GISE?
+	if (papelUnidadeId) {
+		const secRow = await db.select({ id: giseSeccionais.id }).from(giseSeccionais)
+			.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.seccional_id, papelUnidadeId)))
+			.limit(1).get();
+		if (secRow) return true;
+	}
+
+	// É membro escalado nesta GISE?
+	const membro = await db.select({ id: giseMembros.id }).from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseMembros.policial_id, policialId)))
+		.limit(1).get();
+	return !!membro;
+}
 
 export const GET: RequestHandler = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -24,6 +47,13 @@ export const GET: RequestHandler = async ({ locals, params, platform }) => {
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const db = getDB(platform);
+
+	// Admin geral tem acesso irrestrito
+	if (!isAdminGeral(u)) {
+		const temAcesso = await temAcessoGise(db, id, u.id, u.papel_unidade_id);
+		if (!temAcesso) return json({ error: 'Sem permissão para acessar esta escala GISE' }, { status: 403 });
+	}
+
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 

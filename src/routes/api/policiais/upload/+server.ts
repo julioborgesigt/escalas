@@ -3,6 +3,7 @@ import { getDB, listarUnidades } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
 import * as XLSX from 'xlsx';
 import { limparMatricula } from '$lib/utils';
+import { gerarSenhaAleatoriaHash } from '$lib/auth';
 import type { RequestHandler } from './$types';
 
 function normalizarTexto(texto: string): string {
@@ -168,6 +169,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		const matriculaLimpa = limparMatricula(String(row.matricula));
 
 		try {
+			const senhaHash = await gerarSenhaAleatoriaHash();
 			const result = await db
 				.insert(policiaisTable)
 				.values({
@@ -175,7 +177,9 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 					matricula: matriculaLimpa,
 					cargo: cargo as 'DPC' | 'OIP',
 					telefone: row.telefone ? String(row.telefone).trim() : '',
-					lotacao: lotacaoFinal
+					lotacao: lotacaoFinal,
+					senha: senhaHash,
+					primeiro_acesso: 1
 				})
 				.onConflictDoNothing()
 				.returning({ id: policiaisTable.id });
