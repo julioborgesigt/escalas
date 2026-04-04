@@ -10,7 +10,7 @@ export const GET = async ({ locals, params, url, platform }: any) => {
 	const db = getDB(platform);
 
 	const resposta = await buscarRespostaGise(db, giseId, u.id, equipeId);
-	const raw = (resposta as any)?.respostas;
+	const raw = resposta?.respostas;
 
 	try {
 		return json(raw ? JSON.parse(raw) : {});

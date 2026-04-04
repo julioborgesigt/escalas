@@ -51,7 +51,7 @@
 			nome = data.nome;
 			matricula = data.matricula;
 			cargo = data.cargo;
-			cpf = formatarCPF((data as any).cpf || '');
+			cpf = formatarCPF(data.cpf || '');
 			telefone = data.telefone || '';
 			classe = (data as unknown as { classe?: string }).classe || '';
 			regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';

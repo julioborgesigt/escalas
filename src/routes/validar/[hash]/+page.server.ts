@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 
 	let documento;
 	try {
-		documento = await buscarDocumentoPorHash(db, hash) as any;
+		documento = await buscarDocumentoPorHash(db, hash);
 	} catch (err) {
 		console.error(`[validar] Erro ao buscar documento pelo hash "${hash}":`, err);
 		return { encontrado: false as const, motivo: 'erro_consulta' };
@@ -53,7 +53,25 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 
 	console.log(`[validar] Validação concluída com sucesso para hash: ${hash}`);
 
-	let titulo = (escala as any).titulo || 'Escala GISE';
+	let titulo: string;
+	let cidade: string;
+	let data_fim: string | undefined;
+	let lotacao: string;
+
+	if ('titulo' in escala) {
+		// Escala regular
+		titulo = escala.titulo;
+		cidade = escala.cidade;
+		data_fim = escala.data_fim;
+		lotacao = escala.lotacao;
+	} else {
+		// GISE
+		titulo = 'Escala GISE';
+		cidade = 'Iguatu';
+		data_fim = undefined;
+		lotacao = 'Sertão Central / Centro Sul';
+	}
+
 	if (documento.tipo_doc === 'gise_relatorio') {
 		titulo = `Relatório de Serviço ${documento.rel_tipo === 'extraordinario' ? 'Extraordinário' : 'Produtividade'}`;
 	}
@@ -71,11 +89,11 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 			longitude: documento.longitude
 		},
 		escala: {
-			titulo: titulo,
-			cidade: (escala as any).cidade || 'Iguatu',
+			titulo,
+			cidade,
 			data_inicio: escala.data_inicio,
-			data_fim: (escala as any).data_fim,
-			lotacao: (escala as any).lotacao || 'Sertão Central / Centro Sul'
+			data_fim,
+			lotacao
 		},
 		hash
 	};

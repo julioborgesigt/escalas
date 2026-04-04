@@ -4,11 +4,24 @@ import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
+import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 
 const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/validar', '/api/validar', '/api/health']);
 
 function isRotaPublica(pathname: string): boolean {
 	for (const rota of ROTAS_PUBLICAS) {
+		if (pathname.startsWith(rota)) return true;
+	}
+	return false;
+}
+
+/** Routes exempt from CSRF token verification (no session or read-only). */
+const CSRF_EXEMPT_ROUTES = new Set(['/api/auth/login', '/api/health']);
+
+const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function isCsrfExempt(pathname: string): boolean {
+	for (const rota of CSRF_EXEMPT_ROUTES) {
 		if (pathname.startsWith(rota)) return true;
 	}
 	return false;
@@ -25,6 +38,35 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
+
+	// --- CSRF double-submit cookie ---
+	// Ensure every response carries a CSRF cookie (httpOnly=false so JS can read it).
+	let csrfToken = event.cookies.get(CSRF_COOKIE_NAME);
+	if (!csrfToken) {
+		csrfToken = generateCsrfToken();
+		event.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
+			path: '/',
+			httpOnly: false,
+			secure: event.url.protocol === 'https:',
+			sameSite: 'lax',
+			maxAge: 60 * 60 * 24 // 24 hours
+		});
+	}
+
+	// For state-changing requests to /api/*, verify CSRF header matches cookie.
+	if (
+		pathname.startsWith('/api/') &&
+		STATE_CHANGING_METHODS.has(event.request.method) &&
+		!isCsrfExempt(pathname)
+	) {
+		const headerToken = event.request.headers.get(CSRF_HEADER_NAME);
+		if (!headerToken || headerToken !== csrfToken) {
+			return new Response(JSON.stringify({ error: 'Token CSRF inválido ou ausente' }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+	}
 
 	// Rotas públicas não precisam de autenticação
 	if (isRotaPublica(pathname)) {

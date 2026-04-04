@@ -75,7 +75,7 @@ export async function criarPolicial(
 		classe: data.classe || '',
 		senha: senhaHash,
 		primeiro_acesso: 1,
-		papel: (data.papel as any) || null,
+		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 		papel_unidade_id: data.papel_unidade_id || null
 	});
 }
@@ -87,7 +87,7 @@ export async function atualizarPolicial(
 		nome: string;
 		matricula: string;
 		cargo: string;
-		cpf: string;
+		cpf: string | null;
 		telefone: string;
 		lotacao: string;
 		ativo: number;

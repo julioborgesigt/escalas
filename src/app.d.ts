@@ -11,13 +11,9 @@ declare global {
 			message: string;
 			errorId?: string;
 		}
-		interface Platform {
-			env: {
-				escalas_db: D1Database;
-				escalas_docs: R2Bucket;
-				SENTRY_DSN?: string;
-			};
-		}
+		// Platform is declared by @sveltejs/adapter-cloudflare with env: unknown.
+		// Cloudflare D1/R2 bindings are accessed via typed helpers (getDB, getR2)
+		// that cast the platform env safely at the boundary.
 	}
 }
 
