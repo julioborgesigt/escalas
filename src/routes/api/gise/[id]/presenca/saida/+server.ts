@@ -26,28 +26,26 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		if (matches) {
 			const ext = matches[1] === 'png' ? 'png' : 'jpg';
 			const dataBase64 = selfieBase64.replace(regex, '');
-			const binaryString = atob(dataBase64);
-			const bytes = new Uint8Array(binaryString.length);
-			for (let i = 0; i < binaryString.length; i++) {
-				bytes[i] = binaryString.charCodeAt(i);
-			}
+			const bytes = Buffer.from(dataBase64, 'base64');
 
 			const [yyyy, mm, dd] = giseOrig.data_inicio.split('-');
 			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
 			selfieKey = `${folder}/presenca_${u.id}_saida.${ext}`;
-			
+
 			await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
 		}
 	}
 
 	await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 
-	// Verificar transição de status após saída
+	// Verificar transição de status após saída — parallelizar queries independentes
 	const gise = await buscarGiseEscala(db, giseId);
 	if (gise && gise.status === 'em_andamento') {
-		const todosSairam = await verificarTodosSairam(db, giseId);
+		const [todosSairam, todosEnviaram] = await Promise.all([
+			verificarTodosSairam(db, giseId),
+			verificarTodosRelatoriosEnviados(db, giseId)
+		]);
 		if (todosSairam) {
-			const todosEnviaram = await verificarTodosRelatoriosEnviados(db, giseId);
 			await atualizarGiseEscala(db, giseId, {
 				status: todosEnviaram ? 'aguardando_assinatura_relat' : 'aguardando_relatorios'
 			});

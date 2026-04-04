@@ -114,25 +114,44 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// 2. Coletar Assinaturas dos Policiais (Entradas e Saídas) dessa Seccional para o Manifesto
 		const signers: AuditTrailOptions[] = [];
 		
-		const membrosSec = await buscarGiseSeccionalMembros(db, id, secIdNum);
-		const idsMembros = membrosSec.map((m: any) => m.policial_id);
-		const todasPresencas = await buscarPresencasGise(db, id);
-		const presencasFiltradas = todasPresencas.filter(p => idsMembros.includes(p.policial_id));
+		const [membrosSec, todasPresencas] = await Promise.all([
+			buscarGiseSeccionalMembros(db, id, secIdNum),
+			buscarPresencasGise(db, id)
+		]);
+		const idsMembros = new Set(membrosSec.map((m: any) => m.policial_id));
+		const presencasFiltradas = todasPresencas.filter(p => idsMembros.has(p.policial_id));
+
+		// Fetch all selfies in parallel instead of sequentially
+		const selfieKeys: Array<{ key: string; type: 'entrada' | 'saida'; prId: number }> = [];
+		for (const pr of presencasFiltradas) {
+			if (pr.entrada_rubrica && pr.entrada_selfie_key && r2) {
+				selfieKeys.push({ key: pr.entrada_selfie_key, type: 'entrada', prId: pr.id });
+			}
+			if (pr.saida_rubrica && pr.saida_selfie_key && r2) {
+				selfieKeys.push({ key: pr.saida_selfie_key, type: 'saida', prId: pr.id });
+			}
+		}
+
+		const selfieResults = await Promise.all(
+			selfieKeys.map(async ({ key, type, prId }) => {
+				try {
+					const obj = await r2.get(key);
+					if (obj) {
+						const buf = await obj.arrayBuffer();
+						return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
+					}
+				} catch {}
+				return { prId, type, data: undefined };
+			})
+		);
+
+		const selfieMap = new Map<string, string | undefined>();
+		for (const r of selfieResults) {
+			selfieMap.set(`${r.prId}-${r.type}`, r.data);
+		}
 
 		for (const pr of presencasFiltradas) {
-			// Entrada
 			if (pr.entrada_rubrica) {
-				let sEntrada: string | undefined = undefined;
-				if (pr.entrada_selfie_key && r2) {
-					try {
-						const obj = await r2.get(pr.entrada_selfie_key);
-						if (obj) {
-							const buf = await obj.arrayBuffer();
-							sEntrada = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
-						}
-					} catch (e) { console.warn('Falha ao buscar selfie entrada:', e); }
-				}
-
 				signers.push({
 					signerName: `${pr.policial_nome} (ENTRADA)`,
 					signerCpf: pr.policial_cpf ?? undefined,
@@ -144,25 +163,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 					latitude: pr.latitude ?? undefined,
 					longitude: pr.longitude ?? undefined,
 					rubricBase64: pr.entrada_rubrica ?? undefined,
-					selfieBase64: sEntrada, 
+					selfieBase64: selfieMap.get(`${pr.id}-entrada`),
 					documentHash,
 					signatureLevel: 'avancada',
 					documentName: `Relatório Extraordinário - GISE ${id}`
 				});
 			}
-			// Saída
 			if (pr.saida_rubrica) {
-				let sSaida: string | undefined = undefined;
-				if (pr.saida_selfie_key && r2) {
-					try {
-						const obj = await r2.get(pr.saida_selfie_key);
-						if (obj) {
-							const buf = await obj.arrayBuffer();
-							sSaida = `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`;
-						}
-					} catch (e) { console.warn('Falha ao buscar selfie saida:', e); }
-				}
-
 				signers.push({
 					signerName: `${pr.policial_nome} (SAÍDA)`,
 					signerCpf: pr.policial_cpf ?? undefined,
@@ -174,7 +181,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 					latitude: pr.latitude ?? undefined,
 					longitude: pr.longitude ?? undefined,
 					rubricBase64: pr.saida_rubrica ?? undefined,
-					selfieBase64: sSaida,
+					selfieBase64: selfieMap.get(`${pr.id}-saida`),
 					documentHash,
 					signatureLevel: 'avancada',
 					documentName: `Relatório Extraordinário - GISE ${id}`

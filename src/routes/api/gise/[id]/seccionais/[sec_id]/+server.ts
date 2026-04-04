@@ -129,11 +129,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 		await atualizarGiseSeccional(db, secId, secUpdate);
 	}
 
-	// Atualizar slots de equipes (Admin Geral somente)
+	// Atualizar slots de equipes (Admin Geral somente) — em paralelo
 	if (equipes && isAdminGeral(u)) {
-		for (const eq_ of equipes) {
-			await atualizarGiseEquipe(db, eq_.id, eq_.slots_dpc, eq_.slots_oip);
-		}
+		await Promise.all(equipes.map(eq_ => atualizarGiseEquipe(db, eq_.id, eq_.slots_dpc, eq_.slots_oip)));
 	}
 
 	// Adicionar membro à equipe
