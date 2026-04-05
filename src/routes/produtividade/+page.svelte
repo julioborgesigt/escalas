@@ -250,6 +250,17 @@
 	let chartInstances = new Map<number, any>();
 	let canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
+	// Destroy all stale chart instances when question set changes (e.g. filterTipo switch)
+	$effect(() => {
+		const currentIds = new Set(QUESTIONS.map((q: any) => q.id));
+		chartInstances.forEach((instance, id) => {
+			if (!currentIds.has(id)) {
+				instance.destroy();
+				chartInstances.delete(id);
+			}
+		});
+	});
+
 	function updateCharts(list: any[]) {
 		const isShowingAll = !filterSeccional;
 		const labels = isShowingAll
@@ -397,21 +408,19 @@
 	import { tick } from "svelte";
 
 	$effect(() => {
-		// Track filteredData and canvasElements keys (filter out stale null entries)
+		// Track filteredData and whether all current QUESTIONS have live canvas refs
 		const _data = filteredData;
-		const _canvases = Object.values(canvasElements).filter(Boolean).length;
+		const allCanvasesReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
 
-		if (_data && QUESTIONS.length > 0 && _canvases === QUESTIONS.length) {
+		if (_data && allCanvasesReady) {
 			tick().then(() => updateCharts(_data));
 		}
 	});
 
 	onMount(() => {
 		// Initial check
-		if (
-			filteredData.length > 0 &&
-			Object.values(canvasElements).filter(Boolean).length === QUESTIONS.length
-		) {
+		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
+		if (filteredData.length > 0 && allReady) {
 			updateCharts(filteredData);
 		}
 	});
