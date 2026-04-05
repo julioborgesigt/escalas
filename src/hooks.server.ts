@@ -6,7 +6,7 @@ import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 
-const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/validar', '/api/validar', '/api/health']);
+const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/', '/validar', '/api/validar', '/api/health']);
 
 function isRotaPublica(pathname: string): boolean {
 	for (const rota of ROTAS_PUBLICAS) {

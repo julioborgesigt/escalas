@@ -71,7 +71,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		);
 	}
 
-	const escalas = await query.orderBy(desc(giseEscalas.data_inicio)).all();
+	const escalas = await query.orderBy(desc(giseEscalas.data_inicio), desc(giseEscalas.id)).all();
 	if (escalas.length === 0) return [];
 
 	const escalaIds = escalas.map(e => e.id);

@@ -370,6 +370,14 @@ export const doisFatoresTokens = sqliteTable(
 	(table) => [index('idx_2fa_desafio').on(table.desafio_id)]
 );
 
+// ---- Configurações do Sistema ----
+
+export const configuracoes = sqliteTable('configuracoes', {
+	chave: text('chave').primaryKey(),
+	valor: text('valor').notNull(),
+	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+});
+
 // ---- Rate Limiting ----
 
 export const loginAttempts = sqliteTable('login_attempts', {

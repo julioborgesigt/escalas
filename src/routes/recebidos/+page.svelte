@@ -236,7 +236,7 @@
 			<span class="text-sm font-semibold text-surface-600 dark:text-surface-300 mr-1">Período de Recebimento:</span>
 			{#each [['todos','Tudo'],['24h','Últimas 24h'],['48h','Últimas 48h'],['semana','Última Semana'],['mes','Último Mês']] as [val, label]}
 				<button
-					class="btn btn-sm {filtroTimeRange === val ? 'preset-filled-primary-500' : 'preset-outlined-surface'}"
+					class="btn btn-sm {filtroTimeRange === val ? 'preset-filled-primary-500' : 'preset-tonal-surface ring-1 ring-surface-300 dark:ring-surface-600'}"
 					onclick={() => { filtroTimeRange = val as typeof filtroTimeRange; carregar(); }}
 				>{label}</button>
 			{/each}

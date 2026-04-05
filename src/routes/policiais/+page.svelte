@@ -297,20 +297,28 @@
 							<option value="OIP">OIP - Investigador</option>
 						</select>
 					</label>
-					<label class="label sm:col-span-3">
+				</div>
+
+				<!-- Linha 2: CPF (5), E-mail (7) -->
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-5">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">CPF (Obrigatório para Token)</span>
-						<input 
-							class="input py-1 px-3 text-sm" 
-							type="text" 
-							value={cpf} 
+						<input
+							class="input py-1 px-3 text-sm"
+							type="text"
+							value={cpf}
 							oninput={(e) => (cpf = formatarCPF(e.currentTarget.value))}
 							placeholder="000.000.000-00"
 							maxlength="14"
 						/>
 					</label>
+					<label class="label sm:col-span-7">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">E-mail (para autenticação de dois fatores)</span>
+						<input class="input py-1 px-3 text-sm" type="email" bind:value={email} placeholder="exemplo@gmail.com" />
+					</label>
 				</div>
-		
-				<!-- Linha 2: Telefone (3), Classe (4), Regime (5) -->
+
+				<!-- Linha 3: Telefone (3), Classe (4), Regime (5) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Telefone</span>
@@ -339,14 +347,6 @@
 							<option value="plantao">Somente Plantão</option>
 							<option value="expediente">Somente Expediente</option>
 						</select>
-					</label>
-				</div>
-
-				<!-- Linha 3: E-mail (12) -->
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-12">
-						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">E-mail (para autenticação de dois fatores)</span>
-						<input class="input py-1 px-3 text-sm" type="email" bind:value={email} placeholder="exemplo@gmail.com" />
 					</label>
 				</div>
 

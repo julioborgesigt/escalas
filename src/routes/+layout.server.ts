@@ -1,19 +1,24 @@
 import type { LayoutServerLoad } from './$types';
-import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva } from '$lib/db';
+import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva, buscarExigirFotoAssinatura } from '$lib/db';
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 
 	let isSupervisorGise = false;
 	let isMembroGise = false;
+	let exigirFotoAssinatura = true;
 
-	if (u?.tipo === 'policial') {
+	if (u) {
 		try {
 			const db = getDB(platform);
-			[isSupervisorGise, isMembroGise] = await Promise.all([
-				isSupervisorGiseAtiva(db, u.id),
-				isMembroGiseAtiva(db, u.id)
-			]);
+			const checks: Promise<unknown>[] = [buscarExigirFotoAssinatura(db).then((v) => { exigirFotoAssinatura = v; })];
+			if (u.tipo === 'policial') {
+				checks.push(
+					isSupervisorGiseAtiva(db, u.id).then((v) => { isSupervisorGise = v; }),
+					isMembroGiseAtiva(db, u.id).then((v) => { isMembroGise = v; })
+				);
+			}
+			await Promise.all(checks);
 		} catch {
 			// DB indisponível
 		}
@@ -22,6 +27,7 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
 	return {
 		usuario: u,
 		isSupervisorGise,
-		isMembroGise
+		isMembroGise,
+		exigirFotoAssinatura
 	};
 };

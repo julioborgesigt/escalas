@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import { untrack } from "svelte";
 	import { toaster } from "$lib/toast";
 	import PainelAssinaturaToken from "$lib/components/PainelAssinaturaToken.svelte";
@@ -2936,6 +2937,7 @@
 			<SignaturePad
 				onConfirm={confirmarRubrica}
 				onCancel={() => (showRubricaModal = false)}
+				exigirFoto={page.data.exigirFotoAssinatura ?? true}
 			/>
 
 			<p class="text-sm text-surface-400 text-center italic">

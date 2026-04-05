@@ -1,7 +1,7 @@
 <script lang="ts">
 	let faceapi: any = $state(null);
 
-	let { onConfirm, onCancel, message = "" } = $props();
+	let { onConfirm, onCancel, message = "", exigirFoto = true } = $props();
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -260,6 +260,16 @@
 		}
 
 		return small.toDataURL("image/jpeg", 0.75);
+	}
+
+	function confirmarSemFoto() {
+		const thumbCanvas = document.createElement("canvas");
+		thumbCanvas.width = 150;
+		thumbCanvas.height = 60;
+		const thumbCtx = thumbCanvas.getContext("2d")!;
+		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
+		const dataUrl = comprimirRubrica(canvas, 100);
+		onConfirm(dataUrl, coords?.lat, coords?.lng, null);
 	}
 
 	async function confirm() {
@@ -590,9 +600,9 @@
 				</button>
 				<button
 					class="btn preset-filled-primary-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
-					onclick={() => (step = "camera")}
+					onclick={() => exigirFoto ? (step = "camera") : confirmarSemFoto()}
 				>
-					Avançar 📸
+					{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
 				</button>
 			</div>
 		{:else}
