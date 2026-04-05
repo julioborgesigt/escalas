@@ -9,7 +9,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import forge from 'node-forge';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
-import { finalizarAssinatura, embedSerproCms, adicionarPaginaAuditoria, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
@@ -45,8 +45,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			// Simplificado: extrai CN e CPF
 			const cn = cert.subject.getField('CN')?.value as string || '';
 			const sn = cert.subject.getField('serialNumber')?.value as string || '';
-			dadosToken = { 
-				nome: cn.split(':')[0].trim(), 
+			dadosToken = {
+				nome: cn.split(':')[0].trim(),
 				cpf: sn.replace(/\D/g, '').slice(-11) || cn.split(':').pop()?.replace(/\D/g, '').slice(-11) || ''
 			};
 		}
@@ -81,28 +81,11 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			);
 		}
 
-		// Calcular Hash do original (Integridade)
-		const originalHashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
-		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
+		// Calcular Hash do documento assinado (para controle no banco)
+		const hashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
+		const documentHash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
-
-		// Adicionar folha de auditoria (Manifesto)
-		const pdfFinal = await adicionarPaginaAuditoria(signedPdfBytes, {
-			signerName: dadosToken?.nome || u.nome,
-			signerCpf: dadosToken?.cpf || u.cpf || '',
-			signingTime: new Date(signingTimeISO),
-			verificationHash: verificationHash,
-			verificationUrl: `${url.origin}/validar/${verificationHash}`,
-			ip,
-			userAgent: ua,
-			latitude,
-			longitude,
-			documentHash,
-			token: crypto.randomUUID(),
-			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
-			signatureLevel: 'qualificada'
-		});
 
 		// Salvar no R2
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
@@ -112,7 +95,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
 		const r2 = getR2(p);
 		if (r2) {
-			await r2.put(documentKey, pdfFinal, {
+			await r2.put(documentKey, signedPdfBytes, {
 				contentType: 'application/pdf'
 			});
 		}
@@ -138,7 +121,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Avançar status para andamento
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
 
-		return new Response(pdfFinal as unknown as BodyInit, {
+		return new Response(signedPdfBytes as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': `attachment; filename="${documentKey}"`

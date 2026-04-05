@@ -354,7 +354,8 @@ export async function prepararPdfParaAssinatura(
 	customBoxY?: number,
 	rubricBase64?: string,
 	customRubricX?: number,
-	customRubricY?: number
+	customRubricY?: number,
+	targetPageIndex?: number
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -362,7 +363,8 @@ export async function prepararPdfParaAssinatura(
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
 	const pages = pdfDoc.getPages();
-	const lastPage = pages[pages.length - 1];
+	const pageIdx = targetPageIndex !== undefined ? targetPageIndex : pages.length - 1;
+	const lastPage = pages[pageIdx];
 	const { width } = lastPage.getSize();
 	const dataHora = formatarDataHora();
 

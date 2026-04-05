@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, gt } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, verificarSenha, isHashLegado, criarSessao } from '$lib/auth';
+import { hashSenha, verificarSenha, isHashLegado, criarSessao, gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
+import { enviarCodigo2FA } from '$lib/server/email';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
@@ -75,14 +76,23 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		}
 
 		await recordAttempt(db, ip, true);
+
+		// 2FA: se o admin tiver e-mail cadastrado, exige verificação
+		if (admin.email) {
+			const codigo = gerarCodigo2FA();
+			const desafioId = await criarDesafio2FA(db, 'admin', admin.id, codigo);
+			try {
+				await enviarCodigo2FA(admin.email, codigo, admin.nome, platform);
+			} catch (err) {
+				console.error('[2FA] Falha ao enviar e-mail:', err);
+				return json({ error: 'Falha ao enviar código de verificação. Contate o administrador.' }, { status: 500 });
+			}
+			return json({ pendente2FA: true, desafioId, nome: admin.nome, primeiro_acesso: admin.primeiro_acesso === 1 });
+		}
+
 		const token = await criarSessao(db, 'admin', admin.id);
 		cookies.set('session_token', token, cookieOptions(url));
-
-		return json({
-			success: true,
-			primeiro_acesso: admin.primeiro_acesso === 1,
-			nome: admin.nome
-		});
+		return json({ success: true, primeiro_acesso: admin.primeiro_acesso === 1, nome: admin.nome });
 	}
 
 	// Login de policial
@@ -104,12 +114,21 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	}
 
 	await recordAttempt(db, ip, true);
+
+	// 2FA: se o policial tiver e-mail cadastrado, exige verificação
+	if (policial.email) {
+		const codigo = gerarCodigo2FA();
+		const desafioId = await criarDesafio2FA(db, 'policial', policial.id, codigo);
+		try {
+			await enviarCodigo2FA(policial.email, codigo, policial.nome, platform);
+		} catch (err) {
+			console.error('[2FA] Falha ao enviar e-mail:', err);
+			return json({ error: 'Falha ao enviar código de verificação. Contate o administrador.' }, { status: 500 });
+		}
+		return json({ pendente2FA: true, desafioId, nome: policial.nome, primeiro_acesso: policial.primeiro_acesso === 1 });
+	}
+
 	const token = await criarSessao(db, 'policial', policial.id);
 	cookies.set('session_token', token, cookieOptions(url));
-
-	return json({
-		success: true,
-		primeiro_acesso: policial.primeiro_acesso === 1,
-		nome: policial.nome
-	});
+	return json({ success: true, primeiro_acesso: policial.primeiro_acesso === 1, nome: policial.nome });
 };

@@ -18,6 +18,7 @@ export const policiais = sqliteTable(
 		classe: text('classe').notNull().default(''),
 		senha: text('senha')
 			.notNull(),
+		email: text('email'),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
 		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
@@ -96,6 +97,7 @@ export const administradores = sqliteTable('administradores', {
 	login: text('login').notNull().unique(),
 	senha: text('senha').notNull(),
 	nome: text('nome').notNull(),
+	email: text('email'),
 	primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
@@ -350,6 +352,24 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 ]);
 
 
+// ---- Autenticação de Dois Fatores ----
+
+export const doisFatoresTokens = sqliteTable(
+	'dois_fatores_tokens',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		desafio_id: text('desafio_id').notNull().unique(),
+		tipo: text('tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		codigo: text('codigo').notNull(),
+		tentativas: integer('tentativas').notNull().default(0),
+		expires_at: text('expires_at').notNull(),
+		usado: integer('usado').notNull().default(0),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_2fa_desafio').on(table.desafio_id)]
+);
+
 // ---- Rate Limiting ----
 
 export const loginAttempts = sqliteTable('login_attempts', {
@@ -380,3 +400,4 @@ export type GiseMembro = typeof giseMembros.$inferSelect;
 export type GiseDocumento = typeof giseDocumentos.$inferSelect;
 export type GisePresenca = typeof gisePresencas.$inferSelect;
 export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
+export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;

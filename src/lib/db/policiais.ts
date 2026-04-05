@@ -33,6 +33,7 @@ export async function listarPoliciais(
 			primeiro_acesso: policiais.primeiro_acesso,
 			papel: policiais.papel,
 			papel_unidade_id: policiais.papel_unidade_id,
+			email: policiais.email,
 			created_at: policiais.created_at,
 			updated_at: policiais.updated_at
 		})
@@ -61,6 +62,7 @@ export async function criarPolicial(
 		classe?: string;
 		papel?: string | null;
 		papel_unidade_id?: number | null;
+		email?: string | null;
 	}
 ) {
 	const senhaHash = await gerarSenhaAleatoriaHash();
@@ -76,7 +78,8 @@ export async function criarPolicial(
 		senha: senhaHash,
 		primeiro_acesso: 1,
 		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-		papel_unidade_id: data.papel_unidade_id || null
+		papel_unidade_id: data.papel_unidade_id || null,
+		email: data.email || null
 	});
 }
 
@@ -93,6 +96,7 @@ export async function atualizarPolicial(
 		ativo: number;
 		regime: string;
 		classe: string;
+		email: string | null;
 	}>
 ) {
 	const updateData: Record<string, unknown> = {};
@@ -106,6 +110,7 @@ export async function atualizarPolicial(
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;
 	if (data.regime !== undefined) updateData.regime = data.regime;
 	if (data.classe !== undefined) updateData.classe = data.classe;
+	if (data.email !== undefined) updateData.email = data.email;
 
 	updateData.updated_at = sql`datetime('now', '-3 hours')`;
 

@@ -64,6 +64,7 @@
 	let classe = $state('');
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacaoInput = $state('');
+	let email = $state('');
 	let saving = $state(false);
 	let excluindo = $state(false);
 
@@ -104,6 +105,7 @@
 		classe = '';
 		regime = 'ambos';
 		lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+		email = '';
 		papel = null;
 		papelUnidadeId = null;
 	}
@@ -111,10 +113,11 @@
 	async function salvar(e: Event) {
 		e.preventDefault();
 
-		const parsed = policialSchema.safeParse({ 
+		const parsed = policialSchema.safeParse({
 			nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao: lotacaoInput, regime, classe,
 			papel: papel || null,
-			papel_unidade_id: papelUnidadeId || null
+			papel_unidade_id: papelUnidadeId || null,
+			email: email || null
 		});
 		if (!parsed.success) {
 			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
@@ -129,7 +132,8 @@
 				body: JSON.stringify({
 					nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao: lotacaoInput, regime, classe,
 					papel: papel || null,
-					papel_unidade_id: papelUnidadeId || null
+					papel_unidade_id: papelUnidadeId || null,
+					email: email || null
 				})
 			});
 
@@ -338,7 +342,15 @@
 					</label>
 				</div>
 
-				<!-- Linha 3: Lotação (12) -->
+				<!-- Linha 3: E-mail (12) -->
+				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+					<label class="label sm:col-span-12">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">E-mail (para autenticação de dois fatores)</span>
+						<input class="input py-1 px-3 text-sm" type="email" bind:value={email} placeholder="exemplo@gmail.com" />
+					</label>
+				</div>
+
+				<!-- Linha 4: Lotação (12) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-12">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span>
