@@ -13,6 +13,7 @@
 	import SignaturePad from "./SignaturePad.svelte";
 	import type { UsuarioLogado } from "$lib/auth";
 	import { csrfHeaders } from "$lib/csrf";
+	import { page } from "$app/state";
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -874,6 +875,7 @@
 				message="Rubrica do Organizador"
 				onConfirm={assinarSimples}
 				onCancel={() => (dialogSignOpen = false)}
+				exigirFoto={page.data.exigirFotoAssinatura ?? true}
 			/>
 		</div>
 	</Dialog.Content>

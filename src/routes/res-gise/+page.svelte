@@ -1583,6 +1583,7 @@
 													onConfirm={salvarEntrada}
 													onCancel={() =>
 														(capturandoRubrica = false)}
+													exigirFoto={page.data.exigirFotoAssinatura ?? true}
 												/>
 											</div>
 										{/if}
@@ -1855,6 +1856,7 @@
 														onConfirm={salvarSaida}
 														onCancel={() =>
 															(capturandoRubrica = false)}
+														exigirFoto={page.data.exigirFotoAssinatura ?? true}
 													/>
 												</div>
 											{/if}

@@ -16,6 +16,12 @@ export { getDB } from './db/core';
 export type { Database } from './db/core';
 
 export {
+	buscarConfiguracao,
+	salvarConfiguracao,
+	buscarExigirFotoAssinatura
+} from './db/configuracoes';
+
+export {
 	listarPoliciais,
 	buscarPolicial,
 	criarPolicial,

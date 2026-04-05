@@ -19,6 +19,7 @@
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacao = $state('');
 	let unidades = $state<string[]>([]);
+	let email = $state('');
 	let saving = $state(false);
 	let loading = $state(true);
 	let papel = $state<string | null>(null);
@@ -57,6 +58,7 @@
 			classe = (data as unknown as { classe?: string }).classe || '';
 			regime = (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos';
 			lotacao = data.lotacao;
+			email = data.email || '';
 			papel = data.papel ?? null;
 			papelUnidadeId = data.papel_unidade_id ?? null;
 			if (lotacoesData) unidades = lotacoesData;
@@ -92,7 +94,7 @@
 		const res = await fetch(`/api/policiais/${page.params.id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-			body: JSON.stringify({ nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao, regime, classe })
+			body: JSON.stringify({ nome, matricula, cargo, cpf: limparCPF(cpf), telefone, lotacao, regime, classe, email: email || null })
 		});
 
 		if (res.ok) {
@@ -173,6 +175,10 @@
 						placeholder="000.000.000-00"
 						maxlength="14"
 					/>
+				</label>
+				<label class="label sm:col-span-9">
+					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">E-mail (para autenticação de dois fatores)</span>
+					<input class="input py-1 px-3 text-sm" type="email" bind:value={email} placeholder="exemplo@gmail.com" />
 				</label>
 			</div>
 

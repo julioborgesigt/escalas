@@ -11,6 +11,23 @@ import type { Database } from '$lib/db';
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
 
+function mascararEmail(email: string): string {
+	const at = email.indexOf('@');
+	if (at <= 0) return email;
+	const local = email.slice(0, at);
+	const domain = email.slice(at + 1);
+	let masked: string;
+	if (local.length === 1) {
+		masked = local;
+	} else if (local.length === 2) {
+		masked = local[0] + '*';
+	} else {
+		const showStart = Math.min(2, Math.floor(local.length / 2));
+		masked = local.slice(0, showStart) + '*'.repeat(local.length - showStart - 1) + local[local.length - 1];
+	}
+	return masked + '@' + domain;
+}
+
 function cookieOptions(url: URL) {
 	return {
 		path: '/',
@@ -58,6 +75,44 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	const { matricula, senha, tipo } = parsed.data;
 
 	if (tipo === 'admin') {
+		// --- Admin Geral via variáveis de ambiente ---
+		const _env = (platform as { env?: Record<string, string> } | undefined)?.env ?? {};
+		const envLogin = _env.ADMIN_GERAL_LOGIN?.trim() ?? '';
+		const envSenha = _env.ADMIN_GERAL_SENHA ?? '';
+
+		if (envLogin && envSenha && matricula === envLogin) {
+			if (senha !== envSenha) {
+				await recordAttempt(db, ip, false);
+				return json({ error: 'Login ou senha inválidos' }, { status: 401 });
+			}
+			// Busca ou cria o registro no DB (necessário para a sessão)
+			let envAdmin = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.login, envLogin))
+				.get();
+			if (!envAdmin) {
+				const senhaHash = await hashSenha(crypto.randomUUID());
+				await db.insert(administradores).values({
+					login: envLogin,
+					nome: 'Administrador Geral',
+					senha: senhaHash,
+					primeiro_acesso: 0
+				});
+				envAdmin = await db
+					.select()
+					.from(administradores)
+					.where(eq(administradores.login, envLogin))
+					.get();
+			}
+			if (!envAdmin) return json({ error: 'Erro ao inicializar administrador.' }, { status: 500 });
+			await recordAttempt(db, ip, true);
+			const token = await criarSessao(db, 'admin', envAdmin.id);
+			cookies.set('session_token', token, cookieOptions(url));
+			return json({ success: true, primeiro_acesso: false, nome: envAdmin.nome });
+		}
+		// --- Fim admin geral via env ---
+
 		const admin = await db
 			.select()
 			.from(administradores)
@@ -77,8 +132,8 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 
 		await recordAttempt(db, ip, true);
 
-		// 2FA: se o admin tiver e-mail cadastrado, exige verificação
-		if (admin.email) {
+		// 2FA: exige verificação apenas se não for primeiro acesso
+		if (admin.email && admin.primeiro_acesso !== 1) {
 			const codigo = gerarCodigo2FA();
 			const desafioId = await criarDesafio2FA(db, 'admin', admin.id, codigo);
 			try {
@@ -87,7 +142,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 				console.error('[2FA] Falha ao enviar e-mail:', err);
 				return json({ error: 'Falha ao enviar código de verificação. Contate o administrador.' }, { status: 500 });
 			}
-			return json({ pendente2FA: true, desafioId, nome: admin.nome, primeiro_acesso: admin.primeiro_acesso === 1 });
+			return json({ pendente2FA: true, desafioId, nome: admin.nome, primeiro_acesso: admin.primeiro_acesso === 1, emailMascarado: mascararEmail(admin.email) });
 		}
 
 		const token = await criarSessao(db, 'admin', admin.id);
@@ -115,8 +170,8 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 
 	await recordAttempt(db, ip, true);
 
-	// 2FA: se o policial tiver e-mail cadastrado, exige verificação
-	if (policial.email) {
+	// 2FA: exige verificação apenas se NÃO for primeiro acesso (já verificou via e-mail ao receber senha provisória)
+	if (policial.email && policial.primeiro_acesso !== 1) {
 		const codigo = gerarCodigo2FA();
 		const desafioId = await criarDesafio2FA(db, 'policial', policial.id, codigo);
 		try {
@@ -125,7 +180,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 			console.error('[2FA] Falha ao enviar e-mail:', err);
 			return json({ error: 'Falha ao enviar código de verificação. Contate o administrador.' }, { status: 500 });
 		}
-		return json({ pendente2FA: true, desafioId, nome: policial.nome, primeiro_acesso: policial.primeiro_acesso === 1 });
+		return json({ pendente2FA: true, desafioId, nome: policial.nome, primeiro_acesso: policial.primeiro_acesso === 1, emailMascarado: mascararEmail(policial.email) });
 	}
 
 	const token = await criarSessao(db, 'policial', policial.id);

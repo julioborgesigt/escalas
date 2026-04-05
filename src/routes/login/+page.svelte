@@ -15,6 +15,12 @@
 	let desafioId = $state('');
 	let codigo2FA = $state('');
 	let tipoUsuario2FA = $state<'policial' | 'admin'>('policial');
+	let emailMascarado = $state('');
+
+	// Estado do primeiro acesso
+	let primeiroAcesso = $state(false);
+	let matriculaPrimeiroAcesso = $state('');
+	let primeiroAcessoEnviado = $state(false);
 
 	async function login(e: Event) {
 		e.preventDefault();
@@ -39,6 +45,7 @@
 					// Código enviado por e-mail — mostrar formulário 2FA
 					desafioId = data.desafioId;
 					tipoUsuario2FA = tipo;
+					emailMascarado = data.emailMascarado ?? '';
 					pendente2FA = true;
 					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
 				} else if (data.primeiro_acesso) {
@@ -98,6 +105,35 @@
 		desafioId = '';
 		codigo2FA = '';
 	}
+
+	async function solicitarPrimeiroAcesso(e: Event) {
+		e.preventDefault();
+		if (!matriculaPrimeiroAcesso.trim()) return;
+		loading = true;
+		try {
+			const res = await fetch('/api/auth/primeiro-acesso', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ matricula: matriculaPrimeiroAcesso.trim() })
+			});
+			const data = await res.json();
+			if (!res.ok) {
+				toaster.create({ title: data.error || 'Erro ao processar solicitação.', type: 'error' });
+			} else {
+				primeiroAcessoEnviado = true;
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
+		} finally {
+			loading = false;
+		}
+	}
+
+	function voltarParaLogin() {
+		primeiroAcesso = false;
+		primeiroAcessoEnviado = false;
+		matriculaPrimeiroAcesso = '';
+	}
 </script>
 
 <svelte:head>
@@ -111,7 +147,7 @@
 			<p class="text-surface-600 dark:text-surface-500 text-sm">Faça login para acessar o sistema</p>
 		</div>
 
-		{#if !pendente2FA}
+		{#if !pendente2FA && !primeiroAcesso}
 			<!-- ===== Formulário de credenciais ===== -->
 			<div class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5">
 				<button
@@ -148,7 +184,6 @@
 						type="password"
 						bind:value={senha}
 						placeholder="Digite sua senha"
-						maxlength="8"
 						required
 					/>
 				</label>
@@ -165,8 +200,62 @@
 
 			{#if tipo === 'policial'}
 				<p class="text-center mt-4 text-xs text-surface-500">
-					Senha inicial: <strong>12345678</strong> (será solicitada a troca no primeiro acesso)
+					Primeiro acesso?
+					<button
+						type="button"
+						class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+						onclick={() => { primeiroAcesso = true; }}
+					>
+						Clique aqui
+					</button>
 				</p>
+			{/if}
+
+		{:else if primeiroAcesso}
+			<!-- ===== Primeiro acesso ===== -->
+			{#if !primeiroAcessoEnviado}
+				<div class="text-center mb-6">
+					<div class="text-5xl mb-3">🔑</div>
+					<p class="font-semibold mb-1">Primeiro acesso</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400">
+						Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
+					</p>
+				</div>
+				<form onsubmit={solicitarPrimeiroAcesso} class="flex flex-col gap-5">
+					<label class="label">
+						<span class="label-text">Matrícula</span>
+						<input
+							class="input"
+							type="text"
+							bind:value={matriculaPrimeiroAcesso}
+							placeholder="Digite sua matrícula"
+							maxlength="8"
+							required
+						/>
+					</label>
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
+						disabled={loading}
+					>
+						{#if loading}<Spinner size="md" />{/if}
+						{loading ? 'Enviando...' : 'Enviar senha provisória'}
+					</button>
+					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaLogin}>
+						← Voltar
+					</button>
+				</form>
+			{:else}
+				<div class="text-center">
+					<div class="text-5xl mb-4">📬</div>
+					<p class="font-semibold mb-2">E-mail enviado!</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
+						Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em instantes. Verifique também sua caixa de spam.
+					</p>
+					<button type="button" class="btn preset-filled-primary-500 w-full" onclick={voltarParaLogin}>
+						Ir para o login
+					</button>
+				</div>
 			{/if}
 		{:else}
 			<!-- ===== Formulário de verificação 2FA ===== -->
@@ -174,7 +263,8 @@
 				<div class="text-5xl mb-3">📧</div>
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>
 				<p class="text-sm text-surface-600 dark:text-surface-400">
-					Enviamos um código de 6 dígitos para o e-mail cadastrado.
+					Enviamos um código de 6 dígitos para<br/>
+					<span class="font-medium text-surface-800 dark:text-surface-200">{emailMascarado}</span>
 				</p>
 			</div>
 
@@ -184,14 +274,12 @@
 					<input
 						class="input text-center text-3xl font-bold tracking-[0.4em] py-3"
 						type="text"
-						bind:value={codigo2FA}
+						value={codigo2FA}
+						oninput={(e) => (codigo2FA = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 						placeholder="000000"
 						maxlength="6"
-						pattern="[0-9]{6}"
 						inputmode="numeric"
 						autocomplete="one-time-code"
-						autofocus
-						required
 					/>
 				</label>
 

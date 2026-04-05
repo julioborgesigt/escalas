@@ -240,9 +240,9 @@
 </Dialog>
 
 <div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
-	<div class="flex flex-col md:flex-row md:items-end gap-4 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
+	<div class="grid grid-cols-12 gap-3 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
 		{#if isAdmin}
-			<label class="label flex-1 max-w-sm">
+			<label class="label col-span-12 sm:col-span-3">
 				<span class="label-text font-semibold mb-1">Seccional</span>
 				<select class="select" bind:value={filtroSeccional} onchange={() => { filtroLotacao = ''; carregar(); }}>
 					<option value="todas">Todas as Seccionais</option>
@@ -252,7 +252,7 @@
 				</select>
 			</label>
 
-			<label class="label flex-1 max-w-sm">
+			<label class="label col-span-12 sm:col-span-5">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
 					<option value="">Selecione uma unidade...</option>
@@ -264,35 +264,33 @@
 			</label>
 		{/if}
 
-		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-			<label class="label">
-				<span class="label-text font-semibold mb-1">Tipo</span>
-				<select class="select" bind:value={filtroTipo} onchange={carregar}>
-					<option value="todos">Todos</option>
-					<option value="plantao">Plantão</option>
-					<option value="expediente">Expediente</option>
-					<option value="fds">Final de Semana</option>
-				</select>
-			</label>
+		<label class="label col-span-12 {isAdmin ? 'sm:col-span-2' : 'sm:col-span-6'}">
+			<span class="label-text font-semibold mb-1">Tipo</span>
+			<select class="select" bind:value={filtroTipo} onchange={carregar}>
+				<option value="todos">Todos</option>
+				<option value="plantao">Plantão</option>
+				<option value="expediente">Expediente</option>
+				<option value="fds">Final de Semana</option>
+			</select>
+		</label>
 
-			<label class="label">
-				<span class="label-text font-semibold mb-1">Mês</span>
-				<select class="select" bind:value={filtroMes} onchange={carregar}>
-					{#each meses as mes}
-						<option value={mes.value}>{mes.label}</option>
-					{/each}
-				</select>
-			</label>
+		<label class="label col-span-6 {isAdmin ? 'sm:col-span-1' : 'sm:col-span-3'}">
+			<span class="label-text font-semibold mb-1">Mês</span>
+			<select class="select" bind:value={filtroMes} onchange={carregar}>
+				{#each meses as mes}
+					<option value={mes.value}>{mes.label}</option>
+				{/each}
+			</select>
+		</label>
 
-			<label class="label">
-				<span class="label-text font-semibold mb-1">Ano</span>
-				<select class="select" bind:value={filtroAno} onchange={carregar}>
-					{#each anos as ano}
-						<option value={ano}>{ano === 0 ? 'Todos' : ano}</option>
-					{/each}
-				</select>
-			</label>
-		</div>
+		<label class="label col-span-6 {isAdmin ? 'sm:col-span-1' : 'sm:col-span-3'}">
+			<span class="label-text font-semibold mb-1">Ano</span>
+			<select class="select" bind:value={filtroAno} onchange={carregar}>
+				{#each anos as ano}
+					<option value={ano}>{ano === 0 ? 'Todos' : ano}</option>
+				{/each}
+			</select>
+		</label>
 	</div>
 
 	{#if loading}

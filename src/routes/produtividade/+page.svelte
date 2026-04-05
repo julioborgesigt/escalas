@@ -93,6 +93,12 @@
 	};
 	const allChartsCount = $derived(QUESTIONS.length + TOP_IDS.length);
 
+	// Derive armas key dynamically from the model (fallback to default if model wasn't customized)
+	const armasKey = $derived.by(() => {
+		const q = (data.modeloOperacional || []).find((q: any) => q.tipo === 'armas_complex');
+		return q?.key ?? 'apreensoes_armas_bool';
+	});
+
 	// Default to current year if no dates set
 	const currentYear = new Date().getFullYear();
 	const defaultStart = `${currentYear}-01-01`;
@@ -164,7 +170,7 @@
 			}
 
 			// P11: Weapons
-			if (res.apreensoes_armas_bool === "Sim" && res.armas_detalhe) {
+			if (res[armasKey] === "Sim" && res.armas_detalhe) {
 				Object.entries(res.armas_detalhe).forEach(([tipo, qtd]) => {
 					const n = Number(qtd) || 0;
 					s.apreensoes_armas += n;
@@ -229,7 +235,7 @@
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
 			let val = 0;
-			if (res.apreensoes_armas_bool === "Sim" && res.armas_detalhe) {
+			if (res[armasKey] === "Sim" && res.armas_detalhe) {
 				Object.values(res.armas_detalhe).forEach(
 					(q) => (val += Number(q) || 0),
 				);
@@ -288,7 +294,7 @@
 								}
 								return acc + drogasTotal;
 							}
-							return acc + (Number(res[q.key]) || 0);
+							return acc + (Number(res[q.mappedKey || q.key]) || 0);
 						}, 0);
 				});
 			} else {
@@ -317,7 +323,7 @@
 								}
 								return acc + drogasTotal;
 							}
-							return acc + (Number(res[q.key]) || 0);
+							return acc + (Number(res[q.mappedKey || q.key]) || 0);
 						}, 0);
 				});
 			}
@@ -391,11 +397,11 @@
 	import { tick } from "svelte";
 
 	$effect(() => {
-		// Track filteredData and canvasElements keys
+		// Track filteredData and canvasElements keys (filter out stale null entries)
 		const _data = filteredData;
-		const _canvases = Object.keys(canvasElements).length;
+		const _canvases = Object.values(canvasElements).filter(Boolean).length;
 
-		if (_data && _canvases === QUESTIONS.length) {
+		if (_data && QUESTIONS.length > 0 && _canvases === QUESTIONS.length) {
 			tick().then(() => updateCharts(_data));
 		}
 	});
@@ -404,7 +410,7 @@
 		// Initial check
 		if (
 			filteredData.length > 0 &&
-			Object.keys(canvasElements).length === QUESTIONS.length
+			Object.values(canvasElements).filter(Boolean).length === QUESTIONS.length
 		) {
 			updateCharts(filteredData);
 		}
