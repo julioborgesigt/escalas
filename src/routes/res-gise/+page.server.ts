@@ -218,14 +218,44 @@ export const load = async ({ locals, platform, url }: any) => {
 		{ id: 19, texto: '19. Descreva resumidamente as diligências', tipo: 'textarea', key: 'descricao', filhos: [] },
 	];
 
-	const modelo = await buscarGiseModeloFormulario(db);
-	const modeloFinal = modelo ? JSON.parse(modelo.config) : defaultGiseQuestions;
+	const defaultSeintQuestions = [
+		{ id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
+			{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
+			{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
+		] },
+		{ id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
+			{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
+			{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
+		] },
+		{ id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
+			{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
+			{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
+		] },
+		{ id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
+			{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
+			{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
+		] },
+		{ id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
+			{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
+			{ id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
+				{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
+			] }
+		] }
+	];
+
+	const [modeloOp, modeloSeint] = await Promise.all([
+		buscarGiseModeloFormulario(db, 'operacional'),
+		buscarGiseModeloFormulario(db, 'seint')
+	]);
 
 	return {
 		minhasEscalas,
 		listaAdmin,
 		isSupervisorGise,
-		modeloConteudo: modeloFinal,
-		modeloPadrao: defaultGiseQuestions
+		// Se o banco retornar null (ex: migration não rodada ou sem registros ainda), usa o default code-fixed
+		modeloOperacional: (modeloOp && modeloOp.config) ? JSON.parse(modeloOp.config) : defaultGiseQuestions,
+		modeloSeint: (modeloSeint && modeloSeint.config) ? JSON.parse(modeloSeint.config) : defaultSeintQuestions,
+		modeloPadraoOperacional: defaultGiseQuestions,
+		modeloPadraoSeint: defaultSeintQuestions
 	};
 };

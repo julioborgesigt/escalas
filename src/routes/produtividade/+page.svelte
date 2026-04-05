@@ -10,6 +10,7 @@
 	let { data } = $props();
 
 	// Filters
+	let filterTipo = $state("operacional");
 	let filterSeccional = $state("");
 	let filterInicio = $state("");
 	let filterFim = $state("");
@@ -52,24 +53,34 @@
 	];
 
 	let QUESTIONS = $derived.by(() => {
-		const base = data.modelo && data.modelo.length > 0 ? data.modelo : [];
-		if (base.length === 0) return [];
+		const base = filterTipo === "seint" ? data.modeloSeint : data.modeloOperacional;
+		if (!base || base.length === 0) return [];
 
 		return base
 			.filter((q: any) =>
-				["numero", "select_99", "select_999", "sim_nao"].includes(
+				["numero", "select_99", "select_999", "sim_nao", "celulares_complex", "analise_complex", "relatorios_seint_complex", "foragidos_complex", "operacoes_seint_complex", "operacoes_seint_pura"].includes(
 					q.tipo,
 				),
 			)
-			.map((q: any, idx: number) => ({
-				id: q.id,
-				label: q.texto,
-				key: q.key,
-				color: palette[idx % palette.length],
-				isBool: q.tipo === "sim_nao",
-				specialStore:
-					q.key === "apreensoes_drogas" ? "drogasGeral" : null, // Map legacy/special
-			}));
+			.map((q: any, idx: number) => {
+				let mappedKey = q.key;
+				if (q.tipo === 'celulares_complex') mappedKey = 'celulares_qtd';
+				else if (q.tipo === 'analise_complex') mappedKey = 'analise_qtd';
+				else if (q.tipo === 'relatorios_seint_complex') mappedKey = 'relatorios_seint_qtd';
+				else if (q.tipo === 'foragidos_complex') mappedKey = 'foragidos_qtd';
+				else if (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura') mappedKey = 'operacoes_seint_qtd';
+
+				return {
+					id: q.id,
+					label: q.texto,
+					key: q.key,
+					mappedKey: mappedKey,
+					color: palette[idx % palette.length],
+					isBool: q.tipo === "sim_nao",
+					specialStore:
+						q.key === "apreensoes_drogas" ? "drogasGeral" : null, // Map legacy/special
+				};
+			});
 	});
 
 	const selectAllCharts = () => {
@@ -91,8 +102,8 @@
 	let filteredData = $derived(
 		(data.lista || []).filter((item: any) => {
 			const date = item.data_inicio;
-			const tipo = (item.equipe_tipo || "").toLowerCase();
-			if (tipo === "seint") return false; // Explicitamente oculta SEINT
+			const tipo = (item.equipe_tipo || "operacional").toLowerCase();
+			if (tipo !== filterTipo) return false;
 			if (
 				filterSeccional &&
 				item.seccional_id !== Number(filterSeccional)
@@ -128,9 +139,9 @@
 		filteredData.forEach((item: any) => {
 			const res = JSON.parse(item.respostas || "{}");
 
-			// Dynamic Aggregation for all Numeric/Boolean Questions
+			// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
 			QUESTIONS.forEach((q: any) => {
-				const val = res[q.key];
+				const val = res[q.mappedKey || q.key];
 				if (q.isBool) {
 					if (val === "Sim") s[q.key] = (s[q.key] || 0) + 1;
 				} else {
@@ -938,10 +949,10 @@
 			<h1
 				class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
 			>
-				Produção Operacional GISE
+				Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
 			</h1>
 			<p class="text-surface-500 font-medium">
-				Análise filtrada e segmentada dos resultados reais (P4-P19)
+				Análise filtrada e segmentada dos resultados reais {filterTipo === 'seint' ? '(SEINT)' : '(P4-P19)'}
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
@@ -1009,11 +1020,25 @@
 		</div>
 	</header>
 
-	<!-- Filters -->
 	<section
 		class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
 	>
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+			<div class="space-y-1.5">
+				<label
+					for="f-tipo"
+					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
+					>Tipo de Equipe</label
+				>
+				<select
+					id="f-tipo"
+					bind:value={filterTipo}
+					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+				>
+					<option value="operacional">Operacional</option>
+					<option value="seint">Inteligência (SEINT)</option>
+				</select>
+			</div>
 			<div class="space-y-1.5">
 				<label
 					for="f-sec"
@@ -1061,7 +1086,8 @@
 	</section>
 
 	<!-- Highlights Analytics: 3 Strategic Rows [Ranking | Detailing] -->
-	<div class="space-y-6">
+	{#if filterTipo === 'operacional'}
+	<div class="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
 		<!-- ROW 1: PRISONS -->
 		<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 			{@render subRanking(
@@ -1137,6 +1163,7 @@
 			)}
 		</section>
 	</div>
+	{/if}
 
 	<!-- Summary Display & Charts Grid (Single Column for better clarity with many regionals) -->
 	<section class="space-y-8">

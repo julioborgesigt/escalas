@@ -14,8 +14,25 @@
 	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
 
 	let activeTab = $state("relatorios"); // relatorios | configurador
-	let perguntas = $state<any[]>([]); // Sincronizado via effect abaixo
+	let configTipo = $state<"operacional" | "seint">("operacional");
+	let perguntasConfig = $state<any[]>([]);
 	let salvandoModelo = $state(false);
+
+	$effect(() => {
+		const source = configTipo === "seint" ? data.modeloSeint : data.modeloOperacional;
+		perguntasConfig = JSON.parse(JSON.stringify(source));
+	});
+
+	// Perguntas usadas no formulário de preenchimento (depende da equipe selecionada)
+	const perguntasForm = $derived.by(() => {
+		if (!escalaSelecionada) return [];
+		// Asks: 'seint' or default 'operacional' (usually)
+		const res =
+			escalaSelecionada.equipe_tipo === "seint"
+				? data.modeloSeint
+				: data.modeloOperacional;
+		return Array.isArray(res) ? res : [];
+	});
 
 	let escalaSelecionada = $state<any>(null);
 	let respostas = $state<any>({});
@@ -109,14 +126,10 @@
 		}),
 	);
 
-	$effect(() => {
-		perguntas = data.modeloConteudo || [];
-	});
-
 	function adicionarPergunta() {
 		const id = Date.now();
-		perguntas = [
-			...perguntas,
+		perguntasConfig = [
+			...perguntasConfig,
 			{
 				id,
 				texto: "",
@@ -141,14 +154,14 @@
 				filhos: [],
 			},
 		];
-		perguntas = [...perguntas]; // Trigger reactivity
+		perguntasConfig = [...perguntasConfig]; // Trigger reactivity
 	}
 
-	function removerPergunta(id: number, lista = perguntas) {
-		const idx = lista.findIndex((p) => p.id === id);
+	function removerPergunta(id: number, lista = perguntasConfig) {
+		const idx = lista.findIndex((p: any) => p.id === id);
 		if (idx > -1) {
 			lista.splice(idx, 1);
-			perguntas = [...perguntas];
+			perguntasConfig = [...perguntasConfig];
 			return true;
 		}
 		for (const p of lista) {
@@ -163,10 +176,13 @@
 			const res = await fetch("/api/gise/modelo", {
 				method: "POST",
 				headers: { "Content-Type": "application/json", ...csrfHeaders() },
-				body: JSON.stringify({ config: perguntas }),
+				body: JSON.stringify({ 
+					config: perguntasConfig,
+					tipo: configTipo
+				}),
 			});
 			if (!res.ok) throw new Error("Erro ao salvar modelo");
-			toaster.success({ title: "Modelo salvo com sucesso" });
+			toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: "Erro", description: e.message });
@@ -181,6 +197,8 @@
 			escalaSelecionada?.equipe_id === escala.equipe_id;
 		escalaSelecionada = escala;
 		carregandoResposta = true;
+		// Reseta estado de visualização de quem já respondeu
+		exibirRelatorio = false;
 
 		// Se não for a mesma, limpa respostas para evitar mostrar dado de outra escala enquanto carrega
 		if (!isSame) respostas = {};
@@ -457,27 +475,38 @@
 						Configurar Formulário
 					</h2>
 					<p class="text-sm text-surface-500 mt-1">
-						Defina os textos e campos do relatório de produtividade
-						oficial.
+						Defina os textos e campos do relatório de produtividade oficial.
 					</p>
+
+					<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-fit">
+						<button 
+							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {configTipo === 'operacional' ? 'bg-white dark:bg-surface-700 shadow text-primary-600' : 'text-surface-500'}"
+							onclick={() => configTipo = 'operacional'}
+						>Operacional</button>
+						<button 
+							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {configTipo === 'seint' ? 'bg-white dark:bg-surface-700 shadow text-primary-600' : 'text-surface-500'}"
+							onclick={() => configTipo = 'seint'}
+						>SEINT (Inteligência)</button>
+					</div>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<button
 						class="btn preset-outlined-surface-500 px-4 py-2 rounded-xl text-xs font-bold"
 						onclick={() => {
+							const padrao = configTipo === 'seint' ? data.modeloPadraoSeint : data.modeloPadraoOperacional;
 							if (
 								confirm(
-									"Deseja restaurar o modelo oficial de 19 pontos? Isso substituirá as perguntas atuais.",
+									`Deseja restaurar o modelo padrão para ${configTipo}? Isso substituirá as perguntas atuais.`,
 								)
 							) {
-								perguntas = JSON.parse(
-									JSON.stringify(data.modeloPadrao),
+								perguntasConfig = JSON.parse(
+									JSON.stringify(padrao),
 								);
 							}
 						}}
-						title="Restaurar Modelo Oficial"
+						title="Restaurar Modelo Padrão"
 					>
-						Restaurar 19 Pontos
+						Restaurar Padrão
 					</button>
 					<button
 						class="btn preset-filled-primary-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary-500/30"
@@ -515,72 +544,31 @@
 							<div
 								class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-[0.6rem] font-black text-surface-500 shrink-0"
 							>
-								{#if level > 0}↳{:else}{perguntas.indexOf(p) +
+								{#if level > 0}↳{:else}{perguntasConfig.indexOf(p) +
 										1}{/if}
 							</div>
 
-							<div class="flex-1 w-full space-y-1.5">
-								<div class="flex items-center justify-between">
-									<label
-										for="p-txt-{p.id}"
-										class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
-										>Texto da Pergunta</label
-									>
-									<div class="flex items-center gap-2">
+							<div class="space-y-1.5 flex-1">
+								<label
+									for="qtxt-{p.id}"
+									class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
+									>Texto da Pergunta</label
+								>
+								<div class="relative">
+									<textarea
+										id="qtxt-{p.id}"
+										bind:value={p.texto}
+										rows="2"
+										class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950 text-sm font-bold resize-none"
+									></textarea>
+									<div class="absolute top-2 right-2 flex gap-2">
 										{#if p.key?.startsWith("extra_")}
-											<span
-												class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase"
-												>CAMPO ADICIONAL</span
-											>
+											<span class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase">CAMPO ADICIONAL</span>
 										{:else}
-											<span
-												class="badge bg-surface-200 dark:bg-surface-800 text-surface-600 text-[0.55rem] font-black uppercase"
-												>CAMPO SISTEMA</span
-											>
+											<span class="bg-surface-100 dark:bg-surface-800 text-[0.5rem] font-black px-2 py-0.5 rounded-full text-surface-400 uppercase border border-surface-200 dark:border-surface-700">Campo Sistema</span>
 										{/if}
 									</div>
 								</div>
-								<textarea
-									id="p-txt-{p.id}"
-									bind:value={p.texto}
-									placeholder="Ex: Qual foi a produtividade de..."
-									rows="2"
-									class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-sm font-medium focus:ring-2 focus:ring-primary-500 transition-all resize-none"
-								></textarea>
-
-								<!-- Rótulos Extras para Tipos Sistêmicos (Mantidos para compatibilidade mas agora customizáveis via filhos se fosse o caso) -->
-								{#if p.tipo === "mandados_maiores" || p.tipo === "apreensoes_menores"}
-									<div
-										class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 p-3 bg-surface-100/50 dark:bg-surface-800/30 rounded-xl border border-dashed border-surface-300"
-									>
-										<div class="space-y-1">
-											<label
-												for="subqtd-{p.id}"
-												class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-wider"
-												>Legenda Quantidade (ex: 5.1)</label
-											>
-											<input
-												id="subqtd-{p.id}"
-												type="text"
-												bind:value={p.subtexto_qtd}
-												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-											/>
-										</div>
-										<div class="space-y-1">
-											<label
-												for="sublst-{p.id}"
-												class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-wider"
-												>Legenda Lista (ex: 5.2)</label
-											>
-											<input
-												id="sublst-{p.id}"
-												type="text"
-												bind:value={p.subtexto_lista}
-												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
-											/>
-										</div>
-									</div>
-								{/if}
 							</div>
 
 							<div class="w-full md:w-56 space-y-1.5 shrink-0">
@@ -630,12 +618,30 @@
 										<option value="armas_complex"
 											>Armas Detalhado (Auto-Listagem)</option
 										>
+										<option value="celulares_complex"
+											>Extração Celular (Auto-Listagem)</option
+										>
+										<option value="analise_complex"
+											>Análise de Dados (Auto-Listagem)</option
+										>
+										<option value="relatorios_seint_complex"
+											>Relatórios SEINT (Auto-Listagem)</option
+										>
+										<option value="foragidos_complex"
+											>Alvos Foragidos (Auto-Listagem)</option
+										>
+										<option value="operacoes_seint_complex"
+											>Operações SEINT (Auto-Listagem)</option
+										>
+										<option value="operacoes_seint_pura"
+											>Operações SEINT (Lista Pura)</option
+										>
 									</optgroup>
 								</select>
 							</div>
 
 							<div class="flex gap-2 shrink-0">
-								{#if p.tipo === "sim_nao" || p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores" || p.tipo === "drogas_complex" || p.tipo === "armas_complex"}
+								{#if p.tipo === "sim_nao" || p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores" || p.tipo === "drogas_complex" || p.tipo === "armas_complex" || p.tipo === "celulares_complex" || p.tipo === "analise_complex" || p.tipo === "relatorios_seint_complex" || p.tipo === "foragidos_complex" || p.tipo === "operacoes_seint_complex"}
 									<button
 										class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
 										onclick={() => adicionarSubPergunta(p)}
@@ -677,7 +683,7 @@
 						</div>
 
 						<!-- Novos controles de sub-textos para QUALQUER pergunta que use os tipos inteligentes -->
-						{#if ["mandados_maiores", "prisoes_maiores", "apreensoes_menores", "drogas_complex", "armas_complex"].includes(p.tipo)}
+						{#if ["mandados_maiores", "prisoes_maiores", "apreensoes_menores", "drogas_complex", "armas_complex", "celulares_complex", "analise_complex", "relatorios_seint_complex", "foragidos_complex", "operacoes_seint_complex"].includes(p.tipo)}
 							<div
 								class="mt-4 p-4 bg-primary-500/5 dark:bg-primary-500/10 rounded-2xl border border-dashed border-primary-500/30 space-y-4"
 							>
@@ -704,7 +710,7 @@
 								<div
 									class="grid grid-cols-1 md:grid-cols-2 gap-4"
 								>
-									{#if p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores"}
+									{#if p.tipo === "mandados_maiores" || p.tipo === "prisoes_maiores" || p.tipo === "apreensoes_menores" || p.tipo === "celulares_complex" || p.tipo === "analise_complex" || p.tipo === "relatorios_seint_complex" || p.tipo === "foragidos_complex" || p.tipo === "operacoes_seint_complex"}
 										<div class="space-y-1">
 											<label
 												for="subqtd-{p.id}"
@@ -719,17 +725,17 @@
 												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
 											/>
 										</div>
-										<div class="space-y-1">
+										<div class="space-y-1 md:col-span-2">
 											<label
 												for="sublst-{p.id}"
-												class="text-[0.6rem] font-bold text-surface-400 uppercase"
-												>Lista:</label
+												class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-wider"
+												>Legenda Lista (ex: 5.2)</label
 											>
 											<input
 												id="sublst-{p.id}"
 												type="text"
 												bind:value={p.subtexto_lista}
-												placeholder="Ex: 5.2 INFORMAR NOMES:"
+												placeholder="Ex: 5.2 LISTAGEM:"
 												class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 text-xs font-bold"
 											/>
 										</div>
@@ -798,14 +804,8 @@
 
 						{#if p.filhos && p.filhos.length > 0}
 							<div
-								class="mt-4 space-y-4 border-l-2 border-primary-500/20 pl-4 py-2"
+								class="mt-6 space-y-6 pt-2 border-l-4 border-primary-500/20"
 							>
-								<div
-									class="text-[0.6rem] font-bold text-primary-600 uppercase mb-2"
-								>
-									Perguntas carregadas se a resposta for
-									"SIM":
-								</div>
 								{#each p.filhos as filho (filho.id)}
 									{@render renderItem(filho, level + 1)}
 								{/each}
@@ -814,20 +814,25 @@
 					</div>
 				{/snippet}
 
-				{#each perguntas as p (p.id)}
+				{#each perguntasConfig as p (p.id)}
 					{@render renderItem(p)}
 				{/each}
 			</div>
 
 			<div
-				class="flex justify-end pt-6 border-t border-surface-200 dark:border-surface-800"
+				class="flex justify-end p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
 			>
 				<button
-					class="btn preset-filled-primary-500 w-full sm:w-auto px-6 sm:px-12 py-3 sm:py-4 rounded-2xl font-black text-base sm:text-xl shadow-xl shadow-primary-500/30 transition-all hover:scale-105 active:scale-95"
+					class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-primary-500/40 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
 					onclick={salvarModelo}
 					disabled={salvandoModelo}
 				>
-					{salvandoModelo ? "Salvando..." : "Publicar Alterações"}
+					{#if salvandoModelo}
+						<Spinner size="md" />
+						<span class="ml-3">Salvando...</span>
+					{:else}
+						Salvar Modelo {configTipo}
+					{/if}
 				</button>
 			</div>
 		</section>
@@ -1077,7 +1082,7 @@
 			<div class="md:col-span-3">
 				{#if escalaSelecionada}
 					<section
-						class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
+						class="card p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
 					>
 						<div
 							class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-4"
@@ -1148,8 +1153,8 @@
 								</div>
 
 								<RelatorioProdutividade
+									modelo={perguntasForm}
 									bind:respostas
-									modelo={data.modeloConteudo}
 								/>
 
 								<div
@@ -1681,59 +1686,6 @@
 												class="loading loading-spinner loading-lg text-primary-500"
 											></span>
 										</div>
-									{:else if escalaSelecionada.equipe_tipo === "seint"}
-										<div
-											class="p-12 bg-surface-50 dark:bg-surface-950 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-[2.5rem] text-center space-y-4 animate-in fade-in zoom-in-95 duration-500"
-										>
-											<div
-												class="bg-surface-200 dark:bg-surface-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-											>
-												<svg
-													class="w-10 h-10 text-surface-500"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-													/></svg
-												>
-											</div>
-											<div>
-												<h4
-													class="text-xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
-												>
-													Em Construção
-												</h4>
-												<p
-													class="text-xs text-surface-500 max-w-xs mx-auto mt-2 font-medium"
-												>
-													O formulário de
-													produtividade para a equipe
-													de <strong
-														>Inteligência (SEINT)</strong
-													> está sendo desenvolvido e será
-													liberado em breve.
-												</p>
-											</div>
-											<div
-												class="inline-flex items-center gap-2 px-4 py-2 bg-surface-200 dark:bg-surface-800 rounded-full text-[0.6rem] font-black uppercase text-surface-600 tracking-widest"
-											>
-												<span
-													class="relative flex h-2 w-2"
-												>
-													<span
-														class="animate-ping absolute inline-flex h-full w-full rounded-full bg-surface-400 opacity-75"
-													></span>
-													<span
-														class="relative inline-flex rounded-full h-2 w-2 bg-surface-500"
-													></span>
-												</span>
-												Aguarde Atualizações
-											</div>
-										</div>
 									{:else}
 										<div class="space-y-5">
 											{#if escalaSelecionada.equipeRespondida && !exibirRelatorio}
@@ -1801,8 +1753,8 @@
 													class="animate-in fade-in slide-in-from-top-4 duration-500"
 												>
 													<RelatorioProdutividade
+														modelo={perguntasForm}
 														bind:respostas
-														modelo={data.modeloConteudo}
 													/>
 												</div>
 

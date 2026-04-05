@@ -274,6 +274,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 
 export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
+	tipo: text('tipo').notNull().default('operacional'), // 'operacional' ou 'seint'
 	config: text('config').notNull().default('[]'), // JSON array de perguntas
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 });
