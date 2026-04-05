@@ -1,5 +1,5 @@
 import { eq, and, gt, inArray } from 'drizzle-orm';
-import { sessoes, administradores, policiais } from './server/schema';
+import { sessoes, administradores, policiais, doisFatoresTokens } from './server/schema';
 import type { Database } from './db';
 
 export interface UsuarioLogado {
@@ -224,4 +224,68 @@ export async function invalidarOutrasSessoes(
 	if (idsParaExcluir.length > 0) {
 		await db.delete(sessoes).where(inArray(sessoes.id, idsParaExcluir));
 	}
+}
+
+// ---- Autenticação de Dois Fatores ----
+
+/** Gera um código numérico de 6 dígitos para 2FA. */
+export function gerarCodigo2FA(): string {
+	const bytes = new Uint8Array(4);
+	crypto.getRandomValues(bytes);
+	const num = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+	return String(num % 1_000_000).padStart(6, '0');
+}
+
+/** Persiste um desafio 2FA no banco e retorna o desafioId (UUID aleatório). */
+export async function criarDesafio2FA(
+	db: Database,
+	tipo: 'policial' | 'admin',
+	usuarioId: number,
+	codigo: string
+): Promise<string> {
+	const desafioId = gerarToken();
+	const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+	await db.insert(doisFatoresTokens).values({
+		desafio_id: desafioId,
+		tipo,
+		usuario_id: usuarioId,
+		codigo,
+		expires_at: expiresAt
+	});
+	return desafioId;
+}
+
+/**
+ * Verifica um desafio 2FA.
+ * Retorna os dados do usuário se válido, ou uma string descrevendo o erro.
+ */
+export async function verificarDesafio2FA(
+	db: Database,
+	desafioId: string,
+	codigoInput: string
+): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'esgotado' | null> {
+	const desafio = await db
+		.select()
+		.from(doisFatoresTokens)
+		.where(eq(doisFatoresTokens.desafio_id, desafioId))
+		.get();
+
+	if (!desafio || desafio.usado === 1) return null;
+	if (new Date() > new Date(desafio.expires_at)) return 'expirado';
+	if (desafio.tentativas >= 5) return 'esgotado';
+
+	if (desafio.codigo !== codigoInput) {
+		await db
+			.update(doisFatoresTokens)
+			.set({ tentativas: desafio.tentativas + 1 })
+			.where(eq(doisFatoresTokens.id, desafio.id));
+		return null;
+	}
+
+	await db
+		.update(doisFatoresTokens)
+		.set({ usado: 1 })
+		.where(eq(doisFatoresTokens.id, desafio.id));
+
+	return { tipo: desafio.tipo as 'policial' | 'admin', usuarioId: desafio.usuario_id };
 }

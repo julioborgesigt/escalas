@@ -270,7 +270,7 @@
 												</div>
 											</div>
 										{:else if q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'}
-											<div class="grid grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
+											<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
 												<div class="space-y-1">
 													<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for="nom-{q.id}-{i}">Nome da Operação</label>
 													<input id="nom-{q.id}-{i}" type="text" placeholder="Nome" class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium" 
@@ -283,7 +283,7 @@
 												</div>
 											</div>
 										{:else}
-											<div class="grid grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
+											<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
 												<div class="space-y-1">
 													<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for="n-{q.id}-{i}">Nome</label>
 													<input id="n-{q.id}-{i}" type="text" placeholder="Nome Completo" class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium" 
