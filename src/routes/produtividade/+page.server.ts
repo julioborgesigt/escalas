@@ -7,17 +7,17 @@ export async function load({ locals, platform }) {
 	}
 
 	const db = getDB(platform);
-	const [lista, modeloRow, seccionais] = await Promise.all([
+	const [lista, modeloOpRow, modeloSeintRow, seccionais] = await Promise.all([
 		listarTodasRespostasGise(db),
-		buscarGiseModeloFormulario(db),
+		buscarGiseModeloFormulario(db, 'operacional'),
+		buscarGiseModeloFormulario(db, 'seint'),
 		buscarSeccionaisUnidades(db)
 	]);
 
-	const modelo = JSON.parse(modeloRow?.config || '[]');
-
 	return {
 		lista,
-		modelo,
+		modeloOperacional: JSON.parse(modeloOpRow?.config || '[]'),
+		modeloSeint: JSON.parse(modeloSeintRow?.config || '[]'),
 		seccionais
 	};
 }

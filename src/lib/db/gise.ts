@@ -726,21 +726,52 @@ const DEFAULT_QUESTIONS = [
 	{ id: 19, texto: '19. RESUMO DILIGÊNCIAS', tipo: 'textarea', key: 'descricao', filhos: [] }
 ];
 
+const DEFAULT_SEINT_QUESTIONS = [
+	{ id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
+		{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
+		{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
+	] },
+	{ id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
+		{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
+		{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
+	] },
+	{ id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
+		{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
+		{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
+	] },
+	{ id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
+		{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
+		{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
+	] },
+	{ id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
+		{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
+		{ id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
+			{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
+		] }
+	] }
+];
+
 export async function buscarRespostasProdutividadeSeccional(
 	db: any,
 	giseId: number,
 	seccionalId: number
 ) {
-	const configRow = await db.select().from(giseModeloFormulario).get();
-	let modeloPerguntas: any[];
-	try {
-		modeloPerguntas = configRow ? JSON.parse(configRow.config) : DEFAULT_QUESTIONS;
-	} catch {
-		modeloPerguntas = DEFAULT_QUESTIONS;
-	}
+	const configRows = await db.select().from(giseModeloFormulario).all();
+	const modelosMap = new Map();
+	configRows.forEach((row: any) => {
+		try {
+			modelosMap.set(row.tipo, JSON.parse(row.config));
+		} catch (e) {
+			console.error('Erro ao parsear modelo', row.tipo, e);
+		}
+	});
 
 	const rows = await db
-		.select({ equipe_id: giseRespostasFormulario.equipe_id, respostas: giseRespostasFormulario.respostas })
+		.select({
+			equipe_id: giseRespostasFormulario.equipe_id,
+			respostas: giseRespostasFormulario.respostas,
+			equipe_tipo: giseEquipes.tipo
+		})
 		.from(giseRespostasFormulario)
 		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
 		.where(
@@ -810,6 +841,10 @@ export async function buscarRespostasProdutividadeSeccional(
 		} catch {
 			continue;
 		}
+
+		const modeloPerguntas = modelosMap.get(r.equipe_tipo) ||
+			(r.equipe_tipo === 'seint' ? DEFAULT_SEINT_QUESTIONS : DEFAULT_QUESTIONS);
+
 		processarPerguntas(modeloPerguntas, resps, r.equipe_id!);
 	}
 
@@ -904,18 +939,31 @@ export async function isMembroGiseAtiva(db: Database, policialId: number): Promi
 
 // ---- Formulário modelo ----
 
-export async function buscarGiseModeloFormulario(db: Database) {
-	return db.select().from(giseModeloFormulario).where(eq(giseModeloFormulario.id, 1)).get();
+export async function buscarGiseModeloFormulario(db: Database, tipo: 'operacional' | 'seint' = 'operacional') {
+	try {
+		return db.select().from(giseModeloFormulario).where(eq(giseModeloFormulario.tipo, tipo)).get();
+	} catch (e) {
+		console.error(`Erro ao buscar modelo GISE de tipo ${tipo}. Provavelmente a migration 0042 ainda não foi rodada.`, e);
+		return null;
+	}
 }
 
-export async function salvarGiseModeloFormulario(db: Database, config: string) {
+export async function salvarGiseModeloFormulario(db: Database, tipo: 'operacional' | 'seint', config: string) {
+	const existente = await db.select({ id: giseModeloFormulario.id })
+		.from(giseModeloFormulario)
+		.where(eq(giseModeloFormulario.tipo, tipo))
+		.get();
+
+	if (existente) {
+		return db
+			.update(giseModeloFormulario)
+			.set({ config, updated_at: sql`datetime('now', '-3 hours')` })
+			.where(eq(giseModeloFormulario.id, existente.id));
+	}
+
 	return db
 		.insert(giseModeloFormulario)
-		.values({ id: 1, config, updated_at: sql`datetime('now')` })
-		.onConflictDoUpdate({
-			target: [giseModeloFormulario.id],
-			set: { config, updated_at: sql`datetime('now', '-3 hours')` }
-		});
+		.values({ tipo, config, updated_at: sql`datetime('now', '-3 hours')` });
 }
 
 // ---- Respostas ----
