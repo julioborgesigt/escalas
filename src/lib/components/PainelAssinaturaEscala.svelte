@@ -876,6 +876,7 @@
 				onConfirm={assinarSimples}
 				onCancel={() => (dialogSignOpen = false)}
 				exigirFoto={page.data.exigirFotoAssinatura ?? true}
+				exigirGps={page.data.exigirGpsAssinatura ?? true}
 			/>
 		</div>
 	</Dialog.Content>

@@ -1871,18 +1871,22 @@
 									disabled={salvando}
 									title="Excluir seccional desta escala"
 								>
-									<svg
-										class="w-3.5 h-3.5"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-										/></svg
-									>
+									{#if salvando}
+										<Spinner size="xs" />
+									{:else}
+										<svg
+											class="w-3.5 h-3.5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+											/></svg
+										>
+									{/if}
 									Excluir
 								</button>
 							{/if}
@@ -2115,14 +2119,15 @@
 											</select>
 											<div class="flex gap-2 shrink-0">
 												<button
-													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl"
+													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
 													onclick={() =>
 														salvarUnidadeOperacional(
 															sec.id,
 														)}
 													disabled={salvando}
 												>
-													Salvar
+													{#if salvando}<Spinner size="xs" />{/if}
+													{salvando ? 'Salvando...' : 'Salvar'}
 												</button>
 												{#if sec.unidade_operacional_nome}
 													<button
@@ -2200,13 +2205,13 @@
 														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 													/>
 													<button
-														class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg"
+														class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5"
 														onclick={() =>
 															salvarSlotsEquipe(
 																equipe.id,
 															)}
 														disabled={salvando}
-														>Salvar</button
+														>{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Salvando...' : 'Salvar'}</button
 													>
 													<button
 														class="btn preset-outlined-surface text-sm px-2 py-1 rounded-lg"
@@ -2577,11 +2582,11 @@
 											/>
 										</div>
 										<button
-											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5"
 											onclick={() =>
 												adicionarEquipe(sec.id)}
 											disabled={salvando}
-											>Adicionar</button
+											>{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Adicionando...' : 'Adicionar'}</button
 										>
 										<button
 											class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
@@ -2790,10 +2795,11 @@
 					>Cancelar</button
 				>
 				<button
-					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
 					onclick={salvarDatasHorarios}
 					disabled={salvando}
 				>
+					{#if salvando}<Spinner size="sm" />{/if}
 					{salvando ? "Salvando..." : "Salvar"}
 				</button>
 			</div>
@@ -2938,6 +2944,7 @@
 				onConfirm={confirmarRubrica}
 				onCancel={() => (showRubricaModal = false)}
 				exigirFoto={page.data.exigirFotoAssinatura ?? true}
+				exigirGps={page.data.exigirGpsAssinatura ?? true}
 			/>
 
 			<p class="text-sm text-surface-400 text-center italic">
