@@ -36,6 +36,51 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'X-XSS-Protection': '1; mode=block'
 };
 
+/**
+ * Content-Security-Policy adaptada por tipo de resposta.
+ * - Páginas HTML: política completa com fontes permitidas
+ * - API/JSON: bloqueia tudo (sem scripts, styles, frames, etc.)
+ *
+ * Exportada para testes unitários.
+ */
+export function buildCSP(isHTML: boolean): string {
+	if (!isHTML) {
+		// Respostas API não precisam de nada além de dados
+		return "default-src 'none'; base-uri 'none'; form-action 'none'";
+	}
+
+	// Em desenvolvimento, permitir hot-module-reloading do Vite
+	const isDev = process.env.NODE_ENV !== 'production';
+	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
+	const connectExtra = isDev ? ' http://localhost:*' : '';
+
+	return [
+		// Scripts: apenas origem própria + inline (SvelteKit precisa) + eval em dev
+		`default-src 'self'`,
+		`script-src 'self' 'unsafe-inline'${scriptExtra}`,
+		// Estilos: origem própria + inline (SvelteKit injeta CSS inline)
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+		// Imagens: origem própria + data URIs (QR code, ícones) + blobs (selfies) + fontes
+		`img-src 'self' data: blob: https://fonts.gstatic.com`,
+		// Fontes: origem própria + Google Fonts + data URIs
+		`font-src 'self' data: https://fonts.gstatic.com`,
+		// Conexões: origem própria + Sentry (se configurado) + APIs externas necessárias
+		`connect-src 'self'${connectExtra}`,
+		// Frames: negar tudo (X-Frame-Options já faz DENY, CSP reforça)
+		`frame-src 'none'`,
+		// Objects: negar (não usamos <object>, <embed>, <applet>)
+		`object-src 'none'`,
+		// Base URI: restringir à origem própria
+		`base-uri 'self'`,
+		// Form actions: apenas origem própria
+		`form-action 'self'`,
+		// Upgrade requests HTTP para HTTPS automaticamente
+		`upgrade-insecure-requests`,
+		// Bloquear conteúdo misto (HTTP em página HTTPS)
+		`block-all-mixed-content`
+	].join('; ');
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
@@ -121,6 +166,12 @@ function applySecurityHeaders(response: Response, url: URL): void {
 	for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(key, value);
 	}
+
+	// Content-Security-Policy adaptada ao tipo de conteúdo
+	const contentType = response.headers.get('content-type') || '';
+	const isHTML = contentType.includes('text/html');
+	response.headers.set('Content-Security-Policy', buildCSP(isHTML));
+
 	// HSTS apenas em HTTPS (produção)
 	if (url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

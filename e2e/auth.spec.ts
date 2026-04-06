@@ -75,4 +75,22 @@ test.describe('Security headers', () => {
 		expect(response.headers()['x-content-type-options']).toBe('nosniff');
 		expect(response.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
 	});
+
+	test('respostas HTML incluem Content-Security-Policy', async ({ request }) => {
+		const response = await request.get('/login');
+		const csp = response.headers()['content-security-policy'];
+		expect(csp).toBeDefined();
+		expect(csp).toContain("script-src 'self'");
+		expect(csp).toContain("style-src 'self'");
+		expect(csp).toContain('upgrade-insecure-requests');
+		expect(csp).toContain('block-all-mixed-content');
+	});
+
+	test('respostas API têm CSP restritiva', async ({ request }) => {
+		const response = await request.get('/api/health');
+		const csp = response.headers()['content-security-policy'];
+		expect(csp).toBeDefined();
+		expect(csp).toContain("default-src 'none'");
+		expect(csp).toContain("form-action 'none'");
+	});
 });
