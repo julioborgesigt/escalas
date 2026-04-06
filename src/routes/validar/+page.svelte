@@ -1,13 +1,14 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
 	import { goto } from '$app/navigation';
+	import Spinner from '$lib/components/Spinner.svelte';
 
-	// Svelte 5 state management
 	let hash = $state('');
+	let loading = $state(false);
 
 	function validar() {
 		if (hash.trim()) {
-			// Redirecting to the dynamic subroute [hash]
+			loading = true;
 			goto(`/validar/${hash.trim()}`);
 		}
 	}
@@ -17,28 +18,57 @@
 	<title>Validar Documento - Escalas PC-CE</title>
 </svelte:head>
 
-<div class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-center p-4">
-	<div class="card w-full max-w-lg bg-white dark:bg-surface-800 shadow-2xl border border-surface-200 dark:border-white/10 rounded-3xl overflow-hidden p-8 sm:p-12 transition-all hover:shadow-primary-500/5">
-		
+<div
+	class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-center p-4"
+>
+	<div
+		class="card w-full max-w-lg bg-white dark:bg-surface-800 shadow-2xl border border-surface-200 dark:border-white/10 rounded-3xl overflow-hidden p-8 sm:p-12 transition-all hover:shadow-primary-500/5"
+	>
 		<!-- Header / Identity -->
 		<div class="flex flex-col items-center mb-10">
 			<div class="relative mb-6">
 				<div class="absolute -inset-1 rounded-full bg-primary-500/20 blur-xl animate-pulse"></div>
 				<img src={icon} alt="Logo PC-CE" class="relative w-20 sm:w-24 drop-shadow-2xl" />
 			</div>
-			<span class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.3em] mb-2">Portal de Autenticidade</span>
-			<h1 class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white uppercase tracking-tighter text-center leading-none">Verificação de Documentos</h1>
-			<p class="text-surface-500 font-medium text-center mt-3 text-sm max-w-[280px]">Confirme a validade jurídica de escalas e relatórios oficiais.</p>
+			<span
+				class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.3em] mb-2"
+				>Portal de Autenticidade</span
+			>
+			<h1
+				class="text-2xl sm:text-3xl font-black text-surface-900 dark:text-white uppercase tracking-tighter text-center leading-none"
+			>
+				Verificação de Documentos
+			</h1>
+			<p class="text-surface-500 font-medium text-center mt-3 text-sm max-w-[280px]">
+				Confirme a validade jurídica de escalas e relatórios oficiais.
+			</p>
 		</div>
 
 		<!-- Validation Form -->
-		<form onsubmit={(e) => { e.preventDefault(); validar(); }} class="space-y-6">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				validar();
+			}}
+			class="space-y-6"
+		>
 			<div class="space-y-2">
-				<label for="hash" class="block text-[10px] font-bold text-surface-400 uppercase tracking-widest ml-1">Código de Verificação (Hash)</label>
+				<label
+					for="hash"
+					class="block text-[10px] font-bold text-surface-400 uppercase tracking-widest ml-1"
+					>Código de Verificação (Hash)</label
+				>
 				<div class="relative group">
-					<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400 group-focus-within:text-primary-500 transition-colors">
+					<div
+						class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-surface-400 group-focus-within:text-primary-500 transition-colors"
+					>
 						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+							/>
 						</svg>
 					</div>
 					<input
@@ -58,8 +88,15 @@
 				disabled={!hash.trim()}
 				class="group relative w-full py-5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-black uppercase tracking-[0.15em] rounded-2xl shadow-xl shadow-primary-600/20 transition-all disabled:opacity-30 disabled:grayscale disabled:shadow-none overflow-hidden"
 			>
-				<div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-				<span class="relative">Verificar Autenticidade</span>
+				<div
+					class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
+				></div>
+				<span class="relative flex items-center justify-center gap-2">
+					{#if loading}
+						<Spinner size="sm" />
+					{/if}
+					Verificar Autenticidade
+				</span>
 			</button>
 		</form>
 
@@ -67,17 +104,25 @@
 		<div class="mt-12 pt-8 border-t border-surface-100 dark:border-white/5 text-center">
 			<div class="flex items-center justify-center gap-2 text-surface-400 text-[11px] mb-4">
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+					/>
 				</svg>
 				<span>Onde encontrar o código?</span>
 			</div>
 			<p class="text-[10px] text-surface-400 leading-relaxed max-w-[320px] mx-auto italic">
-				O código alfanumérico está localizado no rodapé do documento impresso, logo abaixo do QR Code de validação.
+				O código alfanumérico está localizado no rodapé do documento impresso, logo abaixo do QR
+				Code de validação.
 			</p>
 		</div>
 	</div>
-	
-	<p class="mt-10 text-[10px] text-surface-400/50 uppercase font-black tracking-[0.3em]">Ambiente Seguro PC-CE</p>
+
+	<p class="mt-10 text-[10px] text-surface-400/50 uppercase font-black tracking-[0.3em]">
+		Ambiente Seguro PC-CE
+	</p>
 </div>
 
 <style>
