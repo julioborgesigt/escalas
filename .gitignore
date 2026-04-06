@@ -22,3 +22,6 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Variaveis de ambiente locais (NUNCA comitar)
+.dev.vars

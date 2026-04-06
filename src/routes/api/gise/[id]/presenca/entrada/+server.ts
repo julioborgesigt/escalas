@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, salvarEntradaGise, buscarGiseEscala } from '$lib/db';
+import { getDB, getR2, hasR2, salvarEntradaGise, buscarGiseEscala } from '$lib/db';
 
 export const POST = async ({ locals, params, request, platform, getClientAddress }: any) => {
 	const u = locals.usuario;
@@ -18,9 +18,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 	if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
 	let selfieKey: string | undefined = undefined;
-	const r2 = platform?.env?.escalas_docs;
 
-	if (r2 && selfieBase64) {
+	if (hasR2(platform) && selfieBase64) {
+		const r2 = getR2(platform);
 		const regex = /^data:image\/(jpeg|png|jpg);base64,/;
 		const matches = selfieBase64.match(regex);
 		if (matches) {

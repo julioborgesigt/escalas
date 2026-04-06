@@ -11,10 +11,20 @@ declare global {
 			message: string;
 			errorId?: string;
 		}
-		// Platform is declared by @sveltejs/adapter-cloudflare with env: unknown.
-		// Cloudflare D1/R2 bindings are accessed via typed helpers (getDB, getR2)
-		// that cast the platform env safely at the boundary.
+		interface Platform {
+			env: {
+				escalas_db: D1Database;
+				escalas_docs: R2Bucket;
+				GMAIL_USER?: string;
+				GMAIL_APP_PASSWORD?: string;
+				SENTRY_DSN?: string;
+				ADMIN_GERAL_LOGIN?: string;
+				ADMIN_GERAL_SENHA?: string;
+			};
+			cf: CfProperties;
+			ctx: ExecutionContext;
+		}
 	}
 }
 
-export {};
+export { };

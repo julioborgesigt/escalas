@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { getDB, buscarDocumentoEscala, excluirDocumentoEscala } from '$lib/db';
+import { getDB, getR2, hasR2, buscarDocumentoEscala, excluirDocumentoEscala } from '$lib/db';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
@@ -16,11 +16,12 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 		return json({ error: 'Documento assinado não encontrado para esta escala' }, { status: 404 });
 	}
 
-	if (!platform?.env?.escalas_docs) {
+	if (!hasR2(platform)) {
 		return json({ error: 'Storage R2 não configurado no servidor' }, { status: 500 });
 	}
 
-	const object = await platform.env.escalas_docs.get(documento.r2_key);
+	const bucket = getR2(platform);
+	const object = await bucket.get(documento.r2_key);
 	if (!object) {
 		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
 	}
@@ -51,8 +52,9 @@ export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 	}
 
 	// Deleta do R2
-	if (platform?.env?.escalas_docs) {
-		await platform.env.escalas_docs.delete(documento.r2_key);
+	if (hasR2(platform)) {
+		const bucket = getR2(platform);
+		await bucket.delete(documento.r2_key);
 	}
 
 	// Deleta do Banco
