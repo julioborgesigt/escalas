@@ -63,21 +63,3 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		return json({ error: 'Erro interno ao criar policial' }, { status: 500 });
 	}
 };
-
-export const DELETE: RequestHandler = async ({ platform, url, locals }) => {
-	const db = getDB(platform);
-	const id = url.searchParams.get('id');
-	if (!id) return json({ error: 'ID obrigatório' }, { status: 400 });
-
-	// Policial só pode excluir da sua lotação
-	if (locals.usuario?.tipo === 'policial') {
-		const { buscarPolicial } = await import('$lib/db');
-		const policial = await buscarPolicial(db, Number(id));
-		if (policial && policial.lotacao !== locals.usuario.lotacao) {
-			return json({ error: 'Sem permissão' }, { status: 403 });
-		}
-	}
-
-	await excluirPolicial(db, Number(id));
-	return json({ success: true });
-};
