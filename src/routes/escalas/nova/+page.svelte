@@ -40,11 +40,23 @@
 	// Se true, o form de FDS mostra o seletor de data do fim de semana
 	let fdsDataInicio = $state('');
 
-	const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-		'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+	const MESES_PT = [
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
+	];
 
 	function toISO(y: number, m: number, d: number) {
-		return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 	}
 
 	function diasNoMes(y: number, m: number) {
@@ -99,10 +111,10 @@
 		const sab = new Date(fdsDataInicio + 'T00:00:00');
 		const dom = new Date(sab);
 		dom.setDate(sab.getDate() + 1);
-		const dS = String(sab.getDate()).padStart(2,'0');
-		const mS = String(sab.getMonth()+1).padStart(2,'0');
-		const dD = String(dom.getDate()).padStart(2,'0');
-		const mD = String(dom.getMonth()+1).padStart(2,'0');
+		const dS = String(sab.getDate()).padStart(2, '0');
+		const mS = String(sab.getMonth() + 1).padStart(2, '0');
+		const dD = String(dom.getDate()).padStart(2, '0');
+		const mD = String(dom.getMonth() + 1).padStart(2, '0');
 		titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
 		dataInicio = fdsDataInicio;
 		const seg = new Date(sab);
@@ -126,15 +138,34 @@
 		}
 	}
 
-	function tiposDisponiveis(u: UnidadeRegime): Array<{ tipo: 'plantao' | 'expediente' | 'fds'; label: string; desc: string; icon: string }> {
+	function tiposDisponiveis(
+		u: UnidadeRegime
+	): Array<{ tipo: 'plantao' | 'expediente' | 'fds'; label: string; desc: string; icon: string }> {
 		const tipos = [];
-		if (u.tem_plantao) tipos.push({ tipo: 'plantao' as const, label: 'Plantão Mensal', desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`, icon: '🌙' });
-		if (u.tem_expediente) tipos.push({ tipo: 'expediente' as const, label: 'Expediente Mensal', desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`, icon: '☀️' });
+		if (u.tem_plantao)
+			tipos.push({
+				tipo: 'plantao' as const,
+				label: 'Plantão Mensal',
+				desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`,
+				icon: '🌙'
+			});
+		if (u.tem_expediente)
+			tipos.push({
+				tipo: 'expediente' as const,
+				label: 'Expediente Mensal',
+				desc: `${MESES_PT[nextMes() - 1]} ${nextAno()}`,
+				icon: '☀️'
+			});
 		if (u.tem_fds) {
 			const sab = sabadoDaSemana();
-			const dS = String(sab.getDate()).padStart(2,'0');
-			const mS = String(sab.getMonth()+1).padStart(2,'0');
-			tipos.push({ tipo: 'fds' as const, label: 'Final de Semana', desc: `FDS ${dS}/${mS}`, icon: '📅' });
+			const dS = String(sab.getDate()).padStart(2, '0');
+			const mS = String(sab.getMonth() + 1).padStart(2, '0');
+			tipos.push({
+				tipo: 'fds' as const,
+				label: 'Final de Semana',
+				desc: `FDS ${dS}/${mS}`,
+				icon: '📅'
+			});
 		}
 		return tipos;
 	}
@@ -150,14 +181,16 @@
 
 	const temVariasUnidades = $derived(unidadesComRegime.length > 1);
 	const precisaEscolherTipo = $derived(
-		unidadeEscolhida !== null && tipoEscolhido === null && tiposDisponiveis(unidadeEscolhida).length > 1
+		unidadeEscolhida !== null &&
+			tipoEscolhido === null &&
+			tiposDisponiveis(unidadeEscolhida).length > 1
 	);
 	const isMensal = $derived(tipoEscolhido === 'plantao' || tipoEscolhido === 'expediente');
 
 	$effect(() => {
 		Promise.all([
-			fetch('/api/lotacoes/regimes').then(r => r.ok ? r.json() : []),
-			fetch('/api/lotacoes').then(r => r.ok ? r.json() : [])
+			fetch('/api/lotacoes/regimes').then((r) => (r.ok ? r.json() : [])),
+			fetch('/api/lotacoes').then((r) => (r.ok ? r.json() : []))
 		]).then(([regimes, lotes]) => {
 			unidadesComRegime = regimes;
 			lotacoes = lotes;
@@ -235,13 +268,16 @@
 
 <!-- =========== SELETOR DE REGIME =========== -->
 {#if selecionando}
-	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
+	<div
+		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+	>
 		{#if unidadesComRegime.length === 0}
-			<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+			<div
+				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
+			>
 				<Spinner size="xl" />
 				<span class="text-sm">Carregando tipos de escala...</span>
 			</div>
-
 		{:else if temVariasUnidades && !unidadeEscolhida}
 			<h2 class="font-bold text-lg mb-5">Qual unidade é a escala?</h2>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -252,25 +288,37 @@
 							class="p-4 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500/50 hover:bg-primary-500/5 transition-all text-left group"
 							onclick={() => escolherUnidade(u)}
 						>
-							<p class="font-semibold text-sm group-hover:text-primary-500 transition-colors">{u.nome}</p>
+							<p class="font-semibold text-sm group-hover:text-primary-500 transition-colors">
+								{u.nome}
+							</p>
 							<div class="flex gap-1.5 mt-2 flex-wrap">
 								{#each tipos as t}
-									<span class="text-[10px] font-bold badge bg-surface-200/80 dark:bg-surface-700/80 px-1.5">{t.icon} {t.label}</span>
+									<span
+										class="text-[10px] font-bold badge bg-surface-200/80 dark:bg-surface-700/80 px-1.5"
+										>{t.icon} {t.label}</span
+									>
 								{/each}
 							</div>
 						</button>
 					{/if}
 				{/each}
 			</div>
-
 		{:else if unidadeEscolhida && precisaEscolherTipo}
 			<div class="flex items-center gap-3 mb-5">
 				{#if temVariasUnidades}
-					<button class="btn btn-sm preset-outlined-surface" onclick={() => { unidadeEscolhida = null; tipoEscolhido = null; }}>
+					<button
+						class="btn btn-sm preset-outlined-surface"
+						onclick={() => {
+							unidadeEscolhida = null;
+							tipoEscolhido = null;
+						}}
+					>
 						← Voltar
 					</button>
 				{/if}
-				<h2 class="font-bold text-lg">Qual tipo de escala para <span class="text-primary-500">{unidadeEscolhida.nome}</span>?</h2>
+				<h2 class="font-bold text-lg">
+					Qual tipo de escala para <span class="text-primary-500">{unidadeEscolhida.nome}</span>?
+				</h2>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				{#each tiposDisponiveis(unidadeEscolhida) as t}
@@ -279,28 +327,37 @@
 						onclick={() => escolherTipo(t.tipo)}
 					>
 						<p class="text-3xl mb-2">{t.icon}</p>
-						<p class="font-bold text-sm group-hover:text-primary-500 transition-colors">{t.label}</p>
+						<p class="font-bold text-sm group-hover:text-primary-500 transition-colors">
+							{t.label}
+						</p>
 						<p class="text-xs text-surface-500 mt-1">{t.desc}</p>
 					</button>
 				{/each}
 			</div>
-		{:else if unidadesComRegime.length > 0 && unidadesComRegime.every(u => !u.tem_plantao && !u.tem_expediente && !u.tem_fds)}
+		{:else if unidadesComRegime.length > 0 && unidadesComRegime.every((u) => !u.tem_plantao && !u.tem_expediente && !u.tem_fds)}
 			<p class="text-center py-6 text-surface-500">
 				Nenhuma unidade tem regime configurado.
-				<a href="/unidades" class="text-primary-500 underline">Configure em Unidades</a> ou crie manualmente abaixo.
+				<a href="/unidades" class="text-primary-500 underline">Configure em Unidades</a> ou crie manualmente
+				abaixo.
 			</p>
 			<div class="flex justify-center mt-2">
-				<button class="btn preset-filled-primary-500" onclick={() => selecionando = false}>
+				<button class="btn preset-filled-primary-500" onclick={() => (selecionando = false)}>
 					Criar manualmente
 				</button>
 			</div>
 		{/if}
 	</div>
 
-<!-- =========== FORMULÁRIO =========== -->
+	<!-- =========== FORMULÁRIO =========== -->
 {:else}
 	<div class="mb-4 flex items-center gap-2">
-		<button class="btn btn-sm preset-outlined-surface" onclick={() => { selecionando = true; tipoEscolhido = null; }}>
+		<button
+			class="btn btn-sm preset-outlined-surface"
+			onclick={() => {
+				selecionando = true;
+				tipoEscolhido = null;
+			}}
+		>
 			← Mudar tipo de escala
 		</button>
 		{#if tipoEscolhido === 'plantao'}
@@ -312,13 +369,24 @@
 		{/if}
 	</div>
 
-	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
+	<div
+		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+	>
 		<form onsubmit={salvar} class="space-y-4">
 			<!-- Unidade (admin) -->
 			{#if isAdmin}
 				<label class="label">
 					<span class="label-text">Unidade / Cidade</span>
-					<select class="select" bind:value={cidade} onchange={() => { lotacaoEscala = cidade; if (tipoEscolhido && unidadeEscolhida) preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida); }} required>
+					<select
+						class="select"
+						bind:value={cidade}
+						onchange={() => {
+							lotacaoEscala = cidade;
+							if (tipoEscolhido && unidadeEscolhida)
+								preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida);
+						}}
+						required
+					>
 						<option value="" disabled>Selecione...</option>
 						{#each lotacoes as lot (lot)}
 							<option value={lot}>{lot}</option>
@@ -326,22 +394,40 @@
 					</select>
 				</label>
 			{:else}
-				<p class="text-sm font-medium text-surface-500">Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{cidade}</span></p>
+				<p class="text-sm font-medium text-surface-500">
+					Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{cidade}</span>
+				</p>
 			{/if}
 
 			<!-- Para plantão/expediente: período implícito mostrado como info -->
 			{#if isMensal}
-				<div class="rounded-xl bg-surface-100 dark:bg-surface-800/60 px-4 py-3 text-sm text-surface-600 dark:text-surface-400">
-					Período: <strong class="text-surface-900 dark:text-surface-100">{dataInicio ? new Date(dataInicio + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
-					até <strong class="text-surface-900 dark:text-surface-100">{dataFim ? new Date(dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
-					· Horário: <strong class="text-surface-900 dark:text-surface-100">{horarioLabel()}</strong>
+				<div
+					class="rounded-xl bg-surface-100 dark:bg-surface-800/60 px-4 py-3 text-sm text-surface-600 dark:text-surface-400"
+				>
+					Período: <strong class="text-surface-900 dark:text-surface-100"
+						>{dataInicio
+							? new Date(dataInicio + 'T00:00:00').toLocaleDateString('pt-BR')
+							: '—'}</strong
+					>
+					até
+					<strong class="text-surface-900 dark:text-surface-100"
+						>{dataFim ? new Date(dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong
+					>
+					· Horário:
+					<strong class="text-surface-900 dark:text-surface-100">{horarioLabel()}</strong>
 				</div>
 
-			<!-- Para FDS: seletor de data do sábado -->
+				<!-- Para FDS: seletor de data do sábado -->
 			{:else if tipoEscolhido === 'fds'}
 				<label class="label">
 					<span class="label-text">Data do Sábado</span>
-					<input class="input" type="date" bind:value={fdsDataInicio} onchange={atualizarTituloFds} required />
+					<input
+						class="input"
+						type="date"
+						bind:value={fdsDataInicio}
+						onchange={atualizarTituloFds}
+						required
+					/>
 				</label>
 				<div class="flex flex-col sm:flex-row gap-3">
 					<div class="flex flex-col gap-2 flex-1">
@@ -381,12 +467,18 @@
 				<input class="input" type="text" bind:value={titulo} required />
 			</label>
 
-			<div class="flex gap-3 pt-2">
-				<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={saving}>
+			<div class="flex flex-col sm:flex-row gap-3 pt-2">
+				<button
+					type="submit"
+					class="btn preset-filled-primary-500 flex items-center gap-2 w-full sm:w-auto"
+					disabled={saving}
+				>
 					{#if saving}<Spinner size="md" />{/if}
 					{saving ? 'Criando...' : 'Criar Escala'}
 				</button>
-				<a href="/escalas" class="btn preset-outlined-primary-500">Cancelar</a>
+				<a href="/escalas" class="btn preset-outlined-primary-500 w-full sm:w-auto text-center"
+					>Cancelar</a
+				>
 			</div>
 		</form>
 	</div>
