@@ -105,6 +105,11 @@ export async function registrarAuditComContexto(
 	});
 }
 
+/** Escapa caracteres especiais do LIKE para evitar wildcard injection */
+function escapeLike(str: string): string {
+	return str.replace(/[%_\\]/g, '\\$&');
+}
+
 /**
  * Lista entradas do log de auditoria com filtros e paginação.
  */
@@ -137,8 +142,9 @@ export async function listarAuditLog(
 		conditions.push(eq(auditLog.acao, opts.acao));
 	}
 	if (opts?.busca) {
+		const b = escapeLike(opts.busca);
 		conditions.push(
-			sql`${auditLog.usuario_nome} LIKE ${'%' + opts.busca + '%'} OR ${auditLog.detalhes} LIKE ${'%' + opts.busca + '%'}`
+			sql`${auditLog.usuario_nome} LIKE ${'%' + b + '%'} OR ${auditLog.detalhes} LIKE ${'%' + b + '%'}`
 		);
 	}
 

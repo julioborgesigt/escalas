@@ -13,6 +13,7 @@ import {
 	unidades
 } from '../server/schema';
 import { getNowBR } from '../utils';
+import { logger } from '../server/logger';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 
@@ -102,12 +103,12 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.all(),
 		policialId
 			? db
-					.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
-					.from(giseMembros)
-					.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-					.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-					.where(and(inArray(giseSeccionais.gise_id, escalaIds), eq(giseMembros.policial_id, policialId)))
-					.all()
+				.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
+				.from(giseMembros)
+				.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+				.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+				.where(and(inArray(giseSeccionais.gise_id, escalaIds), eq(giseMembros.policial_id, policialId)))
+				.all()
 			: Promise.resolve([])
 	]);
 
@@ -212,10 +213,10 @@ export async function buscarGiseDetalhado(
 	] = await Promise.all([
 		gise.supervisor_id
 			? db
-					.select({ nome: policiais.nome, matricula: policiais.matricula })
-					.from(policiais)
-					.where(eq(policiais.id, gise.supervisor_id))
-					.get()
+				.select({ nome: policiais.nome, matricula: policiais.matricula })
+				.from(policiais)
+				.where(eq(policiais.id, gise.supervisor_id))
+				.get()
 			: Promise.resolve(null),
 		db
 			.select()
@@ -361,14 +362,14 @@ export async function atualizarGiseEscala(
 		hora_entrada: string;
 		hora_saida: string;
 		status:
-			| 'em_definicao_supervisor'
-			| 'em_preenchimento'
-			| 'aguardando_assinatura'
-			| 'em_andamento'
-			| 'aguardando_relatorios'
-			| 'aguardando_assinatura_relat'
-			| 'pronta_para_finalizar'
-			| 'finalizada';
+		| 'em_definicao_supervisor'
+		| 'em_preenchimento'
+		| 'aguardando_assinatura'
+		| 'em_andamento'
+		| 'aguardando_relatorios'
+		| 'aguardando_assinatura_relat'
+		| 'pronta_para_finalizar'
+		| 'finalizada';
 		supervisor_id: number | null;
 	}>
 ) {
@@ -727,28 +728,40 @@ const DEFAULT_QUESTIONS = [
 ];
 
 const DEFAULT_SEINT_QUESTIONS = [
-	{ id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
-		{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
-		{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
-	] },
-	{ id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
-		{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
-		{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
-	] },
-	{ id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
-		{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
-		{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
-	] },
-	{ id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
-		{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
-		{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
-	] },
-	{ id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
-		{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
-		{ id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
-			{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
-		] }
-	] }
+	{
+		id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
+			{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
+			{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
+		]
+	},
+	{
+		id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
+			{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
+			{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
+		]
+	},
+	{
+		id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
+			{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
+			{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
+		]
+	},
+	{
+		id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
+			{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
+			{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
+		]
+	},
+	{
+		id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
+			{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
+			{
+				id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
+					{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
+				]
+			}
+		]
+	}
 ];
 
 export async function buscarRespostasProdutividadeSeccional(
@@ -762,7 +775,7 @@ export async function buscarRespostasProdutividadeSeccional(
 		try {
 			modelosMap.set(row.tipo, JSON.parse(row.config));
 		} catch (e) {
-			console.error('Erro ao parsear modelo', row.tipo, e);
+			logger.error('Erro ao parsear modelo GISE', { tipo: row.tipo, err: String(e) });
 		}
 	});
 
@@ -943,7 +956,7 @@ export async function buscarGiseModeloFormulario(db: Database, tipo: 'operaciona
 	try {
 		return db.select().from(giseModeloFormulario).where(eq(giseModeloFormulario.tipo, tipo)).get();
 	} catch (e) {
-		console.error(`Erro ao buscar modelo GISE de tipo ${tipo}. Provavelmente a migration 0042 ainda não foi rodada.`, e);
+		logger.error('Erro ao buscar modelo GISE — migration 0042 pode não ter sido aplicada', { tipo, err: String(e) });
 		return null;
 	}
 }

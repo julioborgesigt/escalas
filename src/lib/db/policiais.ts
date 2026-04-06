@@ -5,6 +5,11 @@ import { limparMatricula, limparCPF } from '../utils';
 import { gerarSenhaAleatoriaHash } from '../auth';
 import type { Database } from './core';
 
+/** Escapa caracteres especiais do LIKE para evitar wildcard injection */
+function escapeLike(str: string): string {
+	return str.replace(/[%_\\]/g, '\\$&');
+}
+
 export async function listarPoliciais(
 	db: Database,
 	lotacao?: string,
@@ -31,11 +36,11 @@ export async function listarPoliciais(
 
 	// Busca por nome ou matrícula
 	if (opts?.busca) {
-		const buscaLimpa = opts.busca.trim();
+		const buscaEscapada = escapeLike(opts.busca.trim());
 		baseConditions.push(
 			or(
-				like(policiais.nome, `%${buscaLimpa}%`),
-				like(policiais.matricula, `%${buscaLimpa}%`)
+				like(policiais.nome, `%${buscaEscapada}%`),
+				like(policiais.matricula, `%${buscaEscapada}%`)
 			)!
 		);
 	}
