@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - run: npx vitest run --reporter=verbose
       - run: npx svelte-check --threshold error
+      - run: npm run lint
+      - run: npm run format:check
 
   deploy-staging:
     needs: test

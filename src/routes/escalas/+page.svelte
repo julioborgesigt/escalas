@@ -139,7 +139,7 @@
 		const id = escalaParaExcluir.id;
 		const titulo = escalaParaExcluir.titulo;
 
-		const res = await fetch(`/api/escalas?id=${id}`, {
+		const res = await fetch(`/api/escalas/${id}`, {
 			method: "DELETE",
 			headers: csrfHeaders(),
 		});
