@@ -7,10 +7,10 @@ export const escalaSchema = z.object({
 	cidade: z.string().min(1, 'Cidade é obrigatória').max(100, 'Cidade muito longa (máx. 100)'),
 	data_inicio: z.string().regex(DATA_ISO, 'Data início deve estar no formato YYYY-MM-DD'),
 	data_fim: z.string().regex(DATA_ISO, 'Data fim deve estar no formato YYYY-MM-DD'),
-	horario: z.string().default('08H A 08H').max(50),
-	hora_entrada: z.string().default('08').max(5),
-	hora_saida: z.string().default('08').max(5),
-	lotacao: z.string().default('').max(200),
+	horario: z.string().max(50).default('08H A 08H'),
+	hora_entrada: z.string().max(5).default('08'),
+	hora_saida: z.string().max(5).default('08'),
+	lotacao: z.string().max(200).default(''),
 	tipo: z.enum(['plantao', 'expediente', 'fds']).optional()
 });
 
@@ -21,10 +21,10 @@ export const escalaPolicialSchema = z.object({
 		data_plantao: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD'),
 		data_saida: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD')
 	})).optional(),
-	data_saida: z.string().default(''),
-	hora_entrada: z.string().default('').max(5),
-	hora_saida: z.string().default('').max(5),
-	equipe: z.string().default('').max(50)
+	data_saida: z.string().max(10).default(''),
+	hora_entrada: z.string().max(5).default(''),
+	hora_saida: z.string().max(5).default(''),
+	equipe: z.string().max(50).default('')
 });
 
 export type EscalaInput = z.infer<typeof escalaSchema>;
