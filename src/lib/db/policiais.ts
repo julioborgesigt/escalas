@@ -1,4 +1,4 @@
-import { eq, and, or, isNull, asc, sql } from 'drizzle-orm';
+import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
 import { limparMatricula, limparCPF } from '../utils';
@@ -8,17 +8,52 @@ import type { Database } from './core';
 export async function listarPoliciais(
 	db: Database,
 	lotacao?: string,
-	semLotacao?: boolean
-): Promise<Omit<schema.Policial, 'senha'>[]> {
-	const conditions = [eq(policiais.ativo, 1)];
+	semLotacao?: boolean,
+	opts?: {
+		busca?: string;
+		page?: number;
+		limit?: number;
+	}
+): Promise<{
+	policiais: Omit<schema.Policial, 'senha'>[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}> {
+	const baseConditions = [eq(policiais.ativo, 1)];
 
 	if (semLotacao) {
-		conditions.push(or(eq(policiais.lotacao, ''), isNull(policiais.lotacao))!);
+		baseConditions.push(or(eq(policiais.lotacao, ''), isNull(policiais.lotacao))!);
 	} else if (lotacao) {
-		conditions.push(eq(policiais.lotacao, lotacao));
+		baseConditions.push(eq(policiais.lotacao, lotacao));
 	}
 
-	return db
+	// Busca por nome ou matrícula
+	if (opts?.busca) {
+		const buscaLimpa = opts.busca.trim();
+		baseConditions.push(
+			or(
+				like(policiais.nome, `%${buscaLimpa}%`),
+				like(policiais.matricula, `%${buscaLimpa}%`)
+			)!
+		);
+	}
+
+	// Contagem total (antes da paginação)
+	const countResult = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(policiais)
+		.where(and(...baseConditions))
+		.get();
+	const total = Number(countResult?.count ?? 0);
+
+	const page = Math.max(1, opts?.page ?? 1);
+	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
+	const totalPages = Math.ceil(total / limit);
+	const offset = (page - 1) * limit;
+
+	const results = await db
 		.select({
 			id: policiais.id,
 			nome: policiais.nome,
@@ -38,8 +73,18 @@ export async function listarPoliciais(
 			updated_at: policiais.updated_at
 		})
 		.from(policiais)
-		.where(and(...conditions))
-		.orderBy(asc(policiais.cargo), asc(policiais.nome));
+		.where(and(...baseConditions))
+		.orderBy(asc(policiais.cargo), asc(policiais.nome))
+		.limit(limit)
+		.offset(offset);
+
+	return {
+		policiais: results,
+		total,
+		page,
+		limit,
+		totalPages
+	};
 }
 
 export async function buscarPolicial(

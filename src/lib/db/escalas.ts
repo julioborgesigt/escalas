@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -17,8 +17,19 @@ export async function listarEscalas(
 	ano?: number,
 	tipo?: string,
 	visto?: boolean,
-	criadaEmDepoisDe?: string
-): Promise<EscalaListagem[]> {
+	criadaEmDepoisDe?: string,
+	opts?: {
+		busca?: string;
+		page?: number;
+		limit?: number;
+	}
+): Promise<{
+	escalas: EscalaListagem[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}> {
 	const conditions = [];
 
 	if (lotacao) conditions.push(eq(escalas.lotacao, lotacao));
@@ -31,13 +42,43 @@ export async function listarEscalas(
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
 	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}`);
 
-	const query =
-		conditions.length > 0
-			? db.select().from(escalas).where(and(...conditions)).orderBy(desc(escalas.created_at))
-			: db.select().from(escalas).orderBy(desc(escalas.created_at));
+	// Busca por título ou cidade
+	if (opts?.busca) {
+		const buscaLimpa = opts.busca.trim();
+		conditions.push(
+			or(
+				like(escalas.titulo, `%${buscaLimpa}%`),
+				like(escalas.cidade, `%${buscaLimpa}%`)
+			)!
+		);
+	}
 
-	const results = await query;
-	if (results.length === 0) return [];
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	// Contagem total
+	const countResult = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(escalas)
+		.where(whereClause)
+		.get();
+	const total = Number(countResult?.count ?? 0);
+
+	const page = Math.max(1, opts?.page ?? 1);
+	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
+	const totalPages = Math.ceil(total / limit);
+	const offset = (page - 1) * limit;
+
+	const results = await db
+		.select()
+		.from(escalas)
+		.where(whereClause)
+		.orderBy(desc(escalas.created_at))
+		.limit(limit)
+		.offset(offset);
+
+	if (results.length === 0) {
+		return { escalas: [], total, page, limit, totalPages };
+	}
 
 	const escalaIds = results.map((e) => e.id);
 	const docs = await db
@@ -52,7 +93,7 @@ export async function listarEscalas(
 	if (status === 'pendente') mapeadas = mapeadas.filter((e) => !e.is_assinada);
 	else if (status === 'assinada') mapeadas = mapeadas.filter((e) => e.is_assinada);
 
-	return mapeadas;
+	return { escalas: mapeadas, total, page, limit, totalPages };
 }
 
 export async function buscarEscala(

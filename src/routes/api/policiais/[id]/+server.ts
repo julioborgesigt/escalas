@@ -47,11 +47,12 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 		await atualizarPolicial(db, id, { ...parsed.data, email: data.email ?? undefined });
 		return json({ success: true });
 	} catch (e: unknown) {
+		console.error('[PUT /api/policiais/[id]] erro ao atualizar policial:', e);
 		const message = e instanceof Error ? e.message : 'Erro desconhecido';
 		if (message.includes('UNIQUE')) {
 			return json({ error: 'Matrícula já cadastrada' }, { status: 409 });
 		}
-		return json({ error: message }, { status: 500 });
+		return json({ error: 'Erro interno ao atualizar policial' }, { status: 500 });
 	}
 };
 

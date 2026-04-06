@@ -18,13 +18,22 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	const vistoParam = url.searchParams.get('visto');
 	const visto = vistoParam !== null ? vistoParam === 'true' : undefined;
 	const depois = url.searchParams.get('depois') || undefined;
+	// Busca por título ou cidade
+	const busca = url.searchParams.get('busca') || undefined;
+	// Paginação
+	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
+	const limit = url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : undefined;
 
 	if (usuario?.tipo === 'policial') {
 		lotacao = usuario.lotacao;
 	}
 
-	const escalas = await listarEscalas(db, lotacao, status, mes, ano, tipo, visto, depois);
-	return json(escalas);
+	const resultado = await listarEscalas(db, lotacao, status, mes, ano, tipo, visto, depois, {
+		busca,
+		page,
+		limit
+	});
+	return json(resultado);
 };
 
 export const POST: RequestHandler = async ({ platform, request, locals }) => {
@@ -59,7 +68,7 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 					: 'neste mês';
 			const tipoLabel =
 				validated.tipo === 'plantao' ? 'Plantão' :
-				validated.tipo === 'expediente' ? 'Expediente' : 'Final de Semana';
+					validated.tipo === 'expediente' ? 'Expediente' : 'Final de Semana';
 			return json(
 				{ error: `Já existe uma Escala de ${tipoLabel} para ${validated.lotacao} ${periodo}.` },
 				{ status: 409 }

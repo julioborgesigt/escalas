@@ -28,21 +28,21 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	try {
 		// Parallelize independent queries
 		const policiaisPromise = isGeral
-			? listarPoliciais(db)
+			? listarPoliciais(db).then(r => r.policiais)
 			: isSeccional && u.papel_unidade_id
 				? db
-						.select({ nome: unidades.nome })
-						.from(unidades)
-						.where(or(eq(unidades.seccional_id, u.papel_unidade_id!), eq(unidades.id, u.papel_unidade_id!)))
-						.then(async (unidadesSubordinadas) => {
-							const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
-							if (nomesUnidades.length === 0) return [];
-							return db
-								.select()
-								.from(policiais)
-								.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
-								.orderBy(asc(policiais.cargo), asc(policiais.nome));
-						})
+					.select({ nome: unidades.nome })
+					.from(unidades)
+					.where(or(eq(unidades.seccional_id, u.papel_unidade_id!), eq(unidades.id, u.papel_unidade_id!)))
+					.then(async (unidadesSubordinadas) => {
+						const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
+						if (nomesUnidades.length === 0) return [];
+						return db
+							.select()
+							.from(policiais)
+							.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
+							.orderBy(asc(policiais.cargo), asc(policiais.nome));
+					})
 				: Promise.resolve([]);
 
 		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios] = await Promise.all([

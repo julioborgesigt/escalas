@@ -11,14 +11,23 @@ export const GET: RequestHandler = async ({ platform, url, locals }) => {
 	const todos = url.searchParams.get('todos') === '1';
 	// Parâmetro sem_lotacao=1 lista apenas policiais sem lotação (admin only)
 	const semLotacao = url.searchParams.get('sem_lotacao') === '1';
+	// Busca por nome ou matrícula
+	const busca = url.searchParams.get('busca') || undefined;
+	// Paginação
+	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
+	const limit = url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : undefined;
 
 	let lotacao = url.searchParams.get('lotacao') || undefined;
 	if (usuario?.tipo === 'policial' && !todos) {
 		lotacao = usuario.lotacao;
 	}
 
-	const policiais = await listarPoliciais(db, lotacao, semLotacao && usuario?.tipo === 'admin');
-	return json(policiais);
+	const resultado = await listarPoliciais(db, lotacao, semLotacao && usuario?.tipo === 'admin', {
+		busca,
+		page,
+		limit
+	});
+	return json(resultado);
 };
 
 export const POST: RequestHandler = async ({ platform, request, locals }) => {
@@ -40,11 +49,12 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 		await criarPolicial(db, { ...parsed.data, email: data.email || null });
 		return json({ success: true }, { status: 201 });
 	} catch (e: unknown) {
-		const message = e instanceof Error ? e.message : 'Erro desconhecido';
+		console.error('[POST /api/policiais] erro ao criar policial:', e);
+		const message = e instanceof Error ? e.message : String(e);
 		if (message.includes('UNIQUE')) {
 			return json({ error: 'Matrícula já cadastrada' }, { status: 409 });
 		}
-		return json({ error: message }, { status: 500 });
+		return json({ error: 'Erro interno ao criar policial' }, { status: 500 });
 	}
 };
 
