@@ -5,7 +5,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, buscarGiseDocumento, reabrirGiseEscala } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseDocumento, reabrirGiseEscala } from '$lib/db';
 
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	const u = locals.usuario;
@@ -21,12 +21,12 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 		return json({ error: 'Documento assinado não encontrado' }, { status: 404 });
 	}
 
-	const p = platform as App.Platform | undefined;
-	if (!p?.env?.escalas_docs) {
+	if (!hasR2(platform)) {
 		return json({ error: 'Storage R2 não configurado no servidor' }, { status: 500 });
 	}
 
-	const object = await p.env.escalas_docs.get(documento.r2_key);
+	const bucket = getR2(platform);
+	const object = await bucket.get(documento.r2_key);
 	if (!object) {
 		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
 	}
@@ -58,9 +58,9 @@ export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 	}
 
 	// Deletar do R2
-	const p = platform as App.Platform | undefined;
-	if (p?.env?.escalas_docs) {
-		await p.env.escalas_docs.delete(documento.r2_key);
+	if (hasR2(platform)) {
+		const bucket = getR2(platform);
+		await bucket.delete(documento.r2_key);
 	}
 
 	// Reabrir escala (deleta documento, reseta seccionais, volta status)
