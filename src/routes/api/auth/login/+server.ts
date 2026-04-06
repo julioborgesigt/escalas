@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, gt } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, registrarAuditComContexto } from '$lib/db';
 import { hashSenha, verificarSenha, isHashLegado, criarSessao, gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
@@ -83,6 +83,13 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		if (envLogin && envSenha && matricula === envLogin) {
 			if (senha !== envSenha) {
 				await recordAttempt(db, ip, false);
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'falha_login',
+					entidade: 'admin',
+					detalhes: `Tentativa falha para admin geral: ${matricula}`,
+					ip
+				});
 				return json({ error: 'Login ou senha inválidos' }, { status: 401 });
 			}
 			// Busca ou cria o registro no DB (necessário para a sessão)

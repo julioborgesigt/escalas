@@ -389,6 +389,31 @@ export const loginAttempts = sqliteTable('login_attempts', {
 	index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)
 ]);
 
+// ---- Log de Auditoria ----
+
+export const auditLog = sqliteTable(
+	'audit_log',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		usuario_id: integer('usuario_id'),
+		usuario_nome: text('usuario_nome').notNull().default(''),
+		usuario_papel: text('usuario_papel'),
+		acao: text('acao').notNull(),
+		entidade: text('entidade').notNull(),
+		entidade_id: integer('entidade_id'),
+		detalhes: text('detalhes'),
+		ip: text('ip'),
+		user_agent: text('user_agent'),
+		created_at: text('created_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(table) => [
+		index('idx_audit_usuario').on(table.usuario_id, table.created_at),
+		index('idx_audit_entidade').on(table.entidade, table.entidade_id),
+		index('idx_audit_acao').on(table.acao),
+		index('idx_audit_created_at').on(table.created_at)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -409,3 +434,5 @@ export type GiseDocumento = typeof giseDocumentos.$inferSelect;
 export type GisePresenca = typeof gisePresencas.$inferSelect;
 export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
 export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
+export type AuditLog = typeof auditLog.$inferSelect;
+export type NovoAuditLog = typeof auditLog.$inferInsert;

@@ -1,0 +1,168 @@
+/**
+ * Módulo de log de auditoria.
+ *
+ * Registra todas as ações relevantes no sistema para rastreabilidade:
+ * - Criação/edição/exclusão de policiais
+ * - Criação/edição/exclusão de escalas
+ * - Login/logout
+ * - Alteração de senha
+ * - Assinatura/revogação de documentos
+ * - Mudança de papel (RBAC)
+ */
+
+import { desc, eq, and, like, sql } from 'drizzle-orm';
+import { auditLog } from '../server/schema';
+import type { Database } from './core';
+import type { AuditLog } from '../server/schema';
+
+export type AcaoAudit =
+	| 'login'
+	| 'logout'
+	| 'alterar_senha'
+	| 'criar_policial'
+	| 'editar_policial'
+	| 'excluir_policial'
+	| 'criar_escala'
+	| 'editar_escala'
+	| 'excluir_escala'
+	| 'adicionar_policial_escala'
+	| 'remover_policial_escala'
+	| 'assinar_escala'
+	| 'revogar_assinatura'
+	| 'mudar_papel'
+	| 'criar_unidade'
+	| 'editar_unidade'
+	| 'excluir_unidade'
+	| 'criar_gise'
+	| 'editar_gise'
+	| 'finalizar_gise'
+	| 'reabrir_gise'
+	| 'falha_login';
+
+interface AuditEntry {
+	usuario_id: number | null;
+	usuario_nome: string;
+	usuario_papel?: string | null;
+	acao: AcaoAudit;
+	entidade: string;
+	entidade_id?: number | null;
+	detalhes?: string | null;
+	ip?: string | null;
+	user_agent?: string | null;
+}
+
+/**
+ * Registra uma entrada no log de auditoria.
+ * Não lança exceção — falhas são logadas em console para não bloquear o fluxo principal.
+ */
+export async function registrarAudit(
+	db: Database,
+	entry: AuditEntry
+): Promise<void> {
+	try {
+		await db.insert(auditLog).values({
+			usuario_id: entry.usuario_id,
+			usuario_nome: entry.usuario_nome,
+			usuario_papel: entry.usuario_papel ?? null,
+			acao: entry.acao,
+			entidade: entry.entidade,
+			entidade_id: entry.entidade_id ?? null,
+			detalhes: entry.detalhes ?? null,
+			ip: entry.ip ?? null,
+			user_agent: entry.user_agent ?? null
+		});
+	} catch (err) {
+		// Nunca bloquear o fluxo principal por falha de auditoria
+		console.error('[AUDIT] Falha ao registrar log:', err);
+	}
+}
+
+/**
+ * Helper que extrai contexto da request e delega para registrarAudit.
+ */
+export async function registrarAuditComContexto(
+	db: Database,
+	opts: {
+		usuario: { id: number; nome: string; papel?: string | null } | null;
+		acao: AcaoAudit;
+		entidade: string;
+		entidade_id?: number | null;
+		detalhes?: string | null;
+		ip?: string | null;
+		user_agent?: string | null;
+	}
+): Promise<void> {
+	return registrarAudit(db, {
+		usuario_id: opts.usuario?.id ?? null,
+		usuario_nome: opts.usuario?.nome ?? 'Sistema',
+		usuario_papel: opts.usuario?.papel ?? null,
+		acao: opts.acao,
+		entidade: opts.entidade,
+		entidade_id: opts.entidade_id,
+		detalhes: opts.detalhes,
+		ip: opts.ip,
+		user_agent: opts.user_agent
+	});
+}
+
+/**
+ * Lista entradas do log de auditoria com filtros e paginação.
+ */
+export async function listarAuditLog(
+	db: Database,
+	opts?: {
+		usuario_id?: number;
+		entidade?: string;
+		acao?: string;
+		busca?: string;
+		page?: number;
+		limit?: number;
+	}
+): Promise<{
+	logs: AuditLog[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}> {
+	const conditions = [];
+
+	if (opts?.usuario_id) {
+		conditions.push(eq(auditLog.usuario_id, opts.usuario_id));
+	}
+	if (opts?.entidade) {
+		conditions.push(eq(auditLog.entidade, opts.entidade));
+	}
+	if (opts?.acao) {
+		conditions.push(eq(auditLog.acao, opts.acao));
+	}
+	if (opts?.busca) {
+		conditions.push(
+			sql`${auditLog.usuario_nome} LIKE ${'%' + opts.busca + '%'} OR ${auditLog.detalhes} LIKE ${'%' + opts.busca + '%'}`
+		);
+	}
+
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	const countResult = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(auditLog)
+		.where(whereClause)
+		.get();
+	const total = Number(countResult?.count ?? 0);
+
+	const page = Math.max(1, opts?.page ?? 1);
+	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
+	const totalPages = Math.ceil(total / limit);
+	const offset = (page - 1) * limit;
+
+	const logs = await db
+		.select()
+		.from(auditLog)
+		.where(whereClause)
+		.orderBy(desc(auditLog.created_at))
+		.limit(limit)
+		.offset(offset);
+
+	return { logs, total, page, limit, totalPages };
+}

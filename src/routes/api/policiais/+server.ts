@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getDB, listarPoliciais, criarPolicial, excluirPolicial } from '$lib/db';
+import { getDB, listarPoliciais, criarPolicial, excluirPolicial, registrarAuditComContexto } from '$lib/db';
 import { policialSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -47,6 +47,12 @@ export const POST: RequestHandler = async ({ platform, request, locals }) => {
 
 	try {
 		await criarPolicial(db, { ...parsed.data, email: data.email || null });
+		await registrarAuditComContexto(db, {
+			usuario: usuario,
+			acao: 'criar_policial',
+			entidade: 'policial',
+			detalhes: `Criado policial: ${parsed.data.nome} (matrícula: ${parsed.data.matricula})`
+		});
 		return json({ success: true }, { status: 201 });
 	} catch (e: unknown) {
 		console.error('[POST /api/policiais] erro ao criar policial:', e);
