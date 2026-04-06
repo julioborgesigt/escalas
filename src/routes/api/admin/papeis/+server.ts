@@ -14,7 +14,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, promoverPolicial, listarPoliciais } from '$lib/db';
+import { getDB, promoverPolicial, listarPoliciais, registrarAuditComContexto } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { eq } from 'drizzle-orm';
 import { policiais, unidades } from '$lib/server/schema';
@@ -98,6 +98,13 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 			}
 
 			await promoverPolicial(db, policial_id, papel, papel === null ? null : u.papel_unidade_id);
+			await registrarAuditComContexto(db, {
+				usuario: u,
+				acao: 'mudar_papel',
+				entidade: 'policial',
+				entidade_id: policial_id,
+				detalhes: `Policial ${policial_id}: papel=${papel ?? 'null'}, unidade_id=${papel_unidade_id ?? u.papel_unidade_id}`
+			});
 			return json({ ok: true });
 		}
 
@@ -159,5 +166,12 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 	}
 
 	await promoverPolicial(db, policial_id, papel, papel_unidade_id ?? null);
+	await registrarAuditComContexto(db, {
+		usuario: u,
+		acao: 'mudar_papel',
+		entidade: 'policial',
+		entidade_id: policial_id,
+		detalhes: `Policial ${policial_id}: papel=${papel ?? 'null'}, unidade_id=${papel_unidade_id ?? null}`
+	});
 	return json({ ok: true });
 };
