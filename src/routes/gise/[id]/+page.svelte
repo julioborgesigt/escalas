@@ -1068,10 +1068,10 @@
 			{/if}
 		</div>
 
-		<div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mt-1">
+		<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
 			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
 				<button
-					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold"
+					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold w-full"
 					onclick={() => downloadGise('xlsx')}
 				>
 					Baixar XLSX
@@ -1081,7 +1081,7 @@
 				<button
 					class="btn btn-sm {modoEdicaoGeral
 						? 'preset-filled-primary-500 shadow-xl'
-						: 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all"
+						: 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all w-full"
 					onclick={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 					disabled={editaBloqueado}
 				>
@@ -1089,7 +1089,7 @@
 				</button>
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
 					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-auto flex items-center justify-center gap-1.5"
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5"
 						onclick={solicitarAssinatura}
 						disabled={salvando || modoEdicaoGeral}
 					>
@@ -1097,7 +1097,7 @@
 					</button>
 				{/if}
 				<button
-					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed w-full"
 					onclick={() => (showExcluirGiseConfirm = true)}
 					disabled={editaBloqueado}
 				>
@@ -1106,7 +1106,7 @@
 			{/if}
 			{#if podeReabrir}
 				<button
-					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold"
+					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold w-full"
 					onclick={() => (showReabrirConfirm = true)}
 				>
 					Reabrir para Edição
@@ -1114,7 +1114,7 @@
 			{/if}
 			{#if podeFinalizar}
 				<button
-					class="btn btn-sm preset-outlined-error-500 col-span-2 sm:col-auto rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15"
+					class="btn btn-sm preset-outlined-error-500 col-span-2 sm:col-span-1 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 w-full"
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
@@ -1651,20 +1651,30 @@
 									</div>
 									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 										<button
-											class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
+											class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
 											onclick={() => {
 												editandoHorariosSecId = sec.id;
 												editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
 												editSecHoraSai = sec.hora_saida ?? gise.hora_saida ?? '';
-											}}>Editar horários desta seccional</button
+											}}
 										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+												/></svg
+											>
+											Editar horários desta seccional
+										</button>
 									{/if}
 								{/if}
 							</div>
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 								<button
-									class="text-sm btn preset-outlined-error-500 px-2 py-1 rounded-lg flex items-center gap-1"
+									class="btn btn-sm preset-outlined-error-500 w-full flex items-center justify-center gap-1"
 									onclick={() => removerSeccional(sec.id)}
 									disabled={salvando}
 									title="Excluir seccional desta escala"
@@ -1696,9 +1706,9 @@
 										(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
 										a.tipo === 'extraordinario'
 								)}
-								<div class="flex flex-col sm:flex-wrap gap-2 sm:gap-3">
+								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
 									<button
-										class="btn btn-sm preset-tonal-success text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full sm:w-auto justify-center"
+										class="btn preset-tonal-success w-full sm:w-auto justify-center"
 										onclick={() =>
 											window.open(
 												`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}`,
@@ -1710,7 +1720,7 @@
 											: 'Baixar Resultados de Produtividade'}
 									>
 										<svg
-											class="w-3.5 h-3.5 shrink-0"
+											class="w-4 h-4 shrink-0"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -1730,11 +1740,11 @@
 										{/if}
 									</button>
 
-									<div class="flex flex-col gap-1 w-full sm:w-auto">
+									<div class="flex flex-col gap-2 w-full sm:w-auto">
 										<button
-											class="btn btn-sm text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] justify-center {assRel
+											class="btn text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full {assRel
 												? 'preset-filled-primary-500'
-												: 'preset-tonal-primary'} w-full"
+												: 'preset-tonal-primary'}"
 											onclick={() =>
 												window.open(
 													`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`,
@@ -1998,7 +2008,7 @@
 													</div>
 													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 														<button
-															class="text-sm text-primary-600 hover:underline ml-1 py-0.5"
+															class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
 																editEqHoraEnt =
@@ -2008,27 +2018,53 @@
 																	'';
 																editEqHoraSai =
 																	equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
-															}}>Editar Horários desta equipe</button
+															}}
 														>
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+																/></svg
+															>
+															Editar Horários
+														</button>
 													{/if}
 												{/if}
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 													<button
-														class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+														class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
 														onclick={() => {
 															editandoEquipe = equipe.id;
 															editSlotsDpc = equipe.slots_dpc;
 															editSlotsOip = equipe.slots_oip;
 														}}
 													>
-														Editar vagas desta equipe
+														<svg
+															class="w-3.5 h-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+															><path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+															/></svg
+														>
+														Editar vagas
 													</button>
 												{/if}
 											{/if}
 										</div>
 										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 											<button
-												class="text-sm text-error-600 hover:text-error-500 p-1 inline-flex items-center gap-1"
+												class="btn btn-sm preset-outlined-error-500 w-full flex items-center justify-center gap-1"
 												disabled={removendoEquipeId === equipe.id}
 												onclick={async () => {
 													removendoEquipeId = equipe.id;
@@ -2132,26 +2168,50 @@
 												>
 											</div>
 										{:else}
-											<div class="flex gap-3">
+											<div class="flex flex-col gap-2">
 												<button
-													class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+													class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
 													onclick={() => {
 														equipeParaAdicionar = equipe.id;
 														cargoParaAdicionar = 'OIP';
 														policialParaAdicionar = '';
 													}}
 												>
+													<svg
+														class="w-3.5 h-3.5"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														><path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+														/></svg
+													>
 													+ Adicionar OIP
 												</button>
 												{#if equipe.slots_dpc > 0}
 													<button
-														class="text-sm text-primary-600 hover:text-primary-500 transition-colors"
+														class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
 															cargoParaAdicionar = 'DPC';
 															policialParaAdicionar = '';
 														}}
 													>
+														<svg
+															class="w-3.5 h-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+															><path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+															/></svg
+														>
 														+ Adicionar DPC
 													</button>
 												{/if}
@@ -2236,7 +2296,7 @@
 									</div>
 								{:else}
 									<button
-										class="text-sm text-primary-600 hover:text-primary-500 transition-colors mt-2"
+										class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
 										onclick={() => {
 											adicionandoEquipeSec = sec.id;
 											novaEquipeTipo = 'operacional';
@@ -2244,6 +2304,14 @@
 											novaEquipeOip = 3;
 										}}
 									>
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+											/></svg
+										>
 										+ Adicionar equipe
 									</button>
 								{/if}
