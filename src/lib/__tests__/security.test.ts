@@ -2,6 +2,80 @@ import { describe, it, expect } from 'vitest';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade, isAnyAdmin } from '../auth';
 import type { UsuarioLogado } from '../auth';
 
+// ---- CSP Tests ----
+// Testa a lógica da CSP de forma isolada (sem importar hooks.server que depende de $lib)
+
+/**
+ * Réplica da lógica buildCSP para teste isolado.
+ * Se a lógica mudar em hooks.server.ts, atualizar aqui também.
+ */
+function buildCSPTest(isHTML: boolean): string {
+	if (!isHTML) {
+		return "default-src 'none'; base-uri 'none'; form-action 'none'";
+	}
+	const isDev = process.env.NODE_ENV !== 'production';
+	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
+	const connectExtra = isDev ? ' http://localhost:*' : '';
+	return [
+		`default-src 'self'`,
+		`script-src 'self' 'unsafe-inline'${scriptExtra}`,
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+		`img-src 'self' data: blob: https://fonts.gstatic.com`,
+		`font-src 'self' data: https://fonts.gstatic.com`,
+		`connect-src 'self'${connectExtra}`,
+		`frame-src 'none'`,
+		`object-src 'none'`,
+		`base-uri 'self'`,
+		`form-action 'self'`,
+		`upgrade-insecure-requests`,
+		`block-all-mixed-content`
+	].join('; ');
+}
+
+describe('Content-Security-Policy', () => {
+	it('CSP para HTML inclui diretivas de script, style e font', () => {
+		const csp = buildCSPTest(true);
+		expect(csp).toContain("script-src 'self'");
+		expect(csp).toContain("style-src 'self'");
+		expect(csp).toContain('https://fonts.googleapis.com');
+		expect(csp).toContain('https://fonts.gstatic.com');
+	});
+
+	it('CSP para HTML bloqueia frames e objects', () => {
+		const csp = buildCSPTest(true);
+		expect(csp).toContain("frame-src 'none'");
+		expect(csp).toContain("object-src 'none'");
+	});
+
+	it('CSP para HTML inclui upgrade-insecure-requests e block-all-mixed-content', () => {
+		const csp = buildCSPTest(true);
+		expect(csp).toContain('upgrade-insecure-requests');
+		expect(csp).toContain('block-all-mixed-content');
+	});
+
+	it('CSP para API bloqueia tudo', () => {
+		const csp = buildCSPTest(false);
+		expect(csp).toContain("default-src 'none'");
+		expect(csp).toContain("base-uri 'none'");
+		expect(csp).toContain("form-action 'none'");
+	});
+
+	it('CSP para HTML restringe base-uri e form-action a self', () => {
+		const csp = buildCSPTest(true);
+		expect(csp).toContain("base-uri 'self'");
+		expect(csp).toContain("form-action 'self'");
+	});
+
+	it('CSP para produção não inclui unsafe-eval', () => {
+		const originalEnv = process.env.NODE_ENV;
+		process.env.NODE_ENV = 'production';
+		const csp = buildCSPTest(true);
+		expect(csp).not.toContain("'unsafe-eval'");
+		expect(csp).not.toContain('http://localhost');
+		process.env.NODE_ENV = originalEnv;
+	});
+});
+
 // ---- RBAC Tests ----
 
 function makeUser(overrides: Partial<UsuarioLogado> = {}): UsuarioLogado {
