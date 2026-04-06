@@ -13,38 +13,40 @@
 
 import nodemailer from 'nodemailer';
 
-function getCredenciais(platform: unknown): { user: string; pass: string } {
-	const env = (platform as { env?: Record<string, string> } | undefined)?.env ?? {};
-	return {
-		user: env.GMAIL_USER ?? (typeof process !== 'undefined' ? process.env.GMAIL_USER ?? '' : ''),
-		pass: env.GMAIL_APP_PASSWORD ?? (typeof process !== 'undefined' ? process.env.GMAIL_APP_PASSWORD ?? '' : '')
-	};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCredenciais(platform: any): { user: string; pass: string } {
+  const env = platform?.env ?? {};
+  return {
+    user: env.GMAIL_USER ?? '',
+    pass: env.GMAIL_APP_PASSWORD ?? ''
+  };
 }
 
 export async function enviarSenhaProvisoria(
-	destinatario: string,
-	senhaProvisoria: string,
-	nomeUsuario: string,
-	platform: unknown
+  destinatario: string,
+  senhaProvisoria: string,
+  nomeUsuario: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  platform: any
 ): Promise<void> {
-	const { user, pass } = getCredenciais(platform);
+  const { user, pass } = getCredenciais(platform);
 
-	if (!user || !pass) {
-		throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
-	}
+  if (!user || !pass) {
+    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
+  }
 
-	const transporter = nodemailer.createTransport({
-		host: 'smtp.gmail.com',
-		port: 465,
-		secure: true,
-		auth: { user, pass }
-	});
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass }
+  });
 
-	await transporter.sendMail({
-		from: `"Sistema de Escalas - PCCE" <${user}>`,
-		to: destinatario,
-		subject: 'Senha Provisória — Primeiro Acesso ao Sistema',
-		html: `
+  await transporter.sendMail({
+    from: `"Sistema de Escalas - PCCE" <${user}>`,
+    to: destinatario,
+    subject: 'Senha Provisória — Primeiro Acesso ao Sistema',
+    html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -86,35 +88,36 @@ export async function enviarSenhaProvisoria(
   </table>
 </body>
 </html>`
-	});
+  });
 }
 
 export async function enviarCodigo2FA(
-	destinatario: string,
-	codigo: string,
-	nomeUsuario: string,
-	platform: unknown
+  destinatario: string,
+  codigo: string,
+  nomeUsuario: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  platform: any
 ): Promise<void> {
-	const { user, pass } = getCredenciais(platform);
+  const { user, pass } = getCredenciais(platform);
 
-	if (!user || !pass) {
-		throw new Error(
-			'E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.'
-		);
-	}
+  if (!user || !pass) {
+    throw new Error(
+      'E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.'
+    );
+  }
 
-	const transporter = nodemailer.createTransport({
-		host: 'smtp.gmail.com',
-		port: 465,
-		secure: true, // SSL/TLS desde o início (sem STARTTLS)
-		auth: { user, pass }
-	});
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // SSL/TLS desde o início (sem STARTTLS)
+    auth: { user, pass }
+  });
 
-	await transporter.sendMail({
-		from: `"Sistema de Escalas - PCCE" <${user}>`,
-		to: destinatario,
-		subject: 'Código de Verificação — Acesso ao Sistema',
-		html: `
+  await transporter.sendMail({
+    from: `"Sistema de Escalas - PCCE" <${user}>`,
+    to: destinatario,
+    subject: 'Código de Verificação — Acesso ao Sistema',
+    html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -155,5 +158,5 @@ export async function enviarCodigo2FA(
   </table>
 </body>
 </html>`
-	});
+  });
 }
