@@ -1,7 +1,7 @@
 <script lang="ts">
 	let faceapi: any = $state(null);
 
-	let { onConfirm, onCancel, message = "", exigirFoto = true } = $props();
+	let { onConfirm, onCancel, message = "", exigirFoto = true, exigirGps = true } = $props();
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -158,27 +158,29 @@
 			ctx.lineJoin = "round";
 		}
 
-		// Iniciar captura de localização ao abrir
-		if ("geolocation" in navigator) {
-			capturingLocation = true;
-			navigator.geolocation.getCurrentPosition(
-				(pos) => {
-					coords = {
-						lat: pos.coords.latitude,
-						lng: pos.coords.longitude,
-					};
-					capturingLocation = false;
-				},
-				(err) => {
-					console.warn("Erro ao capturar localização:", err);
-					locationError =
-						"Não foi possível capturar sua localização. Por favor, permita o acesso ao GPS.";
-					capturingLocation = false;
-				},
-				{ enableHighAccuracy: true, timeout: 10000 },
-			);
-		} else {
-			locationError = "GPS não disponível neste dispositivo.";
+		// Iniciar captura de localização ao abrir (somente se exigido)
+		if (exigirGps) {
+			if ("geolocation" in navigator) {
+				capturingLocation = true;
+				navigator.geolocation.getCurrentPosition(
+					(pos) => {
+						coords = {
+							lat: pos.coords.latitude,
+							lng: pos.coords.longitude,
+						};
+						capturingLocation = false;
+					},
+					(err) => {
+						console.warn("Erro ao capturar localização:", err);
+						locationError =
+							"Não foi possível capturar sua localização. Por favor, permita o acesso ao GPS.";
+						capturingLocation = false;
+					},
+					{ enableHighAccuracy: true, timeout: 10000 },
+				);
+			} else {
+				locationError = "GPS não disponível neste dispositivo.";
+			}
 		}
 	});
 
@@ -413,6 +415,7 @@
 				></canvas>
 
 				<!-- Indicador de GPS -->
+				{#if exigirGps}
 				<div
 					class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
 				>
@@ -439,6 +442,7 @@
 						>
 					{/if}
 				</div>
+				{/if}
 			</div>
 		</div>
 

@@ -26,3 +26,9 @@ export async function buscarExigirFotoAssinatura(db: Database): Promise<boolean>
 	const val = await buscarConfiguracao(db, 'exigir_foto_assinatura');
 	return val !== '0'; // qualquer coisa diferente de '0' = true
 }
+
+/** Lê a flag booleana "exigir_gps_assinatura" (padrão: true). */
+export async function buscarExigirGpsAssinatura(db: Database): Promise<boolean> {
+	const val = await buscarConfiguracao(db, 'exigir_gps_assinatura');
+	return val !== '0';
+}

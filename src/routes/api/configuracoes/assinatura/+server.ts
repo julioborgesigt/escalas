@@ -1,11 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarExigirFotoAssinatura, salvarConfiguracao } from '$lib/db';
+import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, salvarConfiguracao } from '$lib/db';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const db = getDB(platform);
-	const exigirFoto = await buscarExigirFotoAssinatura(db);
-	return json({ exigirFoto });
+	const [exigirFoto, exigirGps] = await Promise.all([
+		buscarExigirFotoAssinatura(db),
+		buscarExigirGpsAssinatura(db)
+	]);
+	return json({ exigirFoto, exigirGps });
 };
 
 export const PUT: RequestHandler = async ({ platform, request, locals }) => {
@@ -14,11 +17,19 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	if (typeof body.exigirFoto !== 'boolean') {
-		return json({ error: 'Campo exigirFoto obrigatório (boolean)' }, { status: 400 });
+	const db = getDB(platform);
+
+	const saves: Promise<void>[] = [];
+	if (typeof body.exigirFoto === 'boolean') {
+		saves.push(salvarConfiguracao(db, 'exigir_foto_assinatura', body.exigirFoto ? '1' : '0'));
+	}
+	if (typeof body.exigirGps === 'boolean') {
+		saves.push(salvarConfiguracao(db, 'exigir_gps_assinatura', body.exigirGps ? '1' : '0'));
+	}
+	if (saves.length === 0) {
+		return json({ error: 'Nenhum campo válido para salvar' }, { status: 400 });
 	}
 
-	const db = getDB(platform);
-	await salvarConfiguracao(db, 'exigir_foto_assinatura', body.exigirFoto ? '1' : '0');
+	await Promise.all(saves);
 	return json({ ok: true });
 };

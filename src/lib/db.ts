@@ -18,7 +18,8 @@ export type { Database } from './db/core';
 export {
 	buscarConfiguracao,
 	salvarConfiguracao,
-	buscarExigirFotoAssinatura
+	buscarExigirFotoAssinatura,
+	buscarExigirGpsAssinatura
 } from './db/configuracoes';
 
 export {
