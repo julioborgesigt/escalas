@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
-import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, adicionarMultiplasDatasPlantao, removerPolicialEscala, atualizarEscalaPolicial, adicionarTodosPoliciais, type Database } from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, adicionarPolicialEscala, adicionarMultiplasDatasPlantao, removerPolicialEscala, atualizarEscalaPolicial, adicionarTodosPoliciais, registrarAuditComContexto, type Database } from '$lib/db';
 import { escalaPolicialSchema } from '$lib/schemas';
+import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
 async function verificarAcessoEscala(db: Database, escalaId: number, locals: App.Locals): Promise<Response | null> {
@@ -123,7 +124,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 	const horaEntrada: string = data.hora_entrada || escala.hora_entrada;
 	const horaSaida: string = data.hora_saida || escala.hora_saida;
 
-	console.log(`[PUT policiais] escala=${escalaId} tipo="${escala.tipo}" lotacao="${escala.lotacao}"`);
+	logger.info('[PUT policiais] Adicionando todos os policiais', { escalaId, tipo: escala.tipo, lotacao: escala.lotacao });
 
 	try {
 		const quantidade = await adicionarTodosPoliciais(
@@ -136,14 +137,13 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 			horaEntrada,
 			horaSaida
 		);
-		console.log(`[PUT policiais] sucesso quantidade=${quantidade}`);
+		logger.info('[PUT policiais] Sucesso', { quantidade });
 		const policiais = await listarPoliciaisEscala(db, escalaId);
 		return json({ success: true, quantidade, policiais }, { status: 200 });
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e);
 		const stack = e instanceof Error ? e.stack : '';
-		console.error('[PUT policiais] erro:', msg);
-		console.error('[PUT policiais] stack:', stack);
+		logger.error('[PUT policiais] Erro ao adicionar servidores', { msg, stack });
 		return json({ error: 'Erro ao adicionar servidores' }, { status: 500 });
 	}
 };

@@ -1,13 +1,14 @@
 import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGiseSeccionalMembros, buscarPresencasGise } from '$lib/db';
+import { logger } from '$lib/server/logger';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform }) => {
 	const hash = params.hash;
 
-	console.log(`[validar] Iniciando validação para hash: ${hash}`);
+	logger.info('[validar] Iniciando validação', { hash });
 
 	if (!hash) {
-		console.warn('[validar] Hash ausente na URL');
+		logger.warn('[validar] Hash ausente na URL');
 		return { encontrado: false as const, motivo: 'hash_ausente' };
 	}
 
@@ -15,7 +16,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 	try {
 		db = getDB(platform);
 	} catch (err) {
-		console.error('[validar] Falha ao conectar ao banco de dados:', err);
+		logger.error('[validar] Falha ao conectar ao banco de dados', { err: String(err) });
 		return { encontrado: false as const, motivo: 'erro_db' };
 	}
 
@@ -23,16 +24,16 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 	try {
 		documento = await buscarDocumentoPorHash(db, hash);
 	} catch (err) {
-		console.error(`[validar] Erro ao buscar documento pelo hash "${hash}":`, err);
+		logger.error(`[validar] Erro ao buscar documento pelo hash`, { hash, err: String(err) });
 		return { encontrado: false as const, motivo: 'erro_consulta' };
 	}
 
 	if (!documento) {
-		console.log(`[validar] Nenhum documento encontrado para hash: ${hash}`);
+		logger.info('[validar] Documento não encontrado', { hash });
 		return { encontrado: false as const, motivo: 'nao_encontrado' };
 	}
 
-	console.log(`[validar] Documento encontrado: tipo=${documento.tipo_doc}, id=${documento.id}`);
+	logger.info('[validar] Documento encontrado', { hash, tipo: documento.tipo_doc, id: documento.id });
 
 	let escala;
 	try {
@@ -42,16 +43,16 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 			escala = await buscarGiseEscala(db, documento.escala_id);
 		}
 	} catch (err) {
-		console.error(`[validar] Erro ao buscar escala id=${documento.escala_id}:`, err);
+		logger.error(`[validar] Erro ao buscar escala`, { escala_id: documento.escala_id, err: String(err) });
 		return { encontrado: false as const, motivo: 'erro_consulta' };
 	}
 
 	if (!escala) {
-		console.warn(`[validar] Escala id=${documento.escala_id} não encontrada`);
+		logger.warn(`[validar] Escala não encontrada`, { escala_id: documento.escala_id });
 		return { encontrado: false as const, motivo: 'nao_encontrado' };
 	}
 
-	console.log(`[validar] Validação concluída com sucesso para hash: ${hash}`);
+	logger.info('[validar] Validação concluída com sucesso', { hash });
 
 	let titulo: string;
 	let cidade: string;
@@ -79,20 +80,20 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 				buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id),
 				buscarPresencasGise(db, documento.escala_id)
 			]);
-			
+
 			const presencaMap = new Map(todasPresencas.map(p => [p.policial_id, p]));
-			
+
 			membros = membrosSec.map((m: any) => ({
 				...m,
 				presenca: presencaMap.get(m.policial_id) || null
 			}));
 		} catch (err) {
-			console.error('[validar] Erro ao buscar assinaturas da equipe:', err);
+			logger.error('[validar] Erro ao buscar assinaturas da equipe', { err: String(err) });
 		}
 	}
 
 	return {
-// ... (rest of the return block)
+		// ... (rest of the return block)
 		encontrado: true as const,
 		documento: {
 			assinante_nome: documento.assinante_nome,

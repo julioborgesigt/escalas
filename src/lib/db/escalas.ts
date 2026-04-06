@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like, isNull } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -8,6 +8,11 @@ import {
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
 import type { Database } from './core';
+
+/** Escapa caracteres especiais do LIKE para evitar wildcard injection */
+function escapeLike(str: string): string {
+	return str.replace(/[%_\\]/g, '\\$&');
+}
 
 export async function listarEscalas(
 	db: Database,
@@ -44,11 +49,11 @@ export async function listarEscalas(
 
 	// Busca por título ou cidade
 	if (opts?.busca) {
-		const buscaLimpa = opts.busca.trim();
+		const buscaEscapada = escapeLike(opts.busca.trim());
 		conditions.push(
 			or(
-				like(escalas.titulo, `%${buscaLimpa}%`),
-				like(escalas.cidade, `%${buscaLimpa}%`)
+				like(escalas.titulo, `%${buscaEscapada}%`),
+				like(escalas.cidade, `%${buscaEscapada}%`)
 			)!
 		);
 	}
@@ -181,26 +186,21 @@ export async function adicionarMultiplasDatasPlantao(
 	observacoes: string = ''
 ): Promise<void> {
 	if (datas.length === 0) return;
-	const BATCH_SIZE = 50;
-	const batches = [];
-	for (let i = 0; i < datas.length; i += BATCH_SIZE) {
-		const lote = datas.slice(i, i + BATCH_SIZE);
-		batches.push(
-			db.insert(escalaPoliciais).values(
-				lote.map((d) => ({
-					escala_id: escalaId,
-					policial_id: policialId,
-					data_plantao: d.data_plantao,
-					data_saida: d.data_saida,
-					hora_entrada: horaEntrada,
-					hora_saida: horaSaida,
-					equipe,
-					observacoes
-				}))
-			)
-		);
-	}
-	await Promise.all(batches);
+
+	await db.transaction(async (tx) => {
+		for (const d of datas) {
+			await tx.insert(escalaPoliciais).values({
+				escala_id: escalaId,
+				policial_id: policialId,
+				data_plantao: d.data_plantao,
+				data_saida: d.data_saida,
+				hora_entrada: horaEntrada,
+				hora_saida: horaSaida,
+				equipe,
+				observacoes
+			});
+		}
+	});
 }
 
 export async function atualizarEscalaPolicial(
@@ -232,20 +232,21 @@ export async function adicionarTodosPoliciais(
 	horaEntrada: string,
 	horaSaida: string
 ): Promise<number> {
-	const todos = await db
-		.select({ id: policiais.id, regime: policiais.regime })
+	// Filtrar no banco em vez de carregar tudo para o JS
+	const candidatos = await db
+		.select({ id: policiais.id })
 		.from(policiais)
-		.where(and(eq(policiais.ativo, 1), eq(policiais.lotacao, lotacao)));
-
-	console.log(
-		`[adicionarTodosPoliciais] escala=${escalaId} lotacao="${lotacao}" regime="${regime}" total_ativos=${todos.length}`
-	);
-
-	const candidatos = todos.filter(
-		(p) => p.regime === regime || p.regime === 'ambos' || p.regime === null
-	);
-
-	console.log(`[adicionarTodosPoliciais] candidatos compatíveis=${candidatos.length}`);
+		.where(
+			and(
+				eq(policiais.ativo, 1),
+				eq(policiais.lotacao, lotacao),
+				or(
+					eq(policiais.regime, regime),
+					eq(policiais.regime, 'ambos'),
+					isNull(policiais.regime)
+				)
+			)
+		);
 
 	if (candidatos.length === 0) return 0;
 
@@ -259,24 +260,19 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	const BATCH_SIZE = 50;
-	const batches = [];
-	for (let i = 0; i < novos.length; i += BATCH_SIZE) {
-		const lote = novos.slice(i, i + BATCH_SIZE);
-		batches.push(
-			db.insert(escalaPoliciais).values(
-				lote.map((p) => ({
-					escala_id: escalaId,
-					policial_id: p.id,
-					data_plantao: dataPlantao,
-					data_saida: dataSaida,
-					hora_entrada: horaEntrada,
-					hora_saida: horaSaida
-				}))
-			)
-		);
-	}
-	await Promise.all(batches);
+	// Transação para garantir atomicidade
+	await db.transaction(async (tx) => {
+		for (const p of novos) {
+			await tx.insert(escalaPoliciais).values({
+				escala_id: escalaId,
+				policial_id: p.id,
+				data_plantao: dataPlantao,
+				data_saida: dataSaida,
+				hora_entrada: horaEntrada,
+				hora_saida: horaSaida
+			});
+		}
+	});
 
 	return novos.length;
 }
