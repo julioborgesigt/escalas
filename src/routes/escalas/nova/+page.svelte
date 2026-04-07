@@ -16,22 +16,21 @@
 
 	// Track pending state locally
 	let enviando = $state(false);
-	function handleSubmit() {
-		return {
-			onSubmit: () => {
-				enviando = true;
-			},
-			onUpdate: ({ result }: { result: any }) => {
-				enviando = false;
-				if (result?.type === 'success' && result.data?.id) {
-					toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
-					goto(`/escalas/${result.data.id}`);
-				} else if (result?.type === 'failure' && result.data?.error) {
-					toaster.create({ title: result.data.error, type: 'error' });
-				}
+	const handleForm: any = () => ({
+		onSubmit: () => {
+			enviando = true;
+		},
+		onUpdate({ result }: { result: any }) {
+			enviando = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success' && d?.id) {
+				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
+				goto(`/escalas/${d.id}`);
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		};
-	}
+		}
+	});
 
 	const isAdmin: boolean = data.isAdmin;
 	const unidadesComRegime: UnidadeRegime[] = data.unidadesComRegime;
@@ -333,7 +332,7 @@
 	<div
 		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
-		<form method="POST" action="?/criar" use:enhance={handleSubmit} class="space-y-4">
+		<form method="POST" action="?/criar" use:enhance={handleForm} class="space-y-4">
 			<!-- Campos hidden para o server -->
 			<input type="hidden" name="data_inicio" value={dataInicio} />
 			<input type="hidden" name="data_fim" value={dataFim} />

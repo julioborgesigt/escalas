@@ -156,7 +156,7 @@
 		formData.set('id', String(id));
 		formData.set('nome', editNome.trim());
 		formData.set('tipo', editTipo);
-		formData.set('seccional_id', editSeccionalId ?? '');
+		formData.set('seccional_id', String(editSeccionalId ?? ''));
 		formData.set('tem_plantao', editTemPlantao ? 'on' : '');
 		formData.set('tem_expediente', editTemExpediente ? 'on' : '');
 		formData.set('tem_fds', editTemFds ? 'on' : '');
@@ -206,31 +206,30 @@
 	}
 
 	let cadastroPending = $state(false);
-	function handleCadastro() {
-		return {
-			onSubmit: () => {
-				cadastroPending = true;
-			},
-			onUpdate: ({ result }: { result: any }) => {
-				cadastroPending = false;
-				if (result?.type === 'success') {
-					toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-					delegaciaPrefixo = '';
-					delegaciaSufixo = '';
-					seccionalPrefixo = '';
-					seccionalSufixo = 'Interior Sul';
-					novoSeccionalId = null;
-					novoTemPlantao = false;
-					novoTemExpediente = false;
-					novoTemFds = false;
-					cadastroOpen = false;
-					invalidateAll();
-				} else if (result?.type === 'failure' && result.data?.error) {
-					toaster.create({ title: result.data.error, type: 'error' });
-				}
+	const handleCadastro: any = () => ({
+		onSubmit: () => {
+			cadastroPending = true;
+		},
+		onUpdate({ result }: { result: any }) {
+			cadastroPending = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
+				delegaciaPrefixo = '';
+				delegaciaSufixo = '';
+				seccionalPrefixo = '';
+				seccionalSufixo = 'Interior Sul';
+				novoSeccionalId = null;
+				novoTemPlantao = false;
+				novoTemExpediente = false;
+				novoTemFds = false;
+				cadastroOpen = false;
+				invalidateAll();
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		};
-	}
+		}
+	});
 
 	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
