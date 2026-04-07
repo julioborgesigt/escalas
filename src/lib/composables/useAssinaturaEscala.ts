@@ -17,18 +17,23 @@ import type { UsuarioLogado } from '$lib/auth';
 import { csrfHeaders } from '$lib/csrf';
 
 export interface UseAssinaturaParams {
-	escalaId: string;
-	isFDS: boolean;
-	policiaisCount: number;
-	usuario: UsuarioLogado | null;
+	getParams: () => {
+		escalaId: string;
+		isFDS: boolean;
+		policiaisCount: number;
+		usuario: UsuarioLogado | null;
+	};
 	onDocumentoAssinado?: (info: any) => void;
 }
 
 export function useAssinaturaEscala({
-	escalaId,
-	usuario,
+	getParams,
 	onDocumentoAssinado
 }: UseAssinaturaParams) {
+	const escalaId = $derived(getParams().escalaId);
+	const isFDS = $derived(getParams().isFDS);
+	const policiaisCount = $derived(getParams().policiaisCount);
+	const usuario = $derived(getParams().usuario);
 	// Estados de assinatura
 	let assinando = $state(false);
 	let etapaAssinatura = $state('');

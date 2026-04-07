@@ -12,7 +12,7 @@
 	let { data } = $props();
 
 	// Hook de estados derivados e permissões
-	const giseEstado = useGiseEstado({ data });
+	const giseEstado = useGiseEstado({ getData: () => data });
 	const {
 		isAdminGeral,
 		isSeccional,
