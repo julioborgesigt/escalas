@@ -8,6 +8,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export const POST = async ({ platform, params, request, locals, url }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 
 	if (!usuario) {
@@ -43,7 +44,7 @@ export const POST = async ({ platform, params, request, locals, url }: RequestEv
 
 	// Alinhamento conforme o PDF (Plantão = right (centro da direita), outros = center)
 	const isPlantao = escala.tipo === 'plantao';
-	
+
 	// Gerar código de verificação para impressão
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;

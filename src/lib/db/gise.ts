@@ -507,77 +507,72 @@ export async function verificarGiseCompleta(db: Database, giseId: number): Promi
 /**
  * Verifica se todos os membros escalados confirmaram saída.
  * Retorna true quando todos têm saida_timestamp preenchido.
+ * Usa agregação condicional em query única em vez de 2 queries separadas.
  */
 export async function verificarTodosSairam(db: Database, giseId: number): Promise<boolean> {
-	// Total de membros escalados na GISE
-	const totalMembros = await db
-		.select({ count: sql<number>`count(*)` })
+	const result = await db
+		.select({
+			total: sql<number>`count(*)`,
+			com_saida: sql<number>`count(${gisePresencas.saida_timestamp})`
+		})
 		.from(giseMembros)
 		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.leftJoin(gisePresencas, and(
+			eq(gisePresencas.gise_id, giseId),
+			eq(gisePresencas.policial_id, giseMembros.policial_id)
+		))
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
-	if (!totalMembros || totalMembros.count === 0) return false;
-
-	// Total com saída confirmada
-	const comSaida = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(gisePresencas)
-		.where(and(eq(gisePresencas.gise_id, giseId), isNotNull(gisePresencas.saida_timestamp)))
-		.get();
-
-	return (comSaida?.count ?? 0) >= totalMembros.count;
+	if (!result || result.total === 0) return false;
+	return (result.com_saida ?? 0) >= result.total;
 }
 
 /**
  * Verifica se todas as equipes enviaram seus relatórios de produtividade.
+ * Usa agregação condicional em query única.
  */
 export async function verificarTodosRelatoriosEnviados(db: Database, giseId: number): Promise<boolean> {
-	// Total de equipes na GISE
-	const totalEquipes = await db
-		.select({ count: sql<number>`count(*)` })
+	const result = await db
+		.select({
+			total: sql<number>`count(distinct ${giseEquipes.id})`,
+			com_resposta: sql<number>`count(distinct ${giseRespostasFormulario.equipe_id})`
+		})
 		.from(giseEquipes)
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.leftJoin(giseRespostasFormulario, and(
+			eq(giseRespostasFormulario.gise_id, giseId),
+			eq(giseRespostasFormulario.equipe_id, giseEquipes.id)
+		))
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
-	if (!totalEquipes || totalEquipes.count === 0) return false;
-
-	// Total de equipes com resposta enviada
-	const comResposta = await db
-		.select({ count: sql<number>`count(distinct ${giseRespostasFormulario.equipe_id})` })
-		.from(giseRespostasFormulario)
-		.where(eq(giseRespostasFormulario.gise_id, giseId))
-		.get();
-
-	return (comResposta?.count ?? 0) >= totalEquipes.count;
+	if (!result || result.total === 0) return false;
+	return (result.com_resposta ?? 0) >= result.total;
 }
 
 /**
  * Verifica se todos os relatórios de extra estão assinados (uma por seccional).
+ * Usa agregação condicional em query única.
  */
 export async function verificarTodosRelatoriosExtraAssinados(db: Database, giseId: number): Promise<boolean> {
-	const totalSeccionais = await db
-		.select({ count: sql<number>`count(*)` })
+	const result = await db
+		.select({
+			total: sql<number>`count(*)`,
+			assinadas: sql<number>`count(${giseAssinaturasRelatorios.id})`
+		})
 		.from(giseSeccionais)
+		.leftJoin(giseAssinaturasRelatorios, and(
+			eq(giseAssinaturasRelatorios.gise_id, giseId),
+			eq(giseAssinaturasRelatorios.seccional_id, giseSeccionais.seccional_id),
+			eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
+		))
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
-	if (!totalSeccionais || totalSeccionais.count === 0) return false;
-
-	const totalAssinadas = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(giseAssinaturasRelatorios)
-		.where(
-			and(
-				eq(giseAssinaturasRelatorios.gise_id, giseId),
-				eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-			)
-		)
-		.get();
-
-	return (totalAssinadas?.count ?? 0) >= totalSeccionais.count;
+	if (!result || result.total === 0) return false;
+	return (result.assinadas ?? 0) >= result.total;
 }
 
 export async function clonarGiseParaData(
@@ -607,42 +602,69 @@ export async function clonarGiseParaData(
 		secsParaClonar = todas.map((s) => ({ seccional_id: s.id }));
 	}
 
-	for (const sec of secsParaClonar) {
-		const novaSecResult = await db
-			.insert(giseSeccionais)
-			.values({
+	// Transação + batch inserts para atomicidade e performance
+	await db.transaction(async (tx) => {
+		// Clonar seccionais em batch
+		const secsInsert = await tx.insert(giseSeccionais).values(
+			secsParaClonar.map((sec) => ({
 				gise_id: novoId,
 				seccional_id: sec.seccional_id,
 				unidade_operacional_id: null,
-				status: 'pendente'
-			})
-			.returning({ id: giseSeccionais.id });
-		const novaSecId = novaSecResult[0].id;
+				status: 'pendente' as const
+			}))
+		).returning({ id: giseSeccionais.id, seccional_id: giseSeccionais.seccional_id });
 
-		let equipesOriginais: any[] = [];
-		if (modo === 'clonada' && sec.id) {
-			equipesOriginais = await db
-				.select()
-				.from(giseEquipes)
-				.where(eq(giseEquipes.gise_seccional_id, sec.id));
+		// Build map: old sec.id -> new sec.id for equipe references
+		const secIdMap = new Map<number, number>();
+		if (modo === 'clonada') {
+			for (let i = 0; i < secsParaClonar.length; i++) {
+				if (secsParaClonar[i].id) {
+					secIdMap.set(secsParaClonar[i].id, secsInsert[i].id);
+				}
+			}
 		}
 
-		if (equipesOriginais.length > 0) {
-			await db.insert(giseEquipes).values(
-				equipesOriginais.map((eq_: any) => ({
-					gise_seccional_id: novaSecId,
-					tipo: eq_.tipo,
-					slots_dpc: eq_.slots_dpc,
-					slots_oip: eq_.slots_oip
-				}))
-			);
-		} else {
-			await db.insert(giseEquipes).values([
-				{ gise_seccional_id: novaSecId, tipo: 'operacional', slots_dpc: 1, slots_oip: 3 },
-				{ gise_seccional_id: novaSecId, tipo: 'seint', slots_dpc: 0, slots_oip: 2 }
+		// Clonar equipes em batch (modo clonada)
+		if (modo === 'clonada') {
+			const oldSecIds = secsParaClonar.filter((s: any) => s.id).map((s: any) => s.id);
+			if (oldSecIds.length > 0) {
+				const equipesOriginais = await db
+					.select()
+					.from(giseEquipes)
+					.where(inArray(giseEquipes.gise_seccional_id, oldSecIds));
+
+				if (equipesOriginais.length > 0) {
+					await tx.insert(giseEquipes).values(
+						equipesOriginais.map((eq_: any) => ({
+							gise_seccional_id: secIdMap.get(eq_.gise_seccional_id)!,
+							tipo: eq_.tipo,
+							slots_dpc: eq_.slots_dpc,
+							slots_oip: eq_.slots_oip
+						}))
+					);
+				}
+			}
+		}
+
+		// Criar equipes padrão para seccionais sem equipes
+		const novasSecIds = secsInsert.map((s) => s.id);
+		const equipesExistentes = await tx
+			.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
+			.from(giseEquipes)
+			.where(inArray(giseEquipes.gise_seccional_id, novasSecIds));
+
+		const secIdsSemEquipe = novasSecIds.filter(
+			(id) => !equipesExistentes.some((e) => e.gise_seccional_id === id)
+		);
+
+		if (secIdsSemEquipe.length > 0) {
+			const equipesDefaults = secIdsSemEquipe.flatMap((secId) => [
+				{ gise_seccional_id: secId, tipo: 'operacional' as const, slots_dpc: 1, slots_oip: 3 },
+				{ gise_seccional_id: secId, tipo: 'seint' as const, slots_dpc: 0, slots_oip: 2 }
 			]);
+			await tx.insert(giseEquipes).values(equipesDefaults);
 		}
-	}
+	});
 
 	return novoId;
 }
@@ -1039,8 +1061,55 @@ export async function salvarRespostaGise(
 	});
 }
 
-export async function listarTodasRespostasGise(db: Database) {
-	return db
+export async function listarTodasRespostasGise(
+	db: Database,
+	opts?: { page?: number; limit?: number; mes?: number; ano?: number }
+): Promise<{
+	respostas: Array<{
+		id: number;
+		gise_id: number;
+		policial_id: number;
+		respostas: string;
+		updated_at: string;
+		data_inicio: string;
+		seccional_id: number;
+		seccional_nome: string;
+		equipe_id: number;
+		equipe_tipo: string;
+	}>;
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}> {
+	const page = Math.max(1, opts?.page ?? 1);
+	const limit = Math.min(500, Math.max(1, opts?.limit ?? 200));
+	const offset = (page - 1) * limit;
+
+	// Build dynamic conditions
+	const conditions: any[] = [];
+	if (opts?.mes) {
+		const monthStr = opts.mes.toString().padStart(2, '0');
+		conditions.push(sql`strftime('%m', ${giseEscalas.data_inicio}) = ${monthStr}`);
+	}
+	if (opts?.ano) {
+		conditions.push(sql`strftime('%Y', ${giseEscalas.data_inicio}) = ${opts.ano.toString()}`);
+	}
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	// Count total
+	const countResult = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(giseRespostasFormulario)
+		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+		.where(whereClause)
+		.get();
+	const total = Number(countResult?.count ?? 0);
+	const totalPages = Math.ceil(total / limit);
+
+	const resultados = await db
 		.select({
 			id: giseRespostasFormulario.id,
 			gise_id: giseRespostasFormulario.gise_id,
@@ -1058,7 +1127,12 @@ export async function listarTodasRespostasGise(db: Database) {
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 		.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 		.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-		.all();
+		.where(whereClause)
+		.orderBy(desc(giseEscalas.data_inicio))
+		.limit(limit)
+		.offset(offset);
+
+	return { respostas: resultados, total, page, limit, totalPages };
 }
 
 // ---- Presenças ----

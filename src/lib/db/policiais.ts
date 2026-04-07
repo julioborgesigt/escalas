@@ -45,19 +45,12 @@ export async function listarPoliciais(
 		);
 	}
 
-	// Contagem total (antes da paginação)
-	const countResult = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(policiais)
-		.where(and(...baseConditions))
-		.get();
-	const total = Number(countResult?.count ?? 0);
-
-	const page = Math.max(1, opts?.page ?? 1);
-	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
-	const totalPages = Math.ceil(total / limit);
+	// Paginação com valores padrão
+	const page = opts?.page ?? 1;
+	const limit = opts?.limit ?? 20;
 	const offset = (page - 1) * limit;
 
+	// Query única com window function: count + data em uma só ida ao banco
 	const results = await db
 		.select({
 			id: policiais.id,
@@ -75,7 +68,8 @@ export async function listarPoliciais(
 			papel_unidade_id: policiais.papel_unidade_id,
 			email: policiais.email,
 			created_at: policiais.created_at,
-			updated_at: policiais.updated_at
+			updated_at: policiais.updated_at,
+			total: sql<number>`count(*) OVER()`
 		})
 		.from(policiais)
 		.where(and(...baseConditions))
@@ -83,8 +77,14 @@ export async function listarPoliciais(
 		.limit(limit)
 		.offset(offset);
 
+	const total = results.length > 0 ? (results[0].total ?? 0) : 0;
+	const totalPages = Math.ceil(total / limit);
+
+	// Remove campo extra 'total' antes de retornar
+	const policiaisList = results.map(({ total: _t, ...rest }) => rest);
+
 	return {
-		policiais: results,
+		policiais: policiaisList,
 		total,
 		page,
 		limit,

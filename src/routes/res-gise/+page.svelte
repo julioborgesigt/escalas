@@ -20,7 +20,7 @@
 
 	$effect(() => {
 		const source = configTipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
-		perguntasConfig = JSON.parse(JSON.stringify(source));
+		perguntasConfig = structuredClone(source);
 	});
 
 	// Perguntas usadas no formulário de preenchimento (depende da equipe selecionada)
@@ -469,7 +469,7 @@
 									`Deseja restaurar o modelo padrão para ${configTipo}? Isso substituirá as perguntas atuais.`
 								)
 							) {
-								perguntasConfig = JSON.parse(JSON.stringify(padrao));
+								perguntasConfig = structuredClone(padrao);
 							}
 						}}
 						title="Restaurar Modelo Padrão"

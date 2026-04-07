@@ -43,6 +43,7 @@ async function verificarAcessoEscala(
 export const POST: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;

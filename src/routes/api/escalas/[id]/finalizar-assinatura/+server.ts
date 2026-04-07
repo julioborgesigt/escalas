@@ -8,6 +8,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export const POST = async ({ platform, params, request, locals, getClientAddress }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 	const p = platform as App.Platform | undefined;
 
@@ -44,8 +45,8 @@ export const POST = async ({ platform, params, request, locals, getClientAddress
 			const cert = forge.pki.certificateFromAsn1(forge.asn1.fromDer(der));
 			const cn = cert.subject.getField('CN')?.value as string || '';
 			const sn = cert.subject.getField('serialNumber')?.value as string || '';
-			dadosToken = { 
-				nome: cn.split(':')[0].trim(), 
+			dadosToken = {
+				nome: cn.split(':')[0].trim(),
 				cpf: sn.replace(/\D/g, '').slice(-11) || cn.split(':').pop()?.replace(/\D/g, '').slice(-11) || ''
 			};
 		}

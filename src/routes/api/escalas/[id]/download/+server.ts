@@ -11,7 +11,9 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ platform, params, url, locals }) => {
 	const db = getDB(platform);
 	const format = url.searchParams.get('format') || 'docx';
-	const escala = await buscarEscala(db, Number(params.id));
+	const id = Number(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	const escala = await buscarEscala(db, id);
 
 	if (!escala) throw error(404, 'Escala não encontrada');
 

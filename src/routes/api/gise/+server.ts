@@ -91,9 +91,8 @@ export const POST: RequestHandler = async ({ locals, request, platform }) => {
 
 			for (const data of datas) {
 				const novoId = await criarGiseEscala(db, data, hora_entrada, hora_saida, 'em_definicao_supervisor');
-				for (const sid of seccionalIdsFinal) {
-					await upsertGiseSeccional(db, novoId, sid);
-				}
+				// Upserts em paralelo para todas as seccionais desta data
+				await Promise.all(seccionalIdsFinal.map(sid => upsertGiseSeccional(db, novoId, sid)));
 				ids.push(novoId);
 			}
 		}

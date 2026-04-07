@@ -13,7 +13,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 
 	const db = getDB(platform);
 	const id = Number(params.id);
-	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const data = await request.json();
 	const parsed = unidadeSchema.safeParse(data);
@@ -40,7 +40,7 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 
 	const db = getDB(platform);
 	const id = Number(params.id);
-	if (!id) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	// Buscar nome da unidade
 	const unidade = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, id)).get();

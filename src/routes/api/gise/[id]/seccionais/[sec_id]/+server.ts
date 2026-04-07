@@ -35,7 +35,9 @@ import { eq, and } from 'drizzle-orm';
 export const PATCH: RequestHandler = async ({ locals, params, request, platform }) => {
 	const u = locals.usuario;
 	const giseId = parseInt(params.id);
+	if (isNaN(giseId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const secId = parseInt(params.sec_id);
+	if (isNaN(secId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	if (!u || (!isAdminGeral(u) && !isAdminSeccional(u))) {
 		return json({ error: 'Sem permissão' }, { status: 403 });
@@ -214,7 +216,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request, platform 
 export const POST: RequestHandler = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
 	const giseId = parseInt(params.id);
+	if (isNaN(giseId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const secId = parseInt(params.sec_id);
+	if (isNaN(secId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	if (!u || (!isAdminGeral(u) && !isAdminSeccional(u))) {
 		return json({ error: 'Sem permissão' }, { status: 403 });
@@ -248,7 +252,9 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 export const DELETE: RequestHandler = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
 	const giseId = parseInt(params.id);
+	if (isNaN(giseId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const secId = parseInt(params.sec_id);
+	if (isNaN(secId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	if (!u || !isAdminGeral(u)) {
 		return json({ error: 'Somente administradores gerais podem excluir seccionais' }, { status: 403 });

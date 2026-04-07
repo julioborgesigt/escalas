@@ -10,6 +10,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export const POST = async ({ platform, params, request, locals }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 
 	if (!usuario) {
