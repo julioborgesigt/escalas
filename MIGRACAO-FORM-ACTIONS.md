@@ -300,7 +300,7 @@ export const actions: Actions = {
 |------|:-:|:-:|:-:|:-:|--------|
 | `/escalas` | ✅ | ✅ criar, excluir | ✅ (excluir) | ✅ | **Concluída** |
 | `/escalas/nova` | ✅ | ✅ criar | ✅ | ✅ | **Concluída** |
-| `/escalas/[id]` | ❌ | ❌ | ❌ | ❌ | **Pendente** (prioridade) |
+| `/escalas/[id]` | ✅ criado | ❌ (parcial) | ❌ | ❌ | **Parcial** — server pronto, template em progresso |
 | `/policiais` | ✅ | ✅ criar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/unidades` | ✅ | ✅ criar, editar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/recebidos` | ❌ | ❌ | ❌ | ❌ | **Pendente** |
