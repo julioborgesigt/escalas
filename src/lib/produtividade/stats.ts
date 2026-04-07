@@ -37,7 +37,7 @@ export function calculateStats(
 	});
 
 	filteredData.forEach((item) => {
-		const res = JSON.parse(item.respostas || '{}');
+		const res = (item as any).respostasParsed ?? JSON.parse(item.respostas || '{}');
 
 		// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
 		questions.forEach((q) => {
@@ -96,7 +96,7 @@ export function calculateRanking(
 	(seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
 
 	filteredData.forEach((item) => {
-		const res = JSON.parse(item.respostas || '{}');
+		const res = (item as any).respostasParsed ?? JSON.parse(item.respostas || '{}');
 		const val = extractValue(res);
 		const entry = r.get(item.seccional_id);
 		if (entry) entry.total += val;

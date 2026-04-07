@@ -57,7 +57,7 @@ export function useCharts(Chart: any, data: any) {
 					return list
 						.filter((item: any) => item.seccional_id === sec.id)
 						.reduce((acc: number, item: any) => {
-							const res = JSON.parse(item.respostas || '{}');
+							const res = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;
@@ -79,7 +79,7 @@ export function useCharts(Chart: any, data: any) {
 					return list
 						.filter((item: any) => item.data_inicio === date)
 						.reduce((acc: number, item: any) => {
-							const res = JSON.parse(item.respostas || '{}');
+							const res = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;

@@ -1,11 +1,5 @@
 import { error, json } from '@sveltejs/kit';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
-import {
-	gerarDocx, gerarDocxExpediente, gerarDocxPlantao,
-	gerarXlsx, gerarXlsxExpediente, gerarXlsxPlantao,
-	gerarPdf, gerarPdfExpediente, gerarPdfPlantao,
-	gerarOds, gerarOdsExpediente, gerarOdsPlantao
-} from '$lib/export';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, params, url, locals }) => {
@@ -39,6 +33,8 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 	try {
 		switch (format) {
 			case 'docx':
+			case 'odt': {
+				const { gerarDocx, gerarDocxExpediente, gerarDocxPlantao } = await import('$lib/export');
 				data = tipo === 'expediente'
 					? await gerarDocxExpediente(escala, policiais)
 					: tipo === 'plantao'
@@ -47,16 +43,9 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 				contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 				ext = 'docx';
 				break;
-			case 'odt':
-				data = tipo === 'expediente'
-					? await gerarDocxExpediente(escala, policiais)
-					: tipo === 'plantao'
-						? await gerarDocxPlantao(escala, policiais)
-						: await gerarDocx(escala, policiais);
-				contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-				ext = 'docx';
-				break;
-			case 'xlsx':
+			}
+			case 'xlsx': {
+				const { gerarXlsx, gerarXlsxExpediente, gerarXlsxPlantao } = await import('$lib/export');
 				data = tipo === 'expediente'
 					? gerarXlsxExpediente(escala, policiais)
 					: tipo === 'plantao'
@@ -65,7 +54,9 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 				contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 				ext = 'xlsx';
 				break;
-			case 'ods':
+			}
+			case 'ods': {
+				const { gerarOds, gerarOdsExpediente, gerarOdsPlantao } = await import('$lib/export');
 				data = tipo === 'expediente'
 					? gerarOdsExpediente(escala, policiais)
 					: tipo === 'plantao'
@@ -74,7 +65,9 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 				contentType = 'application/vnd.oasis.opendocument.spreadsheet';
 				ext = 'ods';
 				break;
-			case 'pdf':
+			}
+			case 'pdf': {
+				const { gerarPdf, gerarPdfExpediente, gerarPdfPlantao } = await import('$lib/export');
 				data = tipo === 'expediente'
 					? gerarPdfExpediente(escala, policiais).pdf
 					: tipo === 'plantao'
@@ -83,6 +76,7 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 				contentType = 'application/pdf';
 				ext = 'pdf';
 				break;
+			}
 			default:
 				throw error(400, 'Formato inválido. Use: docx, odt, xlsx, ods, pdf');
 		}
@@ -98,4 +92,3 @@ export const GET: RequestHandler = async ({ platform, params, url, locals }) => 
 		}
 	});
 };
-

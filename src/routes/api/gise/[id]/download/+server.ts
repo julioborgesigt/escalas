@@ -7,10 +7,8 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import * as XLSX from 'xlsx';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise, buscarGiseEscala } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { gerarPdfGise, gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { getR2 } from '$lib/server/platform';
 import { adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 
@@ -53,7 +51,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			try {
 				// Prioridade total: usar a chave salva no banco de dados (mais robusto)
 				let r2Key = reportSignature.r2_key;
-				
+
 				// Fallback apenas para registros legados que ainda não tinham a coluna preenchida
 				if (!r2Key) {
 					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
@@ -76,9 +74,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					});
 				} else {
 					console.error(`[download-extra] Arquivo não encontrado no R2: ${r2Key}`);
-					return json({ 
+					return json({
 						error: 'O relatório assinado não foi encontrado no servidor de arquivos (R2).',
-						key: r2Key 
+						key: r2Key
 					}, { status: 404 });
 				}
 			} catch (e: any) {
@@ -94,6 +92,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		try {
 			const presencas = await buscarPresencasGise(db, id);
+			const { gerarRelatorioExtraordinarioPdf } = await import('$lib/export');
 			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, null, undefined);
 			const filename = `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
 
@@ -113,7 +112,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 	if (format === 'pdf') {
 		const filename = `gise_${gise.data_inicio}_assinada.pdf`;
-		
+
 		// Prioridade total: buscar o PDF assinado (com manifesto) no R2
 		if (gise.documento?.r2_key) {
 			const r2 = getR2(platform);
@@ -137,6 +136,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 
 		// Fallback: gerar PDF normal (rascunho ou erro no R2)
+		const { gerarPdfGise } = await import('$lib/export');
 		const result = gerarPdfGise(gise);
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
@@ -179,6 +179,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	// XLSX
+	const XLSX = await import('xlsx');
 	const wb = XLSX.utils.book_new();
 
 	const resumoRows: (string | number)[][] = [
