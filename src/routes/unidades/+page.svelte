@@ -1,20 +1,29 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+
+	let { data, form } = $props();
 
 	const { isAdmin } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
-	let unidades = $state<Unidade[]>([]);
-	let loading = $state(true);
-	let salvando = $state(false);
+	const unidades = $state<Unidade[]>(data.unidades);
+
+	// Atualiza estado local quando dados do server mudam
+	$effect(() => {
+		if (data.unidades) {
+			unidades.length = 0;
+			unidades.push(...data.unidades);
+		}
+	});
 
 	// Filtros
 	let filtroSeccional = $state<number | 'todas'>(
@@ -35,10 +44,11 @@
 		}
 	});
 
-	function mudarSeccional() {
-		// Reset busqueda se desejar, mas o usuário não pediu explicitamente aqui.
-		// Mantendo a lógica de reset de outros componentes para consistência.
-		// filtroBusca = '';
+	function filtrarUnidades() {
+		const params = new URLSearchParams();
+		if (filtroSeccional !== 'todas') params.set('seccional', String(filtroSeccional));
+		if (filtroBusca) params.set('busca', filtroBusca);
+		// Para unidades, filtros sao apenas locais (localStorage), nao URL
 	}
 
 	const unidadesFiltradas = $derived(
@@ -69,7 +79,6 @@
 			});
 		}
 
-		// Delegacias sem seccional listada ou sem parent
 		const orfaos = delegacias.filter((d) => !seccionais.some((s) => s.id === d.seccional_id));
 		for (const f of orfaos) {
 			result.push({ ...f, isChild: false, isLastChild: false, hasChildren: false });
@@ -80,9 +89,9 @@
 
 	// Estado para o cadastro guiado
 	let tipoUnidade = $state<'delegacia' | 'seccional'>('delegacia');
-	let delegaciaPrefixo = $state(''); // ex: 1ª
-	let delegaciaSufixo = $state(''); // ex: Iguatu
-	let seccionalPrefixo = $state(''); // ex: 1ª
+	let delegaciaPrefixo = $state('');
+	let delegaciaSufixo = $state('');
+	let seccionalPrefixo = $state('');
 	let seccionalSufixo = $state('Interior Sul');
 
 	const novoNome = $derived(
@@ -109,6 +118,7 @@
 	let editCidade = $state('');
 	let buscaCidade = $state('');
 	let salvandoEdicao = $state(false);
+	let excluindo = $state(false);
 
 	// Exclusão
 	let dialogOpen = $state(false);
@@ -116,56 +126,6 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
-
-	async function carregarUnidades() {
-		loading = true;
-		const res = await fetch('/api/unidades');
-		unidades = await res.json();
-		loading = false;
-	}
-
-	async function salvarUnidade(e: Event) {
-		e.preventDefault();
-		const nomeFinal = novoNome;
-		if (!nomeFinal) return;
-		salvando = true;
-		try {
-			const res = await fetch('/api/unidades', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					nome: nomeFinal,
-					tipo: tipoUnidade,
-					seccional_id: tipoUnidade === 'delegacia' ? novoSeccionalId : null,
-					tem_plantao: novoTemPlantao,
-					tem_expediente: novoTemExpediente,
-					tem_fds: novoTemFds,
-					cidade: buscaCidade
-				})
-			});
-
-			if (res.ok) {
-				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-				delegaciaPrefixo = '';
-				delegaciaSufixo = '';
-				seccionalPrefixo = '';
-				seccionalSufixo = 'Interior Sul';
-				novoSeccionalId = null;
-				novoTemPlantao = false;
-				novoTemExpediente = false;
-				novoTemFds = false;
-				cadastroOpen = false;
-				await carregarUnidades();
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao cadastrar unidade', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			salvando = false;
-		}
-	}
 
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
@@ -192,34 +152,25 @@
 	async function salvarEdicao(id: number) {
 		if (!editNome.trim()) return;
 		salvandoEdicao = true;
-		try {
-			const res = await fetch(`/api/unidades/${id}`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					nome: editNome.trim(),
-					tipo: editTipo,
-					seccional_id: editSeccionalId,
-					tem_plantao: editTemPlantao,
-					tem_expediente: editTemExpediente,
-					tem_fds: editTemFds,
-					cidade: editCidade
-				})
-			});
-
-			if (res.ok) {
-				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
-				editandoId = null;
-				await carregarUnidades();
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			salvandoEdicao = false;
+		const formData = new FormData();
+		formData.set('id', String(id));
+		formData.set('nome', editNome.trim());
+		formData.set('tipo', editTipo);
+		formData.set('seccional_id', editSeccionalId ?? '');
+		formData.set('tem_plantao', editTemPlantao ? 'on' : '');
+		formData.set('tem_expediente', editTemExpediente ? 'on' : '');
+		formData.set('tem_fds', editTemFds ? 'on' : '');
+		formData.set('cidade', editCidade);
+		const resp = await fetch('?/editar', { method: 'POST', body: formData });
+		salvandoEdicao = false;
+		if (!resp.ok) {
+			const data = await resp.json().catch(() => ({}));
+			toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
 		}
+	}
+
+	function mudarSeccional() {
+		// filtro local, sem ação necessária
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -227,30 +178,25 @@
 		dialogOpen = true;
 	}
 
-	let excluindo = $state(false);
-
 	async function confirmarExclusao() {
 		if (!unidadeParaExcluir) return;
-		const { id, nome } = unidadeParaExcluir;
-		excluindo = true;
-		try {
-			const res = await fetch(`/api/unidades/${id}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+		const formData = new FormData();
+		formData.set('unidade_id', String(unidadeParaExcluir.id));
+		const resp = await fetch('?/excluir', {
+			method: 'POST',
+			body: formData
+		});
+		if (resp.ok) {
+			toaster.create({
+				title: `Unidade "${unidadeParaExcluir.nome}" removida com sucesso`,
+				type: 'success'
 			});
-			if (res.ok) {
-				toaster.create({ title: `Unidade "${nome}" removida com sucesso`, type: 'success' });
-				unidades = unidades.filter((u) => u.id !== id);
-				dialogOpen = false;
-				unidadeParaExcluir = null;
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao remover unidade', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			excluindo = false;
+			dialogOpen = false;
+			unidadeParaExcluir = null;
+			await invalidateAll();
+		} else {
+			const data = await resp.json().catch(() => ({}));
+			toaster.create({ title: data.error || 'Erro ao remover unidade', type: 'error' });
 		}
 	}
 
@@ -259,11 +205,34 @@
 		filtroBusca = '';
 	}
 
-	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
+	let cadastroPending = $state(false);
+	function handleCadastro() {
+		return {
+			onSubmit: () => {
+				cadastroPending = true;
+			},
+			onUpdate: ({ result }: { result: any }) => {
+				cadastroPending = false;
+				if (result?.type === 'success') {
+					toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
+					delegaciaPrefixo = '';
+					delegaciaSufixo = '';
+					seccionalPrefixo = '';
+					seccionalSufixo = 'Interior Sul';
+					novoSeccionalId = null;
+					novoTemPlantao = false;
+					novoTemExpediente = false;
+					novoTemFds = false;
+					cadastroOpen = false;
+					invalidateAll();
+				} else if (result?.type === 'failure' && result.data?.error) {
+					toaster.create({ title: result.data.error, type: 'error' });
+				}
+			}
+		};
+	}
 
-	$effect(() => {
-		carregarUnidades();
-	});
+	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -274,7 +243,7 @@
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
 			onclick={limparFiltros}
-			disabled={!temFiltros && !loading}
+			disabled={!temFiltros}
 		>
 			Limpar filtros
 		</button>
@@ -384,7 +353,16 @@
 			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
-			<form onsubmit={salvarUnidade} class="flex flex-col gap-4">
+			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
+				<!-- Campos hidden -->
+				<input type="hidden" name="nome" value={novoNome} />
+				<input type="hidden" name="tipo" value={tipoUnidade} />
+				<input type="hidden" name="seccional_id" value={novoSeccionalId ?? ''} />
+				<input type="hidden" name="cidade" value={buscaCidade} />
+				<input type="hidden" name="tem_plantao" value={novoTemPlantao ? 'on' : ''} />
+				<input type="hidden" name="tem_expediente" value={novoTemExpediente ? 'on' : ''} />
+				<input type="hidden" name="tem_fds" value={novoTemFds ? 'on' : ''} />
+
 				<div
 					class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5"
 				>
@@ -521,12 +499,12 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2"
-						disabled={salvando ||
+						disabled={cadastroPending ||
 							!novoNome.trim() ||
 							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
 					>
-						{#if salvando}<Spinner size="sm" />{/if}
-						{salvando ? 'Salvando...' : 'Cadastrar'}
+						{#if cadastroPending}<Spinner size="sm" />{/if}
+						{cadastroPending ? 'Salvando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
@@ -537,14 +515,7 @@
 <div
 	class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
 >
-	{#if loading}
-		<div
-			class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
-		>
-			<Spinner size="xl" />
-			<span class="text-sm">Carregando...</span>
-		</div>
-	{:else if unidades.length === 0}
+	{#if data.unidades.length === 0}
 		<div class="text-center py-20">
 			<div
 				class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"

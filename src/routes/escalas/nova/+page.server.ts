@@ -2,66 +2,43 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
-	listarEscalas,
 	criarEscala,
-	excluirEscala,
-	listarUnidades,
-	verificarEscalaExistente
+	verificarEscalaExistente,
+	listarLotacoes
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto } from '$lib/db';
+import { eq } from 'drizzle-orm';
+import { unidades } from '$lib/server/schema';
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
-		throw redirect(302, '/');
-	}
-
 	const db = getDB(platform);
-
-	// Parâmetros de filtro
 	const isAdmin = u.tipo === 'admin';
-	const lotacaoParam = url.searchParams.get('lotacao') || undefined;
-	const mes = url.searchParams.get('mes') ? Number(url.searchParams.get('mes')) : undefined;
-	const ano = url.searchParams.get('ano') ? Number(url.searchParams.get('ano')) : undefined;
-	const tipo = url.searchParams.get('tipo') || undefined;
-	const busca = url.searchParams.get('busca') || undefined;
-	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
 
-	// Se for admin sem lotacao selecionada, nao busca dados
-	const skipLoad = isAdmin && !lotacaoParam;
-
-	const [resultado, unidades] = await Promise.all([
-		skipLoad
-			? { escalas: [], total: 0, page: 1, limit: 20, totalPages: 1 }
-			: listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
-				busca,
-				page,
-				limit: 20
-			}),
-		listarUnidades(db)
+	// Carrega lotações (para admin) ou unidade do policial
+	const [lotacoes, unidadesComRegime] = await Promise.all([
+		isAdmin ? listarLotacoes(db) : [u.lotacao!],
+		u.tipo === 'policial'
+			? db.select().from(unidades).where(eq(unidades.nome, u.lotacao!)).get().then((r) => (r ? [r] : []))
+			: db
+					.select({
+						nome: unidades.nome,
+						tem_plantao: unidades.tem_plantao,
+						tem_expediente: unidades.tem_expediente,
+						tem_fds: unidades.tem_fds,
+						cidade: unidades.cidade
+					})
+					.from(unidades)
+					.all()
 	]);
 
 	return {
-		escalas: resultado.escalas,
-		pagination: {
-			page: resultado.page,
-			limit: resultado.limit,
-			total: resultado.total,
-			totalPages: resultado.totalPages
-		},
-		unidades,
-		filtros: {
-			lotacao: lotacaoParam ?? '',
-			mes: mes ?? 0,
-			ano: ano ?? 0,
-			tipo: tipo ?? 'todos',
-			busca: busca ?? ''
-		},
+		lotacoes,
+		unidadesComRegime,
 		isAdmin,
-		skipLoad
+		lotacaoUsuario: u.lotacao
 	};
 };
 
@@ -95,7 +72,7 @@ export const actions: Actions = {
 		if (!parsed.success) {
 			return fail(400, {
 				error: parsed.error.issues[0].message,
-				fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo }
+				fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo, hora_entrada, hora_saida }
 			});
 		}
 
@@ -140,45 +117,11 @@ export const actions: Actions = {
 
 			return { success: true, id: result[0]?.id };
 		} catch (err) {
-			console.error('[actions.criar] erro ao criar escala:', err);
+			console.error('[escalas/nova actions.criar] erro:', err);
 			return fail(500, {
 				error: 'Erro interno ao criar escala',
 				fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo }
 			});
 		}
-	},
-
-	excluir: async ({ request, locals, platform }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const data = await request.formData();
-		const escalaId = Number(data.get('escala_id'));
-		if (isNaN(escalaId)) return fail(400, { error: 'ID inválido' });
-
-		const db = getDB(platform);
-
-		// Policial só pode excluir escalas da sua lotação
-		if (u.tipo === 'policial') {
-			const { buscarEscala } = await import('$lib/db');
-			const escala = await buscarEscala(db, escalaId);
-			if (escala && escala.lotacao !== u.lotacao) {
-				return fail(403, { error: 'Sem permissão' });
-			}
-		}
-
-		await excluirEscala(db, escalaId);
-
-		if (u) {
-			await registrarAuditComContexto(db, {
-				usuario: u,
-				acao: 'excluir_escala',
-				entidade: 'escala',
-				entidade_id: escalaId,
-				detalhes: `Escala excluída: ID ${escalaId}`
-			});
-		}
-
-		return { success: true };
 	}
 };

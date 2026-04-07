@@ -1,7 +1,6 @@
 <script lang="ts">
-	import Spinner from '$lib/components/Spinner.svelte';
-	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
@@ -9,6 +8,10 @@
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import Spinner from '$lib/components/Spinner.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
+
+	let { data, form } = $props();
 
 	const { isAdmin, lotacaoUsuario } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_escalas', {
@@ -20,28 +23,20 @@
 		busca: ''
 	});
 
-	let escalas = $state<EscalaListagem[]>([]);
-	let loading = $state(true);
-	let saving = $state(false);
-	let excluindo = $state(false);
-	let revogando = $state(false);
-	let unidades = $state<Unidade[]>([]);
+	const unidades = $state<Unidade[]>(data.unidades);
 
-	// Paginação
-	let paginaAtual = $state(1);
-	let totalPaginas = $state(1);
-	let totalEscalas = $state(0);
-	const ITEMS_POR_PAGINA = 20;
+	// Paginação — usa dados do server, mas permite navegação local
+	let paginaAtual = $state(data.pagination.page);
 
-	// Filtros
-	let filtroLotacao = $state(savedFilters.lotacao);
-	let filtroMes = $state(savedFilters.mes);
-	let filtroAno = $state(savedFilters.ano);
-	let filtroTipo = $state(savedFilters.tipo);
+	// Filtros — inicializa com valores do server ou localStorage
+	let filtroLotacao = $state(data.filtros.lotacao || savedFilters.lotacao);
+	let filtroMes = $state(data.filtros.mes || savedFilters.mes);
+	let filtroAno = $state(data.filtros.ano || savedFilters.ano);
+	let filtroTipo = $state(data.filtros.tipo || savedFilters.tipo);
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
-	let filtroBusca = $state(savedFilters.busca);
+	let filtroBusca = $state(data.filtros.busca || savedFilters.busca);
 
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
@@ -67,6 +62,20 @@
 			: unidades.filter((u) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional)
 	);
 
+	const escalas = $state<EscalaListagem[]>(data.escalas);
+	const totalPaginas = $derived(data.pagination.totalPages);
+	const ITEMS_POR_PAGINA = 20;
+	let revogando = $state(false);
+
+	// Atualiza estado local quando dados do server mudam (após action ou filtro)
+	$effect(() => {
+		if (data.escalas) {
+			escalas.length = 0;
+			escalas.push(...data.escalas);
+			paginaAtual = data.pagination.page;
+		}
+	});
+
 	let dialogOpen = $state(false);
 	let dialogRevogarOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; titulo: string } | null>(null);
@@ -89,69 +98,17 @@
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
 
-	async function carregar() {
-		if (isAdmin && !filtroLotacao) {
-			escalas = [];
-			loading = false;
-			return;
-		}
-
-		loading = true;
+	function navegarComFiltros() {
 		const params = new URLSearchParams();
 		if (filtroLotacao && filtroLotacao !== 'todas') {
 			params.set('lotacao', filtroLotacao);
 		}
-		params.set('mes', filtroMes.toString());
-		params.set('ano', filtroAno.toString());
-		if (filtroTipo !== 'todos') {
-			params.set('tipo', filtroTipo);
-		}
-		if (filtroBusca) {
-			params.set('busca', filtroBusca);
-		}
-		params.set('page', String(paginaAtual));
-		params.set('limit', String(ITEMS_POR_PAGINA));
-
-		const res = await fetch(`/api/escalas?${params.toString()}`);
-		const resultado = await res.json();
-		escalas = resultado.escalas ?? resultado;
-		totalPaginas = resultado.totalPages ?? 1;
-		totalEscalas = resultado.total ?? resultado.escalas?.length ?? 0;
-		loading = false;
-	}
-
-	async function carregarUnidades() {
-		const res = await fetch('/api/unidades');
-		unidades = await res.json();
-	}
-
-	function solicitarExclusao(id: number, titulo: string) {
-		escalaParaExcluir = { id, titulo };
-		dialogOpen = true;
-	}
-
-	async function confirmarExclusao() {
-		if (!escalaParaExcluir) return;
-		excluindo = true;
-		const id = escalaParaExcluir.id;
-		const titulo = escalaParaExcluir.titulo;
-
-		const res = await fetch(`/api/escalas/${id}`, {
-			method: 'DELETE',
-			headers: csrfHeaders()
-		});
-		excluindo = false;
-		dialogOpen = false;
-		if (res.ok) {
-			toaster.create({
-				title: `Escala de ${titulo} removida`,
-				type: 'success'
-			});
-			escalas = escalas.filter((e) => e.id !== id);
-		} else {
-			toaster.create({ title: 'Erro ao remover', type: 'error' });
-		}
-		escalaParaExcluir = null;
+		if (filtroMes) params.set('mes', String(filtroMes));
+		if (filtroAno) params.set('ano', String(filtroAno));
+		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
+		if (filtroBusca) params.set('busca', filtroBusca);
+		params.set('page', '1');
+		window.location.search = params.toString();
 	}
 
 	function limparFiltros() {
@@ -161,8 +118,12 @@
 		filtroAno = new Date().getFullYear();
 		filtroTipo = 'todos';
 		filtroBusca = '';
-		paginaAtual = 1;
-		carregar();
+		navegarComFiltros();
+	}
+
+	function solicitarExclusao(id: number, titulo: string) {
+		escalaParaExcluir = { id, titulo };
+		dialogOpen = true;
 	}
 
 	function solicitarEdicao(esc: EscalaListagem) {
@@ -210,14 +171,26 @@
 			filtroTipo !== 'todos'
 	);
 
-	$effect(() => {
-		carregar();
-		carregarUnidades();
-		// Resetar para página 1 ao mudar filtros
-		if (filtroMes || filtroAno || filtroTipo || filtroLotacao) {
-			paginaAtual = 1;
+	// Handler para exclusao via form action
+	async function handleExcluirEscalada(e: Event) {
+		const formData = new FormData();
+		formData.set('escala_id', String(escalaParaExcluir!.id));
+		const resp = await fetch('?/excluir', {
+			method: 'POST',
+			body: formData
+		});
+		if (resp.ok) {
+			toaster.create({
+				title: `Escala de ${escalaParaExcluir!.titulo} removida`,
+				type: 'success'
+			});
+			dialogOpen = false;
+			escalaParaExcluir = null;
+			await invalidateAll();
+		} else {
+			toaster.create({ title: 'Erro ao remover', type: 'error' });
 		}
-	});
+	}
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -228,7 +201,7 @@
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
 			onclick={limparFiltros}
-			disabled={!temFiltros && !loading}
+			disabled={!temFiltros}
 		>
 			Limpar filtros
 		</button>
@@ -252,11 +225,9 @@
 				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 				<button
 					class="btn preset-filled-error-500 flex items-center gap-2"
-					onclick={confirmarExclusao}
-					disabled={excluindo}
+					onclick={handleExcluirEscalada}
 				>
-					{#if excluindo}<Spinner size="sm" />{/if}
-					{excluindo ? 'Excluindo...' : 'Excluir'}
+					Excluir
 				</button>
 			</div>
 		</div>
@@ -312,7 +283,7 @@
 					bind:value={filtroSeccional}
 					onchange={() => {
 						filtroLotacao = '';
-						carregar();
+						navegarComFiltros();
 					}}
 				>
 					<option value="todas">Todas as Seccionais</option>
@@ -324,7 +295,7 @@
 
 			<label class="label col-span-12 sm:col-span-5">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-				<select class="select" bind:value={filtroLotacao} onchange={carregar}>
+				<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 					<option value="">Selecione uma unidade...</option>
 					<option value="todas">Todas as unidades</option>
 					{#each delegaciasDropdown as del (del.id)}
@@ -336,7 +307,7 @@
 
 		<label class="label col-span-12 {isAdmin ? 'sm:col-span-2' : 'sm:col-span-6'}">
 			<span class="label-text font-semibold mb-1">Tipo</span>
-			<select class="select" bind:value={filtroTipo} onchange={carregar}>
+			<select class="select" bind:value={filtroTipo} onchange={navegarComFiltros}>
 				<option value="todos">Todos</option>
 				<option value="plantao">Plantão</option>
 				<option value="expediente">Expediente</option>
@@ -346,7 +317,7 @@
 
 		<label class="label col-span-6 {isAdmin ? 'sm:col-span-1' : 'sm:col-span-3'}">
 			<span class="label-text font-semibold mb-1">Mês</span>
-			<select class="select" bind:value={filtroMes} onchange={carregar}>
+			<select class="select" bind:value={filtroMes} onchange={navegarComFiltros}>
 				{#each meses as mes}
 					<option value={mes.value}>{mes.label}</option>
 				{/each}
@@ -355,7 +326,7 @@
 
 		<label class="label col-span-6 {isAdmin ? 'sm:col-span-1' : 'sm:col-span-3'}">
 			<span class="label-text font-semibold mb-1">Ano</span>
-			<select class="select" bind:value={filtroAno} onchange={carregar}>
+			<select class="select" bind:value={filtroAno} onchange={navegarComFiltros}>
 				{#each anos as ano}
 					<option value={ano}>{ano === 0 ? 'Todos' : ano}</option>
 				{/each}
@@ -363,14 +334,7 @@
 		</label>
 	</div>
 
-	{#if loading}
-		<div
-			class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
-		>
-			<Spinner size="xl" />
-			<span class="text-sm">Carregando...</span>
-		</div>
-	{:else if isAdmin && !filtroLotacao}
+	{#if data.skipLoad}
 		<div class="text-center py-20">
 			<div
 				class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
