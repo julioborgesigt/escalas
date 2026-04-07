@@ -7,54 +7,62 @@
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 
-
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
+	const { isAdmin } = useAutorizacao();
+	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
 	let unidades = $state<Unidade[]>([]);
 	let loading = $state(true);
 	let salvando = $state(false);
-	
-	// Filtros com persistência
-	const KEY = 'filtros_unidades';
-	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
 
-	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
-	let filtroBusca = $state(saved.busca || '');
+	// Filtros
+	let filtroSeccional = $state<number | 'todas'>(
+		(savedFilters.seccional as unknown as number) || 'todas'
+	);
+	let filtroBusca = $state(savedFilters.busca);
 
 	// Salvar filtros a cada mudança
 	$effect(() => {
 		if (browser) {
-			localStorage.setItem(KEY, JSON.stringify({
-				seccional: filtroSeccional,
-				busca: filtroBusca
-			}));
+			localStorage.setItem(
+				'filtros_unidades',
+				JSON.stringify({
+					seccional: filtroSeccional,
+					busca: filtroBusca
+				})
+			);
 		}
 	});
 
 	function mudarSeccional() {
-		// Reset busqueda se desejar, mas o usuário não pediu explicitamente aqui. 
+		// Reset busqueda se desejar, mas o usuário não pediu explicitamente aqui.
 		// Mantendo a lógica de reset de outros componentes para consistência.
 		// filtroBusca = '';
 	}
 
-
-	const unidadesFiltradas = $derived(unidades.filter((u) => {
-		if (filtroSeccional !== 'todas') {
-			if (u.tipo === 'seccional' && u.id !== filtroSeccional) return false;
-			if (u.tipo === 'delegacia' && u.seccional_id !== filtroSeccional) return false;
-		}
-		if (filtroBusca && !u.nome.toLowerCase().includes(filtroBusca.toLowerCase())) return false;
-		return true;
-	}));
+	const unidadesFiltradas = $derived(
+		unidades.filter((u) => {
+			if (filtroSeccional !== 'todas') {
+				if (u.tipo === 'seccional' && u.id !== filtroSeccional) return false;
+				if (u.tipo === 'delegacia' && u.seccional_id !== filtroSeccional) return false;
+			}
+			if (filtroBusca && !u.nome.toLowerCase().includes(filtroBusca.toLowerCase())) return false;
+			return true;
+		})
+	);
 
 	const unidadesAgrupadas = $derived.by(() => {
-		const result: (Unidade & { isChild?: boolean; isLastChild?: boolean; hasChildren?: boolean })[] = [];
-		const seccionais = unidadesFiltradas.filter(u => u.tipo === 'seccional');
-		const delegacias = unidadesFiltradas.filter(u => u.tipo === 'delegacia');
+		const result: (Unidade & {
+			isChild?: boolean;
+			isLastChild?: boolean;
+			hasChildren?: boolean;
+		})[] = [];
+		const seccionais = unidadesFiltradas.filter((u) => u.tipo === 'seccional');
+		const delegacias = unidadesFiltradas.filter((u) => u.tipo === 'delegacia');
 
 		for (const sec of seccionais) {
-			const filhos = delegacias.filter(d => d.seccional_id === sec.id);
+			const filhos = delegacias.filter((d) => d.seccional_id === sec.id);
 			result.push({ ...sec, isChild: false, isLastChild: false, hasChildren: filhos.length > 0 });
 			filhos.forEach((f, index) => {
 				result.push({ ...f, isChild: true, isLastChild: index === filhos.length - 1 });
@@ -62,7 +70,7 @@
 		}
 
 		// Delegacias sem seccional listada ou sem parent
-		const orfaos = delegacias.filter(d => !seccionais.some(s => s.id === d.seccional_id));
+		const orfaos = delegacias.filter((d) => !seccionais.some((s) => s.id === d.seccional_id));
 		for (const f of orfaos) {
 			result.push({ ...f, isChild: false, isLastChild: false, hasChildren: false });
 		}
@@ -70,12 +78,10 @@
 		return result;
 	});
 
-
-
 	// Estado para o cadastro guiado
 	let tipoUnidade = $state<'delegacia' | 'seccional'>('delegacia');
 	let delegaciaPrefixo = $state(''); // ex: 1ª
-	let delegaciaSufixo = $state('');  // ex: Iguatu
+	let delegaciaSufixo = $state(''); // ex: Iguatu
 	let seccionalPrefixo = $state(''); // ex: 1ª
 	let seccionalSufixo = $state('Interior Sul');
 
@@ -234,7 +240,7 @@
 			});
 			if (res.ok) {
 				toaster.create({ title: `Unidade "${nome}" removida com sucesso`, type: 'success' });
-				unidades = unidades.filter(u => u.id !== id);
+				unidades = unidades.filter((u) => u.id !== id);
 				dialogOpen = false;
 				unidadeParaExcluir = null;
 			} else {
@@ -255,29 +261,42 @@
 
 	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 
-	$effect(() => { carregarUnidades(); });
+	$effect(() => {
+		carregarUnidades();
+	});
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button 
-			class="btn btn-sm {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-primary-500 opacity-40'}" 
+		<button
+			class="btn btn-sm {temFiltros
+				? 'preset-filled-warning-500'
+				: 'preset-outlined-primary-500 opacity-40'}"
 			onclick={limparFiltros}
 			disabled={!temFiltros && !loading}
 		>
 			Limpar filtros
 		</button>
 		{#if isAdmin}
-			<button class="btn btn-sm preset-filled-primary-500" onclick={() => cadastroOpen = true}>
-				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+			<button class="btn btn-sm preset-filled-primary-500" onclick={() => (cadastroOpen = true)}>
+				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 4v16m8-8H4"
+					/></svg
+				>
 				Cadastrar
 			</button>
 		{/if}
 	</div>
 </div>
 
-<div class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6">
+<div
+	class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6"
+>
 	<div class="flex flex-col sm:flex-row gap-4">
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
@@ -287,30 +306,52 @@
 					<option value={sec.id}>{sec.nome}</option>
 				{/each}
 			</select>
-
 		</label>
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Buscar por Nome</span>
 			<div class="relative">
-				<input type="text" class="input pl-10" bind:value={filtroBusca} placeholder="Digite o nome da unidade..." />
+				<input
+					type="text"
+					class="input pl-10"
+					bind:value={filtroBusca}
+					placeholder="Digite o nome da unidade..."
+				/>
 				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+						/></svg
+					>
 				</div>
 			</div>
 		</label>
 	</div>
 </div>
 
-<Dialog open={dialogOpen} onOpenChange={(e) => dialogOpen = e.open}>
-	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
-		<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Unidade?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Tem certeza que deseja excluir a unidade "{unidadeParaExcluir?.nome}"? Esta ação não afeta os policiais já lotados nela.
+				Tem certeza que deseja excluir a unidade "{unidadeParaExcluir?.nome}"? Esta ação não afeta
+				os policiais já lotados nela.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
-				<button class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo} onclick={confirmarExclusao}>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+					>Cancelar</Dialog.CloseTrigger
+				>
+				<button
+					class="btn preset-filled-error-500 flex items-center gap-2"
+					disabled={excluindo}
+					onclick={confirmarExclusao}
+				>
 					{#if excluindo}<Spinner size="sm" />{/if}
 					{excluindo ? 'Excluindo...' : 'Excluir'}
 				</button>
@@ -320,29 +361,63 @@
 </Dialog>
 
 <!-- Modal de Cadastro -->
-<Dialog open={cadastroOpen} onOpenChange={(e) => { cadastroOpen = e.open; if (!e.open) { delegaciaPrefixo = ''; delegaciaSufixo = ''; seccionalPrefixo = ''; seccionalSufixo = 'Interior Sul'; novoTemPlantao = false; novoTemExpediente = false; novoTemFds = false; buscaCidade = ''; } }}>
-	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
-		<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+<Dialog
+	open={cadastroOpen}
+	onOpenChange={(e) => {
+		cadastroOpen = e.open;
+		if (!e.open) {
+			delegaciaPrefixo = '';
+			delegaciaSufixo = '';
+			seccionalPrefixo = '';
+			seccionalSufixo = 'Interior Sul';
+			novoTemPlantao = false;
+			novoTemExpediente = false;
+			novoTemFds = false;
+			buscaCidade = '';
+		}
+	}}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
 			<form onsubmit={salvarUnidade} class="flex flex-col gap-4">
-				
-				<div class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5">
-					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400">Tipo de Unidade</span>
+				<div
+					class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5"
+				>
+					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+						>Tipo de Unidade</span
+					>
 					<div class="flex gap-2">
-						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'seccional' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'seccional'}>Seccional</button>
-						<button type="button" class="btn btn-sm flex-1 {tipoUnidade === 'delegacia' ? 'preset-filled-primary-500' : 'preset-outlined-surface'}" onclick={() => tipoUnidade = 'delegacia'}>Delegacia</button>
+						<button
+							type="button"
+							class="btn btn-sm flex-1 {tipoUnidade === 'seccional'
+								? 'preset-filled-primary-500'
+								: 'preset-outlined-surface'}"
+							onclick={() => (tipoUnidade = 'seccional')}>Seccional</button
+						>
+						<button
+							type="button"
+							class="btn btn-sm flex-1 {tipoUnidade === 'delegacia'
+								? 'preset-filled-primary-500'
+								: 'preset-outlined-surface'}"
+							onclick={() => (tipoUnidade = 'delegacia')}>Delegacia</button
+						>
 					</div>
 				</div>
 
 				<label class="label">
 					<span class="label-text font-semibold">Cidade no Ceará</span>
 					<div class="relative">
-						<input 
-							class="input" 
-							type="text" 
-							list="cidades-ce-registro" 
-							bind:value={buscaCidade} 
-							placeholder="Buscar e selecionar cidade..." 
+						<input
+							class="input"
+							type="text"
+							list="cidades-ce-registro"
+							bind:value={buscaCidade}
+							placeholder="Buscar e selecionar cidade..."
 							required
 						/>
 						<datalist id="cidades-ce-registro">
@@ -369,14 +444,19 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={delegaciaPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({length: 99}, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
 							</label>
 							<label class="label">
 								<span class="label-text">Local (cidade / nome)</span>
-								<input class="input" type="text" bind:value={delegaciaSufixo} placeholder="Iguatu" />
+								<input
+									class="input"
+									type="text"
+									bind:value={delegaciaSufixo}
+									placeholder="Iguatu"
+								/>
 							</label>
 						</div>
 					</div>
@@ -387,35 +467,64 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={seccionalPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({length: 99}, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
 							</label>
 							<label class="label">
 								<span class="label-text">Local</span>
-								<input class="input" type="text" bind:value={seccionalSufixo} placeholder="Interior Sul" />
+								<input
+									class="input"
+									type="text"
+									bind:value={seccionalSufixo}
+									placeholder="Interior Sul"
+								/>
 							</label>
 						</div>
 					</div>
 				{/if}
 
 				<div class="p-3 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-					<p class="text-[10px] uppercase font-bold text-primary-600 dark:text-primary-400 mb-1">Preview do Nome:</p>
+					<p class="text-[10px] uppercase font-bold text-primary-600 dark:text-primary-400 mb-1">
+						Preview do Nome:
+					</p>
 					<p class="text-sm font-semibold truncate">{novoNome || 'Preencha os campos...'}</p>
 				</div>
 
-				<div class="flex flex-col gap-2 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5">
-				<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Regimes de Escala:</p>
-				<div class="flex gap-4">
-					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span>Plantão</span></label>
-					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span>Expediente</span></label>
-					<label class="flex items-center space-x-2"><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span>Fim de Semana</span></label>
+				<div
+					class="flex flex-col gap-2 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5"
+				>
+					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+						Regimes de Escala:
+					</p>
+					<div class="flex gap-4">
+						<label class="flex items-center space-x-2"
+							><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span
+								>Plantão</span
+							></label
+						>
+						<label class="flex items-center space-x-2"
+							><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span
+								>Expediente</span
+							></label
+						>
+						<label class="flex items-center space-x-2"
+							><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span
+								>Fim de Semana</span
+							></label
+						>
+					</div>
 				</div>
-			</div>
 				<div class="flex justify-end gap-3 pt-1">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={salvando || !novoNome.trim() || (tipoUnidade === 'delegacia' && !novoSeccionalId)}>
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 flex items-center gap-2"
+						disabled={salvando ||
+							!novoNome.trim() ||
+							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
+					>
 						{#if salvando}<Spinner size="sm" />{/if}
 						{salvando ? 'Salvando...' : 'Cadastrar'}
 					</button>
@@ -425,21 +534,35 @@
 	</Dialog.Content>
 </Dialog>
 
-
-<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden">
+<div
+	class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
+>
 	{#if loading}
-		<div class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500">
+		<div
+			class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
+		>
 			<Spinner size="xl" />
 			<span class="text-sm">Carregando...</span>
 		</div>
 	{:else if unidades.length === 0}
 		<div class="text-center py-20">
-			<div class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">
-				<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+			<div
+				class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
+			>
+				<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+					/></svg
+				>
 			</div>
 			<p class="text-surface-600 dark:text-surface-400 text-lg">Nenhuma unidade cadastrada.</p>
 			{#if isAdmin}
-				<p class="text-surface-500 text-sm mt-2">Cadastre unidades acima para habilitar a importação de policiais.</p>
+				<p class="text-surface-500 text-sm mt-2">
+					Cadastre unidades acima para habilitar a importação de policiais.
+				</p>
 			{/if}
 		</div>
 	{:else}
@@ -458,11 +581,19 @@
 						<tr>
 							<td class="relative {u.isChild ? 'pl-6' : ''}">
 								{#if u.hasChildren}
-									<div class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
+									<div
+										class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"
+									></div>
 								{/if}
 								{#if u.isChild}
-									<div class="absolute left-1 top-0 {u.isLastChild ? 'bottom-1/2' : 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"></div>
-									<div class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"></div>
+									<div
+										class="absolute left-1 top-0 {u.isLastChild
+											? 'bottom-1/2'
+											: 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"
+									></div>
+									<div
+										class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"
+									></div>
 								{/if}
 								{#if isAdmin && editandoId === u.id}
 									<div class="flex flex-col gap-2">
@@ -470,20 +601,39 @@
 											class="input text-sm"
 											type="text"
 											bind:value={editNome}
-											onkeydown={(e) => { if (e.key === 'Enter') salvarEdicao(u.id); if (e.key === 'Escape') cancelarEdicao(); }}
+											onkeydown={(e) => {
+												if (e.key === 'Enter') salvarEdicao(u.id);
+												if (e.key === 'Escape') cancelarEdicao();
+											}}
 										/>
 										<div class="flex flex-wrap items-center gap-3 text-sm mt-1">
-											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
-											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
-											<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
-											
+											<label class="flex items-center space-x-1.5"
+												><input
+													class="checkbox"
+													type="checkbox"
+													bind:checked={editTemPlantao}
+												/><span>Plantão</span></label
+											>
+											<label class="flex items-center space-x-1.5"
+												><input
+													class="checkbox"
+													type="checkbox"
+													bind:checked={editTemExpediente}
+												/><span>Expediente</span></label
+											>
+											<label class="flex items-center space-x-1.5"
+												><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
+													>FDS</span
+												></label
+											>
+
 											<div class="relative ml-2">
-												<input 
-													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]" 
-													type="text" 
-													list="cidades-ce-edicao" 
-													bind:value={editCidade} 
-													placeholder="Mudar cidade..." 
+												<input
+													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]"
+													type="text"
+													list="cidades-ce-edicao"
+													bind:value={editCidade}
+													placeholder="Mudar cidade..."
 												/>
 												<datalist id="cidades-ce-edicao">
 													{#each CIDADES_CEARA as c}
@@ -497,28 +647,51 @@
 									<div>
 										<span class="font-medium block">{u.nome}</span>
 										<div class="flex gap-1.5 mt-1.5 items-center">
-											{#if u.tem_plantao}<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold">Plantão</span>{/if}
-											{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
-											{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
+											{#if u.tem_plantao}<span
+													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
+													>Plantão</span
+												>{/if}
+											{#if u.tem_expediente}<span
+													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
+													>Expediente</span
+												>{/if}
+											{#if u.tem_fds}<span
+													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
+													>FDS</span
+												>{/if}
 										</div>
 									</div>
 								{/if}
 							</td>
-							<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic">{u.cidade || 'Sem cidade'}</td>
+							<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic"
+								>{u.cidade || 'Sem cidade'}</td
+							>
 							{#if isAdmin}
 								<td>
 									{#if editandoId === u.id}
 										<div class="flex gap-2">
-											<button class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+											<button
+												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
+												onclick={() => salvarEdicao(u.id)}
+												disabled={salvandoEdicao || !editNome.trim()}
+											>
 												{#if salvandoEdicao}<Spinner size="xs" />{/if}
 												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 											</button>
-											<button class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}>Cancelar</button>
+											<button class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
+												>Cancelar</button
+											>
 										</div>
 									{:else}
 										<div class="flex gap-2">
-											<button class="btn btn-sm preset-outlined-primary-500" onclick={() => iniciarEdicao(u)}>Editar</button>
-											<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
+											<button
+												class="btn btn-sm preset-outlined-primary-500"
+												onclick={() => iniciarEdicao(u)}>Editar</button
+											>
+											<button
+												class="btn btn-sm preset-filled-error-500"
+												onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+											>
 										</div>
 									{/if}
 								</td>
@@ -532,26 +705,44 @@
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
 			{#each unidadesAgrupadas as u (u.id)}
-				<div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild ? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6' : 'border-surface-200 dark:border-white/10'}">
+				<div
+					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild
+						? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6'
+						: 'border-surface-200 dark:border-white/10'}"
+				>
 					{#if isAdmin && editandoId === u.id}
 						<div class="space-y-2">
 							<input
 								class="input text-sm w-full"
 								type="text"
 								bind:value={editNome}
-								onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
+								onkeydown={(e) => {
+									if (e.key === 'Escape') cancelarEdicao();
+								}}
 							/>
 							<div class="flex flex-wrap items-center gap-3 text-sm py-2">
-								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span></label>
-								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span>Expediente</span></label>
-								<label class="flex items-center space-x-1.5"><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label>
+								<label class="flex items-center space-x-1.5"
+									><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span
+										>Plantão</span
+									></label
+								>
+								<label class="flex items-center space-x-1.5"
+									><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span
+										>Expediente</span
+									></label
+								>
+								<label class="flex items-center space-x-1.5"
+									><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
+										>FDS</span
+									></label
+								>
 								<div class="relative w-full mt-1">
-									<input 
-										class="input text-xs w-full" 
-										type="text" 
-										list="cidades-ce-edicao-mobile" 
-										bind:value={editCidade} 
-										placeholder="Mudar cidade..." 
+									<input
+										class="input text-xs w-full"
+										type="text"
+										list="cidades-ce-edicao-mobile"
+										bind:value={editCidade}
+										placeholder="Mudar cidade..."
 									/>
 									<datalist id="cidades-ce-edicao-mobile">
 										{#each CIDADES_CEARA as c}
@@ -561,11 +752,17 @@
 								</div>
 							</div>
 							<div class="flex gap-2">
-								<button class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5" onclick={() => salvarEdicao(u.id)} disabled={salvandoEdicao || !editNome.trim()}>
+								<button
+									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
+									onclick={() => salvarEdicao(u.id)}
+									disabled={salvandoEdicao || !editNome.trim()}
+								>
 									{#if salvandoEdicao}<Spinner size="xs" />{/if}
 									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 								</button>
-								<button class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}>Cancelar</button>
+								<button class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
+									>Cancelar</button
+								>
 							</div>
 						</div>
 					{:else}
@@ -573,16 +770,35 @@
 							<div class="min-w-0">
 								<p class="font-semibold text-sm">{u.nome}</p>
 								<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
-									{#if u.tem_plantao}<span class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold">Plantão</span>{/if}
-									{#if u.tem_expediente}<span class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold">Expediente</span>{/if}
-									{#if u.tem_fds}<span class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold">FDS</span>{/if}
+									{#if u.tem_plantao}<span
+											class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
+											>Plantão</span
+										>{/if}
+									{#if u.tem_expediente}<span
+											class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
+											>Expediente</span
+										>{/if}
+									{#if u.tem_fds}<span
+											class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
+											>FDS</span
+										>{/if}
 								</div>
-								<p class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1">{u.cidade || 'Sem cidade'}</p>
+								<p
+									class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1"
+								>
+									{u.cidade || 'Sem cidade'}
+								</p>
 							</div>
 							{#if isAdmin}
 								<div class="flex gap-2 shrink-0">
-									<button class="btn btn-sm preset-outlined-primary-500" onclick={() => iniciarEdicao(u)}>Editar</button>
-									<button class="btn btn-sm preset-filled-error-500" onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button>
+									<button
+										class="btn btn-sm preset-outlined-primary-500"
+										onclick={() => iniciarEdicao(u)}>Editar</button
+									>
+									<button
+										class="btn btn-sm preset-filled-error-500"
+										onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+									>
 								</div>
 							{/if}
 						</div>
@@ -591,6 +807,11 @@
 			{/each}
 		</div>
 
-		<p class="mt-3 text-surface-500 text-sm">{unidadesFiltradas.length} unidade{unidadesFiltradas.length !== 1 ? 's' : ''} encontrada{unidadesFiltradas.length !== 1 ? 's' : ''}</p>
+		<p class="mt-3 text-surface-500 text-sm">
+			{unidadesFiltradas.length} unidade{unidadesFiltradas.length !== 1 ? 's' : ''} encontrada{unidadesFiltradas.length !==
+			1
+				? 's'
+				: ''}
+		</p>
 	{/if}
 </div>

@@ -1,39 +1,46 @@
 <script lang="ts">
 	import type { Policial, Unidade } from '$lib/types';
-	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { policialSchema } from '$lib/schemas/policial';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
 
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
+	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
+	const savedFilters = getSavedFilters('filtros_policiais', {
+		lotacao: '',
+		cargo: '',
+		seccional: 'todas',
+		busca: ''
+	});
 
 	let policiais = $state<Policial[]>([]);
 	let loading = $state(true);
 	let unidades = $state<Unidade[]>([]);
+
+	// Filtros
+	let filtroLotacao = $state(savedFilters.lotacao);
+	let filtroCargo = $state(savedFilters.cargo);
+	let filtroSeccional = $state<number | 'todas'>(
+		(savedFilters.seccional as unknown as number) || 'todas'
+	);
+	let filtroBusca = $state(savedFilters.busca);
+
 	// Paginação
 	let paginaAtual = $state(1);
 	let totalPaginas = $state(1);
 	let totalPoliciais = $state(0);
 	const ITEMS_POR_PAGINA = 20;
 
-	// Recuperar filtros do localStorage (apenas no navegador)
-	const KEY = 'filtros_policiais';
-	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
-
-	let filtroLotacao = $state(saved.lotacao || '');
-	let filtroCargo = $state(saved.cargo || '');
-	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
-	let filtroBusca = $state(saved.busca || '');
-
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
 		if (browser) {
 			localStorage.setItem(
-				KEY,
+				'filtros_policiais',
 				JSON.stringify({
 					lotacao: filtroLotacao,
 					cargo: filtroCargo,
@@ -51,8 +58,8 @@
 			: unidades.filter((u) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional)
 	);
 
-	let dialogOpen = $state(false);
-	let policialParaExcluir = $state<{ id: number; nome: string } | null>(null);
+	// Dialog de confirmação
+	const confirmDialog = useConfirmationDialog<{ id: number; nome: string }>();
 
 	// Special sentinel value for "sem lotação" filter
 	const SEM_LOTACAO = '__sem_lotacao__';
@@ -76,16 +83,12 @@
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
 
-	const isAdminOrSeccional = $derived(
-		page.data.usuario?.tipo === 'admin' || page.data.usuario?.papel === 'admin_seccional'
-	);
-	const isAdminUnidade = $derived(page.data.usuario?.papel === 'admin_unidade');
 	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
 
 	$effect(() => {
 		if (cadastroOpen) {
-			lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+			lotacaoInput = isAdmin ? '' : (lotacaoUsuario ?? '');
 		}
 	});
 
@@ -124,7 +127,7 @@
 		telefone = '';
 		classe = '';
 		regime = 'ambos';
-		lotacaoInput = isAdmin ? '' : (page.data.usuario?.lotacao ?? '');
+		lotacaoInput = isAdmin ? '' : (lotacaoUsuario ?? '');
 		email = '';
 		papel = null;
 		papelUnidadeId = null;
@@ -262,15 +265,15 @@
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
-		policialParaExcluir = { id, nome };
-		dialogOpen = true;
+		confirmDialog.openDialog({ id, nome });
 	}
 
 	async function confirmarExclusao() {
-		if (!policialParaExcluir) return;
+		const item = confirmDialog.currentItem;
+		if (!item) return;
 		excluindo = true;
-		const id = policialParaExcluir.id;
-		const nome = policialParaExcluir.nome;
+		const id = item.id;
+		const nome = item.nome;
 		try {
 			const res = await fetch(`/api/policiais/${id}`, {
 				method: 'DELETE',
@@ -282,8 +285,7 @@
 					type: 'success'
 				});
 				policiais = policiais.filter((p) => p.id !== id);
-				dialogOpen = false;
-				policialParaExcluir = null;
+				confirmDialog.closeDialog();
 			} else {
 				const data = await res.json();
 				toaster.create({
@@ -299,7 +301,7 @@
 	}
 
 	function limparFiltros() {
-		filtroLotacao = isAdmin ? '' : page.data.usuario?.lotacao || '';
+		filtroLotacao = isAdmin ? '' : (lotacaoUsuario ?? '');
 		filtroCargo = '';
 		filtroSeccional = 'todas';
 		filtroBusca = '';
@@ -308,7 +310,7 @@
 	}
 
 	const temFiltros = $derived(
-		filtroLotacao !== (isAdmin ? '' : page.data.usuario?.lotacao || '') ||
+		filtroLotacao !== (isAdmin ? '' : (lotacaoUsuario ?? '')) ||
 			filtroCargo !== '' ||
 			filtroSeccional !== 'todas' ||
 			filtroBusca !== ''
@@ -537,7 +539,7 @@
 	</Dialog.Content>
 </Dialog>
 
-<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
+<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
@@ -546,7 +548,7 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Policial?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Tem certeza que deseja excluir o policial "{policialParaExcluir?.nome}" do sistema de
+				Tem certeza que deseja excluir o policial "{confirmDialog.currentItem?.nome}" do sistema de
 				cadastro?
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
@@ -770,67 +772,14 @@
 			{/each}
 		</div>
 
-		<div
-			class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
-		>
-			<p class="text-surface-500 text-sm">
-				Mostrando <strong
-					>{(paginaAtual - 1) * ITEMS_POR_PAGINA + 1}-{Math.min(
-						paginaAtual * ITEMS_POR_PAGINA,
-						policiaisExibidos.length
-					)}</strong
-				>
-				de <strong>{policiaisExibidos.length}</strong> policial(is)
-			</p>
-
-			{#if totalPaginas > 1}
-				<div class="flex items-center gap-2">
-					<button
-						class="btn btn-sm preset-outlined-surface"
-						onclick={() => {
-							paginaAtual--;
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-						disabled={paginaAtual === 1}
-					>
-						Anterior
-					</button>
-
-					<div class="flex items-center gap-1">
-						{#each Array.from({ length: totalPaginas }, (_, i) => i + 1) as p}
-							{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
-								<button
-									class="btn btn-sm {paginaAtual === p
-										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface'} min-w-[32px]"
-									onclick={() => {
-										paginaAtual = p;
-										window.scrollTo({
-											top: 0,
-											behavior: 'smooth'
-										});
-									}}
-								>
-									{p}
-								</button>
-							{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
-								<span class="px-1 opacity-50">...</span>
-							{/if}
-						{/each}
-					</div>
-
-					<button
-						class="btn btn-sm preset-outlined-surface"
-						onclick={() => {
-							paginaAtual++;
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-						disabled={paginaAtual >= totalPaginas}
-					>
-						Próxima
-					</button>
-				</div>
-			{/if}
-		</div>
+		<PaginationControls
+			{paginaAtual}
+			{totalPaginas}
+			totalItens={policiaisExibidos.length}
+			itensPorPagina={ITEMS_POR_PAGINA}
+			labelSingular="policial"
+			labelPlural="policial(is)"
+			onPageChange={(p) => (paginaAtual = p)}
+		/>
 	{/if}
 </div>

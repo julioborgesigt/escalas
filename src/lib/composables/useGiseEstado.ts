@@ -1,0 +1,117 @@
+/**
+ * Hook de estados derivados e helpers para a página GISE detalhada.
+ * Centraliza permissões, formatação e detecção de dispositivo.
+ */
+
+export interface GiseEstadoParams {
+	data: Record<string, any>;
+}
+
+export function useGiseEstado({ data }: GiseEstadoParams) {
+	const gise = $derived(data.gise);
+	const policiais = $derived(data.policiais ?? []);
+	const todasUnidades = $derived(data.todasUnidades ?? []);
+	const papelGise = $derived(data.papelGise);
+	const minhaSeccionalId = $derived(data.minhaSeccionalId);
+
+	// Permissões
+	const isAdminGeral = $derived(data.isGeral ?? papelGise === 'admin_geral');
+	const isSeccional = $derived(data.isSeccional ?? papelGise === 'admin_seccional');
+	const isSupervisor = $derived(data.isSupervisor || gise?.supervisor_id === data.usuarioAtual?.id);
+
+	const minhaSeccional = $derived(
+		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
+	);
+
+	const todasSeccionaisPreenchidas = $derived(
+		gise?.seccionais?.length > 0 &&
+			gise.seccionais.every(
+				(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+			)
+	);
+
+	const editaBloqueado = $derived(
+		gise?.status === 'em_andamento' ||
+			gise?.status === 'aguardando_relatorios' ||
+			gise?.status === 'aguardando_assinatura_relat' ||
+			gise?.status === 'pronta_para_finalizar' ||
+			gise?.status === 'finalizada'
+	);
+
+	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);
+	const podeEditar = $derived(!editaBloqueado);
+
+	// Helpers de status
+	const STATUS_MAP: Record<string, string> = {
+		em_definicao_supervisor: 'Em definição do supervisor',
+		em_preenchimento: 'Preenchendo escalados',
+		aguardando_assinatura: 'Aguardando assinatura do supervisor',
+		em_andamento: 'GISE em operação',
+		aguardando_relatorios: 'Aguardando relatórios',
+		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+		pronta_para_finalizar: 'Pronta para finalizar',
+		finalizada: 'Concluída'
+	};
+
+	const STATUS_COLOR: Record<string, string> = {
+		em_definicao_supervisor: 'bg-surface-500/10 text-surface-600 dark:text-surface-400',
+		em_preenchimento: 'bg-warning-500/10 text-warning-700 dark:text-warning-400',
+		aguardando_assinatura: 'bg-primary-500/10 text-primary-700 dark:text-primary-400',
+		em_andamento: 'bg-success-500/10 text-success-700 dark:text-success-400',
+		aguardando_relatorios: 'bg-info-500/10 text-info-700 dark:text-info-400',
+		aguardando_assinatura_relat: 'bg-secondary-500/10 text-secondary-700 dark:text-secondary-400',
+		pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
+		finalizada: 'bg-surface-500/20 text-surface-700 dark:text-surface-300'
+	};
+
+	function statusLabel(status: string): string {
+		return STATUS_MAP[status] ?? status;
+	}
+
+	function statusColor(status: string): string {
+		return STATUS_COLOR[status] ?? 'bg-surface-500/10 text-surface-600';
+	}
+
+	// Helpers de data
+	function fmtDate(iso: string): string {
+		const d = new Date(iso + 'T00:00:00');
+		return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+	}
+
+	function diaSemana(iso: string): string {
+		const d = new Date(iso + 'T00:00:00');
+		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+	}
+
+	// Detecção de mobile
+	let isMobile = $state(true);
+	$effect(() => {
+		if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+			isMobile =
+				/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+					navigator.userAgent
+				) ||
+				(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
+		}
+	});
+
+	return {
+		get gise() { return gise; },
+		get policiais() { return policiais; },
+		get todasUnidades() { return todasUnidades; },
+		get isAdminGeral() { return isAdminGeral; },
+		get isSeccional() { return isSeccional; },
+		get isSupervisor() { return isSupervisor; },
+		get minhaSeccional() { return minhaSeccional; },
+		get minhaSeccionalId() { return minhaSeccionalId; },
+		get todasSeccionaisPreenchidas() { return todasSeccionaisPreenchidas; },
+		get editaBloqueado() { return editaBloqueado; },
+		get podeDownload() { return podeDownload; },
+		get podeEditar() { return podeEditar; },
+		get isMobile() { return isMobile; },
+		statusLabel,
+		statusColor,
+		fmtDate,
+		diaSemana
+	};
+}

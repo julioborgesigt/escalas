@@ -21,7 +21,8 @@
       "Bash(tar *)",
       "Bash(xcopy *)",
       "Bash(@echo *)",
-      "Bash(npm audit)"
+      "Bash(npm audit)",
+      "Bash(git checkout *)"
     ]
   },
   "$version": 3

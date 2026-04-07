@@ -1,59 +1,48 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
-
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 
 	let { data } = $props();
 
-	const gise = $derived(data.gise);
-	const policiais = $derived(data.policiais ?? []);
-	const todasUnidades = $derived(data.todasUnidades ?? []);
-	const papelGise = $derived(data.papelGise);
-	const minhaSeccionalId = $derived(data.minhaSeccionalId);
+	// Hook de estados derivados e permissões
+	const giseEstado = useGiseEstado({ data });
+	const {
+		isAdminGeral,
+		isSeccional,
+		isSupervisor,
+		minhaSeccional,
+		minhaSeccionalId,
+		todasSeccionaisPreenchidas,
+		editaBloqueado,
+		podeDownload,
+		podeEditar,
+		isMobile,
+		statusLabel,
+		statusColor,
+		fmtDate,
+		diaSemana
+	} = giseEstado;
+	const gise = giseEstado.gise;
+	const policiais = giseEstado.policiais;
+	const todasUnidades = giseEstado.todasUnidades;
 
-	const isAdminGeral = $derived(data.isGeral ?? papelGise === 'admin_geral');
-	const isSeccional = $derived(data.isSeccional ?? papelGise === 'admin_seccional');
-	const isSupervisor = $derived(data.isSupervisor || gise?.supervisor_id === data.usuarioAtual?.id);
+	// Hook de assinatura
+	const assinatura = useGiseAssinatura({ giseId: gise?.id ?? 0 });
 
-	const minhaSeccional = $derived(
-		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
-	);
-
-	const todasSeccionaisPreenchidas = $derived(
-		gise?.seccionais?.length > 0 &&
-			gise.seccionais.every(
-				(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
-			)
-	);
-
+	// Estados locais (não extraídos)
 	let salvando = $state(false);
 	let assinando = $state(false);
 	let finalizando = $state(false);
 	let showFinalizarConfirm = $state(false);
-
-	let isMobile = $state(true);
-	$effect(() => {
-		if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-			isMobile =
-				/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-					navigator.userAgent
-				) ||
-				(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
-		}
-	});
-
-	// Supervisor (único por escala)
 	let editandoSupervisores = $state(false);
 	let supervisorId = $state<number | null>(null);
-
-	// Adicionar membro
 	let equipeParaAdicionar = $state<number | null>(null);
 	let policialParaAdicionar = $state<number | ''>('');
 	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
@@ -120,45 +109,6 @@
 			}
 		}
 	});
-
-	function statusLabel(status: string) {
-		const m: Record<string, string> = {
-			em_definicao_supervisor: 'Em definição do supervisor',
-			em_preenchimento: 'Preenchendo escalados',
-			aguardando_assinatura: 'Aguardando assinatura do supervisor',
-			em_andamento: 'GISE em operação',
-			aguardando_relatorios: 'Aguardando relatórios',
-			aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
-			pronta_para_finalizar: 'Pronta para finalizar',
-			finalizada: 'Concluída'
-		};
-		return m[status] ?? status;
-	}
-
-	function statusColor(status: string) {
-		const m: Record<string, string> = {
-			em_definicao_supervisor: 'bg-surface-500/15 text-surface-600 dark:text-surface-300',
-			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
-			aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
-			em_andamento: 'bg-success-500/15 text-success-700 dark:text-success-400',
-			aguardando_relatorios: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
-			aguardando_assinatura_relat: 'bg-tertiary-500/15 text-tertiary-700 dark:text-tertiary-400',
-			pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
-			finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
-		};
-		return m[status] ?? '';
-	}
-
-	function fmtDate(iso: string) {
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
-
-	function diaSemana(iso: string): string {
-		if (!iso) return '';
-		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-		return dias[new Date(iso + 'T12:00:00').getDay()];
-	}
 
 	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
 
@@ -988,7 +938,6 @@
 			gise?.supervisor_id === data.usuarioAtual?.id &&
 			!documentoAssinadoInfo?.existe
 	);
-	const podeEditar = $derived(gise?.status !== 'finalizada');
 	const podeReabrir = $derived(
 		isAdminGeral &&
 			(gise?.status === 'em_andamento' ||
@@ -996,14 +945,6 @@
 				gise?.status === 'aguardando_assinatura_relat' ||
 				gise?.status === 'pronta_para_finalizar' ||
 				gise?.status === 'finalizada')
-	);
-	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);
-	const editaBloqueado = $derived(
-		gise?.status === 'em_andamento' ||
-			gise?.status === 'aguardando_relatorios' ||
-			gise?.status === 'aguardando_assinatura_relat' ||
-			gise?.status === 'pronta_para_finalizar' ||
-			gise?.status === 'finalizada'
 	);
 
 	function downloadGise(format: string) {
@@ -1016,8 +957,8 @@
 
 <div class="space-y-6">
 	<!-- Cabeçalho -->
-	<div class="flex items-start justify-between flex-wrap gap-3">
-		<div>
+	<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+		<div class="min-w-0">
 			<button
 				class="btn btn-sm mb-4 preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 group"
 				onclick={() => goto('/gise')}
@@ -1068,10 +1009,10 @@
 			{/if}
 		</div>
 
-		<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+		<div class="flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
 			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
 				<button
-					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold w-full"
+					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap"
 					onclick={() => downloadGise('xlsx')}
 				>
 					Baixar XLSX
@@ -1081,7 +1022,7 @@
 				<button
 					class="btn btn-sm {modoEdicaoGeral
 						? 'preset-filled-primary-500 shadow-xl'
-						: 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all w-full"
+						: 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all whitespace-nowrap"
 					onclick={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 					disabled={editaBloqueado}
 				>
@@ -1089,7 +1030,7 @@
 				</button>
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
 					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5"
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
 						onclick={solicitarAssinatura}
 						disabled={salvando || modoEdicaoGeral}
 					>
@@ -1097,7 +1038,7 @@
 					</button>
 				{/if}
 				<button
-					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed w-full"
+					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
 					onclick={() => (showExcluirGiseConfirm = true)}
 					disabled={editaBloqueado}
 				>
@@ -1106,7 +1047,7 @@
 			{/if}
 			{#if podeReabrir}
 				<button
-					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold w-full"
+					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap"
 					onclick={() => (showReabrirConfirm = true)}
 				>
 					Reabrir para Edição
@@ -1114,7 +1055,7 @@
 			{/if}
 			{#if podeFinalizar}
 				<button
-					class="btn btn-sm preset-outlined-error-500 col-span-2 sm:col-span-1 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 w-full"
+					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 whitespace-nowrap"
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
@@ -1651,7 +1592,7 @@
 									</div>
 									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 										<button
-											class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
+											class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 											onclick={() => {
 												editandoHorariosSecId = sec.id;
 												editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
@@ -1674,7 +1615,7 @@
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 								<button
-									class="btn btn-sm preset-outlined-error-500 w-full flex items-center justify-center gap-1"
+									class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 									onclick={() => removerSeccional(sec.id)}
 									disabled={salvando}
 									title="Excluir seccional desta escala"
@@ -1811,10 +1752,10 @@
 											onclick={() => finalizarSeccional(sec.id)}
 											disabled={salvando ||
 												!sec.unidade_operacional_id ||
-												!(sec.equipes ?? []).some((eq) => (eq.membros ?? []).length > 0)}
+												!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
 											title={!sec.unidade_operacional_id
 												? 'Preencha a unidade operacional antes de finalizar'
-												: !(sec.equipes ?? []).some((eq) => (eq.membros ?? []).length > 0)
+												: !(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)
 													? 'Adicione pelo menos 1 policial antes de finalizar'
 													: ''}
 										>
@@ -2008,7 +1949,7 @@
 													</div>
 													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 														<button
-															class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
+															class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
 																editEqHoraEnt =
@@ -2038,7 +1979,7 @@
 												{/if}
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 													<button
-														class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1"
+														class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															editandoEquipe = equipe.id;
 															editSlotsDpc = equipe.slots_dpc;
@@ -2064,7 +2005,7 @@
 										</div>
 										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 											<button
-												class="btn btn-sm preset-outlined-error-500 w-full flex items-center justify-center gap-1"
+												class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 												disabled={removendoEquipeId === equipe.id}
 												onclick={async () => {
 													removendoEquipeId = equipe.id;
@@ -2148,7 +2089,7 @@
 														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 													>
 														<option value="">Selecionar {cargoParaAdicionar}...</option>
-														{#each policiais.filter((p) => p.cargo === cargoParaAdicionar) as p}
+														{#each policiais.filter((p: any) => p.cargo === cargoParaAdicionar) as p}
 															<option value={p.id}>{p.nome} ({p.matricula})</option>
 														{/each}
 													</select>
@@ -2168,9 +2109,9 @@
 												>
 											</div>
 										{:else}
-											<div class="flex flex-col gap-2">
+											<div class="flex flex-wrap gap-2">
 												<button
-													class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
+													class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 													onclick={() => {
 														equipeParaAdicionar = equipe.id;
 														cargoParaAdicionar = 'OIP';
@@ -2193,7 +2134,7 @@
 												</button>
 												{#if equipe.slots_dpc > 0}
 													<button
-														class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
+														class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
 															cargoParaAdicionar = 'DPC';
@@ -2296,7 +2237,7 @@
 									</div>
 								{:else}
 									<button
-										class="btn btn-sm preset-tonal-primary w-full flex items-center justify-center gap-1"
+										class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 										onclick={() => {
 											adicionandoEquipeSec = sec.id;
 											novaEquipeTipo = 'operacional';
@@ -2596,8 +2537,8 @@
 			<SignaturePad
 				onConfirm={confirmarRubrica}
 				onCancel={() => (showRubricaModal = false)}
-				exigirFoto={page.data.exigirFotoAssinatura ?? true}
-				exigirGps={page.data.exigirGpsAssinatura ?? true}
+				exigirFoto={data.exigirFotoAssinatura ?? true}
+				exigirGps={data.exigirGpsAssinatura ?? true}
 			/>
 
 			<p class="text-sm text-surface-400 text-center italic">

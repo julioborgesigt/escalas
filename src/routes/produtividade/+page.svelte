@@ -1,6 +1,22 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
-	import type { TooltipItem } from 'chart.js';
+	import { onMount, tick } from 'svelte';
+	import { useMultiSelect, useCharts } from '$lib/composables';
+	import {
+		mapQuestions,
+		getArmasKey,
+		calculateStats,
+		calculateRanking,
+		type Question
+	} from '$lib/produtividade';
+	import {
+		VIRTUAL_CHARTS,
+		exportChartAsPng,
+		exportRankingAsPng,
+		exportDetailAsPng,
+		downloadCanvas,
+		type RankingItem,
+		type DetailItem
+	} from '$lib/export-charts';
 
 	// Chart.js loaded lazily to save ~200KB on initial bundle
 	let Chart: any = null;
@@ -13,11 +29,6 @@
 		}
 	}
 
-	interface RankingItem {
-		nome: string;
-		total: number;
-	}
-
 	let { data } = $props();
 
 	// Filters
@@ -26,8 +37,8 @@
 	let filterInicio = $state('');
 	let filterFim = $state('');
 
-	// Export Selection
-	let selectedCharts = $state<(number | string)[]>([]);
+	// Export Selection — usando hook reutilizável
+	const selection = useMultiSelect<number | string>();
 	const TOP_IDS = [
 		'rank-prisoes',
 		'detail-prisoes',
@@ -37,383 +48,110 @@
 		'detail-armas'
 	];
 
-	const toggleChartSelection = (id: number | string) => {
-		if (selectedCharts.includes(id)) {
-			selectedCharts = selectedCharts.filter((i) => i !== id);
-		} else {
-			selectedCharts = [...selectedCharts, id];
-		}
-	};
-	// Dynamic Questions Mapping (P4 to P18+)
-	const palette = [
-		'#3b82f6',
-		'#10b981',
-		'#f59e0b',
-		'#f43f5e',
-		'#06b6d4',
-		'#8b5cf6',
-		'#ef4444',
-		'#6366f1',
-		'#14b8a6',
-		'#d946ef',
-		'#f97316',
-		'#ec4899',
-		'#64748b',
-		'#94a3b8',
-		'#a855f7'
-	];
+	function selectAllCharts() {
+		selection.selectAll([...QUESTIONS.map((q: any) => q.id), ...TOP_IDS]);
+	}
 
-	let QUESTIONS = $derived.by(() => {
-		const base = filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
-		if (!base || base.length === 0) return [];
+	// Alias para compatibilidade com template
+	const selectedCharts = $derived(selection.selected);
+	const toggleChartSelection = selection.toggle;
 
-		return base
-			.filter((q: any) =>
-				[
-					'numero',
-					'select_99',
-					'select_999',
-					'sim_nao',
-					'celulares_complex',
-					'analise_complex',
-					'relatorios_seint_complex',
-					'foragidos_complex',
-					'operacoes_seint_complex',
-					'operacoes_seint_pura'
-				].includes(q.tipo)
-			)
-			.map((q: any, idx: number) => {
-				let mappedKey = q.key;
-				if (q.tipo === 'celulares_complex') mappedKey = 'celulares_qtd';
-				else if (q.tipo === 'analise_complex') mappedKey = 'analise_qtd';
-				else if (q.tipo === 'relatorios_seint_complex') mappedKey = 'relatorios_seint_qtd';
-				else if (q.tipo === 'foragidos_complex') mappedKey = 'foragidos_qtd';
-				else if (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura')
-					mappedKey = 'operacoes_seint_qtd';
+	// Questions mapeadas via utilitário
+	let QUESTIONS = $derived(
+		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional, filterTipo)
+	);
 
-				return {
-					id: q.id,
-					label: q.texto,
-					key: q.key,
-					mappedKey: mappedKey,
-					color: palette[idx % palette.length],
-					isBool: q.tipo === 'sim_nao',
-					specialStore: q.key === 'apreensoes_drogas' ? 'drogasGeral' : null // Map legacy/special
-				};
-			});
-	});
-
-	const selectAllCharts = () => {
-		const allIds = [...QUESTIONS.map((q: any) => q.id), ...TOP_IDS];
-		if (selectedCharts.length >= allIds.length) {
-			selectedCharts = [];
-		} else {
-			selectedCharts = allIds;
-		}
-	};
 	const allChartsCount = $derived(QUESTIONS.length + TOP_IDS.length);
 
-	// Derive armas key dynamically from the model (fallback to default if model wasn't customized)
-	const armasKey = $derived.by(() => {
-		const q = (data.modeloOperacional || []).find((q: any) => q.tipo === 'armas_complex');
-		return q?.key ?? 'apreensoes_armas_bool';
-	});
+	// Armas key via utilitário
+	const armasKey = $derived(getArmasKey(data.modeloOperacional));
 
 	// Default to current year if no dates set
 	const currentYear = new Date().getFullYear();
 	const defaultStart = `${currentYear}-01-01`;
 	const defaultEnd = `${currentYear}-12-31`;
 
-	// Derived Data (Exclusive to "Operacional" teams)
+	// Derived Data
 	let filteredData = $derived(
 		(data.lista || []).filter((item: any) => {
 			const date = item.data_inicio;
 			const tipo = (item.equipe_tipo || 'operacional').toLowerCase();
 			if (tipo !== filterTipo) return false;
 			if (filterSeccional && item.seccional_id !== Number(filterSeccional)) return false;
-
 			const start = filterInicio || defaultStart;
 			const end = filterFim || defaultEnd;
-
 			if (date < start) return false;
 			if (date > end) return false;
 			return true;
 		})
 	);
 
-	// Stats Calculation (Auto-Aggregated)
-	let stats = $derived.by(() => {
-		const s: any = {
-			drogasGeral: 0,
-			drogasPorTipo: {},
-			apreensoes_armas: 0,
-			armasPorTipo: {},
-			prisaoFlagrante: 0,
-			prisaoMandado: 0
-		};
+	// Stats via utilitário
+	let stats = $derived(calculateStats(filteredData, QUESTIONS, armasKey));
 
-		// Initialize dynamic keys
-		QUESTIONS.forEach((q: any) => {
-			if (!s[q.key]) s[q.key] = 0;
-		});
+	// Rankings via utilitário
+	let rankingPrisoes = $derived(
+		calculateRanking(
+			data.seccionais ?? [],
+			filteredData,
+			(res) => Number(res.prisoes_apreensoes_flagrante) || 0
+		)
+	);
 
-		filteredData.forEach((item: any) => {
-			const res = JSON.parse(item.respostas || '{}');
-
-			// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
-			QUESTIONS.forEach((q: any) => {
-				const val = res[q.mappedKey || q.key];
-				if (q.isBool) {
-					if (val === 'Sim') s[q.key] = (s[q.key] || 0) + 1;
-				} else {
-					s[q.key] = (s[q.key] || 0) + (Number(val) || 0);
-				}
-			});
-
-			// Complex Operational Highlights (Top Rows)
-			// P10: Drugs
-			if (res.drogas_detalhe) {
-				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-					const unid = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
-					let pNorm = Number(peso) || 0;
-					if (unid === 'kg') pNorm *= 1000;
-					s.drogasPorTipo[tipo] = (s.drogasPorTipo[tipo] || 0) + pNorm;
-					s.drogasGeral += pNorm;
-				});
-			}
-
-			// P11: Weapons
-			if (res[armasKey] === 'Sim' && res.armas_detalhe) {
-				Object.entries(res.armas_detalhe).forEach(([tipo, qtd]) => {
-					const n = Number(qtd) || 0;
-					s.apreensoes_armas += n;
-					s.armasPorTipo[tipo] = (s.armasPorTipo[tipo] || 0) + n;
-				});
-			}
-
-			// P4 & P5: Prisons (stats auxiliares para totais do detalhamento)
-			if (res.procedimentos_flagrante_bool === 'Sim') {
-				s.prisaoFlagrante += Number(res.prisoes_qtd) || 0;
-			}
-			s.prisaoMandado += Number(res.mandados_qtd) || 0;
-		});
-
-		return s;
-	});
-
-	// Rankings
-	let rankingPrisoes = $derived.by(() => {
-		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-
-		filteredData.forEach((item: any) => {
-			const res = JSON.parse(item.respostas || '{}');
-			const val = Number(res.prisoes_apreensoes_flagrante) || 0;
-			const entry = r.get(item.seccional_id);
-			if (entry) entry.total += val;
-		});
-		return Array.from(r.values()).sort((a, b) => b.total - a.total);
-	});
-
-	let rankingDrogasPeso = $derived.by(() => {
-		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-
-		filteredData.forEach((item: any) => {
-			const res = JSON.parse(item.respostas || '{}');
+	let rankingDrogasPeso = $derived(
+		calculateRanking(data.seccionais ?? [], filteredData, (res) => {
+			let total = 0;
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
 					const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
 					let p = Number(peso) || 0;
 					if (unidade === 'kg') p *= 1000;
-					const entry = r.get(item.seccional_id);
-					if (entry) entry.total += p;
+					total += p;
 				});
 			}
-		});
-		return Array.from(r.values()).sort((a, b) => b.total - a.total);
-	});
+			return total;
+		})
+	);
 
-	let rankingArmas = $derived.by(() => {
-		const r = new Map<number, { nome: string; total: number }>();
-		(data.seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
-
-		filteredData.forEach((item: any) => {
-			const res = JSON.parse(item.respostas || '{}');
+	let rankingArmas = $derived(
+		calculateRanking(data.seccionais ?? [], filteredData, (res) => {
 			let val = 0;
 			if (res[armasKey] === 'Sim' && res.armas_detalhe) {
 				Object.values(res.armas_detalhe).forEach((q) => (val += Number(q) || 0));
 			}
-			const entry = r.get(item.seccional_id);
-			if (entry) entry.total += val;
-		});
-		return Array.from(r.values()).sort((a, b) => b.total - a.total);
-	});
+			return val;
+		})
+	);
 
-	// Charts references
-	let chartInstances = new Map<number, any>();
-	let canvasElements = $state<Record<number, HTMLCanvasElement>>({});
+	// Charts via composable
+	const charts = useCharts(Chart, data);
+	const canvasElements = charts.canvasElements;
 
-	// Destroy all stale chart instances when question set changes (e.g. filterTipo switch)
+	// Destroy all stale chart instances when question set changes
 	$effect(() => {
 		const currentIds = new Set(QUESTIONS.map((q: any) => q.id));
-		chartInstances.forEach((instance, id) => {
-			if (!currentIds.has(id)) {
-				instance.destroy();
-				chartInstances.delete(id);
-			}
-		});
+		charts.destroyStaleCharts(currentIds);
 	});
 
-	async function updateCharts(list: any[]) {
-		// Lazy load Chart.js on first use
+	async function updateChartsFn(list: any[]) {
 		await loadChart();
-
-		const isShowingAll = !filterSeccional;
-		const labels = isShowingAll
-			? (data.seccionais ?? []).map((s) => s.nome.split(' do ')[0])
-			: Array.from(new Set(list.map((i) => i.data_inicio))).sort();
-
-		QUESTIONS.forEach((q: any) => {
-			const canvas = canvasElements[q.id];
-			if (!canvas) return;
-
-			// Destroy existing
-			if (chartInstances.has(q.id)) {
-				chartInstances.get(q.id).destroy();
-			}
-
-			// Process Data
-			let chartData: number[] = [];
-
-			if (isShowingAll) {
-				// Compare Seccionais
-				chartData = (data.seccionais ?? []).map((sec: any) => {
-					return list
-						.filter((item) => item.seccional_id === sec.id)
-						.reduce((acc, item) => {
-							const res = JSON.parse(item.respostas || '{}');
-							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
-							if (q.specialStore === 'drogasGeral') {
-								let drogasTotal = 0;
-								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
-										let pesoV = Number(peso) || 0;
-										if (unidade === 'kg') pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
-								}
-								return acc + drogasTotal;
-							}
-							return acc + (Number(res[q.mappedKey || q.key]) || 0);
-						}, 0);
-				});
-			} else {
-				// Trend for one Seccional
-				chartData = labels.map((date) => {
-					return list
-						.filter((item) => item.data_inicio === date)
-						.reduce((acc, item) => {
-							const res = JSON.parse(item.respostas || '{}');
-							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
-							if (q.specialStore === 'drogasGeral') {
-								let drogasTotal = 0;
-								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
-										let pesoV = Number(peso) || 0;
-										if (unidade === 'kg') pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
-								}
-								return acc + drogasTotal;
-							}
-							return acc + (Number(res[q.mappedKey || q.key]) || 0);
-						}, 0);
-				});
-			}
-
-			const instance = new Chart(canvas, {
-				type: isShowingAll ? 'bar' : 'line',
-				data: {
-					labels: isShowingAll
-						? labels
-						: (labels as string[]).map((d) => d.split('-').reverse().join('/')),
-					datasets: [
-						{
-							label: q.label,
-							data: chartData,
-							backgroundColor: q.color + (isShowingAll ? '80' : '20'),
-							borderColor: q.color,
-							borderWidth: 2,
-							tension: 0.4,
-							fill: !isShowingAll,
-							borderRadius: isShowingAll ? 4 : 0,
-							pointRadius: isShowingAll ? 0 : 3
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					plugins: {
-						legend: { display: false },
-						tooltip: {
-							callbacks: {
-								label: (context: TooltipItem<'bar'>) => {
-									let val = context.parsed.y ?? 0;
-									if (q.specialStore === 'drogasGeral') return `${val.toLocaleString()}g`;
-									return val.toLocaleString();
-								}
-							}
-						}
-					},
-					scales: {
-						x: {
-							display: isShowingAll,
-							grid: { display: false },
-							ticks: {
-								autoSkip: true,
-								maxRotation: 0,
-								font: { size: 10, weight: 'bold' }
-							}
-						},
-						y: {
-							beginAtZero: true,
-							suggestedMax: 5,
-							grid: { color: '#e2e8f010' },
-							ticks: {
-								display: true,
-								stepSize: 1,
-								font: { size: 9 }
-							}
-						}
-					}
-				}
-			});
-			chartInstances.set(q.id, instance);
-		});
+		// Re-create useCharts with loaded Chart
+		charts.updateCharts(QUESTIONS as Question[], list, filterSeccional);
 	}
 
-	import { tick } from 'svelte';
-
 	$effect(() => {
-		// Track filteredData and whether all current QUESTIONS have live canvas refs
 		const _data = filteredData;
 		const allCanvasesReady =
 			QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
-
 		if (_data && allCanvasesReady) {
-			tick().then(() => updateCharts(_data));
+			tick().then(() => updateChartsFn(_data));
 		}
 	});
 
 	onMount(async () => {
-		// Initial check
 		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
 		if (filteredData.length > 0 && allReady) {
-			await updateCharts(filteredData);
+			await updateChartsFn(filteredData);
 		}
 	});
 
@@ -426,198 +164,84 @@
 		const start = filterInicio || defaultStart;
 		const end = filterFim || defaultEnd;
 		const periodText = `${start.split('-').reverse().join('/')} a ${end.split('-').reverse().join('/')}`;
+		const payload = { seccionalName, periodText };
 
 		for (const id of selectedCharts) {
-			let qLabel = '';
-			let qColor = '#6366f1';
-			let sourceCanvas: HTMLCanvasElement | null = null;
-			let isVirtual = typeof id === 'string';
+			const isVirtual = typeof id === 'string';
+			const virtualConfig = VIRTUAL_CHARTS[id as string];
 
 			if (!isVirtual) {
+				// Chart normal — usar utilitário
 				const q = QUESTIONS.find((qi: any) => qi.id === id);
 				if (!q) continue;
-				qLabel = q.label;
-				qColor = q.color;
-				sourceCanvas = canvasElements[id as number];
-			} else {
-				// Virtual IDs mapping
+				const sourceCanvas = canvasElements[id as number];
+				if (!sourceCanvas) continue;
+
+				const { canvas, filename } = exportChartAsPng(
+					{ label: q.label, color: q.color, sourceCanvas, type: 'chart' },
+					payload
+				);
+				await downloadCanvas(canvas, filename);
+			} else if (virtualConfig && virtualConfig.type === 'ranking') {
+				// Ranking
+				let ranking: RankingItem[] = [];
+				let unit = '';
 				if (id === 'rank-prisoes') {
-					qLabel = 'Ranking de Prisões (P7)';
-					qColor = '#f43f5e';
-				} else if (id === 'detail-prisoes') {
-					qLabel = 'Detalhamento de Prisões';
-					qColor = '#f43f5e';
+					ranking = rankingPrisoes;
 				} else if (id === 'rank-drogas') {
-					qLabel = 'Ranking de Drogas (P10)';
-					qColor = '#ef4444';
-				} else if (id === 'detail-drogas') {
-					qLabel = 'Detalhamento de Substâncias';
-					qColor = '#ef4444';
+					ranking = rankingDrogasPeso;
+					unit = 'kg';
 				} else if (id === 'rank-armas') {
-					qLabel = 'Ranking de Armas (P11)';
-					qColor = '#6366f1';
+					ranking = rankingArmas;
+				}
+
+				const { canvas, filename } = exportRankingAsPng(
+					virtualConfig.label,
+					virtualConfig.color,
+					ranking,
+					unit,
+					payload
+				);
+				await downloadCanvas(canvas, filename);
+			} else if (virtualConfig && virtualConfig.type === 'detail') {
+				// Detail
+				let details: DetailItem[] = [];
+				let total = 0;
+				let unit = '';
+
+				if (id === 'detail-prisoes') {
+					const prisoesFlagrante = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
+					details = [
+						{ label: 'Flagrantes (P4)', value: stats.prisaoFlagrante },
+						{ label: 'Mandados (P5)', value: stats.prisaoMandado },
+						{ label: 'Total de Presos (P7)', value: prisoesFlagrante }
+					];
+					total = Math.max(prisoesFlagrante, stats.prisaoFlagrante, stats.prisaoMandado);
+				} else if (id === 'detail-drogas') {
+					details = (Object.entries(stats.drogasPorTipo) as [string, number][])
+						.sort((a, b) => b[1] - a[1])
+						.slice(0, 8)
+						.map(([l, v]) => ({ label: l, value: v }));
+					total = stats.drogasGeral;
+					unit = 'g';
 				} else if (id === 'detail-armas') {
-					qLabel = 'Detalhamento de Armas';
-					qColor = '#6366f1';
+					details = (Object.entries(stats.armasPorTipo) as [string, number][])
+						.sort((a, b) => b[1] - a[1])
+						.slice(0, 8)
+						.map(([l, v]) => ({ label: l, value: v }));
+					total = stats.apreensoes_armas;
 				}
+
+				const { canvas, filename } = exportDetailAsPng(
+					virtualConfig.label,
+					virtualConfig.color,
+					details,
+					total,
+					unit,
+					payload
+				);
+				await downloadCanvas(canvas, filename);
 			}
-
-			// Create off-screen canvas
-			const exportCanvas = document.createElement('canvas');
-			const ctx = exportCanvas.getContext('2d')!;
-			const padding = 40;
-			const headerHeight = 120;
-			const footerHeight = 40;
-
-			if (!isVirtual && sourceCanvas) {
-				exportCanvas.width = sourceCanvas.width + padding * 2;
-				exportCanvas.height = sourceCanvas.height + headerHeight + footerHeight;
-			} else {
-				exportCanvas.width = 800; // Standard for rank/details
-				exportCanvas.height = 600;
-			}
-
-			// Background
-			ctx.fillStyle = 'white';
-			ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-			// Header
-			ctx.fillStyle = qColor;
-			ctx.font = 'bold 24px Inter, sans-serif, Arial';
-			ctx.fillText(qLabel.toUpperCase(), padding, 50);
-			ctx.fillStyle = '#64748b';
-			ctx.font = 'bold 14px Inter, sans-serif, Arial';
-			ctx.fillText(`SECCIONAL: ${seccionalName.toUpperCase()}`, padding, 80);
-			ctx.fillText(`PERÍODO: ${periodText}`, padding, 100);
-			ctx.strokeStyle = '#e2e8f0';
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(padding, headerHeight - 10);
-			ctx.lineTo(exportCanvas.width - padding, headerHeight - 10);
-			ctx.stroke();
-
-			if (!isVirtual && sourceCanvas) {
-				ctx.drawImage(sourceCanvas, padding, headerHeight);
-			} else {
-				// MANUAL DRAWING FOR RANK/DETAIL
-				if (id.toString().startsWith('rank')) {
-					let list: any[] = [];
-					let unit = '';
-					if (id === 'rank-prisoes') {
-						list = rankingPrisoes;
-						unit = '';
-					} else if (id === 'rank-drogas') {
-						list = rankingDrogasPeso;
-						unit = 'kg';
-					} else if (id === 'rank-armas') {
-						list = rankingArmas;
-						unit = '';
-					}
-
-					let y = headerHeight + 20;
-					list.slice(0, 10).forEach((item, idx) => {
-						ctx.beginPath();
-						ctx.fillStyle = '#f8fafc';
-						if (ctx.roundRect) {
-							ctx.roundRect(padding, y, exportCanvas.width - padding * 2, 40, 8);
-						} else {
-							ctx.rect(padding, y, exportCanvas.width - padding * 2, 40);
-						}
-						ctx.fill();
-
-						ctx.fillStyle = '#94a3b8';
-						ctx.font = 'italic bold 16px Inter';
-						ctx.fillText(`#${idx + 1}`, padding + 15, y + 26);
-						ctx.fillStyle = '#1e293b';
-						ctx.font = 'bold 14px Inter';
-						ctx.fillText(item.nome.toUpperCase(), padding + 60, y + 26);
-						ctx.textAlign = 'right';
-						ctx.fillStyle = qColor;
-						ctx.font = 'black 18px Inter';
-						let val = unit === 'kg' ? (item.total / 1000).toFixed(1) : item.total;
-						ctx.fillText(`${val}${unit}`, exportCanvas.width - padding - 15, y + 26);
-						ctx.textAlign = 'left';
-						y += 45;
-					});
-				} else {
-					let details: [string, number][] = [];
-					let total = 0;
-					let unit = '';
-					if (id === 'detail-prisoes') {
-						details = [
-							['Flagrantes (P4)', stats.prisaoFlagrante],
-							['Mandados (P5)', stats.prisaoMandado],
-							['Total de Presos (P7)', stats['prisoes_apreensoes_flagrante'] || 0]
-						];
-						total = Math.max(
-							stats['prisoes_apreensoes_flagrante'] || 0,
-							stats.prisaoFlagrante,
-							stats.prisaoMandado
-						);
-					} else if (id === 'detail-drogas') {
-						details = (Object.entries(stats.drogasPorTipo) as [string, number][])
-							.sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-							.slice(0, 8);
-						total = stats.drogasGeral;
-						unit = 'g';
-					} else if (id === 'detail-armas') {
-						details = (Object.entries(stats.armasPorTipo) as [string, number][])
-							.sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-							.slice(0, 8);
-						total = stats.apreensoes_armas;
-					}
-
-					let y = headerHeight + 20;
-					details.forEach(([label, val]) => {
-						ctx.fillStyle = '#64748b';
-						ctx.font = 'bold 12px Inter';
-						ctx.fillText(label.toUpperCase(), padding, y);
-						ctx.textAlign = 'right';
-						ctx.fillStyle = qColor;
-						let displayVal =
-							unit === 'g' && val >= 1000 ? `${(val / 1000).toFixed(1)}kg` : `${val}${unit}`;
-						ctx.fillText(displayVal, exportCanvas.width - padding, y);
-						ctx.textAlign = 'left';
-
-						ctx.fillStyle = '#f1f5f9';
-						ctx.beginPath();
-						if (ctx.roundRect) {
-							ctx.roundRect(padding, y + 10, exportCanvas.width - padding * 2, 12, 6);
-						} else {
-							ctx.rect(padding, y + 10, exportCanvas.width - padding * 2, 12);
-						}
-						ctx.fill();
-
-						ctx.fillStyle = qColor;
-						ctx.beginPath();
-						let w = (val / (total || 1)) * (exportCanvas.width - padding * 2);
-						if (ctx.roundRect) {
-							ctx.roundRect(padding, y + 10, Math.max(w, 4), 12, 6);
-						} else {
-							ctx.rect(padding, y + 10, Math.max(w, 4), 12);
-						}
-						ctx.fill();
-						y += 50;
-					});
-				}
-			}
-
-			// Footer
-			ctx.textAlign = 'right';
-			ctx.fillStyle = '#94a3b8';
-			ctx.font = 'bold 10px Inter';
-			ctx.fillText(
-				'GISE - DASHBOARD DE PRODUTIVIDADE',
-				exportCanvas.width - padding,
-				exportCanvas.height - 15
-			);
-
-			// Download
-			const link = document.createElement('a');
-			link.download = `GISE_${qLabel.replace(/\s+/g, '_')}.png`;
-			link.href = exportCanvas.toDataURL('image/png');
-			link.click();
-			await new Promise((r) => setTimeout(r, 100));
 		}
 	}
 </script>
@@ -987,13 +611,16 @@
 				{@render subDetailing(
 					'detail-prisoes',
 					'Detalhamento de Prisões',
-					[
-						['Flagrantes (P4)', stats.prisaoFlagrante],
-						['Mandados (P5)', stats.prisaoMandado],
-						['Total de Presos (P7)', stats['prisoes_apreensoes_flagrante'] || 0]
-					],
+					(() => {
+						const v = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
+						return [
+							['Flagrantes (P4)', stats.prisaoFlagrante],
+							['Mandados (P5)', stats.prisaoMandado],
+							['Total de Presos (P7)', v]
+						];
+					})(),
 					Math.max(
-						stats['prisoes_apreensoes_flagrante'] || 0,
+						(stats['prisoes_apreensoes_flagrante'] as number) || 0,
 						stats.prisaoFlagrante,
 						stats.prisaoMandado
 					),
