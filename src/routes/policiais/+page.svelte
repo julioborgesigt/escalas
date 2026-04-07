@@ -14,24 +14,23 @@
 	let { data, form } = $props();
 
 	let cadastroPending = $state(false);
-	function handleCadastro() {
-		return {
-			onSubmit: () => {
-				cadastroPending = true;
-			},
-			onUpdate: ({ result }: { result: any }) => {
-				cadastroPending = false;
-				if (result?.type === 'success') {
-					toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
-					resetForm();
-					cadastroOpen = false;
-					invalidateAll();
-				} else if (result?.type === 'failure' && result.data?.error) {
-					toaster.create({ title: result.data.error, type: 'error' });
-				}
+	const handleCadastro: any = () => ({
+		onSubmit: () => {
+			cadastroPending = true;
+		},
+		onUpdate({ result }: { result: any }) {
+			cadastroPending = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+				resetForm();
+				cadastroOpen = false;
+				invalidateAll();
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		};
-	}
+		}
+	});
 
 	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_policiais', {

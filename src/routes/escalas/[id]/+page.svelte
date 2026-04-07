@@ -1,41 +1,56 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import type { Escala, Policial, EscalaPolicialComDados } from '$lib/types';
+	import type { Policial, EscalaPolicialComDados } from '$lib/types';
+	import type { Escala } from '$lib/server/schema';
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useConfirmationDialog } from '$lib/composables';
 
+	let { data, form } = $props();
+
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 	const confirmDialog = useConfirmationDialog<{ itemId: number; nome: string }>();
 
-	let escala = $state<Escala | null>(null);
-	let policiaisEscala = $state<EscalaPolicialComDados[]>([]);
-	let todosOsPoliciais = $state<Policial[]>([]);
+	// Dados do server
+	let escala = $state<Escala | null>(data.escala);
+	let policiaisEscala = $state<EscalaPolicialComDados[]>(data.policiaisEscala);
+	let todosOsPoliciais = $state<Policial[]>(data.todosPoliciais);
 	let documentoAssinadoInfo = $state<{
 		existe: boolean;
 		assinante_nome?: string;
 		assinante_cpf?: string;
 		data?: string;
-	} | null>(null);
-	let loading = $state(true);
+	} | null>(data.documentoAssinadoInfo);
+
+	// Atualiza quando dados do server mudam
+	$effect(() => {
+		if (data.escala) escala = data.escala;
+		if (data.policiaisEscala) {
+			policiaisEscala.length = 0;
+			policiaisEscala.push(...data.policiaisEscala);
+		}
+		if (data.todosPoliciais) {
+			todosOsPoliciais.length = 0;
+			todosOsPoliciais.push(...data.todosPoliciais);
+		}
+	});
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
-	let dataPlantao = $state('');
+	let dataPlantao = $state(escala?.data_inicio || '');
 	let addHoraEntrada = $state('08');
 	let addMinutoEntrada = $state('00');
 	let addHoraSaida = $state('08');
 	let addMinutoSaida = $state('00');
-	let adding = $state(false);
-	let adicionandoTodos = $state(false);
-	let gerandoProximoMes = $state(false);
 
 	let addEquipe = $state('1');
 	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
@@ -49,9 +64,6 @@
 					.sort((a, b) => a.nome.localeCompare(b.nome))
 			: []
 	);
-
-	let salvandoEdicao = $state(false);
-	let removendo = $state(false);
 
 	let editingId = $state<number | null>(null);
 	let editDataEntrada = $state('');
@@ -78,31 +90,6 @@
 		return p.data_plantao;
 	}
 
-	function formatarHorario(p: EscalaPolicialComDados): string {
-		return `${getHoraEntrada(p)}H A ${getHoraSaida(p)}H`;
-	}
-
-	function formatarDataPlantao(p: EscalaPolicialComDados): string {
-		const dataEntrada = formatarData(p.data_plantao);
-		const dataSaida = getDataSaida(p);
-		if (dataSaida !== p.data_plantao) {
-			return `${dataEntrada} à ${formatarData(dataSaida)}`;
-		}
-		return dataEntrada;
-	}
-
-	function datasDoPlantao(escala: Escala): string[] {
-		const datas: string[] = [];
-		const inicio = new Date(escala.data_inicio + 'T00:00:00');
-		const fim = new Date(escala.data_fim + 'T00:00:00');
-		const current = new Date(inicio);
-		while (current <= fim) {
-			datas.push(current.toISOString().split('T')[0]);
-			current.setDate(current.getDate() + 1);
-		}
-		return datas;
-	}
-
 	function calcularDataSaidaInicial(
 		dataEntrada: string,
 		horaEntrada: string,
@@ -112,261 +99,6 @@
 		const hs = Number(horaSaida.split(':')[0]);
 		if (hs <= he) return proximoDia(dataEntrada);
 		return dataEntrada;
-	}
-
-	async function carregar() {
-		const id = page.params.id;
-		loading = true;
-
-		const [escalaRes, policiaisRes, todosRes, infoRes] = await Promise.all([
-			fetch(`/api/escalas`).then((r) => r.json()),
-			fetch(`/api/escalas/${id}/policiais`).then((r) => r.json()),
-			fetch('/api/policiais?todos=1').then((r) => r.json()),
-			fetch(`/api/escalas/${id}/documento-assinado/info`)
-				.then((r) => (r.ok ? r.json() : null))
-				.catch(() => null)
-		]);
-
-		escala = (escalaRes as Escala[]).find((e: Escala) => e.id === Number(id)) || null;
-		policiaisEscala = policiaisRes;
-		todosOsPoliciais = todosRes;
-
-		if (escala) {
-			addHoraEntrada = '08';
-			addMinutoEntrada = '00';
-			addHoraSaida = '08';
-			addMinutoSaida = '00';
-		}
-
-		if (infoRes && infoRes.existe) {
-			documentoAssinadoInfo = infoRes;
-		}
-
-		if (escala && !dataPlantao) {
-			dataPlantao = escala.data_inicio;
-		}
-		loading = false;
-	}
-
-	async function recarregarPoliciais() {
-		const id = page.params.id;
-		const res = await fetch(`/api/escalas/${id}/policiais`);
-		policiaisEscala = await res.json();
-	}
-
-	async function adicionar(e: Event) {
-		e.preventDefault();
-		if (!policialId || !dataPlantao) return;
-		adding = true;
-		try {
-			const he = escala?.hora_entrada || '08';
-			const hs = escala?.hora_saida || '08';
-			const ds = calcularDataSaidaInicial(dataPlantao, he, hs);
-
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					policial_id: Number(policialId),
-					data_plantao: dataPlantao,
-					data_saida: ds,
-					hora_entrada: `${addHoraEntrada}:${addMinutoEntrada}`,
-					hora_saida: `${addHoraSaida}:${addMinutoSaida}`
-				})
-			});
-
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
-				cargoBusca = '';
-				policialId = '';
-			} else {
-				toaster.create({ title: 'Erro ao adicionar', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			adding = false;
-		}
-	}
-
-	async function adicionarTodos() {
-		if (!escala || adicionandoTodos) return;
-		adicionandoTodos = true;
-		try {
-			const he = escala.hora_entrada || '08:00';
-			const hs = escala.hora_saida || '08:00';
-			const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
-
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					data_plantao: escala.data_inicio,
-					data_saida: ds,
-					hora_entrada: he,
-					hora_saida: hs
-				})
-			});
-
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-				if (data.quantidade === 0) {
-					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
-				} else {
-					toaster.create({
-						title: `${data.quantidade} servidor(es) adicionado(s) à escala`,
-						type: 'success'
-					});
-				}
-			} else {
-				toaster.create({ title: 'Erro ao adicionar servidores', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			adicionandoTodos = false;
-		}
-	}
-
-	async function gerarProximoMes() {
-		if (!escala || gerandoProximoMes) return;
-		gerandoProximoMes = true;
-
-		const res = await fetch(`/api/escalas/${page.params.id}/proximo-mes`, {
-			method: 'POST',
-			headers: csrfHeaders()
-		});
-
-		const data = await res.json();
-
-		if (res.ok) {
-			const tipo = escala.tipo === 'plantao' ? 'Plantão' : 'Expediente';
-			if (data.nao_processados?.length > 0) {
-				const nomes = data.nao_processados.map((p: { nome: string }) => p.nome).join(', ');
-				toaster.create({
-					title: `Escala gerada! ${data.adicionados} servidor(es) adicionado(s).`,
-					description: `Não processados (rotação não identificada): ${nomes}. Adicione-os manualmente.`,
-					type: 'warning'
-				});
-			} else {
-				toaster.create({
-					title: `Escala de ${tipo} do próximo mês criada com sucesso!`,
-					description: `${data.adicionados} servidor(es) adicionado(s).`,
-					type: 'success'
-				});
-			}
-			goto(`/escalas/${data.escala_id}`);
-		} else if (res.status === 409 && data.escala_id) {
-			// Já existe — redireciona para a escala existente
-			toaster.create({
-				title: data.error,
-				description: 'Redirecionando para a escala existente...',
-				type: 'warning'
-			});
-			goto(`/escalas/${data.escala_id}`);
-		} else {
-			toaster.create({ title: data.error || 'Erro ao gerar próximo mês', type: 'error' });
-		}
-
-		gerandoProximoMes = false;
-	}
-
-	function startEdit(p: EscalaPolicialComDados) {
-		editingId = p.id;
-		editDataEntrada = p.data_plantao;
-		editDataSaida = getDataSaida(p);
-		const [he, me = '00'] = getHoraEntrada(p).split(':');
-		editHoraEntrada = he;
-		editMinutoEntrada = me;
-		const [hs, ms = '00'] = getHoraSaida(p).split(':');
-		editHoraSaida = hs;
-		editMinutoSaida = ms;
-		editObservacoes = p.observacoes || '';
-	}
-
-	function editPreviewData(): string {
-		if (!editDataEntrada) return '';
-		const de = formatarData(editDataEntrada);
-		if (editDataSaida && editDataSaida !== editDataEntrada) {
-			return `${de} à ${formatarData(editDataSaida)}`;
-		}
-		return de;
-	}
-
-	async function salvarEdicao(itemId: number) {
-		salvandoEdicao = true;
-		try {
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					item_id: itemId,
-					data_plantao: editDataEntrada,
-					data_saida: editDataSaida,
-					hora_entrada: `${editHoraEntrada}:${editMinutoEntrada}`,
-					hora_saida: `${editHoraSaida}:${editMinutoSaida}`,
-					observacoes: editObservacoes
-				})
-			});
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-				editingId = null;
-			} else {
-				toaster.create({ title: 'Erro ao salvar alterações', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			salvandoEdicao = false;
-		}
-	}
-
-	function cancelEdit() {
-		editingId = null;
-	}
-
-	function solicitarRemocao(itemId: number, nome: string) {
-		confirmDialog.openDialog({ itemId, nome });
-	}
-
-	async function confirmarRemocao() {
-		const item = confirmDialog.currentItem;
-		if (!item) return;
-		const itemId = item.itemId;
-		const nome = item.nome;
-		removendo = true;
-		try {
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais?item_id=${itemId}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-				toaster.create({ title: `${nome} removido da escala`, type: 'success' });
-				confirmDialog.closeDialog();
-			} else {
-				toaster.create({ title: 'Erro ao remover policial', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			removendo = false;
-		}
-	}
-
-	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
-		const map = new Map<string, EscalaPolicialComDados[]>();
-		for (const item of items) {
-			const list = map.get(item.data_plantao) || [];
-			list.push(item);
-			map.set(item.data_plantao, list);
-		}
-		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
 	}
 
 	// Detecta se a escala é de Final de Semana
@@ -386,14 +118,11 @@
 		} else {
 			while (d <= fim) {
 				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-
-				// Adiciona o segundo dia do plantão (2x6)
 				const d2 = new Date(d);
 				d2.setDate(d2.getDate() + 1);
 				if (d2 <= fim && d2 >= inicio) {
 					datas.push(d2.toISOString().split('T')[0]);
 				}
-
 				d.setDate(d.getDate() + 8);
 			}
 		}
@@ -409,176 +138,161 @@
 		}
 	}
 
-	function agruparPorEquipe(
-		items: EscalaPolicialComDados[]
-	): Map<string, EscalaPolicialComDados[]> {
-		const map = new Map<string, EscalaPolicialComDados[]>();
-		for (const item of items) {
-			const equipe = item.equipe || '';
-			const list = map.get(equipe) || [];
-			list.push(item);
-			map.set(equipe, list);
-		}
-		for (const list of map.values()) {
-			list.sort((a, b) => {
-				if (a.cargo !== b.cargo) return a.cargo === 'DPC' ? -1 : 1;
-				if (a.nome !== b.nome) return a.nome.localeCompare(b.nome);
-				return a.data_plantao.localeCompare(b.data_plantao);
-			});
-		}
-		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
-	}
-
-	async function adicionarPlantao(e: Event) {
-		e.preventDefault();
-		if (!policialId || addDatasSelecionadas.length === 0) return;
-		adding = true;
-
-		const he = `${addHoraEntrada}:${addMinutoEntrada}`;
-		const hs = `${addHoraSaida}:${addMinutoSaida}`;
-
-		const datas = addDatasSelecionadas.map((d) => {
-			const ds = calcularDataSaidaInicial(d, he, hs);
-			return { data_plantao: d, data_saida: ds };
-		});
-		const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-			body: JSON.stringify({
-				policial_id: Number(policialId),
-				datas,
-				hora_entrada: he,
-				hora_saida: hs,
-				equipe: addEquipe
-			})
-		});
-		if (res.ok) {
-			const data = await res.json();
-			if (data.policiais) policiaisEscala = data.policiais;
-			toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
-			cargoBusca = '';
-			policialId = '';
-			addPrimeiroPlantao = '';
-			addEquipe = '1';
-			addDatasSelecionadas = [];
-		} else {
-			const err = await res.json().catch(() => ({}));
-			toaster.create({
-				title: (err as { error?: string }).error || 'Erro ao adicionar',
-				type: 'error'
-			});
-		}
-		adding = false;
-	}
-
-	let servidoresExpandidos = $state(new Set<number>());
-
-	function toggleExpandirServidor(id: number) {
-		if (servidoresExpandidos.has(id)) {
-			servidoresExpandidos.delete(id);
-		} else {
-			servidoresExpandidos.add(id);
-		}
-		servidoresExpandidos = new Set(servidoresExpandidos);
-	}
-
-	function agruparPorServidor(items: EscalaPolicialComDados[]) {
-		const grupos = new Map<
-			number,
-			{
-				policial_id: number;
-				nome: string;
-				matricula: string;
-				cargo: string;
-				telefone: string;
-				lotacao: string;
-				classe?: string;
-				equipe: string;
-				itens: EscalaPolicialComDados[];
-			}
-		>();
-
-		for (const item of items) {
-			if (!grupos.has(item.policial_id)) {
-				grupos.set(item.policial_id, {
-					policial_id: item.policial_id,
-					nome: item.nome,
-					matricula: item.matricula,
-					cargo: item.cargo,
-					telefone: item.telefone || '',
-					lotacao: item.lotacao || '',
-					classe: item.classe,
-					equipe: item.equipe || '',
-					itens: []
-				});
-			}
-			grupos.get(item.policial_id)!.itens.push(item);
-		}
-
-		for (const g of grupos.values()) {
-			g.itens.sort((a, b) => a.data_plantao.localeCompare(b.data_plantao));
-		}
-
-		return Array.from(grupos.values());
-	}
-
-	async function toggleDiaServidor(grupo: any, dataISO: string) {
-		const itemExistente = grupo.itens.find((i: any) => i.data_plantao === dataISO);
-
-		if (itemExistente) {
-			const res = await fetch(
-				`/api/escalas/${page.params.id}/policiais?item_id=${itemExistente.id}`,
-				{
-					method: 'DELETE',
-					headers: csrfHeaders()
-				}
-			);
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-			}
-		} else {
-			const template = grupo.itens[0] || {};
-			const he = template.hora_entrada || escala?.hora_entrada || '08:00';
-			const hs = template.hora_saida || escala?.hora_saida || '08:00';
-			const ds = calcularDataSaidaInicial(dataISO, he, hs);
-
-			const res = await fetch(`/api/escalas/${page.params.id}/policiais`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					policial_id: grupo.policial_id,
-					data_plantao: dataISO,
-					data_saida: ds,
-					hora_entrada: he,
-					hora_saida: hs,
-					equipe: grupo.equipe
-				})
-			});
-			if (res.ok) {
-				const data = await res.json();
-				if (data.policiais) policiaisEscala = data.policiais;
-			}
-		}
-	}
-
 	$effect(() => {
 		addDatasSelecionadas = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala);
 	});
 
-	$effect(() => {
-		carregar();
-	});
+	// Handlers para actions com enhance
+	let addingPending = $state(false);
+	let plantaoPending = $state(false);
+	let adicionarTodosPending = $state(false);
+	let gerarProximoMesPending = $state(false);
+
+	function handleAdd(): ReturnType<typeof enhance> {
+		return {
+			onSubmit: () => {
+				addingPending = true;
+			},
+			onUpdate({ result }: { result: any }) {
+				addingPending = false;
+				const d = result.data as Record<string, unknown> | undefined;
+				if (result.type === 'success' && d?.policiais) {
+					policiaisEscala.length = 0;
+					policiaisEscala.push(...(d.policiais as EscalaPolicialComDados[]));
+					toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
+					cargoBusca = '';
+					policialId = '';
+				} else if (result.type === 'failure') {
+					toaster.create({
+						title: d?.error ? String(d.error) : 'Erro ao adicionar',
+						type: 'error'
+					});
+				}
+			}
+		};
+	}
+
+	function handlePlantao(): ReturnType<typeof enhance> {
+		return {
+			onSubmit: () => {
+				plantaoPending = true;
+			},
+			onUpdate({ result }: { result: any }) {
+				plantaoPending = false;
+				const d = result.data as Record<string, unknown> | undefined;
+				if (result.type === 'success' && d?.policiais) {
+					policiaisEscala.length = 0;
+					policiaisEscala.push(...(d.policiais as EscalaPolicialComDados[]));
+					toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
+					cargoBusca = '';
+					policialId = '';
+					addPrimeiroPlantao = '';
+					addEquipe = '1';
+					addDatasSelecionadas = [];
+				} else if (result.type === 'failure') {
+					toaster.create({
+						title: d?.error ? String(d.error) : 'Erro ao adicionar',
+						type: 'error'
+					});
+				}
+			}
+		};
+	}
+
+	function handleAdicionarTodos(): ReturnType<typeof enhance> {
+		return {
+			onSubmit: () => {
+				adicionarTodosPending = true;
+			},
+			onUpdate({ result }: { result: any }) {
+				adicionarTodosPending = false;
+				const d = result.data as Record<string, unknown> | undefined;
+				if (result.type === 'success' && d?.policiais) {
+					policiaisEscala.length = 0;
+					policiaisEscala.push(...(d.policiais as EscalaPolicialComDados[]));
+					const qtd = d.quantidade as number;
+					if (qtd === 0) {
+						toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
+					} else {
+						toaster.create({
+							title: `${qtd} servidor(es) adicionado(s) à escala`,
+							type: 'success'
+						});
+					}
+				} else if (result.type === 'failure') {
+					toaster.create({
+						title: d?.error ? String(d.error) : 'Erro ao adicionar servidores',
+						type: 'error'
+					});
+				}
+			}
+		};
+	}
+
+	function handleGerarProximoMes(): ReturnType<typeof enhance> {
+		return {
+			onSubmit: () => {
+				gerarProximoMesPending = true;
+			},
+			onUpdate({ result }: { result: any }) {
+				gerarProximoMesPending = false;
+				const d = result.data as Record<string, unknown> | undefined;
+				if (result.type === 'success' && d?.escala_id) {
+					const tipo = escala?.tipo === 'plantao' ? 'Plantão' : 'Expediente';
+					const naoProc = (d.nao_processados as any[]) || [];
+					if (naoProc.length > 0) {
+						const nomes = naoProc.map((p) => p.nome).join(', ');
+						toaster.create({
+							title: `Escala gerada! ${d.adicionados} servidor(es) adicionado(s).`,
+							description: `Não processados (rotação não identificada): ${nomes}. Adicione-os manualmente.`,
+							type: 'warning'
+						});
+					} else {
+						toaster.create({
+							title: `Escala de ${tipo} do próximo mês criada com sucesso!`,
+							description: `${d.adicionados} servidor(es) adicionado(s).`,
+							type: 'success'
+						});
+					}
+					goto(`/escalas/${d.escala_id}`);
+				} else if (result.type === 'failure') {
+					if (d?.escala_id) {
+						toaster.create({
+							title: String(d.error),
+							description: 'Redirecionando para a escala existente...',
+							type: 'warning'
+						});
+						goto(`/escalas/${d.escala_id}`);
+					} else {
+						toaster.create({
+							title: d?.error ? String(d.error) : 'Erro ao gerar próximo mês',
+							type: 'error'
+						});
+					}
+				}
+			}
+		};
+	}
+
+	function startEdit(p: EscalaPolicialComDados) {
+		editingId = p.id;
+		editDataEntrada = p.data_plantao;
+		editDataSaida = getDataSaida(p);
+		const [he, me = '00'] = getHoraEntrada(p).split(':');
+		editHoraEntrada = he;
+		editMinutoEntrada = me;
+		const [hs, ms = '00'] = getHoraSaida(p).split(':');
+		editHoraSaida = hs;
+		editMinutoSaida = ms;
+		editObservacoes = p.observacoes || '';
+	}
+
+	function solicitarRemocao(itemId: number, nome: string) {
+		confirmDialog.openDialog({ itemId, nome });
+	}
 </script>
 
-{#if loading}
-	<div
-		class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
-	>
-		<Spinner size="xl" />
-		<span class="text-sm">Carregando...</span>
-	</div>
-{:else if !escala}
+{#if !escala}
 	<div class="text-center py-12 text-surface-500">
 		<p>Escala não encontrada.</p>
 	</div>
@@ -595,7 +309,7 @@
 	</div>
 
 	<PainelAssinaturaEscala
-		escalaId={page.params.id || ''}
+		escalaId={String(data.escalaId)}
 		{isFDS}
 		policiaisCount={policiaisEscala.length}
 		usuario={page.data.usuario}
