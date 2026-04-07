@@ -1,14 +1,37 @@
 <script lang="ts">
-	import type { Policial, Unidade } from '$lib/types';
+	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
-	import { policialSchema } from '$lib/schemas/policial';
-	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
+	import type { Policial, Unidade } from '$lib/types';
+
+	let { data, form } = $props();
+
+	let cadastroPending = $state(false);
+	function handleCadastro() {
+		return {
+			onSubmit: () => {
+				cadastroPending = true;
+			},
+			onUpdate: ({ result }: { result: any }) => {
+				cadastroPending = false;
+				if (result?.type === 'success') {
+					toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+					resetForm();
+					cadastroOpen = false;
+					invalidateAll();
+				} else if (result?.type === 'failure' && result.data?.error) {
+					toaster.create({ title: result.data.error, type: 'error' });
+				}
+			}
+		};
+	}
 
 	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_policiais', {
@@ -18,23 +41,29 @@
 		busca: ''
 	});
 
-	let policiais = $state<Policial[]>([]);
-	let loading = $state(true);
-	let unidades = $state<Unidade[]>([]);
+	const unidades: Unidade[] = data.unidades;
+	const policiais = $state<any[]>(data.policiais);
+
+	// Atualiza estado local quando dados do server mudam
+	$effect(() => {
+		if (data.policiais) {
+			policiais.length = 0;
+			policiais.push(...data.policiais);
+		}
+	});
+
+	// Paginação
+	let paginaAtual = $state(data.pagination.page);
+	const totalPaginas = $derived(data.pagination.totalPages);
+	const ITEMS_POR_PAGINA = 20;
 
 	// Filtros
-	let filtroLotacao = $state(savedFilters.lotacao);
-	let filtroCargo = $state(savedFilters.cargo);
+	let filtroLotacao = $state(data.filtros.lotacao || savedFilters.lotacao);
+	let filtroCargo = $state(data.filtros.cargo || savedFilters.cargo);
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
-	let filtroBusca = $state(savedFilters.busca);
-
-	// Paginação
-	let paginaAtual = $state(1);
-	let totalPaginas = $state(1);
-	let totalPoliciais = $state(0);
-	const ITEMS_POR_PAGINA = 20;
+	let filtroBusca = $state(data.filtros.busca || savedFilters.busca);
 
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
@@ -76,7 +105,6 @@
 	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
 	let lotacaoInput = $state('');
 	let email = $state('');
-	let saving = $state(false);
 	let excluindo = $state(false);
 
 	// Papel administrativo no cadastro
@@ -88,7 +116,7 @@
 
 	$effect(() => {
 		if (cadastroOpen) {
-			lotacaoInput = isAdmin ? '' : (lotacaoUsuario ?? '');
+			lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		}
 	});
 
@@ -127,79 +155,10 @@
 		telefone = '';
 		classe = '';
 		regime = 'ambos';
-		lotacaoInput = isAdmin ? '' : (lotacaoUsuario ?? '');
+		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		email = '';
 		papel = null;
 		papelUnidadeId = null;
-	}
-
-	async function salvar(e: Event) {
-		e.preventDefault();
-
-		const parsed = policialSchema.safeParse({
-			nome,
-			matricula,
-			cargo,
-			cpf: limparCPF(cpf),
-			telefone,
-			lotacao: lotacaoInput,
-			regime,
-			classe,
-			papel: papel || null,
-			papel_unidade_id: papelUnidadeId || null,
-			email: email || null
-		});
-		if (!parsed.success) {
-			toaster.create({
-				title: parsed.error.issues[0].message,
-				type: 'error'
-			});
-			return;
-		}
-
-		saving = true;
-		try {
-			const res = await fetch('/api/policiais', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					nome,
-					matricula,
-					cargo,
-					cpf: limparCPF(cpf),
-					telefone,
-					lotacao: lotacaoInput,
-					regime,
-					classe,
-					papel: papel || null,
-					papel_unidade_id: papelUnidadeId || null,
-					email: email || null
-				})
-			});
-
-			if (res.ok) {
-				toaster.create({
-					title: 'Policial cadastrado com sucesso!',
-					type: 'success'
-				});
-				resetForm();
-				cadastroOpen = false;
-				carregarPoliciais();
-			} else {
-				const data = await res.json();
-				toaster.create({
-					title: data.error || 'Erro ao cadastrar',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			saving = false;
-		}
 	}
 
 	const policiaisExibidos = $derived(
@@ -217,51 +176,20 @@
 		}
 	});
 
-	async function carregarPoliciais() {
-		if (isAdmin && !filtroLotacao) {
-			policiais = [];
-			loading = false;
-			return;
-		}
-		if (isAdmin && filtroLotacao === TODAS_UNIDADES) {
-			loading = true;
-			const params = new URLSearchParams();
-			if (filtroBusca) params.set('busca', filtroBusca);
-			params.set('page', String(paginaAtual));
-			params.set('limit', String(ITEMS_POR_PAGINA));
-			const res = await fetch(`/api/policiais?${params.toString()}`);
-			const resultado = await res.json();
-			policiais = resultado.policiais ?? resultado;
-			totalPaginas = resultado.totalPages ?? 1;
-			totalPoliciais = resultado.total ?? resultado.policiais?.length ?? 0;
-			loading = false;
-			return;
-		}
-
-		loading = true;
+	function navegarComFiltros() {
 		const params = new URLSearchParams();
-		if (filtroLotacao === SEM_LOTACAO) {
-			params.set('sem_lotacao', '1');
-		} else if (filtroLotacao) {
+		if (
+			filtroLotacao &&
+			filtroLotacao !== 'todas' &&
+			filtroLotacao !== TODAS_UNIDADES &&
+			filtroLotacao !== SEM_LOTACAO
+		) {
 			params.set('lotacao', filtroLotacao);
 		}
-		if (filtroBusca) {
-			params.set('busca', filtroBusca);
-		}
-		params.set('page', String(paginaAtual));
-		params.set('limit', String(ITEMS_POR_PAGINA));
-
-		const res = await fetch(`/api/policiais?${params.toString()}`);
-		const resultado = await res.json();
-		policiais = resultado.policiais ?? resultado;
-		totalPaginas = resultado.totalPages ?? 1;
-		totalPoliciais = resultado.total ?? resultado.policiais?.length ?? 0;
-		loading = false;
-	}
-
-	async function carregarUnidades() {
-		const res = await fetch('/api/unidades');
-		unidades = await res.json();
+		if (filtroCargo) params.set('cargo', filtroCargo);
+		if (filtroBusca) params.set('busca', filtroBusca);
+		params.set('page', '1');
+		window.location.search = params.toString();
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -272,54 +200,44 @@
 		const item = confirmDialog.currentItem;
 		if (!item) return;
 		excluindo = true;
-		const id = item.id;
-		const nome = item.nome;
-		try {
-			const res = await fetch(`/api/policiais/${id}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
+		const formData = new FormData();
+		formData.set('policial_id', String(item.id));
+		const resp = await fetch('?/excluir', {
+			method: 'POST',
+			body: formData
+		});
+		excluindo = false;
+		if (resp.ok) {
+			toaster.create({
+				title: `${item.nome} removido com sucesso`,
+				type: 'success'
 			});
-			if (res.ok) {
-				toaster.create({
-					title: `${nome} removido com sucesso`,
-					type: 'success'
-				});
-				policiais = policiais.filter((p) => p.id !== id);
-				confirmDialog.closeDialog();
-			} else {
-				const data = await res.json();
-				toaster.create({
-					title: data.error || 'Erro ao remover',
-					type: 'error'
-				});
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			excluindo = false;
+			confirmDialog.closeDialog();
+			await invalidateAll();
+		} else {
+			const data = await resp.json().catch(() => ({}));
+			toaster.create({
+				title: data.error || 'Erro ao remover',
+				type: 'error'
+			});
 		}
 	}
 
 	function limparFiltros() {
-		filtroLotacao = isAdmin ? '' : (lotacaoUsuario ?? '');
+		filtroLotacao = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		filtroCargo = '';
 		filtroSeccional = 'todas';
 		filtroBusca = '';
 		paginaAtual = 1;
-		carregarPoliciais();
+		navegarComFiltros();
 	}
 
 	const temFiltros = $derived(
-		filtroLotacao !== (isAdmin ? '' : (lotacaoUsuario ?? '')) ||
+		filtroLotacao !== (isAdmin ? '' : (data.lotacaoUsuario ?? '')) ||
 			filtroCargo !== '' ||
 			filtroSeccional !== 'todas' ||
 			filtroBusca !== ''
 	);
-
-	$effect(() => {
-		carregarPoliciais();
-		carregarUnidades();
-	});
 </script>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -330,7 +248,7 @@
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
 			onclick={limparFiltros}
-			disabled={!temFiltros && !loading}
+			disabled={!temFiltros}
 		>
 			Limpar filtros
 		</button>
@@ -365,7 +283,16 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
 
-			<form onsubmit={salvar} class="space-y-3">
+			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="space-y-3">
+				<!-- Campos hidden -->
+				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
+				<input type="hidden" name="telefone" value={telefone} />
+				<input type="hidden" name="lotacao" value={lotacaoInput} />
+				<input type="hidden" name="regime" value={regime} />
+				<input type="hidden" name="papel" value={papel ?? ''} />
+				<input type="hidden" name="papel_unidade_id" value={papelUnidadeId ?? ''} />
+				<input type="hidden" name="email" value={email ?? ''} />
+
 				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-7">
@@ -528,10 +455,10 @@
 					<button
 						type="submit"
 						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-						disabled={saving}
+						disabled={cadastroPending}
 					>
-						{#if saving}<Spinner size="sm" />{/if}
-						{saving ? 'Guardando...' : 'Cadastrar'}
+						{#if cadastroPending}<Spinner size="sm" />{/if}
+						{cadastroPending ? 'Guardando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
@@ -582,7 +509,7 @@
 					bind:value={filtroSeccional}
 					onchange={() => {
 						filtroLotacao = '';
-						carregarPoliciais();
+						navegarComFiltros();
 					}}
 				>
 					<option value="todas">Todas as Seccionais</option>
@@ -593,7 +520,7 @@
 			</label>
 			<label class="label flex-1 max-w-sm">
 				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-				<select class="select" bind:value={filtroLotacao} onchange={carregarPoliciais}>
+				<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 					<option value="">Selecione uma unidade...</option>
 					<option value={TODAS_UNIDADES}>Todas as unidades</option>
 					{#each delegaciasDropdown as del (del.id)}
@@ -640,14 +567,7 @@
 		</p>
 	{/if}
 
-	{#if loading}
-		<div
-			class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
-		>
-			<Spinner size="xl" />
-			<span class="text-sm">Carregando...</span>
-		</div>
-	{:else if isAdmin && !filtroLotacao}
+	{#if data.skipLoad}
 		<div class="text-center py-20">
 			<div
 				class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"

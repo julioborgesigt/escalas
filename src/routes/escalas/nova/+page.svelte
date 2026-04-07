@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { escalaSchema } from '$lib/schemas';
-	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	interface UnidadeRegime {
@@ -14,12 +12,35 @@
 		cidade: string;
 	}
 
+	let { data, form } = $props();
+
+	// Track pending state locally
+	let enviando = $state(false);
+	function handleSubmit() {
+		return {
+			onSubmit: () => {
+				enviando = true;
+			},
+			onUpdate: ({ result }: { result: any }) => {
+				enviando = false;
+				if (result?.type === 'success' && result.data?.id) {
+					toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
+					goto(`/escalas/${result.data.id}`);
+				} else if (result?.type === 'failure' && result.data?.error) {
+					toaster.create({ title: result.data.error, type: 'error' });
+				}
+			}
+		};
+	}
+
+	const isAdmin: boolean = data.isAdmin;
+	const unidadesComRegime: UnidadeRegime[] = data.unidadesComRegime;
+	const lotacoes: string[] = data.lotacoes;
+
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	// === Estado do seletor de regime ===
-	let unidadesComRegime = $state<UnidadeRegime[]>([]);
 	let selecionando = $state(true);
 	let tipoEscolhido = $state<'plantao' | 'expediente' | 'fds' | null>(null);
 	let unidadeEscolhida = $state<UnidadeRegime | null>(null);
@@ -33,8 +54,6 @@
 	let minutoEntrada = $state('00');
 	let horaSaida = $state('08');
 	let minutoSaida = $state('00');
-	let saving = $state(false);
-	let lotacoes = $state<string[]>([]);
 	let lotacaoEscala = $state('');
 
 	// Se true, o form de FDS mostra o seletor de data do fim de semana
@@ -187,77 +206,19 @@
 	);
 	const isMensal = $derived(tipoEscolhido === 'plantao' || tipoEscolhido === 'expediente');
 
+	// Auto-selecionar para policial com única unidade
 	$effect(() => {
-		Promise.all([
-			fetch('/api/lotacoes/regimes').then((r) => (r.ok ? r.json() : [])),
-			fetch('/api/lotacoes').then((r) => (r.ok ? r.json() : []))
-		]).then(([regimes, lotes]) => {
-			unidadesComRegime = regimes;
-			lotacoes = lotes;
-
-			if (!isAdmin && regimes.length === 1) {
-				unidadeEscolhida = regimes[0];
-				const tipos = tiposDisponiveis(regimes[0]);
-				if (tipos.length === 1) {
-					escolherTipo(tipos[0].tipo);
-				}
+		if (!isAdmin && unidadesComRegime.length === 1) {
+			unidadeEscolhida = unidadesComRegime[0];
+			const tipos = tiposDisponiveis(unidadesComRegime[0]);
+			if (tipos.length === 1) {
+				escolherTipo(tipos[0].tipo);
 			}
-		});
+		}
 	});
 
 	function horarioLabel(): string {
 		return `${horaEntrada}:${minutoEntrada}H A ${horaSaida}:${minutoSaida}H`;
-	}
-
-	async function salvar(e: Event) {
-		e.preventDefault();
-
-		const parsed = escalaSchema.safeParse({
-			titulo,
-			cidade,
-			data_inicio: dataInicio,
-			data_fim: dataFim,
-			horario: horarioLabel(),
-			hora_entrada: `${horaEntrada}:${minutoEntrada}`,
-			hora_saida: `${horaSaida}:${minutoSaida}`,
-			lotacao: isAdmin ? lotacaoEscala : undefined
-		});
-		if (!parsed.success) {
-			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
-			return;
-		}
-
-		saving = true;
-		try {
-			const res = await fetch('/api/escalas', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					titulo,
-					cidade,
-					data_inicio: dataInicio,
-					data_fim: dataFim,
-					horario: horarioLabel(),
-					hora_entrada: `${horaEntrada}:${minutoEntrada}`,
-					hora_saida: `${horaSaida}:${minutoSaida}`,
-					lotacao: isAdmin ? lotacaoEscala : undefined,
-					tipo: tipoEscolhido
-				})
-			});
-
-			if (res.ok) {
-				const data = await res.json();
-				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
-				goto(`/escalas/${data.id}`);
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao criar', type: 'error' });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			saving = false;
-		}
 	}
 </script>
 
@@ -372,7 +333,19 @@
 	<div
 		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
-		<form onsubmit={salvar} class="space-y-4">
+		<form method="POST" action="?/criar" use:enhance={handleSubmit} class="space-y-4">
+			<!-- Campos hidden para o server -->
+			<input type="hidden" name="data_inicio" value={dataInicio} />
+			<input type="hidden" name="data_fim" value={dataFim} />
+			<input type="hidden" name="hora_entrada" value={horaEntrada} />
+			<input type="hidden" name="hora_saida" value={horaSaida} />
+			<input type="hidden" name="tipo" value={tipoEscolhido ?? ''} />
+			{#if isAdmin}
+				<input type="hidden" name="lotacao" value={lotacaoEscala} />
+			{:else}
+				<input type="hidden" name="lotacao" value={unidadeEscolhida?.nome ?? ''} />
+			{/if}
+
 			<!-- Unidade (admin) -->
 			{#if isAdmin}
 				<label class="label">
@@ -471,10 +444,10 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 flex items-center gap-2 w-full sm:w-auto"
-					disabled={saving}
+					disabled={enviando}
 				>
-					{#if saving}<Spinner size="md" />{/if}
-					{saving ? 'Criando...' : 'Criar Escala'}
+					{#if enviando}<Spinner size="md" />{/if}
+					{enviando ? 'Criando...' : 'Criar Escala'}
 				</button>
 				<a href="/escalas" class="btn preset-outlined-primary-500 w-full sm:w-auto text-center"
 					>Cancelar</a
