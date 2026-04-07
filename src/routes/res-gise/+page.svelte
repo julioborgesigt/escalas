@@ -1,15 +1,16 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
-	import { page } from '$app/state';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { initWebPKI, listarCertificados } from '$lib/webpki';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useAutorizacao, useMobile } from '$lib/composables';
 
 	let { data } = $props();
-	const isAdminGeral = $derived(data.usuario?.tipo === 'admin');
+	const { isAdmin: isAdminGeral } = useAutorizacao();
 	const isSupervisorGise = $derived(data.isSupervisorGise);
 	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
 
@@ -38,12 +39,7 @@
 	let salvandoResposta = $state(false);
 	let exibirRelatorio = $state(false);
 
-	let isMobile = $state(true);
-	$effect(() => {
-		isMobile =
-			/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-			(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
-	});
+	const { isMobile } = useMobile();
 
 	let capturandoRubrica = $state(false);
 	let salvandoPresenca = $state(false);

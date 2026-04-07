@@ -1,13 +1,14 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
+	const { isAdmin } = useAutorizacao();
 
 	let escalas = $state<EscalaListagem[]>([]);
 	let unidades = $state<Unidade[]>([]);
@@ -15,15 +16,20 @@
 
 	// Filtros com persistência
 	const KEY = 'filtros_recebidos';
-	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
+	const defaults = {
+		timeRange: 'todos' as const,
+		seccional: '',
+		unidade: '',
+		data: '',
+		naoLidos: true
+	};
+	const saved = getSavedFilters(KEY, defaults);
 
-	let filtroTimeRange = $state<'24h' | '48h' | 'semana' | 'mes' | 'todos'>(
-		saved.timeRange || 'todos'
-	);
-	let filtroSeccional = $state(saved.seccional || '');
-	let filtroUnidade = $state(saved.unidade || '');
-	let filtroData = $state(saved.data || '');
-	let mostrarApenasNaoVistos = $state(true); // Sempre marcado por padrão ao abrir a página
+	let filtroTimeRange = $state<'24h' | '48h' | 'semana' | 'mes' | 'todos'>(saved.timeRange);
+	let filtroSeccional = $state(saved.seccional);
+	let filtroUnidade = $state(saved.unidade);
+	let filtroData = $state(saved.data);
+	let mostrarApenasNaoVistos = $state(saved.naoLidos);
 
 	// Salvar a cada mudança
 	$effect(() => {
@@ -616,65 +622,15 @@
 				{/each}
 			</div>
 
-			<div
-				class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
-			>
-				<p class="text-surface-500 text-xs px-1">
-					Mostrando <strong
-						>{(paginaAtual - 1) * itensPorPagina + 1}-{Math.min(
-							paginaAtual * itensPorPagina,
-							escalasFiltradas.length
-						)}</strong
-					>
-					de <strong>{escalasFiltradas.length}</strong> escala(s) recebida(s)
-				</p>
-
-				{#if totalPaginas > 1}
-					<div class="flex items-center gap-2">
-						<button
-							class="btn btn-sm preset-outlined-surface"
-							onclick={() => {
-								paginaAtual--;
-								window.scrollTo({ top: 0, behavior: 'smooth' });
-							}}
-							disabled={paginaAtual === 1}
-						>
-							Anterior
-						</button>
-
-						<div class="flex items-center gap-1">
-							{#each Array.from({ length: totalPaginas }, (_, i) => i + 1) as p}
-								{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
-									<button
-										class="btn btn-sm {paginaAtual === p
-											? 'preset-filled-primary-500'
-											: 'preset-outlined-surface'} min-w-[32px]"
-										onclick={() => {
-											paginaAtual = p;
-											window.scrollTo({ top: 0, behavior: 'smooth' });
-										}}
-									>
-										{p}
-									</button>
-								{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
-									<span class="px-1 opacity-50">...</span>
-								{/if}
-							{/each}
-						</div>
-
-						<button
-							class="btn btn-sm preset-outlined-surface"
-							onclick={() => {
-								paginaAtual++;
-								window.scrollTo({ top: 0, behavior: 'smooth' });
-							}}
-							disabled={paginaAtual >= totalPaginas}
-						>
-							Próxima
-						</button>
-					</div>
-				{/if}
-			</div>
+			<PaginationControls
+				{paginaAtual}
+				{totalPaginas}
+				totalItens={escalasFiltradas.length}
+				{itensPorPagina}
+				labelSingular="escala recebida"
+				labelPlural="escala(s) recebida(s)"
+				onPageChange={(p) => (paginaAtual = p)}
+			/>
 		{/if}
 	</div>
 {/if}

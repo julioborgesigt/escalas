@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { goto } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -8,6 +8,17 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+
+	const { isAdmin, lotacaoUsuario } = useAutorizacao();
+	const savedFilters = getSavedFilters('filtros_escalas', {
+		lotacao: '',
+		mes: new Date().getMonth() + 1,
+		ano: new Date().getFullYear(),
+		tipo: 'todos',
+		seccional: 'todas',
+		busca: ''
+	});
 
 	let escalas = $state<EscalaListagem[]>([]);
 	let loading = $state(true);
@@ -15,28 +26,28 @@
 	let excluindo = $state(false);
 	let revogando = $state(false);
 	let unidades = $state<Unidade[]>([]);
+
 	// Paginação
 	let paginaAtual = $state(1);
 	let totalPaginas = $state(1);
 	let totalEscalas = $state(0);
 	const ITEMS_POR_PAGINA = 20;
 
-	// Recuperar filtros do localStorage (apenas no navegador)
-	const KEY = 'filtros_escalas';
-	const saved = browser ? JSON.parse(localStorage.getItem(KEY) || '{}') : {};
-
-	let filtroLotacao = $state(saved.lotacao || '');
-	let filtroMes = $state(saved.mes !== undefined ? saved.mes : new Date().getMonth() + 1);
-	let filtroAno = $state(saved.ano || new Date().getFullYear());
-	let filtroTipo = $state(saved.tipo || 'todos');
-	let filtroSeccional = $state<number | 'todas'>(saved.seccional || 'todas');
-	let filtroBusca = $state(saved.busca || '');
+	// Filtros
+	let filtroLotacao = $state(savedFilters.lotacao);
+	let filtroMes = $state(savedFilters.mes);
+	let filtroAno = $state(savedFilters.ano);
+	let filtroTipo = $state(savedFilters.tipo);
+	let filtroSeccional = $state<number | 'todas'>(
+		(savedFilters.seccional as unknown as number) || 'todas'
+	);
+	let filtroBusca = $state(savedFilters.busca);
 
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
 		if (browser) {
 			localStorage.setItem(
-				KEY,
+				'filtros_escalas',
 				JSON.stringify({
 					lotacao: filtroLotacao,
 					mes: filtroMes,
@@ -60,8 +71,6 @@
 	let dialogRevogarOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; titulo: string } | null>(null);
 	let escalaParaRevogar = $state<{ id: number; titulo: string } | null>(null);
-
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
 
 	const meses = [
 		{ value: 0, label: 'Todos' },
@@ -668,67 +677,14 @@
 				</div>
 			{/each}
 		</div>
-		<div
-			class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
-		>
-			<p class="text-surface-500 text-sm">
-				Mostrando <strong
-					>{(paginaAtual - 1) * ITEMS_POR_PAGINA + 1}-{Math.min(
-						paginaAtual * ITEMS_POR_PAGINA,
-						escalas.length
-					)}</strong
-				>
-				de <strong>{escalas.length}</strong> escala(s)
-			</p>
-
-			{#if totalPaginas > 1}
-				<div class="flex items-center gap-2">
-					<button
-						class="btn btn-sm preset-outlined-surface"
-						onclick={() => {
-							paginaAtual--;
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-						disabled={paginaAtual === 1}
-					>
-						Anterior
-					</button>
-
-					<div class="flex items-center gap-1">
-						{#each Array.from({ length: totalPaginas }, (_, i) => i + 1) as p}
-							{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
-								<button
-									class="btn btn-sm {paginaAtual === p
-										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface'} min-w-[32px]"
-									onclick={() => {
-										paginaAtual = p;
-										window.scrollTo({
-											top: 0,
-											behavior: 'smooth'
-										});
-									}}
-								>
-									{p}
-								</button>
-							{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
-								<span class="px-1 opacity-50">...</span>
-							{/if}
-						{/each}
-					</div>
-
-					<button
-						class="btn btn-sm preset-outlined-surface"
-						onclick={() => {
-							paginaAtual++;
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-						disabled={paginaAtual >= totalPaginas}
-					>
-						Próxima
-					</button>
-				</div>
-			{/if}
-		</div>
+		<PaginationControls
+			{paginaAtual}
+			{totalPaginas}
+			totalItens={escalas.length}
+			itensPorPagina={ITEMS_POR_PAGINA}
+			labelSingular="escala"
+			labelPlural="escala(s)"
+			onPageChange={(p) => (paginaAtual = p)}
+		/>
 	{/if}
 </div>
