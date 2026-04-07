@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
-
 	import type { Unidade } from '$lib/types';
+
+	let { data } = $props();
 
 	const { isAdmin } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_painel', {
@@ -21,9 +22,16 @@
 		ignorados: false
 	});
 
-	let dados = $state<ItemCompliance[]>([]);
-	let loading = $state(true);
-	let unidadesDB = $state<Unidade[]>([]);
+	let dados = $state<ItemCompliance[]>(data.compliance);
+	let unidadesDB = $state<Unidade[]>(data.unidades);
+
+	// Atualiza quando dados do server mudam
+	$effect(() => {
+		if (data.compliance) {
+			dados.length = 0;
+			dados.push(...data.compliance);
+		}
+	});
 
 	// Filtros
 	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>(
@@ -170,6 +178,7 @@
 	// Exclusão de escala (para "não assinada")
 	let escalaExcluirOpen = $state(false);
 	let itemParaExcluir = $state<ItemCompliance | null>(null);
+	let loading = $state(false);
 
 	async function carregar() {
 		loading = true;
@@ -180,11 +189,13 @@
 			/* ignora */
 		}
 
-		const resDB = await fetch('/api/unidades');
-		if (resDB.ok) unidadesDB = await resDB.json();
-
-		const res = await fetch(`/api/admin/compliance${!filtreMesCorrente ? '?todos=1' : ''}`);
-		if (res.ok) dados = await res.json();
+		const params = !filtreMesCorrente ? '?todos=1' : '';
+		const res = await fetch(`/api/admin/compliance${params}`);
+		if (res.ok) {
+			const novos = await res.json();
+			dados.length = 0;
+			dados.push(...novos);
+		}
 		loading = false;
 	}
 
@@ -196,7 +207,7 @@
 		mostrarIgnorados = false;
 		filtreMesCorrente = true;
 		filtroAgrupamento = 'nenhum';
-		carregar(); // Recarregar após limpar
+		carregar();
 	}
 
 	let excluindoEscala = $state(false);
@@ -206,18 +217,17 @@
 		const id = itemParaExcluir.escala_id;
 		excluindoEscala = true;
 		try {
-			const res = await fetch(`/api/escalas?id=${id}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			if (res.ok) {
+			const fd = new FormData();
+			fd.set('escala_id', String(id));
+			const resp = await fetch('?/excluirEscala', { method: 'POST', body: fd });
+			if (resp.ok) {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 				carregar();
 			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Erro ao excluir escala', type: 'error' });
+				const d = await resp.json();
+				toaster.create({ title: d.error || 'Erro ao excluir escala', type: 'error' });
 			}
 		} catch {
 			toaster.create({ title: 'Erro de conexão', type: 'error' });

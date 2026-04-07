@@ -303,7 +303,7 @@ export const actions: Actions = {
 | `/escalas/[id]` | ✅ | ✅ 6 actions | ✅ (fetch direto) | ✅ | **Concluída** |
 | `/policiais` | ✅ | ✅ criar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/unidades` | ✅ | ✅ criar, editar, excluir | ✅ (criar) | ✅ | **Concluída** |
-| `/recebidos` | ❌ | ❌ | ❌ | ❌ | **Pendente** |
+| `/recebidos` | ✅ | ✅ toggleVisto, excluir | ✅ (fetch direto) | ✅ | **Concluída** |
 | `/painel` | ❌ | ❌ | ❌ | ❌ | **Pendente** |
 | `/gise` | ✅ | ❌ | ❌ | ✅ | Parcial |
 | `/gise/[id]` | ✅ | ❌ | ❌ | ✅ | Parcial |
