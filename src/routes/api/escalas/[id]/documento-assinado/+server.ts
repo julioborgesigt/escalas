@@ -5,6 +5,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 
 	if (!usuario) {
@@ -38,6 +39,7 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 
 	if (!usuario) {

@@ -18,6 +18,7 @@ export const GET = async ({ locals, params, platform }: any) => {
 	}
 
 	const id = parseInt(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 	const db = getDB(platform);
 
 	// Seccionais já na escala
@@ -43,6 +44,7 @@ export const POST = async ({ locals, params, request, platform }: any) => {
 	}
 
 	const id = parseInt(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 	const { seccionalId } = await request.json();
 
 	if (!seccionalId) return json({ error: 'ID da seccional é obrigatório' }, { status: 400 });

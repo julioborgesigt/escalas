@@ -17,6 +17,7 @@ async function verificarAcessoEscala(db: Database, escalaId: number, locals: App
 export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;
@@ -28,6 +29,7 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 export const POST: RequestHandler = async ({ platform, params, request, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;
@@ -81,6 +83,7 @@ export const POST: RequestHandler = async ({ platform, params, request, locals }
 export const PATCH: RequestHandler = async ({ platform, params, request, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;
@@ -107,6 +110,7 @@ export const PATCH: RequestHandler = async ({ platform, params, request, locals 
 export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;
@@ -151,6 +155,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 export const DELETE: RequestHandler = async ({ platform, params, url, locals }) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarAcessoEscala(db, escalaId, locals);
 	if (bloqueio) return bloqueio;

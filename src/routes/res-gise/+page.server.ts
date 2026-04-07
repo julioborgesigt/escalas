@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { getDB, buscarGiseModeloFormulario, isMembroGiseAtiva } from '$lib/db';
-import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios } from '$lib/server/schema';
+import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
 export const load = async ({ locals, platform, url }: any) => {
@@ -72,24 +72,24 @@ export const load = async ({ locals, platform, url }: any) => {
 		let respostasEquipeMap = new Map<string, boolean>();
 
 		if (giseIds.length > 0) {
-			const presencas = await db.select().from(gisePresencas)
-				.where(and(inArray(gisePresencas.gise_id, giseIds), eq(gisePresencas.policial_id, u.id))).all();
+			// 4 queries independentes em paralelo
+			const [presencas, docs, extras, respostas] = await Promise.all([
+				db.select().from(gisePresencas)
+					.where(and(inArray(gisePresencas.gise_id, giseIds), eq(gisePresencas.policial_id, u.id))).all(),
+				db.select({ gise_id: giseDocumentos.gise_id })
+					.from(giseDocumentos)
+					.where(inArray(giseDocumentos.gise_id, giseIds)).all(),
+				db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+					.from(giseAssinaturasRelatorios)
+					.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIds), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all(),
+				db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
+					.from(giseRespostasFormulario)
+					.where(inArray(giseRespostasFormulario.gise_id, giseIds)).all()
+			]);
+
 			presencas.forEach((p: any) => presencasMap.set(p.gise_id, p));
-
-			const docs = await db.select({ gise_id: giseDocumentos.gise_id })
-				.from(giseDocumentos)
-				.where(inArray(giseDocumentos.gise_id, giseIds)).all();
 			docs.forEach((doc: any) => docsAssinadosMap.set(doc.gise_id, true));
-
-			const extras = await db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
-				.from(giseAssinaturasRelatorios)
-				.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIds), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all();
 			extras.forEach((ext: any) => extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true));
-
-			const { giseRespostasFormulario } = await import('$lib/server/schema');
-			const respostas = await db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
-				.from(giseRespostasFormulario)
-				.where(inArray(giseRespostasFormulario.gise_id, giseIds)).all();
 			respostas.forEach((res: any) => respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true));
 		}
 
@@ -155,13 +155,13 @@ export const load = async ({ locals, platform, url }: any) => {
 				equipe_id: giseEquipes.id,
 				equipe_tipo: giseEquipes.tipo
 			})
-			.from(giseEquipes)
-			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(and(...filters))
-			.orderBy(giseEscalas.data_inicio)
-			.all();
+				.from(giseEquipes)
+				.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+				.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+				.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+				.where(and(...filters))
+				.orderBy(giseEscalas.data_inicio)
+				.all();
 
 			giseIdsAdmin = [...new Set(rawAdmin.map(r => r.id))];
 		}
@@ -170,16 +170,16 @@ export const load = async ({ locals, platform, url }: any) => {
 		let extrasAssinadosMapAdmin = new Map<string, boolean>();
 
 		if (giseIdsAdmin.length > 0) {
-			const { giseRespostasFormulario } = await import('$lib/server/schema');
-
-			const respostas = await db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
-				.from(giseRespostasFormulario)
-				.where(inArray(giseRespostasFormulario.gise_id, giseIdsAdmin)).all();
+			// 2 queries independentes em paralelo
+			const [respostas, extras] = await Promise.all([
+				db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
+					.from(giseRespostasFormulario)
+					.where(inArray(giseRespostasFormulario.gise_id, giseIdsAdmin)).all(),
+				db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+					.from(giseAssinaturasRelatorios)
+					.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIdsAdmin), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all()
+			]);
 			respostas.forEach((res: any) => respostasEquipeMapAdmin.set(`${res.gise_id}_${res.equipe_id}`, true));
-
-			const extras = await db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
-				.from(giseAssinaturasRelatorios)
-				.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIdsAdmin), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all();
 			extras.forEach((ext: any) => extrasAssinadosMapAdmin.set(`${ext.gise_id}_${ext.seccional_id}`, true));
 		}
 
@@ -219,28 +219,40 @@ export const load = async ({ locals, platform, url }: any) => {
 	];
 
 	const defaultSeintQuestions = [
-		{ id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
-			{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
-			{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
-		] },
-		{ id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
-			{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
-			{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
-		] },
-		{ id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
-			{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
-			{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
-		] },
-		{ id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
-			{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
-			{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
-		] },
-		{ id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
-			{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
-			{ id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
-				{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
-			] }
-		] }
+		{
+			id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
+				{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
+				{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
+			]
+		},
+		{
+			id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
+				{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
+				{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
+			]
+		},
+		{
+			id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
+				{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
+				{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
+			]
+		},
+		{
+			id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
+				{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
+				{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
+			]
+		},
+		{
+			id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
+				{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
+				{
+					id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
+						{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
+					]
+				}
+			]
+		}
 	];
 
 	const [modeloOp, modeloSeint] = await Promise.all([

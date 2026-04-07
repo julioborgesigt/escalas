@@ -16,6 +16,7 @@ async function verificarPermissao(db: Database, policialId: number, locals: App.
 export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
 	const id = Number(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarPermissao(db, id, locals);
 	if (bloqueio) return bloqueio;
@@ -28,6 +29,7 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 export const PUT: RequestHandler = async ({ platform, params, request, locals }) => {
 	const db = getDB(platform);
 	const id = Number(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarPermissao(db, id, locals);
 	if (bloqueio) return bloqueio;
@@ -59,6 +61,7 @@ export const PUT: RequestHandler = async ({ platform, params, request, locals })
 export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const db = getDB(platform);
 	const id = Number(params.id);
+	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
 	const bloqueio = await verificarPermissao(db, id, locals);
 	if (bloqueio) return bloqueio;

@@ -9,6 +9,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const db = getDB(platform);
 	const escalaId = Number(params.id);
+	if (isNaN(escalaId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const usuario = locals.usuario;
 
 	if (!usuario) {
@@ -35,7 +36,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	const body = await request.json().catch(() => ({}));
 	const { latitude, longitude, rubricBase64, selfieBase64 } = body;
-	
+
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -46,7 +47,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			: escala.tipo === 'plantao'
 				? gerarPdfPlantao(escala, policiais)
 				: gerarPdf(escala, policiais);
-		
+
 		const pdfBytes = result.pdf;
 
 		const verificationHash = gerarCodigoValidacao();
@@ -73,7 +74,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			.join('');
 
 		const r2 = getR2(platform);
-		
+
 		// Criar pasta mensal ex: escalas/2026-03
 		const mesAno = escala.data_inicio.substring(0, 7);
 		const folder = `escalas/${mesAno}/escala_${escalaId}`;

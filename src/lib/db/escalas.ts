@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray, like, isNull } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like, isNull, isNotNull } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -35,17 +35,17 @@ export async function listarEscalas(
 	limit: number;
 	totalPages: number;
 }> {
-	const conditions = [];
+	const conditions: ReturnType<typeof eq>[] = [];
 
 	if (lotacao) conditions.push(eq(escalas.lotacao, lotacao));
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
-		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}`);
+		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}` as any);
 	}
-	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}`);
+	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}` as any);
 	if (tipo && tipo !== 'todos') conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
-	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}`);
+	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}` as any);
 
 	// Busca por título ou cidade
 	if (opts?.busca) {
@@ -58,9 +58,25 @@ export async function listarEscalas(
 		);
 	}
 
+	// Filtro de status aplicado no WHERE via LEFT JOIN com escalaDocumentos
+	// pendente = sem documento assinado, assinada = com documento
+	if (status === 'pendente') {
+		// Subquery: escalas que NÃO têm documento
+		const subq = db
+			.select({ escala_id: escalaDocumentos.escala_id })
+			.from(escalaDocumentos);
+		conditions.push(sql`${escalas.id} NOT IN (${subq})` as any);
+	} else if (status === 'assinada') {
+		// Subquery: escalas que têm documento
+		const subq = db
+			.select({ escala_id: escalaDocumentos.escala_id })
+			.from(escalaDocumentos);
+		conditions.push(sql`${escalas.id} IN (${subq})` as any);
+	}
+
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-	// Contagem total
+	// Contagem total (já com filtro de status aplicado)
 	const countResult = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(escalas)
@@ -93,10 +109,7 @@ export async function listarEscalas(
 
 	const assinadas = new Set(docs.map((d) => d.escala_id));
 
-	let mapeadas = results.map((e) => ({ ...e, is_assinada: assinadas.has(e.id) }));
-
-	if (status === 'pendente') mapeadas = mapeadas.filter((e) => !e.is_assinada);
-	else if (status === 'assinada') mapeadas = mapeadas.filter((e) => e.is_assinada);
+	const mapeadas = results.map((e) => ({ ...e, is_assinada: assinadas.has(e.id) }));
 
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
@@ -132,7 +145,11 @@ export async function verificarEscalaExistente(
 			.where(and(eq(escalas.lotacao, lotacao), eq(escalas.tipo, tipo), eq(escalas.data_inicio, dataInicio)))
 			.get();
 	}
+	// Range query em vez de substr() para aproveitar índices em data_inicio
 	const mesAno = dataInicio.substring(0, 7);
+	const [ano, mes] = mesAno.split('-').map(Number);
+	const proximoMes = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+
 	return db
 		.select()
 		.from(escalas)
@@ -140,7 +157,8 @@ export async function verificarEscalaExistente(
 			and(
 				eq(escalas.lotacao, lotacao),
 				eq(escalas.tipo, tipo),
-				sql`substr(${escalas.data_inicio}, 1, 7) = ${mesAno}`
+				sql`${escalas.data_inicio} >= ${mesAno + '-01'}`,
+				sql`${escalas.data_inicio} < ${proximoMes}`
 			)
 		)
 		.get();
@@ -260,18 +278,18 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	// Transação para garantir atomicidade
+	// Batch insert único dentro de transação para atomicidade
 	await db.transaction(async (tx) => {
-		for (const p of novos) {
-			await tx.insert(escalaPoliciais).values({
+		await tx.insert(escalaPoliciais).values(
+			novos.map((p) => ({
 				escala_id: escalaId,
 				policial_id: p.id,
 				data_plantao: dataPlantao,
 				data_saida: dataSaida,
 				hora_entrada: horaEntrada,
 				hora_saida: horaSaida
-			});
-		}
+			}))
+		);
 	});
 
 	return novos.length;

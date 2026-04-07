@@ -150,25 +150,37 @@ export async function listarAuditLog(
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-	const countResult = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(auditLog)
-		.where(whereClause)
-		.get();
-	const total = Number(countResult?.count ?? 0);
-
 	const page = Math.max(1, opts?.page ?? 1);
 	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
-	const totalPages = Math.ceil(total / limit);
 	const offset = (page - 1) * limit;
 
-	const logs = await db
-		.select()
+	// Query única com window function: evita segunda query de count(*)
+	const rows = await db
+		.select({
+			id: auditLog.id,
+			usuario_id: auditLog.usuario_id,
+			usuario_nome: auditLog.usuario_nome,
+			usuario_papel: auditLog.usuario_papel,
+			acao: auditLog.acao,
+			entidade: auditLog.entidade,
+			entidade_id: auditLog.entidade_id,
+			detalhes: auditLog.detalhes,
+			ip: auditLog.ip,
+			user_agent: auditLog.user_agent,
+			created_at: auditLog.created_at,
+			total: sql<number>`count(*) OVER()`
+		})
 		.from(auditLog)
 		.where(whereClause)
 		.orderBy(desc(auditLog.created_at))
 		.limit(limit)
 		.offset(offset);
+
+	const total = rows.length > 0 ? (rows[0].total ?? 0) : 0;
+	const totalPages = Math.ceil(total / limit);
+
+	// Remove o campo extra 'total' antes de retornar
+	const logs = rows.map(({ total: _t, ...rest }) => rest);
 
 	return { logs, total, page, limit, totalPages };
 }

@@ -6,6 +6,7 @@ export const GET = async ({ locals, params, url, platform }: any) => {
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
 	const giseId = parseInt(params.id);
+	if (isNaN(giseId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const equipeId = url.searchParams.get('equipeId') ? parseInt(url.searchParams.get('equipeId')) : undefined;
 	const db = getDB(platform);
 
@@ -25,6 +26,7 @@ export const POST = async ({ locals, params, request, platform }: any) => {
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
 	const giseId = parseInt(params.id);
+	if (isNaN(giseId)) return json({ error: 'ID inválido' }, { status: 400 });
 	const { respostas, equipeId } = await request.json();
 
 	if (!respostas) return json({ error: 'Respostas são obrigatórias' }, { status: 400 });
