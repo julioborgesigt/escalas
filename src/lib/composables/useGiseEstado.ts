@@ -4,20 +4,20 @@
  */
 
 export interface GiseEstadoParams {
-	data: Record<string, any>;
+	getData: () => Record<string, any>;
 }
 
-export function useGiseEstado({ data }: GiseEstadoParams) {
-	const gise = $derived(data.gise);
-	const policiais = $derived(data.policiais ?? []);
-	const todasUnidades = $derived(data.todasUnidades ?? []);
-	const papelGise = $derived(data.papelGise);
-	const minhaSeccionalId = $derived(data.minhaSeccionalId);
+export function useGiseEstado({ getData }: GiseEstadoParams) {
+	const gise = $derived(getData().gise);
+	const policiais = $derived(getData().policiais ?? []);
+	const todasUnidades = $derived(getData().todasUnidades ?? []);
+	const papelGise = $derived(getData().papelGise);
+	const minhaSeccionalId = $derived(getData().minhaSeccionalId);
 
 	// Permissões
-	const isAdminGeral = $derived(data.isGeral ?? papelGise === 'admin_geral');
-	const isSeccional = $derived(data.isSeccional ?? papelGise === 'admin_seccional');
-	const isSupervisor = $derived(data.isSupervisor || gise?.supervisor_id === data.usuarioAtual?.id);
+	const isAdminGeral = $derived(getData().isGeral ?? papelGise === 'admin_geral');
+	const isSeccional = $derived(getData().isSeccional ?? papelGise === 'admin_seccional');
+	const isSupervisor = $derived(getData().isSupervisor || gise?.supervisor_id === getData().usuarioAtual?.id);
 
 	const minhaSeccional = $derived(
 		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
@@ -25,17 +25,17 @@ export function useGiseEstado({ data }: GiseEstadoParams) {
 
 	const todasSeccionaisPreenchidas = $derived(
 		gise?.seccionais?.length > 0 &&
-			gise.seccionais.every(
-				(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
-			)
+		gise.seccionais.every(
+			(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+		)
 	);
 
 	const editaBloqueado = $derived(
 		gise?.status === 'em_andamento' ||
-			gise?.status === 'aguardando_relatorios' ||
-			gise?.status === 'aguardando_assinatura_relat' ||
-			gise?.status === 'pronta_para_finalizar' ||
-			gise?.status === 'finalizada'
+		gise?.status === 'aguardando_relatorios' ||
+		gise?.status === 'aguardando_assinatura_relat' ||
+		gise?.status === 'pronta_para_finalizar' ||
+		gise?.status === 'finalizada'
 	);
 
 	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);

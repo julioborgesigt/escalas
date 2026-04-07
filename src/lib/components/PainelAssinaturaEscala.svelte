@@ -31,10 +31,7 @@
 	const { isMobile } = useMobile();
 
 	const assinatura = useAssinaturaEscala({
-		escalaId,
-		isFDS,
-		policiaisCount,
-		usuario,
+		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
 		onDocumentoAssinado: (info) => {
 			documentoAssinadoInfo = info;
 		}

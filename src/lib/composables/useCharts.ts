@@ -15,7 +15,7 @@ export interface ChartQuestion {
 	specialStore: string | null;
 }
 
-export function useCharts(Chart: any, data: any) {
+export function useCharts(Chart: any, getData: () => any) {
 	let chartInstances = new Map<number, any>();
 	let canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
@@ -37,7 +37,7 @@ export function useCharts(Chart: any, data: any) {
 
 		const isShowingAll = !filterSeccional;
 		const labels = isShowingAll
-			? (data.seccionais ?? []).map((s: any) => s.nome.split(' do ')[0])
+			? (getData().seccionais ?? []).map((s: any) => s.nome.split(' do ')[0])
 			: Array.from(new Set(list.map((i: any) => i.data_inicio))).sort();
 
 		questions.forEach((q) => {
@@ -53,7 +53,7 @@ export function useCharts(Chart: any, data: any) {
 			let chartData: number[] = [];
 
 			if (isShowingAll) {
-				chartData = (data.seccionais ?? []).map((sec: any) => {
+				chartData = (getData().seccionais ?? []).map((sec: any) => {
 					return list
 						.filter((item: any) => item.seccional_id === sec.id)
 						.reduce((acc: number, item: any) => {
