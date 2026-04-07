@@ -5,14 +5,22 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+
+	let { data } = $props();
 
 	const { isAdmin } = useAutorizacao();
 
-	let escalas = $state<EscalaListagem[]>([]);
-	let unidades = $state<Unidade[]>([]);
-	let loading = $state(true);
+	let escalas = $state<EscalaListagem[]>(data.escalas);
+	let unidades = $state<Unidade[]>(data.unidades);
+
+	// Atualiza quando dados do server mudam
+	$effect(() => {
+		if (data.escalas) {
+			escalas.length = 0;
+			escalas.push(...data.escalas);
+		}
+	});
 
 	// Filtros com persistência
 	const KEY = 'filtros_recebidos';
@@ -67,40 +75,9 @@
 		})
 	);
 
-	async function carregar() {
-		if (!isAdmin) return;
-		loading = true;
-
-		let params = new URLSearchParams();
-		params.append('status', 'assinada');
-
-		if (filtroTimeRange !== 'todos') {
-			const agora = new Date();
-			if (filtroTimeRange === '24h') agora.setHours(agora.getHours() - 24);
-			else if (filtroTimeRange === '48h') agora.setHours(agora.getHours() - 48);
-			else if (filtroTimeRange === 'semana') agora.setDate(agora.getDate() - 7);
-			else if (filtroTimeRange === 'mes') agora.setMonth(agora.getMonth() - 1);
-
-			// Format to SQLite compatible ISO-like string (YYYY-MM-DD HH:MM:SS)
-			const iso = agora.toISOString().replace('T', ' ').split('.')[0];
-			params.append('depois', iso);
-		}
-
-		const [resEscalas, resUnidades] = await Promise.all([
-			fetch(`/api/escalas?${params.toString()}`),
-			fetch('/api/unidades')
-		]);
-
-		if (resEscalas.ok) {
-			const data = await resEscalas.json();
-			escalas = Array.isArray(data) ? data : [];
-		}
-		if (resUnidades.ok) {
-			const data = await resUnidades.json();
-			unidades = Array.isArray(data) ? data : [];
-		}
-
-		loading = false;
+	async function recarregar() {
+		// Recarrega dados do server via refresh
+		window.location.reload();
 	}
 
 	let togglingId = $state<number | null>(null);
@@ -108,17 +85,15 @@
 	async function toggleVisto(escala: EscalaListagem) {
 		if (togglingId === escala.id) return;
 		const novoStatus = !escala.visto_por_admin;
-		// Atualização otimista — feedback instantâneo
+		// Atualização otimista
 		escala.visto_por_admin = novoStatus ? 1 : 0;
 		togglingId = escala.id;
+		const fd = new FormData();
+		fd.set('escala_id', String(escala.id));
+		fd.set('visto', String(novoStatus));
 		try {
-			const res = await fetch(`/api/escalas/${escala.id}/visto`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ visto: novoStatus })
-			});
-			if (!res.ok) {
-				// Reverte em caso de falha
+			const resp = await fetch('?/toggleVisto', { method: 'POST', body: fd });
+			if (!resp.ok) {
 				escala.visto_por_admin = novoStatus ? 0 : 1;
 				toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
 			}
@@ -138,8 +113,6 @@
 	);
 
 	$effect(() => {
-		if (isAdmin) carregar();
-		// Resetar para página 1 ao mudar filtros
 		if (filtroTimeRange || filtroUnidade || filtroData || mostrarApenasNaoVistos) {
 			paginaAtual = 1;
 		}
@@ -167,6 +140,7 @@
 
 	let dialogOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; lotacao: string } | null>(null);
+	let excluindo = $state(false);
 
 	function solicitarExclusao(id: number, lotacao: string) {
 		escalaParaExcluir = { id, lotacao };
@@ -179,6 +153,7 @@
 		filtroData = '';
 		filtroTimeRange = 'todos';
 		mostrarApenasNaoVistos = true;
+		recarregar();
 	}
 
 	const temFiltros = $derived(
@@ -189,20 +164,16 @@
 			mostrarApenasNaoVistos !== true
 	);
 
-	let excluindo = $state(false);
-
 	async function confirmarExclusao() {
 		if (!escalaParaExcluir) return;
-		const id = escalaParaExcluir.id;
 		excluindo = true;
+		const fd = new FormData();
+		fd.set('escala_id', String(escalaParaExcluir.id));
 		try {
-			const res = await fetch(`/api/escalas?id=${id}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			if (res.ok) {
-				toaster.create({ title: `Escala removida com sucesso`, type: 'success' });
-				escalas = escalas.filter((e) => e.id !== id);
+			const resp = await fetch('?/excluir', { method: 'POST', body: fd });
+			if (resp.ok) {
+				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
+				escalas = escalas.filter((e) => e.id !== escalaParaExcluir!.id);
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {
@@ -236,27 +207,20 @@
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
 					: 'preset-outlined-primary-500 opacity-40'}"
-				onclick={() => {
-					limparFiltros();
-					carregar();
-				}}
-				disabled={!temFiltros && !loading}
+				onclick={limparFiltros}
+				disabled={!temFiltros}
 			>
 				Limpar filtros
 			</button>
-			<button class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loading}>
-				{#if loading}
-					<Spinner size="sm" />
-				{:else}
-					<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-						/>
-					</svg>
-				{/if}
+			<button class="btn preset-outlined-primary-500 btn-sm" onclick={recarregar}>
+				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+					/>
+				</svg>
 				Atualizar
 			</button>
 		</div>
@@ -277,7 +241,7 @@
 						: 'preset-tonal-surface ring-1 ring-surface-300 dark:ring-surface-600'}"
 					onclick={() => {
 						filtroTimeRange = val as typeof filtroTimeRange;
-						carregar();
+						recarregar();
 					}}>{label}</button
 				>
 			{/each}
@@ -343,14 +307,7 @@
 	<div
 		class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5"
 	>
-		{#if loading}
-			<div
-				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
-			>
-				<Spinner size="xl" />
-				<span class="text-sm">Carregando recebimentos...</span>
-			</div>
-		{:else if escalasFiltradas.length === 0}
+		{#if escalasFiltradas.length === 0}
 			<div class="text-center py-20 px-4">
 				<p class="text-4xl mb-4">📥</p>
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
