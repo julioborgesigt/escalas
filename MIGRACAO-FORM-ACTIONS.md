@@ -304,7 +304,7 @@ export const actions: Actions = {
 | `/policiais` | ✅ | ✅ criar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/unidades` | ✅ | ✅ criar, editar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/recebidos` | ✅ | ✅ toggleVisto, excluir | ✅ (fetch direto) | ✅ | **Concluída** |
-| `/painel` | ❌ | ❌ | ❌ | ❌ | **Pendente** |
+| `/painel` | ✅ | ✅ excluirEscala | ✅ (fetch direto) | ✅ | **Concluída** |
 | `/gise` | ✅ | ❌ | ❌ | ✅ | Parcial |
 | `/gise/[id]` | ✅ | ❌ | ❌ | ✅ | Parcial |
 | `/res-gise` | ✅ | ❌ | ❌ | ✅ | Parcial |
