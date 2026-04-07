@@ -86,20 +86,28 @@
 		})
 	);
 
+	// Parse respostas UMA VEZ — evita JSON.parse duplicado em stats, rankings e charts
+	let parsedData = $derived(
+		filteredData.map((item: any) => ({
+			...item,
+			respostasParsed: JSON.parse(item.respostas || '{}')
+		}))
+	);
+
 	// Stats via utilitário
-	let stats = $derived(calculateStats(filteredData, QUESTIONS, armasKey));
+	let stats = $derived(calculateStats(parsedData, QUESTIONS, armasKey));
 
 	// Rankings via utilitário
 	let rankingPrisoes = $derived(
 		calculateRanking(
 			data.seccionais ?? [],
-			filteredData,
+			parsedData,
 			(res) => Number(res.prisoes_apreensoes_flagrante) || 0
 		)
 	);
 
 	let rankingDrogasPeso = $derived(
-		calculateRanking(data.seccionais ?? [], filteredData, (res) => {
+		calculateRanking(data.seccionais ?? [], parsedData, (res) => {
 			let total = 0;
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
@@ -114,7 +122,7 @@
 	);
 
 	let rankingArmas = $derived(
-		calculateRanking(data.seccionais ?? [], filteredData, (res) => {
+		calculateRanking(data.seccionais ?? [], parsedData, (res) => {
 			let val = 0;
 			if (res[armasKey] === 'Sim' && res.armas_detalhe) {
 				Object.values(res.armas_detalhe).forEach((q) => (val += Number(q) || 0));
@@ -135,12 +143,12 @@
 
 	async function updateChartsFn(list: any[]) {
 		await loadChart();
-		// Re-create useCharts with loaded Chart
+		// Pass parsed data (respostas already parsed)
 		charts.updateCharts(QUESTIONS as Question[], list, filterSeccional);
 	}
 
 	$effect(() => {
-		const _data = filteredData;
+		const _data = parsedData;
 		const allCanvasesReady =
 			QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
 		if (_data && allCanvasesReady) {
@@ -150,8 +158,8 @@
 
 	onMount(async () => {
 		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
-		if (filteredData.length > 0 && allReady) {
-			await updateChartsFn(filteredData);
+		if (parsedData.length > 0 && allReady) {
+			await updateChartsFn(parsedData);
 		}
 	});
 
@@ -725,11 +733,11 @@
 						{#if q.specialStore === 'drogasGeral'}
 							{(stats.drogasGeral / 1000).toFixed(2)}<span class="text-sm ml-1 opacity-60">kg</span>
 						{:else if q.isBool}
-							{filteredData.filter((i) => JSON.parse(i.respostas || '{}')[q.key] === 'Sim').length}
+							{parsedData.filter((i: any) => i.respostasParsed[q.key] === 'Sim').length}
 						{:else}
 							{stats[q.key as keyof typeof stats] ??
-								filteredData.reduce(
-									(acc, i) => acc + (Number(JSON.parse(i.respostas || '{}')[q.key]) || 0),
+								parsedData.reduce(
+									(acc: number, i: any) => acc + (Number(i.respostasParsed[q.key]) || 0),
 									0
 								)}
 						{/if}
