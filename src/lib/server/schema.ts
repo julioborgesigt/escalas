@@ -60,7 +60,10 @@ export const escalas = sqliteTable(
 	},
 	(table) => [
 		index('idx_escalas_lotacao').on(table.lotacao),
-		index('idx_escalas_created_at').on(table.created_at)
+		index('idx_escalas_created_at').on(table.created_at),
+		index('idx_escalas_data_inicio').on(table.data_inicio),
+		index('idx_escalas_tipo').on(table.tipo),
+		index('idx_escalas_lotacao_tipo_data').on(table.lotacao, table.tipo, table.data_inicio)
 	]
 );
 
@@ -86,7 +89,8 @@ export const escalaPoliciais = sqliteTable(
 	},
 	(table) => [
 		index('idx_escala_policiais_escala').on(table.escala_id),
-		index('idx_escala_policiais_policial').on(table.policial_id)
+		index('idx_escala_policiais_policial').on(table.policial_id),
+		index('idx_escala_policiais_escala_policial').on(table.escala_id, table.policial_id)
 	]
 );
 
@@ -189,7 +193,10 @@ export const giseEscalas = sqliteTable(
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
-	(table) => [index('idx_gise_escalas_status').on(table.status)]
+	(table) => [
+		index('idx_gise_escalas_status').on(table.status),
+		index('idx_gise_escalas_supervisor').on(table.supervisor_id)
+	]
 );
 
 export const giseSeccionais = sqliteTable(
@@ -210,6 +217,7 @@ export const giseSeccionais = sqliteTable(
 	(table) => [
 		index('idx_gise_seccionais_gise').on(table.gise_id),
 		index('idx_gise_seccionais_seccional').on(table.seccional_id),
+		index('idx_gise_seccionais_gise_status').on(table.gise_id, table.status),
 		unique('uq_gise_seccional').on(table.gise_id, table.seccional_id)
 	]
 );
@@ -279,7 +287,9 @@ export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
 	tipo: text('tipo').notNull().default('operacional'), // 'operacional' ou 'seint'
 	config: text('config').notNull().default('[]'), // JSON array de perguntas
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
-});
+}, (table) => [
+	index('idx_gise_modelo_tipo').on(table.tipo)
+]);
 
 export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', {
 	id: integer('id').primaryKey({ autoIncrement: true }),

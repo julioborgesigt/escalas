@@ -205,20 +205,19 @@ export async function adicionarMultiplasDatasPlantao(
 ): Promise<void> {
 	if (datas.length === 0) return;
 
-	await db.transaction(async (tx) => {
-		for (const d of datas) {
-			await tx.insert(escalaPoliciais).values({
-				escala_id: escalaId,
-				policial_id: policialId,
-				data_plantao: d.data_plantao,
-				data_saida: d.data_saida,
-				hora_entrada: horaEntrada,
-				hora_saida: horaSaida,
-				equipe,
-				observacoes
-			});
-		}
-	});
+	// Batch insert em vez de loop individual
+	await db.insert(escalaPoliciais).values(
+		datas.map(d => ({
+			escala_id: escalaId,
+			policial_id: policialId,
+			data_plantao: d.data_plantao,
+			data_saida: d.data_saida,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida,
+			equipe,
+			observacoes
+		}))
+	);
 }
 
 export async function atualizarEscalaPolicial(
