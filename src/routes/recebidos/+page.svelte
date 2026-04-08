@@ -11,16 +11,8 @@
 
 	const { isAdmin } = useAutorizacao();
 
-	let escalas = $state<EscalaListagem[]>(data.escalas);
-	let unidades = $state<Unidade[]>(data.unidades);
-
-	// Atualiza quando dados do server mudam
-	$effect(() => {
-		if (data.escalas) {
-			escalas.length = 0;
-			escalas.push(...data.escalas);
-		}
-	});
+	let escalas = $derived(data.escalas as EscalaListagem[]);
+	let unidades = $derived(data.unidades as Unidade[]);
 
 	// Filtros com persistência
 	const KEY = 'filtros_recebidos';

@@ -22,7 +22,9 @@
       "Bash(xcopy *)",
       "Bash(@echo *)",
       "Bash(npm audit)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(ren *)",
+      "Bash(type *)"
     ]
   },
   "$version": 3

@@ -41,15 +41,7 @@
 	});
 
 	const unidades: Unidade[] = data.unidades;
-	const policiais = $state<any[]>(data.policiais);
-
-	// Atualiza estado local quando dados do server mudam
-	$effect(() => {
-		if (data.policiais) {
-			policiais.length = 0;
-			policiais.push(...data.policiais);
-		}
-	});
+	const policiais = $derived(data.policiais as any[]);
 
 	// Paginação
 	let paginaAtual = $state(data.pagination.page);

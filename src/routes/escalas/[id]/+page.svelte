@@ -18,15 +18,10 @@
 	const confirmDialog = useConfirmationDialog<{ itemId: number; nome: string }>();
 
 	// Dados do server
-	let escala = $state<Escala | null>(data.escala);
-	let policiaisEscala = $state<EscalaPolicialComDados[]>(data.policiaisEscala);
-	let todosOsPoliciais = $state<any[]>(data.todosPoliciais);
-	let documentoAssinadoInfo = $state<{
-		existe: boolean;
-		assinante_nome?: string;
-		assinante_cpf?: string;
-		data?: string;
-	} | null>(
+	let escala = $derived(data.escala);
+	let policiaisEscala = $derived(data.policiaisEscala as EscalaPolicialComDados[]);
+	let todosOsPoliciais = $derived(data.todosPoliciais as any[]);
+	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
 					existe: data.documentoAssinadoInfo.existe,
@@ -39,7 +34,7 @@
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
-	let dataPlantao = $state(data.escala?.data_inicio || '');
+	let dataPlantao = $derived(data.escala?.data_inicio || '');
 	let addHoraEntrada = $state('08');
 	let addMinutoEntrada = $state('00');
 	let addHoraSaida = $state('08');

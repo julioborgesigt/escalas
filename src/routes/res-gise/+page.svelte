@@ -205,15 +205,18 @@
 		if (!escalaSelecionada) return;
 		salvandoResposta = true;
 		try {
-			const res = await fetch(`/api/gise/${escalaSelecionada.id}/resposta`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					respostas,
-					equipeId: escalaSelecionada.equipe_id
-				})
-			});
-			if (!res.ok) throw new Error('Erro ao salvar resposta');
+			const fd = new FormData();
+			fd.set('giseId', escalaSelecionada.id);
+			if (escalaSelecionada.equipe_id) fd.set('equipeId', escalaSelecionada.equipe_id);
+			fd.set('respostas', JSON.stringify(respostas));
+
+			const resp = await fetch('?/salvarResposta', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) {
+				throw new Error((result?.error as string) || 'Erro ao salvar resposta');
+			}
+
 			toaster.success({ title: 'Relatório salvo com sucesso' });
 			if (!podeVerListaGeral) exibirRelatorio = false;
 			await invalidateAll();
@@ -253,17 +256,20 @@
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
 		try {
-			const res = await fetch(`/api/gise/${escalaSelecionada.id}/presenca/entrada`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					rubrica,
-					latitude,
-					longitude,
-					selfieBase64
-				})
-			});
-			if (!res.ok) throw new Error('Erro ao salvar entrada');
+			const fd = new FormData();
+			fd.set('giseId', escalaSelecionada.id);
+			fd.set('rubrica', rubrica);
+			if (latitude !== undefined) fd.set('latitude', String(latitude));
+			if (longitude !== undefined) fd.set('longitude', String(longitude));
+			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
+
+			const resp = await fetch('?/salvarEntrada', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) {
+				throw new Error((result?.error as string) || 'Erro ao salvar entrada');
+			}
+
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
 			await invalidateAll();
@@ -294,17 +300,20 @@
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
 		try {
-			const res = await fetch(`/api/gise/${escalaSelecionada.id}/presenca/saida`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					rubrica,
-					latitude,
-					longitude,
-					selfieBase64
-				})
-			});
-			if (!res.ok) throw new Error('Erro ao salvar saída');
+			const fd = new FormData();
+			fd.set('giseId', escalaSelecionada.id);
+			fd.set('rubrica', rubrica);
+			if (latitude !== undefined) fd.set('latitude', String(latitude));
+			if (longitude !== undefined) fd.set('longitude', String(longitude));
+			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
+
+			const resp = await fetch('?/salvarSaida', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) {
+				throw new Error((result?.error as string) || 'Erro ao salvar saída');
+			}
+
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
 			await invalidateAll();
