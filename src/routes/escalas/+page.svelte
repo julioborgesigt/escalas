@@ -23,7 +23,7 @@
 		busca: ''
 	});
 
-	const unidades = $state<Unidade[]>(data.unidades);
+	const unidades = $derived(data.unidades as Unidade[]);
 
 	// Paginação — usa dados do server, mas permite navegação local
 	let paginaAtual = $state(data.pagination.page);
@@ -55,14 +55,16 @@
 		}
 	});
 
-	const seccionais = $derived(unidades.filter((u) => u.tipo === 'seccional'));
+	const seccionais = $derived(unidades.filter((u: Unidade) => u.tipo === 'seccional'));
 	const delegaciasDropdown = $derived(
 		filtroSeccional === 'todas'
-			? unidades.filter((u) => u.tipo === 'delegacia')
-			: unidades.filter((u) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional)
+			? unidades.filter((u: Unidade) => u.tipo === 'delegacia')
+			: unidades.filter(
+					(u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional
+				)
 	);
 
-	const escalas = $state<EscalaListagem[]>(data.escalas);
+	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
 	let revogando = $state(false);

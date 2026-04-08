@@ -15,15 +15,7 @@
 	const { isAdmin } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
-	const unidades = $state<Unidade[]>(data.unidades);
-
-	// Atualiza estado local quando dados do server mudam
-	$effect(() => {
-		if (data.unidades) {
-			unidades.length = 0;
-			unidades.push(...data.unidades);
-		}
-	});
+	let unidades = $derived(data.unidades as Unidade[]);
 
 	// Filtros
 	let filtroSeccional = $state<number | 'todas'>(

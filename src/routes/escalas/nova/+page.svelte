@@ -33,8 +33,8 @@
 	});
 
 	const isAdmin: boolean = data.isAdmin;
-	const unidadesComRegime: UnidadeRegime[] = data.unidadesComRegime;
-	const lotacoes: string[] = data.lotacoes;
+	const unidadesComRegime: UnidadeRegime[] = $derived(data.unidadesComRegime);
+	const lotacoes: string[] = $derived(data.lotacoes);
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));

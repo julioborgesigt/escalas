@@ -22,16 +22,8 @@
 		ignorados: false
 	});
 
-	let dados = $state<ItemCompliance[]>(data.compliance);
-	let unidadesDB = $state<Unidade[]>(data.unidades);
-
-	// Atualiza quando dados do server mudam
-	$effect(() => {
-		if (data.compliance) {
-			dados.length = 0;
-			dados.push(...data.compliance);
-		}
-	});
+	let dados = $derived(data.compliance as ItemCompliance[]);
+	let unidadesDB = $derived(data.unidades as Unidade[]);
 
 	// Filtros
 	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>(
@@ -246,8 +238,12 @@
 			filtroAgrupamento !== 'nenhum'
 	);
 
+	let carregado = $state(false);
 	$effect(() => {
-		if (isAdmin) carregar();
+		if (isAdmin && !carregado) {
+			carregado = true;
+			carregar();
+		}
 	});
 </script>
 

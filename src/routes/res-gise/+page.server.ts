@@ -1,5 +1,6 @@
-import { redirect } from '@sveltejs/kit';
-import { getDB, buscarGiseModeloFormulario, isMembroGiseAtiva } from '$lib/db';
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise } from '$lib/db';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
@@ -270,4 +271,147 @@ export const load = async ({ locals, platform, url }: any) => {
 		modeloPadraoOperacional: defaultGiseQuestions,
 		modeloPadraoSeint: defaultSeintQuestions
 	};
+};
+
+export const actions: Actions = {
+	salvarResposta: async ({ request, locals, platform, url }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const formData = await request.formData();
+		const giseId = parseInt(formData.get('giseId') as string);
+		const equipeId = formData.get('equipeId') ? parseInt(formData.get('equipeId') as string) : undefined;
+		const respostasStr = formData.get('respostas') as string;
+
+		if (isNaN(giseId) || !respostasStr) {
+			return fail(400, { error: 'Dados inválidos', giseId, equipeId });
+		}
+
+		let respostas: any;
+		try {
+			respostas = JSON.parse(respostasStr);
+		} catch {
+			return fail(400, { error: 'Respostas em formato inválido', giseId, equipeId });
+		}
+
+		const db = getDB(platform);
+		await salvarRespostaGise(db, giseId, u.id, JSON.stringify(respostas), equipeId);
+
+		// Verificar transição de status
+		const gise = await buscarGiseEscala(db, giseId);
+		if (gise && gise.status === 'aguardando_relatorios') {
+			const [todosSairam, todosEnviaram] = await Promise.all([
+				verificarTodosSairam(db, giseId),
+				verificarTodosRelatoriosEnviados(db, giseId)
+			]);
+			if (todosSairam && todosEnviaram) {
+				await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura_relat' });
+			}
+		}
+
+		return { success: true, giseId, equipeId };
+	},
+
+	salvarEntrada: async ({ request, locals, platform, getClientAddress }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const formData = await request.formData();
+		const giseId = parseInt(formData.get('giseId') as string);
+		const rubrica = formData.get('rubrica') as string;
+		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
+		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
+		const selfieBase64 = formData.get('selfieBase64') as string | null;
+
+		if (isNaN(giseId) || !rubrica) {
+			return fail(400, { error: 'Dados inválidos', giseId });
+		}
+
+		const ip = getClientAddress();
+		const ua = request.headers.get('user-agent') || '';
+
+		const db = getDB(platform);
+		const gise = await buscarGiseEscala(db, giseId);
+		if (!gise) return fail(404, { error: 'Escala não encontrada', giseId });
+
+		let selfieKey: string | undefined = undefined;
+		if (hasR2(platform) && selfieBase64) {
+			const r2 = getR2(platform);
+			const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+			const matches = selfieBase64.match(regex);
+			if (matches) {
+				const ext = matches[1] === 'png' ? 'png' : 'jpg';
+				const dataBase64 = selfieBase64.replace(regex, '');
+				const bytes = Buffer.from(dataBase64, 'base64');
+
+				const [yyyy, mm, dd] = gise.data_inicio.split('-');
+				const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+				selfieKey = `${folder}/presenca_${u.id}_entrada.${ext}`;
+
+				await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+			}
+		}
+
+		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+		return { success: true, giseId };
+	},
+
+	salvarSaida: async ({ request, locals, platform, getClientAddress }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const formData = await request.formData();
+		const giseId = parseInt(formData.get('giseId') as string);
+		const rubrica = formData.get('rubrica') as string;
+		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
+		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
+		const selfieBase64 = formData.get('selfieBase64') as string | null;
+
+		if (isNaN(giseId) || !rubrica) {
+			return fail(400, { error: 'Dados inválidos', giseId });
+		}
+
+		const ip = getClientAddress();
+		const ua = request.headers.get('user-agent') || '';
+
+		const db = getDB(platform);
+		const giseOrig = await buscarGiseEscala(db, giseId);
+		if (!giseOrig) return fail(404, { error: 'Escala não encontrada', giseId });
+
+		let selfieKey: string | undefined = undefined;
+		if (hasR2(platform) && selfieBase64) {
+			const r2 = getR2(platform);
+			const regex = /^data:image\/(jpeg|png|jpg);base64,/;
+			const matches = selfieBase64.match(regex);
+			if (matches) {
+				const ext = matches[1] === 'png' ? 'png' : 'jpg';
+				const dataBase64 = selfieBase64.replace(regex, '');
+				const bytes = Buffer.from(dataBase64, 'base64');
+
+				const [yyyy, mm, dd] = giseOrig.data_inicio.split('-');
+				const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+				selfieKey = `${folder}/presenca_${u.id}_saida.${ext}`;
+
+				await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
+			}
+		}
+
+		await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+
+		// Verificar transição de status após saída
+		const gise = await buscarGiseEscala(db, giseId);
+		if (gise && gise.status === 'em_andamento') {
+			const [todosSairam, todosEnviaram] = await Promise.all([
+				verificarTodosSairam(db, giseId),
+				verificarTodosRelatoriosEnviados(db, giseId)
+			]);
+			if (todosSairam) {
+				await atualizarGiseEscala(db, giseId, {
+					status: todosEnviaram ? 'aguardando_assinatura_relat' : 'aguardando_relatorios'
+				});
+			}
+		}
+
+		return { success: true, giseId };
+	}
 };

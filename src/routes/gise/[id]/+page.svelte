@@ -132,16 +132,13 @@
 	async function salvarSupervisores() {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({ supervisor_id: supervisorId })
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			if (supervisorId !== null) fd.set('supervisor_id', String(supervisorId));
+
+			const resp = await fetch('?/salvarSupervisores', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
 			toaster.success({ title: 'Supervisor salvo' });
 			editandoSupervisores = false;
 			await invalidateAll();
@@ -155,18 +152,15 @@
 	async function salvarUnidadeOperacional(secId: number) {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					unidade_operacional_id: unidadeOperacionalId
-				})
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+			if (unidadeOperacionalId !== null)
+				fd.set('unidade_operacional_id', String(unidadeOperacionalId));
+
+			const resp = await fetch('?/salvarUnidadeOperacional', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
 			toaster.success({ title: 'Unidade operacional salva' });
 			editandoUnidade = false;
 			await invalidateAll();
@@ -193,20 +187,13 @@
 		if (seccionalParaAdicionarIdx === '') return;
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					seccionalId: seccionalParaAdicionarIdx
-				})
-			});
-			if (!res.ok) {
-				const j = await res.json();
-				throw new Error(j.error);
-			}
+			const fd = new FormData();
+			fd.set('seccionalId', String(seccionalParaAdicionarIdx));
+
+			const resp = await fetch('?/adicionarSeccional', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
 			toaster.success({ title: 'Seccional adicionada' });
 			adicionandoSeccional = false;
 			seccionalParaAdicionarIdx = '';
@@ -227,14 +214,13 @@
 			return;
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			if (!res.ok) {
-				const j = await res.json();
-				throw new Error(j.error);
-			}
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+
+			const resp = await fetch('?/removerSeccional', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao remover');
 			toaster.success({ title: 'Seccional removida' });
 			await invalidateAll();
 		} catch (e: any) {
@@ -248,21 +234,15 @@
 		if (!equipeParaAdicionar || !policialParaAdicionar) return;
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					adicionar_membro: {
-						equipe_id: equipeParaAdicionar,
-						policial_id: Number(policialParaAdicionar)
-					}
-				})
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+			fd.set('equipe_id', String(equipeParaAdicionar));
+			fd.set('policial_id', String(policialParaAdicionar));
+
+			const resp = await fetch('?/adicionarMembro', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
 			toaster.success({ title: 'Membro adicionado' });
 			equipeParaAdicionar = null;
 			policialParaAdicionar = '';
@@ -281,12 +261,13 @@
 		if (removendoMembroId === memId) return;
 		removendoMembroId = memId;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/membros/${memId}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			fd.set('memId', String(memId));
+
+			const resp = await fetch('?/removerMembro', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao remover');
 			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
@@ -298,17 +279,15 @@
 	async function finalizarSeccional(secId: number) {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: '{}'
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
-			if (json.gise_status === 'aguardando_assinatura') {
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+
+			const resp = await fetch('?/finalizarSeccional', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao finalizar');
+			const giseStatus = result?.gise_status as string | undefined;
+			if (giseStatus === 'aguardando_assinatura') {
 				toaster.success({
 					title: 'Todas as seccionais finalizadas!',
 					description: 'Escala aguardando assinatura do Supervisor.'
@@ -445,15 +424,12 @@
 	async function finalizarGise() {
 		finalizando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/finalizar`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				}
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+
+			const resp = await fetch('?/finalizarGise', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao finalizar');
 			toaster.success({ title: 'Escala finalizada!' });
 			showFinalizarConfirm = false;
 			goto('/gise');
@@ -467,19 +443,15 @@
 	async function salvarSlotsEquipe(equipeId: number) {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/equipes/${equipeId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					slots_dpc: editSlotsDpc,
-					slots_oip: editSlotsOip
-				})
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			fd.set('equipeId', String(equipeId));
+			fd.set('slots_dpc', String(editSlotsDpc));
+			fd.set('slots_oip', String(editSlotsOip));
+
+			const resp = await fetch('?/salvarSlotsEquipe', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao atualizar');
 			toaster.success({ title: 'Vagas atualizadas' });
 			editandoEquipe = null;
 			await invalidateAll();
@@ -493,15 +465,10 @@
 	async function solicitarAssinatura() {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({ status: 'aguardando_assinatura' })
-			});
-			if (!res.ok) throw new Error((await res.json()).error);
+			const resp = await fetch('?/solicitarAssinatura', { method: 'POST', body: new FormData() });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao enviar');
 			toaster.success({
 				title: 'Edição finalizada',
 				description: 'Escala enviada para assinatura do Supervisor.'
@@ -733,12 +700,10 @@
 	async function reabrirEscala() {
 		reabrindo = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/reabrir`, {
-				method: 'POST',
-				headers: csrfHeaders()
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const resp = await fetch('?/reabrirEscala', { method: 'POST', body: new FormData() });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao reabrir');
 			toaster.success({
 				title: 'Escala reaberta',
 				description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
@@ -774,21 +739,16 @@
 		}
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					data_inicio: editDataInicio,
-					hora_entrada: normalizarHora(editHoraEntrada),
-					hora_saida: normalizarHora(editHoraSaida)
-				})
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
-			if (json.assinatura_revogada) {
+			const fd = new FormData();
+			fd.set('data_inicio', editDataInicio);
+			fd.set('hora_entrada', normalizarHora(editHoraEntrada) ?? '');
+			fd.set('hora_saida', normalizarHora(editHoraSaida) ?? '');
+
+			const resp = await fetch('?/salvarDatasHorarios', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
+			if (result?.assinatura_revogada) {
 				toaster.warning({
 					title: 'Datas/horários atualizados',
 					description: 'A assinatura digital foi revogada. Será necessário assinar novamente.'
@@ -826,18 +786,15 @@
 		}
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					hora_entrada: normalizarHora(editSecHoraEnt),
-					hora_saida: normalizarHora(editSecHoraSai)
-				})
-			});
-			if (!res.ok) throw new Error((await res.json()).error);
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+			fd.set('hora_entrada', normalizarHora(editSecHoraEnt) ?? '');
+			fd.set('hora_saida', normalizarHora(editSecHoraSai) ?? '');
+
+			const resp = await fetch('?/salvarHorariosSec', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
 			toaster.success({ title: 'Horários da seccional atualizados' });
 			editandoHorariosSecId = null;
 			await invalidateAll();
@@ -859,18 +816,15 @@
 		}
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/equipes/${eqId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					hora_entrada: normalizarHora(editEqHoraEnt),
-					hora_saida: normalizarHora(editEqHoraSai)
-				})
-			});
-			if (!res.ok) throw new Error((await res.json()).error);
+			const fd = new FormData();
+			fd.set('eqId', String(eqId));
+			fd.set('hora_entrada', normalizarHora(editEqHoraEnt) ?? '');
+			fd.set('hora_saida', normalizarHora(editEqHoraSai) ?? '');
+
+			const resp = await fetch('?/salvarHorariosEquipe', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
 			toaster.success({ title: 'Horários da equipe atualizados' });
 			editandoHorariosEquipeId = null;
 			await invalidateAll();
@@ -884,12 +838,10 @@
 	async function excluirGise() {
 		excluindo = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}`, {
-				method: 'DELETE',
-				headers: csrfHeaders()
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const resp = await fetch('?/excluirGise', { method: 'POST', body: new FormData() });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao excluir');
 			toaster.success({ title: 'Escala GISE excluída' });
 			showExcluirGiseConfirm = false;
 			goto('/gise');
@@ -903,22 +855,16 @@
 	async function adicionarEquipe(secId: number) {
 		salvando = true;
 		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais/${secId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					adicionar_equipe: {
-						tipo: novaEquipeTipo,
-						slots_dpc: novaEquipeDpc,
-						slots_oip: novaEquipeOip
-					}
-				})
-			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
+			const fd = new FormData();
+			fd.set('secId', String(secId));
+			fd.set('tipo', novaEquipeTipo);
+			fd.set('slots_dpc', String(novaEquipeDpc));
+			fd.set('slots_oip', String(novaEquipeOip));
+
+			const resp = await fetch('?/adicionarEquipe', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
 			toaster.success({ title: 'Equipe adicionada' });
 			adicionandoEquipeSec = null;
 			await invalidateAll();
@@ -2010,19 +1956,16 @@
 												onclick={async () => {
 													removendoEquipeId = equipe.id;
 													try {
-														const r = await fetch(`/api/gise/${gise.id}/equipes/${equipe.id}`, {
-															method: 'DELETE',
-															headers: csrfHeaders()
-														});
+														const fd = new FormData();
+														fd.set('equipeId', String(equipe.id));
+														const r = await fetch('?/removerEquipe', { method: 'POST', body: fd });
+														const result = (await r.json()) as Record<string, unknown> | undefined;
 														if (r.ok) {
-															toaster.success({
-																title: 'Equipe removida'
-															});
+															toaster.success({ title: 'Equipe removida' });
 															await invalidateAll();
 														} else {
-															const j = await r.json();
 															toaster.error({
-																title: j.error
+																title: (result?.error as string) || 'Erro ao remover'
 															});
 														}
 													} finally {

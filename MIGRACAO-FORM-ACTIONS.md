@@ -305,7 +305,7 @@ export const actions: Actions = {
 | `/unidades` | ✅ | ✅ criar, editar, excluir | ✅ (criar) | ✅ | **Concluída** |
 | `/recebidos` | ✅ | ✅ toggleVisto, excluir | ✅ (fetch direto) | ✅ | **Concluída** |
 | `/painel` | ✅ | ✅ excluirEscala | ✅ (fetch direto) | ✅ | **Concluída** |
-| `/gise` | ✅ | ❌ | ❌ | ✅ | Parcial |
+| `/gise` | ✅ | ✅ criar | ✅ (fetch direto) | ✅ | **Concluída** |
 | `/gise/[id]` | ✅ | ❌ | ❌ | ✅ | Parcial |
 | `/res-gise` | ✅ | ❌ | ❌ | ✅ | Parcial |
 | `/produtividade` | ✅ | ❌ | ❌ | ✅ | Parcial |

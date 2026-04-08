@@ -3,7 +3,34 @@
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { csrfHeaders } from '$lib/csrf';
+
+	/** Parse resposta de Form Action SvelteKit (array compactado ou objeto) */
+	function parseFormResponse(
+		raw: Record<string, unknown> | undefined
+	): Record<string, unknown> | undefined {
+		if (raw?.type === 'success') {
+			// O SvelteKit envia data como string JSON
+			let arr: unknown[] | null = null;
+			if (typeof raw.data === 'string') {
+				try {
+					arr = JSON.parse(raw.data);
+				} catch {
+					/* ignore */
+				}
+			} else if (Array.isArray(raw.data)) {
+				arr = raw.data;
+			}
+			if (arr && arr.length > 0 && typeof arr[0] === 'object' && !Array.isArray(arr[0])) {
+				const keyMap = arr[0] as Record<string, number>;
+				const obj: Record<string, unknown> = {};
+				for (const [key, idx] of Object.entries(keyMap)) {
+					obj[key] = arr[idx];
+				}
+				return obj;
+			}
+		}
+		return raw as Record<string, unknown> | undefined;
+	}
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
@@ -33,31 +60,43 @@
 
 		loading = true;
 		try {
-			const res = await fetch('/api/auth/login', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify(parsed.data)
-			});
+			const fd = new FormData();
+			fd.set('matricula', matricula);
+			fd.set('senha', senha);
+			fd.set('tipo', tipo);
 
-			if (res.ok) {
-				const data = await res.json();
-				if (data.pendente2FA) {
-					// Código enviado por e-mail — mostrar formulário 2FA
-					desafioId = data.desafioId;
-					tipoUsuario2FA = tipo;
-					emailMascarado = data.emailMascarado ?? '';
-					pendente2FA = true;
-					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
-				} else if (data.primeiro_acesso) {
-					goto('/alterar-senha', { invalidateAll: true });
-				} else {
-					goto(tipo === 'admin' ? '/painel' : '/escalas', { invalidateAll: true });
-				}
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Credenciais inválidas', type: 'error' });
+			console.log('[login] Enviando request...');
+			const resp = await fetch('?/login', { method: 'POST', body: fd });
+			console.log('[login] Response status:', resp.status);
+			const raw = (await resp.json()) as Record<string, unknown> | undefined;
+			console.log('[login] Raw response:', raw);
+
+			// SvelteKit serializa sucesso como array compacto:
+			// [{keyMap}, val1, val2, ...] → converter para objeto
+			const data = parseFormResponse(raw);
+			console.log('[login] Parsed data:', data);
+
+			if (!resp.ok) {
+				toaster.create({
+					title: (data?.error as string) || 'Credenciais inválidas',
+					type: 'error'
+				});
+				return;
 			}
-		} catch {
+
+			if (data?.pendente2FA) {
+				desafioId = (data.desafioId as string) || '';
+				tipoUsuario2FA = (data.tipoUsuario2FA as 'policial' | 'admin') || tipo;
+				emailMascarado = (data.emailMascarado as string) || '';
+				pendente2FA = true;
+				toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
+			} else if (data?.redirect) {
+				goto(data.redirect as string, { invalidateAll: true });
+			} else {
+				toaster.create({ title: 'Resposta inesperada do servidor', type: 'error' });
+			}
+		} catch (err) {
+			console.error('[login] Erro:', err);
 			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
 		} finally {
 			loading = false;
@@ -73,25 +112,24 @@
 
 		loading = true;
 		try {
-			const res = await fetch('/api/auth/verificar-2fa', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ desafioId, codigo: codigo2FA })
-			});
+			const fd = new FormData();
+			fd.set('desafioId', desafioId);
+			fd.set('codigo', codigo2FA);
 
-			if (res.ok) {
-				const data = await res.json();
-				if (data.primeiro_acesso) {
-					goto('/alterar-senha', { invalidateAll: true });
-				} else {
-					goto(tipoUsuario2FA === 'admin' ? '/painel' : '/escalas', { invalidateAll: true });
-				}
-			} else {
-				const data = await res.json();
-				toaster.create({ title: data.error || 'Código inválido', type: 'error' });
-				if (data.expirado || data.esgotado) {
+			const resp = await fetch('?/verificar2FA', { method: 'POST', body: fd });
+			const raw = (await resp.json()) as Record<string, unknown> | undefined;
+			const data = parseFormResponse(raw);
+
+			if (!resp.ok) {
+				toaster.create({ title: (data?.error as string) || 'Código inválido', type: 'error' });
+				if (data?.expirado || data?.esgotado) {
 					voltarLogin();
 				}
+				return;
+			}
+
+			if (data?.redirect) {
+				goto(data.redirect as string, { invalidateAll: true });
 			}
 		} catch {
 			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
@@ -111,14 +149,18 @@
 		if (!matriculaPrimeiroAcesso.trim()) return;
 		loading = true;
 		try {
-			const res = await fetch('/api/auth/primeiro-acesso', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ matricula: matriculaPrimeiroAcesso.trim() })
-			});
-			const data = await res.json();
-			if (!res.ok) {
-				toaster.create({ title: data.error || 'Erro ao processar solicitação.', type: 'error' });
+			const fd = new FormData();
+			fd.set('matricula', matriculaPrimeiroAcesso.trim());
+
+			const resp = await fetch('?/solicitarPrimeiroAcesso', { method: 'POST', body: fd });
+			const raw = (await resp.json()) as Record<string, unknown> | undefined;
+			const data = parseFormResponse(raw);
+
+			if (!resp.ok) {
+				toaster.create({
+					title: (data?.error as string) || 'Erro ao processar solicitação.',
+					type: 'error'
+				});
 			} else {
 				primeiroAcessoEnviado = true;
 			}
@@ -141,24 +183,38 @@
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
-	<div class="w-full max-w-sm p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50">
+	<div
+		class="w-full max-w-sm p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
+	>
 		<div class="text-center mb-6">
 			<h1 class="h1 text-xl font-bold mb-1">Escalas de Plantão</h1>
-			<p class="text-surface-600 dark:text-surface-500 text-sm">Faça login para acessar o sistema</p>
+			<p class="text-surface-600 dark:text-surface-500 text-sm">
+				Faça login para acessar o sistema
+			</p>
 		</div>
 
 		{#if !pendente2FA && !primeiroAcesso}
 			<!-- ===== Formulário de credenciais ===== -->
-			<div class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5">
+			<div
+				class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5"
+			>
 				<button
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-					onclick={() => { tipo = 'policial'; }}
+					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial'
+						? 'preset-filled-primary-500'
+						: 'text-surface-500'}"
+					onclick={() => {
+						tipo = 'policial';
+					}}
 				>
 					Policial
 				</button>
 				<button
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-					onclick={() => { tipo = 'admin'; }}
+					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin'
+						? 'preset-filled-primary-500'
+						: 'text-surface-500'}"
+					onclick={() => {
+						tipo = 'admin';
+					}}
 				>
 					Administrador
 				</button>
@@ -171,7 +227,9 @@
 						class="input"
 						type="text"
 						bind:value={matricula}
-						placeholder={tipo === 'admin' ? 'Digite seu login' : 'Digite sua matrícula (8 caracteres)'}
+						placeholder={tipo === 'admin'
+							? 'Digite seu login'
+							: 'Digite sua matrícula (8 caracteres)'}
 						maxlength={tipo === 'admin' ? undefined : 8}
 						required
 					/>
@@ -204,13 +262,14 @@
 					<button
 						type="button"
 						class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-						onclick={() => { primeiroAcesso = true; }}
+						onclick={() => {
+							primeiroAcesso = true;
+						}}
 					>
 						Clique aqui
 					</button>
 				</p>
 			{/if}
-
 		{:else if primeiroAcesso}
 			<!-- ===== Primeiro acesso ===== -->
 			{#if !primeiroAcessoEnviado}
@@ -250,9 +309,14 @@
 					<div class="text-5xl mb-4">📬</div>
 					<p class="font-semibold mb-2">E-mail enviado!</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
-						Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em instantes. Verifique também sua caixa de spam.
+						Se a matrícula estiver cadastrada com e-mail, você receberá a senha provisória em
+						instantes. Verifique também sua caixa de spam.
 					</p>
-					<button type="button" class="btn preset-filled-primary-500 w-full" onclick={voltarParaLogin}>
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 w-full"
+						onclick={voltarParaLogin}
+					>
 						Ir para o login
 					</button>
 				</div>
@@ -263,7 +327,7 @@
 				<div class="text-5xl mb-3">📧</div>
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>
 				<p class="text-sm text-surface-600 dark:text-surface-400">
-					Enviamos um código de 6 dígitos para<br/>
+					Enviamos um código de 6 dígitos para<br />
 					<span class="font-medium text-surface-800 dark:text-surface-200">{emailMascarado}</span>
 				</p>
 			</div>
