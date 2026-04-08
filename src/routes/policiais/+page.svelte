@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -14,23 +14,21 @@
 	let { data, form } = $props();
 
 	let cadastroPending = $state(false);
-	const handleCadastro: any = () => ({
-		onSubmit: () => {
-			cadastroPending = true;
-		},
-		onUpdate({ result }: { result: any }) {
+	function handleCadastro({ formData }: { formData: FormData }) {
+		cadastroPending = true;
+		return async ({ result }: { result: any }) => {
 			cadastroPending = false;
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 				resetForm();
 				cadastroOpen = false;
-				invalidateAll();
+				await invalidateAll();
 			} else if (result.type === 'failure' && d?.error) {
 				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		}
-	});
+		};
+	}
 
 	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_policiais', {
@@ -40,21 +38,21 @@
 		busca: ''
 	});
 
-	const unidades: Unidade[] = data.unidades;
+	const unidades = $derived(data.unidades as Unidade[]);
 	const policiais = $derived(data.policiais as any[]);
 
 	// Paginação
-	let paginaAtual = $state(data.pagination.page);
+	let paginaAtual = $state(untrack(() => data.pagination.page));
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
 
 	// Filtros
-	let filtroLotacao = $state(data.filtros.lotacao || savedFilters.lotacao);
-	let filtroCargo = $state(data.filtros.cargo || savedFilters.cargo);
+	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
+	let filtroCargo = $state(untrack(() => data.filtros.cargo || savedFilters.cargo));
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
-	let filtroBusca = $state(data.filtros.busca || savedFilters.busca);
+	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
@@ -188,31 +186,19 @@
 		confirmDialog.openDialog({ id, nome });
 	}
 
-	async function confirmarExclusao() {
-		const item = confirmDialog.currentItem;
-		if (!item) return;
+	function handleExcluir() {
 		excluindo = true;
-		const formData = new FormData();
-		formData.set('policial_id', String(item.id));
-		const resp = await fetch('?/excluir', {
-			method: 'POST',
-			body: formData
-		});
-		excluindo = false;
-		if (resp.ok) {
-			toaster.create({
-				title: `${item.nome} removido com sucesso`,
-				type: 'success'
-			});
-			confirmDialog.closeDialog();
-			await invalidateAll();
-		} else {
-			const data = await resp.json().catch(() => ({}));
-			toaster.create({
-				title: data.error || 'Erro ao remover',
-				type: 'error'
-			});
-		}
+		return async ({ result }: { result: any }) => {
+			excluindo = false;
+			if (result.type === 'success') {
+				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido com sucesso`, type: 'success' });
+				confirmDialog.closeDialog();
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+			}
+		};
 	}
 
 	function limparFiltros() {
@@ -474,14 +460,13 @@
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
 					>Cancelar</Dialog.CloseTrigger
 				>
-				<button
-					class="btn preset-filled-error-500 flex items-center gap-2"
-					onclick={confirmarExclusao}
-					disabled={excluindo}
-				>
-					{#if excluindo}<Spinner size="sm" />{/if}
-					{excluindo ? 'Excluindo...' : 'Excluir'}
-				</button>
+				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
+						{#if excluindo}<Spinner size="sm" />{/if}
+						{excluindo ? 'Excluindo...' : 'Excluir'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</Dialog.Content>

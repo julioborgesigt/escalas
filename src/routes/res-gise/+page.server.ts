@@ -256,15 +256,31 @@ export const load = async ({ locals, platform, url }: any) => {
 		}
 	];
 
-	const [modeloOp, modeloSeint] = await Promise.all([
-		buscarGiseModeloFormulario(db, 'operacional'),
-		buscarGiseModeloFormulario(db, 'seint')
+	const giseIdSelected = url.searchParams.get('giseId') ? parseInt(url.searchParams.get('giseId')!) : null;
+	const equipeIdSelected = url.searchParams.get('equipeId') ? parseInt(url.searchParams.get('equipeId')!) : null;
+
+	const [[modeloOp, modeloSeint], respostaRow] = await Promise.all([
+		Promise.all([
+			buscarGiseModeloFormulario(db, 'operacional'),
+			buscarGiseModeloFormulario(db, 'seint')
+		]),
+		giseIdSelected && !isNaN(giseIdSelected)
+			? buscarRespostaGise(db, giseIdSelected, u.tipo === 'policial' ? u.id : null, equipeIdSelected ?? undefined)
+			: Promise.resolve(null)
 	]);
+
+	let respostasData: Record<string, unknown> = {};
+	if (respostaRow?.respostas) {
+		try { respostasData = JSON.parse(respostaRow.respostas); } catch { /* ignora JSON inválido */ }
+	}
 
 	return {
 		minhasEscalas,
 		listaAdmin,
 		isSupervisorGise,
+		giseIdSelected,
+		equipeIdSelected,
+		respostas: respostasData,
 		// Se o banco retornar null (ex: migration não rodada ou sem registros ainda), usa o default code-fixed
 		modeloOperacional: (modeloOp && modeloOp.config) ? JSON.parse(modeloOp.config) : defaultGiseQuestions,
 		modeloSeint: (modeloSeint && modeloSeint.config) ? JSON.parse(modeloSeint.config) : defaultSeintQuestions,

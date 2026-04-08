@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
@@ -177,21 +178,22 @@
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
-		} catch {
-			/* ignora */
-		}
-
-		const params = !filtreMesCorrente ? '?todos=1' : '';
-		const res = await fetch(`/api/admin/compliance${params}`);
-		if (res.ok) {
-			const novos = await res.json();
-			dados.length = 0;
-			dados.push(...novos);
-		}
+		} catch { /* ignora */ }
+		await invalidateAll();
 		loading = false;
 	}
 
-	function limparFiltros() {
+	async function onMesCorrenteChange() {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (!filtreMesCorrente) {
+			params.set('todos', 'true');
+		} else {
+			params.delete('todos');
+		}
+		await goto(`?${params}`, { keepFocus: true, noScroll: true });
+	}
+
+	async function limparFiltros() {
 		filtroRegime = 'todos';
 		filtroSeccional = 'todas';
 		filtroUnidade = '';
@@ -199,33 +201,25 @@
 		mostrarIgnorados = false;
 		filtreMesCorrente = true;
 		filtroAgrupamento = 'nenhum';
-		carregar();
+		await goto('?', { keepFocus: true, noScroll: true });
 	}
 
 	let excluindoEscala = $state(false);
 
-	async function confirmarExcluirEscala() {
-		if (!itemParaExcluir?.escala_id) return;
-		const id = itemParaExcluir.escala_id;
+	function handleExcluirEscala() {
 		excluindoEscala = true;
-		try {
-			const fd = new FormData();
-			fd.set('escala_id', String(id));
-			const resp = await fetch('?/excluirEscala', { method: 'POST', body: fd });
-			if (resp.ok) {
+		return async ({ result }: { result: any }) => {
+			excluindoEscala = false;
+			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
+				await invalidateAll();
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
-				carregar();
 			} else {
-				const d = await resp.json();
-				toaster.create({ title: d.error || 'Erro ao excluir escala', type: 'error' });
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao excluir escala'), type: 'error' });
 			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			excluindoEscala = false;
-		}
+		};
 	}
 
 	const temFiltros = $derived(
@@ -238,11 +232,12 @@
 			filtroAgrupamento !== 'nenhum'
 	);
 
-	let carregado = $state(false);
 	$effect(() => {
-		if (isAdmin && !carregado) {
-			carregado = true;
-			carregar();
+		if (isAdmin && browser) {
+			try {
+				const stored = localStorage.getItem('compliance_ignorados');
+				if (stored) ignorados = new Set(JSON.parse(stored));
+			} catch { /* ignora */ }
 		}
 	});
 </script>
@@ -404,7 +399,7 @@
 						type="checkbox"
 						class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none"
 						bind:checked={filtreMesCorrente}
-						onchange={carregar}
+						onchange={onMesCorrenteChange}
 					/>
 					<span class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap"
 						>Mês Corrente</span
@@ -464,14 +459,13 @@
 					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindoEscala}
 						>Cancelar</Dialog.CloseTrigger
 					>
-					<button
-						class="btn preset-filled-error-500 flex items-center gap-2"
-						disabled={excluindoEscala}
-						onclick={confirmarExcluirEscala}
-					>
-						{#if excluindoEscala}<Spinner size="sm" />{/if}
-						{excluindoEscala ? 'Excluindo...' : 'Confirmar Exclusão'}
-					</button>
+					<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
+						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
+						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindoEscala}>
+							{#if excluindoEscala}<Spinner size="sm" />{/if}
+							{excluindoEscala ? 'Excluindo...' : 'Confirmar Exclusão'}
+						</button>
+					</form>
 				</div>
 			</div>
 		</Dialog.Content>

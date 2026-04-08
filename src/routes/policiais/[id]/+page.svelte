@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
@@ -13,51 +13,60 @@
 	const seccionaisParaPapel = $derived(data.unidades.filter((u: any) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(data.unidades.filter((u: any) => u.tipo !== 'seccional'));
 
-	let nome = $state(data.policial.nome);
-	let matricula = $state(data.policial.matricula);
-	let cargo = $state(data.policial.cargo);
-	let cpf = $state(formatarCPF(data.policial.cpf || ''));
-	let telefone = $state(data.policial.telefone || '');
-	let classe = $state((data.policial as any).classe || '');
-	let regime = $state(data.policial.regime || 'ambos');
-	let lotacao = $state(data.policial.lotacao);
-	let email = $state(data.policial.email || '');
+	let nome = $state('');
+	let matricula = $state('');
+	let cargo = $state('');
+	let cpf = $state('');
+	let telefone = $state('');
+	let classe = $state('');
+	let regime = $state('');
+	let lotacao = $state('');
+	let email = $state('');
 	let saving = $state(false);
-	let papel = $state<string | null>(data.policial.papel);
-	let papelUnidadeId = $state<number | null>(data.policial.papel_unidade_id);
+	let papel = $state<string | null>(null);
+	let papelUnidadeId = $state<number | null>(null);
 	let salvandoPapel = $state(false);
 
-	function handleSalvar() {
-		return {
-			onSubmit: () => {
-				saving = true;
-			},
-			onUpdate({ result }: { result: any }) {
-				saving = false;
-				const d = result.data as Record<string, unknown> | undefined;
-				if (result.type === 'success') {
-					toaster.create({ title: 'Policial atualizado com sucesso!', type: 'success' });
-					goto('/policiais');
-				} else if (result.type === 'failure' && d?.error) {
-					toaster.create({ title: String(d.error), type: 'error' });
-				}
+	$effect(() => {
+		if (data?.policial) {
+			nome = data.policial.nome;
+			matricula = data.policial.matricula;
+			cargo = data.policial.cargo;
+			cpf = formatarCPF(data.policial.cpf || '');
+			telefone = data.policial.telefone || '';
+			classe = (data.policial as any).classe || '';
+			regime = data.policial.regime || 'ambos';
+			lotacao = data.policial.lotacao;
+			email = data.policial.email || '';
+			papel = data.policial.papel;
+			papelUnidadeId = data.policial.papel_unidade_id;
+		}
+	});
+
+	function handleSalvar({ formData }: { formData: FormData }) {
+		saving = true;
+		return async ({ result }: { result: any }) => {
+			saving = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Policial atualizado com sucesso!', type: 'success' });
+				goto('/policiais');
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
 	}
 
-	function handleSalvarPapel() {
-		return {
-			onSubmit: () => {
-				salvandoPapel = true;
-			},
-			onUpdate({ result }: { result: any }) {
-				salvandoPapel = false;
-				const d = result.data as Record<string, unknown> | undefined;
-				if (result.type === 'success') {
-					toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
-				} else if (result.type === 'failure' && d?.error) {
-					toaster.create({ title: String(d.error), type: 'error' });
-				}
+	function handleSalvarPapel({ formData }: { formData: FormData }) {
+		salvandoPapel = true;
+		return async ({ result }: { result: any }) => {
+			salvandoPapel = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
+				await invalidateAll();
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
 	}

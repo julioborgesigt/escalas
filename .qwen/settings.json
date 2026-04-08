@@ -24,7 +24,10 @@
       "Bash(npm audit)",
       "Bash(git checkout *)",
       "Bash(ren *)",
-      "Bash(type *)"
+      "Bash(type *)",
+      "Bash(echo *)",
+      "Bash(e *)",
+      "Bash(node *)"
     ]
   },
   "$version": 3

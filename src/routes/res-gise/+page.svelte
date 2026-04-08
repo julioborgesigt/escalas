@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -17,6 +18,7 @@
 	let configTipo = $state<'operacional' | 'seint'>('operacional');
 	let perguntasConfig = $state<any[]>([]);
 	let salvandoModelo = $state(false);
+	const configJson = $derived(JSON.stringify(perguntasConfig));
 
 	$effect(() => {
 		const source = configTipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
@@ -34,7 +36,13 @@
 
 	let escalaSelecionada = $state<any>(null);
 	let respostas = $state<any>({});
+	const respostasJson = $derived(JSON.stringify(respostas));
 	let carregandoResposta = $state(false);
+
+	// Sincroniza respostas sempre que o servidor retornar novos dados (após seleção ou save)
+	$effect(() => {
+		respostas = data.respostas ?? {};
+	});
 	let salvandoResposta = $state(false);
 	let exibirRelatorio = $state(false);
 
@@ -59,11 +67,9 @@
 				navUrl.searchParams.delete(key);
 			}
 		});
-		import('$app/navigation').then(({ goto }) => {
-			goto(navUrl.pathname + navUrl.search, {
-				keepFocus: true,
-				noScroll: true
-			});
+		goto(navUrl.pathname + navUrl.search, {
+			keepFocus: true,
+			noScroll: true
 		});
 	}
 
@@ -154,77 +160,57 @@
 		return false;
 	}
 
-	async function salvarModelo() {
+	function handleSalvarModelo() {
 		salvandoModelo = true;
-		try {
-			const fd = new FormData();
-			fd.set('config', JSON.stringify(perguntasConfig));
-			fd.set('tipo', configTipo);
-
-			const resp = await fetch('?/salvarModelo', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvandoModelo = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: String(d?.error || 'Erro ao salvar modelo') });
+			}
+		};
 	}
 
 	async function selecionarEscala(escala: any) {
 		const isSame =
 			escalaSelecionada?.id === escala.id && escalaSelecionada?.equipe_id === escala.equipe_id;
+		if (isSame) return;
+
 		escalaSelecionada = escala;
-		carregandoResposta = true;
-		// Reseta estado de visualização de quem já respondeu
-		exibirRelatorio = false;
-
-		// Se não for a mesma, limpa respostas para evitar mostrar dado de outra escala enquanto carrega
-		if (!isSame) respostas = {};
-
 		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
-		try {
-			const url = `/api/gise/${escala.id}/resposta${escala.equipe_id ? `?equipeId=${escala.equipe_id}` : ''}`;
-			const res = await fetch(url);
-			if (res.ok) {
-				respostas = await res.json();
-			}
-		} catch (e) {
-			console.error(e);
-		} finally {
-			carregandoResposta = false;
+		respostas = {};
+		carregandoResposta = true;
+
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set('giseId', String(escala.id));
+		if (escala.equipe_id) {
+			params.set('equipeId', String(escala.equipe_id));
+		} else {
+			params.delete('equipeId');
 		}
+		await goto(`?${params}`, { keepFocus: true, noScroll: true });
+		carregandoResposta = false;
 	}
 
-	async function salvarResposta() {
-		if (!escalaSelecionada) return;
+	function handleSalvarResposta({ cancel }: any) {
+		if (!escalaSelecionada) { cancel(); return; }
 		salvandoResposta = true;
-		try {
-			const fd = new FormData();
-			fd.set('giseId', escalaSelecionada.id);
-			if (escalaSelecionada.equipe_id) fd.set('equipeId', escalaSelecionada.equipe_id);
-			fd.set('respostas', JSON.stringify(respostas));
-
-			const resp = await fetch('?/salvarResposta', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) {
-				throw new Error((result?.error as string) || 'Erro ao salvar resposta');
-			}
-
-			toaster.success({ title: 'Relatório salvo com sucesso' });
-			if (!podeVerListaGeral) exibirRelatorio = false;
-			await invalidateAll();
-			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
-			if (atualizada) escalaSelecionada = atualizada;
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvandoResposta = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Relatório salvo com sucesso' });
+				if (!podeVerListaGeral) exibirRelatorio = false;
+				await invalidateAll();
+				const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
+				if (atualizada) escalaSelecionada = atualizada;
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: String(d?.error || 'Erro ao salvar resposta') });
+			}
+		};
 	}
 
 	function fmtDate(iso: string) {
@@ -745,18 +731,22 @@
 			<div
 				class="flex justify-end p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
 			>
-				<button
-					class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-primary-500/40 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-					onclick={salvarModelo}
-					disabled={salvandoModelo}
-				>
-					{#if salvandoModelo}
-						<Spinner size="md" />
-						<span class="ml-3">Salvando...</span>
-					{:else}
-						Salvar Modelo {configTipo}
-					{/if}
-				</button>
+				<form method="POST" action="?/salvarModelo" use:enhance={handleSalvarModelo} class="contents">
+					<input type="hidden" name="config" value={configJson} />
+					<input type="hidden" name="tipo" value={configTipo} />
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-primary-500/40 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+						disabled={salvandoModelo}
+					>
+						{#if salvandoModelo}
+							<Spinner size="md" />
+							<span class="ml-3">Salvando...</span>
+						{:else}
+							Salvar Modelo {configTipo}
+						{/if}
+					</button>
+				</form>
 			</div>
 		</section>
 	{:else if podeVerListaGeral && activeTab === 'relatorios'}
@@ -1027,14 +1017,21 @@
 								<div
 									class="flex justify-end pt-4 border-t border-surface-200 dark:border-surface-800"
 								>
-									<button
-										class="btn preset-filled-primary-500 px-12 py-3 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-										onclick={salvarResposta}
-										disabled={salvandoResposta}
-									>
-										{#if salvandoResposta}<Spinner size="sm" />{/if}
-										{salvandoResposta ? 'Salvando...' : 'Salvar Alterações'}
-									</button>
+									<form method="POST" action="?/salvarResposta" use:enhance={handleSalvarResposta} class="contents">
+										<input type="hidden" name="giseId" value={escalaSelecionada?.id} />
+										{#if escalaSelecionada?.equipe_id}
+											<input type="hidden" name="equipeId" value={escalaSelecionada.equipe_id} />
+										{/if}
+										<input type="hidden" name="respostas" value={respostasJson} />
+										<button
+											type="submit"
+											class="btn preset-filled-primary-500 px-12 py-3 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+											disabled={salvandoResposta}
+										>
+											{#if salvandoResposta}<Spinner size="sm" />{/if}
+											{salvandoResposta ? 'Salvando...' : 'Salvar Alterações'}
+										</button>
+									</form>
 								</div>
 							</div>
 						{/if}
@@ -1538,18 +1535,25 @@
 															Cancelar
 														</button>
 													{/if}
-													<button
-														class="btn preset-filled-primary-500 flex-1 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 flex items-center justify-center gap-2"
-														onclick={salvarResposta}
-														disabled={salvandoResposta}
-													>
-														{#if salvandoResposta}<Spinner size="sm" />{/if}
-														{salvandoResposta
-															? 'Processando...'
-															: escalaSelecionada.equipeRespondida
-																? 'Salvar Alterações'
-																: 'Finalizar Entrega do Relatório'}
-													</button>
+													<form method="POST" action="?/salvarResposta" use:enhance={handleSalvarResposta} class="contents">
+														<input type="hidden" name="giseId" value={escalaSelecionada?.id} />
+														{#if escalaSelecionada?.equipe_id}
+															<input type="hidden" name="equipeId" value={escalaSelecionada.equipe_id} />
+														{/if}
+														<input type="hidden" name="respostas" value={respostasJson} />
+														<button
+															type="submit"
+															class="btn preset-filled-primary-500 flex-1 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 flex items-center justify-center gap-2"
+															disabled={salvandoResposta}
+														>
+															{#if salvandoResposta}<Spinner size="sm" />{/if}
+															{salvandoResposta
+																? 'Processando...'
+																: escalaSelecionada.equipeRespondida
+																	? 'Salvar Alterações'
+																	: 'Finalizar Entrega do Relatório'}
+														</button>
+													</form>
 												</div>
 											{/if}
 										</div>

@@ -103,6 +103,10 @@
 
 <svelte:head>
 	<title>Escalas de Plantão Policial</title>
+	<meta name="description" content="Portal de Gestão de Escalas e Relatórios GISE - Polícia Civil." />
+	<meta property="og:title" content="Escalas PC-CE" />
+	<meta property="og:description" content="Acompanhe escalas de plantão e documente relatórios de inteligência na plataforma unificada da Polícia Civil." />
+	<meta property="og:type" content="website" />
 </svelte:head>
 
 <!-- Navigation progress bar -->

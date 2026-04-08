@@ -1,36 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
 	import Spinner from '$lib/components/Spinner.svelte';
-
-	/** Parse resposta de Form Action SvelteKit (array compactado ou objeto) */
-	function parseFormResponse(
-		raw: Record<string, unknown> | undefined
-	): Record<string, unknown> | undefined {
-		if (raw?.type === 'success') {
-			// O SvelteKit envia data como string JSON
-			let arr: unknown[] | null = null;
-			if (typeof raw.data === 'string') {
-				try {
-					arr = JSON.parse(raw.data);
-				} catch {
-					/* ignore */
-				}
-			} else if (Array.isArray(raw.data)) {
-				arr = raw.data;
-			}
-			if (arr && arr.length > 0 && typeof arr[0] === 'object' && !Array.isArray(arr[0])) {
-				const keyMap = arr[0] as Record<string, number>;
-				const obj: Record<string, unknown> = {};
-				for (const [key, idx] of Object.entries(keyMap)) {
-					obj[key] = arr[idx];
-				}
-				return obj;
-			}
-		}
-		return raw as Record<string, unknown> | undefined;
-	}
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let matricula = $state('');
@@ -49,126 +22,75 @@
 	let matriculaPrimeiroAcesso = $state('');
 	let primeiroAcessoEnviado = $state(false);
 
-	async function login(e: Event) {
-		e.preventDefault();
-
-		const parsed = loginSchema.safeParse({ matricula, senha, tipo });
+	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
+		const parsed = loginSchema.safeParse({
+			matricula: formData.get('matricula'),
+			senha: formData.get('senha'),
+			tipo: formData.get('tipo')
+		});
 		if (!parsed.success) {
 			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			cancel();
 			return;
 		}
-
 		loading = true;
-		try {
-			const fd = new FormData();
-			fd.set('matricula', matricula);
-			fd.set('senha', senha);
-			fd.set('tipo', tipo);
-
-			console.log('[login] Enviando request...');
-			const resp = await fetch('?/login', { method: 'POST', body: fd });
-			console.log('[login] Response status:', resp.status);
-			const raw = (await resp.json()) as Record<string, unknown> | undefined;
-			console.log('[login] Raw response:', raw);
-
-			// SvelteKit serializa sucesso como array compacto:
-			// [{keyMap}, val1, val2, ...] → converter para objeto
-			const data = parseFormResponse(raw);
-			console.log('[login] Parsed data:', data);
-
-			if (!resp.ok) {
-				toaster.create({
-					title: (data?.error as string) || 'Credenciais inválidas',
-					type: 'error'
-				});
-				return;
-			}
-
-			if (data?.pendente2FA) {
-				desafioId = (data.desafioId as string) || '';
-				tipoUsuario2FA = (data.tipoUsuario2FA as 'policial' | 'admin') || tipo;
-				emailMascarado = (data.emailMascarado as string) || '';
-				pendente2FA = true;
-				toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
-			} else if (data?.redirect) {
-				goto(data.redirect as string, { invalidateAll: true });
-			} else {
-				toaster.create({ title: 'Resposta inesperada do servidor', type: 'error' });
-			}
-		} catch (err) {
-			console.error('[login] Erro:', err);
-			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
-		} finally {
+		return async ({ result }: { result: any }) => {
 			loading = false;
-		}
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				if (d?.pendente2FA) {
+					desafioId = String(d.desafioId || '');
+					tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
+					emailMascarado = String(d.emailMascarado || '');
+					pendente2FA = true;
+					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
+				} else if (d?.redirect) {
+					goto(String(d.redirect), { invalidateAll: true });
+				}
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Credenciais inválidas'), type: 'error' });
+			}
+		};
 	}
 
-	async function verificar2FA(e: Event) {
-		e.preventDefault();
+	function handleVerificar2FA({ cancel }: { cancel: () => void }) {
 		if (codigo2FA.length !== 6) {
 			toaster.create({ title: 'Informe o código de 6 dígitos', type: 'error' });
+			cancel();
 			return;
 		}
-
 		loading = true;
-		try {
-			const fd = new FormData();
-			fd.set('desafioId', desafioId);
-			fd.set('codigo', codigo2FA);
-
-			const resp = await fetch('?/verificar2FA', { method: 'POST', body: fd });
-			const raw = (await resp.json()) as Record<string, unknown> | undefined;
-			const data = parseFormResponse(raw);
-
-			if (!resp.ok) {
-				toaster.create({ title: (data?.error as string) || 'Código inválido', type: 'error' });
-				if (data?.expirado || data?.esgotado) {
-					voltarLogin();
-				}
-				return;
-			}
-
-			if (data?.redirect) {
-				goto(data.redirect as string, { invalidateAll: true });
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
-		} finally {
+		return async ({ result }: { result: any }) => {
 			loading = false;
-		}
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				if (d?.redirect) goto(String(d.redirect), { invalidateAll: true });
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Código inválido'), type: 'error' });
+				if (d?.expirado || d?.esgotado) voltarLogin();
+			}
+		};
+	}
+
+	function handlePrimeiroAcesso() {
+		loading = true;
+		return async ({ result }: { result: any }) => {
+			loading = false;
+			if (result.type === 'success') {
+				primeiroAcessoEnviado = true;
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao processar solicitação.'), type: 'error' });
+			}
+		};
 	}
 
 	function voltarLogin() {
 		pendente2FA = false;
 		desafioId = '';
 		codigo2FA = '';
-	}
-
-	async function solicitarPrimeiroAcesso(e: Event) {
-		e.preventDefault();
-		if (!matriculaPrimeiroAcesso.trim()) return;
-		loading = true;
-		try {
-			const fd = new FormData();
-			fd.set('matricula', matriculaPrimeiroAcesso.trim());
-
-			const resp = await fetch('?/solicitarPrimeiroAcesso', { method: 'POST', body: fd });
-			const raw = (await resp.json()) as Record<string, unknown> | undefined;
-			const data = parseFormResponse(raw);
-
-			if (!resp.ok) {
-				toaster.create({
-					title: (data?.error as string) || 'Erro ao processar solicitação.',
-					type: 'error'
-				});
-			} else {
-				primeiroAcessoEnviado = true;
-			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão. Verifique sua rede.', type: 'error' });
-		} finally {
-			loading = false;
-		}
 	}
 
 	function voltarParaLogin() {
@@ -220,12 +142,14 @@
 				</button>
 			</div>
 
-			<form onsubmit={login} class="flex flex-col gap-6">
+			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-6">
+				<input type="hidden" name="tipo" value={tipo} />
 				<label class="label">
 					<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 					<input
 						class="input"
 						type="text"
+						name="matricula"
 						bind:value={matricula}
 						placeholder={tipo === 'admin'
 							? 'Digite seu login'
@@ -240,6 +164,7 @@
 					<input
 						class="input"
 						type="password"
+						name="senha"
 						bind:value={senha}
 						placeholder="Digite sua senha"
 						required
@@ -280,12 +205,13 @@
 						Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
 					</p>
 				</div>
-				<form onsubmit={solicitarPrimeiroAcesso} class="flex flex-col gap-5">
+				<form method="POST" action="?/solicitarPrimeiroAcesso" use:enhance={handlePrimeiroAcesso} class="flex flex-col gap-5">
 					<label class="label">
 						<span class="label-text">Matrícula</span>
 						<input
 							class="input"
 							type="text"
+							name="matricula"
 							bind:value={matriculaPrimeiroAcesso}
 							placeholder="Digite sua matrícula"
 							maxlength="8"
@@ -332,12 +258,14 @@
 				</p>
 			</div>
 
-			<form onsubmit={verificar2FA} class="flex flex-col gap-5">
+			<form method="POST" action="?/verificar2FA" use:enhance={handleVerificar2FA} class="flex flex-col gap-5">
+				<input type="hidden" name="desafioId" value={desafioId} />
 				<label class="label">
 					<span class="label-text text-center block">Código de verificação</span>
 					<input
 						class="input text-center text-3xl font-bold tracking-[0.4em] py-3"
 						type="text"
+						name="codigo"
 						value={codigo2FA}
 						oninput={(e) => (codigo2FA = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 						placeholder="000000"

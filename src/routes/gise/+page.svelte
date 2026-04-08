@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -45,43 +46,33 @@
 		showCriarModal = true;
 	}
 
-	async function criarGise() {
+	function handleCriarGise({ cancel }: any) {
 		if (!novaHoraEntrada || !novaHoraSaida) {
 			toaster.error({ title: 'Preencha os horários' });
+			cancel();
 			return;
 		}
 		if (!validarHora(novaHoraEntrada) || !validarHora(novaHoraSaida)) {
-			toaster.error({
-				title: 'Formato inválido',
-				description: 'Use o formato HH:MM, ex: 08:00'
-			});
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 08:00' });
+			cancel();
 			return;
 		}
 		criando = true;
-		try {
-			const fd = new FormData();
-			fd.set('data_inicio', novaDataInicio);
-			fd.set('data_fim', novaDataFim || novaDataInicio);
-			fd.set('hora_entrada', novaHoraEntrada);
-			fd.set('hora_saida', novaHoraSaida);
-			fd.set('modo', modoCriacao);
-			if (modoCriacao === 'clonada' && clonarDeId) {
-				fd.set('clonar_de', String(clonarDeId));
-			}
-			const res = await fetch('?/criar', { method: 'POST', body: fd });
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error ?? 'Erro ao criar GISE');
-			const count = json.count ?? 1;
-			const primeiroId = json.ids?.[0] ?? json.id;
-			toaster.success({ title: `${count} escala(s) GISE criada(s)` });
-			showCriarModal = false;
-			await invalidateAll();
-			if (primeiroId) goto(`/gise/${primeiroId}?edit=true`);
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			criando = false;
-		}
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				const count = (d.count as number) ?? 1;
+				const primeiroId = (d.ids as number[])?.[0] ?? (d.id as number);
+				toaster.success({ title: `${count} escala(s) GISE criada(s)` });
+				showCriarModal = false;
+				await invalidateAll();
+				if (primeiroId) goto(`/gise/${primeiroId}?edit=true`);
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao criar GISE' });
+			}
+		};
 	}
 
 	function statusLabel(status: string): string {
@@ -412,14 +403,24 @@
 				>
 					Cancelar
 				</button>
-				<button
-					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-					onclick={criarGise}
-					disabled={criando || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
-				>
-					{#if criando}<Spinner size="sm" />{/if}
-					{criando ? 'Criando...' : 'Criar Escala'}
-				</button>
+				<form method="POST" action="?/criar" use:enhance={handleCriarGise} class="contents">
+					<input type="hidden" name="data_inicio" value={novaDataInicio} />
+					<input type="hidden" name="data_fim" value={novaDataFim || novaDataInicio} />
+					<input type="hidden" name="hora_entrada" value={novaHoraEntrada} />
+					<input type="hidden" name="hora_saida" value={novaHoraSaida} />
+					<input type="hidden" name="modo" value={modoCriacao} />
+					{#if modoCriacao === 'clonada' && clonarDeId}
+						<input type="hidden" name="clonar_de" value={clonarDeId} />
+					{/if}
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+						disabled={criando || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
+					>
+						{#if criando}<Spinner size="sm" />{/if}
+						{criando ? 'Criando...' : 'Criar Escala'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</div>

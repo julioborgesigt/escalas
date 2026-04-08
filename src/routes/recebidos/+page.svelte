@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -74,27 +75,23 @@
 
 	let togglingId = $state<number | null>(null);
 
-	async function toggleVisto(escala: EscalaListagem) {
-		if (togglingId === escala.id) return;
-		const novoStatus = !escala.visto_por_admin;
-		// Atualização otimista
-		escala.visto_por_admin = novoStatus ? 1 : 0;
-		togglingId = escala.id;
-		const fd = new FormData();
-		fd.set('escala_id', String(escala.id));
-		fd.set('visto', String(novoStatus));
-		try {
-			const resp = await fetch('?/toggleVisto', { method: 'POST', body: fd });
-			if (!resp.ok) {
-				escala.visto_por_admin = novoStatus ? 0 : 1;
-				toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
-			}
-		} catch {
-			escala.visto_por_admin = novoStatus ? 0 : 1;
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			togglingId = null;
-		}
+	function handleToggleVisto(escala: EscalaListagem) {
+		return function({ formData, cancel }: any) {
+			if (togglingId === escala.id) { cancel(); return; }
+			const novoStatus = !escala.visto_por_admin;
+			formData.set('visto', String(novoStatus));
+			escala.visto_por_admin = novoStatus ? 1 : 0;
+			togglingId = escala.id;
+			return async ({ result, update }: any) => {
+				togglingId = null;
+				if (result.type === 'success') {
+					await update({ reset: false });
+				} else {
+					escala.visto_por_admin = novoStatus ? 0 : 1;
+					toaster.create({ title: 'Erro ao atualizar status', type: 'error' });
+				}
+			};
+		};
 	}
 
 	let paginaAtual = $state(1);
@@ -152,26 +149,20 @@
 			mostrarApenasNaoVistos !== true
 	);
 
-	async function confirmarExclusao() {
-		if (!escalaParaExcluir) return;
+	function handleExcluir() {
 		excluindo = true;
-		const fd = new FormData();
-		fd.set('escala_id', String(escalaParaExcluir.id));
-		try {
-			const resp = await fetch('?/excluir', { method: 'POST', body: fd });
-			if (resp.ok) {
+		return async ({ result }: { result: any }) => {
+			excluindo = false;
+			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				escalas = escalas.filter((e) => e.id !== escalaParaExcluir!.id);
+				await invalidateAll();
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {
-				toaster.create({ title: 'Erro ao remover escala', type: 'error' });
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover escala'), type: 'error' });
 			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão', type: 'error' });
-		} finally {
-			excluindo = false;
-		}
+		};
 	}
 </script>
 
@@ -325,13 +316,16 @@
 								class={escala.visto_por_admin ? 'opacity-60 grayscale-[0.5]' : 'bg-primary-500/5'}
 							>
 								<td class="text-center">
-									<input
-										type="checkbox"
-										class="checkbox mx-auto"
-										disabled={togglingId === escala.id}
-										checked={!!escala.visto_por_admin}
-										onchange={() => toggleVisto(escala)}
-									/>
+									<form method="POST" action="?/toggleVisto" use:enhance={handleToggleVisto(escala)} class="contents">
+										<input type="hidden" name="escala_id" value={escala.id} />
+										<input
+											type="checkbox"
+											class="checkbox mx-auto"
+											disabled={togglingId === escala.id}
+											checked={!!escala.visto_por_admin}
+											onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
+										/>
+									</form>
 								</td>
 								<td class="font-bold text-sm text-center">{escala.lotacao}</td>
 								<td class="text-center">
@@ -481,13 +475,16 @@
 							</div>
 							<label class="flex flex-col items-center gap-1 shrink-0">
 								<span class="text-[10px] uppercase font-bold text-surface-500">Lida</span>
-								<input
-									type="checkbox"
-									class="checkbox checkbox-sm"
-									disabled={togglingId === escala.id}
-									checked={!!escala.visto_por_admin}
-									onchange={() => toggleVisto(escala)}
-								/>
+								<form method="POST" action="?/toggleVisto" use:enhance={handleToggleVisto(escala)} class="contents">
+									<input type="hidden" name="escala_id" value={escala.id} />
+									<input
+										type="checkbox"
+										class="checkbox checkbox-sm"
+										disabled={togglingId === escala.id}
+										checked={!!escala.visto_por_admin}
+										onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
+									/>
+								</form>
 							</label>
 						</div>
 
@@ -605,14 +602,13 @@
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
 					>Cancelar</Dialog.CloseTrigger
 				>
-				<button
-					class="btn preset-filled-error-500 flex items-center gap-2"
-					disabled={excluindo}
-					onclick={confirmarExclusao}
-				>
-					{#if excluindo}<Spinner size="sm" />{/if}
-					{excluindo ? 'Excluindo...' : 'Excluir'}
-				</button>
+				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
+						{#if excluindo}<Spinner size="sm" />{/if}
+						{excluindo ? 'Excluindo...' : 'Excluir'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</Dialog.Content>

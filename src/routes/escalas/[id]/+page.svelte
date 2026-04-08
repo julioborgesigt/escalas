@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { Policial, EscalaPolicialComDados, Escala } from '$lib/types';
@@ -126,119 +127,94 @@
 		addDatasSelecionadas = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala);
 	});
 
-	// ---- Actions via fetch ----
+	// ---- Computed for plantão form ----
+	const datasPlantaoJson = $derived(
+		JSON.stringify(
+			addDatasSelecionadas.map((d) => ({
+				data_plantao: d,
+				data_saida: calcularDataSaidaInicial(d, `${addHoraEntrada}:${addMinutoEntrada}`, `${addHoraSaida}:${addMinutoSaida}`)
+			}))
+		)
+	);
 
-	async function handleAdd(e: Event) {
-		e.preventDefault();
-		if (!policialId || !dataPlantao) return;
+	// ---- Actions via use:enhance ----
+
+	function handleAdd({ cancel }: { cancel: () => void }) {
+		if (!policialId) { cancel(); return; }
 		addingPending = true;
-		const ds = calcularDataSaidaInicial(dataPlantao, `${addHoraEntrada}:00`, `${addHoraSaida}:00`);
-		const fd = new FormData();
-		fd.set('policial_id', policialId);
-		fd.set('data_plantao', dataPlantao);
-		fd.set('hora_entrada', addHoraEntrada);
-		fd.set('hora_saida', addHoraSaida);
-		fd.set('equipe', addEquipe);
-		const resp = await fetch('?/adicionar', { method: 'POST', body: fd });
-		addingPending = false;
-		if (resp.ok) {
-			const d = await resp.json();
-			if (d.policiais) {
-				policiaisEscala.length = 0;
-				policiaisEscala.push(...d.policiais);
-			}
-			toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
-			cargoBusca = '';
-			policialId = '';
-		} else {
-			const d = await resp.json().catch(() => ({}));
-			toaster.create({ title: d.error || 'Erro ao adicionar', type: 'error' });
-		}
-	}
-
-	async function handlePlantao(e: Event) {
-		e.preventDefault();
-		if (!policialId || addDatasSelecionadas.length === 0) return;
-		plantaoPending = true;
-		const he = `${addHoraEntrada}:${addMinutoEntrada}`;
-		const hs = `${addHoraSaida}:${addMinutoSaida}`;
-		const datas = addDatasSelecionadas.map((d) => ({
-			data_plantao: d,
-			data_saida: calcularDataSaidaInicial(d, he, hs)
-		}));
-		const fd = new FormData();
-		fd.set('policial_id', policialId);
-		fd.set('hora_entrada', addHoraEntrada);
-		fd.set('hora_saida', addHoraSaida);
-		fd.set('equipe', addEquipe);
-		fd.set('datas', JSON.stringify(datas));
-		const resp = await fetch('?/adicionarPlantao', { method: 'POST', body: fd });
-		plantaoPending = false;
-		if (resp.ok) {
-			const d = await resp.json();
-			if (d.policiais) {
-				policiaisEscala.length = 0;
-				policiaisEscala.push(...d.policiais);
-			}
-			toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
-			cargoBusca = '';
-			policialId = '';
-			addPrimeiroPlantao = '';
-			addEquipe = '1';
-			addDatasSelecionadas = [];
-		} else {
-			const d = await resp.json().catch(() => ({}));
-			toaster.create({ title: d.error || 'Erro ao adicionar', type: 'error' });
-		}
-	}
-
-	async function handleAdicionarTodos() {
-		adicionarTodosPending = true;
-		const resp = await fetch('?/adicionarTodos', { method: 'POST', body: new FormData() });
-		adicionarTodosPending = false;
-		if (resp.ok) {
-			const d = await resp.json();
-			if (d.policiais) {
-				policiaisEscala.length = 0;
-				policiaisEscala.push(...d.policiais);
-			}
-			if (d.quantidade === 0)
-				toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
-			else toaster.create({ title: `${d.quantidade} servidor(es) adicionado(s)`, type: 'success' });
-		} else {
-			const d = await resp.json().catch(() => ({}));
-			toaster.create({ title: d.error || 'Erro', type: 'error' });
-		}
-	}
-
-	async function handleGerarProximoMes() {
-		gerarProximoMesPending = true;
-		const resp = await fetch('?/gerarProximoMes', { method: 'POST', body: new FormData() });
-		gerarProximoMesPending = false;
-		const d = await resp.json();
-		if (resp.ok) {
-			const tipo = escala?.tipo === 'plantao' ? 'Plantão' : 'Expediente';
-			if (d.nao_processados?.length > 0) {
-				const nomes = d.nao_processados.map((p: any) => p.nome).join(', ');
-				toaster.create({
-					title: `Escala gerada! ${d.adicionados} servidor(es).`,
-					description: `Não processados: ${nomes}`,
-					type: 'warning'
-				});
+		return async ({ result, update }: any) => {
+			addingPending = false;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
+				cargoBusca = '';
+				policialId = '';
+				await update({ reset: false });
 			} else {
-				toaster.create({
-					title: `Escala de ${tipo} do próximo mês criada!`,
-					description: `${d.adicionados} servidor(es).`,
-					type: 'success'
-				});
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
-			goto(`/escalas/${d.escala_id}`);
-		} else if (resp.status === 409 && d.escala_id) {
-			toaster.create({ title: d.error, description: 'Redirecionando...', type: 'warning' });
-			goto(`/escalas/${d.escala_id}`);
-		} else {
-			toaster.create({ title: d.error || 'Erro ao gerar próximo mês', type: 'error' });
-		}
+		};
+	}
+
+	function handlePlantao({ cancel }: { cancel: () => void }) {
+		if (!policialId || addDatasSelecionadas.length === 0) { cancel(); return; }
+		plantaoPending = true;
+		return async ({ result, update }: any) => {
+			plantaoPending = false;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
+				cargoBusca = '';
+				policialId = '';
+				addPrimeiroPlantao = '';
+				addEquipe = '1';
+				addDatasSelecionadas = [];
+				await update({ reset: false });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
+			}
+		};
+	}
+
+	function handleAdicionarTodos() {
+		adicionarTodosPending = true;
+		return async ({ result, update }: any) => {
+			adicionarTodosPending = false;
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				if (Number(d.quantidade) === 0)
+					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
+				else toaster.create({ title: `${d.quantidade} servidor(es) adicionado(s)`, type: 'success' });
+				await update({ reset: false });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
+			}
+		};
+	}
+
+	function handleGerarProximoMes() {
+		gerarProximoMesPending = true;
+		return async ({ result }: any) => {
+			gerarProximoMesPending = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				const tipo = escala?.tipo === 'plantao' ? 'Plantão' : 'Expediente';
+				const naoProcessados = (d?.nao_processados as any[]) || [];
+				if (naoProcessados.length > 0) {
+					const nomes = naoProcessados.map((p: any) => p.nome).join(', ');
+					toaster.create({ title: `Escala gerada! ${d?.adicionados} servidor(es).`, description: `Não processados: ${nomes}`, type: 'warning' });
+				} else {
+					toaster.create({ title: `Escala de ${tipo} do próximo mês criada!`, description: `${d?.adicionados} servidor(es).`, type: 'success' });
+				}
+				goto(`/escalas/${d?.escala_id}`);
+			} else if (result.type === 'failure' && d?.escala_id) {
+				toaster.create({ title: String(d.error), description: 'Redirecionando...', type: 'warning' });
+				goto(`/escalas/${d.escala_id}`);
+			} else {
+				toaster.create({ title: String(d?.error || 'Erro ao gerar próximo mês'), type: 'error' });
+			}
+		};
 	}
 
 	function startEdit(p: EscalaPolicialComDados) {
@@ -254,53 +230,36 @@
 		editObservacoes = p.observacoes || '';
 	}
 
-	async function handleSalvarEdicao(itemId: number) {
+	function handleEditar() {
 		editPending = true;
-		const fd = new FormData();
-		fd.set('item_id', String(itemId));
-		fd.set('data_plantao', editDataEntrada);
-		fd.set('data_saida', editDataSaida);
-		fd.set('hora_entrada', `${editHoraEntrada}:${editMinutoEntrada}`);
-		fd.set('hora_saida', `${editHoraSaida}:${editMinutoSaida}`);
-		fd.set('observacoes', editObservacoes);
-		const resp = await fetch('?/editar', { method: 'POST', body: fd });
-		editPending = false;
-		if (resp.ok) {
-			const d = await resp.json();
-			if (d.policiais) {
-				policiaisEscala.length = 0;
-				policiaisEscala.push(...d.policiais);
+		return async ({ result, update }: any) => {
+			editPending = false;
+			if (result.type === 'success') {
+				editingId = null;
+				await update({ reset: false });
+			} else {
+				toaster.create({ title: 'Erro ao salvar', type: 'error' });
 			}
-			editingId = null;
-		} else {
-			toaster.create({ title: 'Erro ao salvar', type: 'error' });
-		}
+		};
 	}
 
 	function solicitarRemocao(itemId: number, nome: string) {
 		confirmDialog.openDialog({ itemId, nome });
 	}
 
-	async function confirmarRemocao() {
-		const item = confirmDialog.currentItem;
-		if (!item) return;
+	function handleRemover() {
 		removendo = true;
-		const fd = new FormData();
-		fd.set('item_id', String(item.itemId));
-		const resp = await fetch('?/remover', { method: 'POST', body: fd });
-		removendo = false;
-		if (resp.ok) {
-			const d = await resp.json();
-			if (d.policiais) {
-				policiaisEscala.length = 0;
-				policiaisEscala.push(...d.policiais);
+		return async ({ result, update }: any) => {
+			removendo = false;
+			if (result.type === 'success') {
+				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido da escala`, type: 'success' });
+				confirmDialog.closeDialog();
+				await update({ reset: false });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
-			toaster.create({ title: `${item.nome} removido da escala`, type: 'success' });
-			confirmDialog.closeDialog();
-		} else {
-			const d = await resp.json().catch(() => ({}));
-			toaster.create({ title: d.error || 'Erro ao remover', type: 'error' });
-		}
+		};
 	}
 
 	// Agrupamentos
@@ -377,41 +336,6 @@
 		servidoresExpandidos = new Set(servidoresExpandidos);
 	}
 
-	async function toggleDiaServidor(grupo: any, dataISO: string) {
-		const itemExistente = grupo.itens.find((i: any) => i.data_plantao === dataISO);
-		if (itemExistente) {
-			const fd = new FormData();
-			fd.set('item_id', String(itemExistente.id));
-			const resp = await fetch('?/remover', { method: 'POST', body: fd });
-			if (resp.ok) {
-				const d = await resp.json();
-				if (d.policiais) {
-					policiaisEscala.length = 0;
-					policiaisEscala.push(...d.policiais);
-				}
-			}
-		} else {
-			const template = grupo.itens[0] || {};
-			const he = template.hora_entrada || escala?.hora_entrada || '08:00';
-			const hs = template.hora_saida || escala?.hora_saida || '08:00';
-			const ds = calcularDataSaidaInicial(dataISO, he, hs);
-			const fd = new FormData();
-			fd.set('policial_id', String(grupo.policial_id));
-			fd.set('data_plantao', dataISO);
-			fd.set('hora_entrada', String(he).split(':')[0]);
-			fd.set('hora_saida', String(hs).split(':')[0]);
-			fd.set('equipe', grupo.equipe || '');
-			const resp = await fetch('?/adicionar', { method: 'POST', body: fd });
-			if (resp.ok) {
-				const d = await resp.json();
-				if (d.policiais) {
-					policiaisEscala.length = 0;
-					policiaisEscala.push(...d.policiais);
-				}
-			}
-		}
-	}
-
 	function formatarDataPlantao(p: EscalaPolicialComDados): string {
 		const de = formatarData(p.data_plantao);
 		const ds = getDataSaida(p);
@@ -462,14 +386,13 @@
 					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={removendo}
 						>Cancelar</Dialog.CloseTrigger
 					>
-					<button
-						class="btn preset-filled-error-500"
-						disabled={removendo}
-						onclick={confirmarRemocao}
-					>
-						{#if removendo}<Spinner size="sm" />{/if}
-						{removendo ? 'Removendo...' : 'Remover'}
-					</button>
+					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
+						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
+						<button type="submit" class="btn preset-filled-error-500" disabled={removendo}>
+							{#if removendo}<Spinner size="sm" />{/if}
+							{removendo ? 'Removendo...' : 'Remover'}
+						</button>
+					</form>
 				</div>
 			</div>
 		</Dialog.Content>
@@ -489,14 +412,16 @@
 						ambos) da {escala.lotacao} que ainda não estão na escala.
 					</p>
 				</div>
-				<button
-					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
-					onclick={handleAdicionarTodos}
-					disabled={adicionarTodosPending}
-				>
-					{#if adicionarTodosPending}<Spinner size="md" />{/if}
-					{adicionarTodosPending ? 'Adicionando...' : '+ Adicionar Todos'}
-				</button>
+				<form method="POST" action="?/adicionarTodos" use:enhance={handleAdicionarTodos} class="contents">
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
+						disabled={adicionarTodosPending}
+					>
+						{#if adicionarTodosPending}<Spinner size="md" />{/if}
+						{adicionarTodosPending ? 'Adicionando...' : '+ Adicionar Todos'}
+					</button>
+				</form>
 			</div>
 		</div>
 	{/if}
@@ -519,14 +444,16 @@
 						{/if}
 					</p>
 				</div>
-				<button
-					class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
-					onclick={handleGerarProximoMes}
-					disabled={gerarProximoMesPending}
-				>
-					{#if gerarProximoMesPending}<Spinner size="md" />{/if}
-					{gerarProximoMesPending ? 'Gerando...' : 'Gerar Próximo Mês →'}
-				</button>
+				<form method="POST" action="?/gerarProximoMes" use:enhance={handleGerarProximoMes} class="contents">
+					<button
+						type="submit"
+						class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
+						disabled={gerarProximoMesPending}
+					>
+						{#if gerarProximoMesPending}<Spinner size="md" />{/if}
+						{gerarProximoMesPending ? 'Gerando...' : 'Gerar Próximo Mês →'}
+					</button>
+				</form>
 			</div>
 		</div>
 	{/if}
@@ -537,7 +464,8 @@
 		>
 			<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 			{#if escala.tipo === 'plantao'}
-				<form onsubmit={handlePlantao}>
+				<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
+					<input type="hidden" name="datas" value={datasPlantaoJson} />
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
 						<label class="label">
 							<span class="label-text">Cargo</span>
@@ -555,7 +483,7 @@
 						</label>
 						<label class="label">
 							<span class="label-text">Servidor</span>
-							<select class="select" bind:value={policialId} disabled={!cargoBusca}>
+							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
 								<option value="">Selecione...</option>
 								{#each policialsFiltrados as p (p.id)}
 									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
@@ -564,7 +492,7 @@
 						</label>
 						<label class="label"
 							><span class="label-text">Equipe</span>
-							<select class="select" bind:value={addEquipe}>
+							<select class="select" name="equipe" bind:value={addEquipe}>
 								{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
 							</select>
 						</label>
@@ -591,7 +519,7 @@
 						<div class="flex flex-col gap-1">
 							<span class="label-text text-xs">Hora Entrada</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" bind:value={addHoraEntrada}
+								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1" bind:value={addMinutoEntrada}
@@ -602,7 +530,7 @@
 						<div class="flex flex-col gap-1">
 							<span class="label-text text-xs">Hora Saída</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" bind:value={addHoraSaida}
+								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1" bind:value={addMinutoSaida}
@@ -642,7 +570,7 @@
 					</button>
 				</form>
 			{:else}
-				<form onsubmit={handleAdd}>
+				<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
 						<label class="label">
 							<span class="label-text">Cargo</span>
@@ -660,7 +588,7 @@
 						</label>
 						<label class="label">
 							<span class="label-text">Servidor</span>
-							<select class="select" bind:value={policialId} disabled={!cargoBusca}>
+							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
 								<option value="">Selecione...</option>
 								{#each policialsFiltrados as p (p.id)}
 									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
@@ -671,6 +599,7 @@
 							><span class="label-text">Data</span>
 							<input
 								type="date"
+								name="data_plantao"
 								class="input"
 								bind:value={dataPlantao}
 								min={escala.data_inicio}
@@ -680,7 +609,7 @@
 						</label>
 						<label class="label"
 							><span class="label-text">Equipe</span>
-							<select class="select" bind:value={addEquipe}>
+							<select class="select" name="equipe" bind:value={addEquipe}>
 								{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
 							</select>
 						</label>
@@ -689,7 +618,7 @@
 						<div class="flex-1">
 							<span class="label-text text-xs">Hora Entrada</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" bind:value={addHoraEntrada}
+								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								><select class="select flex-1" bind:value={addMinutoEntrada}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
@@ -699,7 +628,7 @@
 						<div class="flex-1">
 							<span class="label-text text-xs">Hora Saída</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" bind:value={addHoraSaida}
+								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								><select class="select flex-1" bind:value={addMinutoSaida}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
@@ -767,21 +696,26 @@
 											bind:value={editObservacoes}
 											placeholder="Obs."
 										/>
-										<div class="flex gap-2">
+										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
+											<input type="hidden" name="item_id" value={editingId} />
+											<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
+											<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+											<input type="hidden" name="data_plantao" value={editDataEntrada} />
+											<input type="hidden" name="data_saida" value={editDataSaida} />
+											<input type="hidden" name="observacoes" value={editObservacoes} />
 											<button
+												type="submit"
 												class="btn btn-sm preset-filled-primary-500"
-												onclick={() => handleSalvarEdicao(p.id)}
 												disabled={editPending}
 											>
 												{#if editPending}<Spinner size="xs" />{/if}Salvar
 											</button>
 											<button
+												type="button"
 												class="btn btn-sm preset-outlined-surface"
-												onclick={() => {
-													editingId = null;
-												}}>Cancelar</button
+												onclick={() => { editingId = null; }}>Cancelar</button
 											>
-										</div>
+										</form>
 									</div>
 								{:else}
 									<div class="flex-1 min-w-0">
