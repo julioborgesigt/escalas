@@ -6,7 +6,6 @@
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { initWebPKI, listarCertificados } from '$lib/webpki';
-	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, useMobile } from '$lib/composables';
 
 	let { data } = $props();
@@ -158,15 +157,14 @@
 	async function salvarModelo() {
 		salvandoModelo = true;
 		try {
-			const res = await fetch('/api/gise/modelo', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					config: perguntasConfig,
-					tipo: configTipo
-				})
-			});
-			if (!res.ok) throw new Error('Erro ao salvar modelo');
+			const fd = new FormData();
+			fd.set('config', JSON.stringify(perguntasConfig));
+			fd.set('tipo', configTipo);
+
+			const resp = await fetch('?/salvarModelo', { method: 'POST', body: fd });
+			const result = (await resp.json()) as Record<string, unknown> | undefined;
+
+			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
 			toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
 			await invalidateAll();
 		} catch (e: any) {
