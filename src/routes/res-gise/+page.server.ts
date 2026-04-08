@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario } from '$lib/db';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
@@ -413,5 +413,28 @@ export const actions: Actions = {
 		}
 
 		return { success: true, giseId };
+	},
+
+	salvarModelo: async ({ request, locals, platform }) => {
+		const u = locals.usuario;
+		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Somente administradores gerais' });
+
+		const formData = await request.formData();
+		const configStr = formData.get('config') as string;
+		const tipo = formData.get('tipo') as 'operacional' | 'seint';
+
+		if (!configStr || !tipo || !['operacional', 'seint'].includes(tipo)) {
+			return fail(400, { error: 'Dados inválidos' });
+		}
+
+		try {
+			JSON.parse(configStr); // Validate JSON
+		} catch {
+			return fail(400, { error: 'Configuração JSON inválida' });
+		}
+
+		const db = getDB(platform);
+		await salvarGiseModeloFormulario(db, tipo, configStr);
+		return { success: true };
 	}
 };
