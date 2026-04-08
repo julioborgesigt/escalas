@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { enhance } from '$app/forms';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -66,7 +67,7 @@
 			// Remove the flag from URL to avoid re-activating on refresh
 			const url = new URL(page.url);
 			url.searchParams.delete('edit');
-			window.history.replaceState({}, '', url.toString());
+			replaceState(url, {});
 		}
 	});
 	let showModalDataHoras = $state(false);
@@ -87,8 +88,13 @@
 	let unidadeOperacionalId = $state<number | null>(null);
 	let editandoUnidade = $state(false);
 
-	// Gerenciamento de seccionais (Admin Geral)
-	let seccionaisDisponiveis = $state<any[]>([]);
+	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
+	const seccionaisDisponiveis = $derived(
+		todasUnidades.filter(
+			(u: any) =>
+				u.tipo === 'seccional' && !gise?.seccionais.some((s: any) => s.seccional_id === u.id)
+		)
+	);
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 
@@ -130,186 +136,150 @@
 		);
 	}
 
-	async function salvarSupervisores() {
+	function handleSalvarSupervisores() {
 		salvando = true;
-		try {
-			const fd = new FormData();
-			if (supervisorId !== null) fd.set('supervisor_id', String(supervisorId));
-
-			const resp = await fetch('?/salvarSupervisores', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			toaster.success({ title: 'Supervisor salvo' });
-			editandoSupervisores = false;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
-	}
-
-	async function salvarUnidadeOperacional(secId: number) {
-		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-			if (unidadeOperacionalId !== null)
-				fd.set('unidade_operacional_id', String(unidadeOperacionalId));
-
-			const resp = await fetch('?/salvarUnidadeOperacional', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			toaster.success({ title: 'Unidade operacional salva' });
-			editandoUnidade = false;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			salvando = false;
-		}
-	}
-
-	async function buscarSeccionaisDisponiveis() {
-		try {
-			const res = await fetch(`/api/gise/${gise.id}/seccionais`);
-			if (res.ok) {
-				seccionaisDisponiveis = await res.json();
-				adicionandoSeccional = true;
+			if (result.type === 'success') {
+				toaster.success({ title: 'Supervisor salvo' });
+				editandoSupervisores = false;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
-		} catch (e) {
-			toaster.error({ title: 'Erro ao buscar seccionais' });
-		}
+		};
 	}
 
-	async function adicionarSeccional() {
-		if (seccionalParaAdicionarIdx === '') return;
+	function handleSalvarUnidadeOperacional() {
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('seccionalId', String(seccionalParaAdicionarIdx));
-
-			const resp = await fetch('?/adicionarSeccional', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
-			toaster.success({ title: 'Seccional adicionada' });
-			adicionandoSeccional = false;
-			seccionalParaAdicionarIdx = '';
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Unidade operacional salva' });
+				editandoUnidade = false;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
+			}
+		};
 	}
 
-	async function removerSeccional(secId: number) {
+	function handleAdicionarSeccional({ cancel }: any) {
+		if (seccionalParaAdicionarIdx === '') { cancel(); return; }
+		salvando = true;
+		return async ({ result }: any) => {
+			salvando = false;
+			if (result.type === 'success') {
+				toaster.success({ title: 'Seccional adicionada' });
+				adicionandoSeccional = false;
+				seccionalParaAdicionarIdx = '';
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
+			}
+		};
+	}
+
+	function handleRemoverSeccional({ cancel }: any) {
 		if (
 			!confirm(
 				'Tem certeza que deseja remover esta seccional da escala? Todos os policiais escalados nela serão removidos.'
 			)
-		)
+		) {
+			cancel();
 			return;
-		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-
-			const resp = await fetch('?/removerSeccional', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao remover');
-			toaster.success({ title: 'Seccional removida' });
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			salvando = false;
 		}
+		salvando = true;
+		return async ({ result }: any) => {
+			salvando = false;
+			if (result.type === 'success') {
+				toaster.success({ title: 'Seccional removida' });
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: String(d?.error || 'Erro ao remover') });
+			}
+		};
 	}
 
-	async function adicionarMembro(secId: number) {
-		if (!equipeParaAdicionar || !policialParaAdicionar) return;
-		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-			fd.set('equipe_id', String(equipeParaAdicionar));
-			fd.set('policial_id', String(policialParaAdicionar));
+	function handleAdicionarMembro() {
+		return async ({ result }: { result: any }) => {
+			if (result.type === 'success') {
+				toaster.success({ title: 'Membro adicionado' });
+				equipeParaAdicionar = null;
+				policialParaAdicionar = '';
+				cargoParaAdicionar = null;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
+			}
+		};
+	}
 
-			const resp = await fetch('?/adicionarMembro', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
+	function handleRemoverMembro() {
+		return async ({ result }: { result: any }) => {
+			if (result.type === 'success') {
+				removendoMembroId = null;
+				toaster.success({ title: 'Membro removido' });
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
+			}
+		};
+	}
 
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
-			toaster.success({ title: 'Membro adicionado' });
-			equipeParaAdicionar = null;
-			policialParaAdicionar = '';
-			cargoParaAdicionar = null;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			salvando = false;
-		}
+	function handleRemoverEquipe() {
+		return async ({ result }: { result: any }) => {
+			if (result.type === 'success') {
+				toaster.success({ title: 'Equipe removida' });
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
+			}
+			removendoEquipeId = null;
+		};
 	}
 
 	let removendoMembroId = $state<number | null>(null);
 
-	async function removerMembro(memId: number) {
-		if (removendoMembroId === memId) return;
-		removendoMembroId = memId;
-		try {
-			const fd = new FormData();
-			fd.set('memId', String(memId));
-
-			const resp = await fetch('?/removerMembro', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao remover');
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			removendoMembroId = null;
-		}
-	}
-
-	async function finalizarSeccional(secId: number) {
+	function handleFinalizarSeccional() {
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-
-			const resp = await fetch('?/finalizarSeccional', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao finalizar');
-			const giseStatus = result?.gise_status as string | undefined;
-			if (giseStatus === 'aguardando_assinatura') {
-				toaster.success({
-					title: 'Todas as seccionais finalizadas!',
-					description: 'Escala aguardando assinatura do Supervisor.'
-				});
-			} else {
-				toaster.success({
-					title: 'Seccional finalizada',
-					description: 'Aguardando demais seccionais.'
-				});
-			}
-			modoEdicaoSeccional = false;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				if (d?.gise_status === 'aguardando_assinatura') {
+					toaster.success({ title: 'Todas as seccionais finalizadas!', description: 'Escala aguardando assinatura do Supervisor.' });
+				} else {
+					toaster.success({ title: 'Seccional finalizada', description: 'Aguardando demais seccionais.' });
+				}
+				modoEdicaoSeccional = false;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
+			}
+		};
 	}
 
 	// Documento assinado
-	let documentoAssinadoInfo = $state<any>(null);
+	const documentoAssinadoInfo = $derived(
+		gise?.documento
+			? {
+					existe: true,
+					assinante_nome: gise.documento.assinante_nome,
+					assinante_cpf: gise.documento.assinante_cpf ?? '',
+					data: gise.documento.created_at,
+					verificacao_hash: gise.documento.verificacao_hash
+				}
+			: null
+	);
 	let assinandoSimples = $state(false);
 	// SERPRO — usado pelo bloco de assinatura em LOTE de relatórios
 	let etapaAssinatura = $state('');
@@ -332,16 +302,6 @@
 	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
 
-	$effect(() => {
-		if (gise?.id) {
-			fetch(`/api/gise/${gise.id}/documento-assinado/info`)
-				.then((r) => (r.ok ? r.json() : null))
-				.then((info) => {
-					documentoAssinadoInfo = info?.existe ? info : null;
-				})
-				.catch(() => {});
-		}
-	});
 
 	function abrirModalRubrica(tipo: 'simples' | 'serpro') {
 		tipoAssinaturaPendente = tipo;
@@ -422,64 +382,48 @@
 		}
 	}
 
-	async function finalizarGise() {
+	function handleFinalizarGise() {
 		finalizando = true;
-		try {
-			const fd = new FormData();
-
-			const resp = await fetch('?/finalizarGise', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao finalizar');
-			toaster.success({ title: 'Escala finalizada!' });
-			showFinalizarConfirm = false;
-			goto('/gise');
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			finalizando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Escala finalizada!' });
+				showFinalizarConfirm = false;
+				goto('/gise');
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
+			}
+		};
 	}
 
-	async function salvarSlotsEquipe(equipeId: number) {
+	function handleSalvarSlotsEquipe() {
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('equipeId', String(equipeId));
-			fd.set('slots_dpc', String(editSlotsDpc));
-			fd.set('slots_oip', String(editSlotsOip));
-
-			const resp = await fetch('?/salvarSlotsEquipe', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao atualizar');
-			toaster.success({ title: 'Vagas atualizadas' });
-			editandoEquipe = null;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Vagas atualizadas' });
+				editandoEquipe = null;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao atualizar' });
+			}
+		};
 	}
 
-	async function solicitarAssinatura() {
+	function handleSolicitarAssinatura() {
 		salvando = true;
-		try {
-			const resp = await fetch('?/solicitarAssinatura', { method: 'POST', body: new FormData() });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao enviar');
-			toaster.success({
-				title: 'Edição finalizada',
-				description: 'Escala enviada para assinatura do Supervisor.'
-			});
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Edição finalizada', description: 'Escala enviada para assinatura do Supervisor.' });
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
+			}
+		};
 	}
 
 	// Relatórios extraordinários pendentes de assinatura
@@ -698,24 +642,19 @@
 		}
 	}
 
-	async function reabrirEscala() {
+	function handleReabrirEscala() {
 		reabrindo = true;
-		try {
-			const resp = await fetch('?/reabrirEscala', { method: 'POST', body: new FormData() });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao reabrir');
-			toaster.success({
-				title: 'Escala reaberta',
-				description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
-			});
-			showReabrirConfirm = false;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			reabrindo = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Escala reaberta', description: 'A assinatura foi revogada. A escala pode ser editada novamente.' });
+				showReabrirConfirm = false;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
+			}
+		};
 	}
 
 	async function abrirEdicaoDatasHorarios() {
@@ -725,45 +664,35 @@
 		showModalDataHoras = true;
 	}
 
-	async function salvarDatasHorarios() {
+	function handleSalvarDatasHorarios({ cancel }: any) {
 		const horas = [editHoraEntrada, editHoraSaida];
 		if (horas.some((h) => !h)) {
 			toaster.error({ title: 'Preencha todos os horários' });
+			cancel();
 			return;
 		}
 		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({
-				title: 'Formato inválido',
-				description: 'Use o formato HH:MM, ex: 14:00'
-			});
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			cancel();
 			return;
 		}
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('data_inicio', editDataInicio);
-			fd.set('hora_entrada', normalizarHora(editHoraEntrada) ?? '');
-			fd.set('hora_saida', normalizarHora(editHoraSaida) ?? '');
-
-			const resp = await fetch('?/salvarDatasHorarios', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			if (result?.assinatura_revogada) {
-				toaster.warning({
-					title: 'Datas/horários atualizados',
-					description: 'A assinatura digital foi revogada. Será necessário assinar novamente.'
-				});
-			} else {
-				toaster.success({ title: 'Datas/horários atualizados' });
-			}
-			showModalDataHoras = false;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				const d = result.data as Record<string, unknown>;
+				if (d?.assinatura_revogada) {
+					toaster.warning({ title: 'Datas/horários atualizados', description: 'A assinatura digital foi revogada. Será necessário assinar novamente.' });
+				} else {
+					toaster.success({ title: 'Datas/horários atualizados' });
+				}
+				showModalDataHoras = false;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
+			}
+		};
 	}
 
 	function normalizarHora(v: string): string | null {
@@ -776,104 +705,76 @@
 		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
 	}
 
-	async function salvarHorariosSec(secId: number) {
+	function handleSalvarHorariosSec({ cancel }: any) {
 		const horas = [editSecHoraEnt, editSecHoraSai].filter(Boolean);
 		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({
-				title: 'Formato inválido',
-				description: 'Use o formato HH:MM, ex: 14:00'
-			});
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			cancel();
 			return;
 		}
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-			fd.set('hora_entrada', normalizarHora(editSecHoraEnt) ?? '');
-			fd.set('hora_saida', normalizarHora(editSecHoraSai) ?? '');
-
-			const resp = await fetch('?/salvarHorariosSec', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			toaster.success({ title: 'Horários da seccional atualizados' });
-			editandoHorariosSecId = null;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Horários da seccional atualizados' });
+				editandoHorariosSecId = null;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
+			}
+		};
 	}
 
-	async function salvarHorariosEquipe(eqId: number) {
+	function handleSalvarHorariosEquipe({ cancel }: any) {
 		const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
 		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({
-				title: 'Formato inválido',
-				description: 'Use o formato HH:MM, ex: 14:00'
-			});
+			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
+			cancel();
 			return;
 		}
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('eqId', String(eqId));
-			fd.set('hora_entrada', normalizarHora(editEqHoraEnt) ?? '');
-			fd.set('hora_saida', normalizarHora(editEqHoraSai) ?? '');
-
-			const resp = await fetch('?/salvarHorariosEquipe', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao salvar');
-			toaster.success({ title: 'Horários da equipe atualizados' });
-			editandoHorariosEquipeId = null;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Horários da equipe atualizados' });
+				editandoHorariosEquipeId = null;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
+			}
+		};
 	}
 
-	async function excluirGise() {
+	function handleExcluirGise() {
 		excluindo = true;
-		try {
-			const resp = await fetch('?/excluirGise', { method: 'POST', body: new FormData() });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao excluir');
-			toaster.success({ title: 'Escala GISE excluída' });
-			showExcluirGiseConfirm = false;
-			goto('/gise');
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			excluindo = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Escala GISE excluída' });
+				showExcluirGiseConfirm = false;
+				goto('/gise');
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao excluir' });
+			}
+		};
 	}
 
-	async function adicionarEquipe(secId: number) {
+	function handleAdicionarEquipe() {
 		salvando = true;
-		try {
-			const fd = new FormData();
-			fd.set('secId', String(secId));
-			fd.set('tipo', novaEquipeTipo);
-			fd.set('slots_dpc', String(novaEquipeDpc));
-			fd.set('slots_oip', String(novaEquipeOip));
-
-			const resp = await fetch('?/adicionarEquipe', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) throw new Error((result?.error as string) || 'Erro ao adicionar');
-			toaster.success({ title: 'Equipe adicionada' });
-			adicionandoEquipeSec = null;
-			await invalidateAll();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
+		return async ({ result }: any) => {
 			salvando = false;
-		}
+			if (result.type === 'success') {
+				toaster.success({ title: 'Equipe adicionada' });
+				adicionandoEquipeSec = null;
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
+			}
+		};
 	}
 
 	const podeFinalizar = $derived(
@@ -972,13 +873,11 @@
 					{modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala'}
 				</button>
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
-					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap"
-						onclick={solicitarAssinatura}
-						disabled={salvando || modoEdicaoGeral}
-					>
-						{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
-					</button>
+					<form method="POST" action="?/solicitarAssinatura" use:enhance={handleSolicitarAssinatura} class="contents">
+						<button type="submit" class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap" disabled={salvando || modoEdicaoGeral}>
+							{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
+						</button>
+					</form>
 				{/if}
 				<button
 					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
@@ -1046,22 +945,16 @@
 						{/each}
 					</select>
 				</div>
-				<div class="flex gap-2">
-					<button
-						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
-						onclick={salvarSupervisores}
-						disabled={salvando}
-					>
+				<form method="POST" action="?/salvarSupervisores" use:enhance={handleSalvarSupervisores} class="flex gap-2">
+					<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+					<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg" disabled={salvando}>
 						{#if salvando}<Spinner size="sm" />{/if}
 						{salvando ? 'Salvando...' : 'Salvar'}
 					</button>
-					<button
-						class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
-						onclick={() => (editandoSupervisores = false)}
-					>
+					<button type="button" class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg" onclick={() => (editandoSupervisores = false)}>
 						Cancelar
 					</button>
-				</div>
+				</form>
 			{:else}
 				<div
 					class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700"
@@ -1511,11 +1404,14 @@
 												: 'border-surface-300 dark:border-surface-600'}"
 											bind:value={editSecHoraSai}
 										/>
+										<form method="POST" action="?/salvarHorariosSec" use:enhance={handleSalvarHorariosSec} class="contents">
+											<input type="hidden" name="secId" value={sec.id} />
+											<input type="hidden" name="hora_entrada" value={normalizarHora(editSecHoraEnt) ?? ''} />
+											<input type="hidden" name="hora_saida" value={normalizarHora(editSecHoraSai) ?? ''} />
+											<button type="submit" class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded">✓</button>
+										</form>
 										<button
-											class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
-											onclick={() => salvarHorariosSec(sec.id)}>✓</button
-										>
-										<button
+											type="button"
 											class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded"
 											onclick={() => (editandoHorariosSecId = null)}>×</button
 										>
@@ -1557,26 +1453,29 @@
 							</div>
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-								<button
-									class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-									onclick={() => removerSeccional(sec.id)}
-									disabled={salvando}
-									title="Excluir seccional desta escala"
-								>
-									{#if salvando}
-										<Spinner size="xs" />
-									{:else}
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-											/></svg
-										>
-									{/if}
-									Excluir
-								</button>
+								<form method="POST" action="?/removerSeccional" use:enhance={handleRemoverSeccional} class="contents">
+									<input type="hidden" name="secId" value={sec.id} />
+									<button
+										type="submit"
+										class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+										disabled={salvando}
+										title="Excluir seccional desta escala"
+									>
+										{#if salvando}
+											<Spinner size="xs" />
+										{:else}
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+												/></svg
+											>
+										{/if}
+										Excluir
+									</button>
+								</form>
 							{/if}
 						</div>
 
@@ -1688,9 +1587,11 @@
 											onclick={() => (modoEdicaoSeccional = true)}>Editar Escala</button
 										>
 									{:else}
+										<form method="POST" action="?/finalizarSeccional" use:enhance={handleFinalizarSeccional} class="contents">
+										<input type="hidden" name="secId" value={sec.id} />
 										<button
+											type="submit"
 											class="text-sm btn preset-filled-success-500 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-											onclick={() => finalizarSeccional(sec.id)}
 											disabled={salvando ||
 												!sec.unidade_operacional_id ||
 												!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
@@ -1707,6 +1608,7 @@
 													? 'Confirmar retificação'
 													: 'Finalizar envio'}
 										</button>
+									</form>
 
 										{#if modoEdicaoSeccional}
 											<button
@@ -1758,24 +1660,19 @@
 													<option value={u.id}>{u.nome}</option>
 												{/each}
 											</select>
-											<div class="flex gap-2 shrink-0">
-												<button
-													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
-													onclick={() => salvarUnidadeOperacional(sec.id)}
-													disabled={salvando}
-												>
+											<form method="POST" action="?/salvarUnidadeOperacional" use:enhance={handleSalvarUnidadeOperacional} class="flex gap-2 shrink-0">
+												<input type="hidden" name="secId" value={sec.id} />
+												<input type="hidden" name="unidade_operacional_id" value={unidadeOperacionalId ?? ''} />
+												<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5" disabled={salvando}>
 													{#if salvando}<Spinner size="xs" />{/if}
 													{salvando ? 'Salvando...' : 'Salvar'}
 												</button>
 												{#if sec.unidade_operacional_nome}
-													<button
-														class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl"
-														onclick={() => (editandoUnidade = false)}
-													>
+													<button type="button" class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl" onclick={() => (editandoUnidade = false)}>
 														Cancelar
 													</button>
 												{/if}
-											</div>
+											</form>
 										</div>
 									{/if}
 								</div>
@@ -1822,15 +1719,16 @@
 														bind:value={editSlotsOip}
 														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 													/>
+													<form method="POST" action="?/salvarSlotsEquipe" use:enhance={handleSalvarSlotsEquipe} class="contents">
+														<input type="hidden" name="equipeId" value={equipe.id} />
+														<input type="hidden" name="slots_dpc" value={editSlotsDpc} />
+														<input type="hidden" name="slots_oip" value={editSlotsOip} />
+														<button type="submit" class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5" disabled={salvando}>
+															{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Salvando...' : 'Salvar'}
+														</button>
+													</form>
 													<button
-														class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5"
-														onclick={() => salvarSlotsEquipe(equipe.id)}
-														disabled={salvando}
-														>{#if salvando}<Spinner size="xs" />{/if}{salvando
-															? 'Salvando...'
-															: 'Salvar'}</button
-													>
-													<button
+														type="button"
 														class="btn preset-outlined-surface text-sm px-2 py-1 rounded-lg"
 														onclick={() => (editandoEquipe = null)}>×</button
 													>
@@ -1861,11 +1759,14 @@
 																: 'border-surface-300 dark:border-surface-600'}"
 															bind:value={editEqHoraSai}
 														/>
+														<form method="POST" action="?/salvarHorariosEquipe" use:enhance={handleSalvarHorariosEquipe} class="contents">
+															<input type="hidden" name="eqId" value={equipe.id} />
+															<input type="hidden" name="hora_entrada" value={normalizarHora(editEqHoraEnt) ?? ''} />
+															<input type="hidden" name="hora_saida" value={normalizarHora(editEqHoraSai) ?? ''} />
+															<button type="submit" class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded">✓</button>
+														</form>
 														<button
-															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
-															onclick={() => salvarHorariosEquipe(equipe.id)}>✓</button
-														>
-														<button
+															type="button"
 															class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded"
 															onclick={() => (editandoHorariosEquipeId = null)}>×</button
 														>
@@ -1945,32 +1846,21 @@
 											{/if}
 										</div>
 										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-											<button
-												class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-												disabled={removendoEquipeId === equipe.id}
-												onclick={async () => {
-													removendoEquipeId = equipe.id;
-													try {
-														const fd = new FormData();
-														fd.set('equipeId', String(equipe.id));
-														const r = await fetch('?/removerEquipe', { method: 'POST', body: fd });
-														const result = (await r.json()) as Record | undefined;
-														if (r.ok) {
-															toaster.success({ title: 'Equipe removida' });
-															await invalidateAll();
-														} else {
-															toaster.error({
-																title: (result?.error as string) || 'Erro ao remover'
-															});
-														}
-													} finally {
-														removendoEquipeId = null;
-													}
-												}}
+											<form
+												method="POST"
+												action="?/removerEquipe"
+												use:enhance={handleRemoverEquipe}
 											>
-												{#if removendoEquipeId === equipe.id}<Spinner size="sm" />{/if}
-												{removendoEquipeId === equipe.id ? 'Removendo...' : 'Remover equipe'}
-											</button>
+												<input type="hidden" name="equipeId" value={equipe.id} />
+												<button
+													type="submit"
+													class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+													disabled={removendoEquipeId === equipe.id}
+												>
+													{#if removendoEquipeId === equipe.id}<Spinner size="sm" />{/if}
+													{removendoEquipeId === equipe.id ? 'Removendo...' : 'Remover equipe'}
+												</button>
+											</form>
 										{/if}
 									</div>
 
@@ -2002,13 +1892,20 @@
 														{/if}
 													</div>
 													{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
-														<button
-															class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation"
-															disabled={removendoMembroId === m.id}
-															onclick={() => removerMembro(m.id)}
+														<form
+															method="POST"
+															action="?/removerMembro"
+															use:enhance={handleRemoverMembro}
 														>
-															{#if removendoMembroId === m.id}<Spinner size="xs" />{:else}×{/if}
-														</button>
+															<input type="hidden" name="memId" value={m.id} />
+															<button
+																type="submit"
+																class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation"
+																disabled={removendoMembroId === m.id}
+															>
+																{#if removendoMembroId === m.id}<Spinner size="xs" />{:else}×{/if}
+															</button>
+														</form>
 													{/if}
 												</div>
 											{/each}
@@ -2020,32 +1917,42 @@
 									<!-- Adicionar membro -->
 									{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
 										{#if equipeParaAdicionar === equipe.id}
-											<div class="flex flex-wrap gap-2 items-end">
-												<div class="flex-1 min-w-32">
-													<select
-														bind:value={policialParaAdicionar}
-														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+											<form
+												method="POST"
+												action="?/adicionarMembro"
+												use:enhance={handleAdicionarMembro}
+											>
+												<input type="hidden" name="secId" value={sec.id} />
+												<input type="hidden" name="equipe_id" value={equipeParaAdicionar} />
+												<input type="hidden" name="policial_id" value={policialParaAdicionar} />
+												<div class="flex flex-wrap gap-2 items-end">
+													<div class="flex-1 min-w-32">
+														<select
+															bind:value={policialParaAdicionar}
+															class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+														>
+															<option value="">Selecionar {cargoParaAdicionar}...</option>
+															{#each policiais.filter((p: any) => p.cargo === cargoParaAdicionar) as p}
+																<option value={p.id}>{p.nome} ({p.matricula})</option>
+															{/each}
+														</select>
+													</div>
+													<button
+														type="submit"
+														class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
+														disabled={!policialParaAdicionar || salvando}>Adicionar</button
 													>
-														<option value="">Selecionar {cargoParaAdicionar}...</option>
-														{#each policiais.filter((p: any) => p.cargo === cargoParaAdicionar) as p}
-															<option value={p.id}>{p.nome} ({p.matricula})</option>
-														{/each}
-													</select>
+													<button
+														type="button"
+														class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
+														onclick={() => {
+															equipeParaAdicionar = null;
+															policialParaAdicionar = '';
+															cargoParaAdicionar = null;
+														}}>×</button
+													>
 												</div>
-												<button
-													class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
-													onclick={() => adicionarMembro(sec.id)}
-													disabled={!policialParaAdicionar || salvando}>Adicionar</button
-												>
-												<button
-													class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
-													onclick={() => {
-														equipeParaAdicionar = null;
-														policialParaAdicionar = '';
-														cargoParaAdicionar = null;
-													}}>×</button
-												>
-											</div>
+											</form>
 										{:else}
 											<div class="flex flex-wrap gap-2">
 												<button
@@ -2160,15 +2067,17 @@
 												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 											/>
 										</div>
+										<form method="POST" action="?/adicionarEquipe" use:enhance={handleAdicionarEquipe} class="contents">
+											<input type="hidden" name="secId" value={sec.id} />
+											<input type="hidden" name="tipo" value={novaEquipeTipo} />
+											<input type="hidden" name="slots_dpc" value={novaEquipeDpc} />
+											<input type="hidden" name="slots_oip" value={novaEquipeOip} />
+											<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5" disabled={salvando}>
+												{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Adicionando...' : 'Adicionar'}
+											</button>
+										</form>
 										<button
-											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-											onclick={() => adicionarEquipe(sec.id)}
-											disabled={salvando}
-											>{#if salvando}<Spinner size="xs" />{/if}{salvando
-												? 'Adicionando...'
-												: 'Adicionar'}</button
-										>
-										<button
+											type="button"
 											class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
 											onclick={() => (adicionandoEquipeSec = null)}>Cancelar</button
 										>
@@ -2222,26 +2131,28 @@
 								{/each}
 							</select>
 						</div>
-						<div class="flex gap-2">
+						<form method="POST" action="?/adicionarSeccional" use:enhance={handleAdicionarSeccional} class="flex gap-2">
+							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
+								type="submit"
 								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-								onclick={adicionarSeccional}
 								disabled={!seccionalParaAdicionarIdx || salvando}
 							>
 								{salvando ? 'Adicionando...' : 'Confirmar'}
 							</button>
 							<button
+								type="button"
 								class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 								onclick={() => (adicionandoSeccional = false)}
 							>
 								Cancelar
 							</button>
-						</div>
+						</form>
 					</div>
 				{:else}
 					<button
 						class="btn preset-outlined-primary-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
-						onclick={buscarSeccionaisDisponiveis}
+						onclick={() => (adicionandoSeccional = true)}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
@@ -2341,17 +2252,19 @@
 			</div>
 			<div class="flex justify-end gap-3">
 				<button
+					type="button"
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 					onclick={() => (showModalDataHoras = false)}>Cancelar</button
 				>
-				<button
-					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
-					onclick={salvarDatasHorarios}
-					disabled={salvando}
-				>
-					{#if salvando}<Spinner size="sm" />{/if}
-					{salvando ? 'Salvando...' : 'Salvar'}
-				</button>
+				<form method="POST" action="?/salvarDatasHorarios" use:enhance={handleSalvarDatasHorarios} class="contents">
+					<input type="hidden" name="data_inicio" value={editDataInicio} />
+					<input type="hidden" name="hora_entrada" value={normalizarHora(editHoraEntrada) ?? ''} />
+					<input type="hidden" name="hora_saida" value={normalizarHora(editHoraSaida) ?? ''} />
+					<button type="submit" class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2" disabled={salvando}>
+						{#if salvando}<Spinner size="sm" />{/if}
+						{salvando ? 'Salvando...' : 'Salvar'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</div>
@@ -2369,18 +2282,13 @@
 				permanentemente removidos, incluindo equipes, membros e assinatura digital.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button
-				>
-				<button
-					class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
-					onclick={excluirGise}
-					disabled={excluindo}
-				>
-					{#if excluindo}<Spinner size="sm" />{/if}
-					{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
-				</button>
+				<button type="button" class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button>
+				<form method="POST" action="?/excluirGise" use:enhance={handleExcluirGise} class="contents">
+					<button type="submit" class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl" disabled={excluindo}>
+						{#if excluindo}<Spinner size="sm" />{/if}
+						{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</div>
@@ -2398,20 +2306,13 @@
 				novamente.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showReabrirConfirm = false)}
-				>
-					Cancelar
-				</button>
-				<button
-					class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
-					onclick={reabrirEscala}
-					disabled={reabrindo}
-				>
-					{#if reabrindo}<Spinner size="sm" />{/if}
-					{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
-				</button>
+				<button type="button" class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showReabrirConfirm = false)}>Cancelar</button>
+				<form method="POST" action="?/reabrirEscala" use:enhance={handleReabrirEscala} class="contents">
+					<button type="submit" class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl" disabled={reabrindo}>
+						{#if reabrindo}<Spinner size="sm" />{/if}
+						{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</div>
@@ -2435,16 +2336,19 @@
 			</div>
 
 			<div class="pt-2">
-				<button
-					class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
-					onclick={() => finalizarGise()}
-					disabled={finalizando}
-				>
-					{#if finalizando}<Spinner size="sm" />{/if}
-					Finalizar Agora
-				</button>
+				<form method="POST" action="?/finalizarGise" use:enhance={handleFinalizarGise} class="contents">
+					<button
+						type="submit"
+						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
+						disabled={finalizando}
+					>
+						{#if finalizando}<Spinner size="sm" />{/if}
+						Finalizar Agora
+					</button>
+				</form>
 
 				<button
+					type="button"
 					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
 					onclick={() => (showFinalizarConfirm = false)}
 					disabled={finalizando}

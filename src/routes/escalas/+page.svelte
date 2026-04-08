@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
+	import { untrack } from 'svelte';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
@@ -26,17 +27,17 @@
 	const unidades = $derived(data.unidades as Unidade[]);
 
 	// Paginação — usa dados do server, mas permite navegação local
-	let paginaAtual = $state(data.pagination.page);
+	let paginaAtual = $state(untrack(() => data.pagination.page));
 
 	// Filtros — inicializa com valores do server ou localStorage
-	let filtroLotacao = $state(data.filtros.lotacao || savedFilters.lotacao);
-	let filtroMes = $state(data.filtros.mes || savedFilters.mes);
-	let filtroAno = $state(data.filtros.ano || savedFilters.ano);
-	let filtroTipo = $state(data.filtros.tipo || savedFilters.tipo);
+	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
+	let filtroMes = $state(untrack(() => data.filtros.mes || savedFilters.mes));
+	let filtroAno = $state(untrack(() => data.filtros.ano || savedFilters.ano));
+	let filtroTipo = $state(untrack(() => data.filtros.tipo || savedFilters.tipo));
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
-	let filtroBusca = $state(data.filtros.busca || savedFilters.busca);
+	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
 	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
@@ -174,25 +175,21 @@
 			filtroTipo !== 'todos'
 	);
 
-	// Handler para exclusao via form action
-	async function handleExcluirEscalada(e: Event) {
-		const formData = new FormData();
-		formData.set('escala_id', String(escalaParaExcluir!.id));
-		const resp = await fetch('?/excluir', {
-			method: 'POST',
-			body: formData
-		});
-		if (resp.ok) {
-			toaster.create({
-				title: `Escala de ${escalaParaExcluir!.titulo} removida`,
-				type: 'success'
-			});
-			dialogOpen = false;
-			escalaParaExcluir = null;
-			await invalidateAll();
-		} else {
-			toaster.create({ title: 'Erro ao remover', type: 'error' });
-		}
+	let excluindo = $state(false);
+
+	function handleExcluir() {
+		excluindo = true;
+		return async ({ result }: { result: any }) => {
+			excluindo = false;
+			if (result.type === 'success') {
+				toaster.create({ title: `Escala de ${escalaParaExcluir!.titulo} removida`, type: 'success' });
+				dialogOpen = false;
+				escalaParaExcluir = null;
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+			}
+		};
 	}
 </script>
 
@@ -225,13 +222,14 @@
 				ser desfeita.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-				<button
-					class="btn preset-filled-error-500 flex items-center gap-2"
-					onclick={handleExcluirEscalada}
-				>
-					Excluir
-				</button>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
+				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
+						{#if excluindo}<Spinner size="sm" />{/if}
+						{excluindo ? 'Excluindo...' : 'Excluir'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</Dialog.Content>

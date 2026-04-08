@@ -12,41 +12,32 @@
 		total: number;
 	} | null>(null);
 
+	import { enhance } from '$app/forms';
+
 	function onFileChange(e: Event) {
 		const input = e.target as HTMLInputElement;
 		file = input.files?.[0] || null;
 		result = null;
 	}
 
-	async function upload(e: Event) {
-		e.preventDefault();
+	function handleUpload() {
 		if (!file) return;
 
 		uploading = true;
 		result = null;
 
-		try {
-			const formData = new FormData();
-			formData.append('file', file);
-
-			const res = await fetch('/api/policiais/upload', {
-				method: 'POST',
-				headers: csrfHeaders(),
-				body: formData
-			});
-
-			const data = await res.json();
-
-			if (res.ok) {
-				result = data;
-				toaster.create({ title: `${data.imported} policial${data.imported !== 1 ? 'is' : ''} importado${data.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
+		return async ({ result: actionResult }: { result: any }) => {
+			uploading = false;
+			if (actionResult.type === 'success') {
+				result = actionResult.data as any;
+				toaster.create({ title: `${result?.imported} policial${result?.imported !== 1 ? 'is' : ''} importado${result?.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
+			} else if (actionResult.type === 'failure') {
+				const d = actionResult.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro desconhecido ao processar o arquivo.'), type: 'error' });
 			} else {
-				toaster.create({ title: data.error || 'Erro desconhecido ao processar o arquivo.', type: 'error' });
+				toaster.create({ title: 'Ocorreu um erro no servidor ao processar o arquivo.', type: 'error' });
 			}
-		} catch {
-			toaster.create({ title: 'Erro de conexão. Verifique sua internet e tente novamente.', type: 'error' });
-		}
-		uploading = false;
+		};
 	}
 </script>
 
@@ -149,10 +140,10 @@
 		</div>
 	{/if}
 
-	<form onsubmit={upload} class="space-y-4">
+	<form method="POST" action="?/upload" use:enhance={handleUpload} enctype="multipart/form-data" class="space-y-4">
 		<label class="label">
 			<span class="label-text">Arquivo (.xlsx, .xls, .ods, .csv)</span>
-			<input class="input" type="file" accept=".xlsx,.xls,.ods,.csv" onchange={onFileChange} required />
+			<input name="file" class="input" type="file" accept=".xlsx,.xls,.ods,.csv" onchange={onFileChange} required />
 		</label>
 		<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={uploading || !file}>
 			{#if uploading}<Spinner size="md" />{/if}

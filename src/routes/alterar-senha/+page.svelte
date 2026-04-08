@@ -20,43 +20,35 @@
 	const senhaOk      = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
 	const confirmaOk   = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
 
-	async function alterar(e: Event) {
-		e.preventDefault();
+	import { enhance } from '$app/forms';
+
+	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';
 
 		if (novaSenha !== confirmarSenha) {
 			error = 'As senhas não conferem.';
+			cancel();
 			return;
 		}
 
 		const parsed = alterarSenhaSchema.safeParse({ nova_senha: novaSenha, senha_atual: senhaAtual || undefined });
 		if (!parsed.success) {
 			error = parsed.error.issues[0].message;
+			cancel();
 			return;
 		}
 
 		loading = true;
 
-		const body: Record<string, string> = { nova_senha: novaSenha };
-		if (!primeiroAcesso) {
-			body.senha_atual = senhaAtual;
-		}
-
-		const res = await fetch('/api/auth/alterar-senha', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-			body: JSON.stringify(body)
-		});
-
-		const data = await res.json();
-
-		if (!res.ok) {
-			error = data.error;
+		return async ({ result }: { result: any }) => {
 			loading = false;
-			return;
-		}
-
-		goto('/');
+			if (result.type === 'success') {
+				goto('/');
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				error = String(d?.error || 'Erro ao alterar a senha.');
+			}
+		};
 	}
 </script>
 
@@ -108,7 +100,7 @@
 			{/if}
 
 			<!-- Form -->
-			<form onsubmit={alterar} class="flex flex-col gap-4">
+			<form method="POST" action="?/alterar" use:enhance={handleAlterarSenha} class="flex flex-col gap-4">
 
 				{#if !primeiroAcesso}
 					<label class="label">
@@ -116,6 +108,7 @@
 						<input
 							class="input"
 							type="password"
+							name="senha_atual"
 							bind:value={senhaAtual}
 							placeholder="••••••••"
 							required
@@ -128,6 +121,7 @@
 					<input
 						class="input"
 						type="password"
+						name="nova_senha"
 						bind:value={novaSenha}
 						placeholder="••••••••"
 						required

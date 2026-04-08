@@ -16,11 +16,9 @@
 
 	// Track pending state locally
 	let enviando = $state(false);
-	const handleForm: any = () => ({
-		onSubmit: () => {
-			enviando = true;
-		},
-		onUpdate({ result }: { result: any }) {
+	function handleForm({ formData }: { formData: FormData }) {
+		enviando = true;
+		return async ({ result }: { result: any }) => {
 			enviando = false;
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {
@@ -29,10 +27,10 @@
 			} else if (result.type === 'failure' && d?.error) {
 				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		}
-	});
+		};
+	}
 
-	const isAdmin: boolean = data.isAdmin;
+	const isAdmin = $derived(data.isAdmin as boolean);
 	const unidadesComRegime: UnidadeRegime[] = $derived(data.unidadesComRegime);
 	const lotacoes: string[] = $derived(data.lotacoes);
 

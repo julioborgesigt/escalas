@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const busca = url.searchParams.get('busca') || undefined;
 	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
 
-	const skipLoad = isAdmin && !lotacaoParam;
+	const skipLoad = isAdmin && !lotacaoParam && !busca;
 
 	const [resultado, unidades] = await Promise.all([
 		skipLoad

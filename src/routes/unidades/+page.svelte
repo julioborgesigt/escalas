@@ -36,13 +36,6 @@
 		}
 	});
 
-	function filtrarUnidades() {
-		const params = new URLSearchParams();
-		if (filtroSeccional !== 'todas') params.set('seccional', String(filtroSeccional));
-		if (filtroBusca) params.set('busca', filtroBusca);
-		// Para unidades, filtros sao apenas locais (localStorage), nao URL
-	}
-
 	const unidadesFiltradas = $derived(
 		unidades.filter((u) => {
 			if (filtroSeccional !== 'todas') {
@@ -141,24 +134,19 @@
 		editCidade = '';
 	}
 
-	async function salvarEdicao(id: number) {
-		if (!editNome.trim()) return;
+	function handleEditar() {
 		salvandoEdicao = true;
-		const formData = new FormData();
-		formData.set('id', String(id));
-		formData.set('nome', editNome.trim());
-		formData.set('tipo', editTipo);
-		formData.set('seccional_id', String(editSeccionalId ?? ''));
-		formData.set('tem_plantao', editTemPlantao ? 'on' : '');
-		formData.set('tem_expediente', editTemExpediente ? 'on' : '');
-		formData.set('tem_fds', editTemFds ? 'on' : '');
-		formData.set('cidade', editCidade);
-		const resp = await fetch('?/editar', { method: 'POST', body: formData });
-		salvandoEdicao = false;
-		if (!resp.ok) {
-			const data = await resp.json().catch(() => ({}));
-			toaster.create({ title: data.error || 'Erro ao atualizar unidade', type: 'error' });
-		}
+		return async ({ result }: { result: any }) => {
+			salvandoEdicao = false;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
+				await invalidateAll();
+				cancelarEdicao();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
+			}
+		};
 	}
 
 	function mudarSeccional() {
@@ -170,26 +158,20 @@
 		dialogOpen = true;
 	}
 
-	async function confirmarExclusao() {
-		if (!unidadeParaExcluir) return;
-		const formData = new FormData();
-		formData.set('unidade_id', String(unidadeParaExcluir.id));
-		const resp = await fetch('?/excluir', {
-			method: 'POST',
-			body: formData
-		});
-		if (resp.ok) {
-			toaster.create({
-				title: `Unidade "${unidadeParaExcluir.nome}" removida com sucesso`,
-				type: 'success'
-			});
-			dialogOpen = false;
-			unidadeParaExcluir = null;
-			await invalidateAll();
-		} else {
-			const data = await resp.json().catch(() => ({}));
-			toaster.create({ title: data.error || 'Erro ao remover unidade', type: 'error' });
-		}
+	function handleExcluir() {
+		excluindo = true;
+		return async ({ result }: { result: any }) => {
+			excluindo = false;
+			if (result.type === 'success') {
+				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
+				await invalidateAll();
+				dialogOpen = false;
+				unidadeParaExcluir = null;
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover unidade'), type: 'error' });
+			}
+		};
 	}
 
 	function limparFiltros() {
@@ -198,11 +180,9 @@
 	}
 
 	let cadastroPending = $state(false);
-	const handleCadastro: any = () => ({
-		onSubmit: () => {
-			cadastroPending = true;
-		},
-		onUpdate({ result }: { result: any }) {
+	function handleCadastro({ formData }: { formData: FormData }) {
+		cadastroPending = true;
+		return async ({ result }: { result: any }) => {
 			cadastroPending = false;
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
@@ -216,12 +196,12 @@
 				novoTemExpediente = false;
 				novoTemFds = false;
 				cadastroOpen = false;
-				invalidateAll();
+				await invalidateAll();
 			} else if (result.type === 'failure' && d?.error) {
 				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		}
-	});
+		};
+	}
 
 	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
@@ -307,14 +287,13 @@
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
 					>Cancelar</Dialog.CloseTrigger
 				>
-				<button
-					class="btn preset-filled-error-500 flex items-center gap-2"
-					disabled={excluindo}
-					onclick={confirmarExclusao}
-				>
-					{#if excluindo}<Spinner size="sm" />{/if}
-					{excluindo ? 'Excluindo...' : 'Excluir'}
-				</button>
+				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
+					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
+						{#if excluindo}<Spinner size="sm" />{/if}
+						{excluindo ? 'Excluindo...' : 'Excluir'}
+					</button>
+				</form>
 			</div>
 		</div>
 	</Dialog.Content>
@@ -564,7 +543,6 @@
 											type="text"
 											bind:value={editNome}
 											onkeydown={(e) => {
-												if (e.key === 'Enter') salvarEdicao(u.id);
 												if (e.key === 'Escape') cancelarEdicao();
 											}}
 										/>
@@ -631,19 +609,27 @@
 							{#if isAdmin}
 								<td>
 									{#if editandoId === u.id}
-										<div class="flex gap-2">
+										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
+											<input type="hidden" name="id" value={editandoId} />
+											<input type="hidden" name="nome" value={editNome} />
+											<input type="hidden" name="tipo" value={editTipo} />
+											<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
+											<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
+											<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+											<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
+											<input type="hidden" name="cidade" value={editCidade} />
 											<button
+												type="submit"
 												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
-												onclick={() => salvarEdicao(u.id)}
 												disabled={salvandoEdicao || !editNome.trim()}
 											>
 												{#if salvandoEdicao}<Spinner size="xs" />{/if}
 												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 											</button>
-											<button class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
+											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
 												>Cancelar</button
 											>
-										</div>
+										</form>
 									{:else}
 										<div class="flex gap-2">
 											<button
@@ -713,19 +699,27 @@
 									</datalist>
 								</div>
 							</div>
-							<div class="flex gap-2">
+							<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
+								<input type="hidden" name="id" value={editandoId} />
+								<input type="hidden" name="nome" value={editNome} />
+								<input type="hidden" name="tipo" value={editTipo} />
+								<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
+								<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
+								<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+								<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
+								<input type="hidden" name="cidade" value={editCidade} />
 								<button
+									type="submit"
 									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
-									onclick={() => salvarEdicao(u.id)}
 									disabled={salvandoEdicao || !editNome.trim()}
 								>
 									{#if salvandoEdicao}<Spinner size="xs" />{/if}
 									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 								</button>
-								<button class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
+								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
 									>Cancelar</button
 								>
-							</div>
+							</form>
 						</div>
 					{:else}
 						<div class="flex items-center justify-between gap-3">

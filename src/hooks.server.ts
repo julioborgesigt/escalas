@@ -50,7 +50,7 @@ export function buildCSP(isHTML: boolean): string {
 	}
 
 	// Em desenvolvimento, permitir hot-module-reloading do Vite
-	const isDev = process.env.NODE_ENV !== 'production';
+	const isDev = !import.meta.env.PROD;
 	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
 	const connectExtra = isDev ? ' http://localhost:*' : '';
 
