@@ -180,7 +180,8 @@
 		if (filtroCargo) params.set('cargo', filtroCargo);
 		if (filtroBusca) params.set('busca', filtroBusca);
 		params.set('page', '1');
-		window.location.search = params.toString();
+		const query = params.toString();
+		goto(`?${query}`, { keepFocus: true, noScroll: true });
 	}
 
 	function solicitarExclusao(id: number, nome: string) {

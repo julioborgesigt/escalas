@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import { useMultiSelect, useCharts } from '$lib/composables';
 	import {
 		mapQuestions,
@@ -156,7 +156,8 @@
 		}
 	});
 
-	onMount(async () => {
+	$effect(async () => {
+		// Initial chart render on mount — ensures charts are drawn before user scrolls
 		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
 		if (parsedData.length > 0 && allReady) {
 			await updateChartsFn(parsedData);

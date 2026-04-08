@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
@@ -60,10 +61,10 @@
 	// Modo Edição Geral (Admin Geral)
 	let modoEdicaoGeral = $state(false);
 	$effect(() => {
-		const url = new URL(window.location.href);
-		if (url.searchParams.get('edit') === 'true') {
+		if (page.url.searchParams.get('edit') === 'true') {
 			modoEdicaoGeral = true;
 			// Remove the flag from URL to avoid re-activating on refresh
+			const url = new URL(page.url);
 			url.searchParams.delete('edit');
 			window.history.replaceState({}, '', url.toString());
 		}
@@ -893,11 +894,6 @@
 				gise?.status === 'finalizada')
 	);
 
-	function downloadGise(format: string) {
-		if (!gise) return;
-		window.open(`/api/gise/${gise.id}/download?format=${format}`, '_blank');
-	}
-
 	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
 </script>
 
@@ -957,12 +953,13 @@
 
 		<div class="flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
 			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
-				<button
-					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap"
-					onclick={() => downloadGise('xlsx')}
+				<a
+					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap no-underline"
+					href={`/api/gise/${gise.id}/download?format=xlsx`}
+					target="_blank"
 				>
 					Baixar XLSX
-				</button>
+				</a>
 			{/if}
 			{#if isAdminGeral && gise}
 				<button
@@ -1594,14 +1591,12 @@
 										a.tipo === 'extraordinario'
 								)}
 								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
-									<button
-										class="btn preset-tonal-success w-full sm:w-auto justify-center"
-										onclick={() =>
-											window.open(
-												`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}`,
-												'_blank'
-											)}
-										disabled={!sec.temRespostas}
+									<a
+										class="btn preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
+											? 'pointer-events-none opacity-60'
+											: 'no-underline'}"
+										href={`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}`}
+										target="_blank"
 										title={!sec.temRespostas
 											? 'Aguardando preenchimento do formulário'
 											: 'Baixar Resultados de Produtividade'}
@@ -1625,20 +1620,20 @@
 												>(aguardando)</span
 											>
 										{/if}
-									</button>
+									</a>
 
 									<div class="flex flex-col gap-2 w-full sm:w-auto">
-										<button
-											class="btn text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-60 dark:disabled:opacity-40 disabled:grayscale-[0.5] w-full {assRel
+										<a
+											class="btn text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all {!(
+												checkAllSigned(sec) &&
+												(assRel || isAdminGeral || isSeccional || isSupervisor)
+											)
+												? 'pointer-events-none opacity-60'
+												: 'no-underline'} {assRel
 												? 'preset-filled-primary-500'
 												: 'preset-tonal-primary'}"
-											onclick={() =>
-												window.open(
-													`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`,
-													'_blank'
-												)}
-											disabled={!checkAllSigned(sec) ||
-												(!assRel && !(isAdminGeral || isSeccional || isSupervisor))}
+											href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
+											target="_blank"
 											title={!checkAllSigned(sec)
 												? getFaltandoRubrica(sec)
 												: assRel
@@ -1664,7 +1659,7 @@
 													>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
 												>
 											{/if}
-										</button>
+										</a>
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
 											{#if isMobile}
 												<button
@@ -1959,7 +1954,7 @@
 														const fd = new FormData();
 														fd.set('equipeId', String(equipe.id));
 														const r = await fetch('?/removerEquipe', { method: 'POST', body: fd });
-														const result = (await r.json()) as Record<string, unknown> | undefined;
+														const result = (await r.json()) as Record | undefined;
 														if (r.ok) {
 															toaster.success({ title: 'Equipe removida' });
 															await invalidateAll();

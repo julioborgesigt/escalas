@@ -110,7 +110,8 @@
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
 		params.set('page', '1');
-		window.location.search = params.toString();
+		const query = params.toString();
+		goto(`?${query}`, { keepFocus: true, noScroll: true });
 	}
 
 	function limparFiltros() {
@@ -438,10 +439,10 @@
 													class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
 												>
 													{#if esc.is_assinada}
-														<button
-															class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2"
-															onclick={() =>
-																window.open(`/api/escalas/${esc.id}/documento-assinado`, '_blank')}
+														<a
+															class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
+															href={`/api/escalas/${esc.id}/documento-assinado`}
+															target="_blank"
 														>
 															<svg
 																class="w-4 h-4"
@@ -456,38 +457,33 @@
 																/></svg
 															>
 															PDF Oficial
-														</button>
+														</a>
 														<hr class="opacity-10 my-1" />
 													{/if}
-													<button
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-														onclick={() =>
-															window.open(`/api/escalas/${esc.id}/download?format=docx`, '_blank')}
-														>Word (.docx)</button
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=docx`}
+														target="_blank">Word (.docx)</a
 													>
-													<button
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-														onclick={() =>
-															window.open(`/api/escalas/${esc.id}/download?format=odt`, '_blank')}
-														>ODT (.odt)</button
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=odt`}
+														target="_blank">ODT (.odt)</a
 													>
-													<button
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-														onclick={() =>
-															window.open(`/api/escalas/${esc.id}/download?format=excel`, '_blank')}
-														>Excel (.xlsx)</button
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=excel`}
+														target="_blank">Excel (.xlsx)</a
 													>
-													<button
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-														onclick={() =>
-															window.open(`/api/escalas/${esc.id}/download?format=ods`, '_blank')}
-														>ODS (.ods)</button
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=ods`}
+														target="_blank">ODS (.ods)</a
 													>
-													<button
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-														onclick={() =>
-															window.open(`/api/escalas/${esc.id}/download?format=pdf`, '_blank')}
-														>PDF (.pdf)</button
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=pdf`}
+														target="_blank">PDF (.pdf)</a
 													>
 												</Popover.Content>
 											</Popover.Positioner>
@@ -584,10 +580,10 @@
 										class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
 									>
 										{#if esc.is_assinada}
-											<button
-												class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2"
-												onclick={() =>
-													window.open(`/api/escalas/${esc.id}/documento-assinado`, '_blank')}
+											<a
+												class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
+												href={`/api/escalas/${esc.id}/documento-assinado`}
+												target="_blank"
 											>
 												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 													><path
@@ -598,38 +594,33 @@
 													/></svg
 												>
 												PDF Oficial
-											</button>
+											</a>
 											<hr class="opacity-10 my-1" />
 										{/if}
-										<button
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-											onclick={() =>
-												window.open(`/api/escalas/${esc.id}/download?format=docx`, '_blank')}
-											>Word (.docx)</button
+										<a
+											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+											href={`/api/escalas/${esc.id}/download?format=docx`}
+											target="_blank">Word (.docx)</a
 										>
-										<button
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-											onclick={() =>
-												window.open(`/api/escalas/${esc.id}/download?format=odt`, '_blank')}
-											>ODT (.odt)</button
+										<a
+											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+											href={`/api/escalas/${esc.id}/download?format=odt`}
+											target="_blank">ODT (.odt)</a
 										>
-										<button
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-											onclick={() =>
-												window.open(`/api/escalas/${esc.id}/download?format=excel`, '_blank')}
-											>Excel (.xlsx)</button
+										<a
+											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+											href={`/api/escalas/${esc.id}/download?format=excel`}
+											target="_blank">Excel (.xlsx)</a
 										>
-										<button
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-											onclick={() =>
-												window.open(`/api/escalas/${esc.id}/download?format=ods`, '_blank')}
-											>ODS (.ods)</button
+										<a
+											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+											href={`/api/escalas/${esc.id}/download?format=ods`}
+											target="_blank">ODS (.ods)</a
 										>
-										<button
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-											onclick={() =>
-												window.open(`/api/escalas/${esc.id}/download?format=pdf`, '_blank')}
-											>PDF (.pdf)</button
+										<a
+											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+											href={`/api/escalas/${esc.id}/download?format=pdf`}
+											target="_blank">PDF (.pdf)</a
 										>
 									</Popover.Content>
 								</Popover.Positioner>
