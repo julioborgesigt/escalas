@@ -674,14 +674,13 @@ export async function verificarSlotEquipe(
 	equipeId: number,
 	policialId: number
 ): Promise<{ ok: boolean; motivo?: string }> {
-	const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
-	if (!equipe) return { ok: false, motivo: 'Equipe não encontrada' };
+	// Parallelize independent queries
+	const [equipe, policial] = await Promise.all([
+		db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get(),
+		db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, policialId)).get()
+	]);
 
-	const policial = await db
-		.select({ cargo: policiais.cargo })
-		.from(policiais)
-		.where(eq(policiais.id, policialId))
-		.get();
+	if (!equipe) return { ok: false, motivo: 'Equipe não encontrada' };
 	if (!policial) return { ok: false, motivo: 'Policial não encontrado' };
 
 	const membrosEquipe = await db
