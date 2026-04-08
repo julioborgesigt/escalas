@@ -1,5 +1,4 @@
 import { browser } from '$app/environment';
-import type { Writable } from 'svelte/store';
 
 /**
  * Hook reutilizável para filtros com persistência em localStorage.

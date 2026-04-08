@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -68,8 +69,7 @@
 	);
 
 	async function recarregar() {
-		// Recarrega dados do server via refresh
-		window.location.reload();
+		await invalidateAll();
 	}
 
 	let togglingId = $state<number | null>(null);
@@ -124,10 +124,6 @@
 	function getMesExtenso(dataStr: string) {
 		const data = new Date(dataStr + 'T00:00:00');
 		return data.toLocaleString('pt-BR', { month: 'long' }).toUpperCase();
-	}
-
-	function downloadExport(id: number, format: string) {
-		window.open(`/api/escalas/${id}/download?format=${format}`, '_blank');
 	}
 
 	let dialogOpen = $state(false);
@@ -416,26 +412,30 @@
 													<Popover.Content
 														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
 													>
-														<button
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-															onclick={() => downloadExport(escala.id, 'docx')}>Word (.docx)</button
+														<a
+															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+															href={`/api/escalas/${escala.id}/download?format=docx`}
+															target="_blank">Word (.docx)</a
 														>
-														<button
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-															onclick={() => downloadExport(escala.id, 'odt')}>ODT (.odt)</button
+														<a
+															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+															href={`/api/escalas/${escala.id}/download?format=odt`}
+															target="_blank">ODT (.odt)</a
 														>
-														<button
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-															onclick={() => downloadExport(escala.id, 'xlsx')}
-															>Excel (.xlsx)</button
+														<a
+															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+															href={`/api/escalas/${escala.id}/download?format=xlsx`}
+															target="_blank">Excel (.xlsx)</a
 														>
-														<button
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-															onclick={() => downloadExport(escala.id, 'ods')}>ODS (.ods)</button
+														<a
+															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+															href={`/api/escalas/${escala.id}/download?format=ods`}
+															target="_blank">ODS (.ods)</a
 														>
-														<button
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-															onclick={() => downloadExport(escala.id, 'pdf')}>PDF (.pdf)</button
+														<a
+															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+															href={`/api/escalas/${escala.id}/download?format=pdf`}
+															target="_blank">PDF (.pdf)</a
 														>
 													</Popover.Content>
 												</Popover.Positioner>
@@ -537,25 +537,30 @@
 										<Popover.Content
 											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[200px]"
 										>
-											<button
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => downloadExport(escala.id, 'docx')}>Word (.docx)</button
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href={`/api/escalas/${escala.id}/download?format=docx`}
+												target="_blank">Word (.docx)</a
 											>
-											<button
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => downloadExport(escala.id, 'odt')}>ODT (.odt)</button
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href={`/api/escalas/${escala.id}/download?format=odt`}
+												target="_blank">ODT (.odt)</a
 											>
-											<button
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => downloadExport(escala.id, 'xlsx')}>Excel (.xlsx)</button
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href={`/api/escalas/${escala.id}/download?format=xlsx`}
+												target="_blank">Excel (.xlsx)</a
 											>
-											<button
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => downloadExport(escala.id, 'ods')}>ODS (.ods)</button
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href={`/api/escalas/${escala.id}/download?format=ods`}
+												target="_blank">ODS (.ods)</a
 											>
-											<button
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => downloadExport(escala.id, 'pdf')}>PDF (.pdf)</button
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href={`/api/escalas/${escala.id}/download?format=pdf`}
+												target="_blank">PDF (.pdf)</a
 											>
 										</Popover.Content>
 									</Popover.Positioner>

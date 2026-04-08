@@ -3,8 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import type { Policial, EscalaPolicialComDados } from '$lib/types';
-	import type { Escala } from '$lib/server/schema';
+	import type { Policial, EscalaPolicialComDados, Escala } from '$lib/types';
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';

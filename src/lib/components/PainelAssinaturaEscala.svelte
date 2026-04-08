@@ -53,10 +53,6 @@
 	let serproSignerName = $derived(assinatura.serproSignerName);
 	let serproSignerCpf = $derived(assinatura.serproSignerCpf);
 
-	function download(format: string) {
-		window.open(`/api/escalas/${escalaId}/download?format=${format}`, '_blank');
-	}
-
 	async function revogarAssinatura() {
 		if (
 			!confirm(
@@ -378,9 +374,10 @@
 			>
 			<div class="flex gap-2 flex-wrap">
 				{#each ['docx', 'xlsx', 'pdf'] as format}
-					<button
-						class="btn btn-sm preset-tonal-surface text-[0.65rem] font-bold uppercase px-3 py-1.5"
-						onclick={() => download(format)}>{format.toUpperCase()}</button
+					<a
+						class="btn btn-sm preset-tonal-surface text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline"
+						href={`/api/escalas/${escalaId}/download?format=${format}`}
+						target="_blank">{format.toUpperCase()}</a
 					>
 				{/each}
 			</div>
