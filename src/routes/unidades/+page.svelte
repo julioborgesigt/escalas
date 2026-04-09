@@ -9,11 +9,8 @@
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
-	import { unidadeSchema } from '$lib/schemas';
-	import { superForm } from 'sveltekit-superforms';
-	import { zod4Client } from 'sveltekit-superforms/adapters';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const { isAdmin } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
@@ -95,40 +92,17 @@
 	let novoTemExpediente = $state(false);
 	let novoTemFds = $state(false);
 
-	// Edit Form obj
-	// svelte-ignore state_referenced_locally
-	const formEditarObj = superForm(data.formEditar, {
-		validators: zod4Client(unidadeSchema),
-		invalidateAll: false,
-		onUpdated: async ({ form }) => {
-			if (form.valid && form.message) {
-				try {
-					const msg = JSON.parse(form.message);
-					if (msg.type === 'success') {
-						toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
-						cancelarEdicao();
-						await invalidateAll();
-					} else {
-						toaster.create({ title: msg.error || 'Erro ao atualizar', type: 'error' });
-					}
-				} catch (e) {}
-			} else if (!form.valid && form.message) {
-				try {
-					const msg = JSON.parse(form.message);
-					if (msg.error) toaster.create({ title: msg.error, type: 'error' });
-				} catch (e) {}
-			}
-		}
-	});
-
-	const eForm = formEditarObj.form;
-	const eErrors = formEditarObj.errors;
-	const eConstraints = formEditarObj.constraints;
-	const eEnhance = formEditarObj.enhance;
-	const eSubmitting = formEditarObj.submitting;
-	const eDelayed = formEditarObj.delayed;
-
+	// Edição inline
 	let editandoId = $state<number | null>(null);
+	let editNome = $state('');
+	let editTipo = $state<'seccional' | 'delegacia'>('delegacia');
+	let editSeccionalId = $state<number | null>(null);
+	let editTemPlantao = $state(false);
+	let editTemExpediente = $state(false);
+	let editTemFds = $state(false);
+	let editCidade = $state('');
+	let buscaCidade = $state('');
+	let salvandoEdicao = $state(false);
 	let excluindo = $state(false);
 
 	// Exclusão
@@ -140,19 +114,39 @@
 
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
-		formEditarObj.reset();
-		$eForm.nome = u.nome;
-		$eForm.tipo = u.tipo;
-		$eForm.seccional_id = u.seccional_id;
-		$eForm.tem_plantao = u.tem_plantao ?? false;
-		$eForm.tem_expediente = u.tem_expediente ?? false;
-		$eForm.tem_fds = u.tem_fds ?? false;
-		$eForm.cidade = u.cidade ?? '';
+		editNome = u.nome;
+		editTipo = u.tipo;
+		editSeccionalId = u.seccional_id;
+		editTemPlantao = u.tem_plantao ?? false;
+		editTemExpediente = u.tem_expediente ?? false;
+		editTemFds = u.tem_fds ?? false;
+		editCidade = u.cidade ?? '';
 	}
 
 	function cancelarEdicao() {
 		editandoId = null;
-		formEditarObj.reset();
+		editNome = '';
+		editTipo = 'delegacia';
+		editSeccionalId = null;
+		editTemPlantao = false;
+		editTemExpediente = false;
+		editTemFds = false;
+		editCidade = '';
+	}
+
+	function handleEditar() {
+		salvandoEdicao = true;
+		return async ({ result }: { result: any }) => {
+			salvandoEdicao = false;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
+				await invalidateAll();
+				cancelarEdicao();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
+			}
+		};
 	}
 
 	function mudarSeccional() {
@@ -185,59 +179,29 @@
 		filtroBusca = '';
 	}
 
-	let buscaCidade = $state('');
-
-	// Create Form obj
-	// svelte-ignore state_referenced_locally
-	const formCriarObj = superForm(data.formCriar, {
-		validators: zod4Client(unidadeSchema),
-		invalidateAll: false,
-		onUpdated: async ({ form }) => {
-			if (form.valid && form.message) {
-				try {
-					const msg = JSON.parse(form.message);
-					if (msg.type === 'success') {
-						toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-						delegaciaPrefixo = '';
-						delegaciaSufixo = '';
-						seccionalPrefixo = '';
-						seccionalSufixo = 'Interior Sul';
-						novoSeccionalId = null;
-						novoTemPlantao = false;
-						novoTemExpediente = false;
-						novoTemFds = false;
-						buscaCidade = '';
-						cadastroOpen = false;
-						formCriarObj.reset();
-						await invalidateAll();
-					} else {
-						toaster.create({ title: msg.error || 'Erro ao cadastrar', type: 'error' });
-					}
-				} catch (e) {}
-			} else if (!form.valid && form.message) {
-				try {
-					const msg = JSON.parse(form.message);
-					if (msg.error) toaster.create({ title: msg.error, type: 'error' });
-				} catch (e) {}
+	let cadastroPending = $state(false);
+	function handleCadastro({ formData }: { formData: FormData }) {
+		cadastroPending = true;
+		return async ({ result }: { result: any }) => {
+			cadastroPending = false;
+			const d = result.data as Record<string, unknown> | undefined;
+			if (result.type === 'success') {
+				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
+				delegaciaPrefixo = '';
+				delegaciaSufixo = '';
+				seccionalPrefixo = '';
+				seccionalSufixo = 'Interior Sul';
+				novoSeccionalId = null;
+				novoTemPlantao = false;
+				novoTemExpediente = false;
+				novoTemFds = false;
+				cadastroOpen = false;
+				await invalidateAll();
+			} else if (result.type === 'failure' && d?.error) {
+				toaster.create({ title: String(d.error), type: 'error' });
 			}
-		}
-	});
-
-	const cForm = formCriarObj.form;
-	const cErrors = formCriarObj.errors;
-	const cEnhance = formCriarObj.enhance;
-	const cSubmitting = formCriarObj.submitting;
-	const cDelayed = formCriarObj.delayed;
-
-	$effect(() => {
-		$cForm.nome = novoNome;
-		$cForm.tipo = tipoUnidade;
-		$cForm.seccional_id = novoSeccionalId;
-		$cForm.tem_plantao = novoTemPlantao;
-		$cForm.tem_expediente = novoTemExpediente;
-		$cForm.tem_fds = novoTemFds;
-		$cForm.cidade = buscaCidade;
-	});
+		};
+	}
 
 	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
@@ -359,15 +323,15 @@
 			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
-			<form method="POST" action="?/criar" use:cEnhance class="flex flex-col gap-4">
-				<!-- Campos hidden mapeados ao superForm -->
-				<input type="hidden" name="nome" bind:value={$cForm.nome} />
-				<input type="hidden" name="tipo" bind:value={$cForm.tipo} />
-				<input type="hidden" name="seccional_id" value={$cForm.seccional_id ?? ''} />
-				<input type="hidden" name="cidade" bind:value={$cForm.cidade} />
-				<input type="hidden" name="tem_plantao" value={$cForm.tem_plantao ? 'on' : ''} />
-				<input type="hidden" name="tem_expediente" value={$cForm.tem_expediente ? 'on' : ''} />
-				<input type="hidden" name="tem_fds" value={$cForm.tem_fds ? 'on' : ''} />
+			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
+				<!-- Campos hidden -->
+				<input type="hidden" name="nome" value={novoNome} />
+				<input type="hidden" name="tipo" value={tipoUnidade} />
+				<input type="hidden" name="seccional_id" value={novoSeccionalId ?? ''} />
+				<input type="hidden" name="cidade" value={buscaCidade} />
+				<input type="hidden" name="tem_plantao" value={novoTemPlantao ? 'on' : ''} />
+				<input type="hidden" name="tem_expediente" value={novoTemExpediente ? 'on' : ''} />
+				<input type="hidden" name="tem_fds" value={novoTemFds ? 'on' : ''} />
 
 				<div
 					class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5"
@@ -397,11 +361,10 @@
 					<span class="label-text font-semibold">Cidade no Ceará</span>
 					<div class="relative">
 						<input
-							class="input {$cErrors.cidade ? 'input-error' : ''}"
+							class="input"
 							type="text"
 							list="cidades-ce-registro"
 							bind:value={buscaCidade}
-							aria-invalid={$cErrors.cidade ? 'true' : undefined}
 							placeholder="Buscar e selecionar cidade..."
 							required
 						/>
@@ -506,12 +469,12 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2"
-						disabled={$cSubmitting ||
+						disabled={cadastroPending ||
 							!novoNome.trim() ||
 							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
 					>
-						{#if $cDelayed}<Spinner size="sm" />{/if}
-						{$cSubmitting ? 'Salvando...' : 'Cadastrar'}
+						{#if cadastroPending}<Spinner size="sm" />{/if}
+						{cadastroPending ? 'Salvando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
@@ -576,11 +539,9 @@
 								{#if isAdmin && editandoId === u.id}
 									<div class="flex flex-col gap-2">
 										<input
-											class="input text-sm {$eErrors.nome ? 'input-error' : ''}"
+											class="input text-sm"
 											type="text"
-											bind:value={$eForm.nome}
-											{...$eConstraints.nome}
-											aria-invalid={$eErrors.nome ? 'true' : undefined}
+											bind:value={editNome}
 											onkeydown={(e) => {
 												if (e.key === 'Escape') cancelarEdicao();
 											}}
@@ -590,30 +551,28 @@
 												><input
 													class="checkbox"
 													type="checkbox"
-													bind:checked={$eForm.tem_plantao}
+													bind:checked={editTemPlantao}
 												/><span>Plantão</span></label
 											>
 											<label class="flex items-center space-x-1.5"
 												><input
 													class="checkbox"
 													type="checkbox"
-													bind:checked={$eForm.tem_expediente}
+													bind:checked={editTemExpediente}
 												/><span>Expediente</span></label
 											>
 											<label class="flex items-center space-x-1.5"
-												><input class="checkbox" type="checkbox" bind:checked={$eForm.tem_fds} /><span
+												><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
 													>FDS</span
 												></label
 											>
 
 											<div class="relative ml-2">
 												<input
-													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px] {$eErrors.cidade ? 'input-error' : ''}"
+													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]"
 													type="text"
 													list="cidades-ce-edicao"
-													bind:value={$eForm.cidade}
-													{...$eConstraints.cidade}
-													aria-invalid={$eErrors.cidade ? 'true' : undefined}
+													bind:value={editCidade}
 													placeholder="Mudar cidade..."
 												/>
 												<datalist id="cidades-ce-edicao">
@@ -650,22 +609,22 @@
 							{#if isAdmin}
 								<td>
 									{#if editandoId === u.id}
-										<form method="POST" action="?/editar" use:eEnhance class="flex gap-2">
+										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
 											<input type="hidden" name="id" value={editandoId} />
-											<input type="hidden" name="nome" value={$eForm.nome} />
-											<input type="hidden" name="tipo" value={$eForm.tipo} />
-											<input type="hidden" name="seccional_id" value={$eForm.seccional_id ?? ''} />
-											<input type="hidden" name="tem_plantao" value={$eForm.tem_plantao ? 'on' : ''} />
-											<input type="hidden" name="tem_expediente" value={$eForm.tem_expediente ? 'on' : ''} />
-											<input type="hidden" name="tem_fds" value={$eForm.tem_fds ? 'on' : ''} />
-											<input type="hidden" name="cidade" value={$eForm.cidade} />
+											<input type="hidden" name="nome" value={editNome} />
+											<input type="hidden" name="tipo" value={editTipo} />
+											<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
+											<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
+											<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+											<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
+											<input type="hidden" name="cidade" value={editCidade} />
 											<button
 												type="submit"
 												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
-												disabled={$eSubmitting || !$eForm.nome?.trim()}
+												disabled={salvandoEdicao || !editNome.trim()}
 											>
-												{#if $eDelayed}<Spinner size="xs" />{/if}
-												{$eSubmitting ? 'Salvando...' : 'Salvar'}
+												{#if salvandoEdicao}<Spinner size="xs" />{/if}
+												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 											</button>
 											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
 												>Cancelar</button
@@ -702,39 +661,35 @@
 					{#if isAdmin && editandoId === u.id}
 						<div class="space-y-2">
 							<input
-								class="input text-sm w-full {$eErrors.nome ? 'input-error' : ''}"
+								class="input text-sm w-full"
 								type="text"
-								bind:value={$eForm.nome}
-								{...$eConstraints.nome}
-								aria-invalid={$eErrors.nome ? 'true' : undefined}
+								bind:value={editNome}
 								onkeydown={(e) => {
 									if (e.key === 'Escape') cancelarEdicao();
 								}}
 							/>
 							<div class="flex flex-wrap items-center gap-3 text-sm py-2">
 								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={$eForm.tem_plantao} /><span
+									><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span
 										>Plantão</span
 									></label
 								>
 								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={$eForm.tem_expediente} /><span
+									><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span
 										>Expediente</span
 									></label
 								>
 								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={$eForm.tem_fds} /><span
+									><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
 										>FDS</span
 									></label
 								>
 								<div class="relative w-full mt-1">
 									<input
-										class="input text-xs w-full {$eErrors.cidade ? 'input-error' : ''}"
+										class="input text-xs w-full"
 										type="text"
 										list="cidades-ce-edicao-mobile"
-										bind:value={$eForm.cidade}
-										{...$eConstraints.cidade}
-										aria-invalid={$eErrors.cidade ? 'true' : undefined}
+										bind:value={editCidade}
 										placeholder="Mudar cidade..."
 									/>
 									<datalist id="cidades-ce-edicao-mobile">
@@ -744,22 +699,22 @@
 									</datalist>
 								</div>
 							</div>
-							<form method="POST" action="?/editar" use:eEnhance class="flex gap-2">
+							<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
 								<input type="hidden" name="id" value={editandoId} />
-								<input type="hidden" name="nome" value={$eForm.nome} />
-								<input type="hidden" name="tipo" value={$eForm.tipo} />
-								<input type="hidden" name="seccional_id" value={$eForm.seccional_id ?? ''} />
-								<input type="hidden" name="tem_plantao" value={$eForm.tem_plantao ? 'on' : ''} />
-								<input type="hidden" name="tem_expediente" value={$eForm.tem_expediente ? 'on' : ''} />
-								<input type="hidden" name="tem_fds" value={$eForm.tem_fds ? 'on' : ''} />
-								<input type="hidden" name="cidade" value={$eForm.cidade} />
+								<input type="hidden" name="nome" value={editNome} />
+								<input type="hidden" name="tipo" value={editTipo} />
+								<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
+								<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
+								<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+								<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
+								<input type="hidden" name="cidade" value={editCidade} />
 								<button
 									type="submit"
 									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
-									disabled={$eSubmitting || !$eForm.nome?.trim()}
+									disabled={salvandoEdicao || !editNome.trim()}
 								>
-									{#if $eDelayed}<Spinner size="xs" />{/if}
-									{$eSubmitting ? 'Salvando...' : 'Salvar'}
+									{#if salvandoEdicao}<Spinner size="xs" />{/if}
+									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
 								</button>
 								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
 									>Cancelar</button

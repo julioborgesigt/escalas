@@ -5,9 +5,7 @@ import { getDB, registrarAuditComContexto } from '$lib/db';
 import { hashSenha, verificarSenha, isHashLegado, criarSessao, gerarCodigo2FA, criarDesafio2FA, verificarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA, enviarSenhaProvisoria } from '$lib/server/email';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import { loginSchema, primeiroAcessoSchema, verificar2FASchema } from '$lib/schemas/auth';
+import { loginSchema } from '$lib/schemas';
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
@@ -71,33 +69,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (u) {
 		throw redirect(302, u.tipo === 'admin' ? '/painel' : '/escalas');
 	}
-	
-	const loginForm = await superValidate(zod4(loginSchema));
-	const primeiroAcessoForm = await superValidate(zod4(primeiroAcessoSchema));
-	const verificar2FAForm = await superValidate(zod4(verificar2FASchema));
-
-	return {
-		loginForm,
-		primeiroAcessoForm,
-		verificar2FAForm
-	};
+	return {};
 };
 
 export const actions: Actions = {
 	login: async ({ request, cookies, platform, url }) => {
 		const db = getDB(platform);
 		const ip = url.searchParams.get('ip') || 'unknown';
-		
-		const form = await superValidate(request, zod4(loginSchema));
-		if (!form.valid) {
-			return fail(400, { form });
-		}
+		const formData = await request.formData();
+		const matricula = formData.get('matricula') as string;
+		const senha = formData.get('senha') as string;
+		const tipo = formData.get('tipo') as 'policial' | 'admin';
 
-		const { matricula, senha, tipo } = form.data;
+		const parsed = loginSchema.safeParse({ matricula, senha, tipo });
+		if (!parsed.success) {
+			return fail(400, { error: parsed.error.issues[0].message, fields: { matricula, tipo } });
+		}
 
 		const rateLimit = await checkRateLimit(db, ip);
 		if (rateLimit.blocked) {
-			return message(form, JSON.stringify({ type: 'error', error: `Muitas tentativas. Tente em ${WINDOW_MINUTES} minutos.` }), { status: 429 });
+			return fail(429, { error: `Muitas tentativas. Tente em ${WINDOW_MINUTES} minutos.`, fields: { matricula, tipo } });
 		}
 
 		if (tipo === 'admin') {
@@ -115,7 +106,7 @@ export const actions: Actions = {
 						detalhes: `Tentativa falha para admin geral: ${matricula}`,
 						ip
 					});
-					return message(form, JSON.stringify({ type: 'error', error: 'Login ou senha inválidos' }), { status: 401 });
+					return fail(401, { error: 'Login ou senha inválidos', fields: { matricula, tipo } });
 				}
 				let envAdmin = await db.select().from(administradores).where(eq(administradores.login, envLogin)).get();
 				if (!envAdmin) {
@@ -128,17 +119,17 @@ export const actions: Actions = {
 					});
 					envAdmin = await db.select().from(administradores).where(eq(administradores.login, envLogin)).get();
 				}
-				if (!envAdmin) return message(form, JSON.stringify({ type: 'error', error: 'Erro ao inicializar administrador.' }), { status: 500 });
+				if (!envAdmin) return fail(500, { error: 'Erro ao inicializar administrador.' });
 				await recordAttempt(db, ip, true);
 				const token = await criarSessao(db, 'admin', envAdmin.id);
 				cookies.set('session_token', token, cookieOptions(url));
-				return message(form, JSON.stringify({ type: 'success', redirect: '/painel', primeiro_acesso: false }));
+				return { success: true, redirect: '/painel', primeiro_acesso: false, nome: envAdmin.nome };
 			}
 
 			const admin = await db.select().from(administradores).where(eq(administradores.login, matricula)).get();
 			if (!admin || !(await verificarSenha(senha, admin.senha))) {
 				await recordAttempt(db, ip, false);
-				return message(form, JSON.stringify({ type: 'error', error: 'Login ou senha inválidos' }), { status: 401 });
+				return fail(401, { error: 'Login ou senha inválidos', fields: { matricula, tipo } });
 			}
 			if (isHashLegado(admin.senha)) {
 				const novoHash = await hashSenha(senha);
@@ -153,27 +144,28 @@ export const actions: Actions = {
 					await enviarCodigo2FA(admin.email, codigo, admin.nome, platform);
 				} catch (err) {
 					console.error('[2FA] Falha ao enviar e-mail:', err);
-					return message(form, JSON.stringify({ type: 'error', error: 'Falha ao enviar código de verificação.' }), { status: 500 });
+					return fail(500, { error: 'Falha ao enviar código de verificação.', fields: { matricula, tipo } });
 				}
-				return message(form, JSON.stringify({
-					type: 'success',
+				return {
 					pendente2FA: true,
 					desafioId,
+					nome: admin.nome,
+					primeiro_acesso: admin.primeiro_acesso === 1,
 					emailMascarado: mascararEmail(admin.email),
 					tipoUsuario2FA: 'admin'
-				}));
+				};
 			}
 
 			const token = await criarSessao(db, 'admin', admin.id);
 			cookies.set('session_token', token, cookieOptions(url));
-			return message(form, JSON.stringify({ type: 'success', redirect: admin.primeiro_acesso === 1 ? '/alterar-senha' : '/painel' }));
+			return { success: true, redirect: admin.primeiro_acesso === 1 ? '/alterar-senha' : '/painel', primeiro_acesso: admin.primeiro_acesso === 1 };
 		}
 
 		// Policial
 		const policial = await db.select().from(policiais).where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1))).get();
 		if (!policial || !(await verificarSenha(senha, policial.senha))) {
 			await recordAttempt(db, ip, false);
-			return message(form, JSON.stringify({ type: 'error', error: 'Matrícula ou senha inválidos' }), { status: 401 });
+			return fail(401, { error: 'Matrícula ou senha inválidos', fields: { matricula, tipo } });
 		}
 		if (isHashLegado(policial.senha)) {
 			const novoHash = await hashSenha(senha);
@@ -186,82 +178,86 @@ export const actions: Actions = {
 			const desafioId = await criarDesafio2FA(db, 'policial', policial.id, codigo);
 			try {
 				await enviarCodigo2FA(policial.email, codigo, policial.nome, platform);
-				} catch (err) {
+			} catch (err) {
 				console.error('[2FA] Falha ao enviar e-mail:', err);
-				return message(form, JSON.stringify({ type: 'error', error: 'Falha ao enviar código de verificação.' }), { status: 500 });
+				return fail(500, { error: 'Falha ao enviar código de verificação.', fields: { matricula, tipo } });
 			}
-			return message(form, JSON.stringify({
-				type: 'success',
+			return {
 				pendente2FA: true,
 				desafioId,
+				nome: policial.nome,
+				primeiro_acesso: policial.primeiro_acesso === 1,
 				emailMascarado: mascararEmail(policial.email),
 				tipoUsuario2FA: 'policial'
-			}));
+			};
 		}
 
 		const token = await criarSessao(db, 'policial', policial.id);
 		cookies.set('session_token', token, cookieOptions(url));
-		return message(form, JSON.stringify({ type: 'success', redirect: policial.primeiro_acesso === 1 ? '/alterar-senha' : '/escalas' }));
+		return { success: true, redirect: policial.primeiro_acesso === 1 ? '/alterar-senha' : '/escalas', primeiro_acesso: policial.primeiro_acesso === 1 };
 	},
 
 	verificar2FA: async ({ request, cookies, platform, url }) => {
 		const db = getDB(platform);
-		const form = await superValidate(request, zod4(verificar2FASchema));
-		if (!form.valid) return fail(400, { form });
+		const formData = await request.formData();
+		const desafioId = formData.get('desafioId') as string;
+		const codigo = formData.get('codigo') as string;
 
-		const desafioId = form.data.desafioId;
-		const codigo = form.data.codigo;
+		if (!desafioId || !codigo) {
+			return fail(400, { error: 'Dados inválidos' });
+		}
 
-		const resultado = await verificarDesafio2FA(db, desafioId, codigo);
+		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo));
 
 		if (resultado === 'expirado') {
-			return message(form, JSON.stringify({ type: 'error', error: 'Código expirado. Faça login novamente.', expirado: true }), { status: 401 });
+			return fail(401, { error: 'Código expirado. Faça login novamente.', expirado: true });
 		}
 		if (resultado === 'esgotado') {
-			return message(form, JSON.stringify({ type: 'error', error: 'Muitas tentativas incorretas. Faça login novamente.', esgotado: true }), { status: 429 });
+			return fail(429, { error: 'Muitas tentativas incorretas. Faça login novamente.', esgotado: true });
 		}
 		if (!resultado) {
-			return message(form, JSON.stringify({ type: 'error', error: 'Código inválido. Verifique e tente novamente.' }), { status: 401 });
+			return fail(401, { error: 'Código inválido. Verifique e tente novamente.' });
 		}
 
 		const { tipo, usuarioId } = resultado;
-		const tipoSessao = tipo as 'policial' | 'admin';
 
 		let primeiroAcesso = false;
-		if (tipoSessao === 'admin') {
+		if (tipo === 'admin') {
 			const admin = await db.select().from(administradores).where(eq(administradores.id, usuarioId)).get();
-			if (!admin) return message(form, JSON.stringify({ type: 'error', error: 'Usuário não encontrado' }), { status: 404 });
+			if (!admin) return fail(404, { error: 'Usuário não encontrado' });
 			primeiroAcesso = admin.primeiro_acesso === 1;
 		} else {
 			const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
-			if (!policial || policial.ativo === 0) return message(form, JSON.stringify({ type: 'error', error: 'Usuário inativo' }), { status: 403 });
+			if (!policial || policial.ativo === 0) return fail(403, { error: 'Usuário inativo' });
 			primeiroAcesso = policial.primeiro_acesso === 1;
 		}
 
-		const token = await criarSessao(db, tipoSessao, usuarioId);
+		const token = await criarSessao(db, tipo, usuarioId);
 		cookies.set('session_token', token, cookieOptions(url));
 
-		return message(form, JSON.stringify({ type: 'success', redirect: primeiroAcesso ? '/alterar-senha' : '/escalas' }));
+		return { success: true, redirect: primeiroAcesso ? '/alterar-senha' : '/escalas', primeiro_acesso: primeiroAcesso };
 	},
 
 	solicitarPrimeiroAcesso: async ({ request, platform }) => {
 		const db = getDB(platform);
-		const form = await superValidate(request, zod4(primeiroAcessoSchema));
-		if (!form.valid) return fail(400, { form });
+		const formData = await request.formData();
+		const matricula = formData.get('matricula') as string;
 
-		const matricula = form.data.matricula;
+		if (!matricula || typeof matricula !== 'string') {
+			return fail(400, { error: 'Matrícula inválida.' });
+		}
 
 		const policial = await db.select()
 			.from(policiais)
 			.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
 			.get();
 
-		const respostaGenerica = JSON.stringify({ type: 'success', enviado: true });
+		const respostaGenerica = { success: true, enviado: true };
 
-		if (!policial) return message(form, respostaGenerica);
-		if (policial.primeiro_acesso !== 1) return message(form, respostaGenerica);
+		if (!policial) return respostaGenerica;
+		if (policial.primeiro_acesso !== 1) return respostaGenerica;
 		if (!policial.email) {
-			return message(form, JSON.stringify({ type: 'error', error: 'Nenhum e-mail cadastrado para esta matrícula.' }), { status: 422 });
+			return fail(422, { error: 'Nenhum e-mail cadastrado para esta matrícula.' });
 		}
 
 		const senhaProvisoria = gerarSenhaProvisoria();
@@ -272,9 +268,9 @@ export const actions: Actions = {
 			await enviarSenhaProvisoria(policial.email, senhaProvisoria, policial.nome, platform);
 		} catch (err) {
 			console.error('[primeiro-acesso] Falha ao enviar e-mail:', err);
-			return message(form, JSON.stringify({ type: 'error', error: 'Falha ao enviar e-mail. Tente novamente.' }), { status: 500 });
+			return fail(500, { error: 'Falha ao enviar e-mail. Tente novamente.' });
 		}
 
-		return message(form, respostaGenerica);
+		return respostaGenerica;
 	}
 };

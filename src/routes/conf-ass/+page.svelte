@@ -124,22 +124,14 @@
 
 		<div class="pt-2 border-t border-surface-200 dark:border-white/10 flex items-center justify-between gap-4">
 			<p class="text-xs text-surface-400">
-				{#if exigirFoto && exigirGps && exigirCodigoEmail}
-					<span class="text-success-600 dark:text-success-400 font-medium">Segurança máxima</span> — Foto, GPS e 2FA ativos.
-				{:else if exigirFoto && exigirGps}
+				{#if exigirFoto && exigirGps}
 					<span class="text-success-600 dark:text-success-400 font-medium">Foto e GPS ativados</span> — validação completa.
-				{:else if exigirFoto && exigirCodigoEmail}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Foto e 2FA ativos</span> — sem captura de localização.
-				{:else if exigirGps && exigirCodigoEmail}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">GPS e 2FA ativos</span> — sem selfie.
 				{:else if exigirFoto}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas foto ativada</span> — sem localização ou 2FA.
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas foto ativada</span> — sem captura de localização.
 				{:else if exigirGps}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas GPS ativado</span> — sem selfie ou 2FA.
-				{:else if exigirCodigoEmail}
-					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica e 2 FA será coletada.
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas GPS ativado</span> — sem selfie.
 				{:else}
-					<span class="text-error-600 dark:text-error-400 font-medium">Segurança mínima</span> — apenas rubrica será coletada.
+					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica será coletada.
 				{/if}
 			</p>
 			<button
