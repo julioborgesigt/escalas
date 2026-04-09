@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura } from '$lib/db';
+import { verificarDesafio2FA } from '$lib/auth';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
@@ -338,6 +339,8 @@ export const actions: Actions = {
 		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
 		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
+		const codigoEmail = formData.get('codigoEmail') as string | null;
+		const desafioId = formData.get('desafioId') as string | null;
 
 		if (isNaN(giseId) || !rubrica) {
 			return fail(400, { error: 'Dados inválidos', giseId });
@@ -347,6 +350,19 @@ export const actions: Actions = {
 		const ua = request.headers.get('user-agent') || '';
 
 		const db = getDB(platform);
+
+		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		if (exigirCodigoEmail) {
+			if (!codigoEmail || !desafioId) {
+				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
+			}
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail);
+			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
+			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
+			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
+			if (result2FA.usuarioId !== u.id) return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
+		}
+
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'Escala não encontrada', giseId });
 
@@ -382,6 +398,8 @@ export const actions: Actions = {
 		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
 		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
+		const codigoEmail = formData.get('codigoEmail') as string | null;
+		const desafioId = formData.get('desafioId') as string | null;
 
 		if (isNaN(giseId) || !rubrica) {
 			return fail(400, { error: 'Dados inválidos', giseId });
@@ -391,6 +409,19 @@ export const actions: Actions = {
 		const ua = request.headers.get('user-agent') || '';
 
 		const db = getDB(platform);
+
+		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		if (exigirCodigoEmail) {
+			if (!codigoEmail || !desafioId) {
+				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
+			}
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail);
+			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
+			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
+			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
+			if (result2FA.usuarioId !== u.id) return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
+		}
+
 		const giseOrig = await buscarGiseEscala(db, giseId);
 		if (!giseOrig) return fail(404, { error: 'Escala não encontrada', giseId });
 
