@@ -4,52 +4,61 @@
 	import { alterarSenhaSchema } from '$lib/schemas';
 	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
+	let { data } = $props();
 
-	let senhaAtual = $state('');
-	let novaSenha = $state('');
-	let confirmarSenha = $state('');
+	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { toaster } from '$lib/toast';
+
 	let error = $state('');
-	let loading = $state(false);
+	let confirmarSenha = $state('');
 
-	const primeiroAcesso = $derived(page.data.primeiro_acesso);
-
-	const temMinimo    = $derived(novaSenha.length >= 8);
-	const temMaiuscula = $derived(/[A-Z]/.test(novaSenha));
-	const temMinuscula = $derived(/[a-z]/.test(novaSenha));
-	const temNumero    = $derived(/[0-9]/.test(novaSenha));
-	const senhaOk      = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
-	const confirmaOk   = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
-
-	import { enhance } from '$app/forms';
-
-	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
-		error = '';
-
-		if (novaSenha !== confirmarSenha) {
-			error = 'As senhas não conferem.';
-			cancel();
-			return;
-		}
-
-		const parsed = alterarSenhaSchema.safeParse({ nova_senha: novaSenha, senha_atual: senhaAtual || undefined });
-		if (!parsed.success) {
-			error = parsed.error.issues[0].message;
-			cancel();
-			return;
-		}
-
-		loading = true;
-
-		return async ({ result }: { result: any }) => {
-			loading = false;
-			if (result.type === 'success') {
-				goto('/');
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				error = String(d?.error || 'Erro ao alterar a senha.');
+	// svelte-ignore state_referenced_locally
+	const formObj = superForm(data.form, {
+		validators: zod4Client(alterarSenhaSchema),
+		invalidateAll: false,
+		onSubmit: ({ cancel }) => {
+			error = '';
+			if ($formStore.nova_senha !== confirmarSenha) {
+				error = 'As senhas não conferem.';
+				cancel();
 			}
-		};
-	}
+		},
+		onUpdated: async ({ form }) => {
+			if (form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.type === 'success') {
+						toaster.create({ title: 'Senha alterada com sucesso!', type: 'success' });
+						goto('/');
+					} else {
+						error = msg.error || 'Erro ao alterar a senha.';
+					}
+				} catch (e) {}
+			} else if (!form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.error) error = msg.error;
+				} catch (e) {}
+			}
+		}
+	});
+
+	const formStore = formObj.form;
+	const formErrors = formObj.errors;
+	const formConstraints = formObj.constraints;
+	const formEnhance = formObj.enhance;
+	const formSubmitting = formObj.submitting;
+	const formDelayed = formObj.delayed;
+
+	const primeiroAcesso = $derived(!!data.usuario?.primeiro_acesso);
+
+	const temMinimo    = $derived($formStore.nova_senha.length >= 8);
+	const temMaiuscula = $derived(/[A-Z]/.test($formStore.nova_senha));
+	const temMinuscula = $derived(/[a-z]/.test($formStore.nova_senha));
+	const temNumero    = $derived(/[0-9]/.test($formStore.nova_senha));
+	const senhaOk      = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
+	const confirmaOk   = $derived(confirmarSenha.length > 0 && $formStore.nova_senha === confirmarSenha);
 </script>
 
 <svelte:head>
@@ -100,32 +109,36 @@
 			{/if}
 
 			<!-- Form -->
-			<form method="POST" action="?/alterar" use:enhance={handleAlterarSenha} class="flex flex-col gap-4">
+			<form method="POST" action="?/alterar" use:formEnhance class="flex flex-col gap-4">
 
 				{#if !primeiroAcesso}
-					<label class="label">
+					<label class="label relative mb-2">
 						<span class="label-text font-medium">Senha atual</span>
 						<input
-							class="input"
+							class="input {$formErrors.senha_atual ? 'input-error' : ''}"
 							type="password"
 							name="senha_atual"
-							bind:value={senhaAtual}
+							bind:value={$formStore.senha_atual}
 							placeholder="••••••••"
-							required
+							{...$formConstraints.senha_atual}
+							aria-invalid={$formErrors.senha_atual ? 'true' : undefined}
 						/>
+						{#if $formErrors.senha_atual}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.senha_atual[0]}</div>{/if}
 					</label>
 				{/if}
 
-				<label class="label">
+				<label class="label relative mb-2">
 					<span class="label-text font-medium">Nova senha</span>
 					<input
-						class="input"
+						class="input {$formErrors.nova_senha ? 'input-error' : ''}"
 						type="password"
 						name="nova_senha"
-						bind:value={novaSenha}
+						bind:value={$formStore.nova_senha}
 						placeholder="••••••••"
-						required
+						{...$formConstraints.nova_senha}
+						aria-invalid={$formErrors.nova_senha ? 'true' : undefined}
 					/>
+					{#if $formErrors.nova_senha}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.nova_senha[0]}</div>{/if}
 				</label>
 
 				<!-- Requisitos de senha -->
@@ -171,10 +184,10 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
-					disabled={loading || !senhaOk || !confirmaOk}
+					disabled={$formSubmitting || !senhaOk || !confirmaOk}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
+					{#if $formDelayed}<Spinner size="md" />{/if}
+					{$formSubmitting ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
 				</button>
 
 			</form>

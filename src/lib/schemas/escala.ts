@@ -4,7 +4,7 @@ const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export const escalaSchema = z.object({
 	titulo: z.string().min(1, 'Título é obrigatório').max(200, 'Título muito longo (máx. 200)'),
-	cidade: z.string().min(1, 'Cidade é obrigatória').max(100, 'Cidade muito longa (máx. 100)'),
+	cidade: z.string().max(100).default(''),
 	data_inicio: z.string().regex(DATA_ISO, 'Data início deve estar no formato YYYY-MM-DD'),
 	data_fim: z.string().regex(DATA_ISO, 'Data fim deve estar no formato YYYY-MM-DD'),
 	horario: z.string().max(50).default('08H A 08H'),
