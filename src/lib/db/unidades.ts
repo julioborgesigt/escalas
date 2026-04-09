@@ -51,22 +51,21 @@ export async function atualizarUnidade(
 	const nomeAntigo = unidade.nome;
 	const nomeTrimmed = data.nome.trim();
 
-	// Transação garante atomicidade: se um UPDATE falhar, todos são revertidos
-	await db.transaction(async (tx) => {
-		await tx.update(unidades).set({
-			nome: nomeTrimmed,
-			tipo: data.tipo,
-			seccional_id: data.seccional_id,
-			tem_plantao: data.tem_plantao,
-			tem_expediente: data.tem_expediente,
-			tem_fds: data.tem_fds,
-			cidade: data.cidade || ''
-		}).where(eq(unidades.id, id));
+	await db.update(unidades).set({
+		nome: nomeTrimmed,
+		tipo: data.tipo,
+		seccional_id: data.seccional_id,
+		tem_plantao: data.tem_plantao,
+		tem_expediente: data.tem_expediente,
+		tem_fds: data.tem_fds,
+		cidade: data.cidade || ''
+	}).where(eq(unidades.id, id));
 
-		// Cascata: atualizar lotação em policiais e escalas
-		await tx.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo));
-		await tx.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo));
-	});
+	// Cascata: atualizar lotação em policiais e escalas se o nome mudou
+	if (nomeTrimmed !== nomeAntigo) {
+		await db.update(policiais).set({ lotacao: nomeTrimmed }).where(eq(policiais.lotacao, nomeAntigo));
+		await db.update(escalas).set({ lotacao: nomeTrimmed }).where(eq(escalas.lotacao, nomeAntigo));
+	}
 
 	return { nomeAntigo };
 }
