@@ -236,7 +236,9 @@
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
-		selfieBase64?: string
+		selfieBase64?: string,
+		codigoEmail?: string,
+		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
@@ -247,6 +249,8 @@
 			if (latitude !== undefined) fd.set('latitude', String(latitude));
 			if (longitude !== undefined) fd.set('longitude', String(longitude));
 			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
+			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
+			if (desafioId) fd.set('desafioId', desafioId);
 
 			const resp = await fetch('?/salvarEntrada', { method: 'POST', body: fd });
 			const result = (await resp.json()) as Record<string, unknown> | undefined;
@@ -280,7 +284,9 @@
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
-		selfieBase64?: string
+		selfieBase64?: string,
+		codigoEmail?: string,
+		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
 		salvandoPresenca = true;
@@ -291,6 +297,8 @@
 			if (latitude !== undefined) fd.set('latitude', String(latitude));
 			if (longitude !== undefined) fd.set('longitude', String(longitude));
 			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
+			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
+			if (desafioId) fd.set('desafioId', desafioId);
 
 			const resp = await fetch('?/salvarSaida', { method: 'POST', body: fd });
 			const result = (await resp.json()) as Record<string, unknown> | undefined;
@@ -1395,6 +1403,7 @@
 													onCancel={() => (capturandoRubrica = false)}
 													exigirFoto={page.data.exigirFotoAssinatura ?? true}
 													exigirGps={page.data.exigirGpsAssinatura ?? true}
+													exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 												/>
 											</div>
 										{/if}
@@ -1617,6 +1626,7 @@
 														onCancel={() => (capturandoRubrica = false)}
 														exigirFoto={page.data.exigirFotoAssinatura ?? true}
 														exigirGps={page.data.exigirGpsAssinatura ?? true}
+														exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 													/>
 												</div>
 											{/if}
