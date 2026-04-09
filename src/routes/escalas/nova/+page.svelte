@@ -334,8 +334,8 @@
 			<!-- Campos hidden para o server -->
 			<input type="hidden" name="data_inicio" value={dataInicio} />
 			<input type="hidden" name="data_fim" value={dataFim} />
-			<input type="hidden" name="hora_entrada" value={horaEntrada} />
-			<input type="hidden" name="hora_saida" value={horaSaida} />
+			<input type="hidden" name="hora_entrada" value={`${horaEntrada}:${minutoEntrada}`} />
+			<input type="hidden" name="hora_saida" value={`${horaSaida}:${minutoSaida}`} />
 			<input type="hidden" name="tipo" value={tipoEscolhido ?? ''} />
 			{#if isAdmin}
 				<input type="hidden" name="lotacao" value={lotacaoEscala} />

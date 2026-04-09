@@ -88,7 +88,9 @@ export const actions: Actions = {
 		const policial_id = Number(data.get('policial_id'));
 		const data_plantao = data.get('data_plantao')?.toString() || '';
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
+		const minuto_entrada = data.get('minuto_entrada')?.toString() || '00';
 		const hora_saida = data.get('hora_saida')?.toString() || '08';
+		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
 		const equipe = data.get('equipe')?.toString() || '';
 
 		if (isNaN(policial_id) || !data_plantao) {
@@ -96,8 +98,8 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
-		const horaEnt = `${hora_entrada}:00`;
-		const horaSai = `${hora_saida}:00`;
+		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
+		const horaSai = `${hora_saida}:${minuto_saida}`;
 		const dataSaida = calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
 
 		try {
@@ -117,7 +119,9 @@ export const actions: Actions = {
 		const escalaId = Number(params.id);
 		const policial_id = Number(data.get('policial_id'));
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
+		const minuto_entrada = data.get('minuto_entrada')?.toString() || '00';
 		const hora_saida = data.get('hora_saida')?.toString() || '08';
+		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
 		const equipe = data.get('equipe')?.toString() || '';
 
 		// Parse datas selecionadas (JSON string no hidden field)
@@ -134,8 +138,8 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
-		const he = `${hora_entrada}:00`;
-		const hs = `${hora_saida}:00`;
+		const he = `${hora_entrada}:${minuto_entrada}`;
+		const hs = `${hora_saida}:${minuto_saida}`;
 
 		try {
 			await adicionarMultiplasDatasPlantao(db, escalaId, policial_id, datas, he, hs, equipe);
