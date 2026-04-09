@@ -522,7 +522,7 @@
 								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
-								<select class="select flex-1" bind:value={addMinutoEntrada}
+								<select class="select flex-1" name="minuto_entrada" bind:value={addMinutoEntrada}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
@@ -533,7 +533,7 @@
 								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
-								<select class="select flex-1" bind:value={addMinutoSaida}
+								<select class="select flex-1" name="minuto_saida" bind:value={addMinutoSaida}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
@@ -620,7 +620,7 @@
 							<div class="flex gap-1">
 								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
-								><select class="select flex-1" bind:value={addMinutoEntrada}
+								><select class="select flex-1" name="minuto_entrada" bind:value={addMinutoEntrada}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
@@ -630,7 +630,7 @@
 							<div class="flex gap-1">
 								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
-								><select class="select flex-1" bind:value={addMinutoSaida}
+								><select class="select flex-1" name="minuto_saida" bind:value={addMinutoSaida}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>

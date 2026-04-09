@@ -346,7 +346,7 @@
 					</label>
 					<label class="label sm:col-span-4">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
-						<select class="select py-1 px-3 text-sm" bind:value={classe} required>
+						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 							<option value="" disabled>-</option>
 							{#each classesDisponiveis as c}
 								<option value={c}>{c}</option>
