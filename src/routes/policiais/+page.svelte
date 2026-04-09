@@ -544,25 +544,7 @@
 		</p>
 	{/if}
 
-	{#if data.skipLoad}
-		<div class="text-center py-20">
-			<div
-				class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
-			>
-				<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-					/></svg
-				>
-			</div>
-			<p class="text-surface-600 dark:text-surface-400 text-lg">
-				Escolha uma unidade para exibir os dados.
-			</p>
-		</div>
-	{:else if policiaisExibidos.length === 0}
+	{#if policiaisExibidos.length === 0}
 		<div class="text-center py-12 text-surface-500">
 			<p class="mb-4">
 				{filtroCargo

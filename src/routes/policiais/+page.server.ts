@@ -26,12 +26,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const busca = url.searchParams.get('busca') || undefined;
 	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
 
-	const skipLoad = isAdmin && !lotacaoParam && !busca;
+	const skipLoad = false; // Removido para garantir que policiais estejam sempre visíveis
 
 	const [resultado, unidades] = await Promise.all([
-		skipLoad
-			? { policiais: [], total: 0, page: 1, limit: 20, totalPages: 1 }
-			: listarPoliciais(db, lotacaoParam, false, { busca, page, limit: 20 }),
+		listarPoliciais(db, lotacaoParam, false, { busca, page, limit: 20 }),
 		listarUnidades(db)
 	]);
 
