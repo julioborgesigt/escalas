@@ -1,5 +1,5 @@
 import type { LayoutServerLoad } from './$types';
-import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura } from '$lib/db';
+import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura } from '$lib/db';
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
@@ -8,13 +8,15 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
 	let isMembroGise = false;
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
+	let exigirCodigoEmailAssinatura = false;
 
 	if (u) {
 		try {
 			const db = getDB(platform);
 			const checks: Promise<unknown>[] = [
 				buscarExigirFotoAssinatura(db).then((v) => { exigirFotoAssinatura = v; }),
-				buscarExigirGpsAssinatura(db).then((v) => { exigirGpsAssinatura = v; })
+				buscarExigirGpsAssinatura(db).then((v) => { exigirGpsAssinatura = v; }),
+				buscarExigirCodigoEmailAssinatura(db).then((v) => { exigirCodigoEmailAssinatura = v; })
 			];
 			if (u.tipo === 'policial') {
 				checks.push(
@@ -33,6 +35,7 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
 		isSupervisorGise,
 		isMembroGise,
 		exigirFotoAssinatura,
-		exigirGpsAssinatura
+		exigirGpsAssinatura,
+		exigirCodigoEmailAssinatura
 	};
 };

@@ -94,10 +94,12 @@
 		rubricBase64: string,
 		gpsLat?: number,
 		gpsLng?: number,
-		selfieBase64?: string | null
+		selfieBase64?: string | null,
+		codigoValidação?: string,
+		desafioId?: string
 	) {
 		assinatura.dialogSignOpen = false;
-		await assinatura.assinarSimples(rubricBase64, selfieBase64);
+		await assinatura.assinarSimples(rubricBase64, gpsLat, gpsLng, selfieBase64, codigoValidação, desafioId);
 	}
 
 	// WebPKI helpers (still needed in component for template bindings)
@@ -404,6 +406,7 @@
 				onCancel={() => (dialogSignOpen = false)}
 				exigirFoto={page.data.exigirFotoAssinatura ?? true}
 				exigirGps={page.data.exigirGpsAssinatura ?? true}
+				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 			/>
 		</div>
 	</Dialog.Content>

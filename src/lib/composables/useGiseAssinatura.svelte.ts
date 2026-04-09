@@ -46,23 +46,25 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 		dataUrl: string,
 		lat?: number,
 		lng?: number,
-		selfie?: string | null
+		selfie?: string | null,
+		codigoValidação?: string,
+		desafioId?: string
 	) {
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
 
 		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng, selfie);
+			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(lat, lng);
+			await executarAssinarSimples(lat, lng, codigoValidação, desafioId);
 		} else if (tipoAssinaturaPendente === 'serpro') {
 			await executarAssinarComSerpro(lat, lng);
 		}
 	}
 
-	async function executarAssinarSimples(latitude?: number, longitude?: number) {
+	async function executarAssinarSimples(latitude?: number, longitude?: number, codigoValidação?: string, desafioId?: string) {
 		assinandoSimples = true;
 		try {
 			const r = await fetch(`/api/gise/${giseId}/assinar-simples`, {
@@ -75,7 +77,9 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 					rubrica: rubricaCapturada,
 					latitude,
 					longitude,
-					selfieBase64: selfieCapturada
+					selfieBase64: selfieCapturada,
+					codigoValidação,
+					desafioId
 				})
 			});
 			if (r.ok) {
@@ -180,7 +184,9 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
-		selfieBase64?: string | null
+		selfieBase64?: string | null,
+		codigoValidação?: string,
+		desafioId?: string
 	) {
 		if (!relatorioSendoAssinado) return;
 		// Implementation continues...

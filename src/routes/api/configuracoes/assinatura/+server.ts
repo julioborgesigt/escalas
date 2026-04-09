@@ -1,14 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, salvarConfiguracao } from '$lib/db';
+import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura, salvarConfiguracao } from '$lib/db';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const db = getDB(platform);
-	const [exigirFoto, exigirGps] = await Promise.all([
+	const [exigirFoto, exigirGps, exigirCodigoEmail] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
-		buscarExigirGpsAssinatura(db)
+		buscarExigirGpsAssinatura(db),
+		buscarExigirCodigoEmailAssinatura(db)
 	]);
-	return json({ exigirFoto, exigirGps });
+	return json({ exigirFoto, exigirGps, exigirCodigoEmail });
 };
 
 export const PUT: RequestHandler = async ({ platform, request, locals }) => {
@@ -25,6 +26,9 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	}
 	if (typeof body.exigirGps === 'boolean') {
 		saves.push(salvarConfiguracao(db, 'exigir_gps_assinatura', body.exigirGps ? '1' : '0'));
+	}
+	if (typeof body.exigirCodigoEmail === 'boolean') {
+		saves.push(salvarConfiguracao(db, 'exigir_codigo_email_assinatura', body.exigirCodigoEmail ? '1' : '0'));
 	}
 	if (saves.length === 0) {
 		return json({ error: 'Nenhum campo válido para salvar' }, { status: 400 });

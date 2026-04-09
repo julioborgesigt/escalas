@@ -7,6 +7,7 @@
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
+	let exigirCodigoEmail = $state(page.data.exigirCodigoEmail as boolean);
 	let saving = $state(false);
 
 	async function salvar() {
@@ -15,7 +16,7 @@
 			const res = await fetch('/api/configuracoes/assinatura', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ exigirFoto, exigirGps })
+				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail })
 			});
 			if (res.ok) {
 				await invalidateAll();
@@ -90,6 +91,33 @@
 				<span
 					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
 						{exigirGps ? 'translate-x-5' : 'translate-x-0'}"
+				></span>
+			</button>
+		</div>
+
+		<div class="border-t border-surface-200 dark:border-white/10"></div>
+
+		<!-- Exigir Código via E-mail -->
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex-1">
+				<p class="font-semibold text-sm mb-0.5">Exigir código via E-mail</p>
+				<p class="text-xs text-surface-500">
+					Quando ativado, os usuários precisarão confirmar as assinaturas em rede através de um código numérico de 6 dígitos enviado para seu e-mail de cadastro. Impede assinatura por terceiros não autorizados caso o terminal fique desbloqueado.
+					<strong class="text-error-500 block mt-1">Atenção: Os usuários precisarão ter e-mail funcional cadastrado no perfil.</strong>
+				</p>
+			</div>
+			<button
+				type="button"
+				role="switch"
+				aria-label="Ativar ou desativar exigência de código no email"
+				aria-checked={exigirCodigoEmail}
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+					{exigirCodigoEmail ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
+				onclick={() => (exigirCodigoEmail = !exigirCodigoEmail)}
+			>
+				<span
+					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
+						{exigirCodigoEmail ? 'translate-x-5' : 'translate-x-0'}"
 				></span>
 			</button>
 		</div>

@@ -8,14 +8,15 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala, buscarExigirCodigoEmailAssinatura } from '$lib/db';
+import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const { rubrica, latitude, longitude, selfieBase64 } = await request.json().catch(() => ({} as Record<string, unknown>));
+	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = await request.json().catch(() => ({} as Record<string, unknown>));
 	const u = locals.usuario;
 	if (!u) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
@@ -42,6 +43,18 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	try {
 		const giseDetalhado = await buscarGiseDetalhado(db, id);
 		if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
+
+		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		if (exigirCodigoEmail) {
+			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
+				return json({ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' }, { status: 400 });
+			}
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação);
+			if (result2FA === 'expirado') return json({ error: 'O código de verificação expirou.' }, { status: 400 });
+			if (result2FA === 'esgotado') return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
+			if (!result2FA) return json({ error: 'Código de verificação inválido.' }, { status: 400 });
+			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
+		}
 
 		const result = gerarPdfGise(giseDetalhado);
 		const pdfBytes = result.pdf;

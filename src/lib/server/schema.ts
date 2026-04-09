@@ -369,7 +369,7 @@ export const doisFatoresTokens = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		desafio_id: text('desafio_id').notNull().unique(),
-		tipo: text('tipo', { enum: ['policial', 'admin'] }).notNull(),
+		tipo: text('tipo', { enum: ['policial', 'admin', 'assinatura'] }).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
 		codigo: text('codigo').notNull(),
 		tentativas: integer('tentativas').notNull().default(0),

@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { csrfHeaders } from '$lib/csrf';
 	let faceapi: any = $state(null);
 
-	let { onConfirm, onCancel, message = "", exigirFoto = true, exigirGps = true } = $props();
+	let { onConfirm, onCancel, message = "", exigirFoto = true, exigirGps = true, exigirCodigoEmail = false } = $props();
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -16,7 +17,7 @@
 	let cameraError = $state<string | null>(null);
 	let capturingImage = $state(false);
 
-	let step = $state<"signature" | "camera">("signature");
+	let step = $state<"signature" | "camera" | "email_code">("signature");
 
 	// Face Liveness states
 	let faceDetected = $state(false);
@@ -32,6 +33,14 @@
 	let isFlashActive = $state(false);
 	let stableFrames = $state(0); // Contador para evitar flickering
 	let lastErrorCode = $state<string | null>(null); // Erros de captura final
+
+	// Estados do Email Code
+	let solicitandoCodigo = $state(false);
+	let codigoInput = $state("");
+	let codigoError = $state<string | null>(null);
+	let emailMascarado = $state("");
+	let desafioId = $state<string | null>(null);
+	let pendingSignature = $state<{dataUrl: string, lat: number|undefined, lng: number|undefined, selfieBase64: string|null}|null>(null);
 
 	$effect(() => {
 		if (step === "camera") {
@@ -271,7 +280,7 @@
 		const thumbCtx = thumbCanvas.getContext("2d")!;
 		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
 		const dataUrl = comprimirRubrica(canvas, 100);
-		onConfirm(dataUrl, coords?.lat, coords?.lng, null);
+		processarAssinatura(dataUrl, coords?.lat, coords?.lng, null);
 	}
 
 	async function confirm() {
@@ -362,7 +371,48 @@
 			60,
 		);
 		const dataUrl = comprimirRubrica(canvas, 100);
-		onConfirm(dataUrl, coords?.lat, coords?.lng, selfieBase64);
+		processarAssinatura(dataUrl, coords?.lat, coords?.lng, selfieBase64);
+	}
+
+	async function processarAssinatura(dataUrl: string, lat: number | undefined, lng: number | undefined, selfieBase64: string | null) {
+		if (exigirCodigoEmail) {
+			pendingSignature = { dataUrl, lat, lng, selfieBase64 };
+			step = "email_code";
+			await enviarOuReenviarCodigo();
+		} else {
+			onConfirm(dataUrl, lat, lng, selfieBase64);
+		}
+	}
+
+	async function enviarOuReenviarCodigo() {
+		solicitandoCodigo = true;
+		codigoError = null;
+		codigoInput = "";
+		try {
+			const res = await fetch('/api/auth/solicitar-codigo-assinatura', {
+				method: 'POST',
+				headers: { ...csrfHeaders(), 'Content-Type': 'application/json' }
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || 'Falha ao solicitar código');
+			
+			emailMascarado = data.emailMascarado;
+			desafioId = data.desafioId;
+		} catch(e: any) {
+			codigoError = e.message;
+		} finally {
+			solicitandoCodigo = false;
+		}
+	}
+
+	function confirmarCodigo() {
+		if (codigoInput.length !== 6) {
+			codigoError = "O código deve conter 6 dígitos.";
+			return;
+		}
+		if (pendingSignature && desafioId) {
+			onConfirm(pendingSignature.dataUrl, pendingSignature.lat, pendingSignature.lng, pendingSignature.selfieBase64, codigoInput, desafioId);
+		}
 	}
 
 	function startCaptureSequence() {
@@ -562,6 +612,49 @@
 				{/if}
 			</div>
 		{/if}
+
+		{#if step === "email_code"}
+			<div class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]">
+				<div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4">
+					<svg class="w-8 h-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+					</svg>
+				</div>
+				<h3 class="h3 font-bold mb-2">Confirme sua Identidade</h3>
+				
+				{#if solicitandoCodigo}
+					<p class="text-sm font-medium text-surface-500">Enviando código de verificação...</p>
+					<div class="mt-6"><span class="inline-block w-8 h-8 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin"></span></div>
+				{:else}
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6 max-w-sm">
+						Enviamos um código de 6 dígitos para o seu e-mail cadastrado <strong>({emailMascarado || '...'})</strong>. Digite-o abaixo para concluir a assinatura.
+					</p>
+
+					<div class="w-full max-w-xs space-y-4">
+						<input 
+							type="text" 
+							inputmode="numeric"
+							maxlength="6"
+							placeholder="000000"
+							bind:value={codigoInput}
+							class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError ? 'border-error-500 uppercase' : 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
+						/>
+						
+						{#if codigoError}
+							<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
+						{/if}
+
+						<button 
+							type="button" 
+							class="text-xs font-semibold text-primary-600 dark:text-primary-400 underline decoration-primary-500/30 hover:decoration-primary-500 transition-all"
+							onclick={enviarOuReenviarCodigo}
+						>
+							Não recebeu? Reenviar código
+						</button>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	{#if locationError && !coords && !capturingLocation}
@@ -609,7 +702,7 @@
 					{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
 				</button>
 			</div>
-		{:else}
+		{:else if step === "camera"}
 			<button
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={() => (step = "signature")}
@@ -637,6 +730,22 @@
 				{:else}
 					Tirar Foto e Assinar
 				{/if}
+			</button>
+		{:else if step === "email_code"}
+			<button
+				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+				onclick={onCancel}
+				disabled={solicitandoCodigo}
+			>
+				Cancelar
+			</button>
+
+			<button
+				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
+				onclick={confirmarCodigo}
+				disabled={solicitandoCodigo || codigoInput.length !== 6}
+			>
+				Finalizar Assinatura
 			</button>
 		{/if}
 	</div>

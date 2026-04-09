@@ -32,3 +32,9 @@ export async function buscarExigirGpsAssinatura(db: Database): Promise<boolean> 
 	const val = await buscarConfiguracao(db, 'exigir_gps_assinatura');
 	return val !== '0';
 }
+
+/** Lê a flag booleana "exigir_codigo_email_assinatura" (padrão: false). */
+export async function buscarExigirCodigoEmailAssinatura(db: Database): Promise<boolean> {
+	const val = await buscarConfiguracao(db, 'exigir_codigo_email_assinatura');
+	return val === '1'; // Default = false, requires explicit '1' to be true
+}

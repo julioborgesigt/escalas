@@ -2379,8 +2379,9 @@
 			<SignaturePad
 				onConfirm={confirmarRubrica}
 				onCancel={() => (showRubricaModal = false)}
-				exigirFoto={data.exigirFotoAssinatura ?? true}
-				exigirGps={data.exigirGpsAssinatura ?? true}
+				exigirFoto={page.data.exigirFotoAssinatura ?? true}
+				exigirGps={page.data.exigirGpsAssinatura ?? true}
+				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 			/>
 
 			<p class="text-sm text-surface-400 text-center italic">

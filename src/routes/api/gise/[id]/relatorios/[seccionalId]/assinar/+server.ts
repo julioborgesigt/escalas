@@ -7,8 +7,10 @@ import {
 	buscarPresencasGise,
 	buscarGiseEscala,
 	verificarTodosRelatoriosExtraAssinados,
-	atualizarGiseEscala
+	atualizarGiseEscala,
+	buscarExigirCodigoEmailAssinatura
 } from '$lib/db';
+import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
@@ -22,7 +24,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 	const { id, seccionalId } = params;
 	const body = await request.json().catch(() => ({}));
-	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude, selfieBase64 } = body;
+	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude, selfieBase64, codigoValidação, desafioId } = body;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -37,6 +39,18 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 		const gise = await buscarGiseDetalhado(db, giseIdNum);
 		if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
+
+		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
+		if (exigirCodigoEmail && type !== 'serpro') {
+			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
+				return json({ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' }, { status: 400 });
+			}
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação);
+			if (result2FA === 'expirado') return json({ error: 'O código de verificação expirou.' }, { status: 400 });
+			if (result2FA === 'esgotado') return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
+			if (!result2FA) return json({ error: 'Código de verificação inválido.' }, { status: 400 });
+			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
+		}
 
 		const presencas = await buscarPresencasGise(db, giseIdNum);
 

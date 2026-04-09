@@ -239,7 +239,7 @@ export function gerarCodigo2FA(): string {
 /** Persiste um desafio 2FA no banco e retorna o desafioId (UUID aleatório). */
 export async function criarDesafio2FA(
 	db: Database,
-	tipo: 'policial' | 'admin',
+	tipo: 'policial' | 'admin' | 'assinatura',
 	usuarioId: number,
 	codigo: string
 ): Promise<string> {
@@ -263,7 +263,7 @@ export async function verificarDesafio2FA(
 	db: Database,
 	desafioId: string,
 	codigoInput: string
-): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'esgotado' | null> {
+): Promise<{ tipo: 'policial' | 'admin' | 'assinatura'; usuarioId: number } | 'expirado' | 'esgotado' | null> {
 	const desafio = await db
 		.select()
 		.from(doisFatoresTokens)
@@ -287,5 +287,5 @@ export async function verificarDesafio2FA(
 		.set({ usado: 1 })
 		.where(eq(doisFatoresTokens.id, desafio.id));
 
-	return { tipo: desafio.tipo as 'policial' | 'admin', usuarioId: desafio.usuario_id };
+	return { tipo: desafio.tipo as 'policial' | 'admin' | 'assinatura', usuarioId: desafio.usuario_id };
 }
