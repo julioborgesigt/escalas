@@ -861,8 +861,8 @@
 			{#if isAdminGeral && gise}
 				<button
 					class="btn btn-sm {modoEdicaoGeral
-						? 'preset-filled-primary-500 shadow-xl'
-						: 'preset-outlined-primary-500'} rounded-lg font-bold uppercase transition-all whitespace-nowrap"
+						? 'preset-filled-primary-500 border-2 border-primary-600 shadow-xl'
+						: 'preset-outlined-primary-500 border-2 border-primary-500/30 hover:border-primary-500'} rounded-lg font-bold uppercase transition-all whitespace-nowrap"
 					onclick={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 					disabled={editaBloqueado}
 				>
@@ -870,13 +870,13 @@
 				</button>
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
 					<form method="POST" action="?/solicitarAssinatura" use:enhance={handleSolicitarAssinatura} class="contents">
-						<button type="submit" class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap" disabled={salvando || modoEdicaoGeral}>
+						<button type="submit" class="btn btn-sm preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 rounded-lg font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all" disabled={salvando || modoEdicaoGeral}>
 							{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
 						</button>
 					</form>
 				{/if}
 				<button
-					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+					class="btn btn-sm preset-outlined-error-500 border-2 border-error-500/30 hover:border-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-all"
 					onclick={() => (showExcluirGiseConfirm = true)}
 					disabled={editaBloqueado}
 				>
@@ -885,7 +885,7 @@
 			{/if}
 			{#if podeReabrir}
 				<button
-					class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap"
+					class="btn btn-sm preset-outlined-warning-500 border-2 border-warning-500/30 hover:border-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all"
 					onclick={() => (showReabrirConfirm = true)}
 				>
 					Reabrir para Edição
@@ -893,7 +893,7 @@
 			{/if}
 			{#if podeFinalizar}
 				<button
-					class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 whitespace-nowrap"
+					class="btn btn-sm preset-outlined-error-500 border-2 border-error-600/30 hover:border-error-600 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 whitespace-nowrap transition-all"
 					onclick={() => (showFinalizarConfirm = true)}
 				>
 					Marcar como Finalizada
@@ -1519,14 +1519,14 @@
 
 									<div class="flex flex-col gap-2 w-full sm:w-auto">
 										<a
-											class="btn text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all {!(
+											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
 												checkAllSigned(sec) &&
 												(assRel || isAdminGeral || isSeccional || isSupervisor)
 											)
-												? 'pointer-events-none opacity-60'
+												? 'pointer-events-none opacity-60 border-transparent'
 												: 'no-underline'} {assRel
-												? 'preset-filled-primary-500'
-												: 'preset-tonal-primary'}"
+												? 'preset-filled-primary-500 border-primary-600/30 hover:border-primary-600'
+												: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'}"
 											href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 											target="_blank"
 											title={!checkAllSigned(sec)
@@ -1558,7 +1558,7 @@
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
 											{#if isMobile}
 												<button
-													class="btn btn-xs preset-filled-warning-500 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all"
+													class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all"
 													onclick={() =>
 														abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario')}
 												>
@@ -1579,7 +1579,7 @@
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
 										<button
-											class="text-sm btn preset-filled-primary-500 px-4 py-1.5 rounded-lg shadow-sm"
+											class="text-sm btn preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 rounded-lg shadow-sm transition-all"
 											onclick={() => (modoEdicaoSeccional = true)}>Editar Escala</button
 										>
 									{:else}
@@ -1587,7 +1587,7 @@
 										<input type="hidden" name="secId" value={sec.id} />
 										<button
 											type="submit"
-											class="text-sm btn preset-filled-success-500 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+											class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
 											disabled={salvando ||
 												!sec.unidade_operacional_id ||
 												!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}

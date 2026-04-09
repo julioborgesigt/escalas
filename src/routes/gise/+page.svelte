@@ -136,7 +136,7 @@
 
 		{#if isAdminGeral}
 			<button
-				class="btn preset-filled-primary-500 text-sm font-medium px-4 py-2 rounded-xl"
+				class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-sm font-medium px-4 py-2 rounded-xl transition-all"
 				onclick={abrirCriarModal}
 			>
 				+ Nova Escala GISE
@@ -206,14 +206,14 @@
 						<div class="flex items-center gap-3">
 							{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
 								<button
-									class="btn preset-filled-success-500 text-sm px-4 py-2 rounded-xl"
+									class="btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 text-sm px-4 py-2 rounded-xl transition-all font-bold"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
 									{ativa.temSaidaConfirmada ? 'Assinar Rel. extra' : 'Assinar Escala'}
 								</button>
 							{:else}
 								<button
-									class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+									class="btn preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 text-sm px-4 py-2 rounded-xl transition-all"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
 									Acessar
@@ -414,7 +414,7 @@
 					{/if}
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-sm px-4 py-2 rounded-xl transition-all"
 						disabled={criando || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
 					>
 						{#if criando}<Spinner size="sm" />{/if}
