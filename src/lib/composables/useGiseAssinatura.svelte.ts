@@ -9,10 +9,10 @@ import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 
 export interface UseGiseAssinaturaParams {
-	giseId: number;
+	getGiseId: () => number;
 }
 
-export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
+export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 	// Estados de assinatura
 	let assinandoSimples = $state(false);
 	let assinandoLote = $state(false);
@@ -67,7 +67,7 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 	async function executarAssinarSimples(latitude?: number, longitude?: number, codigoValidação?: string, desafioId?: string) {
 		assinandoSimples = true;
 		try {
-			const r = await fetch(`/api/gise/${giseId}/assinar-simples`, {
+			const r = await fetch(`/api/gise/${getGiseId()}/assinar-simples`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = `gise_${giseId}_confirmada.pdf`;
+				a.download = `gise_${getGiseId()}_confirmada.pdf`;
 				a.click();
 				toaster.success({ title: 'Escala confirmada com sucesso' });
 				await invalidateAll();
@@ -135,7 +135,7 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
 
 				const prepResp = await fetch(
-					`/api/gise/${giseId}/relatorios/${item.seccionalId}/preparar-assinatura`,
+					`/api/gise/${getGiseId()}/relatorios/${item.seccionalId}/preparar-assinatura`,
 					{
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -151,7 +151,7 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 
 				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
 				const finResp = await fetch(
-					`/api/gise/${giseId}/relatorios/${item.seccionalId}/finalizar-assinatura`,
+					`/api/gise/${getGiseId()}/relatorios/${item.seccionalId}/finalizar-assinatura`,
 					{
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -204,7 +204,7 @@ export function useGiseAssinatura({ giseId }: UseGiseAssinaturaParams) {
 
 	async function finalizarGise() {
 		try {
-			const res = await fetch(`/api/gise/${giseId}/finalizar`, {
+			const res = await fetch(`/api/gise/${getGiseId()}/finalizar`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() }
 			});
