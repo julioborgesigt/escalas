@@ -190,10 +190,15 @@ export function useAssinaturaEscala({
 		onDocumentoAssinado?.(info);
 	}
 
-	async function assinarSimples(rubrica: string, selfie?: string | null) {
+	async function assinarSimples(rubrica: string, lat?: number, lng?: number, selfie?: string | null, codigoValidação?: string, desafioId?: string) {
 		assinandoSimples = true;
-		etapaAssinatura = 'Obtendo coordenadas...';
-		gpsCoords = await getCoordinates();
+		// Usamos a geolocalizacao já capturada no SignaturePad ou fall-back
+		if (lat && lng) {
+			gpsCoords = { lat, lng };
+		} else {
+			etapaAssinatura = 'Obtendo coordenadas...';
+			gpsCoords = await getCoordinates();
+		}
 
 		etapaAssinatura = 'Assinando...';
 		const res = await fetch(`/api/escalas/${escalaId}/assinar-simples`, {
@@ -203,7 +208,9 @@ export function useAssinaturaEscala({
 				rubrica,
 				selfieBase64: selfie,
 				latitude: gpsCoords?.lat,
-				longitude: gpsCoords?.lng
+				longitude: gpsCoords?.lng,
+				codigoValidação,
+				desafioId
 			})
 		});
 		if (!res.ok) throw new Error((await res.json()).error);
