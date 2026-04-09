@@ -46,7 +46,8 @@
 	let salvandoResposta = $state(false);
 	let exibirRelatorio = $state(false);
 
-	const { isMobile } = useMobile();
+	const mobileState = useMobile();
+	const isMobile = $derived(mobileState.isMobile);
 
 	let capturandoRubrica = $state(false);
 	let salvandoPresenca = $state(false);

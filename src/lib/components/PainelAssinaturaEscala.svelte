@@ -28,7 +28,8 @@
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
 	} = $props();
 
-	const { isMobile } = useMobile();
+	const mobileState = useMobile();
+	const isMobile = $derived(mobileState.isMobile);
 
 	const assinatura = useAssinaturaEscala({
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),

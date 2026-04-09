@@ -15,25 +15,21 @@
 
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });
-	const {
-		isAdminGeral,
-		isSeccional,
-		isSupervisor,
-		minhaSeccional,
-		minhaSeccionalId,
-		todasSeccionaisPreenchidas,
-		editaBloqueado,
-		podeDownload,
-		podeEditar,
-		isMobile,
-		statusLabel,
-		statusColor,
-		fmtDate,
-		diaSemana
-	} = giseEstado;
-	const gise = giseEstado.gise;
-	const policiais = giseEstado.policiais;
-	const todasUnidades = giseEstado.todasUnidades;
+	const isAdminGeral = $derived(giseEstado.isAdminGeral);
+	const isSeccional = $derived(giseEstado.isSeccional);
+	const isSupervisor = $derived(giseEstado.isSupervisor);
+	const minhaSeccional = $derived(giseEstado.minhaSeccional);
+	const minhaSeccionalId = $derived(giseEstado.minhaSeccionalId);
+	const todasSeccionaisPreenchidas = $derived(giseEstado.todasSeccionaisPreenchidas);
+	const editaBloqueado = $derived(giseEstado.editaBloqueado);
+	const podeDownload = $derived(giseEstado.podeDownload);
+	const podeEditar = $derived(giseEstado.podeEditar);
+	const isMobile = $derived(giseEstado.isMobile);
+	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
+
+	const gise = $derived(giseEstado.gise);
+	const policiais = $derived(giseEstado.policiais);
+	const todasUnidades = $derived(giseEstado.todasUnidades);
 
 	// Hook de assinatura
 	const assinatura = useGiseAssinatura({ giseId: gise?.id ?? 0 });
