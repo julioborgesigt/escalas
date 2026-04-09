@@ -32,7 +32,7 @@
 	const todasUnidades = $derived(giseEstado.todasUnidades);
 
 	// Hook de assinatura
-	const assinatura = useGiseAssinatura({ giseId: gise?.id ?? 0 });
+	const assinatura = useGiseAssinatura({ getGiseId: () => gise?.id ?? 0 });
 
 	// Estados locais (não extraídos)
 	let salvando = $state(false);
