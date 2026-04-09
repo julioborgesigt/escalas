@@ -10,6 +10,8 @@ import {
 } from '$lib/db';
 import { policialSchema } from '$lib/schemas/policial';
 import { gerarSenhaAleatoriaHash } from '$lib/auth';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
@@ -28,12 +30,14 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	const skipLoad = false; // Removido para garantir que policiais estejam sempre visíveis
 
-	const [resultado, unidades] = await Promise.all([
+	const [resultado, unidades, form] = await Promise.all([
 		listarPoliciais(db, lotacaoParam, false, { busca, page, limit: 20 }),
-		listarUnidades(db)
+		listarUnidades(db),
+		superValidate(zod4(policialSchema))
 	]);
 
 	return {
+		form,
 		policiais: resultado.policiais,
 		pagination: {
 			page: resultado.page,
@@ -56,72 +60,37 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
+		const form = await superValidate(request, zod4(policialSchema));
+
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
-		const data = await request.formData();
+		if (!form.valid) {
+			return fail(400, { form });
+		}
 
-		const nome = data.get('nome')?.toString() || '';
-		const matricula = data.get('matricula')?.toString() || '';
-		const cargoVal = data.get('cargo')?.toString() as 'DPC' | 'OIP';
-		const cpf = data.get('cpf')?.toString() || '';
-		const telefone = data.get('telefone')?.toString() || '';
-		const classe = data.get('classe')?.toString() || '';
-		const regime = data.get('regime')?.toString() as 'plantao' | 'expediente' | 'ambos';
-		const lotacao = data.get('lotacao')?.toString() || '';
-		const email = data.get('email')?.toString() || null;
-		const papel = data.get('papel')?.toString() || null;
-		const papelUnidadeId = data.get('papel_unidade_id')
-			? Number(data.get('papel_unidade_id'))
-			: null;
+		const { nome, matricula, lotacao } = form.data;
 
 		// Policial só pode cadastrar na sua lotação
 		if (u.tipo === 'policial' && lotacao !== u.lotacao) {
-			return fail(403, { error: 'Você só pode cadastrar policiais na sua lotação' });
-		}
-
-		const parsed = policialSchema.safeParse({
-			nome,
-			matricula,
-			cargo: cargoVal,
-			cpf: cpf || null,
-			telefone,
-			lotacao,
-			regime,
-			classe,
-			papel: papel || null,
-			papel_unidade_id: papelUnidadeId || null,
-			email: email || null
-		});
-
-		if (!parsed.success) {
-			return fail(400, {
-				error: parsed.error.issues[0].message,
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
-			});
+			return message(form, JSON.stringify({ type: 'error', error: 'Você só pode cadastrar policiais na sua lotação' }), { status: 403 });
 		}
 
 		const db = getDB(platform);
 		try {
-			await criarPolicial(db, { ...parsed.data, email: email || null });
+			await criarPolicial(db, { ...form.data, email: form.data.email || null });
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_policial',
 				entidade: 'policial',
 				detalhes: `Criado policial: ${nome} (matrícula: ${matricula})`
 			});
-			return { success: true };
+			return message(form, JSON.stringify({ type: 'success' }));
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : String(e);
-			if (message.includes('UNIQUE')) {
-				return fail(409, {
-					error: 'Matrícula já cadastrada',
-					fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
-				});
+			const errorMsg = e instanceof Error ? e.message : String(e);
+			if (errorMsg.includes('UNIQUE')) {
+				return message(form, JSON.stringify({ type: 'error', error: 'Matrícula já cadastrada' }), { status: 409 });
 			}
-			return fail(500, {
-				error: 'Erro interno ao criar policial',
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
-			});
+			return message(form, JSON.stringify({ type: 'error', error: 'Erro interno ao criar policial' }), { status: 500 });
 		}
 	},
 

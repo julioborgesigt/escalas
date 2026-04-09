@@ -23,5 +23,16 @@ export const alterarSenhaSchema = z.object({
 		.refine((s) => !SENHAS_COMUNS.has(s.toLowerCase()), 'Essa senha é muito comum. Escolha outra.')
 });
 
+export const primeiroAcessoSchema = z.object({
+	matricula: z.string().min(1, 'Matrícula é obrigatória').max(8)
+});
+
+export const verificar2FASchema = z.object({
+	desafioId: z.string().min(1, 'Desafio ID inválido'),
+	codigo: z.string().regex(/^\d{6}$/, 'O código deve ter 6 dígitos numéricos')
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;
+export type PrimeiroAcessoInput = z.infer<typeof primeiroAcessoSchema>;
+export type Verificar2FAInput = z.infer<typeof verificar2FASchema>;

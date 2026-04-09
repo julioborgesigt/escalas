@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { escalaSchema } from '$lib/schemas/escala';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -12,23 +14,21 @@
 		cidade: string;
 	}
 
-	let { data, form } = $props();
+	let { data } = $props();
 
-	// Track pending state locally
-	let enviando = $state(false);
-	function handleForm({ formData }: { formData: FormData }) {
-		enviando = true;
-		return async ({ result }: { result: any }) => {
-			enviando = false;
-			const d = result.data as Record<string, unknown> | undefined;
-			if (result.type === 'success' && d?.id) {
+	const { form, enhance, submitting, delayed } = superForm(data.form, {
+		validators: zod4Client(escalaSchema),
+		invalidateAll: false,
+		onUpdated({ form }) {
+			const msg = form.message ? JSON.parse(form.message) : null;
+			if (msg?.type === 'success' && msg?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
-				goto(`/escalas/${d.id}`);
-			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+				goto(`/escalas/${msg.id}`);
+			} else if (msg?.type === 'error') {
+				toaster.create({ title: msg.error, type: 'error' });
 			}
-		};
-	}
+		}
+	});
 
 	const isAdmin = $derived(data.isAdmin as boolean);
 	const unidadesComRegime: UnidadeRegime[] = $derived(data.unidadesComRegime);
@@ -42,16 +42,19 @@
 	let tipoEscolhido = $state<'plantao' | 'expediente' | 'fds' | null>(null);
 	let unidadeEscolhida = $state<UnidadeRegime | null>(null);
 
-	// === Estado do formulário ===
-	let titulo = $state('');
-	let cidade = $state('');
-	let dataInicio = $state('');
-	let dataFim = $state('');
+	// === Estado dos selects de hora (separados para UX com dois dropdowns) ===
 	let horaEntrada = $state('08');
 	let minutoEntrada = $state('00');
 	let horaSaida = $state('08');
 	let minutoSaida = $state('00');
-	let lotacaoEscala = $state('');
+
+	// Sincronizar selects de hora com $form
+	$effect(() => {
+		$form.hora_entrada = `${horaEntrada}:${minutoEntrada}`;
+	});
+	$effect(() => {
+		$form.hora_saida = `${horaSaida}:${minutoSaida}`;
+	});
 
 	// Se true, o form de FDS mostra o seletor de data do fim de semana
 	let fdsDataInicio = $state('');
@@ -95,31 +98,31 @@
 		const proxMes = mes === 12 ? 1 : mes + 1;
 		const proxAno = mes === 12 ? ano + 1 : ano;
 
+		$form.cidade = unidade.cidade || '';
+		$form.lotacao = unidade.nome;
+
 		if (tipo === 'plantao' || tipo === 'expediente') {
-			dataInicio = toISO(proxAno, proxMes, 1);
-			dataFim = toISO(proxAno, proxMes, diasNoMes(proxAno, proxMes));
+			$form.data_inicio = toISO(proxAno, proxMes, 1);
+			$form.data_fim = toISO(proxAno, proxMes, diasNoMes(proxAno, proxMes));
 			horaEntrada = '00';
 			minutoEntrada = '00';
 			horaSaida = '23';
 			minutoSaida = '59';
 			const tipoLabel = tipo === 'plantao' ? 'PLANTÃO' : 'EXPEDIENTE';
-			titulo = `ESCALA DE ${tipoLabel} DA ${unidade.nome.toUpperCase()} – ${MESES_PT[proxMes - 1].toUpperCase()} ${proxAno}`;
+			$form.titulo = `ESCALA DE ${tipoLabel} DA ${unidade.nome.toUpperCase()} – ${MESES_PT[proxMes - 1].toUpperCase()} ${proxAno}`;
 		} else if (tipo === 'fds') {
 			const sab = sabadoDaSemana();
 			const seg = new Date(sab);
 			seg.setDate(sab.getDate() + 2);
-			dataInicio = toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate());
-			fdsDataInicio = dataInicio;
-			dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
+			$form.data_inicio = toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate());
+			fdsDataInicio = $form.data_inicio;
+			$form.data_fim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
 			horaEntrada = '08';
 			minutoEntrada = '00';
 			horaSaida = '08';
 			minutoSaida = '00';
 			atualizarTituloFds();
 		}
-
-		cidade = unidade.cidade || '';
-		lotacaoEscala = unidade.nome;
 	}
 
 	function atualizarTituloFds() {
@@ -131,15 +134,16 @@
 		const mS = String(sab.getMonth() + 1).padStart(2, '0');
 		const dD = String(dom.getDate()).padStart(2, '0');
 		const mD = String(dom.getMonth() + 1).padStart(2, '0');
-		titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
-		dataInicio = fdsDataInicio;
+		$form.titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
+		$form.data_inicio = fdsDataInicio;
 		const seg = new Date(sab);
 		seg.setDate(sab.getDate() + 2);
-		dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
+		$form.data_fim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
 	}
 
 	function escolherTipo(tipo: 'plantao' | 'expediente' | 'fds') {
 		tipoEscolhido = tipo;
+		$form.tipo = tipo;
 		if (unidadeEscolhida) {
 			preencherDadosPorTipo(tipo, unidadeEscolhida);
 			selecionando = false;
@@ -330,15 +334,16 @@
 	<div
 		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
-		<form method="POST" action="?/criar" use:enhance={handleForm} class="space-y-4">
+		<form method="POST" action="?/criar" use:enhance class="space-y-4">
 			<!-- Campos hidden para o server -->
-			<input type="hidden" name="data_inicio" value={dataInicio} />
-			<input type="hidden" name="data_fim" value={dataFim} />
-			<input type="hidden" name="hora_entrada" value={`${horaEntrada}:${minutoEntrada}`} />
-			<input type="hidden" name="hora_saida" value={`${horaSaida}:${minutoSaida}`} />
-			<input type="hidden" name="tipo" value={tipoEscolhido ?? ''} />
+			<input type="hidden" name="data_inicio" bind:value={$form.data_inicio} />
+			<input type="hidden" name="data_fim" bind:value={$form.data_fim} />
+			<input type="hidden" name="hora_entrada" bind:value={$form.hora_entrada} />
+			<input type="hidden" name="hora_saida" bind:value={$form.hora_saida} />
+			<input type="hidden" name="tipo" bind:value={$form.tipo} />
+			<input type="hidden" name="cidade" bind:value={$form.cidade} />
 			{#if isAdmin}
-				<input type="hidden" name="lotacao" value={lotacaoEscala} />
+				<input type="hidden" name="lotacao" bind:value={$form.lotacao} />
 			{:else}
 				<input type="hidden" name="lotacao" value={unidadeEscolhida?.nome ?? ''} />
 			{/if}
@@ -349,9 +354,9 @@
 					<span class="label-text">Unidade / Cidade</span>
 					<select
 						class="select"
-						bind:value={cidade}
+						bind:value={$form.cidade}
 						onchange={() => {
-							lotacaoEscala = cidade;
+							$form.lotacao = $form.cidade;
 							if (tipoEscolhido && unidadeEscolhida)
 								preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida);
 						}}
@@ -365,7 +370,7 @@
 				</label>
 			{:else}
 				<p class="text-sm font-medium text-surface-500">
-					Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{cidade}</span>
+					Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{$form.cidade || unidadeEscolhida?.nome}</span>
 				</p>
 			{/if}
 
@@ -375,13 +380,13 @@
 					class="rounded-xl bg-surface-100 dark:bg-surface-800/60 px-4 py-3 text-sm text-surface-600 dark:text-surface-400"
 				>
 					Período: <strong class="text-surface-900 dark:text-surface-100"
-						>{dataInicio
-							? new Date(dataInicio + 'T00:00:00').toLocaleDateString('pt-BR')
+						>{$form.data_inicio
+							? new Date($form.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR')
 							: '—'}</strong
 					>
 					até
 					<strong class="text-surface-900 dark:text-surface-100"
-						>{dataFim ? new Date(dataFim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong
+						>{$form.data_fim ? new Date($form.data_fim + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong
 					>
 					· Horário:
 					<strong class="text-surface-900 dark:text-surface-100">{horarioLabel()}</strong>
@@ -434,17 +439,17 @@
 			<!-- Título (sempre visível e editável) -->
 			<label class="label">
 				<span class="label-text">Título da Escala</span>
-				<input class="input" type="text" name="titulo" bind:value={titulo} required />
+				<input class="input" type="text" name="titulo" bind:value={$form.titulo} required />
 			</label>
 
 			<div class="flex flex-col sm:flex-row gap-3 pt-2">
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 flex items-center gap-2 w-full sm:w-auto"
-					disabled={enviando}
+					disabled={$submitting}
 				>
-					{#if enviando}<Spinner size="md" />{/if}
-					{enviando ? 'Criando...' : 'Criar Escala'}
+					{#if $delayed}<Spinner size="md" />{/if}
+					{$submitting ? 'Criando...' : 'Criar Escala'}
 				</button>
 				<a href="/escalas" class="btn preset-outlined-primary-500 w-full sm:w-auto text-center"
 					>Cancelar</a

@@ -10,6 +10,8 @@ import {
 import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades, escalas } from '$lib/server/schema';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
@@ -18,53 +20,38 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const db = getDB(platform);
 	const lista = await listarUnidades(db);
 
+	const formCriar = await superValidate(zod4(unidadeSchema), { id: 'criarForm' });
+	const formEditar = await superValidate(zod4(unidadeSchema), { id: 'editarForm' });
+
 	return {
 		unidades: lista,
-		isAdmin: u.tipo === 'admin'
+		isAdmin: u.tipo === 'admin',
+		formCriar,
+		formEditar
 	};
 };
 
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
+		const form = await superValidate(request, zod4(unidadeSchema), { id: 'criarForm' });
+
 		if (u?.tipo !== 'admin') return fail(403, { error: 'Apenas administradores podem cadastrar unidades' });
 
-		const data = await request.formData();
-		const nome = data.get('nome')?.toString() || '';
-		const tipo = data.get('tipo')?.toString() as 'seccional' | 'delegacia';
-		const seccional_id = data.get('seccional_id') ? Number(data.get('seccional_id')) : null;
-		const tem_plantao = data.get('tem_plantao') === 'on';
-		const tem_expediente = data.get('tem_expediente') === 'on';
-		const tem_fds = data.get('tem_fds') === 'on';
-		const cidade = data.get('cidade')?.toString() || '';
-
-		const parsed = unidadeSchema.safeParse({
-			nome,
-			tipo,
-			seccional_id,
-			tem_plantao,
-			tem_expediente,
-			tem_fds,
-			cidade
-		});
-
-		if (!parsed.success) {
-			return fail(400, {
-				error: parsed.error.issues[0].message,
-				fields: { nome, tipo, cidade }
-			});
+		if (!form.valid) {
+			return fail(400, { form });
 		}
 
 		const db = getDB(platform);
 		try {
-			await criarUnidade(db, parsed.data);
-			return { success: true };
+			await criarUnidade(db, form.data);
+			return message(form, JSON.stringify({ type: 'success' }));
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : 'Erro desconhecido';
-			if (message.includes('UNIQUE')) {
-				return fail(409, { error: 'Já existe uma unidade com este nome' });
+			const errorMsg = e instanceof Error ? e.message : 'Erro desconhecido';
+			if (errorMsg.includes('UNIQUE')) {
+				return message(form, JSON.stringify({ type: 'error', error: 'Já existe uma unidade com este nome' }), { status: 409 });
 			}
-			return fail(500, { error: message });
+			return message(form, JSON.stringify({ type: 'error', error: `Erro ao criar: ${errorMsg}` }), { status: 500 });
 		}
 	},
 
@@ -72,40 +59,25 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (u?.tipo !== 'admin') return fail(403, { error: 'Apenas administradores podem editar unidades' });
 
-		const data = await request.formData();
-		const id = Number(data.get('id'));
-		const nome = data.get('nome')?.toString() || '';
-		const tipo = data.get('tipo')?.toString() as 'seccional' | 'delegacia';
-		const seccional_id = data.get('seccional_id') ? Number(data.get('seccional_id')) : null;
-		const tem_plantao = data.get('tem_plantao') === 'on';
-		const tem_expediente = data.get('tem_expediente') === 'on';
-		const tem_fds = data.get('tem_fds') === 'on';
-		const cidade = data.get('cidade')?.toString() || '';
+		const formData = await request.formData();
+		const id = Number(formData.get('id'));
+		
+		const form = await superValidate(formData, zod4(unidadeSchema), { id: 'editarForm' });
 
-		const parsed = unidadeSchema.safeParse({
-			nome,
-			tipo,
-			seccional_id,
-			tem_plantao,
-			tem_expediente,
-			tem_fds,
-			cidade
-		});
-
-		if (!parsed.success) {
-			return fail(400, { error: parsed.error.issues[0].message });
+		if (!form.valid) {
+			return fail(400, { form });
 		}
 
 		const db = getDB(platform);
 		try {
-			await atualizarUnidade(db, id, parsed.data);
-			return { success: true };
+			await atualizarUnidade(db, id, form.data);
+			return message(form, JSON.stringify({ type: 'success' }));
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : 'Erro desconhecido';
-			if (message.includes('UNIQUE')) {
-				return fail(409, { error: 'Já existe uma unidade com este nome' });
+			const errorMsg = e instanceof Error ? e.message : 'Erro desconhecido';
+			if (errorMsg.includes('UNIQUE')) {
+				return message(form, JSON.stringify({ type: 'error', error: 'Já existe uma unidade com este nome' }), { status: 409 });
 			}
-			return fail(500, { error: message });
+			return message(form, JSON.stringify({ type: 'error', error: `Erro ao atualizar: ${errorMsg}` }), { status: 500 });
 		}
 	},
 

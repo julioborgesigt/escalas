@@ -11,24 +11,43 @@
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 
-	let { data, form } = $props();
+	let { data } = $props();
+	import { policialSchema } from '$lib/schemas/policial';
+	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 
-	let cadastroPending = $state(false);
-	function handleCadastro({ formData }: { formData: FormData }) {
-		cadastroPending = true;
-		return async ({ result }: { result: any }) => {
-			cadastroPending = false;
-			const d = result.data as Record<string, unknown> | undefined;
-			if (result.type === 'success') {
-				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
-				resetForm();
-				cadastroOpen = false;
-				await invalidateAll();
-			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+	// svelte-ignore state_referenced_locally
+	const formObj = superForm(data.form, {
+		validators: zod4Client(policialSchema),
+		invalidateAll: false,
+		onUpdated: async ({ form }) => {
+			if (form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.type === 'success') {
+						toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+						cadastroOpen = false;
+						formObj.reset();
+						await invalidateAll();
+					} else {
+						toaster.create({ title: msg.error || 'Erro ao cadastrar', type: 'error' });
+					}
+				} catch (e) {}
+			} else if (!form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.error) toaster.create({ title: msg.error, type: 'error' });
+				} catch (e) {}
 			}
-		};
-	}
+		}
+	});
+
+	const formStore = formObj.form;
+	const formErrors = formObj.errors;
+	const formConstraints = formObj.constraints;
+	const formEnhance = formObj.enhance;
+	const formSubmitting = formObj.submitting;
+	const formDelayed = formObj.delayed;
 
 	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
 	const savedFilters = getSavedFilters('filtros_policiais', {
@@ -85,32 +104,19 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
-	let nome = $state('');
-	let matricula = $state('');
-	let cargo = $state<'DPC' | 'OIP'>('OIP');
-	let cpf = $state('');
-	let telefone = $state('');
-	let classe = $state('');
-	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
-	let lotacaoInput = $state('');
-	let email = $state('');
 	let excluindo = $state(false);
-
-	// Papel administrativo no cadastro
-	let papel = $state<string | null>(null);
-	let papelUnidadeId = $state<number | null>(null);
 
 	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
 
 	$effect(() => {
 		if (cadastroOpen) {
-			lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
+			$formStore.lotacao = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		}
 	});
 
 	const classesDisponiveis = $derived(
-		cargo === 'DPC'
+		$formStore.cargo === 'DPC'
 			? ['1', '2', '3', 'Especial']
 			: [
 					'D - I',
@@ -137,17 +143,7 @@
 	);
 
 	function resetForm() {
-		nome = '';
-		matricula = '';
-		cargo = 'OIP';
-		cpf = '';
-		telefone = '';
-		classe = '';
-		regime = 'ambos';
-		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
-		email = '';
-		papel = null;
-		papelUnidadeId = null;
+		formObj.reset();
 	}
 
 	const policiaisExibidos = $derived(
@@ -261,117 +257,124 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
 
-			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="space-y-3">
-				<!-- Campos hidden -->
-				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
-				<input type="hidden" name="telefone" value={telefone} />
-				<input type="hidden" name="lotacao" value={lotacaoInput} />
-				<input type="hidden" name="regime" value={regime} />
-				<input type="hidden" name="papel" value={papel ?? ''} />
-				<input type="hidden" name="papel_unidade_id" value={papelUnidadeId ?? ''} />
-				<input type="hidden" name="email" value={email ?? ''} />
+			<form method="POST" action="?/criar" use:formEnhance class="space-y-3">
+				<!-- Campos hidden de selects opcionais para superforms funcionar lisinho -->
+				<input type="hidden" name="papel" value={$formStore.papel ?? ''} />
+				<input type="hidden" name="papel_unidade_id" value={$formStore.papel_unidade_id ?? ''} />
 
-				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-7">
+					<label class="label sm:col-span-7 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Nome completo (Conforme Certificado Digital)</span
 						>
-						<input class="input py-1 px-3 text-sm" type="text" name="nome" bind:value={nome} required />
+						<input class="input py-1 px-3 text-sm {$formErrors.nome ? 'input-error' : ''}" type="text" name="nome" bind:value={$formStore.nome} {...$formConstraints.nome} aria-invalid={$formErrors.nome ? 'true' : undefined} />
+						{#if $formErrors.nome}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.nome[0]}</div>{/if}
 					</label>
-					<label class="label sm:col-span-2">
+					<label class="label sm:col-span-2 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Matrícula</span
 						>
 						<input
-							class="input py-1 px-3 text-sm"
+							class="input py-1 px-3 text-sm {$formErrors.matricula ? 'input-error' : ''}"
 							type="text"
 							name="matricula"
-							bind:value={matricula}
+							bind:value={$formStore.matricula}
+							{...$formConstraints.matricula}
+							aria-invalid={$formErrors.matricula ? 'true' : undefined}
 							maxlength="10"
-							required
 						/>
+						{#if $formErrors.matricula}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.matricula[0]}</div>{/if}
 					</label>
-					<label class="label sm:col-span-3">
+					<label class="label sm:col-span-3 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
-						<select class="select py-1 px-3 text-sm" name="cargo" bind:value={cargo}>
+						<select class="select py-1 px-3 text-sm {$formErrors.cargo ? 'input-error' : ''}" name="cargo" bind:value={$formStore.cargo} {...$formConstraints.cargo} aria-invalid={$formErrors.cargo ? 'true' : undefined}>
 							<option value="DPC">DPC - Delegado</option>
 							<option value="OIP">OIP - Investigador</option>
 						</select>
+						{#if $formErrors.cargo}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.cargo[0]}</div>{/if}
 					</label>
 				</div>
 
-				<!-- Linha 2: CPF (5), E-mail (7) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-5">
+					<label class="label sm:col-span-5 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>CPF (Obrigatório para Token)</span
 						>
 						<input
-							class="input py-1 px-3 text-sm"
+							class="input py-1 px-3 text-sm {$formErrors.cpf ? 'input-error' : ''}"
 							type="text"
-							value={cpf}
-							oninput={(e) => (cpf = formatarCPF(e.currentTarget.value))}
+							name="cpf"
+							value={$formStore.cpf}
+							oninput={(e) => ($formStore.cpf = formatarCPF(e.currentTarget.value))}
 							placeholder="000.000.000-00"
 							maxlength="14"
+							aria-invalid={$formErrors.cpf ? 'true' : undefined}
 						/>
+						{#if $formErrors.cpf}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.cpf[0]}</div>{/if}
 					</label>
-					<label class="label sm:col-span-7">
+					<label class="label sm:col-span-7 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>E-mail (para autenticação de dois fatores)</span
 						>
 						<input
-							class="input py-1 px-3 text-sm"
+							class="input py-1 px-3 text-sm {$formErrors.email ? 'input-error' : ''}"
 							type="email"
-							bind:value={email}
+							name="email"
+							bind:value={$formStore.email}
+							{...$formConstraints.email}
+							aria-invalid={$formErrors.email ? 'true' : undefined}
 							placeholder="exemplo@gmail.com"
 						/>
+						{#if $formErrors.email}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.email[0]}</div>{/if}
 					</label>
 				</div>
 
-				<!-- Linha 3: Telefone (3), Classe (4), Regime (5) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-3">
+					<label class="label sm:col-span-3 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Telefone</span
 						>
 						<input
-							class="input py-1 px-3 text-sm"
+							class="input py-1 px-3 text-sm {$formErrors.telefone ? 'input-error' : ''}"
 							type="text"
-							value={telefone}
-							oninput={(e) => (telefone = formatarTelefone(e.currentTarget.value))}
+							name="telefone"
+							value={$formStore.telefone}
+							oninput={(e) => ($formStore.telefone = formatarTelefone(e.currentTarget.value))}
 							placeholder="(88) 9.0000-0000"
 							maxlength="16"
+							aria-invalid={$formErrors.telefone ? 'true' : undefined}
 						/>
+						{#if $formErrors.telefone}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.telefone[0]}</div>{/if}
 					</label>
-					<label class="label sm:col-span-4">
+					<label class="label sm:col-span-4 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
-						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
+						<select class="select py-1 px-3 text-sm {$formErrors.classe ? 'input-error' : ''}" name="classe" bind:value={$formStore.classe} {...$formConstraints.classe} aria-invalid={$formErrors.classe ? 'true' : undefined}>
 							<option value="" disabled>-</option>
 							{#each classesDisponiveis as c}
 								<option value={c}>{c}</option>
 							{/each}
 						</select>
+						{#if $formErrors.classe}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.classe[0]}</div>{/if}
 					</label>
-					<label class="label sm:col-span-5">
+					<label class="label sm:col-span-5 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Regime de Trabalho</span
 						>
-						<select class="select py-1 px-3 text-sm" bind:value={regime}>
+						<select class="select py-1 px-3 text-sm {$formErrors.regime ? 'input-error' : ''}" name="regime" bind:value={$formStore.regime} {...$formConstraints.regime} aria-invalid={$formErrors.regime ? 'true' : undefined}>
 							<option value="ambos">Plantão e Expediente</option>
 							<option value="plantao">Somente Plantão</option>
 							<option value="expediente">Somente Expediente</option>
 						</select>
+						{#if $formErrors.regime}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.regime[0]}</div>{/if}
 					</label>
 				</div>
 
-				<!-- Linha 4: Lotação (12) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-12">
+					<label class="label sm:col-span-12 relative mb-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span
 						>
 						{#if isAdmin}
-							<select class="select py-1 px-3 text-sm" bind:value={lotacaoInput}>
+							<select class="select py-1 px-3 text-sm {$formErrors.lotacao ? 'input-error' : ''}" name="lotacao" bind:value={$formStore.lotacao} {...$formConstraints.lotacao} aria-invalid={$formErrors.lotacao ? 'true' : undefined}>
 								<option value="">— Sem lotação —</option>
 								{#each unidades as u (u.id)}
 									<option value={u.nome}>{u.nome}</option>
@@ -379,12 +382,15 @@
 							</select>
 						{:else}
 							<input
-								class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75"
+								class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75 {$formErrors.lotacao ? 'input-error' : ''}"
 								type="text"
-								value={lotacaoInput}
+								name="lotacao"
+								value={$formStore.lotacao}
 								readonly
+								{...$formConstraints.lotacao}
 							/>
 						{/if}
+						{#if $formErrors.lotacao}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.lotacao[0]}</div>{/if}
 					</label>
 				</div>
 
@@ -394,29 +400,31 @@
 							Papel Administrativo (Opcional)
 						</h4>
 						<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-							<label class="label sm:col-span-5">
+							<label class="label sm:col-span-5 relative mb-3">
 								<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">Papel</span>
-								<select class="select py-1 px-3 text-sm" bind:value={papel}>
+								<select class="select py-1 px-3 text-sm {$formErrors.papel ? 'input-error' : ''}" bind:value={$formStore.papel} aria-invalid={$formErrors.papel ? 'true' : undefined}>
 									<option value={null}>Servidor (sem papel)</option>
 									{#if isAdminOrSeccional}
 										<option value="admin_seccional">Admin Seccional</option>
 									{/if}
 									<option value="admin_unidade">Admin Unidade</option>
 								</select>
+								{#if $formErrors.papel}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.papel[0]}</div>{/if}
 							</label>
-							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
-								<label class="label sm:col-span-7">
+							{#if $formStore.papel && !(isAdminUnidade && $formStore.papel === 'admin_unidade')}
+								<label class="label sm:col-span-7 relative mb-3">
 									<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">
-										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
+										{$formStore.papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}
 									</span>
-									<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
+									<select class="select py-1 px-3 text-sm {$formErrors.papel_unidade_id ? 'input-error' : ''}" bind:value={$formStore.papel_unidade_id} aria-invalid={$formErrors.papel_unidade_id ? 'true' : undefined}>
 										<option value={null}>Selecionar...</option>
-										{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u}
+										{#each $formStore.papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u}
 											<option value={u.id}>{u.nome}</option>
 										{/each}
 									</select>
+									{#if $formErrors.papel_unidade_id}<div class="text-error-500 text-[0.65rem] absolute -bottom-4">{$formErrors.papel_unidade_id[0]}</div>{/if}
 								</label>
-							{:else if papel === 'admin_unidade' && isAdminUnidade}
+							{:else if $formStore.papel === 'admin_unidade' && isAdminUnidade}
 								<p
 									class="text-[0.65rem] text-surface-500 sm:col-span-7 flex items-end pb-2 ml-1 italic"
 								>
@@ -434,10 +442,10 @@
 					<button
 						type="submit"
 						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-						disabled={cadastroPending}
+						disabled={$formSubmitting}
 					>
-						{#if cadastroPending}<Spinner size="sm" />{/if}
-						{cadastroPending ? 'Guardando...' : 'Cadastrar'}
+						{#if $formDelayed}<Spinner size="sm" />{/if}
+						{$formSubmitting ? 'Guardando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
