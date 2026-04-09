@@ -434,7 +434,7 @@
 			<!-- Título (sempre visível e editável) -->
 			<label class="label">
 				<span class="label-text">Título da Escala</span>
-				<input class="input" type="text" bind:value={titulo} required />
+				<input class="input" type="text" name="titulo" bind:value={titulo} required />
 			</label>
 
 			<div class="flex flex-col sm:flex-row gap-3 pt-2">
