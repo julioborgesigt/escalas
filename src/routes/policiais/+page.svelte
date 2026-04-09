@@ -277,7 +277,7 @@
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Nome completo (Conforme Certificado Digital)</span
 						>
-						<input class="input py-1 px-3 text-sm" type="text" bind:value={nome} required />
+						<input class="input py-1 px-3 text-sm" type="text" name="nome" bind:value={nome} required />
 					</label>
 					<label class="label sm:col-span-2">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
@@ -286,6 +286,7 @@
 						<input
 							class="input py-1 px-3 text-sm"
 							type="text"
+							name="matricula"
 							bind:value={matricula}
 							maxlength="10"
 							required
@@ -293,7 +294,7 @@
 					</label>
 					<label class="label sm:col-span-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Cargo</span>
-						<select class="select py-1 px-3 text-sm" bind:value={cargo}>
+						<select class="select py-1 px-3 text-sm" name="cargo" bind:value={cargo}>
 							<option value="DPC">DPC - Delegado</option>
 							<option value="OIP">OIP - Investigador</option>
 						</select>
