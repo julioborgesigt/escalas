@@ -2,9 +2,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { getDB, listarGiseEscalas, buscarGiseAtiva, isSupervisorGiseAtiva, isMembroGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import { giseCriarSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
@@ -42,33 +39,27 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	else if (isSupervisor) papelGise = 'supervisor';
 	else papelGise = 'membro';
 
-	const form = await superValidate(zod4(giseCriarSchema));
-
 	return {
 		escalas,
 		ativa,
-		papelGise,
-		form
+		papelGise
 	};
 };
 
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		const form = await superValidate(request, zod4(giseCriarSchema));
+		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas o Administrador Geral pode criar escalas GISE' });
 
-		if (!isAdminGeral(u)) return fail(403, { form });
+		const data = await request.formData();
+		const data_inicio = data.get('data_inicio')?.toString() || '';
+		const data_fim = data.get('data_fim')?.toString() || data_inicio;
+		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
+		const hora_saida = data.get('hora_saida')?.toString() || '16:00';
+		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada';
+		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-
-		const data_inicio = form.data.data_inicio;
-		const data_fim = form.data.data_fim || data_inicio;
-		const hora_entrada = form.data.hora_entrada;
-		const hora_saida = form.data.hora_saida;
-		const modo = form.data.modo;
-		const clonar_de = form.data.clonar_de;
+		if (!data_inicio) return fail(400, { error: 'data_inicio é obrigatório' });
 
 		const db = getDB(platform);
 
@@ -86,7 +77,7 @@ export const actions: Actions = {
 
 			if (modo === 'clonada' && clonar_de) {
 				for (const d of datas) {
-					const novoId = await clonarGiseParaData(db, Number(clonar_de), d, 'clonada', hora_entrada, hora_saida);
+					const novoId = await clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida);
 					ids.push(novoId);
 				}
 			} else {
@@ -104,10 +95,10 @@ export const actions: Actions = {
 				}
 			}
 
-			return message(form, JSON.stringify({ type: 'success', ids, count: ids.length }));
+			return { success: true, count: ids.length, ids };
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
-			return message(form, JSON.stringify({ type: 'error', error: msg }), { status: 500 });
+			return fail(500, { error: msg });
 		}
 	}
 };

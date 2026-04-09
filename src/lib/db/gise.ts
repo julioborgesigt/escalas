@@ -198,39 +198,32 @@ export async function buscarGiseDetalhado(
 	db: Database,
 	id: number
 ): Promise<GiseDetalhado | null> {
-	// Envia todas as queries em uma única requisição HTTP ao Cloudflare D1 via db.batch().
-	// Antes: 1 serial (gise) + 7 em Promise.all + 1 serial (assExtra) ≈ 9 round-trips.
-	// Agora: 1 round-trip único. O supervisor é resolvido via LEFT JOIN na query do gise,
-	// eliminando também o round-trip condicional que dependia de gise.supervisor_id.
+	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
+	if (!gise) return null;
+
+	// Carrega dados em paralelo para minimizar round-trips ao banco
 	const [
-		giseRows,
-		documentoRows,
+		supervisorRow,
+		documento,
 		secsRows,
 		todasEquipes,
 		todosMembros,
 		todasPresencas,
-		todasRespostas,
-		assExtraRows
-	] = await db.batch([
-		// 1. gise + supervisor via LEFT JOIN
+		todasRespostas
+	] = await Promise.all([
+		gise.supervisor_id
+			? db
+				.select({ nome: policiais.nome, matricula: policiais.matricula })
+				.from(policiais)
+				.where(eq(policiais.id, gise.supervisor_id))
+				.get()
+			: Promise.resolve(null),
 		db
-			.select({
-				id: giseEscalas.id,
-				data_inicio: giseEscalas.data_inicio,
-				hora_entrada: giseEscalas.hora_entrada,
-				hora_saida: giseEscalas.hora_saida,
-				status: giseEscalas.status,
-				supervisor_id: giseEscalas.supervisor_id,
-				created_at: giseEscalas.created_at,
-				supervisor_nome: policiais.nome,
-				supervisor_matricula: policiais.matricula
-			})
-			.from(giseEscalas)
-			.leftJoin(policiais, eq(giseEscalas.supervisor_id, policiais.id))
-			.where(eq(giseEscalas.id, id)),
-		// 2. documento PDF
-		db.select().from(giseDocumentos).where(eq(giseDocumentos.gise_id, id)),
-		// 3. seccionais com nome da unidade
+			.select()
+			.from(giseDocumentos)
+			.where(eq(giseDocumentos.gise_id, id))
+			.get()
+			.then((r) => r ?? null),
 		db
 			.select({
 				id: giseSeccionais.id,
@@ -246,13 +239,11 @@ export async function buscarGiseDetalhado(
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.where(eq(giseSeccionais.gise_id, id))
 			.orderBy(asc(unidades.nome)),
-		// 4. equipes
 		db
 			.select()
 			.from(giseEquipes)
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseSeccionais.gise_id, id)),
-		// 5. membros com dados do policial
 		db
 			.select({
 				id: giseMembros.id,
@@ -270,31 +261,28 @@ export async function buscarGiseDetalhado(
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseSeccionais.gise_id, id)),
-		// 6. presenças
 		db.select().from(gisePresencas).where(eq(gisePresencas.gise_id, id)),
-		// 7. respostas de formulário (para indicar quais seccionais já responderam)
 		db
 			.select({ equipe_seccional_id: giseEquipes.gise_seccional_id })
 			.from(giseRespostasFormulario)
 			.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.where(eq(giseRespostasFormulario.gise_id, id)),
-		// 8. contagem de assinaturas extraordinárias
-		db
-			.select({ count: sql<number>`count(*)` })
-			.from(giseAssinaturasRelatorios)
-			.where(
-				and(
-					eq(giseAssinaturasRelatorios.gise_id, id),
-					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-				)
-			)
+			.where(eq(giseRespostasFormulario.gise_id, id))
 	]);
 
-	const gise = giseRows[0] ?? null;
-	if (!gise) return null;
+	const supervisor_nome = supervisorRow?.nome ?? null;
+	const supervisor_matricula = supervisorRow?.matricula ?? null;
 
-	const documento = documentoRows[0] ?? null;
+	const assExtraRow = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(giseAssinaturasRelatorios)
+		.where(
+			and(
+				eq(giseAssinaturasRelatorios.gise_id, id),
+				eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
+			)
+		)
+		.get();
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
 
@@ -315,7 +303,7 @@ export async function buscarGiseDetalhado(
 		membrosPorEquipe.get(m.equipe_id)!.push(m);
 	}
 
-	// Carrega nomes de unidades operacionais (condicional — só quando há UO vinculadas)
+	// Carrega nomes de unidades operacionais em lote
 	const uoIds = [
 		...new Set(
 			secsRows.map((s) => s.unidade_operacional_id).filter(Boolean) as number[]
@@ -355,9 +343,11 @@ export async function buscarGiseDetalhado(
 	return {
 		...gise,
 		seccionais,
+		supervisor_nome,
+		supervisor_matricula,
 		documento,
 		totalSeccionais: seccionais.length,
-		assinaturasRelatorioExtra: assExtraRows[0]?.count ?? 0,
+		assinaturasRelatorioExtra: assExtraRow?.count ?? 0,
 		temSaidaConfirmada
 	};
 }

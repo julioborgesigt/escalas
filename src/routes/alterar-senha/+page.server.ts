@@ -4,16 +4,9 @@ import { getDB } from '$lib/db';
 import { hashSenha, verificarSenha, invalidarOutrasSessoes } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
-import type { Actions, PageServerLoad } from './$types';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
+import type { Actions } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const form = await superValidate(zod4(alterarSenhaSchema));
-	return { form };
-};
-
-export const actions: Actions = {
+export const actions = {
 	alterar: async ({ request, platform, locals, cookies }) => {
 		const db = getDB(platform);
 		const usuario = locals.usuario;
@@ -23,19 +16,19 @@ export const actions: Actions = {
 			return fail(401, { error: 'Não autorizado' });
 		}
 
-		const form = await superValidate(request, zod4(alterarSenhaSchema));
+		const formData = await request.formData();
+		const nova_senha = formData.get('nova_senha')?.toString();
+		const senha_atual = formData.get('senha_atual')?.toString();
 
-		if (!form.valid) {
-			return fail(400, { form });
+		const parsed = alterarSenhaSchema.safeParse({ nova_senha, senha_atual: senha_atual || undefined });
+		if (!parsed.success) {
+			return fail(400, { error: parsed.error.issues[0].message });
 		}
-
-		const nova_senha = form.data.nova_senha;
-		const senha_atual = form.data.senha_atual;
 
 		// Verificar senha atual (exceto no primeiro acesso)
 		if (!usuario.primeiro_acesso) {
 			if (!senha_atual) {
-				return message(form, JSON.stringify({ type: 'error', error: 'Senha atual é obrigatória' }), { status: 400 });
+				return fail(400, { error: 'Senha atual é obrigatória' });
 			}
 
 			if (usuario.tipo === 'admin') {
@@ -45,7 +38,7 @@ export const actions: Actions = {
 					.where(eq(administradores.id, usuario.id))
 					.get();
 				if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
-					return message(form, JSON.stringify({ type: 'error', error: 'Senha atual incorreta' }), { status: 401 });
+					return fail(401, { error: 'Senha atual incorreta' });
 				}
 			} else {
 				const registro = await db
@@ -54,12 +47,12 @@ export const actions: Actions = {
 					.where(eq(policiais.id, usuario.id))
 					.get();
 				if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
-					return message(form, JSON.stringify({ type: 'error', error: 'Senha atual incorreta' }), { status: 401 });
+					return fail(401, { error: 'Senha atual incorreta' });
 				}
 			}
 		}
 
-		const novaSenhaHash = await hashSenha(nova_senha);
+		const novaSenhaHash = await hashSenha(parsed.data.nova_senha);
 
 		if (usuario.tipo === 'admin') {
 			await db
@@ -77,6 +70,6 @@ export const actions: Actions = {
 			await invalidarOutrasSessoes(db, usuario.tipo, usuario.id, token);
 		}
 
-		return message(form, JSON.stringify({ type: 'success' }));
+		return { success: true };
 	}
-};
+} satisfies Actions;
