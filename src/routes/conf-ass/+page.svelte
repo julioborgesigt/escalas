@@ -49,7 +49,7 @@
 				<p class="font-semibold text-sm mb-0.5">Exigir foto do assinante (Prova de Vida)</p>
 				<p class="text-xs text-surface-500">
 					Quando ativado, o sistema solicita que o assinante tire uma selfie via câmera com detecção de rosto antes de confirmar a assinatura em tela.
-					Desativando, apenas a rubrica desenhada e a geolocalização são coletadas.
+					Desativando, a prova de vida por imagem não será solicitada.
 				</p>
 			</div>
 			<button
@@ -124,12 +124,20 @@
 
 		<div class="pt-2 border-t border-surface-200 dark:border-white/10 flex items-center justify-between gap-4">
 			<p class="text-xs text-surface-400">
-				{#if exigirFoto && exigirGps}
+				{#if exigirFoto && exigirGps && exigirCodigoEmail}
+					<span class="text-success-600 dark:text-success-400 font-medium">Foto, GPS e 2FA ativados</span> — segurança máxima.
+				{:else if exigirFoto && exigirGps}
 					<span class="text-success-600 dark:text-success-400 font-medium">Foto e GPS ativados</span> — validação completa.
+				{:else if exigirFoto && exigirCodigoEmail}
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Foto e 2FA ativados</span> — sem geolocalização.
+				{:else if exigirGps && exigirCodigoEmail}
+					<span class="text-warning-600 dark:text-warning-400 font-medium">GPS e 2FA ativados</span> — sem prova de vida (selfie).
 				{:else if exigirFoto}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas foto ativada</span> — sem captura de localização.
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas foto ativada</span> — sem GPS e 2FA.
 				{:else if exigirGps}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas GPS ativado</span> — sem selfie.
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas GPS ativado</span> — sem selfie e 2FA.
+				{:else if exigirCodigoEmail}
+					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica e 2 FA será coletada.
 				{:else}
 					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica será coletada.
 				{/if}
