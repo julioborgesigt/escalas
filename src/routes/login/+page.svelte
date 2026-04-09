@@ -1,102 +1,130 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
-	import { loginSchema } from '$lib/schemas';
+	import { loginSchema, primeiroAcessoSchema, verificar2FASchema } from '$lib/schemas/auth';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { superForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 
-	let tipo = $state<'policial' | 'admin'>('policial');
-	let matricula = $state('');
-	let senha = $state('');
-	let loading = $state(false);
+	let { data } = $props();
 
-	// Estado do passo 2FA
+	// Estado da interface
 	let pendente2FA = $state(false);
-	let desafioId = $state('');
-	let codigo2FA = $state('');
-	let tipoUsuario2FA = $state<'policial' | 'admin'>('policial');
 	let emailMascarado = $state('');
-
-	// Estado do primeiro acesso
 	let primeiroAcesso = $state(false);
-	let matriculaPrimeiroAcesso = $state('');
 	let primeiroAcessoEnviado = $state(false);
 
-	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
-		const parsed = loginSchema.safeParse({
-			matricula: formData.get('matricula'),
-			senha: formData.get('senha'),
-			tipo: formData.get('tipo')
-		});
-		if (!parsed.success) {
-			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
-			cancel();
-			return;
+	// svelte-ignore state_referenced_locally
+	const loginSuper = superForm(data.loginForm, {
+		validators: zod4Client(loginSchema),
+		invalidateAll: false,
+		onUpdated: async ({ form }) => {
+			if (form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.type === 'success') {
+						if (msg.pendente2FA) {
+							$verificar2FAForm.desafioId = String(msg.desafioId || '');
+							emailMascarado = String(msg.emailMascarado || '');
+							pendente2FA = true;
+							toaster.success({ title: 'Código enviado para o seu e-mail!' });
+						} else if (msg.redirect) {
+							goto(String(msg.redirect), { invalidateAll: true });
+						}
+					} else {
+						toaster.error({ title: msg.error || 'Credenciais inválidas' });
+					}
+				} catch (e) {}
+			} else if (!form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.error) toaster.error({ title: msg.error });
+				} catch (e) {}
+			}
 		}
-		loading = true;
-		return async ({ result }: { result: any }) => {
-			loading = false;
-			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				if (d?.pendente2FA) {
-					desafioId = String(d.desafioId || '');
-					tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
-					emailMascarado = String(d.emailMascarado || '');
-					pendente2FA = true;
-					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
-				} else if (d?.redirect) {
-					goto(String(d.redirect), { invalidateAll: true });
-				}
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Credenciais inválidas'), type: 'error' });
-			}
-		};
-	}
+	});
 
-	function handleVerificar2FA({ cancel }: { cancel: () => void }) {
-		if (codigo2FA.length !== 6) {
-			toaster.create({ title: 'Informe o código de 6 dígitos', type: 'error' });
-			cancel();
-			return;
+	const loginForm = loginSuper.form;
+	const loginErrors = loginSuper.errors;
+	const loginConstraints = loginSuper.constraints;
+	const loginEnhance = loginSuper.enhance;
+	const loginSubmitting = loginSuper.submitting;
+	const loginDelayed = loginSuper.delayed;
+
+	// svelte-ignore state_referenced_locally
+	const primeAcessoSuper = superForm(data.primeiroAcessoForm, {
+		validators: zod4Client(primeiroAcessoSchema),
+		invalidateAll: false,
+		onUpdated: async ({ form }) => {
+			if (form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.type === 'success') {
+						primeiroAcessoEnviado = true;
+					} else {
+						toaster.error({ title: msg.error || 'Erro ao processar solicitação.' });
+					}
+				} catch (e) {}
+			} else if (!form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.error) toaster.error({ title: msg.error });
+				} catch (e) {}
+			}
 		}
-		loading = true;
-		return async ({ result }: { result: any }) => {
-			loading = false;
-			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				if (d?.redirect) goto(String(d.redirect), { invalidateAll: true });
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Código inválido'), type: 'error' });
-				if (d?.expirado || d?.esgotado) voltarLogin();
-			}
-		};
-	}
+	});
 
-	function handlePrimeiroAcesso() {
-		loading = true;
-		return async ({ result }: { result: any }) => {
-			loading = false;
-			if (result.type === 'success') {
-				primeiroAcessoEnviado = true;
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao processar solicitação.'), type: 'error' });
+	const primeiroAcessoForm = primeAcessoSuper.form;
+	const primeiroAcessoErrors = primeAcessoSuper.errors;
+	const primeiroAcessoConstraints = primeAcessoSuper.constraints;
+	const primeiroAcessoEnhance = primeAcessoSuper.enhance;
+	const primeiroAcessoSubmitting = primeAcessoSuper.submitting;
+	const primeiroAcessoDelayed = primeAcessoSuper.delayed;
+
+	// svelte-ignore state_referenced_locally
+	const verificar2FASuper = superForm(data.verificar2FAForm, {
+		validators: zod4Client(verificar2FASchema),
+		invalidateAll: false,
+		onUpdated: async ({ form }) => {
+			if (form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.type === 'success') {
+						if (msg.redirect) goto(String(msg.redirect), { invalidateAll: true });
+					} else {
+						toaster.error({ title: msg.error || 'Código inválido' });
+						if (msg.expirado || msg.esgotado) voltarLogin();
+					}
+				} catch (e) {}
+			} else if (!form.valid && form.message) {
+				try {
+					const msg = JSON.parse(form.message);
+					if (msg.error) toaster.error({ title: msg.error });
+					if (msg.expirado || msg.esgotado) voltarLogin();
+				} catch (e) {}
 			}
-		};
-	}
+		}
+	});
+
+	const verificar2FAForm = verificar2FASuper.form;
+	const verificar2FAErrors = verificar2FASuper.errors;
+	const verificar2FAConstraints = verificar2FASuper.constraints;
+	const verificar2FAEnhance = verificar2FASuper.enhance;
+	const verificar2FASubmitting = verificar2FASuper.submitting;
+	const verificar2FADelayed = verificar2FASuper.delayed;
+
+
 
 	function voltarLogin() {
 		pendente2FA = false;
-		desafioId = '';
-		codigo2FA = '';
+		$verificar2FAForm.desafioId = '';
+		$verificar2FAForm.codigo = '';
 	}
 
 	function voltarParaLogin() {
 		primeiroAcesso = false;
 		primeiroAcessoEnviado = false;
-		matriculaPrimeiroAcesso = '';
+		$primeiroAcessoForm.matricula = '';
 	}
 </script>
 
@@ -121,67 +149,73 @@
 				class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5"
 			>
 				<button
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial'
+					type="button"
+					class="flex-1 py-2 text-sm font-medium transition-colors {$loginForm.tipo === 'policial'
 						? 'preset-filled-primary-500'
 						: 'text-surface-500'}"
 					onclick={() => {
-						tipo = 'policial';
+						$loginForm.tipo = 'policial';
 					}}
 				>
 					Policial
 				</button>
 				<button
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin'
+					type="button"
+					class="flex-1 py-2 text-sm font-medium transition-colors {$loginForm.tipo === 'admin'
 						? 'preset-filled-primary-500'
 						: 'text-surface-500'}"
 					onclick={() => {
-						tipo = 'admin';
+						$loginForm.tipo = 'admin';
 					}}
 				>
 					Administrador
 				</button>
 			</div>
 
-			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-6">
-				<input type="hidden" name="tipo" value={tipo} />
-				<label class="label">
-					<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
+			<form method="POST" action="?/login" use:loginEnhance class="flex flex-col gap-6">
+				<input type="hidden" name="tipo" value={$loginForm.tipo} />
+				<label class="label relative">
+					<span class="label-text">{$loginForm.tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 					<input
-						class="input"
+						class="input {$loginErrors.matricula ? 'input-error' : ''}"
 						type="text"
 						name="matricula"
-						bind:value={matricula}
-						placeholder={tipo === 'admin'
+						bind:value={$loginForm.matricula}
+						{...$loginConstraints.matricula}
+						aria-invalid={$loginErrors.matricula ? 'true' : undefined}
+						placeholder={$loginForm.tipo === 'admin'
 							? 'Digite seu login'
 							: 'Digite sua matrícula (8 caracteres)'}
-						maxlength={tipo === 'admin' ? undefined : 8}
-						required
+						maxlength={$loginForm.tipo === 'admin' ? undefined : 8}
 					/>
+					{#if $loginErrors.matricula}<div class="text-error-500 text-xs mt-1 absolute -bottom-5">{$loginErrors.matricula[0]}</div>{/if}
 				</label>
 
-				<label class="label">
+				<label class="label relative">
 					<span class="label-text">Senha</span>
 					<input
-						class="input"
+						class="input {$loginErrors.senha ? 'input-error' : ''}"
 						type="password"
 						name="senha"
-						bind:value={senha}
+						bind:value={$loginForm.senha}
+						{...$loginConstraints.senha}
+						aria-invalid={$loginErrors.senha ? 'true' : undefined}
 						placeholder="Digite sua senha"
-						required
 					/>
+					{#if $loginErrors.senha}<div class="text-error-500 text-xs mt-1 absolute -bottom-5">{$loginErrors.senha[0]}</div>{/if}
 				</label>
 
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-					disabled={loading}
+					disabled={$loginSubmitting}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Entrando...' : 'Entrar'}
+					{#if $loginDelayed}<Spinner size="md" />{/if}
+					{$loginSubmitting ? 'Entrando...' : 'Entrar'}
 				</button>
 			</form>
 
-			{#if tipo === 'policial'}
+			{#if $loginForm.tipo === 'policial'}
 				<p class="text-center mt-4 text-xs text-surface-500">
 					Primeiro acesso?
 					<button
@@ -205,26 +239,28 @@
 						Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
 					</p>
 				</div>
-				<form method="POST" action="?/solicitarPrimeiroAcesso" use:enhance={handlePrimeiroAcesso} class="flex flex-col gap-5">
-					<label class="label">
+				<form method="POST" action="?/solicitarPrimeiroAcesso" use:primeiroAcessoEnhance class="flex flex-col gap-5">
+					<label class="label relative">
 						<span class="label-text">Matrícula</span>
 						<input
-							class="input"
+							class="input {$primeiroAcessoErrors.matricula ? 'input-error' : ''}"
 							type="text"
 							name="matricula"
-							bind:value={matriculaPrimeiroAcesso}
+							bind:value={$primeiroAcessoForm.matricula}
+							{...$primeiroAcessoConstraints.matricula}
+							aria-invalid={$primeiroAcessoErrors.matricula ? 'true' : undefined}
 							placeholder="Digite sua matrícula"
 							maxlength="8"
-							required
 						/>
+						{#if $primeiroAcessoErrors.matricula}<div class="text-error-500 text-xs mt-1 absolute -bottom-5">{$primeiroAcessoErrors.matricula[0]}</div>{/if}
 					</label>
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-						disabled={loading}
+						disabled={$primeiroAcessoSubmitting}
 					>
-						{#if loading}<Spinner size="md" />{/if}
-						{loading ? 'Enviando...' : 'Enviar senha provisória'}
+						{#if $primeiroAcessoDelayed}<Spinner size="md" />{/if}
+						{$primeiroAcessoSubmitting ? 'Enviando...' : 'Enviar senha provisória'}
 					</button>
 					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaLogin}>
 						← Voltar
@@ -258,30 +294,32 @@
 				</p>
 			</div>
 
-			<form method="POST" action="?/verificar2FA" use:enhance={handleVerificar2FA} class="flex flex-col gap-5">
-				<input type="hidden" name="desafioId" value={desafioId} />
-				<label class="label">
+			<form method="POST" action="?/verificar2FA" use:verificar2FAEnhance class="flex flex-col gap-5">
+				<input type="hidden" name="desafioId" bind:value={$verificar2FAForm.desafioId} />
+				<label class="label relative">
 					<span class="label-text text-center block">Código de verificação</span>
 					<input
-						class="input text-center text-3xl font-bold tracking-[0.4em] py-3"
+						class="input text-center text-3xl font-bold tracking-[0.4em] py-3 {$verificar2FAErrors.codigo ? 'input-error' : ''}"
 						type="text"
 						name="codigo"
-						value={codigo2FA}
-						oninput={(e) => (codigo2FA = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
+						value={$verificar2FAForm.codigo}
+						oninput={(e) => ($verificar2FAForm.codigo = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 						placeholder="000000"
 						maxlength="6"
 						inputmode="numeric"
 						autocomplete="one-time-code"
+						aria-invalid={$verificar2FAErrors.codigo ? 'true' : undefined}
 					/>
+					{#if $verificar2FAErrors.codigo}<div class="text-error-500 text-xs mt-1 absolute -bottom-5 text-center w-full">{$verificar2FAErrors.codigo[0]}</div>{/if}
 				</label>
 
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-					disabled={loading || codigo2FA.length !== 6}
+					disabled={$verificar2FASubmitting || $verificar2FAForm.codigo.length !== 6}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Verificando...' : 'Confirmar'}
+					{#if $verificar2FADelayed}<Spinner size="md" />{/if}
+					{$verificar2FASubmitting ? 'Verificando...' : 'Confirmar'}
 				</button>
 
 				<button type="button" class="btn preset-outlined w-full" onclick={voltarLogin}>

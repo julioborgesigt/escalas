@@ -10,6 +10,8 @@ import {
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -31,12 +33,17 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		(isAdm || isSeccional || isUnidade) ? listarUnidades(db) : Promise.resolve([])
 	]);
 
+	const policialData = {
+		...policial,
+		papel: policial.papel ?? null,
+		papel_unidade_id: policial.papel_unidade_id ?? null
+	};
+
+	const form = await superValidate(policialData, zod4(policialUpdateSchema));
+
 	return {
-		policial: {
-			...policial,
-			papel: policial.papel ?? null,
-			papel_unidade_id: policial.papel_unidade_id ?? null
-		},
+		form,
+		policial: policialData,
 		lotacoes,
 		unidades: todasUnidades,
 		isAdmin: isAdm,
@@ -53,34 +60,21 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
 
-		const formData = await request.formData();
-		const data = {
-			nome: formData.get('nome')?.toString() || '',
-			matricula: formData.get('matricula')?.toString() || '',
-			cargo: formData.get('cargo')?.toString() as 'DPC' | 'OIP',
-			cpf: formData.get('cpf')?.toString() || '',
-			telefone: formData.get('telefone')?.toString() || '',
-			lotacao: formData.get('lotacao')?.toString() || '',
-			regime: formData.get('regime')?.toString() as 'plantao' | 'expediente' | 'ambos',
-			classe: formData.get('classe')?.toString() || '',
-			email: formData.get('email')?.toString() || null
-		};
-
-		const parsed = policialUpdateSchema.safeParse(data);
-		if (!parsed.success) {
-			return fail(400, { error: parsed.error.issues[0].message, fields: data });
+		const form = await superValidate(request, zod4(policialUpdateSchema));
+		if (!form.valid) {
+			return fail(400, { form });
 		}
 
 		const db = getDB(platform);
 		try {
-			await atualizarPolicial(db, id, { ...parsed.data, email: data.email ?? undefined });
-			return { success: true };
+			await atualizarPolicial(db, id, { ...form.data, email: form.data.email ?? undefined });
+			return message(form, JSON.stringify({ type: 'success' }));
 		} catch (e: unknown) {
-			const message = e instanceof Error ? e.message : 'Erro desconhecido';
-			if (message.includes('UNIQUE')) {
-				return fail(409, { error: 'Matrícula já cadastrada', fields: data });
+			const errorMsg = e instanceof Error ? e.message : 'Erro desconhecido';
+			if (errorMsg.includes('UNIQUE')) {
+				return message(form, JSON.stringify({ type: 'error', error: 'Matrícula já cadastrada' }), { status: 409 });
 			}
-			return fail(500, { error: 'Erro interno ao atualizar policial', fields: data });
+			return message(form, JSON.stringify({ type: 'error', error: 'Erro interno ao atualizar policial' }), { status: 500 });
 		}
 	},
 
