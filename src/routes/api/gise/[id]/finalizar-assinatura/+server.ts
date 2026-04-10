@@ -11,6 +11,7 @@ import forge from 'node-forge';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
+import { determinarTipoCarimbo } from '$lib/server/document-utils';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -24,7 +25,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
-	const { preparedPdf, rawSignature, serproCms, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash, dia, latitude, longitude } = await request.json();
+	const { preparedPdf, rawSignature, serproCms, serproResponse, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash, dia, latitude, longitude, documentHash: documentHashOriginal, assinanteEmail } = await request.json();
 
 	try {
 		const gise = await buscarGiseEscala(db, id);
@@ -67,6 +68,9 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				}
 			}
 		}
+
+		// Determinar tipo de carimbo de tempo
+		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
 
 		let signedPdfBytes: Uint8Array;
 		if (serproCms) {
@@ -115,7 +119,12 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			ip,
 			ua,
 			latitude,
-			longitude
+			longitude,
+			undefined, // selfieKey
+			// Hash do PDF original (recebido do preparar-assinatura)
+			documentHashOriginal || documentHash,
+			assinanteEmail,
+			tipoCarimboTempo
 		);
 
 		// Avançar status para andamento

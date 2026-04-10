@@ -14,6 +14,84 @@
 	const isSeccional = $derived(papelGise === 'admin_seccional');
 	const isSupervisor = $derived(papelGise === 'supervisor');
 	const isMembro = $derived(papelGise === 'membro');
+	const seccionaisList = $derived(data.seccionaisList ?? []);
+
+	// Paginação Escalas Ativas
+	const ITEMS_ATIVAS = 4;
+	const ITEMS_POR_PAGINA = 5;
+	let paginaAtivas = $state(1);
+	const totalPaginasAtivas = $derived(Math.max(1, Math.ceil(ativas.length / ITEMS_ATIVAS)));
+	const ativasPaginadas = $derived(ativas.slice((paginaAtivas - 1) * ITEMS_ATIVAS, paginaAtivas * ITEMS_ATIVAS));
+
+	// Filtros Histórico
+	let filtroSeccional = $state<number | ''>('');
+	let filtroMesAno = $state('');
+	let filtroData = $state('');
+	let filtroAnoCiclo = $state<number | ''>('');
+	let filtroNumeroCiclo = $state<number | ''>('');
+
+	const CICLOS = [
+		{ n: 1,  label: 'Ciclo 1  (21/Dez – 20/Jan)' },
+		{ n: 2,  label: 'Ciclo 2  (21/Jan – 20/Fev)' },
+		{ n: 3,  label: 'Ciclo 3  (21/Fev – 20/Mar)' },
+		{ n: 4,  label: 'Ciclo 4  (21/Mar – 20/Abr)' },
+		{ n: 5,  label: 'Ciclo 5  (21/Abr – 20/Mai)' },
+		{ n: 6,  label: 'Ciclo 6  (21/Mai – 20/Jun)' },
+		{ n: 7,  label: 'Ciclo 7  (21/Jun – 20/Jul)' },
+		{ n: 8,  label: 'Ciclo 8  (21/Jul – 20/Ago)' },
+		{ n: 9,  label: 'Ciclo 9  (21/Ago – 20/Set)' },
+		{ n: 10, label: 'Ciclo 10 (21/Set – 20/Out)' },
+		{ n: 11, label: 'Ciclo 11 (21/Out – 20/Nov)' },
+		{ n: 12, label: 'Ciclo 12 (21/Nov – 20/Dez)' }
+	];
+
+	const anosDisponiveisHistorico = $derived(
+		[...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))]
+			.sort((a, b) => b - a)
+	);
+
+	function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
+		if (ciclo === 1) return { inicio: `${ano - 1}-12-21`, fim: `${ano}-01-20` };
+		const mI = String(ciclo - 1).padStart(2, '0');
+		const mF = String(ciclo).padStart(2, '0');
+		return { inicio: `${ano}-${mI}-21`, fim: `${ano}-${mF}-20` };
+	}
+
+	const historicoFiltrado = $derived(
+		historico.filter((e: any) => {
+			if (filtroSeccional !== '' && !(e.seccionais ?? []).some((sec: any) => sec.id === Number(filtroSeccional))) return false;
+			if (filtroMesAno && !e.data_inicio.startsWith(filtroMesAno)) return false;
+			if (filtroData && e.data_inicio !== filtroData) return false;
+			if (filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') {
+				const { inicio, fim } = getCicloRange(Number(filtroAnoCiclo), Number(filtroNumeroCiclo));
+				if ((e.data_inicio as string) < inicio || (e.data_inicio as string) > fim) return false;
+			}
+			return true;
+		})
+	);
+
+	// Paginação Histórico
+	let paginaHistorico = $state(1);
+	const totalPaginasHistorico = $derived(Math.max(1, Math.ceil(historicoFiltrado.length / ITEMS_POR_PAGINA)));
+	const historicoPaginado = $derived(historicoFiltrado.slice((paginaHistorico - 1) * ITEMS_POR_PAGINA, paginaHistorico * ITEMS_POR_PAGINA));
+
+	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		filtroSeccional; filtroMesAno; filtroData; filtroAnoCiclo; filtroNumeroCiclo;
+		paginaHistorico = 1;
+	});
+
+	// Dropdowns de download do histórico
+	let dropdownAberto = $state<{ escalaId: number; tipo: 'prod' | 'extra' } | null>(null);
+
+	function toggleDropdown(escalaId: number, tipo: 'prod' | 'extra', ev: MouseEvent) {
+		ev.stopPropagation();
+		if (dropdownAberto?.escalaId === escalaId && dropdownAberto.tipo === tipo) {
+			dropdownAberto = null;
+		} else {
+			dropdownAberto = { escalaId, tipo };
+		}
+	}
 
 	// Modal de criação (Admin Geral)
 	let showCriarModal = $state(false);
@@ -165,9 +243,9 @@
 							>
 						</p>
 					{/each}
-				</div>
-			{/if}
-		</div>
+					</div>
+				{/if}
+			</div>
 	{/if}
 
 	<!-- Escala Ativa -->
@@ -175,8 +253,8 @@
 		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
 			Escalas Ativas
 		</h2>
-		<div class="space-y-3">
-			{#each ativas as ativa}
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+			{#each ativasPaginadas as ativa}
 				<div
 					class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5"
 				>
@@ -224,6 +302,19 @@
 				</div>
 			{/each}
 		</div>
+		<div class="flex items-center justify-between gap-2 mt-3">
+			<button
+				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+				disabled={paginaAtivas === 1}
+				onclick={() => paginaAtivas--}
+			>← Anterior</button>
+			<span class="text-xs text-surface-500">Página {paginaAtivas} de {totalPaginasAtivas}</span>
+			<button
+				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+				disabled={paginaAtivas === totalPaginasAtivas}
+				onclick={() => paginaAtivas++}
+			>Próxima →</button>
+		</div>
 	{:else if !isMembro}
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-8 text-center"
@@ -236,35 +327,189 @@
 	{#if historico.length > 0 && !isMembro}
 		<div class="mt-8">
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
-			<div class="space-y-2">
-				{#each historico as escala}
-					<button
-						class="w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl border
-							border-surface-200 dark:border-surface-800
-							bg-surface-50 dark:bg-surface-900
-							hover:border-primary-500/40 hover:bg-primary-500/5
-							transition-all text-left"
-						onclick={() => goto(`/gise/${escala.id}`)}
+
+			<!-- Filtros -->
+			<div class="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_150px_1fr] gap-3 p-4 rounded-2xl bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800">
+				<div>
+					<label for="filtro-seccional" class="text-xs font-medium text-surface-500 block mb-1">Seccional</label>
+					<select
+						id="filtro-seccional"
+						bind:value={filtroSeccional}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 					>
-						<div>
-							<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
-								{diaSemana(escala.data_inicio)}, {fmtDate(escala.data_inicio)}
-								<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
-							</p>
-							<p class="text-xs text-surface-500 mt-0.5">
-								{escala.hora_entrada} às {escala.hora_saida}
-							</p>
-						</div>
-						<span
-							class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(
-								escala.status
-							)}"
+						<option value="">Todas</option>
+						{#each seccionaisList as sec}
+							<option value={sec.id}>{sec.nome}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label for="filtro-mes-ano" class="text-xs font-medium text-surface-500 block mb-1">Mês / Ano</label>
+					<input
+						id="filtro-mes-ano"
+						type="month"
+						bind:value={filtroMesAno}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+				<div>
+					<label for="filtro-data" class="text-xs font-medium text-surface-500 block mb-1">Data específica</label>
+					<input
+						id="filtro-data"
+						type="date"
+						bind:value={filtroData}
+						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+					/>
+				</div>
+				<div>
+					<label for="filtro-ano-ciclo" class="text-xs font-medium text-surface-500 block mb-1">Ano / Ciclo</label>
+					<div class="flex gap-1.5">
+						<select
+							id="filtro-ano-ciclo"
+							bind:value={filtroAnoCiclo}
+							class="w-20 shrink-0 px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 						>
-							{statusLabel(escala.status)}
-						</span>
-					</button>
-				{/each}
+							<option value="">Ano</option>
+							{#each anosDisponiveisHistorico as ano}
+								<option value={ano}>{ano}</option>
+							{/each}
+						</select>
+						<select
+							bind:value={filtroNumeroCiclo}
+							disabled={filtroAnoCiclo === ''}
+							class="flex-1 min-w-0 px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm disabled:opacity-50"
+						>
+							<option value="">Ciclo</option>
+							{#each CICLOS as c}
+								<option value={c.n}>{c.label}</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+				{#if filtroSeccional !== '' || filtroMesAno || filtroData || filtroAnoCiclo !== ''}
+					<div class="sm:col-span-2 lg:col-span-4 flex items-center justify-between">
+						<span class="text-xs text-surface-500">{historicoFiltrado.length} resultado(s)</span>
+						<button
+							class="text-xs text-primary-600 dark:text-primary-400 underline"
+							onclick={() => { filtroSeccional = ''; filtroMesAno = ''; filtroData = ''; filtroAnoCiclo = ''; filtroNumeroCiclo = ''; }}
+						>Limpar filtros</button>
+					</div>
+				{/if}
 			</div>
+
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+				{#if historicoPaginado.length === 0}
+					<p class="text-sm text-surface-400 text-center py-6">Nenhum resultado para os filtros aplicados.</p>
+				{:else}
+				{#each historicoPaginado as escala}
+					<div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all">
+						<!-- Linha principal -->
+						<div class="flex items-center gap-2 px-4 py-3">
+							<!-- Área clicável -->
+							<button
+								class="flex-1 min-w-0 flex items-center justify-between gap-3 text-left"
+								onclick={() => { dropdownAberto = null; goto(`/gise/${escala.id}`); }}
+							>
+								<div class="min-w-0">
+									<p class="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate">
+										{diaSemana(escala.data_inicio)}, {fmtDate(escala.data_inicio)}
+										<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
+									</p>
+									<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada} às {escala.hora_saida}</p>
+								</div>
+								<span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(escala.status)}">
+									{statusLabel(escala.status)}
+								</span>
+							</button>
+
+							<!-- Botões de download -->
+							<div class="flex items-center gap-1 shrink-0 border-l border-surface-200 dark:border-surface-700 pl-2 ml-1">
+								<!-- Escala assinada (PDF) -->
+								<a
+									href="/api/gise/{escala.id}/download?format=pdf"
+									download
+									title="Baixar escala assinada (PDF)"
+									class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-primary-500/10 hover:text-primary-600 transition-colors"
+									onclick={(e) => e.stopPropagation()}
+								>
+									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+								</a>
+
+								<!-- Relatório de Produtividade -->
+								<div class="relative">
+									<button
+										title="Baixar relatório de produtividade"
+										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors"
+										onclick={(e) => toggleDropdown(escala.id, 'prod', e)}
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+									</button>
+									{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'prod'}
+										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 min-w-[180px]">
+											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Produtividade por seccional</p>
+											{#each (escala.seccionais ?? []) as sec}
+												{#each (sec.tipos ?? ['operacional']) as tipo}
+													<a
+														href="/api/gise/{escala.id}/download?format=produtividade&seccionalId={sec.id}&equipeType={tipo}"
+														download
+														class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+														onclick={() => dropdownAberto = null}
+													>
+														<svg class="w-3 h-3 shrink-0 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+														{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}
+													</a>
+												{/each}
+											{/each}
+										</div>
+									{/if}
+								</div>
+
+								<!-- Relatório de Extra Assinado -->
+								<div class="relative">
+									<button
+										title="Baixar relatório de extra assinado"
+										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors"
+										onclick={(e) => toggleDropdown(escala.id, 'extra', e)}
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+									</button>
+									{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'extra'}
+										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 min-w-[180px]">
+											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Extra por seccional</p>
+											{#each (escala.seccionais ?? []) as sec}
+												<a
+													href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
+													download
+													class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+													onclick={() => dropdownAberto = null}
+												>
+													<svg class="w-3 h-3 shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+													{sec.nome}
+												</a>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/each}
+				{/if}
+			</div>
+
+			<div class="flex items-center justify-between gap-2 mt-3">
+					<button
+						class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+						disabled={paginaHistorico === 1}
+						onclick={() => paginaHistorico--}
+					>← Anterior</button>
+					<span class="text-xs text-surface-500">{paginaHistorico} / {totalPaginasHistorico}</span>
+					<button
+						class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+						disabled={paginaHistorico === totalPaginasHistorico}
+						onclick={() => paginaHistorico++}
+					>Próxima →</button>
+				</div>
 		</div>
 	{/if}
 </div>

@@ -143,10 +143,18 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 					}
 				);
 				if (!prepResp.ok) throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
-				const prepData = await prepResp.json();
+				const {
+					preparedPdf,
+					signedAttrsHashHex,
+					messageDigest,
+					signingTimeISO,
+					verificationHash,
+					documentHash,
+					assinanteEmail
+				} = await prepResp.json();
 
 				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
-				const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
+				const messageDigestBase64 = btoa(messageDigest.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
 				const serproRes = await clientSerpro.sign(messageDigestBase64);
 
 				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
@@ -156,13 +164,16 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 						body: JSON.stringify({
-							preparedPdf: prepData.preparedPdf,
+							preparedPdf,
 							serproCms: serproRes.rawSignature,
-							messageDigest: prepData.messageDigest,
-							signingTimeISO: prepData.signingTimeISO,
+							serproResponse: serproRes,
+							messageDigest,
+							signingTimeISO,
 							signerName: serproSignerName,
 							signerCpf: serproSignerCpf,
-							verificationHash: prepData.verificationHash
+							verificationHash,
+							documentHash,
+							assinanteEmail
 						})
 					}
 				);

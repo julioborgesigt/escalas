@@ -28,6 +28,7 @@
 		nomeArquivo = 'documento_assinado.pdf',
 		signerName = $bindable(''),
 		signerCpf = $bindable(''),
+		signerEmail = '',
 		extraPayload = {} as Record<string, unknown>,
 		disabled = false,
 		onSuccess = async () => {}
@@ -37,6 +38,7 @@
 		nomeArquivo?: string;
 		signerName?: string;
 		signerCpf?: string;
+		signerEmail?: string;
 		extraPayload?: Record<string, unknown>;
 		disabled?: boolean;
 		onSuccess?: () => Promise<void>;
@@ -121,7 +123,9 @@
 				signedAttrsHashHex,
 				messageDigest,
 				signingTimeISO,
-				verificationHash
+				verificationHash,
+				documentHash,
+				assinanteEmail
 			} = await prepResp.json();
 
 			// 2. Assinar (WebPKI ou SERPRO)
@@ -143,6 +147,8 @@
 					verificationHash,
 					latitude: coords?.lat,
 					longitude: coords?.lng,
+					documentHash,
+					assinanteEmail,
 					...extraPayload
 				})
 			});
@@ -186,7 +192,13 @@
 				const messageDigestBase64 = hexToBase64(messageDigestHex);
 				const result = await client.sign(messageDigestBase64);
 				const serproCms = result.rawSignature;
-				return { serproCms };
+				
+				// Passamos o resultado completo para que o backend possa extrair 
+				// metadados como presença de Carimbo de Tempo (Timestamp)
+				return { 
+					serproCms,
+					serproResponse: result 
+				};
 			});
 		} catch (err: any) {
 			toaster.error({ title: 'Erro no Assinador SERPRO', description: err.message });
@@ -230,6 +242,12 @@
 					{signerCpf ? signerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'Não cadastrado'}
 				</span>
 			</div>
+			{#if signerEmail}
+				<div class="flex flex-col sm:col-span-2 mt-1">
+					<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter">E-MAIL INSTITUCIONAL</span>
+					<span class="font-bold text-xs text-surface-600 dark:text-surface-400 lowercase">{signerEmail}</span>
+				</div>
+			{/if}
 		</div>
 
 		{#if !signerCpf}
@@ -249,7 +267,7 @@
 		disabled={assinando || disabled}
 	>
 		{#if assinando}
-			<Spinner size="xs" class="mr-2" />
+			<Spinner size="xs" /><span class="mr-2"></span>
 			{etapa || 'Assinando...'}
 		{:else}
 			<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

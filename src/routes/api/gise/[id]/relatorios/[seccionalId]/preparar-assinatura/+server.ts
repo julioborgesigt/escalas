@@ -9,10 +9,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions } from '$lib/server/pdf-signing';
+import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
+import { calcularHashBuffer, parseUserAgent, mascaraCPF } from '$lib/server/document-utils';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -52,6 +53,19 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
+
+	// CALCULAR HASH SHA-256 DO PDF ORIGINAL (Antes de carimbos/assinatura)
+	// Isso garante a integridade jurídica do conteúdo
+	const documentHash = await calcularHashBuffer(pdfBytes);
+
+	// INJETAR RODAPÉ UNIVERSAL EM TODAS AS PÁGINAS DE CONTEÚDO
+	const pdfComRodape = await adicionarRodapeUniversal(pdfBytes, {
+		hash: documentHash,
+		urlVerificacao: verificationUrl
+	});
+	
+	// Usar o PDF com rodapé para os próximos passos
+	const pdfBase = pdfComRodape;
 
 	// Construir lista de assinantes para a folha de auditoria
 	const signers: AuditTrailOptions[] = [];
@@ -132,16 +146,20 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	signers.push({
 		signerName: finalSignerName,
 		signerCpf: finalSignerCpf || undefined,
+		signerEmail: u.email || undefined,
 		signingTime: new Date(),
 		verificationHash,
 		verificationUrl,
+		documentHash,
 		ip: ip ?? undefined,
 		userAgent: ua || undefined,
+		userAgentReadable: parseUserAgent(ua),
 		latitude: latitude ?? undefined,
 		longitude: longitude ?? undefined,
 		token: crypto.randomUUID(),
 		documentName: `Relatório Extraordinário - GISE ${id}`,
-		signatureLevel: 'qualificada'
+		signatureLevel: 'qualificada',
+		tipoCarimboTempo: 'servidor' // Será atualizado no finalizar se for SERPRO com ICP
 	});
 
 	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria
@@ -149,7 +167,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const contentPageIndex = origDoc.getPageCount() - 1;
 
 	// Adicionar folha de auditoria ANTES de assinar (preserva a validade da assinatura)
-	const pdfWithAudit = await adicionarPaginaAuditoria(pdfBytes, signers);
+	const pdfWithAudit = await adicionarPaginaAuditoria(pdfBase, signers);
 
 	// Conversão de mm (jsPDF) para pts (pdf-lib)
 	const mmToPts = 2.8346;
@@ -189,6 +207,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		messageDigest,
 		signingTimeISO,
 		dataToSignBase64,
-		verificationHash
+		verificationHash,
+		documentHash,
+		assinanteEmail: u.email
 	});
 };

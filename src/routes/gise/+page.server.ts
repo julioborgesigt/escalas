@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { getDB, listarGiseEscalas, buscarGiseAtiva, isSupervisorGiseAtiva, isMembroGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
@@ -30,8 +30,11 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	const supervisorId = (!isGeral && !isSeccional && isSupervisor && !isMembro) ? u.id : undefined;
 	const policialId = (!isGeral && !isSeccional) ? u.id : undefined;
-	const escalas = await listarGiseEscalas(db, supervisorId, policialId);
-	const ativa = await buscarGiseAtiva(db);
+	const [escalas, ativa, seccionaisList] = await Promise.all([
+		listarGiseEscalas(db, supervisorId, policialId),
+		buscarGiseAtiva(db),
+		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all()
+	]);
 
 	let papelGise: 'admin_geral' | 'admin_seccional' | 'supervisor' | 'membro';
 	if (isGeral) papelGise = 'admin_geral';
@@ -42,7 +45,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	return {
 		escalas,
 		ativa,
-		papelGise
+		papelGise,
+		seccionaisList
 	};
 };
 

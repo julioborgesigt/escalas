@@ -151,6 +151,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const secIdParam = url.searchParams.get('seccionalId');
 		if (!secIdParam) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
 		const seccionalId = parseInt(secIdParam);
+		const equipeType = url.searchParams.get('equipeType') || null; // 'operacional' | 'seint' | null
 
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
 		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/export');
@@ -158,10 +159,15 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
 		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
-		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);
-		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, respostas });
+		const seccionalFiltrada = equipeType
+			? { ...seccional, equipes: (seccional.equipes || []).filter((eq: any) => eq.tipo === equipeType) }
+			: seccional;
 
-		const filename = `resumo_produtividade_${gise.data_inicio}_sec_${seccionalId}.pdf`;
+		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);
+		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional: seccionalFiltrada, respostas });
+
+		const tipoSufixo = equipeType === 'seint' ? '_seint' : equipeType === 'operacional' ? '_operacional' : '';
+		const filename = `resumo_produtividade${tipoSufixo}_${gise.data_inicio}_sec_${seccionalId}.pdf`;
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',

@@ -4,6 +4,7 @@ import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
+import { parseUserAgent, mascaraCPF, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
@@ -949,6 +950,7 @@ export async function adicionarRodapeSimples(
 export interface AuditTrailOptions {
 	signerName: string;
 	signerCpf?: string;
+	signerEmail?: string;
 	signingTime: Date;
 	verificationHash: string;
 	verificationUrl: string;
@@ -958,10 +960,13 @@ export interface AuditTrailOptions {
 	longitude?: number | null;
 	selfieBase64?: string;
 	rubricBase64?: string;
+	/** Hash SHA-256 do PDF original (antes de carimbo visual e assinatura) */
 	documentHash?: string;
 	token?: string;
 	documentName?: string;
 	signatureLevel?: 'avancada' | 'qualificada';
+	/** Tipo do carimbo de tempo: 'servidor' (sistema) ou 'act_icp' (TSA ICP-Brasil) */
+	tipoCarimoTempo?: TipoCarimoTempo;
 }
 
 /**
@@ -1021,10 +1026,21 @@ export async function adicionarPaginaAuditoria(
 		currY = drawMetaData('Status', 'ASSINADO', currY, true);
 		currY = drawMetaData('Documento', first.documentName || 'Extraordinário - GISE', currY);
 		currY = drawMetaData('Identificador', first.verificationHash, currY);
-		currY = drawMetaData('Hash do Original', first.documentHash ? first.documentHash.slice(0, 32) + '...' : 'N/A', currY);
-		if (first.documentHash && first.documentHash.length > 32) {
-			page.drawText(first.documentHash.slice(32), { x: 160, y: currY + 6, size: 8, font, color: cText });
-			currY -= 10;
+
+		// Hash SHA-256 — exibir completo em duas linhas quando disponível
+		const hashReal = first.documentHash && first.documentHash !== 'undefined' && first.documentHash !== 'N/A'
+			? first.documentHash
+			: null;
+		if (hashReal && hashReal.length > 32) {
+			// Linha 1: primeiros 32 chars
+			page.drawText('Hash do Original:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
+			page.drawText(hashReal.slice(0, 32), { x: 160, y: currY, size: 7.5, font: fontMono, color: cText });
+			currY -= 11;
+			// Linha 2: restante
+			page.drawText(hashReal.slice(32), { x: 160, y: currY, size: 7.5, font: fontMono, color: cText });
+			currY -= 15;
+		} else {
+			currY = drawMetaData('Hash do Original', hashReal ?? '(calculado no momento da assinatura)', currY);
 		}
 
 		// QR Code de Validação no canto superior direito
@@ -1044,6 +1060,16 @@ export async function adicionarPaginaAuditoria(
 						}
 					}
 				}
+				// Instrução de validação abaixo do QR
+				page.drawText('Para verificar a autenticidade e integridade', {
+					x: width - 200, y: height - 168, size: 6, font, color: cGray
+				});
+				page.drawText('deste documento, acesse a URL de validação', {
+					x: width - 200, y: height - 177, size: 6, font, color: cGray
+				});
+				page.drawText('ou aponte a câmera para o QR Code.', {
+					x: width - 200, y: height - 186, size: 6, font, color: cGray
+				});
 			} catch (e) { }
 		}
 
@@ -1079,21 +1105,26 @@ export async function adicionarPaginaAuditoria(
 			page.drawText(`Data e hora da assinatura: ${dataAssinatura}`, { x: 55, y: boxTop - 58, size: 8, font, color: cGray });
 			page.drawText(`Token: ${s.token || s.verificationHash}`, { x: 55, y: boxTop - 70, size: 8, font, color: cGray });
 
-			let authY = boxTop - 95;
+			// E-mail institucional (se disponível)
+			if (s.signerEmail) {
+				page.drawText(`E-mail: ${s.signerEmail}`, { x: 55, y: boxTop - 82, size: 7.5, font, color: cGray });
+			}
+
+			let authY = s.signerEmail ? boxTop - 100 : boxTop - 95;
 			const drawP = (label: string, val: string) => {
 				page.drawText(label + ':', { x: 55, y: authY, size: 7, font: fontBold, color: cGray });
 				page.drawText(val || 'N/A', { x: 130, y: authY, size: 7, font, color: cText });
 				authY -= 12;
 			};
 
-			drawP('Identificação', s.signerCpf ? `***.${s.signerCpf.slice(3, 6)}.${s.signerCpf.slice(6, 9)}-**` : 'N/A');
+			drawP('Identificação', s.signerCpf ? mascaraCPF(s.signerCpf) : 'N/A');
 			drawP('IP', s.ip || 'Desconhecido');
-			const ua = s.userAgent || 'N/A';
-			drawP('Dispositivo', ua.slice(0, 45));
-			if (ua.length > 45) {
-				page.drawText(ua.slice(45, 90), { x: 130, y: authY + 4, size: 6, font, color: cGray });
-				authY -= 8;
-			}
+			// User-Agent legível
+			const uaLegivel = parseUserAgent(s.userAgent || '');
+			drawP('Dispositivo', uaLegivel);
+			// Tipo de carimbo de tempo
+			const tipoCarimbo = descreverTipoCarimbo(s.tipoCarimoTempo ?? 'servidor');
+			drawP('Carimbo de Tempo', tipoCarimbo);
 			drawP('Localização', (s.latitude && s.longitude) ? `${s.latitude}, ${s.longitude}` : 'Não capturado');
 
 			if (!isQualified) {
@@ -1132,9 +1163,92 @@ export async function adicionarPaginaAuditoria(
 			page.drawText('VALIDADE JURÍDICA ASSEGURADA - LEI 14.063/20', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
 			page.drawText('Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
 		}
-		page.drawText(`Manifesto vinculado ao documento de hash ${first.documentHash?.slice(0, 12)}...`, { x: 40, y: footerY, size: 6, font: fontMono, color: cGray });
+		const hashTrunc = first.documentHash ? first.documentHash.slice(0, 16) + '...' : '';
+		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, { x: 40, y: footerY, size: 6, font: fontMono, color: cGray });
 	}
 
 	return pdfDoc.save();
 }
 
+// ---------------------------------------------------------------------------
+// Rodapé Universal em Todas as Páginas de Conteúdo
+// ---------------------------------------------------------------------------
+
+export interface RodapeUniversalOptions {
+	/** Hash SHA-256 do PDF original */
+	documentHash: string;
+	/** URL completa de validação (ex: https://escalas.pages.dev/validar/XXXX) */
+	verificationUrl: string;
+	/** Código de verificação curto (ex: B48T-4N22) */
+	verificationHash: string;
+	/** Índice da última página de conteúdo (0-based). A página seguinte é a de auditoria. */
+	contentPageCount?: number;
+}
+
+/**
+ * Injeta um rodapé padronizado em todas as páginas de conteúdo do PDF.
+ *
+ * Deve ser chamado ANTES de prepararPdfParaAssinatura para que o rodapé
+ * esteja coberto pelo hash criptográfico da assinatura.
+ *
+ * O rodapé contém:
+ * - Hash SHA-256 abreviado do arquivo original
+ * - URL de validação
+ * - Base legal: "Assinatura Eletrônica — Lei 14.063/2020"
+ */
+export async function adicionarRodapeUniversal(
+	pdfBytes: Uint8Array,
+	options: RodapeUniversalOptions
+): Promise<Uint8Array> {
+	const { documentHash, verificationUrl, verificationHash, contentPageCount } = options;
+
+	const pdfDoc = await PDFDocument.load(pdfBytes);
+	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
+
+	const cNavy = rgb(0.07, 0.14, 0.42);
+	const cGray = rgb(0.55, 0.55, 0.60);
+	const cLightLine = rgb(0.80, 0.85, 0.92);
+
+	const pages = pdfDoc.getPages();
+	// Aplica em todas as páginas, ou apenas nas de conteúdo (exclui folha de auditoria)
+	const lastContentIdx = contentPageCount !== undefined ? contentPageCount - 1 : pages.length - 1;
+
+	const hashAbrev = documentHash ? documentHash.slice(0, 16) + '...' + documentHash.slice(-8) : '';
+	const urlLimpa = verificationUrl.replace('https://', '');
+
+	for (let i = 0; i <= lastContentIdx; i++) {
+		const page = pages[i];
+		const { width } = page.getSize();
+		const footerY = 18;
+
+		// Linha separadora
+		page.drawLine({
+			start: { x: 20, y: footerY + 10 },
+			end: { x: width - 20, y: footerY + 10 },
+			thickness: 0.3,
+			color: cLightLine
+		});
+
+		// Hash abreviado (esquerda)
+		page.drawText(`SHA-256: ${hashAbrev}`, {
+			x: 20, y: footerY, size: 5.5, font: fontMono, color: cGray
+		});
+
+		// URL de validação (centro)
+		const urlText = `Validar: ${urlLimpa}`;
+		const urlW = font.widthOfTextAtSize(urlText, 5.5);
+		page.drawText(urlText, {
+			x: (width - urlW) / 2, y: footerY, size: 5.5, font, color: cNavy
+		});
+
+		// Base legal (direita)
+		const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
+		const legalW = font.widthOfTextAtSize(legalText, 5.5);
+		page.drawText(legalText, {
+			x: width - legalW - 20, y: footerY, size: 5.5, font, color: cGray
+		});
+	}
+
+	return pdfDoc.save();
+}

@@ -57,7 +57,6 @@
 	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
 	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
 	let seccionalFilter = $state('todas');
-	let tipoFilter = $state('todos');
 
 	function navigateWithFilters(params: Record<string, string | null>) {
 		const navUrl = new URL(page.url);
@@ -112,8 +111,7 @@
 	const listaFiltrada = $derived(
 		(data.listaAdmin || []).filter((e: any) => {
 			const bSeccional = seccionalFilter === 'todas' || e.seccional_nome === seccionalFilter;
-			const bTipo = tipoFilter === 'todos' || e.equipe_tipo === tipoFilter;
-			return bSeccional && bTipo;
+			return bSeccional;
 		})
 	);
 
@@ -337,7 +335,7 @@
 	async function baixarRelatorio(escala: any) {
 		baixandoProdutividade = escala.id;
 		try {
-			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}`;
+			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
 			const res = await fetch(url);
 			if (!res.ok) {
 				const err = await res.json();
@@ -802,21 +800,33 @@
 							{/each}
 						</select>
 					</div>
-					<div class="space-y-1 {statusFilterUrl ? '' : 'opacity-50 pointer-events-none'}">
+					<div class="space-y-1">
 						<label
-							for="f-tipo"
+							for="f-mes"
 							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
-							>Tipo de Equipe</label
+							>Mês/Ano</label
 						>
-						<select
-							id="f-tipo"
-							bind:value={tipoFilter}
+						<input
+							id="f-mes"
+							type="month"
+							value={mesFilterUrl}
+							oninput={(e) => changeDateFilter('mes', (e.target as HTMLInputElement).value)}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
+						/>
+					</div>
+					<div class="space-y-1">
+						<label
+							for="f-data"
+							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+							>Data específica</label
 						>
-							<option value="todos">Todos os Tipos</option>
-							<option value="operacional">Operacional</option>
-							<option value="seint">SEINT (Inteligência)</option>
-						</select>
+						<input
+							id="f-data"
+							type="date"
+							value={dataFilterUrl}
+							oninput={(e) => changeDateFilter('data', (e.target as HTMLInputElement).value)}
+							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
+						/>
 					</div>
 				</div>
 

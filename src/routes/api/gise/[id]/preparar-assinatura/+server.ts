@@ -10,7 +10,12 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
 import { gerarPdfGise } from '$lib/export';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import {
+	prepararPdfParaAssinatura,
+	adicionarPaginaAuditoria,
+	adicionarRodapeUniversal
+} from '$lib/server/pdf-signing';
+import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 
@@ -46,20 +51,32 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
+	// 1. Calcular hash SHA-256 do PDF original (antes de qualquer modificação visual)
+	const documentHash = await calcularHashBuffer(pdfBytes);
+
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : '';
+	const assinanteEmail = u.email ?? undefined;
 
-	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria
+	// 2. Adicionar rodapé universal nas páginas de conteúdo
 	const origDoc = await PDFDocument.load(pdfBytes);
-	const contentPageIndex = origDoc.getPageCount() - 1;
+	const contentPageCount = origDoc.getPageCount();
 
-	// Adicionar folha de auditoria ANTES de assinar (preserva a validade da assinatura)
-	const pdfWithAudit = await adicionarPaginaAuditoria(pdfBytes, {
+	const pdfComRodape = await adicionarRodapeUniversal(pdfBytes, {
+		documentHash,
+		verificationUrl,
+		verificationHash,
+		contentPageCount
+	});
+
+	// 3. Adicionar folha de auditoria ANTES de assinar (preserva validade criptográfica)
+	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, {
 		signerName: finalSignerName,
 		signerCpf: finalSignerCpf || undefined,
+		signerEmail: assinanteEmail,
 		signingTime: new Date(),
 		verificationHash,
 		verificationUrl,
@@ -69,12 +86,15 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		longitude: longitude ?? undefined,
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
-		signatureLevel: 'qualificada'
+		signatureLevel: 'qualificada',
+		documentHash,
+		tipoCarimoTempo: 'servidor'
 	});
 
+	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
+	const contentPageIndex = contentPageCount - 1;
 	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
 
-	// Use default positions for rubrica so it goes directly above the PKI box.
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,
 		finalSignerName,
@@ -98,6 +118,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		messageDigest,
 		signingTimeISO,
 		dataToSignBase64,
-		verificationHash
+		verificationHash,
+		documentHash,
+		assinanteEmail
 	});
 };
