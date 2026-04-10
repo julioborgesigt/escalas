@@ -8,6 +8,7 @@
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
 	let exigirCodigoEmail = $state(page.data.exigirCodigoEmail as boolean);
+	let restringirSmartphone = $state(page.data.restringirSmartphone as boolean);
 	let saving = $state(false);
 
 	async function salvar() {
@@ -16,7 +17,7 @@
 			const res = await fetch('/api/configuracoes/assinatura', {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail })
+				body: JSON.stringify({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone })
 			});
 			if (res.ok) {
 				await invalidateAll();
@@ -122,24 +123,39 @@
 			</button>
 		</div>
 
+		<div class="border-t border-surface-200 dark:border-white/10"></div>
+
+		<!-- Restringir a Smartphone -->
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex-1">
+				<p class="font-semibold text-sm mb-0.5">Restringir assinatura em tela a Smartphone</p>
+				<p class="text-xs text-surface-500">
+					Quando ativado, o sistema bloqueia o desenho da assinatura e a captura de foto/GPS se detectado que o usuário está em um computador/desktop.
+					<strong>Recomendado para assinaturas que exigem geolocalização e prova de vida confiáveis.</strong>
+				</p>
+			</div>
+			<button
+				type="button"
+				role="switch"
+				aria-label="Ativar ou desativar restrição de smartphone"
+				aria-checked={restringirSmartphone}
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+					{restringirSmartphone ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
+				onclick={() => (restringirSmartphone = !restringirSmartphone)}
+			>
+				<span
+					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
+						{restringirSmartphone ? 'translate-x-5' : 'translate-x-0'}"
+				></span>
+			</button>
+		</div>
+
 		<div class="pt-2 border-t border-surface-200 dark:border-white/10 flex items-center justify-between gap-4">
 			<p class="text-xs text-surface-400">
-				{#if exigirFoto && exigirGps && exigirCodigoEmail}
-					<span class="text-success-600 dark:text-success-400 font-medium">Foto, GPS e 2FA ativados</span> — segurança máxima.
-				{:else if exigirFoto && exigirGps}
-					<span class="text-success-600 dark:text-success-400 font-medium">Foto e GPS ativados</span> — validação completa.
-				{:else if exigirFoto && exigirCodigoEmail}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Foto e 2FA ativados</span> — sem geolocalização.
-				{:else if exigirGps && exigirCodigoEmail}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">GPS e 2FA ativados</span> — sem prova de vida (selfie).
-				{:else if exigirFoto}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas foto ativada</span> — sem GPS e 2FA.
-				{:else if exigirGps}
-					<span class="text-warning-600 dark:text-warning-400 font-medium">Apenas GPS ativado</span> — sem selfie e 2FA.
-				{:else if exigirCodigoEmail}
-					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica e 2 FA será coletada.
+				{#if restringirSmartphone}
+					<span class="text-success-600 dark:text-success-400 font-medium">Uso restrito a celular</span> — segurança física.
 				{:else}
-					<span class="text-error-600 dark:text-error-400 font-medium">Foto e GPS desativados</span> — apenas rubrica será coletada.
+					<span class="text-warning-600 dark:text-warning-400 font-medium">Assinatura liberada em Desktop</span> — conveniência.
 				{/if}
 			</p>
 			<button

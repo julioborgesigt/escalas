@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
@@ -114,256 +115,128 @@
 </script>
 
 <!-- Banner: escala assinada -->
-{#if documentoAssinadoInfo}
+{#if documentoAssinadoInfo?.existe}
 	<div
-		class="mb-6 p-4 sm:p-5 bg-success-500/10 border-2 border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md"
+		class="mb-6 p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
 	>
-		<div>
-			<h3 class="font-bold text-success-700 dark:text-success-400 flex items-center gap-2 text-lg">
-				<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-					/>
+		<div class="flex items-center gap-4">
+			<div class="bg-success-500/20 p-3 rounded-xl">
+				<svg class="w-6 h-6 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 				</svg>
-				Escala Oficialmente Assinada
-			</h3>
-			<p class="text-sm text-surface-600 dark:text-surface-300 mt-1">
-				Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ''}</strong>.
-				{isFDS
-					? 'Confirmação administrativa gerada e guardada para download.'
-					: 'Arquivo original ICP-Brasil guardado nos servidores para download.'}
-			</p>
+			</div>
+			<div>
+				<h3 class="font-bold text-success-800 dark:text-success-400 text-lg">
+					Escala Oficialmente Assinada
+				</h3>
+				<p class="text-sm text-success-700 dark:text-success-300 mt-0.5">
+					Assinado por <strong>{documentoAssinadoInfo.assinante_nome || ''}</strong> em {documentoAssinadoInfo.data ? new Date(documentoAssinadoInfo.data).toLocaleDateString('pt-BR') : '—'}.
+				</p>
+			</div>
 		</div>
-		<div class="flex flex-col sm:flex-row gap-3">
+		<div class="flex items-center gap-3 w-full sm:w-auto">
 			<a
 				href={`/api/escalas/${escalaId}/documento-assinado`}
-				class="btn preset-filled-success-500 shrink-0 font-bold px-6 py-3 shadow-lg shadow-success-500/30 hover:scale-105 transition-transform"
+				class="btn preset-filled-success-500 font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all flex-1 sm:flex-none justify-center no-underline"
 				target="_blank"
 			>
-				<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-					/>
+				<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
 				</svg>
-				Baixar PDF
+				Download PDF
 			</a>
 			<button
-				class="btn preset-outlined-error-500 shrink-0 font-bold px-6 py-3"
+				class="btn preset-outlined-error-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center"
 				onclick={revogarAssinatura}
 				disabled={assinando}
 			>
-				<svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-					/>
-				</svg>
-				Revogar para Editar
+				Revogar
 			</button>
 		</div>
 	</div>
 {/if}
 
-<!-- SEÇÃO DE ASSINATURA UNIFICADA -->
-{#if !documentoAssinadoInfo && policiaisCount > 0}
+<!-- SEÇÃO DE ASSINATURA UNIFICADA (Idêntica à GISE) -->
+{#if !documentoAssinadoInfo?.existe && policiaisCount > 0}
 	<div class="space-y-6">
-		<h3
-			class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500"
-		>
-			<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-				><path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-				/></svg
-			>
+		<h3 class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500">
+			<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+			</svg>
 			Assinar Escala GISE
 		</h3>
 
-		<div class="grid grid-cols-1 gap-6">
-			<!-- 1. ASSINATURA MANUAL (TELA/MOBILE) -->
-			<div
-				class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {isMobile
-					? 'border-primary-500/30'
-					: 'border-surface-200 dark:border-white/5 opacity-60'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
-			>
-				<div>
-					<div class="flex items-center justify-between mb-4">
-						<h4 class="font-bold text-sm flex items-center gap-2">
-							<svg
-								class="w-5 h-5 {isMobile ? 'text-primary-500' : 'text-surface-400'}"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-								/></svg
-							>
-							Assinar na Tela
-						</h4>
-						{#if isMobile}
-							<span
-								class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-								>Disponível</span
-							>
-						{:else}
-							<span
-								class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-								>Indisponível no PC</span
-							>
-						{/if}
+		<div class="space-y-4">
+			<!-- CARD 1: ASSINATURA NA TELA (MANUAL) -->
+			<div class="card p-6 bg-surface-100/50 dark:bg-surface-800/40 border border-surface-200 dark:border-white/5 rounded-3xl shadow-sm space-y-4 transition-all">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<svg class="w-5 h-5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+						</svg>
+						<h4 class="font-bold text-sm text-surface-700 dark:text-surface-200">Assinar na Tela (Manual)</h4>
 					</div>
-					<p class="text-xs text-surface-500 leading-relaxed mb-4">
-						Gera o PDF com sua rubrica manual desenhada na tela. <strong
-							>Ideal para tablets e smartphones.</strong
-						> Possui plena validade jurídica conforme Lei 14.063/20.
-					</p>
+					{#if !isMobile}
+						<span class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-surface-200 dark:bg-surface-700 text-surface-500 tracking-tighter">INDISPONÍVEL NO PC</span>
+					{/if}
 				</div>
+				
+				<p class="text-xs text-surface-500 leading-relaxed italic">
+					Gera o PDF com sua rubrica manual desenhada diretamente na tela do seu dispositivo. <strong>Ideal para tablets e smartphones.</strong>
+				</p>
 
 				{#if isMobile}
 					<button
-						class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-						disabled={assinandoSimples || policiaisCount === 0}
+						class="btn preset-filled-primary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
+						disabled={assinandoSimples}
 						onclick={abrirModalAssinatura}
 					>
-						{#if assinandoSimples}
-							<span
-								class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-							></span>
-							Gerando PDF...
-						{:else}
-							Abrir Painel de Rubrica
-						{/if}
+						{#if assinandoSimples}<Spinner size="xs" class="mr-2" />{/if}
+						Abrir Painel de Rubrica
 					</button>
 				{:else}
-					<div class="bg-error-500/10 p-3 rounded-xl border border-error-500/20">
-						<p class="text-[0.65rem] text-error-600 font-bold uppercase text-center leading-tight">
-							A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 no
-							computador.
+					<div class="p-3 py-4 rounded-xl bg-error-500/5 border border-error-500/10 flex items-center justify-center">
+						<p class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center">
+							A ASSINATURA EM TELA É RESTRITA A DISPOSITIVOS MÓVEIS. UTILIZE O TOKEN A3 NO COMPUTADOR.
 						</p>
 					</div>
 				{/if}
 			</div>
 
-			<!-- 2. ASSINATURA DIGITAL (TOKEN A3) -->
-			<div
-				class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {!isMobile
-					? 'border-tertiary-500/30'
-					: 'border-surface-200 dark:border-white/5'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
-			>
-				<div>
-					<div class="flex items-center justify-between mb-4">
-						<h4 class="font-bold text-sm flex items-center gap-2">
-							<svg
-								class="w-5 h-5 {!isMobile ? 'text-tertiary-500' : 'text-surface-400'}"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-								/></svg
-							>
-							Token / Certificado A3
-						</h4>
-						{#if !isMobile}
-							<span
-								class="badge preset-filled-tertiary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-								>Recomendado</span
-							>
-						{:else}
-							<span
-								class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-								>Apenas Desktop</span
-							>
-						{/if}
+			<!-- CARD 2: ASSINATURA DIGITAL (TOKEN A3) -->
+			<div class="card p-6 bg-success-500/5 dark:bg-success-900/5 border border-success-500/30 rounded-3xl shadow-sm space-y-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<svg class="w-5 h-5 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+						</svg>
+						<h4 class="font-bold text-sm text-surface-700 dark:text-surface-200 tracking-tight">Assinatura Digital (Token A3)</h4>
 					</div>
-					<p class="text-xs text-surface-500 leading-relaxed mb-4">
-						Assinatura com validade <strong>Qualificada (ICP-Brasil)</strong> usando seu certificado digital
-						físico ou e-CPF. Requer o Assinador Desktop instalado.
-					</p>
-
-					<!-- Leitor de Certificados (Apenas Desktop) -->
 					{#if !isMobile}
-						<div class="mb-4 space-y-3">
-							<div
-								class="flex justify-between items-center bg-surface-200/50 dark:bg-surface-900/50 p-3 rounded-xl border border-surface-300/30"
-							>
-								<span class="text-[0.65rem] font-bold uppercase opacity-60">Leitura de Token</span>
-								<button
-									class="btn btn-sm preset-outlined-tertiary-500 text-[0.6rem] px-3 py-1 font-black"
-									onclick={carregarCertificadosLocais}
-									disabled={lendoCertificados}
-								>
-									{lendoCertificados ? 'Lendo...' : 'Ler Tokens'}
-								</button>
-							</div>
-
-							{#if certificados.length > 0}
-								<select
-									class="select text-xs bg-white dark:bg-surface-900 rounded-lg p-2 w-full border border-surface-300/30"
-									bind:value={certSelecionado}
-								>
-									<option value="">Selecione seu certificado...</option>
-									{#each certificados as cert}
-										<option value={cert.thumbprint}>{cert.subjectName}</option>
-									{/each}
-								</select>
-							{:else if tentouLerCertificados}
-								<p class="text-[0.6rem] text-error-500 bg-error-500/5 p-2 rounded-lg italic">
-									Nenhum certificado detectado. Verifique o token ou use o SERPRO diretamente.
-								</p>
-							{/if}
-						</div>
+						<span class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-success-500 text-white tracking-tighter">RECOMENDADO</span>
 					{/if}
 				</div>
 
+				<p class="text-xs text-surface-500 leading-relaxed italic">
+					Assinatura com validade <strong>Qualificada (ICP-Brasil)</strong> usando seu certificado digital físico. Requer o Assinador Desktop instalado no computador.
+				</p>
+
 				{#if !isMobile}
-					<div class="space-y-3">
-						<button
-							class="btn preset-filled-tertiary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-tertiary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-							onclick={assinarComSerpro}
-							disabled={assinando}
-						>
-							{#if assinando}
-								<span
-									class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-								></span>
-								{etapaAssinatura || 'Finalizando...'}
-							{:else}
-								Assinar Documento Oficial
-							{/if}
-						</button>
-						<p class="text-[0.55rem] text-surface-400 text-center uppercase tracking-tighter">
-							Usa tecnologia WebPKI e <a
-								href="https://www.serpro.gov.br/"
-								target="_blank"
-								class="underline">SERPRO</a
-							> oficial.
-						</p>
-					</div>
+					<PainelAssinaturaToken
+						signerName={usuario?.nome}
+						signerCpf={usuario?.cpf}
+						prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
+						finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
+						nomeArquivo="escala_assinada.pdf"
+						disabled={assinando}
+						onSuccess={async () => {
+							await invalidateAll();
+						}}
+					/>
 				{:else}
-					<div
-						class="bg-surface-200 dark:bg-surface-700/30 p-3 rounded-xl border border-surface-300 dark:border-surface-600/30"
-					>
-						<p
-							class="text-[0.65rem] text-surface-500 font-bold uppercase text-center leading-tight"
-						>
-							Certificados físicos (USB/Token/Cartão) só podem ser lidos em computadores.
+					<div class="p-3 py-4 rounded-xl bg-surface-500/10 border border-surface-500/20 flex items-center justify-center">
+						<p class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center">
+							RECURSO DE TOKEN A3 DISPONÍVEL APENAS EM NAVEGADORES DESKTOP.
 						</p>
 					</div>
 				{/if}
@@ -371,17 +244,14 @@
 		</div>
 
 		<!-- Exportações auxiliares -->
-		<div class="pt-4 border-t border-surface-200 dark:border-white/5">
-			<span class="text-[0.65rem] font-bold text-surface-500 uppercase tracking-widest mb-3 block"
-				>Outros Formatos (Sem Assinatura)</span
-			>
+		<div class="py-4 border-t border-surface-200 dark:border-white/5">
+			<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-3 block">OUTROS FORMATOS (CONFERÊNCIA)</span>
 			<div class="flex gap-2 flex-wrap">
-				{#each ['docx', 'xlsx', 'pdf'] as format}
+				{#each ['DOCX', 'XLSX', 'PDF'] as format}
 					<a
-						class="btn btn-sm preset-tonal-surface text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline"
-						href={`/api/escalas/${escalaId}/download?format=${format}`}
-						target="_blank">{format.toUpperCase()}</a
-					>
+						class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+						href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
+						target="_blank">{format}</a>
 				{/each}
 			</div>
 		</div>

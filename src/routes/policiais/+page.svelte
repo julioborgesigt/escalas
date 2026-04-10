@@ -50,7 +50,7 @@
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
 	let filtroCargo = $state(untrack(() => data.filtros.cargo || savedFilters.cargo));
 	let filtroSeccional = $state<number | 'todas'>(
-		(savedFilters.seccional as unknown as number) || 'todas'
+		untrack(() => (data.filtros.seccional === 'todas' ? 'todas' : Number(data.filtros.seccional)) || savedFilters.seccional)
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
@@ -150,13 +150,8 @@
 		papelUnidadeId = null;
 	}
 
-	const policiaisExibidos = $derived(
-		policiais.filter((p) => {
-			if (filtroCargo && p.cargo !== filtroCargo) return false;
-			if (filtroBusca && !p.nome.toLowerCase().includes(filtroBusca.toLowerCase())) return false;
-			return true;
-		})
-	);
+	// Removido filtragem local: agora é feita no servidor para respeitar a paginação
+	const totalItens = $derived(data.pagination.total);
 
 	$effect(() => {
 		// Resetar para página 1 ao filtrar
@@ -177,9 +172,12 @@
 		}
 		if (filtroCargo) params.set('cargo', filtroCargo);
 		if (filtroBusca) params.set('busca', filtroBusca);
+		if (filtroSeccional && filtroSeccional !== 'todas') {
+			params.set('seccional', String(filtroSeccional));
+		}
 		params.set('page', '1');
 		const query = params.toString();
-		goto(`?${query}`, { keepFocus: true, noScroll: true });
+		goto(`/policiais?${query}`, { keepFocus: true, noScroll: true, invalidateAll: true });
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -201,8 +199,13 @@
 		};
 	}
 
+	// Valor "base" de lotação para o papel atual (o que deve estar ao limpar filtros)
+	// admin_unidade: sua própria lotação (filtro fixo, não pode limpar)
+	// admin_seccional / admin_geral: '' (o servidor aplica o escopo automaticamente)
+	const filtroLotacaoBase = $derived(isAdminUnidade ? (data.lotacaoUsuario ?? '') : '');
+
 	function limparFiltros() {
-		filtroLotacao = isAdmin ? '' : (data.lotacaoUsuario ?? '');
+		filtroLotacao = filtroLotacaoBase;
 		filtroCargo = '';
 		filtroSeccional = 'todas';
 		filtroBusca = '';
@@ -211,7 +214,7 @@
 	}
 
 	const temFiltros = $derived(
-		filtroLotacao !== (isAdmin ? '' : (data.lotacaoUsuario ?? '')) ||
+		filtroLotacao !== filtroLotacaoBase ||
 			filtroCargo !== '' ||
 			filtroSeccional !== 'todas' ||
 			filtroBusca !== ''
@@ -510,7 +513,7 @@
 		{/if}
 		<label class="label w-full sm:w-48 shrink-0">
 			<span class="label-text font-semibold mb-1">Cargo</span>
-			<select class="select" bind:value={filtroCargo}>
+			<select class="select" bind:value={filtroCargo} onchange={navegarComFiltros}>
 				<option value="">Todos</option>
 				<option value="DPC">DPC — Delegado</option>
 				<option value="OIP">OIP — Oficial Investigador</option>
@@ -518,34 +521,44 @@
 		</label>
 
 		<label class="label flex-1 min-w-[200px]">
-			<span class="label-text font-semibold mb-1">Buscar por Nome</span>
-			<div class="relative">
-				<input
-					type="text"
-					class="input pl-10"
-					bind:value={filtroBusca}
-					placeholder="Digite um nome..."
-				/>
-				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/></svg
-					>
+			<span class="label-text font-semibold mb-1">Buscar por Nome ou Matrícula</span>
+			<div class="relative flex gap-2">
+				<div class="relative flex-1">
+					<input
+						type="text"
+						class="input pl-10 pr-4"
+						bind:value={filtroBusca}
+						placeholder="Nome ou matrícula..."
+						onkeydown={(e) => e.key === 'Enter' && navegarComFiltros()}
+					/>
+					<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/></svg
+						>
+					</div>
 				</div>
+				<button
+					type="button"
+					class="btn btn-sm preset-filled-primary-500 shrink-0 self-end"
+					onclick={navegarComFiltros}
+				>
+					Buscar
+				</button>
 			</div>
 		</label>
 	</div>
-	{#if isAdmin && !filtroLotacao}
+	{#if isAdmin && !filtroLotacao && !filtroBusca}
 		<p class="text-xs text-surface-500 -mt-5 mb-4 italic px-1">
-			Selecione uma unidade para visualizar os policiais cadastrados nela.
+			Selecione uma unidade ou pesquise por nome/matrícula para visualizar os policiais.
 		</p>
 	{/if}
 
-	{#if policiaisExibidos.length === 0}
+	{#if policiais.length === 0}
 		<div class="text-center py-12 text-surface-500">
 			<p class="mb-4">
 				{filtroCargo
@@ -655,11 +668,16 @@
 		<PaginationControls
 			{paginaAtual}
 			{totalPaginas}
-			totalItens={policiaisExibidos.length}
+			totalItens={data.pagination.total}
 			itensPorPagina={ITEMS_POR_PAGINA}
 			labelSingular="policial"
 			labelPlural="policial(is)"
-			onPageChange={(p) => (paginaAtual = p)}
+			onPageChange={(p) => {
+				paginaAtual = p;
+				const params = new URLSearchParams(window.location.search);
+				params.set('page', p.toString());
+				goto(`?${params.toString()}`, { keepFocus: true, noScroll: true });
+			}}
 		/>
 	{/if}
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -54,7 +55,6 @@
 	let lotacaoEscala = $state('');
 
 	// Se true, o form de FDS mostra o seletor de data do fim de semana
-	let fdsDataInicio = $state('');
 
 	const MESES_PT = [
 		'Janeiro',
@@ -122,20 +122,36 @@
 		lotacaoEscala = unidade.nome;
 	}
 
+	let fdsDataInicio = $state('');
+	let fdsDataFim = $state('');
+
 	function atualizarTituloFds() {
 		if (!unidadeEscolhida || !fdsDataInicio) return;
-		const sab = new Date(fdsDataInicio + 'T00:00:00');
-		const dom = new Date(sab);
-		dom.setDate(sab.getDate() + 1);
-		const dS = String(sab.getDate()).padStart(2, '0');
-		const mS = String(sab.getMonth() + 1).padStart(2, '0');
-		const dD = String(dom.getDate()).padStart(2, '0');
-		const mD = String(dom.getMonth() + 1).padStart(2, '0');
-		titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS} E ${dD}/${mD}`;
+		const inicio = new Date(fdsDataInicio + 'T00:00:00');
+		const dS = String(inicio.getDate()).padStart(2, '0');
+		const mS = String(inicio.getMonth() + 1).padStart(2, '0');
+
+		let labelFas = '';
+		if (fdsDataFim) {
+			const fim = new Date(fdsDataFim + 'T00:00:00');
+			const dF = String(fim.getDate()).padStart(2, '0');
+			const mF = String(fim.getMonth() + 1).padStart(2, '0');
+			labelFas = ` E ${dF}/${mF}`;
+			dataFim = fdsDataFim;
+		} else {
+			const dom = new Date(inicio);
+			dom.setDate(inicio.getDate() + 1);
+			const dD = String(dom.getDate()).padStart(2, '0');
+			const mD = String(dom.getMonth() + 1).padStart(2, '0');
+			labelFas = ` E ${dD}/${mD}`;
+			const seg = new Date(inicio);
+			seg.setDate(inicio.getDate() + 2);
+			dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
+			fdsDataFim = dataFim;
+		}
+
+		titulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${unidadeEscolhida.nome.toUpperCase()} - ${dS}/${mS}${labelFas}`;
 		dataInicio = fdsDataInicio;
-		const seg = new Date(sab);
-		seg.setDate(sab.getDate() + 2);
-		dataFim = toISO(seg.getFullYear(), seg.getMonth() + 1, seg.getDate());
 	}
 
 	function escolherTipo(tipo: 'plantao' | 'expediente' | 'fds') {
@@ -205,12 +221,18 @@
 
 	// Auto-selecionar para policial com única unidade
 	$effect(() => {
-		if (!isAdmin && unidadesComRegime.length === 1) {
-			unidadeEscolhida = unidadesComRegime[0];
-			const tipos = tiposDisponiveis(unidadesComRegime[0]);
-			if (tipos.length === 1) {
-				escolherTipo(tipos[0].tipo);
-			}
+		if (!isAdmin && unidadesComRegime.length === 1 && selecionando) {
+			untrack(() => {
+				if (unidadeEscolhida !== unidadesComRegime[0]) {
+					unidadeEscolhida = unidadesComRegime[0];
+				}
+				const tipos = tiposDisponiveis(unidadesComRegime[0]);
+				if (tipos.length === 1 && !tipoEscolhido) {
+					tipoEscolhido = tipos[0].tipo;
+					preencherDadosPorTipo(tipos[0].tipo, unidadesComRegime[0]);
+					selecionando = false;
+				}
+			});
 		}
 	});
 
@@ -337,11 +359,8 @@
 			<input type="hidden" name="hora_entrada" value={`${horaEntrada}:${minutoEntrada}`} />
 			<input type="hidden" name="hora_saida" value={`${horaSaida}:${minutoSaida}`} />
 			<input type="hidden" name="tipo" value={tipoEscolhido ?? ''} />
-			{#if isAdmin}
-				<input type="hidden" name="lotacao" value={lotacaoEscala} />
-			{:else}
-				<input type="hidden" name="lotacao" value={unidadeEscolhida?.nome ?? ''} />
-			{/if}
+			<input type="hidden" name="cidade" value={cidade} />
+			<input type="hidden" name="lotacao" value={isAdmin ? lotacaoEscala : (unidadeEscolhida?.nome ?? '')} />
 
 			<!-- Unidade (admin) -->
 			{#if isAdmin}
@@ -349,11 +368,13 @@
 					<span class="label-text">Unidade / Cidade</span>
 					<select
 						class="select"
-						bind:value={cidade}
+						bind:value={lotacaoEscala}
 						onchange={() => {
-							lotacaoEscala = cidade;
-							if (tipoEscolhido && unidadeEscolhida)
-								preencherDadosPorTipo(tipoEscolhido, unidadeEscolhida);
+							const u = unidadesComRegime.find((x) => x.nome === lotacaoEscala);
+							if (u) {
+								unidadeEscolhida = u;
+								if (tipoEscolhido) preencherDadosPorTipo(tipoEscolhido, u);
+							}
 						}}
 						required
 					>
@@ -365,7 +386,9 @@
 				</label>
 			{:else}
 				<p class="text-sm font-medium text-surface-500">
-					Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold">{cidade}</span>
+					Unidade: <span class="text-surface-900 dark:text-surface-100 font-bold"
+						>{lotacaoEscala}</span
+					>
 				</p>
 			{/if}
 
@@ -386,19 +409,30 @@
 					· Horário:
 					<strong class="text-surface-900 dark:text-surface-100">{horarioLabel()}</strong>
 				</div>
-
-				<!-- Para FDS: seletor de data do sábado -->
 			{:else if tipoEscolhido === 'fds'}
-				<label class="label">
-					<span class="label-text">Data do Sábado</span>
-					<input
-						class="input"
-						type="date"
-						bind:value={fdsDataInicio}
-						onchange={atualizarTituloFds}
-						required
-					/>
-				</label>
+				<!-- Para FDS: seletor de data do sábado -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<label class="label">
+						<span class="label-text">Data Inicial</span>
+						<input
+							class="input"
+							type="date"
+							bind:value={fdsDataInicio}
+							onchange={atualizarTituloFds}
+							required
+						/>
+					</label>
+					<label class="label">
+						<span class="label-text">Data Final</span>
+						<input
+							class="input"
+							type="date"
+							bind:value={fdsDataFim}
+							onchange={atualizarTituloFds}
+							required
+						/>
+					</label>
+				</div>
 				<div class="flex flex-col sm:flex-row gap-3">
 					<div class="flex flex-col gap-2 flex-1">
 						<span class="label-text">Hora entrada</span>

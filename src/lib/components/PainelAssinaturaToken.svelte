@@ -202,49 +202,53 @@
 
 <!-- ─── UI ─────────────────────────────────────────────────────────────────── -->
 
-<!-- Dados do Assinante (Dashboard) -->
-<div class="mb-4 p-4 bg-surface-100/50 dark:bg-surface-800/50 rounded-xl border border-surface-200 dark:border-white/10">
-	<div class="flex items-center gap-3 mb-2">
-		<div class="bg-primary-500/10 p-2 rounded-lg">
-			<svg class="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-			</svg>
-		</div>
-		<div>
-			<h4 class="font-bold text-sm">Dados do Assinante</h4>
-			<p class="text-xs text-surface-500 uppercase">Conforme cadastro no sistema</p>
-		</div>
+<!-- Dados do Assinante (Dashboard Style) -->
+<div class="mb-4 p-4 bg-surface-100/50 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-white/5 flex gap-4 items-center shadow-sm">
+	<div class="bg-primary-500/10 p-3 rounded-lg flex-shrink-0">
+		<svg class="w-6 h-6 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+		</svg>
 	</div>
 	
-	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-		<div class="text-sm">
-			<span class="block text-[0.65rem] font-bold uppercase opacity-50">Nome</span>
-			<span class="font-semibold">{signerName || 'Não informado'}</span>
+	<div class="flex-1">
+		<div class="flex flex-col mb-2">
+			<h4 class="font-bold text-sm text-surface-900 dark:text-white flex items-center gap-2">
+				Dados do Assinante
+			</h4>
+			<p class="text-[0.6rem] text-surface-500 uppercase tracking-wider font-semibold">CONFORME CADASTRO NO SISTEMA</p>
 		</div>
-		<div class="text-sm">
-			<span class="block text-[0.65rem] font-bold uppercase opacity-50">CPF</span>
-			<span class="font-semibold">{signerCpf ? signerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'Não cadastrado'}</span>
-		</div>
-	</div>
 
-	{#if !signerCpf}
-		<p class="text-[0.7rem] text-error-500 mt-2 flex items-center gap-1">
-			<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-			Atenção: Seu CPF não está cadastrado. A assinatura pode falhar.
-		</p>
-	{/if}
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+			<div class="flex flex-col">
+				<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter">NOME</span>
+				<span class="font-bold text-sm text-surface-700 dark:text-surface-200 uppercase truncate">{signerName || 'Não informado'}</span>
+			</div>
+			<div class="flex flex-col">
+				<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter">CPF</span>
+				<span class="font-bold text-sm text-surface-700 dark:text-surface-200 letter-spacing-1">
+					{signerCpf ? signerCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'Não cadastrado'}
+				</span>
+			</div>
+		</div>
+
+		{#if !signerCpf}
+			<p class="text-[0.6rem] text-error-500 mt-2 flex items-center gap-1 font-bold animate-pulse">
+				<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+				CPF NÃO CADASTRADO. A ASSINATURA PODE FALHAR.
+			</p>
+		{/if}
+	</div>
 </div>
 
 <!-- Botão de assinatura -->
 <div class="flex gap-2 items-center flex-wrap">
 	<button
-		class="btn btn-sm preset-filled-primary-500"
+		class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform"
 		onclick={assinarComSerpro}
 		disabled={assinando || disabled}
-		title="Requer o Assinador Desktop SERPRO instalado"
 	>
 		{#if assinando}
-			<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+			<Spinner size="xs" class="mr-2" />
 			{etapa || 'Assinando...'}
 		{:else}
 			<svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -255,13 +259,7 @@
 	</button>
 </div>
 
-<!-- Indicador de etapa (quando assinando) -->
-{#if assinando && etapa}
-	<p class="text-xs text-surface-500 mt-2 animate-pulse">{etapa}</p>
-{/if}
-
-<p class="text-xs text-surface-400 dark:text-surface-500 mt-2">
-	Este fluxo utiliza o 
-	<a href="https://www.serpro.gov.br/menu/noticias/noticias-2015/assinador-serpro" target="_blank" rel="noopener" class="underline">Assinador Desktop SERPRO</a>.
+<p class="text-[0.65rem] text-surface-400 dark:text-surface-500 mt-3 italic leading-tight">
+	Este fluxo utiliza o <a href="https://www.serpro.gov.br/menu/noticias/noticias-2015/assinador-serpro" target="_blank" rel="noopener" class="underline">Assinador Desktop SERPRO</a>.
 	Certifique-se de que o aplicativo está aberto e o token conectado.
 </p>

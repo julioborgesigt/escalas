@@ -1408,7 +1408,7 @@
 											</div>
 										{/if}
 									</div>
-								{:else if isMobile}
+								{:else if isMobile || !data.restringirSmartphone}
 									<button
 										class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20"
 										onclick={() => (capturandoRubrica = true)}
@@ -1630,7 +1630,7 @@
 													/>
 												</div>
 											{/if}
-										{:else if isMobile}
+										{:else if isMobile || !data.restringirSmartphone}
 											<button
 												class="btn preset-outlined-primary-500 w-full py-4 rounded-2xl font-bold text-lg"
 												onclick={() => (capturandoRubrica = true)}

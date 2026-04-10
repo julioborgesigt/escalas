@@ -27,7 +27,8 @@ export {
 	salvarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
-	buscarExigirCodigoEmailAssinatura
+	buscarExigirCodigoEmailAssinatura,
+	buscarRestringirSmartphone
 } from './db/configuracoes';
 
 export {

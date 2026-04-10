@@ -15,7 +15,7 @@ import nodemailer from 'nodemailer';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getCredenciais(platform: any): { user: string; pass: string } {
-  const env = platform?.env ?? {};
+  const env = platform?.env || platform || {};
   return {
     user: env.GMAIL_USER ?? '',
     pass: env.GMAIL_APP_PASSWORD ?? ''
@@ -113,11 +113,12 @@ export async function enviarCodigo2FA(
     auth: { user, pass }
   });
 
-  await transporter.sendMail({
-    from: `"Sistema de Escalas - PCCE" <${user}>`,
-    to: destinatario,
-    subject: 'Código de Verificação — Acesso ao Sistema',
-    html: `
+  try {
+    const info = await transporter.sendMail({
+      from: `"Sistema de Escalas - PCCE" <${user}>`,
+      to: destinatario,
+      subject: 'Código de Verificação — Acesso ao Sistema',
+      html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -158,5 +159,10 @@ export async function enviarCodigo2FA(
   </table>
 </body>
 </html>`
-  });
+    });
+    console.log(`[Email] Código 2FA enviado para ${destinatario}. MessageId: ${info.messageId}`);
+  } catch (err) {
+    console.error(`[Email] Erro ao enviar 2FA para ${destinatario}:`, err);
+    throw err;
+  }
 }

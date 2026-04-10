@@ -1427,7 +1427,7 @@
 									</div>
 									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 										<button
-											class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+											class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 											onclick={() => {
 												editandoHorariosSecId = sec.id;
 												editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
@@ -1556,7 +1556,7 @@
 											{/if}
 										</a>
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
-											{#if isMobile}
+											{#if isMobile || !data.restringirSmartphone}
 												<button
 													class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all"
 													onclick={() =>
@@ -1683,7 +1683,7 @@
 
 							<!-- Equipes -->
 							{#each sec.equipes ?? [] as equipe}
-								<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4">
+								<div class="rounded-xl border border-surface-300 dark:border-surface-600 p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm">
 									<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
 										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 											<span
@@ -1787,7 +1787,7 @@
 													</div>
 													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 														<button
-															class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+															class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
 																editEqHoraEnt =
@@ -1817,7 +1817,7 @@
 												{/if}
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 													<button
-														class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+														class="btn btn-sm preset-outlined-warning-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															editandoEquipe = equipe.id;
 															editSlotsDpc = equipe.slots_dpc;
@@ -1952,7 +1952,7 @@
 										{:else}
 											<div class="flex flex-wrap gap-2">
 												<button
-													class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+													class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 													onclick={() => {
 														equipeParaAdicionar = equipe.id;
 														cargoParaAdicionar = 'OIP';
@@ -1975,7 +1975,7 @@
 												</button>
 												{#if equipe.slots_dpc > 0}
 													<button
-														class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
 															cargoParaAdicionar = 'DPC';
@@ -2080,7 +2080,7 @@
 									</div>
 								{:else}
 									<button
-										class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+										class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 										onclick={() => {
 											adicionandoEquipeSec = sec.id;
 											novaEquipeTipo = 'operacional';
@@ -2147,7 +2147,7 @@
 					</div>
 				{:else}
 					<button
-						class="btn preset-outlined-primary-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
+						class="btn preset-outlined-success-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
 						onclick={() => (adicionandoSeccional = true)}
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"

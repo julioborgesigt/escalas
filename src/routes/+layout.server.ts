@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura } from '$lib/db';
 
-export const load: LayoutServerLoad = async ({ locals, platform }) => {
+export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	const u = locals.usuario;
 
 	let isSupervisorGise = false;
@@ -30,12 +30,16 @@ export const load: LayoutServerLoad = async ({ locals, platform }) => {
 		}
 	}
 
+	// Admin module scope set at login
+	const adminModulo = (cookies.get('admin_modulo') as 'ambas' | 'gise' | 'escalas') || 'ambas';
+
 	return {
 		usuario: u,
 		isSupervisorGise,
 		isMembroGise,
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
-		exigirCodigoEmailAssinatura
+		exigirCodigoEmailAssinatura,
+		adminModulo
 	};
 };

@@ -6,6 +6,7 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	let tipo = $state<'policial' | 'admin'>('policial');
+	let adminModulo = $state<'gise' | 'escalas'>('gise');
 	let matricula = $state('');
 	let senha = $state('');
 	let loading = $state(false);
@@ -144,6 +145,27 @@
 
 			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-6">
 				<input type="hidden" name="tipo" value={tipo} />
+				{#if tipo === 'admin'}
+					<input type="hidden" name="adminModulo" value={adminModulo} />
+					<label class="label">
+						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-500">Módulo de Acesso</span>
+						<div class="flex gap-2 mt-1">
+							{#each [{ value: 'escalas', label: 'Escalas', icon: '📅' }, { value: 'gise', label: 'GISE', icon: '🛡️' }] as opt (opt.value)}
+								<button
+									type="button"
+									class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
+										{adminModulo === opt.value
+											? 'bg-primary-500/15 border-primary-500/50 text-primary-700 dark:text-primary-400'
+											: 'border-surface-200 dark:border-surface-700 text-surface-500 hover:border-surface-400 dark:hover:border-surface-500'}"
+									onclick={() => (adminModulo = opt.value as typeof adminModulo)}
+								>
+									<span class="text-base">{opt.icon}</span>
+									<span>{opt.label}</span>
+								</button>
+							{/each}
+						</div>
+					</label>
+				{/if}
 				<label class="label">
 					<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
 					<input

@@ -80,6 +80,7 @@ export const actions: Actions = {
 		const matricula = formData.get('matricula') as string;
 		const senha = formData.get('senha') as string;
 		const tipo = formData.get('tipo') as 'policial' | 'admin';
+		const adminModulo = (formData.get('adminModulo') as string) || 'ambas';
 
 		const parsed = loginSchema.safeParse({ matricula, senha, tipo });
 		if (!parsed.success) {
@@ -123,7 +124,9 @@ export const actions: Actions = {
 				await recordAttempt(db, ip, true);
 				const token = await criarSessao(db, 'admin', envAdmin.id);
 				cookies.set('session_token', token, cookieOptions(url));
-				return { success: true, redirect: '/painel', primeiro_acesso: false, nome: envAdmin.nome };
+				cookies.set('admin_modulo', adminModulo, cookieOptions(url));
+				const dest = adminModulo === 'gise' ? '/gise' : adminModulo === 'escalas' ? '/recebidos' : '/painel';
+				return { success: true, redirect: dest, primeiro_acesso: false, nome: envAdmin.nome };
 			}
 
 			const admin = await db.select().from(administradores).where(eq(administradores.login, matricula)).get();
@@ -146,6 +149,8 @@ export const actions: Actions = {
 					console.error('[2FA] Falha ao enviar e-mail:', err);
 					return fail(500, { error: 'Falha ao enviar código de verificação.', fields: { matricula, tipo } });
 				}
+				// Persist adminModulo so it's available after 2FA
+				cookies.set('admin_modulo_pending', adminModulo, { ...cookieOptions(url), maxAge: 15 * 60 });
 				return {
 					pendente2FA: true,
 					desafioId,
@@ -158,7 +163,9 @@ export const actions: Actions = {
 
 			const token = await criarSessao(db, 'admin', admin.id);
 			cookies.set('session_token', token, cookieOptions(url));
-			return { success: true, redirect: admin.primeiro_acesso === 1 ? '/alterar-senha' : '/painel', primeiro_acesso: admin.primeiro_acesso === 1 };
+			cookies.set('admin_modulo', adminModulo, cookieOptions(url));
+			const adminDest = adminModulo === 'gise' ? '/gise' : adminModulo === 'escalas' ? '/recebidos' : '/painel';
+			return { success: true, redirect: admin.primeiro_acesso === 1 ? '/alterar-senha' : adminDest, primeiro_acesso: admin.primeiro_acesso === 1 };
 		}
 
 		// Policial
@@ -234,6 +241,15 @@ export const actions: Actions = {
 
 		const token = await criarSessao(db, tipo, usuarioId);
 		cookies.set('session_token', token, cookieOptions(url));
+
+		// Restore admin_modulo from pending cookie if this is an admin 2FA verification
+		if (tipo === 'admin') {
+			const pendingModulo = cookies.get('admin_modulo_pending') || 'ambas';
+			cookies.set('admin_modulo', pendingModulo, cookieOptions(url));
+			cookies.delete('admin_modulo_pending', { path: '/' });
+			const adminDest2FA = pendingModulo === 'gise' ? '/gise' : pendingModulo === 'escalas' ? '/recebidos' : '/painel';
+			return { success: true, redirect: primeiroAcesso ? '/alterar-senha' : adminDest2FA, primeiro_acesso: primeiroAcesso };
+		}
 
 		return { success: true, redirect: primeiroAcesso ? '/alterar-senha' : '/escalas', primeiro_acesso: primeiroAcesso };
 	},
