@@ -11,6 +11,9 @@
 	const usuario = $derived(page.data.usuario);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
+	const adminModulo = $derived(
+		(page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas'
+	);
 
 	// Mostra abas Escalas e Policiais para: admin, admin_seccional, admin_unidade
 	const showEscalasPoliciais = $derived(
@@ -30,6 +33,17 @@
 	const showResGise = $derived(
 		usuario?.tipo === 'admin' ||
 		isMembroGise
+	);
+
+	// For admins: control menu group visibility based on chosen module
+	const showGrupo1 = $derived(
+		usuario?.tipo !== 'admin' || adminModulo === 'ambas' || adminModulo === 'escalas'
+	);
+	const showGrupo2 = $derived(
+		usuario?.tipo !== 'admin' || adminModulo === 'ambas' || adminModulo === 'gise'
+	);
+	const showGrupo2Separator = $derived(
+		usuario?.tipo === 'admin' && showGrupo1 && showGrupo2
 	);
 
 	const showSidebar = $derived(
@@ -203,7 +217,8 @@
 		<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
 
 			<!-- Grupo 1: Painel · Cx. de Entrada · Arquivo/Escalas -->
-			{#if usuario?.tipo === 'admin'}
+			{#if showGrupo1}
+				{#if usuario?.tipo === 'admin'}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/painel') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
@@ -220,8 +235,8 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2m16 0h-2M4 13H6m0 0v4a2 2 0 002 2h8a2 2 0 002-2v-4m-2 0h2m-2 0H6" /></svg>
 					Cx. de Entrada
 				</button>
-			{/if}
-			{#if showEscalasPoliciais}
+				{/if}
+				{#if showEscalasPoliciais}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/escalas') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
@@ -230,15 +245,17 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
 					{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
 				</button>
-			{/if}
+				{/if}
+			{/if} <!-- end showGrupo1 -->
 
-			<!-- Separador 1 (só admin geral) -->
-			{#if usuario?.tipo === 'admin'}
+			<!-- Separador 1 (só admin geral, entre grupos que ambos existem) -->
+			{#if showGrupo2Separator}
 				<hr class="!my-3 border-surface-200 dark:border-white/10" />
 			{/if}
 
-			<!-- Grupo 2: GISE · Rel. GISE -->
-			{#if showGise}
+			<!-- Grupo 2: GISE · Rel. GISE · Produtividade -->
+			{#if showGrupo2}
+				{#if showGise}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
@@ -247,8 +264,8 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
 					GISE
 				</button>
-			{/if}
-			{#if showResGise}
+				{/if}
+				{#if showResGise}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/res-gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
@@ -257,9 +274,8 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
 					Rel. Gise
 				</button>
-			{/if}
-
-			{#if usuario?.tipo === 'admin'}
+				{/if}
+				{#if usuario?.tipo === 'admin'}
 				<button
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/produtividade') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
@@ -268,7 +284,8 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
 					Produtividade
 				</button>
-			{/if}
+				{/if}
+			{/if} <!-- end showGrupo2 -->
 
 			<!-- Separador 2 (só admin geral) -->
 			{#if usuario?.tipo === 'admin'}
@@ -325,9 +342,11 @@
 
 			<!-- User info -->
 			<div class="px-3 py-2">
-				<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate">{usuario.nome}</p>
-				{#if usuario.tipo === 'admin'}
-					<span class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider mt-1">ADMIN GERAL</span>
+				{#if usuario?.tipo === 'admin'}
+					<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate">{usuario.nome}</p>
+					<span class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider mt-1">
+						ADMIN {adminModulo === 'gise' ? 'GISE' : adminModulo === 'escalas' ? 'ESCALAS' : 'GERAL'}
+					</span>
 				{:else if usuario.papel === 'admin_seccional'}
 					<span class="badge preset-filled-warning-500 text-[0.6rem] font-semibold tracking-wider mt-1">ADM SECCIONAL</span>
 				{:else if usuario.papel === 'admin_unidade'}

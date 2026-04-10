@@ -77,11 +77,12 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 					})
 				: Promise.resolve([]);
 
-		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios] = await Promise.all([
+		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] = await Promise.all([
 			buscarGiseDetalhado(db, id),
 			policiaisPromise,
 			db.select().from(unidades).orderBy(asc(unidades.nome)),
-			buscarAssinaturasRelatoriosGise(db, id)
+			buscarAssinaturasRelatoriosGise(db, id),
+			import('$lib/db').then(m => m.buscarRestringirSmartphone(db))
 		]);
 
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
@@ -96,7 +97,8 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 			isSeccional,
 			isSupervisor,
 			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
-			usuarioAtual: u
+			usuarioAtual: u,
+			restringirSmartphone
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;

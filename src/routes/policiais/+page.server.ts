@@ -21,15 +21,36 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	const db = getDB(platform);
 	const isAdmin = u.tipo === 'admin';
-	const lotacaoParam = url.searchParams.get('lotacao') || undefined;
+	let lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const cargo = url.searchParams.get('cargo') || undefined;
 	const busca = url.searchParams.get('busca') || undefined;
 	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
 
-	const skipLoad = false; // Removido para garantir que policiais estejam sempre visíveis
+	let seccional = url.searchParams.get('seccional');
+	let seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
+
+	// Se não for admin geral, restringir escopo
+	if (!isAdmin) {
+		if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
+			// Seccional Admin: fixar seccional se não houver unidade específica
+			if (!lotacaoParam) {
+				seccionalId = u.papel_unidade_id;
+				seccional = String(u.papel_unidade_id);
+			}
+		} else if (u.papel === 'admin_unidade') {
+			// Unit Admin: fixar unidade
+			lotacaoParam = u.lotacao;
+		}
+	}
 
 	const [resultado, unidades] = await Promise.all([
-		listarPoliciais(db, lotacaoParam, false, { busca, page, limit: 20 }),
+		listarPoliciais(db, lotacaoParam, false, {
+			busca,
+			cargo,
+			seccionalId,
+			page,
+			limit: 20
+		}),
 		listarUnidades(db)
 	]);
 
@@ -45,11 +66,11 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		filtros: {
 			lotacao: lotacaoParam ?? '',
 			cargo: cargo ?? '',
-			busca: busca ?? ''
+			busca: busca ?? '',
+			seccional: seccional ?? 'todas'
 		},
 		isAdmin,
-		lotacaoUsuario: u.lotacao,
-		skipLoad
+		lotacaoUsuario: u.lotacao
 	};
 };
 

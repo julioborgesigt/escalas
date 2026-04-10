@@ -10,7 +10,7 @@ export const escalaSchema = z.object({
 	horario: z.string().max(50).default('08H A 08H'),
 	hora_entrada: z.string().max(5).default('08'),
 	hora_saida: z.string().max(5).default('08'),
-	lotacao: z.string().max(200).default(''),
+	lotacao: z.string().min(1, 'Lotação é obrigatória').max(200),
 	tipo: z.enum(['plantao', 'expediente', 'fds']).optional()
 });
 

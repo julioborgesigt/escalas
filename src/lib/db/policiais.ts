@@ -16,6 +16,8 @@ export async function listarPoliciais(
 	semLotacao?: boolean,
 	opts?: {
 		busca?: string;
+		cargo?: string;
+		seccionalId?: number;
 		page?: number;
 		limit?: number;
 	}
@@ -30,8 +32,18 @@ export async function listarPoliciais(
 
 	if (semLotacao) {
 		baseConditions.push(or(eq(policiais.lotacao, ''), isNull(policiais.lotacao))!);
-	} else if (lotacao) {
+	} else if (lotacao && lotacao !== '__todas__') {
 		baseConditions.push(eq(policiais.lotacao, lotacao));
+	}
+
+	if (opts?.seccionalId) {
+		// Busca policiais em qualquer unidade que pertença à seccional escolhida
+		const seccionalUnits = db
+			.select({ nome: unidades.nome })
+			.from(unidades)
+			.where(or(eq(unidades.id, opts.seccionalId), eq(unidades.seccional_id, opts.seccionalId)));
+
+		baseConditions.push(sql`${policiais.lotacao} IN (${seccionalUnits})`);
 	}
 
 	// Busca por nome ou matrícula
@@ -43,6 +55,11 @@ export async function listarPoliciais(
 				like(policiais.matricula, `%${buscaEscapada}%`)
 			)!
 		);
+	}
+
+	// Filtro por cargo
+	if (opts?.cargo) {
+		baseConditions.push(eq(policiais.cargo, opts.cargo as 'DPC' | 'OIP'));
 	}
 
 	// Paginação com valores padrão

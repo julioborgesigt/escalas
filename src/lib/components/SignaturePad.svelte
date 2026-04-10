@@ -2,7 +2,14 @@
 	import { csrfHeaders } from '$lib/csrf';
 	let faceapi: any = $state(null);
 
-	let { onConfirm, onCancel, message = "", exigirFoto = true, exigirGps = true, exigirCodigoEmail = false } = $props();
+	let {
+		onConfirm,
+		onCancel,
+		message = '',
+		exigirFoto = true,
+		exigirGps = true,
+		exigirCodigoEmail = false
+	} = $props();
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -17,13 +24,13 @@
 	let cameraError = $state<string | null>(null);
 	let capturingImage = $state(false);
 
-	let step = $state<"signature" | "camera" | "email_code">("signature");
+	let step = $state<'signature' | 'camera' | 'email_code'>('signature');
 
 	// Face Liveness states
 	let faceDetected = $state(false);
 	let isFaceModelLoaded = $state(false);
 	let faceDetectionInterval: any = null;
-	let faceStatusMessage = $state("Inicializando IA...");
+	let faceStatusMessage = $state('Inicializando IA...');
 	let faceLoadError = $state<string | null>(null);
 
 	// Novos estados para estabilidade e contagem
@@ -36,22 +43,27 @@
 
 	// Estados do Email Code
 	let solicitandoCodigo = $state(false);
-	let codigoInput = $state("");
+	let codigoInput = $state('');
 	let codigoError = $state<string | null>(null);
-	let emailMascarado = $state("");
+	let emailMascarado = $state('');
 	let desafioId = $state<string | null>(null);
-	let pendingSignature = $state<{dataUrl: string, lat: number|undefined, lng: number|undefined, selfieBase64: string|null}|null>(null);
+	let pendingSignature = $state<{
+		dataUrl: string;
+		lat: number | undefined;
+		lng: number | undefined;
+		selfieBase64: string | null;
+	} | null>(null);
 
 	$effect(() => {
-		if (step === "camera") {
+		if (step === 'camera') {
 			if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 				navigator.mediaDevices
 					.getUserMedia({
 						video: {
-							facingMode: "user",
+							facingMode: 'user',
 							width: { ideal: 1280 },
-							height: { ideal: 720 },
-						},
+							height: { ideal: 720 }
+						}
 					})
 					.then((s) => {
 						stream = s;
@@ -64,12 +76,11 @@
 						}
 					})
 					.catch((err) => {
-						console.warn("Camera error:", err);
-						cameraError =
-							"Por favor, autorize a câmera. A Prova de Vida é obrigatória.";
+						console.warn('Camera error:', err);
+						cameraError = 'Por favor, autorize a câmera. A Prova de Vida é obrigatória.';
 					});
 			} else {
-				cameraError = "Navegador não suporta acesso à câmera.";
+				cameraError = 'Navegador não suporta acesso à câmera.';
 			}
 		} else {
 			// se voltar para a tela de assinatura
@@ -86,20 +97,19 @@
 
 	async function initFaceDetection() {
 		try {
-			if (!faceapi && typeof window !== "undefined") {
-				faceapi = await import("@vladmandic/face-api");
+			if (!faceapi && typeof window !== 'undefined') {
+				faceapi = await import('@vladmandic/face-api');
 			}
 			if (faceapi && !isFaceModelLoaded) {
 				await faceapi.nets.tinyFaceDetector.loadFromUri(
-					"https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/",
+					'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
 				);
 				isFaceModelLoaded = true;
 			}
 			startDetectionLoop();
 		} catch (e: any) {
-			console.error("Erro ao carregar face-api:", e);
-			faceLoadError =
-				"Falha ao baixar modelo facial. Verifique internet.";
+			console.error('Erro ao carregar face-api:', e);
+			faceLoadError = 'Falha ao baixar modelo facial. Verifique internet.';
 		}
 	}
 
@@ -112,13 +122,13 @@
 						videoElement,
 						new faceapi.TinyFaceDetectorOptions({
 							inputSize: 224,
-							scoreThreshold: 0.5,
-						}),
+							scoreThreshold: 0.5
+						})
 					);
 					if (detections.length === 1) {
 						faceDetected = true;
 						const box = detections[0].box;
-						
+
 						if (lastBox) {
 							const dx = box.x - lastBox.x;
 							const dy = box.y - lastBox.y;
@@ -128,27 +138,27 @@
 							if (movedValue) {
 								isMoving = true;
 								stableFrames = 0;
-								faceStatusMessage = "Mantenha o celular firme! ✋";
+								faceStatusMessage = 'Mantenha o celular firme! ✋';
 							} else {
 								stableFrames++;
 								if (stableFrames >= 3) {
 									isMoving = false;
-									faceStatusMessage = "Rosto Detectado ✅";
+									faceStatusMessage = 'Rosto Detectado ✅';
 								}
 							}
 						} else {
-							faceStatusMessage = "Rosto Detectado ✅";
+							faceStatusMessage = 'Rosto Detectado ✅';
 						}
 						lastBox = box;
 					} else if (detections.length === 0) {
 						faceDetected = false;
 						stableFrames = 0;
-						faceStatusMessage = "Posicione seu rosto na frente da câmera.";
+						faceStatusMessage = 'Posicione seu rosto na frente da câmera.';
 						isMoving = false;
 					} else {
 						faceDetected = false;
 						stableFrames = 0;
-						faceStatusMessage = "Apenas 1 rosto é permitido!";
+						faceStatusMessage = 'Apenas 1 rosto é permitido!';
 						isMoving = false;
 					}
 				} catch (e) {
@@ -160,35 +170,35 @@
 
 	$effect(() => {
 		if (canvas) {
-			ctx = canvas.getContext("2d")!;
-			ctx.strokeStyle = "#000";
+			ctx = canvas.getContext('2d')!;
+			ctx.strokeStyle = '#000';
 			ctx.lineWidth = 2.5;
-			ctx.lineCap = "round";
-			ctx.lineJoin = "round";
+			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
 		}
 
 		// Iniciar captura de localização ao abrir (somente se exigido)
 		if (exigirGps) {
-			if ("geolocation" in navigator) {
+			if ('geolocation' in navigator) {
 				capturingLocation = true;
 				navigator.geolocation.getCurrentPosition(
 					(pos) => {
 						coords = {
 							lat: pos.coords.latitude,
-							lng: pos.coords.longitude,
+							lng: pos.coords.longitude
 						};
 						capturingLocation = false;
 					},
 					(err) => {
-						console.warn("Erro ao capturar localização:", err);
+						console.warn('Erro ao capturar localização:', err);
 						locationError =
-							"Não foi possível capturar sua localização. Por favor, permita o acesso ao GPS.";
+							'Não foi possível capturar sua localização. Por favor, permita o acesso ao GPS.';
 						capturingLocation = false;
 					},
-					{ enableHighAccuracy: true, timeout: 10000 },
+					{ enableHighAccuracy: true, timeout: 10000 }
 				);
 			} else {
-				locationError = "GPS não disponível neste dispositivo.";
+				locationError = 'GPS não disponível neste dispositivo.';
 			}
 		}
 	});
@@ -214,15 +224,15 @@
 
 	function getCoord(e: MouseEvent | TouchEvent) {
 		const rect = canvas.getBoundingClientRect();
-		if ("touches" in e) {
+		if ('touches' in e) {
 			return {
 				x: e.touches[0].clientX - rect.left,
-				y: e.touches[0].clientY - rect.top,
+				y: e.touches[0].clientY - rect.top
 			};
 		}
 		return {
 			x: (e as MouseEvent).clientX - rect.left,
-			y: (e as MouseEvent).clientY - rect.top,
+			y: (e as MouseEvent).clientY - rect.top
 		};
 	}
 
@@ -236,48 +246,44 @@
 		function flatCanvas(
 			source: HTMLCanvasElement,
 			w = source.width,
-			h = source.height,
+			h = source.height
 		): HTMLCanvasElement {
-			const c = document.createElement("canvas");
+			const c = document.createElement('canvas');
 			c.width = w;
 			c.height = h;
-			const c2d = c.getContext("2d")!;
-			c2d.fillStyle = "#ffffff";
+			const c2d = c.getContext('2d')!;
+			c2d.fillStyle = '#ffffff';
 			c2d.fillRect(0, 0, w, h);
 			c2d.drawImage(source, 0, 0, w, h);
 			return c;
 		}
 
 		function base64Size(dataUrl: string): number {
-			const b64 = dataUrl.split(",")[1] ?? "";
+			const b64 = dataUrl.split(',')[1] ?? '';
 			return Math.ceil((b64.length * 3) / 4);
 		}
 
 		const flat = flatCanvas(src);
 		for (const q of [0.92, 0.88, 0.84, 0.8, 0.76, 0.72, 0.68]) {
-			const jpg = flat.toDataURL("image/jpeg", q);
+			const jpg = flat.toDataURL('image/jpeg', q);
 			if (base64Size(jpg) <= maxBytes) return jpg;
 		}
 
 		const scale = 0.85;
-		const small = flatCanvas(
-			src,
-			Math.round(src.width * scale),
-			Math.round(src.height * scale),
-		);
+		const small = flatCanvas(src, Math.round(src.width * scale), Math.round(src.height * scale));
 		for (const q of [0.92, 0.88, 0.84, 0.8, 0.76]) {
-			const jpg = small.toDataURL("image/jpeg", q);
+			const jpg = small.toDataURL('image/jpeg', q);
 			if (base64Size(jpg) <= maxBytes) return jpg;
 		}
 
-		return small.toDataURL("image/jpeg", 0.75);
+		return small.toDataURL('image/jpeg', 0.75);
 	}
 
 	function confirmarSemFoto() {
-		const thumbCanvas = document.createElement("canvas");
+		const thumbCanvas = document.createElement('canvas');
 		thumbCanvas.width = 150;
 		thumbCanvas.height = 60;
-		const thumbCtx = thumbCanvas.getContext("2d")!;
+		const thumbCtx = thumbCanvas.getContext('2d')!;
 		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
 		const dataUrl = comprimirRubrica(canvas, 100);
 		processarAssinatura(dataUrl, coords?.lat, coords?.lng, null);
@@ -297,17 +303,18 @@
 			);
 
 			if (finalDetection.length !== 1) {
-				lastErrorCode = finalDetection.length === 0 
-					? "Rosto não detectado no momento da foto!" 
-					: "Múltiplos rostos detectados no momento da foto!";
+				lastErrorCode =
+					finalDetection.length === 0
+						? 'Rosto não detectado no momento da foto!'
+						: 'Múltiplos rostos detectados no momento da foto!';
 				capturingImage = false;
 				countdown = 0; // Reseta tentativa
 				return;
 			}
 
-			const sc = document.createElement("canvas");
+			const sc = document.createElement('canvas');
 			// Força a proporção 3:4 (retrato) para garantir padronização perfeita entre entrada e saída
-			const uiRatio = 0.75; 
+			const uiRatio = 0.75;
 
 			// Resolução aumentada para 600x800 para maior nitidez
 			const ch = 800;
@@ -315,11 +322,10 @@
 			sc.width = cw;
 			sc.height = ch;
 
-			const sctx = sc.getContext("2d");
+			const sctx = sc.getContext('2d');
 			if (sctx) {
 				// Object Cover: desenha o vídeo cobrindo perfeitamente o canvas da UI
-				const videoRatio =
-					videoElement.videoWidth / videoElement.videoHeight;
+				const videoRatio = videoElement.videoWidth / videoElement.videoHeight;
 				let drawWidth = cw;
 				let drawHeight = ch;
 				let offsetX = 0;
@@ -335,50 +341,39 @@
 					offsetY = (ch - drawHeight) / 2;
 				}
 
-				sctx.drawImage(
-					videoElement,
-					offsetX,
-					offsetY,
-					drawWidth,
-					drawHeight,
-				);
+				sctx.drawImage(videoElement, offsetX, offsetY, drawWidth, drawHeight);
 
 				// Efeito visual de flash
 				isFlashActive = true;
 				setTimeout(() => (isFlashActive = false), 150);
 
 				// Qualidade aumentada de 0.82 para 0.88 para maior clareza
-				selfieBase64 = sc.toDataURL("image/jpeg", 0.88);
+				selfieBase64 = sc.toDataURL('image/jpeg', 0.88);
 			}
 		}
 
 		// Redimensiona a rúbrica para 150x60 antes de exportar como PNG.
 		// Isso reduz o peso de ~500KB para ~15KB sem gerar quadros pretos no PDF,
 		// problema conhecido quando jsPDF recebe JPEG de formato canvas.
-		const thumbCanvas = document.createElement("canvas");
+		const thumbCanvas = document.createElement('canvas');
 		thumbCanvas.width = 150;
 		thumbCanvas.height = 60;
-		const thumbCtx = thumbCanvas.getContext("2d")!;
-		thumbCtx.drawImage(
-			canvas,
-			0,
-			0,
-			canvas.width,
-			canvas.height,
-			0,
-			0,
-			150,
-			60,
-		);
+		const thumbCtx = thumbCanvas.getContext('2d')!;
+		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
 		const dataUrl = comprimirRubrica(canvas, 100);
 		processarAssinatura(dataUrl, coords?.lat, coords?.lng, selfieBase64);
 	}
 
-	async function processarAssinatura(dataUrl: string, lat: number | undefined, lng: number | undefined, selfieBase64: string | null) {
+	async function processarAssinatura(
+		dataUrl: string,
+		lat: number | undefined,
+		lng: number | undefined,
+		selfieBase64: string | null
+	) {
 		if (exigirCodigoEmail) {
 			pendingSignature = { dataUrl, lat, lng, selfieBase64 };
-			step = "email_code";
-			await enviarOuReenviarCodigo();
+			const ok = await enviarOuReenviarCodigo();
+			if (ok) step = 'email_code';
 		} else {
 			onConfirm(dataUrl, lat, lng, selfieBase64);
 		}
@@ -387,19 +382,25 @@
 	async function enviarOuReenviarCodigo() {
 		solicitandoCodigo = true;
 		codigoError = null;
-		codigoInput = "";
+		codigoInput = '';
 		try {
 			const res = await fetch('/api/auth/solicitar-codigo-assinatura', {
 				method: 'POST',
 				headers: { ...csrfHeaders(), 'Content-Type': 'application/json' }
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Falha ao solicitar código');
-			
+			if (!res.ok) throw new Error(data.error || data.message || 'Falha ao solicitar código');
+
 			emailMascarado = data.emailMascarado;
 			desafioId = data.desafioId;
-		} catch(e: any) {
+			return true;
+		} catch (e: any) {
 			codigoError = e.message;
+			// Se o erro for de login/sessão, podemos alertar de forma mais incisiva
+			if (e.message.includes('Sessão inválida')) {
+				alert(e.message);
+			}
+			return false;
 		} finally {
 			solicitandoCodigo = false;
 		}
@@ -407,11 +408,18 @@
 
 	function confirmarCodigo() {
 		if (codigoInput.length !== 6) {
-			codigoError = "O código deve conter 6 dígitos.";
+			codigoError = 'O código deve conter 6 dígitos.';
 			return;
 		}
 		if (pendingSignature && desafioId) {
-			onConfirm(pendingSignature.dataUrl, pendingSignature.lat, pendingSignature.lng, pendingSignature.selfieBase64, codigoInput, desafioId);
+			onConfirm(
+				pendingSignature.dataUrl,
+				pendingSignature.lat,
+				pendingSignature.lng,
+				pendingSignature.selfieBase64,
+				codigoInput,
+				desafioId
+			);
 		}
 	}
 
@@ -432,18 +440,42 @@
 
 <div class="space-y-4">
 	{#if message}
-		<p
-			class="text-[0.65rem] font-bold text-surface-500 uppercase text-center mb-1"
-		>
+		<p class="text-[0.65rem] font-bold text-surface-500 uppercase text-center mb-1">
 			{message}
 		</p>
+	{/if}
+
+	{#if codigoError && step !== 'email_code'}
+		<div
+			class="p-4 bg-error-500/10 border-2 border-error-500/30 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300"
+		>
+			<div class="flex items-center gap-3">
+				<div class="bg-error-500 rounded-full p-1.5 shadow-lg shadow-error-500/30">
+					<svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="3"
+							d="M6 18L18 6M6 6l12 12"
+						/>
+					</svg>
+				</div>
+				<div class="flex-1">
+					<p class="text-xs font-black text-error-600 uppercase tracking-widest leading-tight">
+						Erro na Assinatura
+					</p>
+					<p class="text-[0.65rem] font-bold text-error-700/80 leading-snug">
+						{codigoError}
+					</p>
+				</div>
+			</div>
+		</div>
 	{/if}
 
 	<div class="flex flex-col gap-4">
 		<div class="space-y-2 {step !== 'signature' ? 'hidden' : ''}">
 			<div class="flex justify-between items-end">
-				<span
-					class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wider"
+				<span class="text-[0.6rem] font-bold text-surface-500 uppercase tracking-wider"
 					>Sua Rubrica</span
 				>
 			</div>
@@ -466,37 +498,29 @@
 
 				<!-- Indicador de GPS -->
 				{#if exigirGps}
-				<div
-					class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
-				>
-					{#if capturingLocation}
-						<span
-							class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
-						></span>
-						<span
-							class="text-[0.55rem] font-black uppercase text-amber-600"
-							>Capturando GPS...</span
-						>
-					{:else if coords}
-						<span class="w-2 h-2 rounded-full bg-success-500"
-						></span>
-						<span
-							class="text-[0.55rem] font-black uppercase text-success-600"
-							>GPS Localizado</span
-						>
-					{:else}
-						<span class="w-2 h-2 rounded-full bg-error-500"></span>
-						<span
-							class="text-[0.55rem] font-black uppercase text-error-600"
-							>GPS Falhou</span
-						>
-					{/if}
-				</div>
+					<div
+						class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
+					>
+						{#if capturingLocation}
+							<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+							<span class="text-[0.55rem] font-black uppercase text-amber-600"
+								>Capturando GPS...</span
+							>
+						{:else if coords}
+							<span class="w-2 h-2 rounded-full bg-success-500"></span>
+							<span class="text-[0.55rem] font-black uppercase text-success-600"
+								>GPS Localizado</span
+							>
+						{:else}
+							<span class="w-2 h-2 rounded-full bg-error-500"></span>
+							<span class="text-[0.55rem] font-black uppercase text-error-600">GPS Falhou</span>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</div>
 
-		{#if step === "camera"}
+		{#if step === 'camera'}
 			<!-- Camera Preview -->
 			<div
 				class="w-full bg-surface-100 dark:bg-surface-800 border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden flex flex-col pt-3 items-center relative aspect-[3/4] min-h-[400px] object-cover"
@@ -561,9 +585,7 @@
 						<div
 							class="bg-error-500/90 text-white backdrop-blur-md px-4 py-2 rounded-xl text-center shadow-[0_0_15px_rgba(0,0,0,0.3)]"
 						>
-							<p
-								class="text-[0.65rem] font-bold uppercase tracking-wide"
-							>
+							<p class="text-[0.65rem] font-bold uppercase tracking-wide">
 								{faceLoadError}
 							</p>
 						</div>
@@ -613,39 +635,59 @@
 			</div>
 		{/if}
 
-		{#if step === "email_code"}
-			<div class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]">
+		{#if step === 'email_code'}
+			<div
+				class="flex flex-col items-center justify-center p-6 bg-surface-100/50 dark:bg-surface-800/40 rounded-2xl border-2 border-primary-500/20 text-center min-h-[300px]"
+			>
 				<div class="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4">
-					<svg class="w-8 h-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+					<svg
+						class="w-8 h-8 text-primary-500"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+						/>
 					</svg>
 				</div>
 				<h3 class="h3 font-bold mb-2">Confirme sua Identidade</h3>
-				
+
 				{#if solicitandoCodigo}
 					<p class="text-sm font-medium text-surface-500">Enviando código de verificação...</p>
-					<div class="mt-6"><span class="inline-block w-8 h-8 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin"></span></div>
+					<div class="mt-6">
+						<span
+							class="inline-block w-8 h-8 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin"
+						></span>
+					</div>
 				{:else}
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6 max-w-sm">
-						Enviamos um código de 6 dígitos para o seu e-mail cadastrado <strong>({emailMascarado || '...'})</strong>. Digite-o abaixo para concluir a assinatura.
+						Enviamos um código de 6 dígitos para o seu e-mail cadastrado <strong
+							>({emailMascarado || '...'})</strong
+						>. Digite-o abaixo para concluir a assinatura.
 					</p>
 
 					<div class="w-full max-w-xs space-y-4">
-						<input 
-							type="text" 
+						<input
+							type="text"
 							inputmode="numeric"
 							maxlength="6"
 							placeholder="000000"
 							bind:value={codigoInput}
-							class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError ? 'border-error-500 uppercase' : 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
+							class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
+								? 'border-error-500 uppercase'
+								: 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
 						/>
-						
+
 						{#if codigoError}
 							<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
 						{/if}
 
-						<button 
-							type="button" 
+						<button
+							type="button"
 							class="text-xs font-semibold text-primary-600 dark:text-primary-400 underline decoration-primary-500/30 hover:decoration-primary-500 transition-all"
 							onclick={enviarOuReenviarCodigo}
 						>
@@ -658,29 +700,23 @@
 	</div>
 
 	{#if locationError && !coords && !capturingLocation}
-		<p
-			class="text-[0.6rem] font-bold text-error-500 text-center uppercase tracking-tight italic"
-		>
+		<p class="text-[0.6rem] font-bold text-error-500 text-center uppercase tracking-tight italic">
 			{locationError}
 		</p>
 	{/if}
 
-	<div
-		class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl"
-	>
-		<p
-			class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center"
-		>
-			Ao assinar, declaro a veracidade destas informações e autorizo o
-			registro de minha <strong>localização geográfica</strong>,
+	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
+		<p class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center">
+			Ao assinar, declaro a veracidade destas informações e autorizo o registro de minha <strong
+				>localização geográfica</strong
+			>,
 			<strong>fotografia (prova de vida)</strong>
-			e <strong>metadados técnicos</strong> para fins de validade jurídica
-			desta assinatura (Lei 14.063/20).
+			e <strong>metadados técnicos</strong> para fins de validade jurídica desta assinatura (Lei 14.063/20).
 		</p>
 	</div>
 
-	<div class="flex flex-wrap justify-between items-center gap-4 mt-4">
-		{#if step === "signature"}
+	<div class="flex flex-wrap justify-between items-center gap-2 mt-4">
+		{#if step === 'signature'}
 			<button
 				class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
 				onclick={clear}
@@ -697,15 +733,15 @@
 				</button>
 				<button
 					class="btn preset-filled-primary-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
-					onclick={() => exigirFoto ? (step = "camera") : confirmarSemFoto()}
+					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
 				>
 					{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
 				</button>
 			</div>
-		{:else if step === "camera"}
+		{:else if step === 'camera'}
 			<button
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
-				onclick={() => (step = "signature")}
+				onclick={() => (step = 'signature')}
 			>
 				Voltar
 			</button>
@@ -715,11 +751,7 @@
 					? 'preset-filled-primary-500'
 					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
 				onclick={startCaptureSequence}
-				disabled={capturingLocation ||
-					capturingImage ||
-					!!cameraError ||
-					!stream ||
-					!faceDetected}
+				disabled={capturingLocation || capturingImage || !!cameraError || !stream || !faceDetected}
 			>
 				{#if !faceDetected}
 					Aguardando Rosto...
@@ -731,7 +763,7 @@
 					Tirar Foto e Assinar
 				{/if}
 			</button>
-		{:else if step === "email_code"}
+		{:else if step === 'email_code'}
 			<button
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={onCancel}

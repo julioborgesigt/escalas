@@ -596,59 +596,63 @@ export async function clonarGiseParaData(
 	let secsParaClonar: any[] = [];
 
 	if (modo === 'clonada') {
-		secsParaClonar = await db.select().from(giseSeccionais).where(eq(giseSeccionais.gise_id, giseId));
+		secsParaClonar = await db.select().from(giseSeccionais).where(eq(giseSeccionais.gise_id, giseId)).all();
 	} else {
 		const todas = await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all();
 		secsParaClonar = todas.map((s) => ({ seccional_id: s.id }));
 	}
 
-	// Transação + batch inserts para atomicidade e performance
-	await db.transaction(async (tx) => {
-		// Clonar seccionais em batch
-		const secsInsert = await tx.insert(giseSeccionais).values(
-			secsParaClonar.map((sec) => ({
-				gise_id: novoId,
-				seccional_id: sec.seccional_id,
-				unidade_operacional_id: null,
-				status: 'pendente' as const
-			}))
-		).returning({ id: giseSeccionais.id, seccional_id: giseSeccionais.seccional_id });
+	if (secsParaClonar.length === 0) return novoId;
 
-		// Build map: old sec.id -> new sec.id for equipe references
-		const secIdMap = new Map<number, number>();
-		if (modo === 'clonada') {
-			for (let i = 0; i < secsParaClonar.length; i++) {
-				if (secsParaClonar[i].id) {
-					secIdMap.set(secsParaClonar[i].id, secsInsert[i].id);
+	// Insert seccionais sequencialmente (D1 não suporta transações aninhadas com batch)
+	const secsInsert: { id: number; seccional_id: number }[] = [];
+	for (const sec of secsParaClonar) {
+		const [inserted] = await db.insert(giseSeccionais).values({
+			gise_id: novoId,
+			seccional_id: sec.seccional_id,
+			unidade_operacional_id: null,
+			status: 'pendente' as const
+		}).returning({ id: giseSeccionais.id, seccional_id: giseSeccionais.seccional_id });
+		secsInsert.push(inserted);
+	}
+
+	// Build map: old seccional id -> new seccional id
+	const secIdMap = new Map<number, number>();
+	if (modo === 'clonada') {
+		for (let i = 0; i < secsParaClonar.length; i++) {
+			if (secsParaClonar[i].id) {
+				secIdMap.set(secsParaClonar[i].id, secsInsert[i].id);
+			}
+		}
+	}
+
+	// Clone equipes se modo clonada
+	if (modo === 'clonada') {
+		const oldSecIds = secsParaClonar.filter((s: any) => s.id).map((s: any) => s.id);
+		if (oldSecIds.length > 0) {
+			const equipesOriginais = await db
+				.select()
+				.from(giseEquipes)
+				.where(inArray(giseEquipes.gise_seccional_id, oldSecIds));
+
+			for (const eq_ of equipesOriginais) {
+				const newSecId = secIdMap.get(eq_.gise_seccional_id);
+				if (newSecId) {
+					await db.insert(giseEquipes).values({
+						gise_seccional_id: newSecId,
+						tipo: eq_.tipo,
+						slots_dpc: eq_.slots_dpc,
+						slots_oip: eq_.slots_oip
+					});
 				}
 			}
 		}
+	}
 
-		// Clonar equipes em batch (modo clonada)
-		if (modo === 'clonada') {
-			const oldSecIds = secsParaClonar.filter((s: any) => s.id).map((s: any) => s.id);
-			if (oldSecIds.length > 0) {
-				const equipesOriginais = await db
-					.select()
-					.from(giseEquipes)
-					.where(inArray(giseEquipes.gise_seccional_id, oldSecIds));
-
-				if (equipesOriginais.length > 0) {
-					await tx.insert(giseEquipes).values(
-						equipesOriginais.map((eq_: any) => ({
-							gise_seccional_id: secIdMap.get(eq_.gise_seccional_id)!,
-							tipo: eq_.tipo,
-							slots_dpc: eq_.slots_dpc,
-							slots_oip: eq_.slots_oip
-						}))
-					);
-				}
-			}
-		}
-
-		// Criar equipes padrão para seccionais sem equipes
-		const novasSecIds = secsInsert.map((s) => s.id);
-		const equipesExistentes = await tx
+	// Criar equipes padrão para seccionais sem equipes
+	const novasSecIds = secsInsert.map((s) => s.id);
+	if (novasSecIds.length > 0) {
+		const equipesExistentes = await db
 			.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
 			.from(giseEquipes)
 			.where(inArray(giseEquipes.gise_seccional_id, novasSecIds));
@@ -657,14 +661,13 @@ export async function clonarGiseParaData(
 			(id) => !equipesExistentes.some((e) => e.gise_seccional_id === id)
 		);
 
-		if (secIdsSemEquipe.length > 0) {
-			const equipesDefaults = secIdsSemEquipe.flatMap((secId) => [
+		for (const secId of secIdsSemEquipe) {
+			await db.insert(giseEquipes).values([
 				{ gise_seccional_id: secId, tipo: 'operacional' as const, slots_dpc: 1, slots_oip: 3 },
 				{ gise_seccional_id: secId, tipo: 'seint' as const, slots_dpc: 0, slots_oip: 2 }
 			]);
-			await tx.insert(giseEquipes).values(equipesDefaults);
 		}
-	});
+	}
 
 	return novoId;
 }

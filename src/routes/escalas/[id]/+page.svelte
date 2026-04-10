@@ -34,7 +34,23 @@
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
-	let dataPlantao = $derived(data.escala?.data_inicio || '');
+	let dataPlantao = $state('');
+
+	$effect(() => { if (escala?.data_inicio) dataPlantao = escala.data_inicio; });
+
+	function getDaysInRange(start: string, end: string) {
+		if (!start || !end) return [];
+		const days = [];
+		let current = new Date(start + 'T00:00:00');
+		const last = new Date(end + 'T00:00:00');
+		while (current <= last) {
+			days.push(new Date(current).toISOString().split('T')[0]);
+			current.setDate(current.getDate() + 1);
+		}
+		return days;
+	}
+
+	const diasEscala = $derived(escala ? getDaysInRange(escala.data_inicio, escala.data_fim) : []);
 	let addHoraEntrada = $state('08');
 	let addMinutoEntrada = $state('00');
 	let addHoraSaida = $state('08');
@@ -47,7 +63,7 @@
 	const policialsFiltrados = $derived(
 		cargoBusca
 			? todosOsPoliciais
-					.filter((p: any) => p.cargo === cargoBusca)
+					.filter((p: any) => p.cargo && p.cargo.startsWith(cargoBusca))
 					.sort((a: any, b: any) => a.nome.localeCompare(b.nome))
 			: []
 	);
@@ -458,7 +474,7 @@
 		</div>
 	{/if}
 
-	{#if !documentoAssinadoInfo}
+	{#if !documentoAssinadoInfo?.existe}
 		<div
 			class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 		>
@@ -481,7 +497,7 @@
 								<option value="OIP">OIP - Oficial Investigador de Polícia</option>
 							</select>
 						</label>
-						<label class="label">
+						<label class="label lg:col-span-2">
 							<span class="label-text">Servidor</span>
 							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
 								<option value="">Selecione...</option>
@@ -490,12 +506,16 @@
 								{/each}
 							</select>
 						</label>
-						<label class="label"
-							><span class="label-text">Equipe</span>
-							<select class="select" name="equipe" bind:value={addEquipe}>
-								{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
-							</select>
-						</label>
+						{#if !isFDS}
+							<label class="label">
+								<span class="label-text">Equipe</span>
+								<select class="select" name="equipe" bind:value={addEquipe}>
+									{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
+								</select>
+							</label>
+						{:else}
+							<input type="hidden" name="equipe" value="1" />
+						{/if}
 						<label class="label"
 							><span class="label-text">Tipo de Escala</span>
 							<select class="select" bind:value={addTipoEscala}>
@@ -516,24 +536,24 @@
 								required
 							/>
 						</label>
-						<div class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1 w-32">
 							<span class="label-text text-xs">Hora Entrada</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
+								<select class="select flex-1 h-9 py-0 px-2" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
-								<select class="select flex-1" name="minuto_entrada" bind:value={addMinutoEntrada}
+								<select class="select flex-1 h-9 py-0 px-2" name="minuto_entrada" bind:value={addMinutoEntrada}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
-						<div class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1 w-32">
 							<span class="label-text text-xs">Hora Saída</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
+								<select class="select flex-1 h-9 py-0 px-2" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
 								>
-								<select class="select flex-1" name="minuto_saida" bind:value={addMinutoSaida}
+								<select class="select flex-1 h-9 py-0 px-2" name="minuto_saida" bind:value={addMinutoSaida}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
@@ -571,79 +591,93 @@
 				</form>
 			{:else}
 				<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
-					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-						<label class="label">
+					<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end mb-4">
+						<label class="label sm:col-span-1">
 							<span class="label-text">Cargo</span>
 							<select
-								class="select"
+								class="select h-9 py-0 px-2"
 								bind:value={cargoBusca}
 								onchange={() => {
 									policialId = '';
 								}}
 							>
-								<option value="">Selecione...</option>
-								<option value="DPC">DPC - Delegado de Polícia Civil</option>
-								<option value="OIP">OIP - Oficial Investigador de Polícia</option>
+								<option value="">...</option>
+								<option value="DPC">DPC</option>
+								<option value="OIP">OIP</option>
 							</select>
 						</label>
-						<label class="label">
+
+						<label class="label sm:col-span-4">
 							<span class="label-text">Servidor</span>
-							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
+							<select class="select h-9 py-0 px-2" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
 								<option value="">Selecione...</option>
 								{#each policialsFiltrados as p (p.id)}
 									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
 								{/each}
 							</select>
 						</label>
-						<label class="label"
-							><span class="label-text">Data</span>
-							<input
-								type="date"
-								name="data_plantao"
-								class="input"
-								bind:value={dataPlantao}
-								min={escala.data_inicio}
-								max={escala.data_fim}
-								required
-							/>
+
+						<label class="label sm:col-span-2">
+							<span class="label-text">Data</span>
+							{#if isFDS}
+								<select name="data_plantao" class="select h-9 py-0 px-2" bind:value={dataPlantao} required>
+									{#each diasEscala as d}
+										<option value={d}>{formatarData(d)}</option>
+									{/each}
+								</select>
+							{:else}
+								<input
+									type="date"
+									name="data_plantao"
+									class="input h-9"
+									bind:value={dataPlantao}
+									min={escala.data_inicio}
+									max={escala.data_fim}
+									required
+								/>
+							{/if}
 						</label>
-						<label class="label"
-							><span class="label-text">Equipe</span>
-							<select class="select" name="equipe" bind:value={addEquipe}>
-								{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
-							</select>
-						</label>
-					</div>
-					<div class="flex flex-col sm:flex-row gap-3 mb-4">
-						<div class="flex-1">
-							<span class="label-text text-xs">Hora Entrada</span>
+
+						<div class="sm:col-span-2">
+							<span class="label-text text-xs">Entrada</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" name="hora_entrada" bind:value={addHoraEntrada}
+								<select class="select flex-1 h-9 py-0 px-1" name="hora_entrada" bind:value={addHoraEntrada}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
-								><select class="select flex-1" name="minuto_entrada" bind:value={addMinutoEntrada}
+								>
+								<select class="select flex-1 h-9 py-0 px-1" name="minuto_entrada" bind:value={addMinutoEntrada}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
-						<div class="flex-1">
-							<span class="label-text text-xs">Hora Saída</span>
+
+						<div class="sm:col-span-2">
+							<span class="label-text text-xs">Saída</span>
 							<div class="flex gap-1">
-								<select class="select flex-1" name="hora_saida" bind:value={addHoraSaida}
+								<select class="select flex-1 h-9 py-0 px-1" name="hora_saida" bind:value={addHoraSaida}
 									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
-								><select class="select flex-1" name="minuto_saida" bind:value={addMinutoSaida}
+								>
+								<select class="select flex-1 h-9 py-0 px-1" name="minuto_saida" bind:value={addMinutoSaida}
 									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
+
+						{#if !isFDS}
+							<input type="hidden" name="equipe" value="1" />
+						{:else}
+							<input type="hidden" name="equipe" value="1" />
+						{/if}
+
+						<div class="sm:col-span-1">
+							<button
+								type="submit"
+								class="btn preset-filled-primary-500 w-full"
+								disabled={addingPending || !policialId || !dataPlantao}
+							>
+								{#if addingPending}<Spinner size="sm" />{:else}＋{/if}
+							</button>
+						</div>
 					</div>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500"
-						disabled={addingPending || !policialId || !dataPlantao}
-					>
-						{#if addingPending}<Spinner size="sm" />{/if}
-						{addingPending ? 'Adicionando...' : 'Adicionar à Escala'}
-					</button>
 				</form>
 			{/if}
 		</div>
@@ -652,111 +686,126 @@
 	{#if policiaisEscala.length === 0}
 		<div class="text-center py-12 text-surface-500"><p>Nenhum policial nesta escala ainda.</p></div>
 	{:else}
-		<!-- Agrupado por data -->
-		<div class="space-y-6">
+		<!-- Agrupado por data (Visual de Tabela Refinado) -->
+		<div class="space-y-12">
 			{#each agruparPorData(policiaisEscala) as [dataGrupo, items]}
-				<div>
-					<h3 class="text-sm font-bold text-surface-500 uppercase tracking-wider mb-3">
-						{formatarData(dataGrupo)}
-					</h3>
-					<div class="space-y-2">
-						{#each items as p}
-							<div
-								class="p-3 rounded-xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 flex items-center justify-between gap-3"
-							>
-								{#if editingId === p.id}
-									<div class="flex flex-col sm:flex-row gap-2 flex-1">
-										<input
-											type="date"
-											class="input text-xs py-1 h-8"
-											bind:value={editDataEntrada}
-										/>
-										<input type="date" class="input text-xs py-1 h-8" bind:value={editDataSaida} />
-										<div class="flex gap-1">
-											<select class="select text-xs py-1 h-8 flex-1" bind:value={editHoraEntrada}>
-												{#each horas as h}<option value={h}>{h}</option>{/each}
-											</select>
-											<span class="flex items-center">:</span>
-											<select class="select text-xs py-1 h-8 flex-1" bind:value={editMinutoEntrada}>
-												{#each minutos as m}<option value={m}>{m}</option>{/each}
-											</select>
-										</div>
-										<div class="flex gap-1">
-											<select class="select text-xs py-1 h-8 flex-1" bind:value={editHoraSaida}>
-												{#each horas as h}<option value={h}>{h}</option>{/each}
-											</select>
-											<span class="flex items-center">:</span>
-											<select class="select text-xs py-1 h-8 flex-1" bind:value={editMinutoSaida}>
-												{#each minutos as m}<option value={m}>{m}</option>{/each}
-											</select>
-										</div>
-										<input
-											class="input text-xs py-1 h-8 flex-1"
-											type="text"
-											bind:value={editObservacoes}
-											placeholder="Obs."
-										/>
-										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
-											<input type="hidden" name="item_id" value={editingId} />
-											<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
-											<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
-											<input type="hidden" name="data_plantao" value={editDataEntrada} />
-											<input type="hidden" name="data_saida" value={editDataSaida} />
-											<input type="hidden" name="observacoes" value={editObservacoes} />
-											<button
-												type="submit"
-												class="btn btn-sm preset-filled-primary-500"
-												disabled={editPending}
-											>
-												{#if editPending}<Spinner size="xs" />{/if}Salvar
-											</button>
-											<button
-												type="button"
-												class="btn btn-sm preset-outlined-surface"
-												onclick={() => { editingId = null; }}>Cancelar</button
-											>
-										</form>
-									</div>
-								{:else}
-									<div class="flex-1 min-w-0">
-										<div class="flex items-center gap-2 flex-wrap">
-											<span class="font-semibold text-sm">{p.nome}</span>
-											<span
-												class="badge text-xs {p.cargo === 'DPC'
-													? 'preset-filled-primary-500'
-													: 'preset-filled-warning-500'}">{p.cargo}</span
-											>
-											{#if p.equipe}<span class="text-[0.65rem] text-surface-400"
-													>Eq. {p.equipe}</span
-												>{/if}
-										</div>
-										<div class="text-xs text-surface-500 mt-0.5 flex items-center gap-2 flex-wrap">
-											<span>{p.matricula}</span>
-											{#if p.classe}<span class="text-surface-400">{p.classe}</span>{/if}
-											{#if p.lotacao}<span class="text-surface-400">{p.lotacao}</span>{/if}
-										</div>
-										<div class="text-xs text-surface-500 mt-0.5">
-											{formatarDataPlantao(p)} · {formatarHorario(p)}
-											{#if p.observacoes}<span class="italic text-surface-400 ml-2"
-													>({p.observacoes})</span
-												>{/if}
-										</div>
-									</div>
-									{#if !documentoAssinadoInfo}
-										<div class="flex gap-2 shrink-0">
-											<button
-												class="btn btn-sm preset-outlined-primary-500"
-												onclick={() => startEdit(p)}>Editar</button
-											>
-											<button
-												class="btn btn-sm preset-filled-error-500"
-												onclick={() => solicitarRemocao(p.id, p.nome)}>Remover</button
-											>
-										</div>
+				<div
+					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden"
+				>
+					<div class="table-container p-2">
+						<table class="table w-full text-[0.7rem] sm:text-xs !bg-transparent">
+							<thead>
+								<tr class="!bg-transparent border-b border-surface-100 dark:border-white/5">
+									<th class="!py-4 !px-4 text-surface-500 font-medium uppercase tracking-tight">Nome</th>
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight">Matricula</th>
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight">Cargo</th>
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight">Telefone</th>
+									<th class="!py-4 text-surface-500 font-medium uppercase tracking-tight">Lotação</th>
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight">Data</th>
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight">Horário</th>
+									<th class="!py-4 !px-4 text-right text-surface-500 font-medium uppercase tracking-tight">Ações</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-surface-100 dark:divide-white/5">
+								{#each items as p (p.id)}
+									{#if editingId === p.id}
+										<tr class="!bg-primary-500/5">
+											<td colspan="8" class="!py-4 !px-4">
+												<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex flex-wrap items-end gap-3">
+													<input type="hidden" name="item_id" value={editingId} />
+													<div class="flex-1 min-w-[120px]">
+														<label class="label mb-1"><span class="label-text text-[0.6rem]">Data Início</span></label>
+														<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+													</div>
+													<div class="flex-1 min-w-[120px]">
+														<label class="label mb-1"><span class="label-text text-[0.6rem]">Data Saída</span></label>
+														<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+													</div>
+													<div class="w-28">
+														<label class="label mb-1"><span class="label-text text-[0.6rem]">Entrada</span></label>
+														<div class="flex gap-1">
+															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada}>
+																{#each horas as h}<option value={h}>{h}</option>{/each}
+															</select>
+															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada}>
+																{#each minutos as m}<option value={m}>{m}</option>{/each}
+															</select>
+														</div>
+													</div>
+													<div class="w-28">
+														<label class="label mb-1"><span class="label-text text-[0.6rem]">Saída</span></label>
+														<div class="flex gap-1">
+															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida}>
+																{#each horas as h}<option value={h}>{h}</option>{/each}
+															</select>
+															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida}>
+																{#each minutos as m}<option value={m}>{m}</option>{/each}
+															</select>
+														</div>
+													</div>
+													<div class="flex gap-1">
+														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={editPending}>
+															{#if editPending}<Spinner size="xs" />{/if}Salvar
+														</button>
+														<button type="button" class="btn btn-sm h-8 preset-outlined-surface rounded-lg px-2" onclick={() => (editingId = null)}>×</button>
+													</div>
+													<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
+													<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+													<input type="hidden" name="data_plantao" value={editDataEntrada} />
+													<input type="hidden" name="data_saida" value={editDataSaida} />
+													<input type="hidden" name="observacoes" value={editObservacoes} />
+												</form>
+											</td>
+										</tr>
+									{:else}
+										<tr class="!bg-transparent hover:!bg-surface-100/50 dark:hover:!bg-surface-800/20 transition-colors">
+											<td class="!py-4 !px-4 align-middle">
+												<span class="font-bold text-surface-900 dark:text-surface-100 uppercase block leading-tight">
+													{p.nome}
+												</span>
+												{#if p.equipe && !isFDS}
+													<span class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold uppercase">
+														Equipe {p.equipe}
+													</span>
+												{/if}
+											</td>
+											<td class="!py-4 text-center align-middle opacity-80">{p.matricula}</td>
+											<td class="!py-4 text-center align-middle">
+												<span class="badge px-1.5 py-0.5 rounded font-bold text-[0.55rem] uppercase {p.cargo === 'DPC' ? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}">
+													{p.cargo}
+												</span>
+											</td>
+											<td class="!py-4 text-center align-middle text-surface-500 whitespace-nowrap">{p.telefone || '-'}</td>
+											<td class="!py-4 align-middle text-surface-500 leading-tight max-w-[150px]">{p.lotacao || '-'}</td>
+											<td class="!py-4 text-center align-middle">
+												<div class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] whitespace-nowrap">
+													{formatarDataPlantao(p)}
+												</div>
+											</td>
+											<td class="!py-4 text-center align-middle">
+												<div class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] font-bold uppercase whitespace-nowrap">
+													{formatarHorario(p)}
+												</div>
+											</td>
+											<td class="!py-4 !px-4 text-right align-middle">
+												<div class="flex items-center justify-end gap-1">
+													{#if !documentoAssinadoInfo?.existe}
+														<button title="Editar" class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10" onclick={() => startEdit(p)}>
+															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+															</svg>
+														</button>
+														<button class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5" onclick={() => solicitarRemocao(p.id, p.nome)}>
+															Remover
+														</button>
+													{/if}
+												</div>
+											</td>
+										</tr>
 									{/if}
-								{/if}
-							</div>
-						{/each}
+								{/each}
+							</tbody>
+						</table>
 					</div>
 				</div>
 			{/each}

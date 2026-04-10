@@ -38,3 +38,9 @@ export async function buscarExigirCodigoEmailAssinatura(db: Database): Promise<b
 	const val = await buscarConfiguracao(db, 'exigir_codigo_email_assinatura');
 	return val === '1'; // Default = false, requires explicit '1' to be true
 }
+
+/** Lê a flag booleana "restringir_smartphone" (padrão: true). */
+export async function buscarRestringirSmartphone(db: Database): Promise<boolean> {
+	const val = await buscarConfiguracao(db, 'restringir_smartphone');
+	return val !== '0'; // Default = true (current system behavior)
+}

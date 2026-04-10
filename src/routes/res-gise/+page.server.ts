@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
@@ -260,14 +260,15 @@ export const load = async ({ locals, platform, url }: any) => {
 	const giseIdSelected = url.searchParams.get('giseId') ? parseInt(url.searchParams.get('giseId')!) : null;
 	const equipeIdSelected = url.searchParams.get('equipeId') ? parseInt(url.searchParams.get('equipeId')!) : null;
 
-	const [[modeloOp, modeloSeint], respostaRow] = await Promise.all([
+	const [[modeloOp, modeloSeint], respostaRow, restringirSmartphone] = await Promise.all([
 		Promise.all([
 			buscarGiseModeloFormulario(db, 'operacional'),
 			buscarGiseModeloFormulario(db, 'seint')
 		]),
 		giseIdSelected && !isNaN(giseIdSelected)
 			? buscarRespostaGise(db, giseIdSelected, u.tipo === 'policial' ? u.id : null, equipeIdSelected ?? undefined)
-			: Promise.resolve(null)
+			: Promise.resolve(null),
+		buscarRestringirSmartphone(db)
 	]);
 
 	let respostasData: Record<string, unknown> = {};
@@ -282,6 +283,7 @@ export const load = async ({ locals, platform, url }: any) => {
 		giseIdSelected,
 		equipeIdSelected,
 		respostas: respostasData,
+		restringirSmartphone,
 		// Se o banco retornar null (ex: migration não rodada ou sem registros ainda), usa o default code-fixed
 		modeloOperacional: (modeloOp && modeloOp.config) ? JSON.parse(modeloOp.config) : defaultGiseQuestions,
 		modeloSeint: (modeloSeint && modeloSeint.config) ? JSON.parse(modeloSeint.config) : defaultSeintQuestions,

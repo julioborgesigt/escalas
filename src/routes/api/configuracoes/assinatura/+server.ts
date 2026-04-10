@@ -1,15 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura, salvarConfiguracao } from '$lib/db';
+import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone, salvarConfiguracao } from '$lib/db';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const db = getDB(platform);
-	const [exigirFoto, exigirGps, exigirCodigoEmail] = await Promise.all([
+	const [exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
 		buscarExigirGpsAssinatura(db),
-		buscarExigirCodigoEmailAssinatura(db)
+		buscarExigirCodigoEmailAssinatura(db),
+		buscarRestringirSmartphone(db)
 	]);
-	return json({ exigirFoto, exigirGps, exigirCodigoEmail });
+	return json({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone });
 };
 
 export const PUT: RequestHandler = async ({ platform, request, locals }) => {
@@ -29,6 +30,9 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	}
 	if (typeof body.exigirCodigoEmail === 'boolean') {
 		saves.push(salvarConfiguracao(db, 'exigir_codigo_email_assinatura', body.exigirCodigoEmail ? '1' : '0'));
+	}
+	if (typeof body.restringirSmartphone === 'boolean') {
+		saves.push(salvarConfiguracao(db, 'restringir_smartphone', body.restringirSmartphone ? '1' : '0'));
 	}
 	if (saves.length === 0) {
 		return json({ error: 'Nenhum campo válido para salvar' }, { status: 400 });

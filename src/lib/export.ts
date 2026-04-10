@@ -92,10 +92,10 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 						alignment: AlignmentType.CENTER
 					})],
 					shading: { fill: '1a5c57' },
-					width: text === 'EQUIPE DE PLANTÃO DA DP' ? { size: 3000, type: WidthType.DXA } :
-						text === 'LOTAÇÃO' ? { size: 2500, type: WidthType.DXA } :
-							text === 'DATA' ? { size: 2000, type: WidthType.DXA } :
-								{ size: 1200, type: WidthType.DXA }
+					width: text === 'EQUIPE DE PLANTÃO DA DP' ? { size: 25, type: WidthType.PERCENTAGE } :
+						text === 'LOTAÇÃO' ? { size: 20, type: WidthType.PERCENTAGE } :
+						text === 'DATA' ? { size: 15, type: WidthType.PERCENTAGE } :
+						{ size: 10, type: WidthType.PERCENTAGE }
 				})
 			)
 		});
@@ -139,9 +139,9 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 			properties: {
 				page: {
 					size: {
-						orientation: PageOrientation.LANDSCAPE,
 						width: 16838,
-						height: 11906
+						height: 11906,
+						orientation: PageOrientation.LANDSCAPE
 					},
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
@@ -330,7 +330,11 @@ export async function gerarDocxExpediente(escala: Escala, policiais: EscalaPolic
 		sections: [{
 			properties: {
 				page: {
-					size: { orientation: PageOrientation.LANDSCAPE, width: 16838, height: 11906 },
+					size: {
+						width: 16838,
+						height: 11906,
+						orientation: PageOrientation.LANDSCAPE
+					},
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
 			},
@@ -612,7 +616,11 @@ export async function gerarDocxPlantao(escala: Escala, policiais: EscalaPolicial
 		sections: [{
 			properties: {
 				page: {
-					size: { orientation: PageOrientation.LANDSCAPE, width: 16838, height: 11906 },
+					size: {
+						width: 16838,
+						height: 11906,
+						orientation: PageOrientation.LANDSCAPE
+					},
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
 			},
