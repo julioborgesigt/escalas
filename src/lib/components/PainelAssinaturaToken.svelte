@@ -20,6 +20,7 @@
 	import { toaster } from '$lib/toast';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import { csrfHeaders } from '$lib/csrf';
+	import Spinner from './Spinner.svelte';
 
 	let {
 		prepararUrl,
