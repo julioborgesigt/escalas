@@ -17,6 +17,7 @@ import {
 } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
+import { determinarTipoCarimbo } from '$lib/server/document-utils';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -49,7 +50,10 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		verificationHash,
 		latitude,
 		longitude,
-		rubrica
+		rubrica,
+		serproResponse,
+		documentHash: documentHashOriginal,
+		assinanteEmail
 	} = payload;
 
 	try {
@@ -85,6 +89,9 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				}
 			}
 		}
+
+		// Determinar tipo de carimbo de tempo
+		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
 
 		let signedPdfBytes: Uint8Array;
 		let type: 'webpki' | 'serpro' = 'webpki';
@@ -138,7 +145,9 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			longitude,
 			selfie_key: undefined,
 			r2_key: r2Key,
-			arquivo_hash
+			arquivo_hash: documentHashOriginal || arquivo_hash, // Preferimos o hash do PDF original para auditoria
+			assinante_email: assinanteEmail ?? u.email,
+			tipo_carimbo_tempo: tipoCarimboTempo
 		});
 
 		// Transição automática: se todos os relatórios de extra foram assinados → pronta_para_finalizar

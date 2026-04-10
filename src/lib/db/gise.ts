@@ -78,7 +78,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const escalaIds = escalas.map(e => e.id);
 
 	// Batch all related data in parallel instead of N+1 per escala
-	const [saidasRows, secCountRows, assExtraRows, membroSecRows] = await Promise.all([
+	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows] = await Promise.all([
 		db
 			.select({ gise_id: gisePresencas.gise_id })
 			.from(gisePresencas)
@@ -109,7 +109,23 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 				.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 				.where(and(inArray(giseSeccionais.gise_id, escalaIds), eq(giseMembros.policial_id, policialId)))
 				.all()
-			: Promise.resolve([])
+			: Promise.resolve([]),
+		db
+			.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id, nome: unidades.nome })
+			.from(giseSeccionais)
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.where(inArray(giseSeccionais.gise_id, escalaIds))
+			.all(),
+		db
+			.select({
+				gise_id: giseSeccionais.gise_id,
+				seccional_id: giseSeccionais.seccional_id,
+				tipo: giseEquipes.tipo
+			})
+			.from(giseEquipes)
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.where(inArray(giseSeccionais.gise_id, escalaIds))
+			.all()
 	]);
 
 	// Build lookup maps for O(1) access
@@ -117,13 +133,27 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const secCountMap = new Map(secCountRows.map(r => [r.gise_id, r.count]));
 	const assExtraMap = new Map(assExtraRows.map(r => [r.gise_id, r.count]));
 	const membroSecMap = new Map((membroSecRows as Array<{ gise_id: number; seccional_id: number }>).map(r => [r.gise_id, r.seccional_id]));
+	const equipeTypesMap = new Map<string, Set<string>>();
+	for (const row of equipeTypesRows as Array<{ gise_id: number; seccional_id: number; tipo: string }>) {
+		const key = `${row.gise_id}_${row.seccional_id}`;
+		if (!equipeTypesMap.has(key)) equipeTypesMap.set(key, new Set());
+		equipeTypesMap.get(key)!.add(row.tipo);
+	}
+
+	const seccionaisMap = new Map<number, { id: number; nome: string; tipos: string[] }[]>();
+	for (const row of seccionalIdsRows as Array<{ gise_id: number; seccional_id: number; nome: string }>) {
+		if (!seccionaisMap.has(row.gise_id)) seccionaisMap.set(row.gise_id, []);
+		const tipos = [...(equipeTypesMap.get(`${row.gise_id}_${row.seccional_id}`) ?? new Set(['operacional']))];
+		seccionaisMap.get(row.gise_id)!.push({ id: row.seccional_id, nome: row.nome, tipos });
+	}
 
 	return escalas.map(e => ({
 		...e,
 		temSaidaConfirmada: saidasSet.has(e.id),
 		totalSeccionais: secCountMap.get(e.id) ?? 0,
 		assinaturasRelatorioExtra: assExtraMap.get(e.id) ?? 0,
-		policialSeccionalId: membroSecMap.get(e.id) ?? null
+		policialSeccionalId: membroSecMap.get(e.id) ?? null,
+		seccionais: seccionaisMap.get(e.id) ?? []
 	}));
 }
 
@@ -904,7 +934,9 @@ export async function salvarGiseDocumento(
 	latitude?: number,
 	longitude?: number,
 	selfieKey?: string,
-	arquivoHash?: string
+	arquivoHash?: string,
+	assinanteEmail?: string,
+	tipoCarimboTempo?: string
 ) {
 	return db
 		.insert(giseDocumentos)
@@ -914,6 +946,7 @@ export async function salvarGiseDocumento(
 			assinante_id: assinanteId,
 			assinante_nome: assinanteNome,
 			assinante_cpf: assinanteCpf,
+			assinante_email: assinanteEmail ?? null,
 			verificacao_hash: verificacaoHash,
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
@@ -921,7 +954,8 @@ export async function salvarGiseDocumento(
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
-			longitude
+			longitude,
+			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor'
 		})
 		.onConflictDoUpdate({
 			target: [giseDocumentos.gise_id],
@@ -930,6 +964,7 @@ export async function salvarGiseDocumento(
 				assinante_id: assinanteId,
 				assinante_nome: assinanteNome,
 				assinante_cpf: assinanteCpf,
+				assinante_email: assinanteEmail ?? null,
 				verificacao_hash: verificacaoHash,
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,
@@ -938,6 +973,7 @@ export async function salvarGiseDocumento(
 				user_agent: userAgent,
 				latitude,
 				longitude,
+				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
@@ -1318,6 +1354,8 @@ export async function salvarAssinaturaRelatorioGise(
 		selfie_key?: string;
 		arquivo_hash?: string;
 		r2_key?: string | null;
+		assinante_email?: string | null;
+		tipo_carimbo_tempo?: string;
 	}
 ) {
 	return db
@@ -1343,6 +1381,8 @@ export async function salvarAssinaturaRelatorioGise(
 				selfie_key: data.selfie_key,
 				arquivo_hash: data.arquivo_hash,
 				r2_key: data.r2_key,
+				assinante_email: data.assinante_email ?? null,
+				tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
 				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});

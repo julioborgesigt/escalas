@@ -54,6 +54,20 @@ export function buildCSP(isHTML: boolean): string {
 	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
 	const connectExtra = isDev ? ' http://localhost:*' : '';
 
+	// URLs WebSocket do assinador SERPRO (token A3)
+	// O assinador desktop escuta em portas fixas no localhost e no hostname reservado
+	const serproWS = [
+		'wss://assinador-desktop.serpro.gov.br:65166',
+		'wss://assinador-desktop.serpro.gov.br:65156',
+		'wss://assinador-desktop.serpro.gov.br:65500',
+		'wss://127.0.0.1:65166',
+		'wss://127.0.0.1:65156',
+		'wss://127.0.0.1:65500',
+		'ws://127.0.0.1:65166',
+		'ws://127.0.0.1:65156',
+		'ws://127.0.0.1:65500'
+	].join(' ');
+
 	return [
 		// Scripts: apenas origem própria + inline (SvelteKit precisa) + eval em dev
 		`default-src 'self'`,
@@ -64,8 +78,8 @@ export function buildCSP(isHTML: boolean): string {
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
 		// Fontes: origem própria + Google Fonts + data URIs
 		`font-src 'self' data: https://fonts.gstatic.com`,
-		// Conexões: origem própria + Sentry (se configurado) + APIs externas necessárias
-		`connect-src 'self'${connectExtra}`,
+		// Conexões: origem própria + assinador SERPRO (token A3 via WebSocket) + dev HMR
+		`connect-src 'self' ${serproWS}${connectExtra}`,
 		// Frames: negar tudo (X-Frame-Options já faz DENY, CSP reforça)
 		`frame-src 'none'`,
 		// Objects: negar (não usamos <object>, <embed>, <applet>)

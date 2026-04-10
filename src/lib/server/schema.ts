@@ -155,6 +155,7 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	r2_key: text('r2_key').notNull(),
 	assinante_nome: text('assinante_nome').notNull(),
 	assinante_cpf: text('assinante_cpf'),
+	assinante_email: text('assinante_email'),
 	verificacao_hash: text('verificacao_hash').unique(),
 	selfie_key: text('selfie_key'),
 	arquivo_hash: text('arquivo_hash'),
@@ -162,6 +163,7 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
+	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
@@ -267,6 +269,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	assinante_id: integer('assinante_id'),
 	assinante_nome: text('assinante_nome').notNull().default(''),
 	assinante_cpf: text('assinante_cpf').notNull().default(''),
+	assinante_email: text('assinante_email'),
 	verificacao_hash: text('verificacao_hash').unique(),
 	selfie_key: text('selfie_key'),
 	arquivo_hash: text('arquivo_hash'),
@@ -275,6 +278,7 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	user_agent: text('user_agent'),
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
+	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_documento').on(table.gise_id)
@@ -345,6 +349,7 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	assinante_id: integer('assinante_id'),
 	assinante_nome: text('assinante_nome').notNull(),
 	assinante_cpf: text('assinante_cpf'),
+	assinante_email: text('assinante_email'),
 	tipo_assinatura: text('tipo_assinatura', { enum: ['simples', 'webpki', 'serpro'] }).notNull(),
 	rubrica: text('rubrica'),
 	selfie_key: text('selfie_key'),
@@ -355,6 +360,7 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	latitude: integer('latitude', { mode: 'number' }),
 	longitude: integer('longitude', { mode: 'number' }),
 	r2_key: text('r2_key'),
+	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),

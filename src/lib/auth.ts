@@ -14,6 +14,7 @@ export interface UsuarioLogado {
 	papel_unidade_id?: number | null;
 	cargo?: 'DPC' | 'OIP';
 	cpf?: string | null;
+	email?: string | null;
 }
 
 /** Retorna true se o usuário possui poder de Admin Geral */
@@ -192,7 +193,8 @@ export async function validarSessao(
 		papel: policial.papel ?? null,
 		papel_unidade_id: policial.papel_unidade_id ?? null,
 		cargo: policial.cargo as 'DPC' | 'OIP',
-		cpf: policial.cpf ?? null
+		cpf: policial.cpf ?? null,
+		email: policial.email ?? null
 	};
 }
 
