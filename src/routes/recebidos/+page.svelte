@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
+	import { invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
@@ -70,7 +71,7 @@
 	);
 
 	async function recarregar() {
-		await invalidateAll();
+		await invalidate(page.url.pathname);
 	}
 
 	let togglingId = $state<number | null>(null);
@@ -155,7 +156,7 @@
 			excluindo = false;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
-				await invalidateAll();
+				await invalidate(page.url.pathname);
 				dialogOpen = false;
 				escalaParaExcluir = null;
 			} else {

@@ -193,6 +193,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Arquivo de Escalas - Portal de Escalas</title>
+</svelte:head>
+
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 	<h1 class="h1 text-xl font-bold">Arquivo</h1>
 	<div class="flex items-center gap-2">

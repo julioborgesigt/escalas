@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
@@ -179,7 +179,7 @@
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
 		} catch { /* ignora */ }
-		await invalidateAll();
+		await invalidate(page.url.pathname);
 		loading = false;
 	}
 
@@ -212,7 +212,7 @@
 			excluindoEscala = false;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
-				await invalidateAll();
+				await invalidate(page.url.pathname);
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 			} else {

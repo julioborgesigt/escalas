@@ -11,10 +11,10 @@ import type { RequestHandler } from './$types';
 import {
 	getDB,
 	buscarGiseEscala,
-	atualizarGiseEscala,
-	verificarGiseCompleta
+	atualizarGiseEscala
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { giseIdParamSchema } from '$lib/schemas';
 
 export const POST: RequestHandler = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -22,8 +22,11 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 		return json({ error: 'Apenas o Administrador Geral pode finalizar escalas GISE' }, { status: 403 });
 	}
 
-	const id = parseInt(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	const parsed = giseIdParamSchema.safeParse(params);
+	if (!parsed.success) {
+		return json({ error: parsed.error.errors[0].message }, { status: 400 });
+	}
+	const { id } = parsed.data;
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, id);

@@ -13,7 +13,8 @@
 		signerEmail = '',
 		extraPayload = {} as Record<string, unknown>,
 		disabled = false,
-		onSuccess = async () => {}
+		onSuccess = async () => {},
+		control = $bindable()
 	}: {
 		prepararUrl: string;
 		finalizarUrl: string;
@@ -24,6 +25,7 @@
 		extraPayload?: Record<string, unknown>;
 		disabled?: boolean;
 		onSuccess?: () => Promise<void>;
+		control?: { assinarComSerpro: () => Promise<void> } | null;
 	} = $props();
 
 	// ---- Estado interno ----
@@ -154,7 +156,7 @@
 		}
 	}
 
-	export async function assinarComSerpro() {
+	async function assinarComSerpro() {
 		if (assinando || disabled) return;
 		assinando = true;
 		etapa = 'Conectando ao Assinador SERPRO...';
@@ -179,6 +181,10 @@
 			serproClient = null;
 		}
 	}
+
+	$effect(() => {
+		control = { assinarComSerpro };
+	});
 </script>
 
 <div class="space-y-4">

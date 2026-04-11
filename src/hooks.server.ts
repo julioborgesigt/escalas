@@ -1,4 +1,5 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
@@ -17,7 +18,6 @@ function isRotaPublica(pathname: string): boolean {
 
 /** Routes exempt from CSRF token verification (no session or read-only). */
 const CSRF_EXEMPT_ROUTES = new Set(['/api/auth/login', '/api/health']);
-
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function isCsrfExempt(pathname: string): boolean {
@@ -38,24 +38,16 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 /**
  * Content-Security-Policy adaptada por tipo de resposta.
- * - Páginas HTML: política completa com fontes permitidas
- * - API/JSON: bloqueia tudo (sem scripts, styles, frames, etc.)
- *
- * Exportada para testes unitários.
  */
 export function buildCSP(isHTML: boolean): string {
 	if (!isHTML) {
-		// Respostas API não precisam de nada além de dados
 		return "default-src 'none'; base-uri 'none'; form-action 'none'";
 	}
 
-	// Em desenvolvimento, permitir hot-module-reloading do Vite
 	const isDev = !import.meta.env.PROD;
 	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
 	const connectExtra = isDev ? ' http://localhost:*' : '';
 
-	// URLs WebSocket do assinador SERPRO (token A3)
-	// O assinador desktop escuta em portas fixas no localhost e no hostname reservado
 	const serproWS = [
 		'wss://assinador-desktop.serpro.gov.br:65166',
 		'wss://assinador-desktop.serpro.gov.br:65156',
@@ -69,37 +61,25 @@ export function buildCSP(isHTML: boolean): string {
 	].join(' ');
 
 	return [
-		// Scripts: apenas origem própria + inline (SvelteKit precisa) + eval em dev
 		`default-src 'self'`,
 		`script-src 'self' 'unsafe-inline'${scriptExtra}`,
-		// Estilos: origem própria + inline (SvelteKit injeta CSS inline)
 		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-		// Imagens: origem própria + data URIs (QR code, ícones) + blobs (selfies) + fontes
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
-		// Fontes: origem própria + Google Fonts + data URIs
 		`font-src 'self' data: https://fonts.gstatic.com`,
-		// Conexões: origem própria + assinador SERPRO (token A3 via WebSocket) + dev HMR + face-api CDN
 		`connect-src 'self' ${serproWS}${connectExtra} https://cdn.jsdelivr.net`,
-		// Frames: negar tudo (X-Frame-Options já faz DENY, CSP reforça)
 		`frame-src 'none'`,
-		// Objects: negar (não usamos <object>, <embed>, <applet>)
 		`object-src 'none'`,
-		// Base URI: restringir à origem própria
 		`base-uri 'self'`,
-		// Form actions: apenas origem própria
 		`form-action 'self'`,
-		// Upgrade requests HTTP para HTTPS automaticamente
 		`upgrade-insecure-requests`,
-		// Bloquear conteúdo misto (HTTP em página HTTPS)
 		`block-all-mixed-content`
 	].join('; ');
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+/** 1. CSRF Layer: Double-submit cookie pattern verification */
+const handleCsrf: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
 
-	// --- CSRF double-submit cookie ---
-	// Ensure every response carries a CSRF cookie (httpOnly=false so JS can read it).
 	let csrfToken = event.cookies.get(CSRF_COOKIE_NAME);
 	if (!csrfToken) {
 		csrfToken = generateCsrfToken();
@@ -112,7 +92,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// For state-changing requests to /api/*, verify CSRF header matches cookie.
 	if (
 		pathname.startsWith('/api/') &&
 		STATE_CHANGING_METHODS.has(event.request.method) &&
@@ -127,23 +106,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// Rotas públicas não precisam de autenticação
+	return resolve(event);
+};
+
+/** 2. Auth Layer: Session validation and user propagation */
+const handleAuth: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+
 	if (isRotaPublica(pathname)) {
 		event.locals.usuario = null;
-		const response = await resolve(event);
-		applySecurityHeaders(response, event.url);
-		return response;
+		return resolve(event);
 	}
 
-	// Validar sessão
 	const token = event.cookies.get('session_token');
 	let usuario = null;
 
 	try {
 		const db = getDB(event.platform);
 		usuario = await validarSessao(db, token);
-	} catch {
-		// DB não disponível (dev sem D1)
+	} catch (err) {
+		// Log error if needed, but fail silently for UX
 	}
 
 	if (!usuario) {
@@ -159,7 +141,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Adicionar contexto do usuário ao Sentry
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
-	// Primeiro acesso: forçar troca de senha
+	// Fluxo de Primeiro Acesso
 	if (usuario.primeiro_acesso && !pathname.startsWith('/alterar-senha') && !pathname.startsWith('/api/auth/')) {
 		if (pathname.startsWith('/api/')) {
 			return new Response(JSON.stringify({ error: 'Altere sua senha antes de continuar' }), {
@@ -171,26 +153,33 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	event.locals.usuario = usuario;
-	const response = await resolve(event);
-	applySecurityHeaders(response, event.url);
-	return response;
+	return resolve(event);
 };
 
-function applySecurityHeaders(response: Response, url: URL): void {
+/** 3. Security Layer: Headers and CSP application */
+const handleSecurity: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+	
+	// Apply basic security headers
 	for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(key, value);
 	}
 
-	// Content-Security-Policy adaptada ao tipo de conteúdo
+	// CSP based on content type
 	const contentType = response.headers.get('content-type') || '';
 	const isHTML = contentType.includes('text/html');
 	response.headers.set('Content-Security-Policy', buildCSP(isHTML));
 
-	// HSTS apenas em HTTPS (produção)
-	if (url.protocol === 'https:') {
+	// HSTS
+	if (event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	}
-}
+
+	return response;
+};
+
+/** Main Export with sequence middleware */
+export const handle = sequence(handleCsrf, handleAuth, handleSecurity);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
@@ -204,7 +193,6 @@ export const handleError: HandleServerError = ({ error, event }) => {
 		stack: error instanceof Error ? error.stack : undefined
 	});
 
-	// Reportar ao Sentry
 	captureException(error, {
 		tags: { errorId, path: event.url.pathname },
 		extra: { method: event.request.method }

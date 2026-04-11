@@ -1,391 +1,62 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { initWebPKI, listarCertificados } from '$lib/webpki';
 	import { useAutorizacao, useMobile } from '$lib/composables';
+	import { useResGise } from './useResGise.svelte';
 
 	let { data } = $props();
 	const { isAdmin: isAdminGeral } = useAutorizacao();
 	const isSupervisorGise = $derived(data.isSupervisorGise);
 	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
 
-	let activeTab = $state('relatorios'); // relatorios | configurador
-	let configTipo = $state<'operacional' | 'seint'>('operacional');
-	let perguntasConfig = $state<any[]>([]);
-	let salvandoModelo = $state(false);
-	const configJson = $derived(JSON.stringify(perguntasConfig));
-
-	$effect(() => {
-		const source = configTipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
-		perguntasConfig = structuredClone(source);
-	});
-
-	// Perguntas usadas no formulário de preenchimento (depende da equipe selecionada)
-	const perguntasForm = $derived.by(() => {
-		if (!escalaSelecionada) return [];
-		// Asks: 'seint' or default 'operacional' (usually)
-		const res =
-			escalaSelecionada.equipe_tipo === 'seint' ? data.modeloSeint : data.modeloOperacional;
-		return Array.isArray(res) ? res : [];
-	});
-
-	let escalaSelecionada = $state<any>(null);
-	let respostas = $state<any>({});
-	const respostasJson = $derived(JSON.stringify(respostas));
-	let carregandoResposta = $state(false);
-
-	// Sincroniza respostas sempre que o servidor retornar novos dados (após seleção ou save)
-	$effect(() => {
-		respostas = data.respostas ?? {};
-	});
-	let salvandoResposta = $state(false);
-	let exibirRelatorio = $state(false);
-
+	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 
-	let capturandoRubrica = $state(false);
-	let salvandoPresenca = $state(false);
-
-	// Filtros da lista
-	let statusFilterUrl = $state(page.url.searchParams.get('status') || '');
-	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
-	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
-	let seccionalFilter = $state('todas');
-
-	function navigateWithFilters(params: Record<string, string | null>) {
-		const navUrl = new URL(page.url);
-		Object.entries(params).forEach(([key, value]) => {
-			if (value) {
-				navUrl.searchParams.set(key, value);
-			} else {
-				navUrl.searchParams.delete(key);
-			}
-		});
-		goto(navUrl.pathname + navUrl.search, {
-			keepFocus: true,
-			noScroll: true
-		});
-	}
-
-	function changeStatusFilter(status: string) {
-		statusFilterUrl = status;
-		navigateWithFilters({ status });
-	}
-
-	function changeDateFilter(type: 'mes' | 'data', value: string) {
-		if (type === 'mes') {
-			mesFilterUrl = value;
-			dataFilterUrl = ''; // Limpa o outro filtro
-			navigateWithFilters({ mes: value, data: null });
-		} else {
-			dataFilterUrl = value;
-			mesFilterUrl = ''; // Limpa o outro filtro
-			navigateWithFilters({ data: value, mes: null });
-		}
-	}
-
-	function limparFiltros() {
-		statusFilterUrl = '';
-		mesFilterUrl = '';
-		dataFilterUrl = '';
-		navigateWithFilters({ status: null, mes: null, data: null });
-	}
-
-	const seccionaisUnicas = $derived(
-		[
-			'todas',
-			...Array.from(new Set(data.listaAdmin?.map((e: any) => e.seccional_nome) || []))
-		].sort((a, b) => {
-			if (a === 'todas') return -1;
-			if (b === 'todas') return 1;
-			return a.localeCompare(b);
-		})
-	);
-
-	const listaFiltrada = $derived(
-		(data.listaAdmin || []).filter((e: any) => {
-			const bSeccional = seccionalFilter === 'todas' || e.seccional_nome === seccionalFilter;
-			return bSeccional;
-		})
-	);
-
-	function adicionarPergunta() {
-		const id = Date.now();
-		perguntasConfig = [
-			...perguntasConfig,
-			{
-				id,
-				texto: '',
-				tipo: 'texto',
-				obrigatoria: false,
-				key: `extra_${id}`,
-				filhos: []
-			}
-		];
-	}
-
-	function adicionarSubPergunta(pai: any) {
-		const id = Date.now();
-		pai.filhos = [
-			...(pai.filhos || []),
-			{
-				id,
-				texto: '',
-				tipo: 'texto',
-				obrigatoria: false,
-				key: `extra_${id}`,
-				filhos: []
-			}
-		];
-		perguntasConfig = [...perguntasConfig]; // Trigger reactivity
-	}
-
-	function removerPergunta(id: number, lista = perguntasConfig) {
-		const idx = lista.findIndex((p: any) => p.id === id);
-		if (idx > -1) {
-			lista.splice(idx, 1);
-			perguntasConfig = [...perguntasConfig];
-			return true;
-		}
-		for (const p of lista) {
-			if (p.filhos && removerPergunta(id, p.filhos)) return true;
-		}
-		return false;
-	}
-
-	function handleSalvarModelo() {
-		salvandoModelo = true;
-		return async ({ result }: any) => {
-			salvandoModelo = false;
-			if (result.type === 'success') {
-				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-				await invalidateAll();
-			} else {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.error({ title: String(d?.error || 'Erro ao salvar modelo') });
-			}
-		};
-	}
-
-	async function selecionarEscala(escala: any) {
-		const isSame =
-			escalaSelecionada?.id === escala.id && escalaSelecionada?.equipe_id === escala.equipe_id;
-		if (isSame) return;
-
-		escalaSelecionada = escala;
-		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
-		respostas = {};
-		carregandoResposta = true;
-
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('giseId', String(escala.id));
-		if (escala.equipe_id) {
-			params.set('equipeId', String(escala.equipe_id));
-		} else {
-			params.delete('equipeId');
-		}
-		await goto(`?${params}`, { keepFocus: true, noScroll: true });
-		carregandoResposta = false;
-	}
-
-	function handleSalvarResposta({ cancel }: any) {
-		if (!escalaSelecionada) { cancel(); return; }
-		salvandoResposta = true;
-		return async ({ result }: any) => {
-			salvandoResposta = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Relatório salvo com sucesso' });
-				if (!podeVerListaGeral) exibirRelatorio = false;
-				await invalidateAll();
-				const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
-				if (atualizada) escalaSelecionada = atualizada;
-			} else {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.error({ title: String(d?.error || 'Erro ao salvar resposta') });
-			}
-		};
-	}
-
-	function fmtDate(iso: string) {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
-
-	function isHorarioLiberado(escala: any) {
-		if (podeVerListaGeral) return true;
-		if (!escala?.horarioPrevisto?.inicio) return true;
-		const agora = new Date();
-		const dataEscala = escala.data_inicio;
-		const [h, min] = escala.horarioPrevisto.inicio.split(':');
-		const dataInicioPrevista = new Date(
-			dataEscala + 'T' + h.padStart(2, '0') + ':' + (min || '00') + ':00'
-		);
-		return agora >= dataInicioPrevista;
-	}
-
-	async function salvarEntrada(
-		rubrica: string,
-		latitude?: number,
-		longitude?: number,
-		selfieBase64?: string,
-		codigoEmail?: string,
-		desafioId?: string
-	) {
-		if (!escalaSelecionada) return;
-		salvandoPresenca = true;
-		try {
-			const fd = new FormData();
-			fd.set('giseId', escalaSelecionada.id);
-			fd.set('rubrica', rubrica);
-			if (latitude !== undefined) fd.set('latitude', String(latitude));
-			if (longitude !== undefined) fd.set('longitude', String(longitude));
-			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
-			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
-			if (desafioId) fd.set('desafioId', desafioId);
-
-			const resp = await fetch('?/salvarEntrada', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) {
-				throw new Error((result?.error as string) || 'Erro ao salvar entrada');
-			}
-
-			toaster.success({ title: 'Entrada confirmada com sucesso' });
-			capturandoRubrica = false;
-			await invalidateAll();
-
-			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
-			if (atualizada) {
-				escalaSelecionada = atualizada;
-			} else {
-				// Fallback manual para garantir que o UI reaja imediatamente
-				escalaSelecionada.presenca = {
-					...escalaSelecionada.presenca,
-					entrada_timestamp: new Date().toISOString()
-				};
-			}
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			salvandoPresenca = false;
-		}
-	}
-
-	async function salvarSaida(
-		rubrica: string,
-		latitude?: number,
-		longitude?: number,
-		selfieBase64?: string,
-		codigoEmail?: string,
-		desafioId?: string
-	) {
-		if (!escalaSelecionada) return;
-		salvandoPresenca = true;
-		try {
-			const fd = new FormData();
-			fd.set('giseId', escalaSelecionada.id);
-			fd.set('rubrica', rubrica);
-			if (latitude !== undefined) fd.set('latitude', String(latitude));
-			if (longitude !== undefined) fd.set('longitude', String(longitude));
-			if (selfieBase64) fd.set('selfieBase64', selfieBase64);
-			if (codigoEmail) fd.set('codigoEmail', codigoEmail);
-			if (desafioId) fd.set('desafioId', desafioId);
-
-			const resp = await fetch('?/salvarSaida', { method: 'POST', body: fd });
-			const result = (await resp.json()) as Record<string, unknown> | undefined;
-
-			if (!resp.ok) {
-				throw new Error((result?.error as string) || 'Erro ao salvar saída');
-			}
-
-			toaster.success({ title: 'Saída confirmada com sucesso' });
-			capturandoRubrica = false;
-			await invalidateAll();
-
-			// Força a atualização local do estado para garantir que o botão suma mediatamente
-			// caso o invalidateAll demore um pouco para atualizar as props
-			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
-			if (atualizada) {
-				escalaSelecionada = atualizada;
-			} else {
-				// Fallback manual se a lista ainda não tiver atualizado
-				escalaSelecionada.presenca = {
-					...escalaSelecionada.presenca,
-					saida_timestamp: new Date().toISOString()
-				};
-			}
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
-		} finally {
-			salvandoPresenca = false;
-		}
-	}
-
-	let lendoA3 = $state(false);
-	let baixandoProdutividade = $state<number | null>(null);
-	let baixandoExtra = $state<number | null>(null);
-
-	async function baixarRelatorio(escala: any) {
-		baixandoProdutividade = escala.id;
-		try {
-			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
-			const res = await fetch(url);
-			if (!res.ok) {
-				const err = await res.json();
-				throw new Error(err.error || 'Erro ao baixar relatório');
-			}
-			const blob = await res.blob();
-			const downloadUrl = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = downloadUrl;
-			a.download = `relatorio_produtividade_${escala.seccional_nome}_${escala.data_inicio}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-		} catch (e: any) {
-			toaster.error({
-				title: 'Erro no Download',
-				description: e.message
-			});
-		} finally {
-			baixandoProdutividade = null;
-		}
-	}
-
-	async function baixarRelatorioExtra(escala: any) {
-		baixandoExtra = escala.id;
-		try {
-			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${escala.seccional_id}`;
-			const res = await fetch(url);
-			if (!res.ok) {
-				const err = await res.json();
-				throw new Error(err.error || 'Erro ao baixar relatório');
-			}
-			const blob = await res.blob();
-			const downloadUrl = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = downloadUrl;
-			a.download = `relatorio_extraordinario_${escala.seccional_nome}_${escala.data_inicio}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-		} catch (e: any) {
-			toaster.error({
-				title: 'Erro no Download',
-				description: e.message
-			});
-		} finally {
-			baixandoExtra = null;
-		}
-	}
 </script>
+
+{#snippet statusBadge(status: string)}
+	{@const config: Record<string, { label: string; class: string }> = {
+		ativas: { label: 'Em Andamento', class: 'preset-filled-primary-500' },
+		finalizadas: { label: 'Finalizada', class: 'preset-filled-success-500' },
+		pendentes: { label: 'Pendente', class: 'preset-filled-warning-500' }
+	}}
+	{@const item = config[status] || { label: status, class: 'preset-tonal-surface' }}
+	<span class="badge {item.class} text-[0.6rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm">
+		{item.label}
+	</span>
+{/snippet}
+
+{#snippet btnIcon(path: string)}
+	<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={path} />
+	</svg>
+{/snippet}
+
+{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, disabled = false, loading = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
+	<button
+		type={btnType}
+		class={baseClass}
+		{onclick}
+		disabled={disabled || loading}
+	>
+		{#if loading}
+			<Spinner size="sm" />
+		{:else}
+			{#if iconPath}{@render btnIcon(iconPath)}{/if}
+			<span>{label}</span>
+		{/if}
+	</button>
+{/snippet}
+
+
+<svelte:head>
+	<title>Relatórios GISE - Portal de Escalas</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -401,20 +72,20 @@
 		{#if podeVerListaGeral}
 			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner">
 				<button
-					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab === 'relatorios'
+					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
 						? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
 						: 'text-surface-500 hover:text-surface-700'}"
-					onclick={() => (activeTab = 'relatorios')}
+					onclick={() => (resGise.activeTab = 'relatorios')}
 				>
 					Relatórios
 				</button>
 				{#if isAdminGeral}
 					<button
-						class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {activeTab ===
+						class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab ===
 						'configurador'
 							? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
 							: 'text-surface-500 hover:text-surface-700'}"
-						onclick={() => (activeTab = 'configurador')}
+						onclick={() => (resGise.activeTab = 'configurador')}
 					>
 						Configurar Form
 					</button>
@@ -423,7 +94,7 @@
 		{/if}
 	</header>
 
-	{#if isAdminGeral && activeTab === 'configurador'}
+	{#if isAdminGeral && resGise.activeTab === 'configurador'}
 		<section
 			class="card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-8 animate-in fade-in zoom-in-95 duration-500"
 		>
@@ -440,53 +111,52 @@
 
 					<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-fit">
 						<button
-							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {configTipo ===
+							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
 							'operacional'
 								? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 								: 'text-surface-500'}"
-							onclick={() => (configTipo = 'operacional')}>Operacional</button
+							onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
 						>
 						<button
-							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {configTipo === 'seint'
+							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'seint'
 								? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 								: 'text-surface-500'}"
-							onclick={() => (configTipo = 'seint')}>SEINT (Inteligência)</button
+							onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
 						>
 					</div>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
-					<button
-						class="btn preset-outlined-surface-500 px-4 py-2 rounded-xl text-xs font-bold"
-						onclick={() => {
+					{@render actionButton(
+						'Restaurar Padrão',
+						undefined,
+						'surface',
+						'outlined',
+						() => {
 							const padrao =
-								configTipo === 'seint' ? data.modeloPadraoSeint : data.modeloPadraoOperacional;
+								resGise.configTipo === 'seint' ? data.modeloPadraoSeint : data.modeloPadraoOperacional;
 							if (
 								confirm(
-									`Deseja restaurar o modelo padrão para ${configTipo}? Isso substituirá as perguntas atuais.`
+									`Deseja restaurar o modelo padrão para ${resGise.configTipo}? Isso substituirá as perguntas atuais.`
 								)
 							) {
-								perguntasConfig = structuredClone(padrao);
+								resGise.perguntasConfig = structuredClone(padrao);
 							}
-						}}
-						title="Restaurar Modelo Padrão"
-					>
-						Restaurar Padrão
-					</button>
-					<button
-						class="btn preset-filled-primary-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 active:scale-95 shadow-lg shadow-primary-500/30"
-						onclick={adicionarPergunta}
-						title="Adicionar Nova Pergunta"
-					>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2.5"
-								d="M12 4v16m8-8H4"
-							/></svg
-						>
-						Nova Pergunta
-					</button>
+						},
+						false,
+						false,
+						'px-4 py-2 text-xs'
+					)}
+
+					{@render actionButton(
+						'Nova Pergunta',
+						'M12 4v16m8-8H4',
+						'primary',
+						'filled',
+						resGise.adicionarPergunta,
+						false,
+						false,
+						'px-4 py-2 shadow-lg shadow-primary-500/30'
+					)}
 				</div>
 			</div>
 
@@ -774,8 +444,8 @@
 						>
 						<select
 							id="f-status"
-							bind:value={statusFilterUrl}
-							onchange={() => changeStatusFilter(statusFilterUrl)}
+							bind:value={resGise.statusFilterUrl}
+							onchange={() => resGise.changeStatusFilter(resGise.statusFilterUrl)}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
 						>
 							<option value="">-- Selecione Status --</option>
@@ -784,7 +454,7 @@
 						</select>
 					</div>
 
-					<div class="space-y-1 {statusFilterUrl ? '' : 'opacity-50 pointer-events-none'}">
+					<div class="space-y-1 {resGise.statusFilterUrl ? '' : 'opacity-50 pointer-events-none'}">
 						<label
 							for="f-sec"
 							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
@@ -792,10 +462,10 @@
 						>
 						<select
 							id="f-sec"
-							bind:value={seccionalFilter}
+							bind:value={resGise.seccionalFilterUrl}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
 						>
-							{#each seccionaisUnicas as s}
+							{#each resGise.seccionaisDisponiveis as s}
 								<option value={s}>{s === 'todas' ? 'Todas Seccionais' : s}</option>
 							{/each}
 						</select>
@@ -809,8 +479,8 @@
 						<input
 							id="f-mes"
 							type="month"
-							value={mesFilterUrl}
-							oninput={(e) => changeDateFilter('mes', (e.target as HTMLInputElement).value)}
+							value={resGise.mesFilterUrl}
+							oninput={(e) => resGise.changeDateFilter('mes', (e.target as HTMLInputElement).value)}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
 						/>
 					</div>
@@ -823,15 +493,15 @@
 						<input
 							id="f-data"
 							type="date"
-							value={dataFilterUrl}
-							oninput={(e) => changeDateFilter('data', (e.target as HTMLInputElement).value)}
+							value={resGise.dataFilterUrl}
+							oninput={(e) => resGise.changeDateFilter('data', (e.target as HTMLInputElement).value)}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
 						/>
 					</div>
 				</div>
 
 				<div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-					{#if !statusFilterUrl}
+					{#if !resGise.statusFilterUrl}
 						<div
 							class="p-6 text-center border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-2xl bg-surface-100/50 dark:bg-surface-900/50"
 						>
@@ -855,16 +525,16 @@
 							</p>
 						</div>
 					{:else}
-						{#each listaFiltrada as escala}
+						{#each resGise.listaFiltrada as escala}
 							<div
 								role="button"
 								tabindex="0"
-								class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer {escalaSelecionada?.equipe_id ===
-									escala.equipe_id && escalaSelecionada?.id === escala.id
+								class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer {resGise.escalaSelecionada?.equipe_id ===
+									escala.equipe_id && resGise.escalaSelecionada?.id === escala.id
 									? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500'
 									: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-surface-300'}"
-								onclick={() => selecionarEscala(escala)}
-								onkeydown={(e) => e.key === 'Enter' && selecionarEscala(escala)}
+								onclick={() => resGise.selecionarEscala(escala)}
+								onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
 							>
 								<div class="flex items-start justify-between gap-2">
 									<div class="min-w-0">
@@ -872,7 +542,7 @@
 											{escala.seccional_nome}
 										</p>
 										<p class="text-[0.6rem] text-surface-500 mt-0.5">
-											{fmtDate(escala.data_inicio)}
+											{resGise.fmtDate(escala.data_inicio)}
 										</p>
 									</div>
 									<div class="flex flex-col items-end gap-1">
@@ -907,12 +577,12 @@
 												class="btn-icon btn-icon-sm bg-primary-500/10 text-primary-600 hover:bg-primary-500 hover:text-white transition-all rounded-lg"
 												onclick={(e) => {
 													e.stopPropagation();
-													baixarRelatorio(escala);
+													resGise.baixarRelatorio(escala);
 												}}
-												disabled={baixandoProdutividade === escala.id}
+												disabled={resGise.baixandoProdutividade === escala.id}
 												title="Baixar PDF de Produtividade"
 											>
-												{#if baixandoProdutividade === escala.id}
+												{#if resGise.baixandoProdutividade === escala.id}
 													<Spinner size="sm" />
 												{:else}
 													<svg
@@ -986,22 +656,22 @@
 								<h2
 									class="text-xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tight"
 								>
-									{escalaSelecionada.seccional_nome}
+									{resGise.escalaSelecionada.seccional_nome}
 								</h2>
 								<div class="flex items-center gap-2 mt-1">
 									<span class="badge preset-filled-primary-500 text-[0.6rem]"
-										>{escalaSelecionada.equipe_tipo}</span
+										>{resGise.escalaSelecionada.equipe_tipo}</span
 									>
 									<span class="text-xs text-surface-500 font-medium"
-										>{fmtDate(escalaSelecionada.data_inicio)}</span
+										>{resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}</span
 									>
 								</div>
 							</div>
 						</div>
 
-						{#if carregandoResposta}
+						{#if resGise.carregandoResposta}
 							<div class="flex flex-col items-center justify-center py-24 gap-4">
-								<span class="loading loading-spinner loading-lg text-primary-500"></span>
+								<Spinner size="lg" />
 								<p class="text-sm font-bold text-surface-500 animate-pulse">CARREGANDO DADOS...</p>
 							</div>
 						{:else}
@@ -1031,25 +701,29 @@
 									</p>
 								</div>
 
-								<RelatorioProdutividade modelo={perguntasForm} bind:respostas />
+								<RelatorioProdutividade modelo={resGise.perguntasForm} bind:respostas={resGise.respostas} />
 
 								<div
 									class="flex justify-end pt-4 border-t border-surface-200 dark:border-surface-800"
 								>
-									<form method="POST" action="?/salvarResposta" use:enhance={handleSalvarResposta} class="contents">
-										<input type="hidden" name="giseId" value={escalaSelecionada?.id} />
-										{#if escalaSelecionada?.equipe_id}
-											<input type="hidden" name="equipeId" value={escalaSelecionada.equipe_id} />
+									<form method="POST" action="?/salvarResposta" use:enhance={resGise.handleSalvarResposta(podeVerListaGeral)} class="contents">
+										<input type="hidden" name="giseId" value={resGise.escalaSelecionada?.id} />
+										{#if resGise.escalaSelecionada?.equipe_id}
+											<input type="hidden" name="equipeId" value={resGise.escalaSelecionada.equipe_id} />
 										{/if}
-										<input type="hidden" name="respostas" value={respostasJson} />
-										<button
-											type="submit"
-											class="btn preset-filled-primary-500 px-12 py-3 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-											disabled={salvandoResposta}
-										>
-											{#if salvandoResposta}<Spinner size="sm" />{/if}
-											{salvandoResposta ? 'Salvando...' : 'Salvar Alterações'}
-										</button>
+										<input type="hidden" name="respostas" value={resGise.respostasJson} />
+										
+										{@render actionButton(
+											resGise.salvandoResposta ? 'Salvando...' : 'Salvar Alterações',
+											undefined,
+											'primary',
+											'filled',
+											undefined,
+											resGise.salvandoResposta,
+											resGise.salvandoResposta,
+											'px-12 py-3 text-lg shadow-xl shadow-primary-500/20',
+											'submit'
+										)}
 									</form>
 								</div>
 							</div>
@@ -1096,29 +770,25 @@
 						class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700"
 					>
 						<button
-							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {(page.url.searchParams.get(
-								'status'
-							) || 'ativas') === 'ativas'
+							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {(resGise.statusFilterUrl || 'ativas') === 'ativas'
 								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
 								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-							onclick={() => changeStatusFilter('ativas')}
+							onclick={() => resGise.changeStatusFilter('ativas')}
 						>
 							Ativas
 						</button>
 						<button
-							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {page.url.searchParams.get(
-								'status'
-							) === 'finalizadas'
+							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {resGise.statusFilterUrl === 'finalizadas'
 								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
 								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-							onclick={() => changeStatusFilter('finalizadas')}
+							onclick={() => resGise.changeStatusFilter('finalizadas')}
 						>
 							Histórico
 						</button>
 					</div>
 
 					<!-- Busca Detalhada (Apenas no Histórico) -->
-					{#if page.url.searchParams.get('status') === 'finalizadas'}
+					{#if resGise.statusFilterUrl === 'finalizadas'}
 						<div
 							class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
 						>
@@ -1126,10 +796,10 @@
 								<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
 									>Busca Detalhada</span
 								>
-								{#if page.url.searchParams.get('mes') || page.url.searchParams.get('data')}
+								{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
 									<button
 										class="text-[0.65rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
-										onclick={limparFiltros}
+										onclick={resGise.limparFiltros}
 									>
 										Limpar Filtros
 									</button>
@@ -1148,8 +818,8 @@
 										id="mesMember"
 										type="month"
 										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-										value={page.url.searchParams.get('mes') || ''}
-										onchange={(e) => changeDateFilter('mes', e.currentTarget.value)}
+										value={resGise.mesFilterUrl}
+										onchange={(e) => resGise.changeDateFilter('mes', e.currentTarget.value)}
 									/>
 								</div>
 
@@ -1170,8 +840,8 @@
 										id="dataMember"
 										type="date"
 										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
-										value={page.url.searchParams.get('data') || ''}
-										onchange={(e) => changeDateFilter('data', e.currentTarget.value)}
+										value={resGise.dataFilterUrl}
+										onchange={(e) => resGise.changeDateFilter('data', e.currentTarget.value)}
 									/>
 								</div>
 							</div>
@@ -1195,7 +865,7 @@
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-sm font-bold text-surface-900 dark:text-surface-100">
-								{fmtDate(escala.data_inicio)}
+								{resGise.fmtDate(escala.data_inicio)}
 								<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 							</p>
 							<span class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-bold"
@@ -1213,54 +883,38 @@
 
 							<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
 								{#if escala.equipeRespondida}
-									<button
-										class="btn btn-sm bg-success-500 hover:bg-success-600 text-white text-[0.6rem] font-black px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-success-500/20 active:scale-95"
-										onclick={(e) => {
+									{@render actionButton(
+										'PRODUTIVIDADE',
+										'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+										'success',
+										'filled',
+										(e: any) => {
 											e.stopPropagation();
-											baixarRelatorio(escala);
-										}}
-										disabled={baixandoProdutividade === escala.id}
-										title="Baixar PDF de Produtividade"
-									>
-										{#if baixandoProdutividade === escala.id}
-											<Spinner size="sm" />
-										{:else}
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2.5"
-													d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-												/></svg
-											>
-										{/if}
-										<span>PRODUTIVIDADE</span>
-									</button>
+											resGise.baixarRelatorio(escala);
+										},
+										false,
+										resGise.baixandoProdutividade === escala.id,
+										'text-[0.6rem] px-3 py-2',
+										'button',
+										'sm'
+									)}
 								{/if}
 								{#if escala.extraAssinado}
-									<button
-										class="btn btn-sm bg-primary-500 hover:bg-primary-600 text-white text-[0.6rem] font-black px-3 py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary-500/20 active:scale-95"
-										onclick={(e) => {
+									{@render actionButton(
+										'RELAT. EXTRA',
+										'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+										'primary',
+										'filled',
+										(e: any) => {
 											e.stopPropagation();
-											baixarRelatorioExtra(escala);
-										}}
-										disabled={baixandoExtra === escala.id}
-										title="Baixar Relatório Extraordinário (Assinado)"
-									>
-										{#if baixandoExtra === escala.id}
-											<Spinner size="sm" />
-										{:else}
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2.5"
-													d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-												/></svg
-											>
-										{/if}
-										<span>RELAT. EXTRA</span>
-									</button>
+											resGise.baixarRelatorioExtra(escala);
+										},
+										false,
+										resGise.baixandoExtra === escala.id,
+										'text-[0.6rem] px-3 py-2',
+										'button',
+										'sm'
+									)}
 								{/if}
 							</div>
 						</div>
@@ -1287,14 +941,14 @@
 
 			<!-- Formulário de Resposta -->
 			<div class="md:col-span-2">
-				{#if escalaSelecionada}
+				{#if resGise.escalaSelecionada}
 					<section
 						class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
 					>
 						<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
 							<h2 class="text-xl font-bold">Relatório de Serviço</h2>
 							<p class="text-xs text-primary-500 font-medium">
-								Data: {fmtDate(escalaSelecionada.data_inicio)}
+								Data: {resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}
 							</p>
 						</div>
 
@@ -1302,15 +956,15 @@
 						<div class="flex items-center justify-between px-4 mb-4">
 							<div class="flex flex-col items-center gap-1 group">
 								<div
-									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {escalaSelecionada
+									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise.escalaSelecionada
 										.presenca?.entrada_timestamp
 										? 'bg-success-500 text-white'
 										: 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'}"
 								>
-									{#if escalaSelecionada.presenca?.entrada_timestamp}✓{:else}1{/if}
+									{#if resGise.escalaSelecionada.presenca?.entrada_timestamp}✓{:else}1{/if}
 								</div>
 								<span
-									class="text-[0.6rem] font-bold uppercase tracking-wider {escalaSelecionada
+									class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada
 										.presenca?.entrada_timestamp
 										? 'text-success-600'
 										: 'text-primary-500'}">Entrada</span
@@ -1319,16 +973,16 @@
 							<div class="flex-1 h-px bg-surface-200 dark:border-surface-800 mx-2 -mt-4"></div>
 							<div class="flex flex-col items-center gap-1">
 								<div
-									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {escalaSelecionada.equipeRespondida
+									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise.escalaSelecionada.equipeRespondida
 										? 'bg-success-500 text-white'
-										: escalaSelecionada.presenca?.entrada_timestamp
+										: resGise.escalaSelecionada.presenca?.entrada_timestamp
 											? 'bg-primary-500 text-white'
 											: 'bg-surface-200 text-surface-400'}"
 								>
-									{#if escalaSelecionada.equipeRespondida}✓{:else}2{/if}
+									{#if resGise.escalaSelecionada.equipeRespondida}✓{:else}2{/if}
 								</div>
 								<span
-									class="text-[0.6rem] font-bold uppercase tracking-wider {escalaSelecionada.equipeRespondida
+									class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada.equipeRespondida
 										? 'text-success-600'
 										: 'text-surface-400'}">Produtividade</span
 								>
@@ -1336,17 +990,17 @@
 							<div class="flex-1 h-px bg-surface-200 dark:border-surface-800 mx-2 -mt-4"></div>
 							<div class="flex flex-col items-center gap-1">
 								<div
-									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {escalaSelecionada
+									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise.escalaSelecionada
 										.presenca?.saida_timestamp
 										? 'bg-success-500 text-white'
-										: escalaSelecionada.equipeRespondida
+										: resGise.escalaSelecionada.equipeRespondida
 											? 'bg-primary-500 text-white'
 											: 'bg-surface-200 text-surface-400'}"
 								>
-									{#if escalaSelecionada.presenca?.saida_timestamp}✓{:else}3{/if}
+									{#if resGise.escalaSelecionada.presenca?.saida_timestamp}✓{:else}3{/if}
 								</div>
 								<span
-									class="text-[0.6rem] font-bold uppercase tracking-wider {escalaSelecionada
+									class="text-[0.6rem] font-bold uppercase tracking-wider {resGise.escalaSelecionada
 										.presenca?.saida_timestamp
 										? 'text-success-600'
 										: 'text-surface-400'}">Saída</span
@@ -1354,7 +1008,7 @@
 							</div>
 						</div>
 
-						{#if !isHorarioLiberado(escalaSelecionada)}
+						{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, podeVerListaGeral)}
 							<div class="p-8 text-center space-y-4">
 								<div
 									class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
@@ -1377,12 +1031,12 @@
 									<p class="text-sm text-surface-500">
 										O registro de entrada estará disponível às <span
 											class="font-bold text-primary-500"
-											>{escalaSelecionada.horarioPrevisto.inicio}</span
+											>{resGise.escalaSelecionada.horarioPrevisto.inicio}</span
 										>.
 									</p>
 								</div>
 							</div>
-						{:else if !escalaSelecionada.presenca?.entrada_timestamp}
+						{:else if !resGise.escalaSelecionada.presenca?.entrada_timestamp}
 							<div class="p-4 sm:p-6 space-y-10">
 								<div class="space-y-2">
 									<h3 class="font-bold uppercase text-sm tracking-wider">Confirmação de Entrada</h3>
@@ -1392,9 +1046,9 @@
 									</p>
 								</div>
 
-								{#if capturandoRubrica}
+								{#if resGise.capturandoRubrica}
 									<div class="space-y-4">
-										{#if salvandoPresenca}
+										{#if resGise.salvandoPresenca}
 											<div class="flex flex-col items-center gap-3 py-10">
 												<Spinner size="lg" />
 												<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
@@ -1409,8 +1063,8 @@
 													Câmera e GPS exigidos para prosseguir:
 												</p>
 												<SignaturePad
-													onConfirm={salvarEntrada}
-													onCancel={() => (capturandoRubrica = false)}
+													onConfirm={resGise.salvarEntrada}
+													onCancel={() => (resGise.capturandoRubrica = false)}
 													exigirFoto={page.data.exigirFotoAssinatura ?? true}
 													exigirGps={page.data.exigirGpsAssinatura ?? true}
 													exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
@@ -1419,12 +1073,16 @@
 										{/if}
 									</div>
 								{:else if isMobile || !data.restringirSmartphone}
-									<button
-										class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20"
-										onclick={() => (capturandoRubrica = true)}
-									>
-										Confirmar Entrada
-									</button>
+									{@render actionButton(
+										'Confirmar Entrada',
+										undefined,
+										'primary',
+										'filled',
+										() => (resGise.capturandoRubrica = true),
+										false,
+										false,
+										'px-12 py-4 text-lg shadow-xl shadow-primary-500/20'
+									)}
 								{:else}
 									<div class="flex flex-col gap-4 max-w-sm mx-auto">
 										<div
@@ -1470,7 +1128,7 @@
 												Entrada Confirmada
 											</p>
 											<p class="text-[0.65rem] text-success-600 dark:text-success-500">
-												{new Date(escalaSelecionada.presenca.entrada_timestamp).toLocaleString(
+												{new Date(resGise.escalaSelecionada.presenca.entrada_timestamp).toLocaleString(
 													'pt-BR'
 												)}
 											</p>
@@ -1484,38 +1142,25 @@
 										<h3 class="font-bold uppercase text-sm tracking-wider">
 											Resultados do Serviço
 										</h3>
-										{#if escalaSelecionada.equipeRespondida}
-											<span class="badge preset-filled-success-500 text-[0.6rem] uppercase"
-												>Já enviado</span
-											>
+										{#if resGise.escalaSelecionada.equipeRespondida}
+											{@render statusBadge('finalizadas')}
 										{/if}
 									</div>
 
-									{#if carregandoResposta}
+									{#if resGise.carregandoResposta}
 										<div class="flex justify-center py-12">
-											<span class="loading loading-spinner loading-lg text-primary-500"></span>
+											<Spinner size="lg" />
 										</div>
 									{:else}
 										<div class="space-y-5">
-											{#if escalaSelecionada.equipeRespondida && !exibirRelatorio}
+											{#if resGise.escalaSelecionada.equipeRespondida && !resGise.exibirRelatorio}
 												<div
 													class="p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500"
 												>
 													<div
 														class="bg-success-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto"
 													>
-														<svg
-															class="w-8 h-8 text-success-500"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-															><path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M5 13l4 4L19 7"
-															/></svg
-														>
+														{@render btnIcon('M5 13l4 4L19 7')}
 													</div>
 													<div>
 														<p class="font-bold text-success-700 dark:text-success-400">
@@ -1525,15 +1170,19 @@
 															Os dados de produtividade foram registrados com sucesso.
 														</p>
 													</div>
-													<button
-														class="btn preset-outlined-primary-500 rounded-xl text-xs font-bold uppercase py-2"
-														onclick={() => (exibirRelatorio = true)}
-													>
-														Atualizar / Retificar Dados
-													</button>
+													{@render actionButton(
+														'Atualizar / Retificar Dados',
+														undefined,
+														'primary',
+														'outlined',
+														() => (resGise.exibirRelatorio = true),
+														false,
+														false,
+														'w-full py-2 text-xs uppercase'
+													)}
 												</div>
 											{:else}
-												{#if escalaSelecionada.equipeRespondida && !Object.keys(respostas).length}
+												{#if resGise.escalaSelecionada.equipeRespondida && !Object.keys(resGise.respostas).length}
 													<div class="p-3 bg-primary-500/5 border border-primary-500/10 rounded-xl">
 														<p class="text-[0.65rem] text-primary-600 dark:text-primary-400 italic">
 															Um integrante da equipe já respondeu. Você pode visualizar ou
@@ -1543,36 +1192,40 @@
 												{/if}
 
 												<div class="animate-in fade-in slide-in-from-top-4 duration-500">
-													<RelatorioProdutividade modelo={perguntasForm} bind:respostas />
+													<RelatorioProdutividade modelo={resGise.perguntasForm} bind:respostas={resGise.respostas} />
 												</div>
 
 												<div class="flex gap-3">
-													{#if escalaSelecionada.equipeRespondida}
-														<button
-															class="btn preset-tonal-surface rounded-2xl px-6 font-bold"
-															onclick={() => (exibirRelatorio = false)}
-														>
-															Cancelar
-														</button>
+													{#if resGise.escalaSelecionada.equipeRespondida}
+														{@render actionButton(
+															'Cancelar',
+															undefined,
+															'surface',
+															'tonal',
+															() => (resGise.exibirRelatorio = false),
+															false,
+															false,
+															'px-6'
+														)}
 													{/if}
-													<form method="POST" action="?/salvarResposta" use:enhance={handleSalvarResposta} class="contents">
-														<input type="hidden" name="giseId" value={escalaSelecionada?.id} />
-														{#if escalaSelecionada?.equipe_id}
-															<input type="hidden" name="equipeId" value={escalaSelecionada.equipe_id} />
+													<form method="POST" action="?/salvarResposta" use:enhance={resGise.handleSalvarResposta(podeVerListaGeral)} class="contents">
+														<input type="hidden" name="giseId" value={resGise.escalaSelecionada?.id} />
+														{#if resGise.escalaSelecionada?.equipe_id}
+															<input type="hidden" name="equipeId" value={resGise.escalaSelecionada.equipe_id} />
 														{/if}
-														<input type="hidden" name="respostas" value={respostasJson} />
-														<button
-															type="submit"
-															class="btn preset-filled-primary-500 flex-1 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary-500/20 flex items-center justify-center gap-2"
-															disabled={salvandoResposta}
-														>
-															{#if salvandoResposta}<Spinner size="sm" />{/if}
-															{salvandoResposta
-																? 'Processando...'
-																: escalaSelecionada.equipeRespondida
-																	? 'Salvar Alterações'
-																	: 'Finalizar Entrega do Relatório'}
-														</button>
+														<input type="hidden" name="respostas" value={resGise.respostasJson} />
+														
+														{@render actionButton(
+															resGise.salvandoResposta ? 'Processando...' : (resGise.escalaSelecionada.equipeRespondida ? 'Salvar Alterações' : 'Finalizar Entrega'),
+															undefined,
+															'primary',
+															'filled',
+															undefined,
+															resGise.salvandoResposta,
+															resGise.salvandoResposta,
+															'flex-1 py-4 text-lg shadow-xl shadow-primary-500/20',
+															'submit'
+														)}
 													</form>
 												</div>
 											{/if}
@@ -1586,36 +1239,20 @@
 								>
 									<h3 class="font-bold uppercase text-sm tracking-wider">Término do Plantão</h3>
 
-									{#if !escalaSelecionada.presenca?.saida_timestamp}
-										{#if !escalaSelecionada.equipeRespondida}
+									{#if !resGise.escalaSelecionada.presenca?.saida_timestamp}
+										{#if !resGise.escalaSelecionada.equipeRespondida}
 											<div
 												class="p-3 bg-warning-500/10 border border-warning-500/20 rounded-xl flex items-start gap-3"
 											>
-												<svg
-													class="w-4 h-4 text-warning-600 mt-0.5"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-													/></svg
-												>
+												{@render btnIcon('M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z')}
 												<p class="text-[0.65rem] text-warning-700 dark:text-warning-400">
 													Você deve preencher e enviar o <strong>Relatório de Produtividade</strong> (resultados
 													do serviço) antes de confirmar a saída.
 												</p>
 											</div>
-											<button
-												class="btn preset-tonal-surface w-full py-4 rounded-2xl font-bold text-lg cursor-not-allowed opacity-50"
-												disabled
-											>
-												Confirmar Saída
-											</button>
-										{:else if capturandoRubrica}
-											{#if salvandoPresenca}
+											{@render actionButton('Confirmar Saída', undefined, 'surface', 'tonal', undefined, true, false, 'w-full py-4 text-lg opacity-50 cursor-not-allowed')}
+										{:else if resGise.capturandoRubrica}
+											{#if resGise.salvandoPresenca}
 												<div class="flex flex-col items-center gap-3 py-10">
 													<Spinner size="lg" />
 													<p
@@ -1632,8 +1269,8 @@
 														Câmera e GPS exigidos para prosseguir:
 													</p>
 													<SignaturePad
-														onConfirm={salvarSaida}
-														onCancel={() => (capturandoRubrica = false)}
+														onConfirm={resGise.salvarSaida}
+														onCancel={() => (resGise.capturandoRubrica = false)}
 														exigirFoto={page.data.exigirFotoAssinatura ?? true}
 														exigirGps={page.data.exigirGpsAssinatura ?? true}
 														exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
@@ -1641,12 +1278,16 @@
 												</div>
 											{/if}
 										{:else if isMobile || !data.restringirSmartphone}
-											<button
-												class="btn preset-outlined-primary-500 w-full py-4 rounded-2xl font-bold text-lg"
-												onclick={() => (capturandoRubrica = true)}
-											>
-												Confirmar Saída
-											</button>
+											{@render actionButton(
+												'Confirmar Saída',
+												undefined,
+												'primary',
+												'outlined',
+												() => (resGise.capturandoRubrica = true),
+												false,
+												false,
+												'w-full py-4 text-lg'
+											)}
 										{:else}
 											<div class="flex flex-col gap-3">
 												<div
@@ -1668,18 +1309,7 @@
 											class="flex items-center gap-3 p-4 bg-surface-500/10 border border-surface-500/20 rounded-2xl"
 										>
 											<div class="bg-surface-500 p-2 rounded-full">
-												<svg
-													class="w-4 h-4 text-white"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
+												{@render btnIcon('M5 13l4 4L19 7')}
 											</div>
 											<div>
 												<p
@@ -1688,7 +1318,7 @@
 													Saída Confirmada
 												</p>
 												<p class="text-[0.65rem] text-surface-600 dark:text-surface-500">
-													{new Date(escalaSelecionada.presenca.saida_timestamp).toLocaleString(
+													{new Date(resGise.escalaSelecionada.presenca.saida_timestamp).toLocaleString(
 														'pt-BR'
 													)}
 												</p>
@@ -1700,7 +1330,7 @@
 								<div class="pt-6">
 									<button
 										class="btn btn-sm text-surface-500 hover:text-primary-500 transition-colors w-full"
-										onclick={() => (escalaSelecionada = null)}
+										onclick={() => (resGise.escalaSelecionada = null)}
 									>
 										← Voltar para lista de escalas
 									</button>
