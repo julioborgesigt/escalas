@@ -13,7 +13,7 @@ import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOpt
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
-import { calcularHashBuffer, parseUserAgent, mascaraCPF } from '$lib/server/document-utils';
+import { calcularHashBuffer } from '$lib/server/document-utils';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -60,8 +60,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	// INJETAR RODAPÉ UNIVERSAL EM TODAS AS PÁGINAS DE CONTEÚDO
 	const pdfComRodape = await adicionarRodapeUniversal(pdfBytes, {
-		hash: documentHash,
-		urlVerificacao: verificationUrl
+		documentHash,
+		verificationUrl,
+		verificationHash
 	});
 	
 	// Usar o PDF com rodapé para os próximos passos
@@ -120,7 +121,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				rubricBase64: pr.entrada_rubrica ?? undefined,
 				selfieBase64: selfieMap.get(`${pr.id}-entrada`),
 				signatureLevel: 'avancada',
-				documentName: `Relatório Extraordinário - GISE ${id}`
+				documentName: `Relatório Extraordinário - GISE ${id}`,
+				documentHash
 			});
 		}
 		if (pr.saida_rubrica) {
@@ -137,7 +139,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				rubricBase64: pr.saida_rubrica ?? undefined,
 				selfieBase64: selfieMap.get(`${pr.id}-saida`),
 				signatureLevel: 'avancada',
-				documentName: `Relatório Extraordinário - GISE ${id}`
+				documentName: `Relatório Extraordinário - GISE ${id}`,
+				documentHash
 			});
 		}
 	}
@@ -153,13 +156,12 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		documentHash,
 		ip: ip ?? undefined,
 		userAgent: ua || undefined,
-		userAgentReadable: parseUserAgent(ua),
 		latitude: latitude ?? undefined,
 		longitude: longitude ?? undefined,
 		token: crypto.randomUUID(),
 		documentName: `Relatório Extraordinário - GISE ${id}`,
 		signatureLevel: 'qualificada',
-		tipoCarimboTempo: 'servidor' // Será atualizado no finalizar se for SERPRO com ICP
+		tipoCarimoTempo: 'servidor' // Será atualizado no finalizar se for SERPRO com ICP
 	});
 
 	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria

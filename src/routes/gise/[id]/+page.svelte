@@ -45,6 +45,16 @@
 	let policialParaAdicionar = $state<number | ''>('');
 	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
 	let modoEdicaoSeccional = $state(false);
+	let expandirManual = $state(false);
+	let expandirDigital = $state(false);
+	let expandirLoteManual = $state(false);
+	let expandirLoteDigital = $state(false);
+	let showDigitalModalRelatorio = $state(false);
+	let relatorioDigitalInfo = $state<{
+		seccionalId: number;
+		tipo: 'extraordinario' | 'produtividade';
+		seccionalNome: string;
+	} | null>(null);
 
 	// Edição de slots de equipe
 	let editandoEquipe = $state<number | null>(null);
@@ -163,7 +173,10 @@
 	}
 
 	function handleAdicionarSeccional({ cancel }: any) {
-		if (seccionalParaAdicionarIdx === '') { cancel(); return; }
+		if (seccionalParaAdicionarIdx === '') {
+			cancel();
+			return;
+		}
 		salvando = true;
 		return async ({ result }: any) => {
 			salvando = false;
@@ -251,9 +264,15 @@
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.gise_status === 'aguardando_assinatura') {
-					toaster.success({ title: 'Todas as seccionais finalizadas!', description: 'Escala aguardando assinatura do Supervisor.' });
+					toaster.success({
+						title: 'Todas as seccionais finalizadas!',
+						description: 'Escala aguardando assinatura do Supervisor.'
+					});
 				} else {
-					toaster.success({ title: 'Seccional finalizada', description: 'Aguardando demais seccionais.' });
+					toaster.success({
+						title: 'Seccional finalizada',
+						description: 'Aguardando demais seccionais.'
+					});
 				}
 				modoEdicaoSeccional = false;
 				await invalidateAll();
@@ -290,14 +309,13 @@
 	// Componente PainelAssinaturaToken (relatório extraordinário por seccional)
 	let painelTokenRelatorio = $state<ReturnType<typeof PainelAssinaturaToken> | null>(null);
 	let relatorioSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
-	let relatorioSignerCpf = $state('');
+	let relatorioSignerCpf = $state(untrack(() => data.usuarioAtual?.cpf ?? ''));
 
 	// Rubrica modal
 	let showRubricaModal = $state(false);
 	let tipoAssinaturaPendente = $state<'simples' | 'serpro' | null>(null);
 	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
-
 
 	function abrirModalRubrica(tipo: 'simples' | 'serpro') {
 		tipoAssinaturaPendente = tipo;
@@ -413,7 +431,10 @@
 		return async ({ result }: any) => {
 			salvando = false;
 			if (result.type === 'success') {
-				toaster.success({ title: 'Edição finalizada', description: 'Escala enviada para assinatura do Supervisor.' });
+				toaster.success({
+					title: 'Edição finalizada',
+					description: 'Escala enviada para assinatura do Supervisor.'
+				});
 				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -459,6 +480,15 @@
 	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
 		relatorioSendoAssinado = { seccionalId, tipo };
 		abrirModalRubrica('simples');
+	}
+
+	function abrirAssinaturaRelatorioDigital(
+		seccionalId: number,
+		tipo: 'extraordinario' | 'produtividade',
+		seccionalNome: string
+	) {
+		relatorioDigitalInfo = { seccionalId, tipo, seccionalNome };
+		showDigitalModalRelatorio = true;
 	}
 
 	async function executarAssinarRelatorioLoteSERPRO() {
@@ -643,7 +673,10 @@
 		return async ({ result }: any) => {
 			reabrindo = false;
 			if (result.type === 'success') {
-				toaster.success({ title: 'Escala reaberta', description: 'A assinatura foi revogada. A escala pode ser editada novamente.' });
+				toaster.success({
+					title: 'Escala reaberta',
+					description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
+				});
 				showReabrirConfirm = false;
 				await invalidateAll();
 			} else {
@@ -678,7 +711,10 @@
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.assinatura_revogada) {
-					toaster.warning({ title: 'Datas/horários atualizados', description: 'A assinatura digital foi revogada. Será necessário assinar novamente.' });
+					toaster.warning({
+						title: 'Datas/horários atualizados',
+						description: 'A assinatura digital foi revogada. Será necessário assinar novamente.'
+					});
 				} else {
 					toaster.success({ title: 'Datas/horários atualizados' });
 				}
@@ -869,8 +905,17 @@
 					{modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala'}
 				</button>
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
-					<form method="POST" action="?/solicitarAssinatura" use:enhance={handleSolicitarAssinatura} class="contents">
-						<button type="submit" class="btn btn-sm preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 rounded-lg font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all" disabled={salvando || modoEdicaoGeral}>
+					<form
+						method="POST"
+						action="?/solicitarAssinatura"
+						use:enhance={handleSolicitarAssinatura}
+						class="contents"
+					>
+						<button
+							type="submit"
+							class="btn btn-sm preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 rounded-lg font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all"
+							disabled={salvando || modoEdicaoGeral}
+						>
 							{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
 						</button>
 					</form>
@@ -941,13 +986,26 @@
 						{/each}
 					</select>
 				</div>
-				<form method="POST" action="?/salvarSupervisores" use:enhance={handleSalvarSupervisores} class="flex gap-2">
+				<form
+					method="POST"
+					action="?/salvarSupervisores"
+					use:enhance={handleSalvarSupervisores}
+					class="flex gap-2"
+				>
 					<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-					<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg" disabled={salvando}>
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+						disabled={salvando}
+					>
 						{#if salvando}<Spinner size="sm" />{/if}
 						{salvando ? 'Salvando...' : 'Salvar'}
 					</button>
-					<button type="button" class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg" onclick={() => (editandoSupervisores = false)}>
+					<button
+						type="button"
+						class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
+						onclick={() => (editandoSupervisores = false)}
+					>
 						Cancelar
 					</button>
 				</form>
@@ -1062,9 +1120,7 @@
 						</div>
 						<div class="flex-1">
 							<h3 class="font-bold text-success-800 dark:text-success-400 uppercase tracking-tight">
-								Relatório Extraordinário Assinado — {todasUnidades.find(
-									(u: any) => u.id === assRel.seccional_id
-								)?.nome ?? 'Seccional'}
+								Relatório Extraordinário Assinado
 							</h3>
 							<p class="text-sm text-surface-600 dark:text-surface-300 mt-1 font-medium">
 								Assinado por {assRel.assinante_nome}.
@@ -1095,143 +1151,203 @@
 				<div class="grid grid-cols-1 gap-6">
 					<!-- 1. ASSINATURA MANUAL (TELA/MOBILE) -->
 					<div
-						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {isMobile
+						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {isMobile ||
+						!data.restringirSmartphone
 							? 'border-primary-500/30'
-							: 'border-surface-200 dark:border-white/5 opacity-60'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
+							: 'border-surface-200 dark:border-white/5 opacity-60'} rounded-3xl flex flex-col justify-start gap-5 shadow-xl transition-all"
 					>
-						<div>
-							<div class="flex items-center justify-between mb-4">
+						<button
+							type="button"
+							class="w-full text-left flex flex-col gap-2"
+							onclick={() => (expandirManual = !expandirManual)}
+						>
+							<div class="flex items-center justify-between">
 								<h4
 									class="font-bold text-sm flex items-center gap-2 text-surface-900 dark:text-surface-50"
 								>
 									<svg
-										class="w-5 h-5 {isMobile ? 'text-primary-500' : 'text-surface-400'}"
+										class="w-5 h-5 {isMobile || !data.restringirSmartphone
+											? 'text-primary-500'
+											: 'text-surface-400'}"
 										fill="none"
 										viewBox="0 0 24 24"
 										stroke="currentColor"
-										><path
+									>
+										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
 											stroke-width="2"
 											d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-										/></svg
-									>
+										/>
+									</svg>
 									Assinar na Tela (Manual)
 								</h4>
-								{#if isMobile}
-									<span
-										class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-										>Disponível</span
+								<div class="flex items-center gap-3">
+									{#if isMobile || !data.restringirSmartphone}
+										<span
+											class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+											>Disponível</span
+										>
+									{:else}
+										<span
+											class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+											>Indisponível no PC</span
+										>
+									{/if}
+									<svg
+										class="w-4 h-4 text-surface-400 transition-transform duration-300 {expandirManual
+											? 'rotate-180'
+											: ''}"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
 									>
-								{:else}
-									<span
-										class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-										>Indisponível no PC</span
-									>
-								{/if}
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 9l-7 7-7-7"
+										/>
+									</svg>
+								</div>
 							</div>
-							<p class="text-xs text-surface-500 leading-relaxed mb-6">
+							<p class="text-xs text-surface-500 leading-relaxed">
 								Gera o PDF com sua rubrica manual desenhada diretamente na tela do seu dispositivo. <strong
 									>Ideal para tablets e smartphones.</strong
 								>
 							</p>
-						</div>
+						</button>
 
-						{#if isMobile}
-							<button
-								class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-								disabled={assinandoSimples}
-								onclick={() => abrirModalRubrica('simples')}
-							>
-								{#if assinandoSimples}
-									<span
-										class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-									></span>
-									Gerando PDF...
+						{#if expandirManual}
+							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
+								{#if isMobile || !data.restringirSmartphone}
+									<button
+										class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+										disabled={assinandoSimples}
+										onclick={() => abrirModalRubrica('simples')}
+									>
+										{#if assinandoSimples}
+											<span
+												class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
+											></span>
+											Gerando PDF...
+										{:else}
+											Abrir Painel de Rubrica
+										{/if}
+									</button>
 								{:else}
-									Abrir Painel de Rubrica
+									<div class="flex-1 flex items-center">
+										<div class="bg-error-500/10 p-3 rounded-xl border border-error-500/20 w-full">
+											<p
+												class="text-[0.7rem] text-error-600 dark:text-error-400 font-bold uppercase text-center leading-tight"
+											>
+												A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 no
+												computador.
+											</p>
+										</div>
+									</div>
 								{/if}
-							</button>
-						{:else}
-							<div class="bg-error-500/10 p-3 rounded-xl border border-error-500/20">
-								<p
-									class="text-[0.65rem] text-error-600 font-bold uppercase text-center leading-tight"
-								>
-									A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 no
-									computador.
-								</p>
 							</div>
 						{/if}
 					</div>
 
 					<!-- 2. ASSINATURA DIGITAL (TOKEN A3) -->
 					<div
-						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {!isMobile
+						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {!isMobile &&
+						data.restringirSmartphone
 							? 'border-tertiary-500/30'
-							: 'border-surface-200 dark:border-white/5'} rounded-3xl flex flex-col justify-between shadow-xl transition-all h-full"
+							: 'border-surface-200 dark:border-white/5'} rounded-3xl flex flex-col justify-start gap-5 shadow-xl transition-all"
 					>
-						<div>
-							<div class="flex items-center justify-between mb-4">
+						<button
+							type="button"
+							class="w-full text-left flex flex-col gap-2"
+							onclick={() => (expandirDigital = !expandirDigital)}
+						>
+							<div class="flex items-center justify-between">
 								<h4
 									class="font-bold text-sm flex items-center gap-2 text-surface-900 dark:text-surface-50"
 								>
 									<svg
-										class="w-5 h-5 {!isMobile ? 'text-tertiary-500' : 'text-surface-400'}"
+										class="w-5 h-5 {!isMobile || data.restringirSmartphone
+											? 'text-tertiary-500'
+											: 'text-surface-400'}"
 										fill="none"
 										viewBox="0 0 24 24"
 										stroke="currentColor"
-										><path
+									>
+										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
 											stroke-width="2"
 											d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-										/></svg
-									>
+										/>
+									</svg>
 									Assinatura Digital (Token A3)
 								</h4>
-								{#if !isMobile}
-									<span
-										class="badge preset-filled-tertiary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-										>Recomendado</span
+								<div class="flex items-center gap-3">
+									{#if !isMobile}
+										<span
+											class="badge preset-filled-tertiary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+											>Recomendado</span
+										>
+									{:else}
+										<span
+											class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
+											>Apenas Desktop</span
+										>
+									{/if}
+									<svg
+										class="w-4 h-4 text-surface-400 transition-transform duration-300 {expandirDigital
+											? 'rotate-180'
+											: ''}"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
 									>
-								{:else}
-									<span
-										class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-										>Apenas Desktop</span
-									>
-								{/if}
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 9l-7 7-7-7"
+										/>
+									</svg>
+								</div>
 							</div>
-							<p class="text-xs text-surface-500 leading-relaxed mb-6">
+							<p class="text-xs text-surface-500 leading-relaxed">
 								Assinatura com validade <strong>Qualificada (ICP-Brasil)</strong> usando seu certificado
 								digital físico. Requer o Assinador Desktop instalado no computador.
 							</p>
-						</div>
+						</button>
 
-						<PainelAssinaturaToken
-							bind:this={painelTokenGise}
-							bind:signerName={serproSignerName}
-							bind:signerCpf={serproSignerCpf}
-							signerEmail={data.usuarioAtual?.email}
-							prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
-							finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
-							nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-							extraPayload={{ rubrica: rubricaCapturada }}
-							disabled={assinando}
-							onSuccess={async () => {
-								rubricaCapturada = null;
-								await invalidateAll();
-							}}
-						/>
+						{#if expandirDigital}
+							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
+								<PainelAssinaturaToken
+									bind:this={painelTokenGise}
+									bind:signerName={serproSignerName}
+									bind:signerCpf={serproSignerCpf}
+									signerEmail={data.usuarioAtual?.email}
+									prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
+									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
+									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
+									extraPayload={{ rubrica: rubricaCapturada }}
+									disabled={assinando}
+									onSuccess={async () => {
+										rubricaCapturada = null;
+										await invalidateAll();
+									}}
+								/>
 
-						{#if isMobile}
-							<div
-								class="bg-surface-200 dark:bg-surface-700/30 p-3 rounded-xl border border-surface-300 dark:border-surface-600/30 mt-4"
-							>
-								<p
-									class="text-[0.65rem] text-surface-500 font-bold uppercase text-center leading-tight"
-								>
-									Certificados físicos (USB/Token/Cartão) só podem ser lidos em computadores.
-								</p>
+								{#if isMobile}
+									<div
+										class="bg-surface-200 dark:bg-surface-700/30 p-3 rounded-xl border border-surface-300 dark:border-surface-600/30"
+									>
+										<p
+											class="text-[0.65rem] text-surface-500 font-bold uppercase text-center leading-tight"
+										>
+											Certificados físicos (USB/Token/Cartão) só podem ser lidos em computadores.
+										</p>
+									</div>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -1263,83 +1379,184 @@
 				</div>
 
 				{#if assinandoLote}
-					<div class="flex flex-col items-center gap-1">
-						<div class="text-xs font-bold text-warning-700">
+					<div
+						class="flex flex-col items-center gap-1 bg-white/50 dark:bg-surface-800/50 p-6 rounded-3xl border border-warning-500/20 shadow-xl"
+					>
+						<div class="text-xs font-bold text-warning-700 uppercase tracking-widest mb-2">
 							{etapaAssinatura}
 						</div>
-						<progress
-							class="progress rounded bg-surface-200 dark:bg-surface-700 w-full h-2"
-							value={progressoLote.atual}
-							max={progressoLote.total}
-						></progress>
+						<div
+							class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-3 overflow-hidden shadow-inner"
+						>
+							<div
+								class="bg-warning-500 h-full transition-all duration-500 ease-out flex items-center justify-center text-[0.5rem] text-white font-bold"
+								style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
+							>
+								{Math.round((progressoLote.atual / progressoLote.total) * 100)}%
+							</div>
+						</div>
+						<div class="mt-2 text-[0.6rem] text-surface-500 font-medium">
+							Item {progressoLote.atual} de {progressoLote.total}
+						</div>
 					</div>
 				{:else}
-					{#if isMobile}
-						<button
-							class="btn preset-filled-warning-500 font-bold justify-center w-full sm:w-auto flex items-center gap-2"
-							onclick={() => abrirAssinaturaLote()}
-						>
-							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-								/></svg
-							>
-							Assinar na Tela (Manual)
-						</button>
-					{:else}
+					<div class="flex flex-col gap-4">
+						<!-- Lote Manual -->
 						<div
-							class="text-xs text-error-500 italic font-semibold border-l-2 border-error-500 pl-2"
+							class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
 						>
-							A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 no
-							computador.
-						</div>
-					{/if}
-
-					<div class="border-t border-warning-200 dark:border-warning-800/40 pt-3 space-y-3">
-						<p
-							class="text-xs font-bold text-warning-700 dark:text-warning-400 uppercase tracking-wide"
-						>
-							Assinatura Digital em Lote — Token A3 / SERPRO
-						</p>
-
-						{#if !podeAssinar}
-							<div
-								class="p-2 sm:p-2.5 bg-white/60 dark:bg-surface-800/60 rounded-xl border border-warning-200 dark:border-warning-800/30 flex flex-col sm:flex-row sm:items-center gap-2"
+							<button
+								type="button"
+								class="w-full text-left flex items-center justify-between"
+								onclick={() => (expandirLoteManual = !expandirLoteManual)}
 							>
-								<div
-									class="flex-1 flex items-center px-3 h-10 bg-surface-200/30 dark:bg-surface-700/20 rounded-lg border border-warning-200 dark:border-warning-800/20 border-dashed"
-								>
-									<p class="text-[0.65rem] text-surface-500 italic">
-										O SERPRO processará todos os relatórios pendentes sequencialmente.
-									</p>
+								<div class="flex items-center gap-2">
+									<div class="p-1.5 bg-warning-500/10 rounded-lg text-warning-600">
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+											/>
+										</svg>
+									</div>
+									<h4
+										class="font-bold text-xs text-warning-800 dark:text-warning-400 uppercase tracking-tight"
+									>
+										Assinatura Manual (Lote - Tela)
+									</h4>
 								</div>
-
-								<button
-									class="btn btn-sm preset-filled-tertiary-500 font-bold whitespace-nowrap rounded-lg shadow-sm shrink-0 {assinandoLote
-										? 'opacity-50 grayscale'
+								<svg
+									class="w-4 h-4 text-warning-400 transition-transform duration-300 {expandirLoteManual
+										? 'rotate-180'
 										: ''}"
-									onclick={() => executarAssinarRelatorioLoteSERPRO()}
-									disabled={assinandoLote}
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
 								>
-									{#if assinandoLote}<Spinner size="xs" />{/if}
-									Assinar Lote com SERPRO
-								</button>
-							</div>
-						{/if}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
+								</svg>
+							</button>
 
-						<p class="text-[0.6rem] text-surface-400 dark:text-surface-500 mt-2 px-1">
-							<strong>SERPRO:</strong> requer o aplicativo
-							<a
-								href="https://www.serpro.gov.br/menu/noticias/noticias-2015/assinador-serpro"
-								target="_blank"
-								rel="noopener"
-								class="underline">Assinador Desktop SERPRO</a
+							{#if expandirLoteManual}
+								<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
+									<p class="text-[0.65rem] text-surface-500 leading-tight">
+										Aplica sua rubrica manual em todos os relatórios extraordinários pendentes de
+										uma só vez.
+									</p>
+									{#if isMobile || !data.restringirSmartphone}
+										<button
+											class="btn btn-sm preset-filled-warning-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
+											onclick={() => abrirAssinaturaLote()}
+										>
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+												/></svg
+											>
+											Assinar Agora
+										</button>
+									{:else}
+										<div class="bg-error-500/5 p-2 rounded-lg border border-error-500/10">
+											<p class="text-[0.6rem] text-error-600 font-bold uppercase text-center">
+												Indisponível no PC. Use o Token A3.
+											</p>
+										</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
+
+						<!-- Lote Digital -->
+						<div
+							class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
+						>
+							<button
+								type="button"
+								class="w-full text-left flex items-center justify-between"
+								onclick={() => (expandirLoteDigital = !expandirLoteDigital)}
 							>
-							aberto em seu computador.
-						</p>
+								<div class="flex items-center gap-2">
+									<div class="p-1.5 bg-tertiary-500/10 rounded-lg text-tertiary-600">
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+											/>
+										</svg>
+									</div>
+									<h4
+										class="font-bold text-xs text-tertiary-700 dark:text-tertiary-400 uppercase tracking-tight"
+									>
+										Assinatura Digital (Lote - Token A3)
+									</h4>
+								</div>
+								<svg
+									class="w-4 h-4 text-tertiary-400 transition-transform duration-300 {expandirLoteDigital
+										? 'rotate-180'
+										: ''}"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
+								</svg>
+							</button>
+
+							{#if expandirLoteDigital}
+								<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
+									<p class="text-[0.65rem] text-surface-500 leading-tight">
+										Assine todos os relatórios digitalmente usando seu Token A3 através do assinador
+										SERPRO.
+									</p>
+									{#if !isMobile}
+										<div class="flex flex-col gap-2">
+											<button
+												class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
+												onclick={() => executarAssinarRelatorioLoteSERPRO()}
+												disabled={assinandoLote}
+											>
+												{#if assinandoLote}<Spinner size="xs" />{/if}
+												Assinar Lote com SERPRO
+											</button>
+											<p class="text-[0.55rem] text-surface-400 italic text-center">
+												Requer o <a
+													href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
+													target="_blank"
+													class="underline">Assinador Desktop</a
+												> instalado e aberto.
+											</p>
+										</div>
+									{:else}
+										<div
+											class="bg-surface-200 dark:bg-surface-700/30 p-2 rounded-xl border border-surface-300 dark:border-surface-600/30"
+										>
+											<p
+												class="text-[0.6rem] text-surface-500 font-bold uppercase text-center leading-tight"
+											>
+												Certificados físicos só podem ser lidos em computadores.
+											</p>
+										</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -1401,11 +1618,28 @@
 												: 'border-surface-300 dark:border-surface-600'}"
 											bind:value={editSecHoraSai}
 										/>
-										<form method="POST" action="?/salvarHorariosSec" use:enhance={handleSalvarHorariosSec} class="contents">
+										<form
+											method="POST"
+											action="?/salvarHorariosSec"
+											use:enhance={handleSalvarHorariosSec}
+											class="contents"
+										>
 											<input type="hidden" name="secId" value={sec.id} />
-											<input type="hidden" name="hora_entrada" value={normalizarHora(editSecHoraEnt) ?? ''} />
-											<input type="hidden" name="hora_saida" value={normalizarHora(editSecHoraSai) ?? ''} />
-											<button type="submit" class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded">✓</button>
+											<input
+												type="hidden"
+												name="hora_entrada"
+												value={normalizarHora(editSecHoraEnt) ?? ''}
+											/>
+											<input
+												type="hidden"
+												name="hora_saida"
+												value={normalizarHora(editSecHoraSai) ?? ''}
+											/>
+											<button
+												type="submit"
+												class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
+												>✓</button
+											>
 										</form>
 										<button
 											type="button"
@@ -1450,7 +1684,12 @@
 							</div>
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-								<form method="POST" action="?/removerSeccional" use:enhance={handleRemoverSeccional} class="contents">
+								<form
+									method="POST"
+									action="?/removerSeccional"
+									use:enhance={handleRemoverSeccional}
+									class="contents"
+								>
 									<input type="hidden" name="secId" value={sec.id} />
 									<button
 										type="submit"
@@ -1520,7 +1759,7 @@
 										</a>
 									{/each}
 
-									<div class="flex flex-col gap-2 w-full sm:w-auto">
+									<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
 										<a
 											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
 												checkAllSigned(sec) &&
@@ -1559,19 +1798,44 @@
 											{/if}
 										</a>
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
-											{#if isMobile || !data.restringirSmartphone}
-												<button
-													class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 rounded shadow-sm w-full font-bold uppercase transition-all"
-													onclick={() =>
-														abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario')}
-												>
-													Assinatura Manual
-												</button>
-											{:else}
-												<div class="text-[0.6rem] text-surface-500 mt-1 italic w-full text-center">
-													Use o Painel de Lote (acima) para Token A3
-												</div>
-											{/if}
+											<div class="flex items-center gap-2">
+												{#if isMobile || !data.restringirSmartphone}
+													<button
+														class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 rounded shadow-sm font-bold uppercase transition-all"
+														onclick={() =>
+															abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario')}
+													>
+														Ass. Indiv.
+													</button>
+												{/if}
+
+												{#if !isMobile}
+													<button
+														class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 rounded shadow-sm font-bold uppercase transition-all flex items-center gap-1"
+														onclick={() =>
+															abrirAssinaturaRelatorioDigital(
+																sec.seccional_id,
+																'extraordinario',
+																sec.seccional_nome
+															)}
+													>
+														<svg
+															class="w-2.5 h-2.5"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+															/>
+														</svg>
+														Ass. Digital
+													</button>
+												{/if}
+											</div>
 										{/if}
 									</div>
 								</div>
@@ -1586,28 +1850,33 @@
 											onclick={() => (modoEdicaoSeccional = true)}>Editar Escala</button
 										>
 									{:else}
-										<form method="POST" action="?/finalizarSeccional" use:enhance={handleFinalizarSeccional} class="contents">
-										<input type="hidden" name="secId" value={sec.id} />
-										<button
-											type="submit"
-											class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
-											disabled={salvando ||
-												!sec.unidade_operacional_id ||
-												!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
-											title={!sec.unidade_operacional_id
-												? 'Preencha a unidade operacional antes de finalizar'
-												: !(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)
-													? 'Adicione pelo menos 1 policial antes de finalizar'
-													: ''}
+										<form
+											method="POST"
+											action="?/finalizarSeccional"
+											use:enhance={handleFinalizarSeccional}
+											class="contents"
 										>
-											{#if salvando}<Spinner size="xs" />{/if}
-											{sec.status === 'preenchida'
-												? 'Finalizar edição'
-												: sec.status === 'retificada'
-													? 'Confirmar retificação'
-													: 'Finalizar envio'}
-										</button>
-									</form>
+											<input type="hidden" name="secId" value={sec.id} />
+											<button
+												type="submit"
+												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
+												disabled={salvando ||
+													!sec.unidade_operacional_id ||
+													!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
+												title={!sec.unidade_operacional_id
+													? 'Preencha a unidade operacional antes de finalizar'
+													: !(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)
+														? 'Adicione pelo menos 1 policial antes de finalizar'
+														: ''}
+											>
+												{#if salvando}<Spinner size="xs" />{/if}
+												{sec.status === 'preenchida'
+													? 'Finalizar edição'
+													: sec.status === 'retificada'
+														? 'Confirmar retificação'
+														: 'Finalizar envio'}
+											</button>
+										</form>
 
 										{#if modoEdicaoSeccional}
 											<button
@@ -1659,15 +1928,32 @@
 													<option value={u.id}>{u.nome}</option>
 												{/each}
 											</select>
-											<form method="POST" action="?/salvarUnidadeOperacional" use:enhance={handleSalvarUnidadeOperacional} class="flex gap-2 shrink-0">
+											<form
+												method="POST"
+												action="?/salvarUnidadeOperacional"
+												use:enhance={handleSalvarUnidadeOperacional}
+												class="flex gap-2 shrink-0"
+											>
 												<input type="hidden" name="secId" value={sec.id} />
-												<input type="hidden" name="unidade_operacional_id" value={unidadeOperacionalId ?? ''} />
-												<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5" disabled={salvando}>
+												<input
+													type="hidden"
+													name="unidade_operacional_id"
+													value={unidadeOperacionalId ?? ''}
+												/>
+												<button
+													type="submit"
+													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+													disabled={salvando}
+												>
 													{#if salvando}<Spinner size="xs" />{/if}
 													{salvando ? 'Salvando...' : 'Salvar'}
 												</button>
 												{#if sec.unidade_operacional_nome}
-													<button type="button" class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl" onclick={() => (editandoUnidade = false)}>
+													<button
+														type="button"
+														class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl"
+														onclick={() => (editandoUnidade = false)}
+													>
 														Cancelar
 													</button>
 												{/if}
@@ -1686,7 +1972,9 @@
 
 							<!-- Equipes -->
 							{#each sec.equipes ?? [] as equipe}
-								<div class="rounded-xl border border-surface-300 dark:border-surface-600 p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm">
+								<div
+									class="rounded-xl border border-surface-300 dark:border-surface-600 p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
+								>
 									<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
 										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 											<span
@@ -1718,12 +2006,23 @@
 														bind:value={editSlotsOip}
 														class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 													/>
-													<form method="POST" action="?/salvarSlotsEquipe" use:enhance={handleSalvarSlotsEquipe} class="contents">
+													<form
+														method="POST"
+														action="?/salvarSlotsEquipe"
+														use:enhance={handleSalvarSlotsEquipe}
+														class="contents"
+													>
 														<input type="hidden" name="equipeId" value={equipe.id} />
 														<input type="hidden" name="slots_dpc" value={editSlotsDpc} />
 														<input type="hidden" name="slots_oip" value={editSlotsOip} />
-														<button type="submit" class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5" disabled={salvando}>
-															{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Salvando...' : 'Salvar'}
+														<button
+															type="submit"
+															class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5"
+															disabled={salvando}
+														>
+															{#if salvando}<Spinner size="xs" />{/if}{salvando
+																? 'Salvando...'
+																: 'Salvar'}
 														</button>
 													</form>
 													<button
@@ -1758,11 +2057,28 @@
 																: 'border-surface-300 dark:border-surface-600'}"
 															bind:value={editEqHoraSai}
 														/>
-														<form method="POST" action="?/salvarHorariosEquipe" use:enhance={handleSalvarHorariosEquipe} class="contents">
+														<form
+															method="POST"
+															action="?/salvarHorariosEquipe"
+															use:enhance={handleSalvarHorariosEquipe}
+															class="contents"
+														>
 															<input type="hidden" name="eqId" value={equipe.id} />
-															<input type="hidden" name="hora_entrada" value={normalizarHora(editEqHoraEnt) ?? ''} />
-															<input type="hidden" name="hora_saida" value={normalizarHora(editEqHoraSai) ?? ''} />
-															<button type="submit" class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded">✓</button>
+															<input
+																type="hidden"
+																name="hora_entrada"
+																value={normalizarHora(editEqHoraEnt) ?? ''}
+															/>
+															<input
+																type="hidden"
+																name="hora_saida"
+																value={normalizarHora(editEqHoraSai) ?? ''}
+															/>
+															<button
+																type="submit"
+																class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
+																>✓</button
+															>
 														</form>
 														<button
 															type="button"
@@ -2066,13 +2382,24 @@
 												class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 											/>
 										</div>
-										<form method="POST" action="?/adicionarEquipe" use:enhance={handleAdicionarEquipe} class="contents">
+										<form
+											method="POST"
+											action="?/adicionarEquipe"
+											use:enhance={handleAdicionarEquipe}
+											class="contents"
+										>
 											<input type="hidden" name="secId" value={sec.id} />
 											<input type="hidden" name="tipo" value={novaEquipeTipo} />
 											<input type="hidden" name="slots_dpc" value={novaEquipeDpc} />
 											<input type="hidden" name="slots_oip" value={novaEquipeOip} />
-											<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5" disabled={salvando}>
-												{#if salvando}<Spinner size="xs" />{/if}{salvando ? 'Adicionando...' : 'Adicionar'}
+											<button
+												type="submit"
+												class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+												disabled={salvando}
+											>
+												{#if salvando}<Spinner size="xs" />{/if}{salvando
+													? 'Adicionando...'
+													: 'Adicionar'}
 											</button>
 										</form>
 										<button
@@ -2130,7 +2457,12 @@
 								{/each}
 							</select>
 						</div>
-						<form method="POST" action="?/adicionarSeccional" use:enhance={handleAdicionarSeccional} class="flex gap-2">
+						<form
+							method="POST"
+							action="?/adicionarSeccional"
+							use:enhance={handleAdicionarSeccional}
+							class="flex gap-2"
+						>
 							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
 								type="submit"
@@ -2255,11 +2587,20 @@
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 					onclick={() => (showModalDataHoras = false)}>Cancelar</button
 				>
-				<form method="POST" action="?/salvarDatasHorarios" use:enhance={handleSalvarDatasHorarios} class="contents">
+				<form
+					method="POST"
+					action="?/salvarDatasHorarios"
+					use:enhance={handleSalvarDatasHorarios}
+					class="contents"
+				>
 					<input type="hidden" name="data_inicio" value={editDataInicio} />
 					<input type="hidden" name="hora_entrada" value={normalizarHora(editHoraEntrada) ?? ''} />
 					<input type="hidden" name="hora_saida" value={normalizarHora(editHoraSaida) ?? ''} />
-					<button type="submit" class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2" disabled={salvando}>
+					<button
+						type="submit"
+						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
+						disabled={salvando}
+					>
 						{#if salvando}<Spinner size="sm" />{/if}
 						{salvando ? 'Salvando...' : 'Salvar'}
 					</button>
@@ -2281,9 +2622,17 @@
 				permanentemente removidos, incluindo equipes, membros e assinatura digital.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button type="button" class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button>
+				<button
+					type="button"
+					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
+					onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button
+				>
 				<form method="POST" action="?/excluirGise" use:enhance={handleExcluirGise} class="contents">
-					<button type="submit" class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl" disabled={excluindo}>
+					<button
+						type="submit"
+						class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
+						disabled={excluindo}
+					>
 						{#if excluindo}<Spinner size="sm" />{/if}
 						{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
 					</button>
@@ -2305,9 +2654,22 @@
 				novamente.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button type="button" class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl" onclick={() => (showReabrirConfirm = false)}>Cancelar</button>
-				<form method="POST" action="?/reabrirEscala" use:enhance={handleReabrirEscala} class="contents">
-					<button type="submit" class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl" disabled={reabrindo}>
+				<button
+					type="button"
+					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
+					onclick={() => (showReabrirConfirm = false)}>Cancelar</button
+				>
+				<form
+					method="POST"
+					action="?/reabrirEscala"
+					use:enhance={handleReabrirEscala}
+					class="contents"
+				>
+					<button
+						type="submit"
+						class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
+						disabled={reabrindo}
+					>
 						{#if reabrindo}<Spinner size="sm" />{/if}
 						{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
 					</button>
@@ -2335,7 +2697,12 @@
 			</div>
 
 			<div class="pt-2">
-				<form method="POST" action="?/finalizarGise" use:enhance={handleFinalizarGise} class="contents">
+				<form
+					method="POST"
+					action="?/finalizarGise"
+					use:enhance={handleFinalizarGise}
+					class="contents"
+				>
 					<button
 						type="submit"
 						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
@@ -2355,6 +2722,57 @@
 					Cancelar e voltar
 				</button>
 			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal Assinatura Digital Individual de Relatório -->
+{#if showDigitalModalRelatorio && relatorioDigitalInfo}
+	<div
+		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+	>
+		<div
+			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-lg p-8 space-y-6 border border-white/10"
+		>
+			<div class="text-center space-y-2">
+				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
+					Assinatura Digital Individual
+				</h2>
+				<p class="text-sm text-surface-500">
+					Você está assinando o Relatório Extraordinário da seccional: <br />
+					<strong class="text-surface-900 dark:text-surface-50"
+						>{relatorioDigitalInfo.seccionalNome}</strong
+					>
+				</p>
+			</div>
+
+			<PainelAssinaturaToken
+				bind:this={painelTokenRelatorio}
+				bind:signerName={relatorioSignerName}
+				bind:signerCpf={relatorioSignerCpf}
+				signerEmail={data.usuarioAtual?.email}
+				prepararUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/preparar-assinatura"
+				finalizarUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/finalizar-assinatura"
+				nomeArquivo="relatorio_extraordinario_{relatorioDigitalInfo.seccionalNome}.pdf"
+				disabled={assinando}
+				onSuccess={async () => {
+					showDigitalModalRelatorio = false;
+					relatorioDigitalInfo = null;
+					await invalidateAll();
+				}}
+			/>
+
+			<button
+				type="button"
+				class="w-full btn preset-outlined-surface py-3 rounded-2xl text-sm"
+				onclick={() => {
+					showDigitalModalRelatorio = false;
+					relatorioDigitalInfo = null;
+				}}
+				disabled={assinando}
+			>
+				Cancelar e fechar
+			</button>
 		</div>
 	</div>
 {/if}

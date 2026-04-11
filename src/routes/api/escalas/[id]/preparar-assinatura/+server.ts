@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
+import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 
@@ -44,27 +45,43 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u.cpf || '');
+	const assinanteEmail = u.email ?? undefined;
 
-	// Conta páginas do PDF de conteúdo
+	// 1. Hash SHA-256 do PDF original (antes de qualquer modificação visual)
+	const documentHash = await calcularHashBuffer(pdfBytes);
+
+	// 2. Rodapé universal em todas as páginas de conteúdo
 	const origDoc = await PDFDocument.load(pdfBytes);
-	const contentPageIndex = origDoc.getPageCount() - 1;
+	const contentPageCount = origDoc.getPageCount();
 
-	// Adicionar folha de auditoria
-	const pdfWithAudit = await adicionarPaginaAuditoria(pdfBytes, {
+	const pdfComRodape = await adicionarRodapeUniversal(pdfBytes, {
+		documentHash,
+		verificationUrl,
+		verificationHash,
+		contentPageCount
+	});
+
+	// 3. Folha de auditoria ANTES de assinar (preserva validade criptográfica)
+	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, {
 		signerName: finalSignerName,
 		signerCpf: finalSignerCpf || undefined,
+		signerEmail: assinanteEmail,
 		signingTime: new Date(),
 		verificationHash,
 		verificationUrl,
+		documentHash,
 		ip: ip ?? undefined,
 		userAgent: ua || undefined,
 		latitude: latitude ?? undefined,
 		longitude: longitude ?? undefined,
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço - ${escala.titulo}`,
-		signatureLevel: 'qualificada'
+		signatureLevel: 'qualificada',
+		tipoCarimoTempo: 'servidor'
 	});
 
+	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
+	const contentPageIndex = contentPageCount - 1;
 	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
 
 	const prepResult = await prepararPdfParaAssinatura(
@@ -90,6 +107,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		messageDigest,
 		signingTimeISO,
 		dataToSignBase64,
-		verificationHash
+		verificationHash,
+		documentHash,
+		assinanteEmail
 	});
 };

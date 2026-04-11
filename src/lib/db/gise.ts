@@ -857,7 +857,9 @@ export async function buscarRespostasProdutividadeSeccional(
 			if (resp !== undefined && resp !== null && resp !== '') {
 				allResults.push({ equipe_id: eqId, pergunta: p.texto, resposta: String(resp) });
 
-				if (resp === 'Sim') {
+				const isSim = String(resp).toLowerCase() === 'sim' || resp === true;
+
+				if (isSim || p.tipo === 'operacoes_seint_pura') {
 					if (p.tipo === 'mandados_maiores' && resps.mandados_lista) {
 						resps.mandados_lista.forEach((item: any, idx: number) => {
 							if (item.nome || item.mandado) {
@@ -893,6 +895,43 @@ export async function buscarRespostasProdutividadeSeccional(
 							allResults.push({ equipe_id: eqId, pergunta: `  ↳ Droga: ${d}`, resposta: `${peso}${unid}` });
 						});
 					}
+					// SEINT Complex Types
+					if (p.tipo === 'celulares_complex' && resps.celulares_lista) {
+						resps.celulares_lista.forEach((item: any, idx: number) => {
+							if (item.modelo || item.n_proc) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Aparelho ${idx + 1}`, resposta: `${item.modelo || ''} ${item.n_proc ? '(Proc: ' + item.n_proc + ')' : ''}`.trim() });
+							}
+						});
+					}
+					if (p.tipo === 'analise_complex' && resps.analise_lista) {
+						resps.analise_lista.forEach((item: any, idx: number) => {
+							if (item.modelo || item.n_proc) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Análise ${idx + 1}`, resposta: `${item.modelo || ''} ${item.tamanho ? '[' + item.tamanho + ']' : ''} ${item.n_proc ? '(Proc: ' + item.n_proc + ')' : ''}`.trim() });
+							}
+						});
+					}
+					if (p.tipo === 'relatorios_seint_complex' && resps.relatorios_seint_lista) {
+						resps.relatorios_seint_lista.forEach((item: any, idx: number) => {
+							if (item.n_relat || item.q_alvos) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Relatório ${idx + 1}`, resposta: `${item.n_relat || ''} ${item.q_alvos ? '(' + item.q_alvos + ' alvos)' : ''}`.trim() });
+							}
+						});
+					}
+					if (p.tipo === 'foragidos_complex' && resps.foragidos_lista) {
+						resps.foragidos_lista.forEach((item: any, idx: number) => {
+							if (item.nome || item.resultado) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Alvo ${idx + 1}`, resposta: `${item.nome || ''} - Status: ${item.resultado || 'N/I'}`.trim() });
+							}
+						});
+					}
+					if ((p.tipo === 'operacoes_seint_complex' || p.tipo === 'operacoes_seint_pura') && resps.operacoes_seint_lista) {
+						resps.operacoes_seint_lista.forEach((item: any, idx: number) => {
+							if (item.nome || item.delegacia) {
+								allResults.push({ equipe_id: eqId, pergunta: `  ↳ Operação ${idx + 1}`, resposta: `${item.nome || ''} (${item.delegacia || ''})`.trim() });
+							}
+						});
+					}
+
 					if (p.filhos && p.filhos.length > 0) {
 						processarPerguntas(p.filhos, resps, eqId);
 					}

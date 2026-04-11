@@ -78,8 +78,8 @@ export function buildCSP(isHTML: boolean): string {
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
 		// Fontes: origem própria + Google Fonts + data URIs
 		`font-src 'self' data: https://fonts.gstatic.com`,
-		// Conexões: origem própria + assinador SERPRO (token A3 via WebSocket) + dev HMR
-		`connect-src 'self' ${serproWS}${connectExtra}`,
+		// Conexões: origem própria + assinador SERPRO (token A3 via WebSocket) + dev HMR + face-api CDN
+		`connect-src 'self' ${serproWS}${connectExtra} https://cdn.jsdelivr.net`,
 		// Frames: negar tudo (X-Frame-Options já faz DENY, CSP reforça)
 		`frame-src 'none'`,
 		// Objects: negar (não usamos <object>, <embed>, <applet>)

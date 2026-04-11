@@ -2,12 +2,29 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
+import { determinarTipoCarimbo } from '$lib/server/document-utils';
 
-export const POST = async ({ platform, params, locals, request }: RequestEvent) => {
+export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
-	const { preparedPdf, signature, certificate, serproCms, verificationHash, signingTimeISO, messageDigestHex } = await request.json();
+	const ip = getClientAddress();
+	const ua = request.headers.get('user-agent') || '';
+
+	const {
+		preparedPdf,
+		signature,
+		certificate,
+		serproCms,
+		serproResponse,
+		verificationHash,
+		signingTimeISO,
+		messageDigestHex,
+		documentHash,
+		assinanteEmail,
+		latitude,
+		longitude
+	} = await request.json();
 
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
@@ -24,13 +41,11 @@ export const POST = async ({ platform, params, locals, request }: RequestEvent) 
 		let cpfAssinante = u.cpf || '';
 
 		if (serproCms) {
-			// Assinatura via SERPRO (já vem CMS completo em BER)
 			signedPdf = await embedSerproCms(preparedPdfBytes, serproCms);
 			const dados = extrairDadosCertificado(serproCms);
 			nomeAssinante = dados.nome;
 			cpfAssinante = dados.cpf;
 		} else {
-			// Assinatura via Web PKI (vem raw signature e certificate)
 			signedPdf = await finalizarAssinatura(
 				preparedPdfBytes,
 				signature,
@@ -43,7 +58,6 @@ export const POST = async ({ platform, params, locals, request }: RequestEvent) 
 			cpfAssinante = dados.cpf;
 		}
 
-		// Upload para R2
 		if (!hasR2(platform)) {
 			return json({ error: 'Storage R2 não configurado' }, { status: 500 });
 		}
@@ -54,13 +68,24 @@ export const POST = async ({ platform, params, locals, request }: RequestEvent) 
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
-		// Salvar no BD
-		await salvarDocumentoEscala(db, id, {
-			r2_key: r2Key,
-			assinante_nome: nomeAssinante,
-			assinante_cpf: cpfAssinante,
-			verificacao_hash: verificationHash
-		});
+		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
+
+		await salvarDocumentoEscala(
+			db,
+			id,
+			r2Key,
+			nomeAssinante,
+			cpfAssinante,
+			verificationHash,
+			ip ?? undefined,
+			ua || undefined,
+			latitude ?? undefined,
+			longitude ?? undefined,
+			undefined, // selfieKey
+			documentHash ?? undefined,
+			assinanteEmail ?? undefined,
+			tipoCarimboTempo
+		);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

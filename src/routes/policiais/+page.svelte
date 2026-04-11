@@ -50,7 +50,10 @@
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
 	let filtroCargo = $state(untrack(() => data.filtros.cargo || savedFilters.cargo));
 	let filtroSeccional = $state<number | 'todas'>(
-		untrack(() => (data.filtros.seccional === 'todas' ? 'todas' : Number(data.filtros.seccional)) || savedFilters.seccional)
+		untrack(() => {
+			const raw = data.filtros.seccional || savedFilters.seccional;
+			return raw === 'todas' ? 'todas' : Number(raw);
+		})
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
