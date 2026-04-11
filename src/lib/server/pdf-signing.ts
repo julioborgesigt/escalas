@@ -25,57 +25,57 @@ const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
  * Remove acentos e padroniza o texto para comparação.
  */
 export function normalizarTexto(text: string): string {
-    if (!text) return '';
-    return text
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-        .trim()
-        .toUpperCase();
+	if (!text) return '';
+	return text
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "") // Remove acentos
+		.trim()
+		.toUpperCase();
 }
 
 /**
  * Extrai Nome e CPF de uma assinatura CMS (Base64).
  */
 export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf: string } {
-    try {
-        const der = forge.util.decode64(cmsBase64);
-        const asn1 = forge.asn1.fromDer(der);
-        const p7 = forge.pkcs7.messageFromAsn1(asn1);
-        
-        // O certificado do assinante geralmente é o primeiro da lista
-        const cert = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates[0];
-        if (!cert) throw new Error('Certificado não encontrado no CMS');
+	try {
+		const der = forge.util.decode64(cmsBase64);
+		const asn1 = forge.asn1.fromDer(der);
+		const p7 = forge.pkcs7.messageFromAsn1(asn1);
 
-        // CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
-        const cnField = cert.subject.getField('CN');
-        const commonName = cnField ? String(cnField.value) : '';
-        
-        // Tenta extrair o nome (parte antes dos dois pontos)
-        const nome = commonName.split(':')[0].trim();
-        
-        // Tenta pegar o CPF do serialNumber ou do final do Common Name
-        let cpf = '';
-        const snField = cert.subject.getField('serialNumber');
-        if (snField) {
-            // No ICP-Brasil, serialNumber pode conter o CPF
-            cpf = String(snField.value).replace(/\D/g, '');
-        }
-        
-        // Fallback: se não achou no serialNumber, tenta no CN (comum em e-CPF)
-        if (!cpf && commonName.includes(':')) {
-            cpf = commonName.split(':').pop()?.replace(/\D/g, '') || '';
-        }
+		// O certificado do assinante geralmente é o primeiro da lista
+		const cert = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates[0];
+		if (!cert) throw new Error('Certificado não encontrado no CMS');
 
-        // Se o CPF extraído for muito longo (ex: contém outros dados), pega os últimos 11
-        if (cpf.length > 11) {
-            cpf = cpf.slice(-11);
-        }
+		// CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
+		const cnField = cert.subject.getField('CN');
+		const commonName = cnField ? String(cnField.value) : '';
 
-        return { nome, cpf };
-    } catch (e) {
-        console.error('[PDF-SIGN] Erro ao extrair dados do certificado:', e);
-        throw new Error('Falha ao processar o certificado digital do Token.');
-    }
+		// Tenta extrair o nome (parte antes dos dois pontos)
+		const nome = commonName.split(':')[0].trim();
+
+		// Tenta pegar o CPF do serialNumber ou do final do Common Name
+		let cpf = '';
+		const snField = cert.subject.getField('serialNumber');
+		if (snField) {
+			// No ICP-Brasil, serialNumber pode conter o CPF
+			cpf = String(snField.value).replace(/\D/g, '');
+		}
+
+		// Fallback: se não achou no serialNumber, tenta no CN (comum em e-CPF)
+		if (!cpf && commonName.includes(':')) {
+			cpf = commonName.split(':').pop()?.replace(/\D/g, '') || '';
+		}
+
+		// Se o CPF extraído for muito longo (ex: contém outros dados), pega os últimos 11
+		if (cpf.length > 11) {
+			cpf = cpf.slice(-11);
+		}
+
+		return { nome, cpf };
+	} catch (e) {
+		console.error('[PDF-SIGN] Erro ao extrair dados do certificado:', e);
+		throw new Error('Falha ao processar o certificado digital do Token.');
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1060,16 +1060,6 @@ export async function adicionarPaginaAuditoria(
 						}
 					}
 				}
-				// Instrução de validação abaixo do QR
-				page.drawText('Para verificar a autenticidade e integridade', {
-					x: width - 200, y: height - 168, size: 6, font, color: cGray
-				});
-				page.drawText('deste documento, acesse a URL de validação', {
-					x: width - 200, y: height - 177, size: 6, font, color: cGray
-				});
-				page.drawText('ou aponte a câmera para o QR Code.', {
-					x: width - 200, y: height - 186, size: 6, font, color: cGray
-				});
 			} catch (e) { }
 		}
 
@@ -1164,7 +1154,7 @@ export async function adicionarPaginaAuditoria(
 			page.drawText('Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
 		}
 		const hashTrunc = first.documentHash ? first.documentHash.slice(0, 16) + '...' : '';
-		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, { x: 40, y: footerY, size: 6, font: fontMono, color: cGray });
+		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, { x: 40, y: footerY, size: 8, font: fontMono, color: cGray });
 	}
 
 	return pdfDoc.save();
@@ -1233,13 +1223,6 @@ export async function adicionarRodapeUniversal(
 		// Hash abreviado (esquerda)
 		page.drawText(`SHA-256: ${hashAbrev}`, {
 			x: 20, y: footerY, size: 5.5, font: fontMono, color: cGray
-		});
-
-		// URL de validação (centro)
-		const urlText = `Validar: ${urlLimpa}`;
-		const urlW = font.widthOfTextAtSize(urlText, 5.5);
-		page.drawText(urlText, {
-			x: (width - urlW) / 2, y: footerY, size: 5.5, font, color: cNavy
 		});
 
 		// Base legal (direita)

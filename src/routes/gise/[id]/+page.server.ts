@@ -20,7 +20,11 @@ import {
 	verificarSlotEquipe,
 	verificarConflitoMembroGise,
 	revogarAssinaturasSeccional,
-	reabrirGiseEscala
+	reabrirGiseEscala,
+	buscarExigirFotoAssinatura,
+	buscarExigirGpsAssinatura,
+	buscarExigirCodigoEmailAssinatura,
+	buscarRestringirSmartphone
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseRespostasFormulario } from '$lib/server/schema';
@@ -77,12 +81,15 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 					})
 				: Promise.resolve([]);
 
-		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] = await Promise.all([
+		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone, exigirFoto, exigirGps, exigirCodigoEmail] = await Promise.all([
 			buscarGiseDetalhado(db, id),
 			policiaisPromise,
 			db.select().from(unidades).orderBy(asc(unidades.nome)),
 			buscarAssinaturasRelatoriosGise(db, id),
-			import('$lib/db').then(m => m.buscarRestringirSmartphone(db))
+			import('$lib/db').then(m => m.buscarRestringirSmartphone(db)),
+			import('$lib/db').then(m => m.buscarExigirFotoAssinatura(db)),
+			import('$lib/db').then(m => m.buscarExigirGpsAssinatura(db)),
+			import('$lib/db').then(m => m.buscarExigirCodigoEmailAssinatura(db))
 		]);
 
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
@@ -98,7 +105,10 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 			isSupervisor,
 			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
 			usuarioAtual: u,
-			restringirSmartphone
+			restringirSmartphone,
+			exigirFotoAssinatura: exigirFoto,
+			exigirGpsAssinatura: exigirGps,
+			exigirCodigoEmailAssinatura: exigirCodigoEmail
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
@@ -481,6 +491,22 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 		await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura' });
+		return { success: true };
+	},
+
+	revogarPedidoAssinatura: async ({ locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+
+		const giseId = parseInt(params.id);
+		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
+
+		const db = getDB(platform);
+		const gise = await buscarGiseEscala(db, giseId);
+		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		if (gise.status !== 'aguardando_assinatura') return fail(400, { error: 'Escala não está aguardando assinatura' });
+
+		await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 		return { success: true };
 	},
 

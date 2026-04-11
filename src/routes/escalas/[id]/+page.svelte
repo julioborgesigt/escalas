@@ -714,34 +714,42 @@
 												<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex flex-wrap items-end gap-3">
 													<input type="hidden" name="item_id" value={editingId} />
 													<div class="flex-1 min-w-[120px]">
-														<label class="label mb-1"><span class="label-text text-[0.6rem]">Data Início</span></label>
-														<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+														<label class="label mb-1">
+															<span class="label-text text-[0.6rem]">Data Início</span>
+															<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+														</label>
 													</div>
 													<div class="flex-1 min-w-[120px]">
-														<label class="label mb-1"><span class="label-text text-[0.6rem]">Data Saída</span></label>
-														<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+														<label class="label mb-1">
+															<span class="label-text text-[0.6rem]">Data Saída</span>
+															<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+														</label>
 													</div>
 													<div class="w-28">
-														<label class="label mb-1"><span class="label-text text-[0.6rem]">Entrada</span></label>
-														<div class="flex gap-1">
-															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada}>
-																{#each horas as h}<option value={h}>{h}</option>{/each}
-															</select>
-															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada}>
-																{#each minutos as m}<option value={m}>{m}</option>{/each}
-															</select>
-														</div>
+														<label class="label mb-1">
+															<span class="label-text text-[0.6rem]">Entrada</span>
+															<div class="flex gap-1">
+																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada} aria-label="Hora de Entrada">
+																	{#each horas as h}<option value={h}>{h}</option>{/each}
+																</select>
+																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada} aria-label="Minuto de Entrada">
+																	{#each minutos as m}<option value={m}>{m}</option>{/each}
+																</select>
+															</div>
+														</label>
 													</div>
 													<div class="w-28">
-														<label class="label mb-1"><span class="label-text text-[0.6rem]">Saída</span></label>
-														<div class="flex gap-1">
-															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida}>
-																{#each horas as h}<option value={h}>{h}</option>{/each}
-															</select>
-															<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida}>
-																{#each minutos as m}<option value={m}>{m}</option>{/each}
-															</select>
-														</div>
+														<label class="label mb-1">
+															<span class="label-text text-[0.6rem]">Saída</span>
+															<div class="flex gap-1">
+																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida} aria-label="Hora de Saída">
+																	{#each horas as h}<option value={h}>{h}</option>{/each}
+																</select>
+																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida} aria-label="Minuto de Saída">
+																	{#each minutos as m}<option value={m}>{m}</option>{/each}
+																</select>
+															</div>
+														</label>
 													</div>
 													<div class="flex gap-1">
 														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={editPending}>

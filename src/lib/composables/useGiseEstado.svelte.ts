@@ -31,6 +31,7 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	);
 
 	const editaBloqueado = $derived(
+		gise?.status === 'aguardando_assinatura' ||
 		gise?.status === 'em_andamento' ||
 		gise?.status === 'aguardando_relatorios' ||
 		gise?.status === 'aguardando_assinatura_relat' ||

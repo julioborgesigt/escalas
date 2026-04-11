@@ -16,7 +16,9 @@ export async function salvarDocumentoEscala(
 	latitude?: number,
 	longitude?: number,
 	selfieKey?: string,
-	arquivoHash?: string
+	arquivoHash?: string,
+	assinanteEmail?: string,
+	tipoCarimboTempo?: string
 ) {
 	return db
 		.insert(escalaDocumentos)
@@ -31,7 +33,9 @@ export async function salvarDocumentoEscala(
 			ip_address: ipAddress,
 			user_agent: userAgent,
 			latitude,
-			longitude
+			longitude,
+			assinante_email: assinanteEmail ?? null,
+			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor'
 		})
 		.onConflictDoUpdate({
 			target: escalaDocumentos.escala_id,
@@ -46,6 +50,8 @@ export async function salvarDocumentoEscala(
 				user_agent: userAgent,
 				latitude,
 				longitude,
+				assinante_email: assinanteEmail ?? null,
+				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});

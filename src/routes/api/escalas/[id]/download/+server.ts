@@ -66,7 +66,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 		const filename = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.${extension}`;
 
-		return new Response(buffer, {
+		return new Response(buffer as BodyInit, {
 			headers: {
 				'Content-Type': contentType,
 				'Content-Disposition': `attachment; filename="${filename}"`,
