@@ -132,7 +132,7 @@
 	);
 
 	// Charts via composable
-	const charts = useCharts(Chart, () => data);
+	const charts = useCharts(() => Chart, () => data);
 	const canvasElements = charts.canvasElements;
 
 	// Destroy all stale chart instances when question set changes

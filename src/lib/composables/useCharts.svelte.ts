@@ -15,7 +15,7 @@ export interface ChartQuestion {
 	specialStore: string | null;
 }
 
-export function useCharts(Chart: any, getData: () => any) {
+export function useCharts(getChart: () => any, getData: () => any) {
 	let chartInstances = new Map<number, any>();
 	let canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
@@ -33,6 +33,7 @@ export function useCharts(Chart: any, getData: () => any) {
 		list: any[],
 		filterSeccional: string | number
 	) {
+		const Chart = getChart();
 		if (!Chart) return;
 
 		const isShowingAll = !filterSeccional;
