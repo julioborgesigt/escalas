@@ -15,21 +15,50 @@ import { getNowBR } from '$lib/utils';
 import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
+import { giseSignatureSchema } from '$lib/schemas';
 
-export const POST = async ({ locals, params, request, platform, getClientAddress, url }: RequestEvent) => {
+export const POST = async ({
+	locals,
+	params,
+	request,
+	platform,
+	getClientAddress,
+	url
+}: RequestEvent) => {
 	const u = locals.usuario;
 	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
-		return json({ error: 'Somente policiais supervisores ou administradores podem assinar' }, { status: 403 });
+		return json(
+			{ error: 'Somente policiais supervisores ou administradores podem assinar' },
+			{ status: 403 }
+		);
 	}
 
 	const { id, seccionalId } = params;
 	const body = await request.json().catch(() => ({}));
-	const { rubrica, type, hash: inputHash, signerName, signerCpf, latitude, longitude, selfieBase64, codigoValidação, desafioId } = body;
+	const parsed = giseSignatureSchema.safeParse(body);
+
+	if (!parsed.success) {
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
+	}
+
+	const {
+		rubrica,
+		type,
+		hash: inputHash,
+		signerName,
+		signerCpf,
+		latitude,
+		longitude,
+		selfieBase64,
+		codigoValidação,
+		desafioId
+	} = parsed.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
-	const hash = inputHash || Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+	// Geração de hash segura e amigável (8 caracteres hex + UUID parcial para integridade)
+	const hash = inputHash || crypto.randomUUID().slice(0, 8).toUpperCase() + '-' + crypto.randomUUID().slice(0, 8).toUpperCase();
 
 	const db = getDB(platform);
 
@@ -42,14 +71,25 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
 		if (exigirCodigoEmail && type !== 'serpro') {
-			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
-				return json({ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' }, { status: 400 });
+			if (
+				!codigoValidação ||
+				typeof codigoValidação !== 'string' ||
+				!desafioId ||
+				typeof desafioId !== 'string'
+			) {
+				return json(
+					{ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' },
+					{ status: 400 }
+				);
 			}
 			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação);
-			if (result2FA === 'expirado') return json({ error: 'O código de verificação expirou.' }, { status: 400 });
-			if (result2FA === 'esgotado') return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
+			if (result2FA === 'expirado')
+				return json({ error: 'O código de verificação expirou.' }, { status: 400 });
+			if (result2FA === 'esgotado')
+				return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
 			if (!result2FA) return json({ error: 'Código de verificação inválido.' }, { status: 400 });
-			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
+			if (result2FA.usuarioId !== u.id)
+				return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
 		}
 
 		const presencas = await buscarPresencasGise(db, giseIdNum);
@@ -57,10 +97,16 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		const mockSignature = {
 			assinante_nome: signerName || u.nome,
 			verification_hash: hash,
-			rubrica: rubrica
+			rubrica: rubrica || ''
 		};
 
-		const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature);
+		const result = await gerarRelatorioExtraordinarioPdf(
+			gise,
+			presencas,
+			secIdNum,
+			url.origin,
+			mockSignature
+		);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
 
@@ -72,7 +118,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		// Calcular Hash do original (Integridade)
 		const originalHashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
 		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
-			.map(b => b.toString(16).padStart(2, '0'))
+			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		// Adicionar folha de auditoria (Manifesto) profissional
@@ -84,9 +130,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			verificationUrl: qrUrl,
 			ip,
 			userAgent: ua,
-			latitude,
-			longitude,
-			selfieBase64: selfieBase64,
+			latitude: latitude || undefined,
+			longitude: longitude || undefined,
+			selfieBase64: selfieBase64 || undefined,
 			rubricBase64: rubrica || undefined,
 			documentHash,
 			token: crypto.randomUUID(),
@@ -96,7 +142,7 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 
 		const hashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
-			.map(b => b.toString(16).padStart(2, '0'))
+			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		const p = platform as Record<string, unknown> | undefined;
@@ -109,7 +155,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			const r2Promises: Promise<any>[] = [r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' })];
+			const r2Promises: Promise<any>[] = [
+				r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' })
+			];
 
 			if (selfieBase64) {
 				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
@@ -119,7 +167,9 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 					const dataBase64 = selfieBase64.replace(regex, '');
 					const bytes = Buffer.from(dataBase64, 'base64');
 					selfieKey = `${prefixBase}_selfie.${ext}`;
-					r2Promises.push(r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } }));
+					r2Promises.push(
+						r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } })
+					);
 				}
 			}
 
@@ -134,12 +184,12 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 			assinante_nome: signerName || u.nome,
 			assinante_cpf: signerCpf || u.cpf || null,
 			tipo_assinatura: type || 'simples',
-			rubrica: rubrica,
+			rubrica: rubrica || '',
 			verification_hash: hash,
 			ip_address: ip,
 			user_agent: ua,
-			latitude,
-			longitude,
+			latitude: latitude || null,
+			longitude: longitude || null,
 			selfie_key: selfieKey,
 			r2_key: `${prefixBase}_assinada.pdf`,
 			arquivo_hash: arquivo_hash
@@ -157,8 +207,11 @@ export const POST = async ({ locals, params, request, platform, getClientAddress
 		return json({ success: true });
 	} catch (e: any) {
 		console.error(`[GISE-SIGN] Falha ao salvar assinatura: GISE ${id}, Sec ${seccionalId}. Erro:`, e);
-		return json({
-			error: 'Falha técnica ao gravar a assinatura no banco de dados.'
-		}, { status: 500 });
+		return json(
+			{
+				error: 'Falha técnica ao gravar a assinatura no banco de dados.'
+			},
+			{ status: 500 }
+		);
 	}
 };

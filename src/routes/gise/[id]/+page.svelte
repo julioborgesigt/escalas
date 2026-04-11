@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll, replaceState } from '$app/navigation';
+	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
@@ -300,14 +300,14 @@
 	let etapaAssinatura = $state('');
 
 	// Componente PainelAssinaturaToken (GISE principal)
-	let painelTokenGise = $state<ReturnType<typeof PainelAssinaturaToken> | null>(null);
+	let painelTokenGise = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
 	let serproSignerCpf = $state(untrack(() => data.usuarioAtual?.cpf ?? ''));
 
 	let serproClient = $state<SerproSignerClient | null>(null);
 
 	// Componente PainelAssinaturaToken (relatório extraordinário por seccional)
-	let painelTokenRelatorio = $state<ReturnType<typeof PainelAssinaturaToken> | null>(null);
+	let painelTokenRelatorio = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 	let relatorioSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
 	let relatorioSignerCpf = $state(untrack(() => data.usuarioAtual?.cpf ?? ''));
 
@@ -418,7 +418,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Vagas atualizadas' });
 				editandoEquipe = null;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao atualizar' });
@@ -435,7 +435,7 @@
 					title: 'Edição finalizada',
 					description: 'Escala enviada para assinatura do Supervisor.'
 				});
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
@@ -571,7 +571,7 @@
 				title: 'Lote assinado com sucesso!',
 				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
 			});
-			await invalidateAll();
+			await invalidate(page.url.href);
 		} catch (err: any) {
 			toaster.error({ title: 'Erro no lote', description: err.message });
 		} finally {
@@ -619,7 +619,7 @@
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} catch (e: any) {
 				toaster.error({
 					title: 'Erro ao assinar lote',
@@ -656,7 +656,7 @@
 			if (!res.ok) throw new Error((await res.json()).error);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
-			await invalidateAll();
+			await invalidate(page.url.href);
 		} catch (e: any) {
 			toaster.error({
 				title: 'Erro ao assinar relatório',
@@ -678,7 +678,7 @@
 					description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
 				});
 				showReabrirConfirm = false;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
@@ -719,7 +719,7 @@
 					toaster.success({ title: 'Datas/horários atualizados' });
 				}
 				showModalDataHoras = false;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
@@ -750,7 +750,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da seccional atualizados' });
 				editandoHorariosSecId = null;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
@@ -771,7 +771,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da equipe atualizados' });
 				editandoHorariosEquipeId = null;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
@@ -801,7 +801,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Equipe adicionada' });
 				adicionandoEquipeSec = null;
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
@@ -829,6 +829,64 @@
 
 	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
 </script>
+
+<svelte:head>
+	{#if gise}
+		<title>{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)} — {statusLabel(gise.status)}</title>
+	{:else}
+		<title>Carregando GISE... — Portal de Escalas</title>
+	{/if}
+</svelte:head>
+
+{#snippet statusBadge(status: string, isSeccional = false)}
+	{#if isSeccional}
+		<span
+			class="text-sm px-1.5 py-0.5 rounded-full font-bold {status === 'preenchida' ||
+			status === 'preenchida_retificada'
+				? 'bg-success-500/20 text-success-700 dark:text-success-400'
+				: status === 'retificada'
+					? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40'
+					: 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+		>
+			{status === 'preenchida'
+				? 'Preenchida'
+				: status === 'preenchida_retificada'
+					? 'Preenchida (Retificada)'
+					: status === 'retificada'
+						? 'Preenchida (Retificada)'
+						: 'Pendente'}
+		</span>
+	{:else}
+		<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(status)}">
+			{statusLabel(status)}
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet btnIcon(path: string)}
+	<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={path} />
+	</svg>
+{/snippet}
+
+{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, href?: string, disabled = false, loading = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${classes}`}
+	{#if href}
+		<a class="{baseClass} no-underline" {href} target="_blank">
+			{#if iconPath}{@render btnIcon(iconPath)}{/if}
+			{label}
+		</a>
+	{:else}
+		<button class={baseClass} {onclick} {disabled} type={btnType}>
+			{#if loading}
+				<Spinner size="xs" />
+			{:else if iconPath}
+				{@render btnIcon(iconPath)}
+			{/if}
+			{label}
+		</button>
+	{/if}
+{/snippet}
 
 <div class="space-y-6">
 	<!-- Cabeçalho -->
@@ -858,9 +916,7 @@
 					Escala GISE #{gise.id} — {diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
 				</h1>
 				<div class="flex items-center gap-2 mt-1">
-					<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
-						{statusLabel(gise.status)}
-					</span>
+					{@render statusBadge(gise.status)}
 					<span class="text-sm text-surface-500 flex items-center gap-2">
 						{gise.hora_entrada}h–{gise.hora_saida}h
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -886,24 +942,29 @@
 
 		<div class="flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
 			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
-				<a
-					class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap no-underline"
-					href={`/api/gise/${gise.id}/download?format=xlsx`}
-					target="_blank"
-				>
-					Baixar XLSX
-				</a>
+				{@render actionButton(
+					'Baixar XLSX',
+					undefined,
+					'success',
+					'outlined',
+					undefined,
+					`/api/gise/${gise.id}/download?format=xlsx`
+				)}
 			{/if}
 			{#if isAdminGeral && gise}
-				<button
-					class="btn btn-sm {modoEdicaoGeral
-						? 'preset-filled-primary-500 border-2 border-primary-600 shadow-xl'
-						: 'preset-outlined-primary-500 border-2 border-primary-500/30 hover:border-primary-500'} rounded-lg font-bold uppercase transition-all whitespace-nowrap"
-					onclick={() => (modoEdicaoGeral = !modoEdicaoGeral)}
-					disabled={editaBloqueado}
-				>
-					{modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala'}
-				</button>
+				{@render actionButton(
+					modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala',
+					undefined,
+					'primary',
+					modoEdicaoGeral ? 'filled' : 'outlined',
+					() => (modoEdicaoGeral = !modoEdicaoGeral),
+					undefined,
+					editaBloqueado,
+					false,
+					modoEdicaoGeral
+						? 'border-2 border-primary-600 shadow-xl'
+						: 'border-2 border-primary-500/30 hover:border-primary-500'
+				)}
 				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
 					<form
 						method="POST"
@@ -911,38 +972,57 @@
 						use:enhance={handleSolicitarAssinatura}
 						class="contents"
 					>
-						<button
-							type="submit"
-							class="btn btn-sm preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 rounded-lg font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all"
-							disabled={salvando || modoEdicaoGeral}
-						>
-							{#if salvando}<Spinner size="xs" />{/if} Solicitar Nova Assinatura
-						</button>
+						{@render actionButton(
+							'Solicitar Nova Assinatura',
+							undefined,
+							'success',
+							'filled',
+							undefined,
+							undefined,
+							salvando || modoEdicaoGeral,
+							salvando,
+							'border-2 border-success-600/30 hover:border-success-600',
+							'submit'
+						)}
 					</form>
 				{/if}
-				<button
-					class="btn btn-sm preset-outlined-error-500 border-2 border-error-500/30 hover:border-error-500 rounded-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-all"
-					onclick={() => (showExcluirGiseConfirm = true)}
-					disabled={editaBloqueado}
-				>
-					Excluir GISE
-				</button>
+				{@render actionButton(
+					'Excluir GISE',
+					undefined,
+					'error',
+					'outlined',
+					() => (showExcluirGiseConfirm = true),
+					undefined,
+					editaBloqueado,
+					false,
+					'border-2 border-error-500/30 hover:border-error-500'
+				)}
 			{/if}
 			{#if podeReabrir}
-				<button
-					class="btn btn-sm preset-outlined-warning-500 border-2 border-warning-500/30 hover:border-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all"
-					onclick={() => (showReabrirConfirm = true)}
-				>
-					Reabrir para Edição
-				</button>
+				{@render actionButton(
+					'Reabrir para Edição',
+					undefined,
+					'warning',
+					'outlined',
+					() => (showReabrirConfirm = true),
+					undefined,
+					false,
+					false,
+					'border-2 border-warning-500/30 hover:border-warning-500'
+				)}
 			{/if}
 			{#if podeFinalizar}
-				<button
-					class="btn btn-sm preset-outlined-error-500 border-2 border-error-600/30 hover:border-error-600 rounded-lg font-semibold bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 whitespace-nowrap transition-all"
-					onclick={() => (showFinalizarConfirm = true)}
-				>
-					Marcar como Finalizada
-				</button>
+				{@render actionButton(
+					'Marcar como Finalizada',
+					undefined,
+					'error',
+					'outlined',
+					() => (showFinalizarConfirm = true),
+					undefined,
+					false,
+					false,
+					'border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15'
+				)}
 			{/if}
 		</div>
 	</div>
@@ -1322,7 +1402,7 @@
 						{#if expandirDigital}
 							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
 								<PainelAssinaturaToken
-									bind:this={painelTokenGise}
+									bind:control={painelTokenGise}
 									bind:signerName={serproSignerName}
 									bind:signerCpf={serproSignerCpf}
 									signerEmail={data.usuarioAtual?.email ?? undefined}
@@ -1333,7 +1413,7 @@
 									disabled={assinando}
 									onSuccess={async () => {
 										rubricaCapturada = null;
-										await invalidateAll();
+										await invalidate(page.url.href);
 									}}
 								/>
 
@@ -1581,22 +1661,7 @@
 								<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
 									{sec.seccional_nome}
 								</span>
-								<span
-									class="text-sm px-1.5 py-0.5 rounded-full font-bold {sec.status ===
-										'preenchida' || sec.status === 'preenchida_retificada'
-										? 'bg-success-500/20 text-success-700 dark:text-success-400'
-										: sec.status === 'retificada'
-											? 'bg-warning-500/20 text-warning-600 dark:text-warning-400 border border-warning-500/40'
-											: 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
-								>
-									{sec.status === 'preenchida'
-										? 'Preenchida'
-										: sec.status === 'preenchida_retificada'
-											? 'Preenchida (Retificada)'
-											: sec.status === 'retificada'
-												? 'Preenchida (Retificada)'
-												: 'Pendente'}
-								</span>
+								{@render statusBadge(sec.status, true)}
 								{#if editandoHorariosSecId === sec.id}
 									<div class="flex flex-wrap items-center gap-2">
 										<input
@@ -1800,40 +1865,40 @@
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
 											<div class="flex items-center gap-2">
 												{#if isMobile || !data.restringirSmartphone}
-													<button
-														class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 rounded shadow-sm font-bold uppercase transition-all"
-														onclick={() =>
-															abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario')}
-													>
-														Ass. Indiv.
-													</button>
+													{@render actionButton(
+														'Ass. Indiv.',
+														undefined,
+														'warning',
+														'filled',
+														() => abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario'),
+														undefined,
+														false,
+														false,
+														'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase',
+														'button',
+														'xs'
+													)}
 												{/if}
 
 												{#if !isMobile}
-													<button
-														class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 rounded shadow-sm font-bold uppercase transition-all flex items-center gap-1"
-														onclick={() =>
+													{@render actionButton(
+														'Ass. Digital',
+														'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+														'tertiary',
+														'filled',
+														() =>
 															abrirAssinaturaRelatorioDigital(
 																sec.seccional_id,
 																'extraordinario',
 																sec.seccional_nome
-															)}
-													>
-														<svg
-															class="w-2.5 h-2.5"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-															/>
-														</svg>
-														Ass. Digital
-													</button>
+															),
+														undefined,
+														false,
+														false,
+														'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase',
+														'button',
+														'xs'
+													)}
 												{/if}
 											</div>
 										{/if}
@@ -1845,10 +1910,17 @@
 							<div class="flex items-center gap-2 sm:ml-auto">
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
-										<button
-											class="text-sm btn preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 rounded-lg shadow-sm transition-all"
-											onclick={() => (modoEdicaoSeccional = true)}>Editar Escala</button
-										>
+										{@render actionButton(
+											'Editar Escala',
+											undefined,
+											'primary',
+											'filled',
+											() => (modoEdicaoSeccional = true),
+											undefined,
+											false,
+											false,
+											'border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 shadow-sm text-sm'
+										)}
 									{:else}
 										<form
 											method="POST"
@@ -2747,7 +2819,7 @@
 			</div>
 
 			<PainelAssinaturaToken
-				bind:this={painelTokenRelatorio}
+				bind:control={painelTokenRelatorio}
 				bind:signerName={relatorioSignerName}
 				bind:signerCpf={relatorioSignerCpf}
 				signerEmail={data.usuarioAtual?.email ?? undefined}
@@ -2758,7 +2830,7 @@
 				onSuccess={async () => {
 					showDigitalModalRelatorio = false;
 					relatorioDigitalInfo = null;
-					await invalidateAll();
+					await invalidate(page.url.href);
 				}}
 			/>
 

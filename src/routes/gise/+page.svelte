@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -144,7 +145,7 @@
 				const primeiroId = (d.ids as number[])?.[0] ?? (d.id as number);
 				toaster.success({ title: `${count} escala(s) GISE criada(s)` });
 				showCriarModal = false;
-				await invalidateAll();
+				await invalidate(page.url.pathname);
 				if (primeiroId) goto(`/gise/${primeiroId}?edit=true`);
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -193,6 +194,9 @@
 		return dias[new Date(iso + 'T12:00:00').getDay()];
 	}
 </script>
+<svelte:head>
+	<title>Escalas GISE - Portal de Escalas</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<!-- Cabeçalho -->

@@ -1,41 +1,52 @@
-/**
- * GET /api/gise/[id]/download?format=xlsx|pdf|extraordinario|produtividade
- *
- * Exporta a Escala GISE diária em XLSX ou PDF.
- * Permissão: Admin Geral ou Admin Seccional.
- */
-
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarAssinaturaRelatorioGise, buscarGiseEscala } from '$lib/db';
+import {
+	getDB,
+	buscarGiseDetalhado,
+	buscarPresencasGise,
+	buscarAssinaturaRelatorioGise
+} from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { getR2 } from '$lib/server/platform';
-import { adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
 
-	const id = parseInt(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	// Validação de Parâmetros
+	const paramParsed = giseIdParamSchema.safeParse(params);
+	if (!paramParsed.success) {
+		return json({ error: paramParsed.error.errors[0].message }, { status: 400 });
+	}
+	const { id } = paramParsed.data;
+
+	const queryParsed = giseDownloadSchema.safeParse(Object.fromEntries(url.searchParams));
+	if (!queryParsed.success) {
+		return json({ error: 'Parâmetros de busca inválidos' }, { status: 400 });
+	}
+	const { format, seccionalId, equipeType } = queryParsed.data;
 
 	const db = getDB(platform);
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
 	const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
-	const isMembro = u.tipo === 'policial' && gise.seccionais.some(s => s.equipes.some(eq => eq.membros.some(m => m.policial_id === u.id)));
+	const isMembro =
+		u.tipo === 'policial' &&
+		gise.seccionais.some((s) =>
+			s.equipes.some((eq) => eq.membros.some((m) => m.policial_id === u.id))
+		);
 
 	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro) {
-		return json({ error: 'Sem permissão para acessar downloads desta escala GISE. Você não faz parte desta equipe.' }, { status: 403 });
+		return json(
+			{ error: 'Sem permissão para acessar downloads desta escala GISE.' },
+			{ status: 403 }
+		);
 	}
-
-	const format = url.searchParams.get('format') || 'xlsx';
 
 	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Prioriza Download do R2)
 	if (format === 'extraordinario') {
-		const secIdParam = url.searchParams.get('seccionalId');
-		const seccionalId = secIdParam ? parseInt(secIdParam) : undefined;
 		const r2 = getR2(platform);
 
 		const reportSignature = seccionalId
@@ -52,12 +63,11 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				// Prioridade total: usar a chave salva no banco de dados (mais robusto)
 				let r2Key = reportSignature.r2_key;
 
-				// Fallback apenas para registros legados que ainda não tinham a coluna preenchida
+				// Fallback apenas para registros legados
 				if (!r2Key) {
 					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 					const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
 					r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
-					console.warn(`[download-extra] r2_key ausente no banco. Usando fallback de reconstrução: ${r2Key}`);
 				}
 
 				const r2Object = await r2.get(r2Key);
@@ -68,32 +78,36 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						headers: {
 							'Content-Type': 'application/pdf',
 							'Content-Disposition': `attachment; filename="${filename}"`,
-							'Cache-Control': 'no-cache',
-							'X-Source': 'Database-R2'
+							'Cache-Control': 'no-cache'
 						}
 					});
 				} else {
-					console.error(`[download-extra] Arquivo não encontrado no R2: ${r2Key}`);
-					return json({
-						error: 'O relatório assinado não foi encontrado no servidor de arquivos (R2).',
-						key: r2Key
-					}, { status: 404 });
+					return json({ error: 'Relatório assinado não encontrado no R2.' }, { status: 404 });
 				}
 			} catch (e: any) {
-				console.error('[download-extra] Erro ao buscar no R2:', e);
-				return json({ error: 'Erro ao recuperar o arquivo assinado do R2: ' + e.message }, { status: 500 });
+				return json({ error: 'Erro ao recuperar arquivo do R2' }, { status: 500 });
 			}
 		}
 
-		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO (Fallback dinâmico)
+		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO
 		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor) {
-			return json({ error: 'Este relatório ainda não foi assinado e você não tem permissão para ver rascunhos.' }, { status: 403 });
+			return json(
+				{ error: 'Este relatório ainda não foi assinado.' },
+				{ status: 403 }
+			);
 		}
 
 		try {
 			const presencas = await buscarPresencasGise(db, id);
 			const { gerarRelatorioExtraordinarioPdf } = await import('$lib/export');
-			const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, null, undefined);
+			const result = await gerarRelatorioExtraordinarioPdf(
+				gise,
+				presencas,
+				seccionalId,
+				url.origin,
+				null,
+				undefined
+			);
 			const filename = `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
 
 			return new Response(result.pdf as unknown as BodyInit, {
@@ -104,11 +118,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				}
 			});
 		} catch (err) {
-			console.error(`[download-extra] Erro no fallback:`, err);
 			return json({ error: 'Erro ao gerar rascunho do relatório.' }, { status: 500 });
 		}
 	}
-
 
 	if (format === 'pdf') {
 		const filename = `gise_${gise.data_inicio}_assinada.pdf`;
@@ -135,7 +147,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		}
 
-		// Fallback: gerar PDF normal (rascunho ou erro no R2)
+		// Fallback: gerar PDF normal
 		const { gerarPdfGise } = await import('$lib/export');
 		const result = gerarPdfGise(gise);
 		return new Response(result.pdf as unknown as BodyInit, {
@@ -148,25 +160,31 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	if (format === 'produtividade') {
-		const secIdParam = url.searchParams.get('seccionalId');
-		if (!secIdParam) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
-		const seccionalId = parseInt(secIdParam);
-		const equipeType = url.searchParams.get('equipeType') || null; // 'operacional' | 'seint' | null
-
+		if (!seccionalId) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
 		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/export');
 
-		const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
+		const seccional = gise.seccionais.find(
+			(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
+		);
 		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
 		const seccionalFiltrada = equipeType
-			? { ...seccional, equipes: (seccional.equipes || []).filter((eq: any) => eq.tipo === equipeType) }
+			? {
+					...seccional,
+					equipes: (seccional.equipes || []).filter((eq: any) => eq.tipo === equipeType)
+				}
 			: seccional;
 
 		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);
-		const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional: seccionalFiltrada, respostas });
+		const result = gerarRelatorioProdutividadeGisePdf({
+			gise,
+			seccional: seccionalFiltrada,
+			respostas
+		});
 
-		const tipoSufixo = equipeType === 'seint' ? '_seint' : equipeType === 'operacional' ? '_operacional' : '';
+		const tipoSufixo =
+			equipeType === 'seint' ? '_seint' : equipeType === 'operacional' ? '_operacional' : '';
 		const filename = `resumo_produtividade${tipoSufixo}_${gise.data_inicio}_sec_${seccionalId}.pdf`;
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
@@ -177,9 +195,15 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	}
 
-	if (gise.status !== 'em_andamento' && gise.status !== 'aguardando_relatorios' && gise.status !== 'aguardando_assinatura_relat' && gise.status !== 'pronta_para_finalizar' && gise.status !== 'finalizada') {
+	if (
+		gise.status !== 'em_andamento' &&
+		gise.status !== 'aguardando_relatorios' &&
+		gise.status !== 'aguardando_assinatura_relat' &&
+		gise.status !== 'pronta_para_finalizar' &&
+		gise.status !== 'finalizada'
+	) {
 		return json(
-			{ error: 'A escala ainda não foi assinada. O download só é liberado após a assinatura do Supervisor.' },
+			{ error: 'Download só é liberado após a assinatura do Supervisor.' },
 			{ status: 400 }
 		);
 	}

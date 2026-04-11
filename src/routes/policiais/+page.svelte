@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -180,7 +181,7 @@
 		}
 		params.set('page', '1');
 		const query = params.toString();
-		goto(`/policiais?${query}`, { keepFocus: true, noScroll: true, invalidateAll: true });
+		goto(`/policiais?${query}`, { keepFocus: true, noScroll: true });
 	}
 
 	function solicitarExclusao(id: number, nome: string) {
@@ -223,6 +224,10 @@
 			filtroBusca !== ''
 	);
 </script>
+
+<svelte:head>
+	<title>Gerenciar Policiais - Portal de Escalas</title>
+</svelte:head>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -205,6 +205,10 @@
 
 	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
+
+<svelte:head>
+	<title>Gerenciar Unidades - Portal de Escalas</title>
+</svelte:head>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>

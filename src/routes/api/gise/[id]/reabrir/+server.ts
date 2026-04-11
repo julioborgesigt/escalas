@@ -10,6 +10,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { giseIdParamSchema } from '$lib/schemas';
 
 export const POST = async ({ locals, params, platform }: RequestEvent) => {
 	const u = locals.usuario;
@@ -17,8 +18,11 @@ export const POST = async ({ locals, params, platform }: RequestEvent) => {
 		return json({ error: 'Apenas o Administrador Geral pode reabrir escalas GISE' }, { status: 403 });
 	}
 
-	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	const parsed = giseIdParamSchema.safeParse(params);
+	if (!parsed.success) {
+		return json({ error: parsed.error.errors[0].message }, { status: 400 });
+	}
+	const { id } = parsed.data;
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, id);

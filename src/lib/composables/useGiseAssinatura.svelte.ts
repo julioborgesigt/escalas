@@ -3,7 +3,8 @@
  * Centraliza WebPKI, SERPRO, assinatura simples, relatórios e lotes.
  */
 
-import { invalidateAll } from '$app/navigation';
+import { invalidate } from '$app/navigation';
+import { page } from '$app/state';
 import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
@@ -90,7 +91,7 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 				a.download = `gise_${getGiseId()}_confirmada.pdf`;
 				a.click();
 				toaster.success({ title: 'Escala confirmada com sucesso' });
-				await invalidateAll();
+				await invalidate(page.url.href);
 			} else {
 				const j = await r.json();
 				toaster.error({ title: j.error || 'Erro ao assinar' });
@@ -181,7 +182,7 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 			}
 
 			toaster.success({ title: 'Lote assinado com sucesso!', description: `${pendentesExtra.length} relatórios assinados digitalmente.` });
-			await invalidateAll();
+			await invalidate(page.url.href);
 		} catch (err: any) {
 			toaster.error({ title: 'Erro no lote', description: err.message });
 		} finally {
