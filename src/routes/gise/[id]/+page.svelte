@@ -1325,7 +1325,7 @@
 									bind:this={painelTokenGise}
 									bind:signerName={serproSignerName}
 									bind:signerCpf={serproSignerCpf}
-									signerEmail={data.usuarioAtual?.email}
+									signerEmail={data.usuarioAtual?.email ?? undefined}
 									prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
 									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
 									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
@@ -2750,7 +2750,7 @@
 				bind:this={painelTokenRelatorio}
 				bind:signerName={relatorioSignerName}
 				bind:signerCpf={relatorioSignerCpf}
-				signerEmail={data.usuarioAtual?.email}
+				signerEmail={data.usuarioAtual?.email ?? undefined}
 				prepararUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/preparar-assinatura"
 				finalizarUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/finalizar-assinatura"
 				nomeArquivo="relatorio_extraordinario_{relatorioDigitalInfo.seccionalNome}.pdf"

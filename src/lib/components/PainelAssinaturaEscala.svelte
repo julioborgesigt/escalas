@@ -2,8 +2,10 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
+	import Spinner from './Spinner.svelte';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
@@ -241,7 +243,7 @@
 						disabled={assinandoSimples}
 						onclick={abrirModalAssinatura}
 					>
-						{#if assinandoSimples}<Spinner size="xs" class="mr-2" />{/if}
+						{#if assinandoSimples}<Spinner size="xs" />{/if}
 						Abrir Painel de Rubrica
 					</button>
 				{:else}
@@ -292,13 +294,12 @@
 
 				{#if !isMobile}
 					<PainelAssinaturaToken
-						signerName={usuario?.nome}
-						signerCpf={usuario?.cpf}
+						signerName={usuario?.nome ?? undefined}
+						signerCpf={usuario?.cpf ?? undefined}
 						prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
 						finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
 						nomeArquivo="escala_assinada.pdf"
 						disabled={assinando}
-						compactMode={true}
 						onSuccess={async () => {
 							await invalidateAll();
 						}}
