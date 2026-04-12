@@ -145,30 +145,30 @@
 	function handleSalvarSupervisores() {
 		salvando = true;
 		return async ({ result }: any) => {
-			salvando = false;
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.success({ title: 'Supervisor salvo' });
 				editandoSupervisores = false;
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
+			salvando = false;
 		};
 	}
 
 	function handleSalvarUnidadeOperacional() {
 		salvando = true;
 		return async ({ result }: any) => {
-			salvando = false;
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.success({ title: 'Unidade operacional salva' });
 				editandoUnidade = false;
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
+			salvando = false;
 		};
 	}
 
@@ -179,16 +179,16 @@
 		}
 		salvando = true;
 		return async ({ result }: any) => {
-			salvando = false;
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.success({ title: 'Seccional adicionada' });
 				adicionandoSeccional = false;
 				seccionalParaAdicionarIdx = '';
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
+			salvando = false;
 		};
 	}
 
@@ -203,55 +203,61 @@
 		}
 		salvando = true;
 		return async ({ result }: any) => {
-			salvando = false;
 			if (result.type === 'success') {
-				toaster.success({ title: 'Seccional removida' });
 				await invalidateAll();
+				toaster.success({ title: 'Seccional removida' });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: String(d?.error || 'Erro ao remover') });
 			}
+			salvando = false;
 		};
 	}
 
 	function handleAdicionarMembro() {
+		salvando = true;
 		return async ({ result }: { result: any }) => {
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.success({ title: 'Membro adicionado' });
 				equipeParaAdicionar = null;
 				policialParaAdicionar = '';
 				cargoParaAdicionar = null;
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
 			}
+			salvando = false;
 		};
 	}
 
 	function handleRemoverMembro() {
+		salvando = true;
 		return async ({ result }: { result: any }) => {
 			if (result.type === 'success') {
 				removendoMembroId = null;
-				toaster.success({ title: 'Membro removido' });
 				await invalidateAll();
+				toaster.success({ title: 'Membro removido' });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
 			}
+			salvando = false;
 		};
 	}
 
 	function handleRemoverEquipe() {
+		salvando = true;
 		return async ({ result }: { result: any }) => {
 			if (result.type === 'success') {
-				toaster.success({ title: 'Equipe removida' });
 				await invalidateAll();
+				toaster.success({ title: 'Equipe removida' });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
 			}
 			removendoEquipeId = null;
+			salvando = false;
 		};
 	}
 
@@ -260,8 +266,8 @@
 	function handleFinalizarSeccional() {
 		salvando = true;
 		return async ({ result }: any) => {
-			salvando = false;
 			if (result.type === 'success') {
+				await invalidateAll();
 				const d = result.data as Record<string, unknown>;
 				if (d?.gise_status === 'aguardando_assinatura') {
 					toaster.success({
@@ -275,11 +281,11 @@
 					});
 				}
 				modoEdicaoSeccional = false;
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
+			salvando = false;
 		};
 	}
 
@@ -832,7 +838,11 @@
 
 <svelte:head>
 	{#if gise}
-		<title>{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)} — {statusLabel(gise.status)}</title>
+		<title
+			>{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)} — {statusLabel(
+				gise.status
+			)}</title
+		>
 	{:else}
 		<title>Carregando GISE... — Portal de Escalas</title>
 	{/if}
@@ -869,7 +879,19 @@
 	</svg>
 {/snippet}
 
-{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, href?: string, disabled = false, loading = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+{#snippet actionButton(
+	label: string,
+	iconPath?: string,
+	variant = 'primary',
+	type = 'outlined',
+	onclick?: any,
+	href?: string,
+	disabled = false,
+	loading = false,
+	classes = '',
+	btnType: 'button' | 'submit' = 'button',
+	size = 'sm'
+)}
 	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${classes}`}
 	{#if href}
 		<a class="{baseClass} no-underline" {href} target="_blank">
@@ -888,7 +910,40 @@
 	{/if}
 {/snippet}
 
-<div class="space-y-6">
+{#snippet loadingOverlay()}
+	{#if salvando}
+		<div
+			class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/20 backdrop-blur-[2px] transition-all duration-500"
+		>
+			<div
+				class="card p-6 shadow-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300"
+			>
+				<div class="relative">
+					<div class="absolute inset-0 blur-xl bg-primary-500/30 animate-pulse rounded-full"></div>
+					<Spinner size="lg" />
+				</div>
+				<div class="text-center">
+					<p
+						class="text-sm font-bold uppercase tracking-[0.2em] text-surface-900 dark:text-surface-50"
+					>
+						Aguarde um instante...
+					</p>
+					<p class="text-[0.65rem] uppercase tracking-widest text-surface-500 mt-1">
+						Concluindo...
+					</p>
+				</div>
+			</div>
+		</div>
+	{/if}
+{/snippet}
+
+{@render loadingOverlay()}
+
+<div
+	class="relative transition-all duration-500 {salvando
+		? 'pointer-events-none opacity-40 blur-[3px]'
+		: 'opacity-100 blur-0'} space-y-6"
+>
 	<!-- Cabeçalho -->
 	<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
 		<div class="min-w-0">

@@ -137,15 +137,15 @@
 	function handleEditar() {
 		salvandoEdicao = true;
 		return async ({ result }: { result: any }) => {
-			salvandoEdicao = false;
 			if (result.type === 'success') {
-				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				await invalidateAll();
+				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				cancelarEdicao();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
 			}
+			salvandoEdicao = false;
 		};
 	}
 
@@ -160,17 +160,17 @@
 
 	function handleExcluir() {
 		excluindo = true;
-		return async ({ result }: { result: any }) => {
-			excluindo = false;
+		return async ({ result }: any) => {
 			if (result.type === 'success') {
-				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
 				await invalidateAll();
+				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
 				dialogOpen = false;
 				unidadeParaExcluir = null;
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover unidade'), type: 'error' });
 			}
+			excluindo = false;
 		};
 	}
 
@@ -183,9 +183,8 @@
 	function handleCadastro({ formData }: { formData: FormData }) {
 		cadastroPending = true;
 		return async ({ result }: { result: any }) => {
-			cadastroPending = false;
-			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
 				delegaciaPrefixo = '';
 				delegaciaSufixo = '';
@@ -196,10 +195,11 @@
 				novoTemExpediente = false;
 				novoTemFds = false;
 				cadastroOpen = false;
-				await invalidateAll();
 			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao cadastrar'), type: 'error' });
 			}
+			cadastroPending = false;
 		};
 	}
 
