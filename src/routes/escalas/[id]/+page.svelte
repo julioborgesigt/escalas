@@ -424,8 +424,8 @@
 						Adicionar Todos os Servidores do Expediente
 					</h3>
 					<p class="text-xs text-surface-500 mt-1">
-						Adiciona automaticamente todos os servidores cadastrados com regime de expediente (ou
-						ambos) da {escala.lotacao} que ainda não estão na escala.
+						Adiciona automaticamente todos os servidores cadastrados com regime de expediente
+						da {escala.lotacao} que ainda não estão na escala.
 					</p>
 				</div>
 				<form method="POST" action="?/adicionarTodos" use:enhance={handleAdicionarTodos} class="contents">

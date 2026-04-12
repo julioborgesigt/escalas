@@ -95,7 +95,7 @@
 	let cpf = $state('');
 	let telefone = $state('');
 	let classe = $state('');
-	let regime = $state<'plantao' | 'expediente' | 'ambos'>('ambos');
+	let regime = $state<'plantao' | 'expediente'>('plantao');
 	let lotacaoInput = $state('');
 	let email = $state('');
 	let excluindo = $state(false);
@@ -116,28 +116,7 @@
 	const classesDisponiveis = $derived(
 		cargo === 'DPC'
 			? ['1', '2', '3', 'Especial']
-			: [
-					'D - I',
-					'D - II',
-					'C - I',
-					'C - II',
-					'C - III',
-					'C - IV',
-					'C - V',
-					'C - VI',
-					'C - VII',
-					'B - I',
-					'B - II',
-					'B - III',
-					'B - IV',
-					'B - V',
-					'B - VI',
-					'B - VII',
-					'A - I',
-					'A - II',
-					'A - III',
-					'A - IV'
-				]
+			: ['A', 'B', 'C', 'D']
 	);
 
 	function resetForm() {
@@ -147,7 +126,7 @@
 		cpf = '';
 		telefone = '';
 		classe = '';
-		regime = 'ambos';
+		regime = 'plantao';
 		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		email = '';
 		papel = null;
@@ -369,9 +348,8 @@
 							>Regime de Trabalho</span
 						>
 						<select class="select py-1 px-3 text-sm" bind:value={regime}>
-							<option value="ambos">Plantão e Expediente</option>
-							<option value="plantao">Somente Plantão</option>
-							<option value="expediente">Somente Expediente</option>
+							<option value="plantao">Plantão</option>
+							<option value="expediente">Expediente</option>
 						</select>
 					</label>
 				</div>

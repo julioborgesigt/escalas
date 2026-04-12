@@ -36,7 +36,7 @@
 			cpf = formatarCPF(data.policial.cpf || '');
 			telefone = data.policial.telefone || '';
 			classe = (data.policial as any).classe || '';
-			regime = data.policial.regime || 'ambos';
+			regime = data.policial.regime || 'plantao';
 			lotacao = data.policial.lotacao;
 			email = data.policial.email || '';
 			papel = data.policial.papel;
@@ -75,28 +75,7 @@
 	const classesDisponiveis = $derived(
 		cargo === 'DPC'
 			? ['1', '2', '3', 'Especial']
-			: [
-					'D - I',
-					'D - II',
-					'C - I',
-					'C - II',
-					'C - III',
-					'C - IV',
-					'C - V',
-					'C - VI',
-					'C - VII',
-					'B - I',
-					'B - II',
-					'B - III',
-					'B - IV',
-					'B - V',
-					'B - VI',
-					'B - VII',
-					'A - I',
-					'A - II',
-					'A - III',
-					'A - IV'
-				]
+			: ['A', 'B', 'C', 'D']
 	);
 </script>
 
@@ -192,9 +171,8 @@
 					>Regime de Trabalho</span
 				>
 				<select class="select py-1 px-3 text-sm" name="regime" bind:value={regime}>
-					<option value="ambos">Plantão e Expediente</option>
-					<option value="plantao">Somente Plantão</option>
-					<option value="expediente">Somente Expediente</option>
+					<option value="plantao">Plantão</option>
+					<option value="expediente">Expediente</option>
 				</select>
 			</label>
 			<label class="label sm:col-span-7">

@@ -7,7 +7,7 @@ export const policialSchema = z.object({
 	cpf: z.string().max(14).optional().nullable(),
 	telefone: z.string().max(20).default(''),
 	lotacao: z.string().max(200).default(''),
-	regime: z.enum(['plantao', 'expediente', 'ambos']).default('ambos'),
+	regime: z.enum(['plantao', 'expediente']).default('plantao'),
 	classe: z.string().max(100).default(''),
 	papel: z.enum(['admin_seccional', 'admin_unidade']).nullable().optional(),
 	papel_unidade_id: z.number().nullable().optional(),
