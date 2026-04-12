@@ -17,17 +17,17 @@
 	let cadastroPending = $state(false);
 	function handleCadastro({ formData }: { formData: FormData }) {
 		cadastroPending = true;
-		return async ({ result }: { result: any }) => {
-			cadastroPending = false;
-			const d = result.data as Record<string, unknown> | undefined;
+		return async ({ result }: any) => {
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
 				resetForm();
 				cadastroOpen = false;
-				await invalidateAll();
-			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
+			cadastroPending = false;
 		};
 	}
 
@@ -190,16 +190,16 @@
 
 	function handleExcluir() {
 		excluindo = true;
-		return async ({ result }: { result: any }) => {
-			excluindo = false;
+		return async ({ result }: any) => {
 			if (result.type === 'success') {
+				await invalidateAll();
 				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido com sucesso`, type: 'success' });
 				confirmDialog.closeDialog();
-				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
+			excluindo = false;
 		};
 	}
 
