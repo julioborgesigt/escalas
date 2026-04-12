@@ -259,7 +259,6 @@ export async function adicionarTodosPoliciais(
 				eq(policiais.lotacao, lotacao),
 				or(
 					eq(policiais.regime, regime),
-					eq(policiais.regime, 'ambos'),
 					isNull(policiais.regime)
 				)
 			)

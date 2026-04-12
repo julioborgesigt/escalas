@@ -140,7 +140,7 @@ export async function criarPolicial(
 		cpf: data.cpf ? limparCPF(data.cpf) : null,
 		telefone: data.telefone || '',
 		lotacao: data.lotacao || '',
-		regime: (data.regime as 'plantao' | 'expediente' | 'ambos') || 'ambos',
+		regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
 		classe: data.classe || '',
 		senha: senhaHash,
 		primeiro_acesso: 1,
