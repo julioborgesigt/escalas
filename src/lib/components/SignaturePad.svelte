@@ -782,7 +782,7 @@
 				onclick={confirmarCodigo}
 				disabled={solicitandoCodigo || codigoInput.length !== 6}
 			>
-				Finalizar Assinatura
+				Assinar
 			</button>
 		{/if}
 	</div>
