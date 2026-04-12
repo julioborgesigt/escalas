@@ -645,7 +645,7 @@
 			</div>
 
 			<div class="md:col-span-3">
-				{#if escalaSelecionada}
+				{#if resGise.escalaSelecionada}
 					<section
 						class="card p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
 					>
@@ -856,12 +856,12 @@
 					<div
 						role="button"
 						tabindex="0"
-						class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {escalaSelecionada?.id ===
+						class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {resGise.escalaSelecionada?.id ===
 						escala.id
 							? 'border-primary-500 bg-primary-500/10'
 							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
-						onclick={() => selecionarEscala(escala)}
-						onkeydown={(e) => e.key === 'Enter' && selecionarEscala(escala)}
+						onclick={() => resGise.selecionarEscala(escala)}
+						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-sm font-bold text-surface-900 dark:text-surface-100">

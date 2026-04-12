@@ -218,7 +218,7 @@
 				{#if usuario?.tipo === 'admin'}
 				<a
 					href="/painel"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/painel') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -228,7 +228,7 @@
 				</a>
 				<a
 					href="/recebidos"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/recebidos') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -240,7 +240,7 @@
 				{#if showEscalasPoliciais}
 				<a
 					href="/escalas"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/escalas') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -261,7 +261,7 @@
 				{#if showGise}
 				<a
 					href="/gise"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -273,7 +273,7 @@
 				{#if showResGise}
 				<a
 					href="/res-gise"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/res-gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -285,7 +285,7 @@
 				{#if usuario?.tipo === 'admin'}
 				<a
 					href="/produtividade"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/produtividade') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -305,7 +305,7 @@
 			{#if showEscalasPoliciais}
 				<a
 					href="/policiais"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/policiais') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -317,7 +317,7 @@
 			{#if usuario?.tipo === 'admin'}
 				<a
 					href="/unidades"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/unidades') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
@@ -327,7 +327,7 @@
 				</a>
 				<a
 					href="/conf-ass"
-					data-sveltekit-preload-data="viewport"
+					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
 						{isActive('/conf-ass') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => sidebarOpen = false}
