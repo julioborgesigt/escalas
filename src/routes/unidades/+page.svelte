@@ -195,7 +195,7 @@
 				novoTemExpediente = false;
 				novoTemFds = false;
 				cadastroOpen = false;
-			} else if (result.type === 'failure' && d?.error) {
+			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao cadastrar'), type: 'error' });
 			}

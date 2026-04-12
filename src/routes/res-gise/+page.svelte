@@ -5,16 +5,18 @@
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, useMobile } from '$lib/composables';
+	import { page } from '$app/state';
 	import { useResGise } from './useResGise.svelte';
 
 	let { data } = $props();
 	const { isAdmin: isAdminGeral } = useAutorizacao();
-	const isSupervisorGise = $derived(data.isSupervisorGise);
-	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
-
 	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
+
+	const isSupervisorGise = $derived(data.isSupervisorGise);
+	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
+	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
 </script>
 
@@ -170,7 +172,7 @@
 							<div
 								class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-[0.6rem] font-black text-surface-500 shrink-0"
 							>
-								{#if level > 0}↳{:else}{perguntasConfig.indexOf(p) + 1}{/if}
+								{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
 							</div>
 
 							<div class="space-y-1.5 flex-1">
@@ -243,7 +245,7 @@
 								{#if p.tipo === 'sim_nao' || p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'drogas_complex' || p.tipo === 'armas_complex' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
 									<button
 										class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
-										onclick={() => adicionarSubPergunta(p)}
+										onclick={() => resGise.adicionarSubPergunta(p)}
 										title="Adicionar Sub-pergunta (se SIM)"
 									>
 										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -258,7 +260,7 @@
 								{/if}
 								<button
 									class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-all"
-									onclick={() => removerPergunta(p.id)}
+									onclick={() => resGise.removerPergunta(p.id)}
 									aria-label="Remover Pergunta"
 								>
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -400,7 +402,7 @@
 					</div>
 				{/snippet}
 
-				{#each perguntasConfig as p (p.id)}
+				{#each resGise.perguntasConfig as p (p.id)}
 					{@render renderItem(p)}
 				{/each}
 			</div>
@@ -408,25 +410,35 @@
 			<div
 				class="flex justify-end p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
 			>
-				<form method="POST" action="?/salvarModelo" use:enhance={handleSalvarModelo} class="contents">
-					<input type="hidden" name="config" value={configJson} />
-					<input type="hidden" name="tipo" value={configTipo} />
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-primary-500/40 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-						disabled={salvandoModelo}
-					>
-						{#if salvandoModelo}
-							<Spinner size="md" />
-							<span class="ml-3">Salvando...</span>
-						{:else}
-							Salvar Modelo {configTipo}
-						{/if}
-					</button>
+				<form
+					method="POST"
+					action="?/salvarModelo"
+					use:enhance={resGise.handleSalvarModelo}
+					class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4 border-t border-surface-200 dark:border-surface-800"
+				>
+					<input type="hidden" name="config" value={resGise.configJson} />
+					<input type="hidden" name="tipo" value={resGise.configTipo} />
+
+					<div class="flex-1 p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
+						<p class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1">Status da Configuração</p>
+						<div class="flex items-center gap-2">
+							<div class="w-2 h-2 rounded-full {resGise.salvandoModelo ? 'bg-warning-500 animate-pulse' : 'bg-success-500'}"></div>
+							<p class="text-[0.65rem] font-bold text-surface-900 dark:text-surface-100">
+								{resGise.salvandoModelo ? 'Salvando alterações...' : 'Pronto para salvar'}
+							</p>
+						</div>
+					</div>
+
+					{@render actionButton(
+						resGise.salvandoModelo ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo}`,
+						undefined,
+						'primary',
+						'filled'
+					)}
 				</form>
 			</div>
 		</section>
-	{:else if podeVerListaGeral && activeTab === 'relatorios'}
+	{:else if podeVerListaGeral && resGise.activeTab === 'relatorios'}
 		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
 			<div class="md:col-span-1 space-y-4">
 				<div class="flex items-center justify-between px-2">
@@ -462,7 +474,7 @@
 						>
 						<select
 							id="f-sec"
-							bind:value={resGise.seccionalFilterUrl}
+							bind:value={resGise.seccionalFilter}
 							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
 						>
 							{#each resGise.seccionaisDisponiveis as s}
@@ -533,8 +545,8 @@
 									escala.equipe_id && resGise.escalaSelecionada?.id === escala.id
 									? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500'
 									: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-surface-300'}"
-								onclick={() => resGise.selecionarEscala(escala)}
-								onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
+								onclick={() => resGise.selecionarEscala(escala, podeVerListaGeral)}
+								onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, podeVerListaGeral)}
 							>
 								<div class="flex items-start justify-between gap-2">
 									<div class="min-w-0">
@@ -605,12 +617,12 @@
 												class="btn-icon btn-icon-sm bg-secondary-500/10 text-secondary-600 hover:bg-secondary-500 hover:text-white transition-all rounded-lg"
 												onclick={(e) => {
 													e.stopPropagation();
-													baixarRelatorioExtra(escala);
+													resGise.baixarRelatorioExtra(escala);
 												}}
-												disabled={baixandoExtra === escala.id}
+												disabled={resGise.baixandoExtra === escala.id}
 												title="Baixar Relatório Extraordinário (Assinado)"
 											>
-												{#if baixandoExtra === escala.id}
+												{#if resGise.baixandoExtra === escala.id}
 													<Spinner size="sm" />
 												{:else}
 													<svg
@@ -860,8 +872,8 @@
 						escala.id
 							? 'border-primary-500 bg-primary-500/10'
 							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
-						onclick={() => resGise.selecionarEscala(escala)}
-						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala)}
+						onclick={() => resGise.selecionarEscala(escala, podeVerListaGeral)}
+						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, podeVerListaGeral)}
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-sm font-bold text-surface-900 dark:text-surface-100">

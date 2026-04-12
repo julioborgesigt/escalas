@@ -43,10 +43,10 @@ export function useResGise(getData: () => any) {
 
 	const seccionaisUnicas = $derived(
 		['todas', ...Array.from(new Set(data.listaAdmin?.map((e: any) => e.seccional_nome) || []))].sort(
-			(a, b) => {
+			(a: any, b: any) => {
 				if (a === 'todas') return -1;
 				if (b === 'todas') return 1;
-				return a.localeCompare(b);
+				return String(a).localeCompare(String(b));
 			}
 		)
 	);
@@ -357,9 +357,12 @@ export function useResGise(getData: () => any) {
 		// Derived
 		get configJson() { return configJson; },
 		get respostasJson() { return respostasJson; },
-		get seccionaisUnicas() { return seccionaisUnicas; },
+		get seccionaisDisponiveis() { return seccionaisUnicas; },
 		get listaFiltrada() { return listaFiltrada; },
 		get perguntasForm() { return perguntasForm; },
+		get statusFilterUrl() { return statusFilterUrl; },
+		get mesFilterUrl() { return mesFilterUrl; },
+		get dataFilterUrl() { return dataFilterUrl; },
 
 		// Actions
 		changeStatusFilter,
