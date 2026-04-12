@@ -332,23 +332,25 @@
 		dataUrl: string,
 		lat?: number,
 		lng?: number,
-		selfie?: string | null
+		selfie?: string | null,
+		codigoValidação?: string,
+		desafioId?: string
 	) {
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
 
 		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng, selfie);
+			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(lat, lng);
+			await executarAssinarSimples(lat, lng, codigoValidação, desafioId);
 		} else if (tipoAssinaturaPendente === 'serpro') {
 			await executarAssinarComSerpro(lat, lng);
 		}
 	}
 
-	async function executarAssinarSimples(latitude?: number, longitude?: number) {
+	async function executarAssinarSimples(latitude?: number, longitude?: number, codigoValidação?: string, desafioId?: string) {
 		assinandoSimples = true;
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
@@ -361,7 +363,9 @@
 					rubrica: rubricaCapturada,
 					latitude,
 					longitude,
-					selfieBase64: selfieCapturada
+					selfieBase64: selfieCapturada,
+					codigoValidação,
+					desafioId
 				})
 			});
 			if (r.ok) {
@@ -441,10 +445,27 @@
 					title: 'Edição finalizada',
 					description: 'Escala enviada para assinatura do Supervisor.'
 				});
-				await invalidate(page.url.href);
+				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
+			}
+		};
+	}
+
+	function handleRevogarPedidoAssinatura() {
+		salvando = true;
+		return async ({ result }: any) => {
+			salvando = false;
+			if (result.type === 'success') {
+				toaster.success({
+					title: 'Solicitação revogada',
+					description: 'Escala retornada para edição.'
+				});
+				await invalidateAll();
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao revogar' });
 			}
 		};
 	}
@@ -591,7 +612,9 @@
 		rubrica: string,
 		latitude?: number,
 		longitude?: number,
-		selfieBase64?: string | null
+		selfieBase64?: string | null,
+		codigoValidação?: string,
+		desafioId?: string
 	) {
 		if (!relatorioSendoAssinado) return;
 		salvando = true;
@@ -618,14 +641,16 @@
 							rubrica,
 							latitude,
 							longitude,
-							selfieBase64
+							selfieBase64,
+							codigoValidação,
+							desafioId
 						})
 					});
 					if (!res.ok) throw new Error((await res.json()).error);
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
-				await invalidate(page.url.href);
+				await invalidateAll();
 			} catch (e: any) {
 				toaster.error({
 					title: 'Erro ao assinar lote',
@@ -655,14 +680,16 @@
 						rubrica,
 						latitude,
 						longitude,
-						selfieBase64
+						selfieBase64,
+						codigoValidação,
+						desafioId
 					})
 				}
 			);
 			if (!res.ok) throw new Error((await res.json()).error);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
-			await invalidate(page.url.href);
+			await invalidateAll();
 		} catch (e: any) {
 			toaster.error({
 				title: 'Erro ao assinar relatório',
@@ -684,7 +711,7 @@
 					description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
 				});
 				showReabrirConfirm = false;
-				await invalidate(page.url.href);
+				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
@@ -1037,6 +1064,27 @@
 							salvando || modoEdicaoGeral,
 							salvando,
 							'border-2 border-success-600/30 hover:border-success-600',
+							'submit'
+						)}
+					</form>
+				{/if}
+				{#if gise.status === 'aguardando_assinatura' && !documentoAssinadoInfo?.existe}
+					<form
+						method="POST"
+						action="?/revogarPedidoAssinatura"
+						use:enhance={handleRevogarPedidoAssinatura}
+						class="contents"
+					>
+						{@render actionButton(
+							'Revogar solicitação de ass.',
+							undefined,
+							'warning',
+							'outlined',
+							undefined,
+							undefined,
+							salvando,
+							salvando,
+							'border-2 border-warning-500/30 hover:border-warning-500',
 							'submit'
 						)}
 					</form>
