@@ -1,5 +1,5 @@
 import { page } from '$app/state';
-import { goto, invalidate } from '$app/navigation';
+import { goto, invalidate, invalidateAll } from '$app/navigation';
 import { toaster } from '$lib/toast';
 
 export function useResGise(getData: () => any) {
@@ -213,7 +213,7 @@ export function useResGise(getData: () => any) {
 
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidate(page.url.href);
+			await invalidateAll();
 			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
 			if (atualizada) escalaSelecionada = atualizada;
 		} catch (e: any) {
@@ -268,7 +268,7 @@ export function useResGise(getData: () => any) {
 
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
-			await invalidate(page.url.href);
+			await invalidateAll();
 			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
 			if (atualizada) escalaSelecionada = atualizada;
 		} catch (e: any) {
