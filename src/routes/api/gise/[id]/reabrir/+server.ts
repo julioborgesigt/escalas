@@ -20,7 +20,7 @@ export const POST = async ({ locals, params, platform }: RequestEvent) => {
 
 	const parsed = giseIdParamSchema.safeParse(params);
 	if (!parsed.success) {
-		return json({ error: parsed.error.errors[0].message }, { status: 400 });
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 	const { id } = parsed.data;
 

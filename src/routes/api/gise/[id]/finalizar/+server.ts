@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 
 	const parsed = giseIdParamSchema.safeParse(params);
 	if (!parsed.success) {
-		return json({ error: parsed.error.errors[0].message }, { status: 400 });
+		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
 	const { id } = parsed.data;
 

@@ -63,7 +63,6 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			longitude: longitude ?? undefined,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
-			signatureLevel: 'simples'
 		});
 
 		const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
@@ -97,16 +96,22 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		});
 
 		// Salvar no BD
-		await salvarDocumentoEscala(db, id, {
-			r2_key: r2Key,
-			assinante_nome: finalSignerName,
-			assinante_cpf: finalSignerCpf,
-			verificacao_hash: verificationHash
-		});
+		await salvarDocumentoEscala(
+			db,
+			id,
+			r2Key,
+			finalSignerName,
+			finalSignerCpf || undefined,
+			verificationHash,
+			ip ?? undefined,
+			ua || undefined,
+			latitude ?? undefined,
+			longitude ?? undefined
+		);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,
-			acao: 'assinar_escala_simples',
+			acao: 'assinar_escala',
 			entidade: 'escala',
 			entidade_id: id,
 			detalhes: `Escala ${id} assinada via rubrica por ${finalSignerName}`

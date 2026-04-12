@@ -239,7 +239,7 @@ export const actions: Actions = {
 			primeiroAcesso = policial.primeiro_acesso === 1;
 		}
 
-		const token = await criarSessao(db, tipo, usuarioId);
+		const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
 		cookies.set('session_token', token, cookieOptions(url));
 
 		// Restore admin_modulo from pending cookie if this is an admin 2FA verification

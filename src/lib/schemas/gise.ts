@@ -11,7 +11,14 @@ export const giseSignatureSchema = z.object({
 	rubrica: z.string().min(1, 'Rubrica é obrigatória'),
 	selfieBase64: z.string().optional(),
 	codigoEmail: z.string().optional(),
-	desafioId: z.string().optional()
+	codigoValidação: z.string().optional(),
+	desafioId: z.string().optional(),
+	type: z.string().optional(),
+	hash: z.string().optional(),
+	signerName: z.string().optional(),
+	signerCpf: z.string().optional(),
+	latitude: z.number().nullable().optional(),
+	longitude: z.number().nullable().optional()
 });
 
 /**
