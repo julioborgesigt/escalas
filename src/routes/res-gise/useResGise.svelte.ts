@@ -175,7 +175,7 @@ export function useResGise(getData: () => any) {
 				if (result.type === 'success') {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
 					if (!podeVerListaGeral) exibirRelatorio = false;
-					await invalidate(page.url.href);
+					await invalidateAll();
 					const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
 					if (atualizada) escalaSelecionada = atualizada;
 				} else {
@@ -269,8 +269,20 @@ export function useResGise(getData: () => any) {
 			toaster.success({ title: 'Saída confirmada com sucesso' });
 			capturandoRubrica = false;
 			await invalidateAll();
+			// After saving saída, the escala is filtered out of minhasEscalas (it's now 'finished').
+			// Patch escalaSelecionada directly so the UI shows 'Saída Confirmada' without a page reload.
 			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
-			if (atualizada) escalaSelecionada = atualizada;
+			if (atualizada) {
+				escalaSelecionada = atualizada;
+			} else {
+				escalaSelecionada = {
+					...escalaSelecionada,
+					presenca: {
+						...(escalaSelecionada.presenca || {}),
+						saida_timestamp: new Date().toISOString()
+					}
+				};
+			}
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {

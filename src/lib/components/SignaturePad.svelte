@@ -733,9 +733,14 @@
 				</button>
 				<button
 					class="btn preset-filled-primary-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
+					disabled={solicitandoCodigo}
 					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
 				>
-					{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
+					{#if solicitandoCodigo}
+						Enviando...
+					{:else}
+						{exigirFoto ? 'Avançar 📸' : 'Confirmar ✔'}
+					{/if}
 				</button>
 			</div>
 		{:else if step === 'camera'}
