@@ -70,7 +70,7 @@ export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 
 	await registrarAuditComContexto(db, {
 		usuario: u,
-		acao: 'revogar_assinatura_escala',
+		acao: 'revogar_assinatura',
 		entidade: 'escala',
 		entidade_id: id,
 		detalhes: `Assinatura da escala ${id} revogada.`

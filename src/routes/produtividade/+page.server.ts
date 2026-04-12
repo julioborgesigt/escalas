@@ -1,7 +1,8 @@
 import { error } from '@sveltejs/kit';
+import type { PageServerLoadEvent } from './$types';
 import { getDB, buscarGiseModeloFormulario, listarTodasRespostasGise, buscarSeccionaisUnidades } from '$lib/db';
 
-export async function load({ locals, platform, url }) {
+export async function load({ locals, platform, url }: PageServerLoadEvent) {
 	if (!locals.usuario || locals.usuario.tipo !== 'admin') {
 		throw error(403, 'Acesso restrito ao Administrador Geral');
 	}

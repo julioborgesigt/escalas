@@ -72,7 +72,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 		primeiroAcesso = policial.primeiro_acesso === 1;
 	}
 
-	const token = await criarSessao(db, tipo, usuarioId);
+	const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
 	cookies.set('session_token', token, cookieOptions(url));
 
 	return json({ success: true, primeiro_acesso: primeiroAcesso });

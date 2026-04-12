@@ -17,7 +17,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	// Validação de Parâmetros
 	const paramParsed = giseIdParamSchema.safeParse(params);
 	if (!paramParsed.success) {
-		return json({ error: paramParsed.error.errors[0].message }, { status: 400 });
+		return json({ error: paramParsed.error.issues[0].message }, { status: 400 });
 	}
 	const { id } = paramParsed.data;
 

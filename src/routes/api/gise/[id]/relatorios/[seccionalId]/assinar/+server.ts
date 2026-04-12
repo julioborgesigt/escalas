@@ -124,7 +124,7 @@ export const POST = async ({
 		// Adicionar folha de auditoria (Manifesto) profissional
 		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
 			signerName: signerName || u.nome,
-			signerCpf: signerCpf || u.cpf,
+			signerCpf: signerCpf || u.cpf || undefined,
 			signingTime: getNowBR(),
 			verificationHash: hash,
 			verificationUrl: qrUrl,
@@ -183,13 +183,13 @@ export const POST = async ({
 			assinante_id: u.tipo === 'policial' ? u.id : null,
 			assinante_nome: signerName || u.nome,
 			assinante_cpf: signerCpf || u.cpf || null,
-			tipo_assinatura: type || 'simples',
+			tipo_assinatura: (type as 'simples' | 'webpki' | 'serpro' | undefined) ?? 'simples',
 			rubrica: rubrica || '',
 			verification_hash: hash,
 			ip_address: ip,
 			user_agent: ua,
-			latitude: latitude || null,
-			longitude: longitude || null,
+			latitude: latitude ?? undefined,
+			longitude: longitude ?? undefined,
 			selfie_key: selfieKey,
 			r2_key: `${prefixBase}_assinada.pdf`,
 			arquivo_hash: arquivo_hash
