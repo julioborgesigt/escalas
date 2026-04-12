@@ -1,7 +1,0 @@
-
-> escalas@0.0.1 build
-> vite build
-
-[36mvite v7.3.2 [32mbuilding ssr environment for production...[36m[39m
-transforming...
-[32m✓[39m 18 modules transformed.

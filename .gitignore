@@ -25,3 +25,7 @@ vite.config.ts.timestamp-*
 
 # Variaveis de ambiente locais (NUNCA comitar)
 .dev.vars
+
+# Gerados automaticamente
+worker-configuration.d.ts
+tsconfig.tsbuildinfo
