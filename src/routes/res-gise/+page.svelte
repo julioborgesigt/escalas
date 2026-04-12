@@ -1058,33 +1058,7 @@
 									</p>
 								</div>
 
-								{#if resGise.capturandoRubrica}
-									<div class="space-y-4">
-										{#if resGise.salvandoPresenca}
-											<div class="flex flex-col items-center gap-3 py-10">
-												<Spinner size="lg" />
-												<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
-													Registrando entrada...
-												</p>
-											</div>
-										{:else}
-											<div
-												class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
-											>
-												<p class="text-xs font-bold text-surface-500 uppercase mb-2">
-													Câmera e GPS exigidos para prosseguir:
-												</p>
-												<SignaturePad
-													onConfirm={resGise.salvarEntrada}
-													onCancel={() => (resGise.capturandoRubrica = false)}
-													exigirFoto={page.data.exigirFotoAssinatura ?? true}
-													exigirGps={page.data.exigirGpsAssinatura ?? true}
-													exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-												/>
-											</div>
-										{/if}
-									</div>
-								{:else if isMobile || !data.restringirSmartphone}
+								{#if isMobile || !data.restringirSmartphone}
 									{@render actionButton(
 										'Confirmar Entrada',
 										undefined,
@@ -1263,32 +1237,6 @@
 												</p>
 											</div>
 											{@render actionButton('Confirmar Saída', undefined, 'surface', 'tonal', undefined, true, false, 'w-full py-4 text-lg opacity-50 cursor-not-allowed')}
-										{:else if resGise.capturandoRubrica}
-											{#if resGise.salvandoPresenca}
-												<div class="flex flex-col items-center gap-3 py-10">
-													<Spinner size="lg" />
-													<p
-														class="text-sm font-semibold text-surface-500 uppercase tracking-wider"
-													>
-														Registrando saída...
-													</p>
-												</div>
-											{:else}
-												<div
-													class="bg-surface-50 dark:bg-surface-950 p-4 rounded-3xl border border-surface-200 dark:border-surface-800"
-												>
-													<p class="text-xs font-bold text-surface-500 uppercase mb-2">
-														Câmera e GPS exigidos para prosseguir:
-													</p>
-													<SignaturePad
-														onConfirm={resGise.salvarSaida}
-														onCancel={() => (resGise.capturandoRubrica = false)}
-														exigirFoto={page.data.exigirFotoAssinatura ?? true}
-														exigirGps={page.data.exigirGpsAssinatura ?? true}
-														exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-													/>
-												</div>
-											{/if}
 										{:else if isMobile || !data.restringirSmartphone}
 											{@render actionButton(
 												'Confirmar Saída',
@@ -1378,3 +1326,45 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
+{#if resGise.capturandoRubrica && resGise.escalaSelecionada}
+	{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp ? 'entrada' : 'saida'}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+		<div
+			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-6 border border-white/10"
+		>
+			<div class="text-center space-y-2">
+				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
+					{tipoPresenca === 'entrada' ? 'Confirmação de Entrada' : 'Confirmação de Saída'}
+				</h2>
+				<p class="text-sm text-surface-500">
+					{tipoPresenca === 'entrada'
+						? 'Registre sua rubrica para confirmar a entrada no serviço.'
+						: 'Registre sua rubrica para confirmar a saída do serviço.'}
+				</p>
+			</div>
+
+			{#if resGise.salvandoPresenca}
+				<div class="flex flex-col items-center gap-3 py-10">
+					<Spinner size="lg" />
+					<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
+						{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
+					</p>
+				</div>
+			{:else}
+				<SignaturePad
+					onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
+					onCancel={() => (resGise.capturandoRubrica = false)}
+					exigirFoto={page.data.exigirFotoAssinatura ?? true}
+					exigirGps={page.data.exigirGpsAssinatura ?? true}
+					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+				/>
+			{/if}
+
+			<p class="text-sm text-surface-400 text-center italic">
+				Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca === 'entrada' ? 'entrada' : 'saída'} no serviço.
+			</p>
+		</div>
+	</div>
+{/if}
