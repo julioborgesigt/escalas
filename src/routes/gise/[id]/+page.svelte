@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
+	import { goto, invalidate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
+import type { ActionResult } from '@sveltejs/kit';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -144,13 +145,13 @@
 
 	function handleSalvarSupervisores() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Supervisor salvo' });
 				editandoSupervisores = false;
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 			salvando = false;
@@ -159,40 +160,40 @@
 
 	function handleSalvarUnidadeOperacional() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Unidade operacional salva' });
 				editandoUnidade = false;
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 			salvando = false;
 		};
 	}
 
-	function handleAdicionarSeccional({ cancel }: any) {
+	function handleAdicionarSeccional({ cancel }: { cancel(): void }) {
 		if (seccionalParaAdicionarIdx === '') {
 			cancel();
 			return;
 		}
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional adicionada' });
 				adicionandoSeccional = false;
 				seccionalParaAdicionarIdx = '';
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
 			salvando = false;
 		};
 	}
 
-	function handleRemoverSeccional({ cancel }: any) {
+	function handleRemoverSeccional({ cancel }: { cancel(): void }) {
 		if (
 			!confirm(
 				'Tem certeza que deseja remover esta seccional da escala? Todos os policiais escalados nela serão removidos.'
@@ -202,12 +203,12 @@
 			return;
 		}
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: String(d?.error || 'Erro ao remover') });
 			}
 			salvando = false;
@@ -216,15 +217,15 @@
 
 	function handleAdicionarMembro() {
 		salvando = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Membro adicionado' });
 				equipeParaAdicionar = null;
 				policialParaAdicionar = '';
 				cargoParaAdicionar = null;
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
 			}
 			salvando = false;
@@ -233,13 +234,13 @@
 
 	function handleRemoverMembro() {
 		salvando = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				removendoMembroId = null;
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Membro removido' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
 			}
 			salvando = false;
@@ -248,12 +249,12 @@
 
 	function handleRemoverEquipe() {
 		salvando = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				toaster.success({ title: 'Equipe removida' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
 			}
 			removendoEquipeId = null;
@@ -265,9 +266,9 @@
 
 	function handleFinalizarSeccional() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				await invalidateAll();
+				await invalidate('gise:detail');
 				const d = result.data as Record<string, unknown>;
 				if (d?.gise_status === 'aguardando_assinatura') {
 					toaster.success({
@@ -282,7 +283,7 @@
 				}
 				modoEdicaoSeccional = false;
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
 			salvando = false;
@@ -376,7 +377,7 @@
 				a.download = `gise_${gise.data_inicio}_confirmada.pdf`;
 				a.click();
 				toaster.success({ title: 'Escala confirmada com sucesso' });
-				await invalidateAll();
+				await invalidate('gise:detail');
 			} else {
 				const j = await r.json();
 				toaster.error({ title: j.error || 'Erro ao assinar' });
@@ -408,14 +409,14 @@
 
 	function handleFinalizarGise() {
 		finalizando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			finalizando = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala finalizada!' });
 				showFinalizarConfirm = false;
 				goto('/gise');
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
 		};
@@ -423,14 +424,14 @@
 
 	function handleSalvarSlotsEquipe() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Vagas atualizadas' });
 				editandoEquipe = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao atualizar' });
 			}
 		};
@@ -438,16 +439,16 @@
 
 	function handleSolicitarAssinatura() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Edição finalizada',
 					description: 'Escala enviada para assinatura do Supervisor.'
 				});
-				await invalidateAll();
+				await invalidate('gise:detail');
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
 			}
 		};
@@ -455,16 +456,16 @@
 
 	function handleRevogarPedidoAssinatura() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Solicitação revogada',
 					description: 'Escala retornada para edição.'
 				});
-				await invalidateAll();
+				await invalidate('gise:detail');
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao revogar' });
 			}
 		};
@@ -650,7 +651,7 @@
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
-				await invalidateAll();
+				await invalidate('gise:detail');
 			} catch (e: any) {
 				toaster.error({
 					title: 'Erro ao assinar lote',
@@ -689,7 +690,7 @@
 			if (!res.ok) throw new Error((await res.json()).error);
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
-			await invalidateAll();
+			await invalidate('gise:detail');
 		} catch (e: any) {
 			toaster.error({
 				title: 'Erro ao assinar relatório',
@@ -703,7 +704,7 @@
 
 	function handleReabrirEscala() {
 		reabrindo = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			reabrindo = false;
 			if (result.type === 'success') {
 				toaster.success({
@@ -711,9 +712,9 @@
 					description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
 				});
 				showReabrirConfirm = false;
-				await invalidateAll();
+				await invalidate('gise:detail');
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
 			}
 		};
@@ -726,7 +727,7 @@
 		showModalDataHoras = true;
 	}
 
-	function handleSalvarDatasHorarios({ cancel }: any) {
+	function handleSalvarDatasHorarios({ cancel }: { cancel(): void }) {
 		const horas = [editHoraEntrada, editHoraSaida];
 		if (horas.some((h) => !h)) {
 			toaster.error({ title: 'Preencha todos os horários' });
@@ -739,7 +740,7 @@
 			return;
 		}
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
@@ -754,7 +755,7 @@
 				showModalDataHoras = false;
 				await invalidate(page.url.href);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
@@ -770,7 +771,7 @@
 		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
 	}
 
-	function handleSalvarHorariosSec({ cancel }: any) {
+	function handleSalvarHorariosSec({ cancel }: { cancel(): void }) {
 		const horas = [editSecHoraEnt, editSecHoraSai].filter(Boolean);
 		if (horas.some((h) => !validarHora(h))) {
 			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
@@ -778,20 +779,20 @@
 			return;
 		}
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da seccional atualizados' });
 				editandoHorariosSecId = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
 	}
 
-	function handleSalvarHorariosEquipe({ cancel }: any) {
+	function handleSalvarHorariosEquipe({ cancel }: { cancel(): void }) {
 		const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
 		if (horas.some((h) => !validarHora(h))) {
 			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
@@ -799,14 +800,14 @@
 			return;
 		}
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da equipe atualizados' });
 				editandoHorariosEquipeId = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
@@ -814,14 +815,14 @@
 
 	function handleExcluirGise() {
 		excluindo = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			excluindo = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala GISE excluída' });
 				showExcluirGiseConfirm = false;
 				goto('/gise');
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao excluir' });
 			}
 		};
@@ -829,14 +830,14 @@
 
 	function handleAdicionarEquipe() {
 		salvando = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			salvando = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Equipe adicionada' });
 				adicionandoEquipeSec = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
 		};

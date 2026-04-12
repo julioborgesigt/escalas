@@ -42,7 +42,8 @@ function getIntParam(url: URL, key: string): number {
 	return parseInt(v);
 }
 
-export const load: PageServerLoad = async ({ locals, params, platform }) => {
+export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
+	depends('gise:detail');
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 

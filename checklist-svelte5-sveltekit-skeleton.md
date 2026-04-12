@@ -170,13 +170,4 @@
 
 ## RESUMO
 
-Após percorrer todas as etapas, preencha:
-
-| Métrica | Valor |
-|---|---|
-| Total de itens verificados | /~90 |
-| Itens OK (✅) | ~72 |
-| Itens pendentes (⚠️/❌) | ~18 |
-| TOP 3 arquivos que mais precisam de atenção | 1. `src/routes/res-gise/+page.svelte` 2. `src/routes/gise/[id]/+page.svelte` 3. `src/lib/db/gise.ts` |
-| Quick-win #1 (correção rápida, maior impacto) | Substituir `invalidateAll()` por `depends()` + `invalidate()` nas rotas com mais dados (gise/[id], painel) |
-| Risco de segurança mais importante | Uso massivo de `any` em tipos TypeScript — não é risco direto de segurança, mas impede detecção estática de bugs; o `fetch('?/salvarEntrada')` manual no `res-gise` contorna proteções do `use:enhance` (CSRF, loading state) |
+Após percorrer todas as etapas, preencha um resumo detalhado do projeto, destacando os pontos fortes e fracos, e sugerindo melhorias.
