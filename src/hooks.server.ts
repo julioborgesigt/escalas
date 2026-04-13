@@ -38,15 +38,24 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 /**
  * Content-Security-Policy adaptada por tipo de resposta.
+ * Retorna null em desenvolvimento — extensões de browser (ex: Kaspersky)
+ * modificam o header CSP removendo 'unsafe-inline', o que quebra a
+ * hidratação do SvelteKit. Sem o header, o browser usa a política padrão
+ * permissiva e extensões não têm nada a modificar.
  */
-export function buildCSP(isHTML: boolean): string {
+export function buildCSP(isHTML: boolean): string | null {
 	if (!isHTML) {
 		return "default-src 'none'; base-uri 'none'; form-action 'none'";
 	}
 
 	const isDev = !import.meta.env.PROD;
-	const scriptExtra = isDev ? " 'unsafe-inline' 'unsafe-eval'" : '';
-	const connectExtra = isDev ? ' http://localhost:*' : '';
+
+	// Em desenvolvimento não enviamos CSP: extensões de segurança (Kaspersky,
+	// uBlock etc.) interceptam e modificam o header, removendo 'unsafe-inline'
+	// e quebrando a hidratação do SvelteKit.
+	if (isDev) return null;
+
+	const connectExtra = '';
 
 	const serproWS = [
 		'wss://assinador-desktop.serpro.gov.br:65166',
@@ -60,9 +69,11 @@ export function buildCSP(isHTML: boolean): string {
 		'ws://127.0.0.1:65500'
 	].join(' ');
 
+	// Em produção: 'unsafe-inline' é necessário para os scripts de serialização
+	// de dados do SvelteKit (hydration chunks). Sem ele, a hidratação falha.
 	return [
 		`default-src 'self'`,
-		`script-src 'self'${scriptExtra}`,
+		`script-src 'self' 'unsafe-inline'`,
 		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
 		`font-src 'self' data: https://fonts.gstatic.com`,
@@ -168,7 +179,10 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 	// CSP based on content type
 	const contentType = response.headers.get('content-type') || '';
 	const isHTML = contentType.includes('text/html');
-	response.headers.set('Content-Security-Policy', buildCSP(isHTML));
+	const csp = buildCSP(isHTML);
+	if (csp !== null) {
+		response.headers.set('Content-Security-Policy', csp);
+	}
 
 	// HSTS
 	if (event.url.protocol === 'https:') {
