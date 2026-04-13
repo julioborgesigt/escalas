@@ -30,6 +30,9 @@ vite.config.ts.timestamp-*
 worker-configuration.d.ts
 tsconfig.tsbuildinfo
 
+# Drizzle migrations (geradas por drizzle-kit)
+/drizzle
+
 DPI_DATA_PLANTÃO_DADOS.xlsx
 AutomacaoEquipeExtras.gs
 DPI_DATA_PLANTÃO_DADOS.xlsx

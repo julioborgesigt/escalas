@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { getR2 } from '$lib/server/platform';
+import { contentDisposition } from '$lib/server/api';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const GET = async ({ platform, params, url }: RequestEvent) => {
@@ -39,7 +40,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 						? `relatorio_${documento.rel_tipo}_${hash}.pdf`
 						: `documento_assinado_${hash}.pdf`;
 						
-					resHeaders.set('Content-Disposition', `attachment; filename="${filename}"`);
+					resHeaders.set('Content-Disposition', contentDisposition(filename));
 					return new Response(arrayBuffer, { 
 						headers: resHeaders,
 						status: 200
@@ -112,7 +113,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			return new Response(finalPdf as any, {
 				headers: {
 					'Content-Type': 'application/pdf',
-					'Content-Disposition': `attachment; filename="${filename}"`,
+					'Content-Disposition': contentDisposition(filename),
 					'Cache-Control': 'no-cache',
 					'X-Debug-Source': 'Regeneration',
 					'X-Debug-Timestamp': new Date().toISOString()

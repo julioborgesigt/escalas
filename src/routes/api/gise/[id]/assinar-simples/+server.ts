@@ -9,6 +9,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { logger } from '$lib/server/logger';
+import { contentDisposition } from '$lib/server/api';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala, buscarExigirCodigoEmailAssinatura } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise } from '$lib/export';
@@ -149,7 +150,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		return new Response(pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${filename}"`
+				'Content-Disposition': contentDisposition(filename)
 			}
 		});
 	} catch (e: any) {

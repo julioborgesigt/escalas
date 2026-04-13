@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import { getDB, getR2, hasR2, buscarDocumentoEscala, excluirDocumentoEscala, buscarEscala } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
+import { contentDisposition } from '$lib/server/api';
 
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	const u = locals.usuario;
@@ -29,7 +30,7 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	return new Response(object.body as unknown as BodyInit, {
 		headers: {
 			'Content-Type': 'application/pdf',
-			'Content-Disposition': `attachment; filename="${documento.r2_key}"`
+			'Content-Disposition': contentDisposition(documento.r2_key)
 		}
 	});
 };

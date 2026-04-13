@@ -9,6 +9,7 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
+import { contentDisposition } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
@@ -77,7 +78,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					return new Response(pdfBytes, {
 						headers: {
 							'Content-Type': 'application/pdf',
-							'Content-Disposition': `attachment; filename="${filename}"`,
+							'Content-Disposition': contentDisposition(filename),
 							'Cache-Control': 'no-cache'
 						}
 					});
@@ -113,7 +114,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			return new Response(result.pdf as unknown as BodyInit, {
 				headers: {
 					'Content-Type': 'application/pdf',
-					'Content-Disposition': `attachment; filename="${filename}"`,
+					'Content-Disposition': contentDisposition(filename),
 					'Cache-Control': 'no-cache'
 				}
 			});
@@ -136,7 +137,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						return new Response(pdfBytes, {
 							headers: {
 								'Content-Type': 'application/pdf',
-								'Content-Disposition': `attachment; filename="${filename}"`,
+								'Content-Disposition': contentDisposition(filename),
 								'Cache-Control': 'no-cache'
 							}
 						});
@@ -153,7 +154,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="rascunho_${gise.data_inicio}.pdf"`,
+				'Content-Disposition': contentDisposition(`rascunho_${gise.data_inicio}.pdf`),
 				'Cache-Control': 'no-cache'
 			}
 		});
@@ -189,7 +190,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${filename}"`,
+				'Content-Disposition': contentDisposition(filename),
 				'Cache-Control': 'no-cache'
 			}
 		});
@@ -294,7 +295,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		status: 200,
 		headers: {
 			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			'Content-Disposition': `attachment; filename="${filename}"`,
+			'Content-Disposition': contentDisposition(filename),
 			'Cache-Control': 'no-cache'
 		}
 	});
