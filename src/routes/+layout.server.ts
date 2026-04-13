@@ -31,7 +31,9 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	}
 
 	// Admin module scope set at login
-	const adminModulo = (cookies.get('admin_modulo') as 'ambas' | 'gise' | 'escalas') || 'ambas';
+	const rawAdminModulo = cookies.get('admin_modulo');
+	const adminModulo: 'ambas' | 'gise' | 'escalas' =
+		rawAdminModulo === 'gise' || rawAdminModulo === 'escalas' ? rawAdminModulo : 'ambas';
 
 	return {
 		usuario: u,
