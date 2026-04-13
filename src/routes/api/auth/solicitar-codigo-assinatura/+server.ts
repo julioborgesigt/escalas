@@ -4,6 +4,7 @@ import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
+import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ platform, locals, url }) => {
@@ -27,8 +28,8 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 		}
 
 		if (!email) {
-			console.warn(`[Assinatura 2FA] Email não encontrado para usuário ID ${u.id} (${u.tipo})`);
-			return json({ error: `Você não possui um e-mail cadastrado (ID: ${u.id}, Tipo: ${u.tipo}). Atualize o seu perfil para prosseguir.` }, { status: 400 });
+			logger.warn('[Assinatura 2FA] Email não encontrado', { usuarioId: u.id, tipo: u.tipo });
+			return json({ error: 'Você não possui um e-mail cadastrado. Contate o administrador.' }, { status: 400 });
 		}
 
 		const codigo = gerarCodigo2FA();
@@ -37,8 +38,8 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 		try {
 			await enviarCodigo2FA(email, codigo, u.nome, platform);
 		} catch (err: any) {
-			console.error('[Assinatura 2FA] Falha ao enviar e-mail:', err);
-			return json({ error: `Falha no envio de e-mail (SMTP): ${err.message || 'Erro desconhecido'}` }, { status: 500 });
+			logger.error('[Assinatura 2FA] Falha ao enviar e-mail', { error: err?.message });
+			return json({ error: 'Falha no envio do código. Tente novamente.' }, { status: 500 });
 		}
 
 		return json({
@@ -47,10 +48,8 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 			emailMascarado: mascararEmail(email)
 		});
 	} catch (err: any) {
-		console.error('[Assinatura 2FA] Erro crítico no handler:', err);
-		return json({
-			error: `Ocorreu um erro ao processar a solicitação: ${err.message || 'Erro interno'}`
-		}, { status: 500 });
+		logger.error('[Assinatura 2FA] Erro crítico no handler', { error: err?.message });
+		return json({ error: 'Erro ao processar solicitação. Tente novamente.' }, { status: 500 });
 	}
 };
 

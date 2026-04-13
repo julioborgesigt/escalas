@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -17,6 +18,18 @@
 	const isSupervisorGise = $derived(data.isSupervisorGise);
 	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
+
+	let dialogRestaurarAberto = $state(false);
+
+	function solicitarRestaurarPadrao() {
+		dialogRestaurarAberto = true;
+	}
+
+	function confirmarRestaurarPadrao() {
+		dialogRestaurarAberto = false;
+		const padrao = resGise.configTipo === 'seint' ? data.modeloPadraoSeint : data.modeloPadraoOperacional;
+		resGise.perguntasConfig = structuredClone(padrao);
+	}
 
 </script>
 
@@ -133,17 +146,7 @@
 						undefined,
 						'surface',
 						'outlined',
-						() => {
-							const padrao =
-								resGise.configTipo === 'seint' ? data.modeloPadraoSeint : data.modeloPadraoOperacional;
-							if (
-								confirm(
-									`Deseja restaurar o modelo padrão para ${resGise.configTipo}? Isso substituirá as perguntas atuais.`
-								)
-							) {
-								resGise.perguntasConfig = structuredClone(padrao);
-							}
-						},
+						solicitarRestaurarPadrao,
 						false,
 						false,
 						'px-4 py-2 text-xs'
@@ -1368,3 +1371,27 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Diálogo de confirmação para restaurar modelo padrão -->
+<Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
+	{#snippet content()}
+		<div class="p-6 max-w-sm">
+			<h3 class="text-lg font-bold mb-2">Restaurar modelo padrão?</h3>
+			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão.
+				Essa ação não pode ser desfeita.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button
+					class="btn preset-outlined-surface-500"
+					onclick={() => (dialogRestaurarAberto = false)}
+				>
+					Cancelar
+				</button>
+				<button class="btn preset-filled-warning-500" onclick={confirmarRestaurarPadrao}>
+					Restaurar
+				</button>
+			</div>
+		</div>
+	{/snippet}
+</Dialog>

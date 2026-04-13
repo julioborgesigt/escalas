@@ -2,6 +2,8 @@ import {
 	Document, Packer, Paragraph, Table, TableRow, TableCell,
 	TextRun, WidthType, AlignmentType, BorderStyle, PageOrientation
 } from 'docx';
+// TODO: migrar para 'exceljs' — xlsx@0.18.5 possui vulnerabilidades conhecidas (prototype pollution/ReDoS).
+// O risco atual é baixo pois somente geramos arquivos (não fazemos parsing de input externo).
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';

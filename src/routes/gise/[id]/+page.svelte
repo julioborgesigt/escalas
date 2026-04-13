@@ -4,7 +4,8 @@
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
-import type { ActionResult } from '@sveltejs/kit';
+	import type { ActionResult } from '@sveltejs/kit';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -40,6 +41,8 @@ import type { ActionResult } from '@sveltejs/kit';
 	let assinando = $state(false);
 	let finalizando = $state(false);
 	let showFinalizarConfirm = $state(false);
+	let dialogRemoverSeccionalAberto = $state(false);
+	let formRemoverSeccionalPendente = $state<HTMLFormElement | null>(null);
 	let editandoSupervisores = $state(false);
 	let supervisorId = $state<number | null>(null);
 	let equipeParaAdicionar = $state<number | null>(null);
@@ -193,26 +196,37 @@ import type { ActionResult } from '@sveltejs/kit';
 		};
 	}
 
-	function handleRemoverSeccional({ cancel }: { cancel(): void }) {
-		if (
-			!confirm(
-				'Tem certeza que deseja remover esta seccional da escala? Todos os policiais escalados nela serão removidos.'
-			)
-		) {
-			cancel();
-			return;
-		}
+	function handleRemoverSeccional({ cancel, formElement }: { cancel(): void; formElement: HTMLFormElement }) {
+		// Sempre cancela o submit padrão para mostrar o diálogo de confirmação
+		cancel();
+		formRemoverSeccionalPendente = formElement;
+		dialogRemoverSeccionalAberto = true;
+	}
+
+	async function confirmarRemoverSeccional() {
+		dialogRemoverSeccionalAberto = false;
+		if (!formRemoverSeccionalPendente) return;
 		salvando = true;
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
+		const formData = new FormData(formRemoverSeccionalPendente);
+		try {
+			const res = await fetch(formRemoverSeccionalPendente.action, {
+				method: 'POST',
+				body: formData,
+				headers: csrfHeaders()
+			});
+			if (res.ok) {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
-				toaster.error({ title: String(d?.error || 'Erro ao remover') });
+				const data = await res.json().catch(() => ({}));
+				toaster.error({ title: String((data as any)?.error || 'Erro ao remover') });
 			}
+		} catch {
+			toaster.error({ title: 'Erro ao remover seccional' });
+		} finally {
 			salvando = false;
-		};
+			formRemoverSeccionalPendente = null;
+		}
 	}
 
 	function handleAdicionarMembro() {
@@ -2983,3 +2997,30 @@ import type { ActionResult } from '@sveltejs/kit';
 		</div>
 	</div>
 {/if}
+
+<!-- Diálogo de confirmação para remover seccional -->
+<Dialog
+	open={dialogRemoverSeccionalAberto}
+	onOpenChange={(e) => (dialogRemoverSeccionalAberto = e.open)}
+>
+	{#snippet content()}
+		<div class="p-6 max-w-sm">
+			<h3 class="text-lg font-bold mb-2">Remover seccional?</h3>
+			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+				Todos os policiais escalados nesta seccional serão removidos. Esta ação não pode ser
+				desfeita.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button
+					class="btn preset-outlined-surface-500"
+					onclick={() => (dialogRemoverSeccionalAberto = false)}
+				>
+					Cancelar
+				</button>
+				<button class="btn preset-filled-error-500" onclick={confirmarRemoverSeccional}>
+					Remover
+				</button>
+			</div>
+		</div>
+	{/snippet}
+</Dialog>

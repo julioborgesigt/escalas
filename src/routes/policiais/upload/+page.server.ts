@@ -1,7 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { getDB, listarUnidades } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
-import * as XLSX from 'xlsx';
 import { limparMatricula } from '$lib/utils';
 import { gerarSenhaAleatoriaHash } from '$lib/auth';
 import type { Actions } from './$types';
@@ -18,6 +17,43 @@ function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]):
 	const normalizado = normalizarTexto(nomeNaPlanilha);
 	const encontrada = unidades.find(u => normalizarTexto(u.nome) === normalizado);
 	return encontrada ? encontrada.nome : '';
+}
+
+/**
+ * Parser simples de CSV que suporta campos com aspas e vírgulas internas.
+ * Retorna array de arrays de strings.
+ */
+function parseCSV(text: string): string[][] {
+	const rows: string[][] = [];
+	const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+	for (const line of lines) {
+		if (!line.trim()) continue;
+		const cells: string[] = [];
+		let current = '';
+		let inQuotes = false;
+
+		for (let i = 0; i < line.length; i++) {
+			const ch = line[i];
+			if (ch === '"') {
+				if (inQuotes && line[i + 1] === '"') {
+					current += '"';
+					i++;
+				} else {
+					inQuotes = !inQuotes;
+				}
+			} else if (ch === ',' && !inQuotes) {
+				cells.push(current.trim());
+				current = '';
+			} else {
+				current += ch;
+			}
+		}
+		cells.push(current.trim());
+		rows.push(cells);
+	}
+
+	return rows;
 }
 
 export const actions = {
@@ -48,26 +84,18 @@ export const actions = {
 		}
 
 		const fileName = file.name.toLowerCase();
-		const validExtensions = ['.xlsx', '.xls', '.ods', '.csv'];
 		const ext = fileName.substring(fileName.lastIndexOf('.'));
-		if (!validExtensions.includes(ext)) {
+		if (ext !== '.csv') {
 			return fail(400, {
-				error: `Formato de arquivo não suportado: "${ext}". Use ${validExtensions.join(', ')}.`,
+				error: `Formato de arquivo não suportado: "${ext}". Envie um arquivo CSV (.csv).`,
 				errorType: 'validation'
 			});
 		}
 
-		const validMimeTypes = [
-			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			'application/vnd.ms-excel',
-			'application/vnd.oasis.opendocument.spreadsheet',
-			'text/csv',
-			'text/plain',
-			'application/octet-stream'
-		];
+		const validMimeTypes = ['text/csv', 'text/plain', 'application/octet-stream', 'application/csv'];
 		if (file.type && !validMimeTypes.includes(file.type)) {
 			return fail(400, {
-				error: `Tipo de arquivo inválido: "${file.type}". Envie uma planilha válida.`,
+				error: `Tipo de arquivo inválido. Envie um arquivo CSV válido.`,
 				errorType: 'validation'
 			});
 		}
@@ -80,36 +108,25 @@ export const actions = {
 			});
 		}
 
-		let workbook;
+		let rows: string[][];
 		try {
-			const buffer = await file.arrayBuffer();
-			workbook = XLSX.read(buffer, { type: 'array' });
+			const text = await file.text();
+			rows = parseCSV(text);
 		} catch {
 			return fail(400, {
-				error: `Não foi possível ler o arquivo "${file.name}".`,
+				error: `Não foi possível ler o arquivo "${file.name}". Verifique se é um CSV válido.`,
 				errorType: 'parse'
 			});
 		}
-
-		if (!workbook.SheetNames.length) {
-			return fail(400, {
-				error: 'O arquivo não contém nenhuma aba/planilha.',
-				errorType: 'parse'
-			});
-		}
-
-		const sheet = workbook.Sheets[workbook.SheetNames[0]];
-		const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
-			header: ['nome', 'matricula', 'cargo', 'telefone', 'lotacao']
-		});
 
 		if (rows.length <= 1) {
 			return fail(400, {
-				error: 'A planilha está vazia ou contém apenas o cabeçalho. Adicione dados a partir da linha 2.',
+				error: 'O arquivo está vazio ou contém apenas o cabeçalho. Adicione dados a partir da linha 2.',
 				errorType: 'validation'
 			});
 		}
 
+		// Pula linha de cabeçalho; espera colunas: nome, matricula, cargo, telefone, lotacao
 		const dataRows = rows.slice(1);
 
 		let imported = 0;
@@ -117,14 +134,16 @@ export const actions = {
 		const errors: { row: number; nome: string; message: string }[] = [];
 
 		for (let i = 0; i < dataRows.length; i++) {
-			const row = dataRows[i];
-			const rowNum = i + 2; 
-			const nome = row.nome ? String(row.nome).trim() : '';
+			const cells = dataRows[i];
+			const rowNum = i + 2;
+
+			const [nomeRaw, matriculaRaw, cargoRaw, telefoneRaw, lotacaoRaw] = cells;
+			const nome = nomeRaw?.trim() ?? '';
 
 			const missing: string[] = [];
-			if (!row.nome) missing.push('Nome (coluna A)');
-			if (!row.matricula) missing.push('Matrícula (coluna B)');
-			if (!row.cargo) missing.push('Cargo (coluna C)');
+			if (!nome) missing.push('Nome (coluna A)');
+			if (!matriculaRaw?.trim()) missing.push('Matrícula (coluna B)');
+			if (!cargoRaw?.trim()) missing.push('Cargo (coluna C)');
 
 			if (missing.length > 0) {
 				errors.push({
@@ -135,19 +154,19 @@ export const actions = {
 				continue;
 			}
 
-			const cargo = String(row.cargo).toUpperCase().trim();
+			const cargo = cargoRaw.toUpperCase().trim();
 			if (!['DPC', 'OIP'].includes(cargo)) {
 				errors.push({
 					row: rowNum,
 					nome,
-					message: `Cargo "${row.cargo}" inválido. Use "DPC" ou "OIP".`
+					message: `Cargo "${cargoRaw}" inválido. Use "DPC" ou "OIP".`
 				});
 				continue;
 			}
 
 			let lotacaoFinal = '';
-			if (row.lotacao) {
-				lotacaoFinal = encontrarUnidade(String(row.lotacao).trim(), unidades);
+			if (lotacaoRaw?.trim()) {
+				lotacaoFinal = encontrarUnidade(lotacaoRaw.trim(), unidades);
 			}
 
 			if (locals.usuario?.tipo === 'policial') {
@@ -155,13 +174,13 @@ export const actions = {
 					errors.push({
 						row: rowNum,
 						nome,
-						message: `Lotação "${row.lotacao}" diferente da sua. Você só pode importar policiais da sua lotação.`
+						message: `Lotação "${lotacaoRaw}" diferente da sua. Você só pode importar policiais da sua lotação.`
 					});
 					continue;
 				}
 			}
 
-			const matriculaLimpa = limparMatricula(String(row.matricula));
+			const matriculaLimpa = limparMatricula(matriculaRaw.trim());
 
 			try {
 				const senhaHash = await gerarSenhaAleatoriaHash();
@@ -171,7 +190,7 @@ export const actions = {
 						nome,
 						matricula: matriculaLimpa,
 						cargo: cargo as 'DPC' | 'OIP',
-						telefone: row.telefone ? String(row.telefone).trim() : '',
+						telefone: telefoneRaw?.trim() ?? '',
 						lotacao: lotacaoFinal,
 						senha: senhaHash,
 						primeiro_acesso: 1
@@ -188,20 +207,19 @@ export const actions = {
 					});
 				} else {
 					imported++;
-					if (row.lotacao && !lotacaoFinal) {
+					if (lotacaoRaw?.trim() && !lotacaoFinal) {
 						errors.push({
 							row: rowNum,
 							nome,
-							message: `Lotação "${row.lotacao}" não encontrada no sistema — importado sem lotação.`
+							message: `Lotação "${lotacaoRaw}" não encontrada no sistema — importado sem lotação.`
 						});
 					}
 				}
 			} catch (e: unknown) {
-				const message = e instanceof Error ? e.message : 'Erro desconhecido no banco de dados';
 				errors.push({
 					row: rowNum,
 					nome,
-					message: `Erro ao salvar: ${message}`
+					message: 'Erro ao salvar no banco de dados.'
 				});
 			}
 		}

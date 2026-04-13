@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
+import { logger } from '$lib/server/logger';
 import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
@@ -119,7 +120,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });
 	} catch (err: any) {
-		console.error('[API/assinar-simples] Erro:', err);
-		return json({ error: 'Falha ao processar assinatura manual: ' + err.message }, { status: 500 });
+		logger.error('[API/assinar-simples] Erro', { error: err?.message });
+		return json({ error: 'Falha ao processar assinatura. Tente novamente.' }, { status: 500 });
 	}
 };

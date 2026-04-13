@@ -8,6 +8,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import forge from 'node-forge';
+import { logger } from '$lib/server/logger';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
@@ -137,7 +138,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			}
 		});
 	} catch (err: any) {
-		console.error('[GISE SIGN]', err);
-		return json({ error: err.message }, { status: 500 });
+		logger.error('[GISE SIGN] Falha ao finalizar assinatura', { error: err?.message });
+		return json({ error: 'Falha ao finalizar assinatura GISE. Tente novamente.' }, { status: 500 });
 	}
 };
