@@ -31,16 +31,23 @@
 	let recuperacaoEnviada = $state(false);
 	let loadingRecuperacao = $state(false);
 
+	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
+	let loginError = $state<string | null>(null);
+
 	const mostrarBannerResetado = $derived(page.url.searchParams.get('resetado') === '1');
 
+	// Exibe o erro do último attempt — funciona com JS (loginError) e sem JS (page.form)
+	const loginErrorDisplay = $derived(loginError ?? (page.form as { error?: string } | null)?.error ?? null);
+
 	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
+		loginError = null;
 		const parsed = loginSchema.safeParse({
 			matricula: formData.get('matricula'),
 			senha: formData.get('senha'),
 			tipo: formData.get('tipo')
 		});
 		if (!parsed.success) {
-			toaster.create({ title: parsed.error.issues[0].message, type: 'error' });
+			loginError = parsed.error.issues[0].message;
 			cancel();
 			return;
 		}
@@ -54,13 +61,15 @@
 					tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
 					emailMascarado = String(d.emailMascarado || '');
 					pendente2FA = true;
+					loginError = null;
 					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
 				} else if (d?.redirect) {
 					goto(String(d.redirect), { invalidateAll: true });
 				}
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Credenciais inválidas'), type: 'error' });
+				loginError = String(d?.error || 'Credenciais inválidas');
+				toaster.create({ title: loginError, type: 'error' });
 			}
 		};
 	}
@@ -238,6 +247,15 @@
 						required
 					/>
 				</label>
+
+				{#if loginErrorDisplay}
+					<div class="flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm">
+						<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						{loginErrorDisplay}
+					</div>
+				{/if}
 
 				<button
 					type="submit"
