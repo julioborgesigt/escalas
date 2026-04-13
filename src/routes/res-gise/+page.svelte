@@ -1374,7 +1374,7 @@
 
 <!-- Diálogo de confirmação para restaurar modelo padrão -->
 <Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
-	{#snippet content()}
+	{#snippet children()}
 		<div class="p-6 max-w-sm">
 			<h3 class="text-lg font-bold mb-2">Restaurar modelo padrão?</h3>
 			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
