@@ -19,6 +19,8 @@ export const policiais = sqliteTable(
 		senha: text('senha')
 			.notNull(),
 		email: text('email'),
+		email_pessoal: text('email_pessoal'),
+		email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
 		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
@@ -102,6 +104,8 @@ export const administradores = sqliteTable('administradores', {
 	senha: text('senha').notNull(),
 	nome: text('nome').notNull(),
 	email: text('email'),
+	email_pessoal: text('email_pessoal'),
+	email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
 	primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
@@ -385,6 +389,26 @@ export const doisFatoresTokens = sqliteTable(
 	},
 	(table) => [index('idx_2fa_desafio').on(table.desafio_id)]
 );
+
+// ---- Tokens de Redefinição de Senha ----
+
+export const resetSenhaTokens = sqliteTable(
+	'reset_senha_tokens',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		token: text('token').notNull().unique(),
+		tipo_usuario: text('tipo_usuario', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		expires_at: text('expires_at').notNull(),
+		usado: integer('usado').notNull().default(0),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_reset_senha_token').on(table.token),
+		index('idx_reset_senha_usuario').on(table.tipo_usuario, table.usuario_id, table.created_at)
+	]
+);
+export type ResetSenhaToken = typeof resetSenhaTokens.$inferSelect;
 
 // ---- Configurações do Sistema ----
 

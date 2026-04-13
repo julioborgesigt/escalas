@@ -13,6 +13,68 @@
 
 	const primeiroAcesso = $derived(page.data.primeiro_acesso);
 
+	// --- E-mail pessoal (apenas no primeiro acesso) ---
+	let emailPessoal = $state('');
+	let etapaEmailPessoal = $state<'idle' | 'enviando' | 'aguardando_codigo' | 'verificado'>('idle');
+	let codigoEmailPessoal = $state('');
+	let desafioIdEmailPessoal = $state('');
+	let emailMascaradoPessoal = $state('');
+	let loadingEmailPessoal = $state(false);
+	let erroEmailPessoal = $state('');
+
+	async function enviarCodigoEmailPessoal() {
+		erroEmailPessoal = '';
+		loadingEmailPessoal = true;
+		etapaEmailPessoal = 'enviando';
+		try {
+			const res = await fetch('/api/auth/solicitar-verificacao-email-pessoal', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ email: emailPessoal })
+			});
+			const data = await res.json();
+			if (res.ok) {
+				desafioIdEmailPessoal = data.desafioId;
+				emailMascaradoPessoal = data.emailMascarado;
+				etapaEmailPessoal = 'aguardando_codigo';
+			} else {
+				erroEmailPessoal = data.error ?? 'Falha ao enviar código.';
+				etapaEmailPessoal = 'idle';
+			}
+		} catch {
+			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
+			etapaEmailPessoal = 'idle';
+		} finally {
+			loadingEmailPessoal = false;
+		}
+	}
+
+	async function confirmarCodigoEmailPessoal() {
+		erroEmailPessoal = '';
+		loadingEmailPessoal = true;
+		try {
+			const res = await fetch('/api/auth/confirmar-verificacao-email-pessoal', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({
+					desafioId: desafioIdEmailPessoal,
+					codigo: codigoEmailPessoal,
+					email: emailPessoal
+				})
+			});
+			const data = await res.json();
+			if (res.ok && data.ok) {
+				etapaEmailPessoal = 'verificado';
+			} else {
+				erroEmailPessoal = data.error ?? 'Código inválido.';
+			}
+		} catch {
+			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
+		} finally {
+			loadingEmailPessoal = false;
+		}
+	}
+
 	const temMinimo    = $derived(novaSenha.length >= 8);
 	const temMaiuscula = $derived(/[A-Z]/.test(novaSenha));
 	const temMinuscula = $derived(/[a-z]/.test(novaSenha));
@@ -86,6 +148,90 @@
 						<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
 					</svg>
 					<span>Este é seu <strong>primeiro acesso</strong>. Defina uma senha pessoal para continuar.</span>
+				</div>
+			{/if}
+
+			<!-- Seção de e-mail pessoal (apenas no primeiro acesso) -->
+			{#if primeiroAcesso}
+				<div class="mb-5 p-4 rounded-2xl bg-surface-100/80 dark:bg-surface-800/50 border border-surface-200 dark:border-white/5 space-y-3">
+					<div>
+						<p class="text-xs font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wider mb-0.5">
+							E-mail pessoal <span class="font-normal text-surface-400 normal-case tracking-normal">(opcional)</span>
+						</p>
+						<p class="text-xs text-surface-500 leading-relaxed">
+							Canal secundário para recuperação de senha. Recomendado para maior segurança.
+						</p>
+					</div>
+
+					{#if etapaEmailPessoal === 'verificado'}
+						<div class="flex items-center gap-2 text-success-600 dark:text-success-400 text-sm font-medium">
+							<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+							</svg>
+							E-mail pessoal verificado com sucesso!
+						</div>
+					{:else if etapaEmailPessoal === 'idle' || etapaEmailPessoal === 'enviando'}
+						<div class="flex gap-2">
+							<input
+								class="input flex-1 text-sm"
+								type="email"
+								placeholder="seu@email.com"
+								bind:value={emailPessoal}
+								disabled={loadingEmailPessoal}
+							/>
+							<button
+								type="button"
+								class="btn preset-filled-primary-500 text-xs px-3 py-2 shrink-0 flex items-center gap-1.5"
+								disabled={loadingEmailPessoal || !emailPessoal.includes('@')}
+								onclick={enviarCodigoEmailPessoal}
+							>
+								{#if loadingEmailPessoal}<Spinner size="xs" />{/if}
+								{loadingEmailPessoal ? 'Enviando...' : 'Enviar código'}
+							</button>
+						</div>
+					{:else if etapaEmailPessoal === 'aguardando_codigo'}
+						<p class="text-xs text-surface-500">
+							Código enviado para <strong>{emailMascaradoPessoal}</strong>. Válido por 10 minutos.
+						</p>
+						<div class="flex gap-2">
+							<input
+								class="input flex-1 text-center text-xl font-bold tracking-[0.3em]"
+								type="text"
+								placeholder="000000"
+								maxlength="6"
+								inputmode="numeric"
+								bind:value={codigoEmailPessoal}
+								oninput={(e) => (codigoEmailPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
+								disabled={loadingEmailPessoal}
+							/>
+							<button
+								type="button"
+								class="btn preset-filled-success-500 text-xs px-3 py-2 shrink-0 flex items-center gap-1.5"
+								disabled={loadingEmailPessoal || codigoEmailPessoal.length !== 6}
+								onclick={confirmarCodigoEmailPessoal}
+							>
+								{#if loadingEmailPessoal}<Spinner size="xs" />{/if}
+								{loadingEmailPessoal ? 'Verificando...' : 'Confirmar'}
+							</button>
+						</div>
+						<button
+							type="button"
+							class="text-xs text-surface-400 hover:text-surface-600 underline underline-offset-2"
+							onclick={() => { etapaEmailPessoal = 'idle'; codigoEmailPessoal = ''; }}
+						>
+							Usar outro e-mail
+						</button>
+					{/if}
+
+					{#if erroEmailPessoal}
+						<p class="text-xs text-error-600 dark:text-error-400">{erroEmailPessoal}</p>
+					{/if}
+
+					{#if etapaEmailPessoal !== 'verificado'}
+						<p class="text-[0.65rem] text-surface-400 italic">
+							Sem e-mail pessoal, a recuperação de senha usará apenas seu e-mail institucional.
+						</p>
+					{/if}
 				</div>
 			{/if}
 
