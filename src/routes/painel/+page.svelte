@@ -260,7 +260,7 @@
 			</p>
 		</div>
 		<div class="flex gap-2">
-			<button
+			<button type="button"
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
 					: 'preset-outlined-primary-500 opacity-40'}"
@@ -269,7 +269,7 @@
 			>
 				Limpar filtros
 			</button>
-			<button class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loading}>
+			<button type="button" class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loading}>
 				{#if loading}
 					<Spinner size="sm" />
 				{:else}
@@ -304,7 +304,7 @@
 				<p class="text-2xl font-bold text-error-600 dark:text-error-400">{totais.nao_criada}</p>
 				<p class="text-xs text-surface-500 mt-1 font-medium">🔴 Não Criada</p>
 			</div>
-			<button
+			<button type="button"
 				class="p-4 rounded-2xl bg-surface-500/10 border border-surface-500/20 text-center cursor-pointer hover:bg-surface-500/20 transition-colors"
 				onclick={() => {
 					mostrarIgnorados = !mostrarIgnorados;
@@ -325,7 +325,7 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<span class="text-sm font-bold text-surface-500 mr-1">Regime:</span>
 			{#each [['todos', 'Todos'], ['plantao', 'Plantão'], ['expediente', 'Expediente'], ['fds', 'FDS']] as [val, label]}
-				<button
+				<button type="button"
 					class="btn btn-sm px-4 rounded-full transition-all text-sm font-medium {filtroRegime ===
 					val
 						? 'bg-[#00ADC8] text-white shadow-sm'
@@ -410,7 +410,7 @@
 
 		{#if mostrarIgnorados}
 			<div class="pt-1 border-t border-surface-100 dark:border-white/5">
-				<button
+				<button type="button"
 					class="btn btn-sm variant-soft-surface text-xs font-bold"
 					onclick={() => {
 						mostrarIgnorados = false;
@@ -556,7 +556,7 @@
 													class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2 hover:bg-warning-500/30 transition-colors pointer-events-auto"
 													>🟡 Não Assinada</a
 												>
-												<button
+												<button type="button"
 													class="text-error-500 hover:text-error-600 hover:bg-error-500/10 p-1 rounded-md transition-colors leading-none font-bold"
 													title="Excluir escala"
 													onclick={(e) => {
@@ -581,13 +581,13 @@
 									<td>
 										<div class="flex gap-2 justify-start">
 											{#if mostrarIgnorados}
-												<button
+												<button type="button"
 													class="btn btn-sm preset-outlined-primary-500"
 													onclick={() => restaurarItem(item)}>Restaurar</button
 												>
 											{:else}
 												<div class="flex gap-2 items-center">
-													<button
+													<button type="button"
 														class="btn btn-sm preset-outlined-surface opacity-60 hover:opacity-100"
 														title="Ignorar esta pendência"
 														onclick={() => ignorarItem(item)}>🔕</button
@@ -674,7 +674,7 @@
 													<div class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></div>
 													Não Assinada
 												</a>
-												<button
+												<button type="button"
 													class="text-error-500 font-black px-1.5 py-0.5 bg-error-500/10 rounded"
 													onclick={(e) => {
 														e.preventDefault();
@@ -703,12 +703,12 @@
 
 								<div class="shrink-0 flex items-center gap-2">
 									{#if mostrarIgnorados}
-										<button
+										<button type="button"
 											class="btn btn-sm preset-outlined-primary-500 text-xs font-bold"
 											onclick={() => restaurarItem(item)}>Restaurar</button
 										>
 									{:else}
-										<button
+										<button type="button"
 											class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface flex items-center justify-center rounded-full"
 											title="Ignorar"
 											onclick={() => ignorarItem(item)}

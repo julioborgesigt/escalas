@@ -70,8 +70,15 @@
 		})
 	);
 
+	let recarregando = $state(false);
+
 	async function recarregar() {
-		await invalidate(page.url.pathname);
+		recarregando = true;
+		try {
+			await invalidate(page.url.pathname);
+		} finally {
+			recarregando = false;
+		}
 	}
 
 	let togglingId = $state<number | null>(null);
@@ -183,7 +190,7 @@
 			<p class="text-sm text-surface-500 mt-0.5">Acompanhamento de novos envios em tempo real</p>
 		</div>
 		<div class="flex gap-2">
-			<button
+			<button type="button"
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
 					: 'preset-outlined-primary-500 opacity-40'}"
@@ -192,16 +199,20 @@
 			>
 				Limpar filtros
 			</button>
-			<button class="btn preset-outlined-primary-500 btn-sm" onclick={recarregar}>
-				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-					/>
-				</svg>
-				Atualizar
+			<button type="button" class="btn preset-outlined-primary-500 btn-sm flex items-center gap-1.5" onclick={recarregar} disabled={recarregando}>
+				{#if recarregando}
+					<Spinner size="sm" />
+				{:else}
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+						/>
+					</svg>
+				{/if}
+				{recarregando ? 'Atualizando...' : 'Atualizar'}
 			</button>
 		</div>
 	</div>
@@ -215,7 +226,7 @@
 				>Período de Recebimento:</span
 			>
 			{#each [['todos', 'Tudo'], ['24h', 'Últimas 24h'], ['48h', 'Últimas 48h'], ['semana', 'Última Semana'], ['mes', 'Último Mês']] as [val, label]}
-				<button
+				<button type="button"
 					class="btn btn-sm {filtroTimeRange === val
 						? 'preset-filled-primary-500'
 						: 'preset-tonal-surface ring-1 ring-surface-300 dark:ring-surface-600'}"
@@ -437,7 +448,7 @@
 											</Portal>
 										</Popover>
 
-										<button
+										<button type="button"
 											class="btn btn-sm preset-filled-error-500 text-xs"
 											title="Excluir"
 											onclick={() => solicitarExclusao(escala.id, escala.lotacao)}
@@ -565,7 +576,7 @@
 								</Portal>
 							</Popover>
 
-							<button
+							<button type="button"
 								class="btn btn-sm preset-filled-error-500 flex-1 text-xs font-bold"
 								onclick={() => solicitarExclusao(escala.id, escala.lotacao)}>Excluir</button
 							>

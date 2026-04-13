@@ -39,7 +39,7 @@
 
 	{#if totalPaginas > 1}
 		<div class="flex items-center gap-2">
-			<button
+			<button type="button"
 				class="btn btn-sm preset-outlined-surface"
 				onclick={() => irParaPagina(paginaAtual - 1)}
 				disabled={paginaAtual === 1}
@@ -50,7 +50,7 @@
 			<div class="flex items-center gap-1">
 				{#each Array.from({ length: totalPaginas }, (_, i) => i + 1) as p}
 					{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
-						<button
+						<button type="button"
 							class="btn btn-sm {paginaAtual === p
 								? 'preset-filled-primary-500'
 								: 'preset-outlined-surface'} min-w-[32px]"
@@ -64,7 +64,7 @@
 				{/each}
 			</div>
 
-			<button
+			<button type="button"
 				class="btn btn-sm preset-outlined-surface"
 				onclick={() => irParaPagina(paginaAtual + 1)}
 				disabled={paginaAtual >= totalPaginas}

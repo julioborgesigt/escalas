@@ -121,7 +121,7 @@
 			<div
 				class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5"
 			>
-				<button
+				<button type="button"
 					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial'
 						? 'preset-filled-primary-500'
 						: 'text-surface-500'}"
@@ -131,7 +131,7 @@
 				>
 					Policial
 				</button>
-				<button
+				<button type="button"
 					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin'
 						? 'preset-filled-primary-500'
 						: 'text-surface-500'}"

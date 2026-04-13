@@ -200,7 +200,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 	<h1 class="h1 text-xl font-bold">Arquivo</h1>
 	<div class="flex items-center gap-2">
-		<button
+		<button type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -261,7 +261,7 @@
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
-				<button
+				<button type="button"
 					class="btn preset-filled-error-500 flex items-center gap-2"
 					onclick={confirmarRevogacao}
 					disabled={revogando}
@@ -418,7 +418,7 @@
 							</td>
 							<td>
 								<div class="flex gap-2 justify-end">
-									<button
+									<button type="button"
 										class="btn btn-sm {esc.is_assinada
 											? 'preset-filled-warning-500'
 											: 'preset-outlined-primary-500'}"
@@ -491,7 +491,7 @@
 											</Popover.Positioner>
 										</Portal>
 									</Popover>
-									<button
+									<button type="button"
 										class="btn btn-sm preset-filled-error-500 flex-1"
 										onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
 									>
@@ -558,7 +558,7 @@
 						</div>
 					</div>
 					<div class="flex gap-2 pt-3 border-t border-white/5">
-						<button
+						<button type="button"
 							class="btn btn-sm {esc.is_assinada
 								? 'preset-filled-warning-500'
 								: 'preset-outlined-primary-500'} flex-1"
@@ -628,7 +628,7 @@
 								</Popover.Positioner>
 							</Portal>
 						</Popover>
-						<button
+						<button type="button"
 							class="btn btn-sm preset-filled-error-500 flex-1"
 							onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
 						>
