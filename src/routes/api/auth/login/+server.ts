@@ -46,7 +46,7 @@ function senhaCorretaEnv(input: string, expected: string): boolean {
 	const b = Buffer.alloc(len);
 	a.write(input);
 	b.write(expected);
-	return timingSafeEqual(a, b) && input.length === expected.length;
+	return ((timingSafeEqual(a, b) ? 1 : 0) & (input.length === expected.length ? 1 : 0)) === 1;
 }
 
 async function checkRateLimit(db: Database, ip: string): Promise<{ blocked: boolean; remaining: number }> {
