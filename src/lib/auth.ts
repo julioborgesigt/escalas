@@ -279,7 +279,9 @@ export async function verificarDesafio2FA(
 
 	const codigoA = Buffer.from(desafio.codigo.padEnd(10));
 	const codigoB = Buffer.from(String(codigoInput).padEnd(10));
-	if (!timingSafeEqual(codigoA, codigoB) || desafio.codigo.length !== String(codigoInput).length) {
+	const codesMatch = timingSafeEqual(codigoA, codigoB) ? 1 : 0;
+	const lenMatch = desafio.codigo.length === String(codigoInput).length ? 1 : 0;
+	if ((codesMatch & lenMatch) !== 1) {
 		await db
 			.update(doisFatoresTokens)
 			.set({ tentativas: desafio.tentativas + 1 })
