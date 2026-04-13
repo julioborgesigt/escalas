@@ -1,4 +1,4 @@
-import { redirect, fail } from '@sveltejs/kit';
+import { redirect, fail, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -16,11 +16,11 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	if (!u) throw redirect(302, '/login');
 
 	const id = Number(params.id);
-	if (isNaN(id)) throw new Error('ID inválido');
+	if (isNaN(id)) throw error(400, 'ID inválido');
 
 	const db = getDB(platform);
 	const policial = await buscarPolicial(db, id);
-	if (!policial) throw new Error('Policial não encontrado');
+	if (!policial) throw error(404, 'Policial não encontrado');
 
 	const isAdm = isAdminGeral(u);
 	const isSeccional = isAdminSeccional(u);

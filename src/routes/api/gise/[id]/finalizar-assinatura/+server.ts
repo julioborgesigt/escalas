@@ -13,6 +13,7 @@ import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } fro
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
+import { contentDisposition } from '$lib/server/api';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -134,7 +135,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		return new Response(signedPdfBytes as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${documentKey}"`
+				'Content-Disposition': contentDisposition(documentKey)
 			}
 		});
 	} catch (err: any) {

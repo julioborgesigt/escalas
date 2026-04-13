@@ -79,6 +79,20 @@ export function serverError(contexto: string, err: unknown): Response {
 	return json({ error: 'Erro interno do servidor' }, { status: 500 });
 }
 
+// ---- Headers HTTP ----
+
+/**
+ * Gera um header Content-Disposition RFC 6266 compatível.
+ * Usa filename* (UTF-8 percent-encoded) como valor principal e um fallback ASCII.
+ *
+ * Uso: `'Content-Disposition': contentDisposition('Escala 2024-01-15.pdf')`
+ */
+export function contentDisposition(filename: string): string {
+	const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '\\"');
+	const encoded = encodeURIComponent(filename);
+	return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 // ---- Validação ----
 
 /**
