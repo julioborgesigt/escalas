@@ -120,10 +120,8 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			});
 		} catch (err: any) {
 			console.error('[DOWNLOAD] FALHA CRÍTICA NA GERAÇÃO DINÂMICA:', err);
-			return new Response(JSON.stringify({ 
-				error: 'Erro ao processar PDF: ' + err.message,
-				hash: hash,
-				timestamp: new Date().toISOString()
+			return new Response(JSON.stringify({
+				error: 'Erro ao processar documento. Tente novamente.'
 			}), {
 				status: 500,
 				headers: { 'Content-Type': 'application/json' }
