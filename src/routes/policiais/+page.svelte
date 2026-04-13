@@ -211,7 +211,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button
+		<button type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -226,7 +226,7 @@
 				class="btn btn-sm preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a
 			>
 		{/if}
-		<button
+		<button type="button"
 			class="btn btn-sm preset-filled-primary-500"
 			onclick={() => {
 				resetForm();
@@ -596,7 +596,7 @@
 									<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500"
 										>Editar</a
 									>
-									<button
+									<button type="button"
 										class="btn btn-sm preset-filled-error-500"
 										onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 									>
@@ -642,7 +642,7 @@
 							class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1"
 							>Editar</a
 						>
-						<button
+						<button type="button"
 							class="btn btn-sm preset-filled-error-500 transition-all flex-1"
 							onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 						>

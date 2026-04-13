@@ -217,7 +217,7 @@
 		</div>
 
 		{#if isAdminGeral}
-			<button
+			<button type="button"
 				class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-sm font-medium px-4 py-2 rounded-xl transition-all"
 				onclick={abrirCriarModal}
 			>
@@ -287,14 +287,14 @@
 
 						<div class="flex items-center gap-3">
 							{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
-								<button
+								<button type="button"
 									class="btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 text-sm px-4 py-2 rounded-xl transition-all font-bold"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
 									{ativa.temSaidaConfirmada ? 'Assinar Rel. extra' : 'Assinar Escala'}
 								</button>
 							{:else}
-								<button
+								<button type="button"
 									class="btn preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 text-sm px-4 py-2 rounded-xl transition-all"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
@@ -307,13 +307,13 @@
 			{/each}
 		</div>
 		<div class="flex items-center justify-between gap-2 mt-3">
-			<button
+			<button type="button"
 				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 				disabled={paginaAtivas === 1}
 				onclick={() => paginaAtivas--}
 			>← Anterior</button>
 			<span class="text-xs text-surface-500">Página {paginaAtivas} de {totalPaginasAtivas}</span>
-			<button
+			<button type="button"
 				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 				disabled={paginaAtivas === totalPaginasAtivas}
 				onclick={() => paginaAtivas++}
@@ -393,7 +393,7 @@
 				{#if filtroSeccional !== '' || filtroMesAno || filtroData || filtroAnoCiclo !== ''}
 					<div class="sm:col-span-2 lg:col-span-4 flex items-center justify-between">
 						<span class="text-xs text-surface-500">{historicoFiltrado.length} resultado(s)</span>
-						<button
+						<button type="button"
 							class="text-xs text-primary-600 dark:text-primary-400 underline"
 							onclick={() => { filtroSeccional = ''; filtroMesAno = ''; filtroData = ''; filtroAnoCiclo = ''; filtroNumeroCiclo = ''; }}
 						>Limpar filtros</button>
@@ -410,7 +410,7 @@
 						<!-- Linha principal -->
 						<div class="flex items-center gap-2 px-4 py-3">
 							<!-- Área clicável -->
-							<button
+							<button type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-3 text-left"
 								onclick={() => { dropdownAberto = null; goto(`/gise/${escala.id}`); }}
 							>
@@ -441,7 +441,7 @@
 
 								<!-- Relatório de Produtividade -->
 								<div class="relative">
-									<button
+									<button type="button"
 										title="Baixar relatório de produtividade"
 										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors"
 										onclick={(e) => toggleDropdown(escala.id, 'prod', e)}
@@ -470,7 +470,7 @@
 
 								<!-- Relatório de Extra Assinado -->
 								<div class="relative">
-									<button
+									<button type="button"
 										title="Baixar relatório de extra assinado"
 										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors"
 										onclick={(e) => toggleDropdown(escala.id, 'extra', e)}
@@ -502,13 +502,13 @@
 			</div>
 
 			<div class="flex items-center justify-between gap-2 mt-3">
-					<button
+					<button type="button"
 						class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 						disabled={paginaHistorico === 1}
 						onclick={() => paginaHistorico--}
 					>← Anterior</button>
 					<span class="text-xs text-surface-500">{paginaHistorico} / {totalPaginasHistorico}</span>
-					<button
+					<button type="button"
 						class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 						disabled={paginaHistorico === totalPaginasHistorico}
 						onclick={() => paginaHistorico++}
@@ -599,7 +599,7 @@
 			<div class="space-y-3">
 				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Tipo de Escala</p>
 				<div class="grid grid-cols-2 gap-3">
-					<button
+					<button type="button"
 						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao ===
 						'completa'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
@@ -609,7 +609,7 @@
 						<span class="font-bold text-xs">Escala Completa</span>
 						<span class="text-[0.6rem] opacity-70">Seccionais padrão</span>
 					</button>
-					<button
+					<button type="button"
 						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao ===
 						'clonada'
 							? 'border-primary-500 bg-primary-500/10 text-primary-600'
@@ -646,7 +646,7 @@
 			</div>
 
 			<div class="flex justify-end gap-3 pt-2">
-				<button
+				<button type="button"
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 					onclick={() => (showCriarModal = false)}
 				>

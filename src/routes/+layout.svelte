@@ -159,7 +159,7 @@
 {#if showSidebar && usuario}
 	<!-- Mobile: hamburger top bar -->
 	<div class="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4">
-		<button
+		<button type="button"
 			class="p-2 -ml-2 text-surface-600 dark:text-surface-300 hover:text-primary-500 transition-colors"
 			onclick={() => sidebarOpen = !sidebarOpen}
 			aria-label="Menu"
@@ -176,7 +176,7 @@
 
 	<!-- Mobile: overlay backdrop -->
 	{#if sidebarOpen}
-		<button
+		<button type="button"
 			class="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
 			onclick={() => sidebarOpen = false}
 			aria-label="Fechar menu"
@@ -201,7 +201,7 @@
 				<span class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">Escalas</span>
 			</a>
 			<!-- Mobile close button -->
-			<button
+			<button type="button"
 				class="md:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
 				onclick={() => sidebarOpen = false}
 				aria-label="Fechar menu"
@@ -342,7 +342,7 @@
 		<!-- Bottom section: theme, user, logout -->
 		<div class="px-3 pb-4 space-y-3 border-t border-surface-200 dark:border-white/5 pt-4 shrink-0">
 			<!-- Theme toggle -->
-			<button
+			<button type="button"
 				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 transition-colors"
 				onclick={toggleTheme}
 			>
@@ -374,7 +374,7 @@
 			</div>
 
 			<!-- Logout -->
-			<button
+			<button type="button"
 				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-error-500/10 hover:text-error-600 dark:hover:text-error-400 transition-colors"
 				onclick={logout}
 			>

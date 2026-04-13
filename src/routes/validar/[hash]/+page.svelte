@@ -202,7 +202,7 @@
 						Faça o download do documento digital assinado e compare com o documento impresso que você possui.
 						As informações devem ser idênticas.
 					</p>
-					<button
+					<button type="button"
 						onclick={handleDownload}
 						disabled={baixando}
 						class="flex items-center justify-center gap-2 w-full sm:w-auto sm:inline-flex px-5 py-3 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:bg-surface-400 text-white font-bold rounded-xl transition-colors text-sm touch-manipulation"
