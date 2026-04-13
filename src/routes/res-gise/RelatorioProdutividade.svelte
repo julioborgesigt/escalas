@@ -109,7 +109,7 @@
 				{:else if q.tipo === 'sim_nao'}
 					<div class="flex gap-2 sm:gap-4 w-full">
 						{#each ['Sim', 'Não'] as opt}
-							<button type="button" 
+							<button 
 								type="button"
 								class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 								onclick={() => handleSimNao(q.key, opt, q)}
@@ -132,7 +132,7 @@
 						{#if !isPura}
 							<div class="flex gap-2 sm:gap-4 w-full">
 								{#each ['Sim', 'Não'] as opt}
-									<button type="button" 
+									<button 
 										type="button"
 										class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 										onclick={() => handleSimNao(q.key, opt, q)}
@@ -305,7 +305,7 @@
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
 							{#each ['Sim', 'Não'] as opt}
-								<button type="button" 
+								<button 
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 									onclick={() => handleSimNao(q.key, opt, q)}
@@ -355,7 +355,7 @@
 
 													<div class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700">
 														{#each ['g', 'kg'] as u}
-															<button type="button" 
+															<button 
 																type="button"
 																class="px-3 py-1.5 rounded-lg text-[0.6rem] font-black uppercase transition-all {(respostas.drogas_unidade && respostas.drogas_unidade[d] === u) || (!respostas.drogas_unidade?.[d] && u === 'g') ? 'bg-white dark:bg-surface-700 text-primary-600 shadow-sm' : 'text-surface-400 hover:text-surface-600'}"
 																onclick={() => (respostas.drogas_unidade = respostas.drogas_unidade || {})[d] = u}
@@ -376,7 +376,7 @@
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
 							{#each ['Sim', 'Não'] as opt}
-								<button type="button" 
+								<button 
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 									onclick={() => handleSimNao(q.key, opt, q)}
