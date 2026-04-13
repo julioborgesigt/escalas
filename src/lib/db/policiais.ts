@@ -84,6 +84,8 @@ export async function listarPoliciais(
 			papel: policiais.papel,
 			papel_unidade_id: policiais.papel_unidade_id,
 			email: policiais.email,
+			email_pessoal: policiais.email_pessoal,
+			email_pessoal_verificado: policiais.email_pessoal_verificado,
 			created_at: policiais.created_at,
 			updated_at: policiais.updated_at,
 			total: sql<number>`count(*) OVER()`
