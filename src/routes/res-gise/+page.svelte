@@ -86,7 +86,7 @@
 
 		{#if podeVerListaGeral}
 			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner">
-				<button
+				<button type="button"
 					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
 						? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
 						: 'text-surface-500 hover:text-surface-700'}"
@@ -95,7 +95,7 @@
 					Relatórios
 				</button>
 				{#if isAdminGeral}
-					<button
+					<button type="button"
 						class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab ===
 						'configurador'
 							? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
@@ -125,14 +125,14 @@
 					</p>
 
 					<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-fit">
-						<button
+						<button type="button"
 							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
 							'operacional'
 								? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 								: 'text-surface-500'}"
 							onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
 						>
-						<button
+						<button type="button"
 							class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'seint'
 								? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 								: 'text-surface-500'}"
@@ -246,7 +246,7 @@
 
 							<div class="flex gap-2 shrink-0">
 								{#if p.tipo === 'sim_nao' || p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'drogas_complex' || p.tipo === 'armas_complex' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
-									<button
+									<button type="button"
 										class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
 										onclick={() => resGise.adicionarSubPergunta(p)}
 										title="Adicionar Sub-pergunta (se SIM)"
@@ -261,7 +261,7 @@
 										>
 									</button>
 								{/if}
-								<button
+								<button type="button"
 									class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-all"
 									onclick={() => resGise.removerPergunta(p.id)}
 									aria-label="Remover Pergunta"
@@ -588,7 +588,7 @@
 
 									<div class="flex items-center gap-1">
 										{#if escala.equipeRespondida}
-											<button
+											<button type="button"
 												class="btn-icon btn-icon-sm bg-primary-500/10 text-primary-600 hover:bg-primary-500 hover:text-white transition-all rounded-lg"
 												onclick={(e) => {
 													e.stopPropagation();
@@ -616,7 +616,7 @@
 											</button>
 										{/if}
 										{#if escala.extraAssinado}
-											<button
+											<button type="button"
 												class="btn-icon btn-icon-sm bg-secondary-500/10 text-secondary-600 hover:bg-secondary-500 hover:text-white transition-all rounded-lg"
 												onclick={(e) => {
 													e.stopPropagation();
@@ -784,7 +784,7 @@
 					<div
 						class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700"
 					>
-						<button
+						<button type="button"
 							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {(resGise.statusFilterUrl || 'ativas') === 'ativas'
 								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
 								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
@@ -792,7 +792,7 @@
 						>
 							Ativas
 						</button>
-						<button
+						<button type="button"
 							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {resGise.statusFilterUrl === 'finalizadas'
 								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
 								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
@@ -812,7 +812,7 @@
 									>Busca Detalhada</span
 								>
 								{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
-									<button
+									<button type="button"
 										class="text-[0.65rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
 										onclick={resGise.limparFiltros}
 									>
@@ -1291,7 +1291,7 @@
 								</div>
 
 								<div class="pt-6">
-									<button
+									<button type="button"
 										class="btn btn-sm text-surface-500 hover:text-primary-500 transition-colors w-full"
 										onclick={() => (resGise.escalaSelecionada = null)}
 									>
@@ -1382,13 +1382,13 @@
 				Essa ação não pode ser desfeita.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button
+				<button type="button"
 					class="btn preset-outlined-surface-500"
 					onclick={() => (dialogRestaurarAberto = false)}
 				>
 					Cancelar
 				</button>
-				<button class="btn preset-filled-warning-500" onclick={confirmarRestaurarPadrao}>
+				<button type="button" class="btn preset-filled-warning-500" onclick={confirmarRestaurarPadrao}>
 					Restaurar
 				</button>
 			</div>

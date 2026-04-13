@@ -264,7 +264,7 @@
 				{#each unidadesComRegime as u (u.nome)}
 					{@const tipos = tiposDisponiveis(u)}
 					{#if tipos.length > 0}
-						<button
+						<button type="button"
 							class="p-4 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500/50 hover:bg-primary-500/5 transition-all text-left group"
 							onclick={() => escolherUnidade(u)}
 						>
@@ -286,7 +286,7 @@
 		{:else if unidadeEscolhida && precisaEscolherTipo}
 			<div class="flex items-center gap-3 mb-5">
 				{#if temVariasUnidades}
-					<button
+					<button type="button"
 						class="btn btn-sm preset-outlined-surface"
 						onclick={() => {
 							unidadeEscolhida = null;
@@ -302,7 +302,7 @@
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				{#each tiposDisponiveis(unidadeEscolhida) as t}
-					<button
+					<button type="button"
 						class="p-5 rounded-2xl border-2 border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500 hover:bg-primary-500/10 transition-all text-center group"
 						onclick={() => escolherTipo(t.tipo)}
 					>
@@ -321,7 +321,7 @@
 				abaixo.
 			</p>
 			<div class="flex justify-center mt-2">
-				<button class="btn preset-filled-primary-500" onclick={() => (selecionando = false)}>
+				<button type="button" class="btn preset-filled-primary-500" onclick={() => (selecionando = false)}>
 					Criar manualmente
 				</button>
 			</div>
@@ -331,7 +331,7 @@
 	<!-- =========== FORMULÁRIO =========== -->
 {:else}
 	<div class="mb-4 flex items-center gap-2">
-		<button
+		<button type="button"
 			class="btn btn-sm preset-outlined-surface"
 			onclick={() => {
 				selecionando = true;

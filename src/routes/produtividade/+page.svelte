@@ -271,7 +271,7 @@
 			: 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full"
 	>
 		<!-- Selection Badge -->
-		<button
+		<button type="button"
 			onclick={() => toggleChartSelection(id)}
 			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id
@@ -358,7 +358,7 @@
 			: 'border-surface-200 dark:border-surface-800 shadow-sm'} rounded-3xl flex flex-col h-full"
 	>
 		<!-- Selection Badge -->
-		<button
+		<button type="button"
 			onclick={() => toggleChartSelection(id)}
 			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id
@@ -483,7 +483,7 @@
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			{#if allChartsCount > 0}
-				<button
+				<button type="button"
 					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length >=
 					allChartsCount
 						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950 shadow-lg'
@@ -496,7 +496,7 @@
 				</button>
 			{/if}
 
-			<button
+			<button type="button"
 				class="btn {selectedCharts.length > 0
 					? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 text-white'
 					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
@@ -517,7 +517,7 @@
 				Baixar PNGs {selectedCharts.length > 0 ? `(${selectedCharts.length})` : ''}
 			</button>
 
-			<button
+			<button type="button"
 				class="export-btn btn {selectedCharts.length > 0
 					? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20 text-white'
 					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
@@ -694,7 +694,7 @@
 					? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
 					: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-4"
 			>
-				<button
+				<button type="button"
 					onclick={() => toggleChartSelection(q.id)}
 					class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 						q.id

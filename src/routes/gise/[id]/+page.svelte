@@ -989,7 +989,7 @@
 	<!-- Cabeçalho -->
 	<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
 		<div class="min-w-0">
-			<button
+			<button type="button"
 				class="btn btn-sm mb-4 preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 group"
 				onclick={() => goto('/gise')}
 			>
@@ -1017,7 +1017,7 @@
 					<span class="text-sm text-surface-500 flex items-center gap-2">
 						{gise.hora_entrada}h–{gise.hora_saida}h
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-							<button
+							<button type="button"
 								class="btn btn-xs preset-filled-surface-500 rounded p-1"
 								onclick={abrirEdicaoDatasHorarios}
 								title="Editar Data/Horários"
@@ -1155,7 +1155,7 @@
 			<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
 				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisor</h2>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
-					<button
+					<button type="button"
 						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_id
 							? 'btn preset-filled-warning-500 animate-pulse'
 							: 'btn preset-outlined-primary-500'}"
@@ -1419,7 +1419,7 @@
 						{#if expandirManual}
 							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
 								{#if isMobile || !data.restringirSmartphone}
-									<button
+									<button type="button"
 										class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
 										disabled={assinandoSimples}
 										onclick={() => abrirModalRubrica('simples')}
@@ -1649,7 +1649,7 @@
 										uma só vez.
 									</p>
 									{#if isMobile || !data.restringirSmartphone}
-										<button
+										<button type="button"
 											class="btn btn-sm preset-filled-warning-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
 											onclick={() => abrirAssinaturaLote()}
 										>
@@ -1725,7 +1725,7 @@
 									</p>
 									{#if !isMobile}
 										<div class="flex flex-col gap-2">
-											<button
+											<button type="button"
 												class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
 												onclick={() => executarAssinarRelatorioLoteSERPRO()}
 												disabled={assinandoLote}
@@ -1844,7 +1844,7 @@
 										{/if}
 									</div>
 									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-										<button
+										<button type="button"
 											class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 											onclick={() => {
 												editandoHorariosSecId = sec.id;
@@ -2069,7 +2069,7 @@
 										</form>
 
 										{#if modoEdicaoSeccional}
-											<button
+											<button type="button"
 												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg"
 												onclick={() => {
 													modoEdicaoSeccional = false;
@@ -2099,7 +2099,7 @@
 											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100"
 												>{sec.unidade_operacional_nome}</span
 											>
-											<button
+											<button type="button"
 												class="btn preset-outlined-primary-500 text-sm px-3 py-1 rounded-xl"
 												onclick={() => (editandoUnidade = true)}
 											>
@@ -2295,7 +2295,7 @@
 														{/if}
 													</div>
 													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-														<button
+														<button type="button"
 															class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
@@ -2325,7 +2325,7 @@
 													{/if}
 												{/if}
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-													<button
+													<button type="button"
 														class="btn btn-sm preset-outlined-warning-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															editandoEquipe = equipe.id;
@@ -2460,7 +2460,7 @@
 											</form>
 										{:else}
 											<div class="flex flex-wrap gap-2">
-												<button
+												<button type="button"
 													class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 													onclick={() => {
 														equipeParaAdicionar = equipe.id;
@@ -2483,7 +2483,7 @@
 													+ Adicionar OIP
 												</button>
 												{#if equipe.slots_dpc > 0}
-													<button
+													<button type="button"
 														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
@@ -2599,7 +2599,7 @@
 										>
 									</div>
 								{:else}
-									<button
+									<button type="button"
 										class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 										onclick={() => {
 											adicionandoEquipeSec = sec.id;
@@ -2671,7 +2671,7 @@
 						</form>
 					</div>
 				{:else}
-					<button
+					<button type="button"
 						class="btn preset-outlined-success-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
 						onclick={() => (adicionandoSeccional = true)}
 					>
@@ -3011,13 +3011,13 @@
 				desfeita.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button
+				<button type="button"
 					class="btn preset-outlined-surface-500"
 					onclick={() => (dialogRemoverSeccionalAberto = false)}
 				>
 					Cancelar
 				</button>
-				<button class="btn preset-filled-error-500" onclick={confirmarRemoverSeccional}>
+				<button type="button" class="btn preset-filled-error-500" onclick={confirmarRemoverSeccional}>
 					Remover
 				</button>
 			</div>

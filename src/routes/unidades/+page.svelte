@@ -213,7 +213,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button
+		<button type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -223,7 +223,7 @@
 			Limpar filtros
 		</button>
 		{#if isAdmin}
-			<button class="btn btn-sm preset-filled-primary-500" onclick={() => (cadastroOpen = true)}>
+			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={() => (cadastroOpen = true)}>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 					><path
 						stroke-linecap="round"
@@ -636,11 +636,11 @@
 										</form>
 									{:else}
 										<div class="flex gap-2">
-											<button
+											<button type="button"
 												class="btn btn-sm preset-outlined-primary-500"
 												onclick={() => iniciarEdicao(u)}>Editar</button
 											>
-											<button
+											<button type="button"
 												class="btn btn-sm preset-filled-error-500"
 												onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 											>
@@ -751,11 +751,11 @@
 							</div>
 							{#if isAdmin}
 								<div class="flex gap-2 shrink-0">
-									<button
+									<button type="button"
 										class="btn btn-sm preset-outlined-primary-500"
 										onclick={() => iniciarEdicao(u)}>Editar</button
 									>
-									<button
+									<button type="button"
 										class="btn btn-sm preset-filled-error-500"
 										onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 									>
