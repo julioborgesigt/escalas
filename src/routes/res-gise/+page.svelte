@@ -1374,24 +1374,25 @@
 
 <!-- Diálogo de confirmação para restaurar modelo padrão -->
 <Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
-	{#snippet children()}
-		<div class="p-6 max-w-sm">
-			<h3 class="text-lg font-bold mb-2">Restaurar modelo padrão?</h3>
-			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
+			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
 				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão.
 				Essa ação não pode ser desfeita.
-			</p>
+			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<button type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={() => (dialogRestaurarAberto = false)}
-				>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">
 					Cancelar
-				</button>
+				</Dialog.CloseTrigger>
 				<button type="button" class="btn preset-filled-warning-500" onclick={confirmarRestaurarPadrao}>
 					Restaurar
 				</button>
 			</div>
 		</div>
-	{/snippet}
+	</Dialog.Content>
 </Dialog>
