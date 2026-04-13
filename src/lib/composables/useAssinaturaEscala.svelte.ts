@@ -56,9 +56,13 @@ export function useAssinaturaEscala({
 	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
 	let gpsCoords = $state<{ lat: number; lng: number } | null>(null);
+	let gpsIndisponivel = $state(false);
 
 	async function getCoordinates(): Promise<{ lat: number; lng: number } | null> {
-		if (typeof window === 'undefined' || !('geolocation' in navigator)) return null;
+		if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+			gpsIndisponivel = true;
+			return null;
+		}
 		try {
 			const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
 				navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -67,8 +71,11 @@ export function useAssinaturaEscala({
 					maximumAge: 0
 				});
 			});
+			gpsIndisponivel = false;
 			return { lat: pos.coords.latitude, lng: pos.coords.longitude };
 		} catch {
+			gpsIndisponivel = true;
+			console.warn('[Assinatura] GPS indisponível — coordenadas não serão registradas.');
 			return null;
 		}
 	}
@@ -250,6 +257,7 @@ export function useAssinaturaEscala({
 		get rubricaCapturada() { return rubricaCapturada; },
 		get selfieCapturada() { return selfieCapturada; },
 		get gpsCoords() { return gpsCoords; },
+		get gpsIndisponivel() { return gpsIndisponivel; },
 		loadCertificados,
 		onCertSelecionado,
 		assinarComWebPKI,

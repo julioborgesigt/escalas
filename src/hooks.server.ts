@@ -45,7 +45,7 @@ export function buildCSP(isHTML: boolean): string {
 	}
 
 	const isDev = !import.meta.env.PROD;
-	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
+	const scriptExtra = isDev ? " 'unsafe-inline' 'unsafe-eval'" : '';
 	const connectExtra = isDev ? ' http://localhost:*' : '';
 
 	const serproWS = [
@@ -62,7 +62,7 @@ export function buildCSP(isHTML: boolean): string {
 
 	return [
 		`default-src 'self'`,
-		`script-src 'self' 'unsafe-inline'${scriptExtra}`,
+		`script-src 'self'${scriptExtra}`,
 		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
 		`font-src 'self' data: https://fonts.gstatic.com`,
@@ -85,9 +85,9 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 		csrfToken = generateCsrfToken();
 		event.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
 			path: '/',
-			httpOnly: false,
+			httpOnly: false, // deve ser false para o padrão double-submit (JS precisa ler o token)
 			secure: event.url.protocol === 'https:',
-			sameSite: 'lax',
+			sameSite: 'strict',
 			maxAge: 60 * 60 * 24 // 24 hours
 		});
 	}
@@ -172,7 +172,7 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 
 	// HSTS
 	if (event.url.protocol === 'https:') {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	}
 
 	return response;

@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, gt } from 'drizzle-orm';
+import { timingSafeEqual } from 'node:crypto';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { hashSenha, verificarSenha, isHashLegado, criarSessao, gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
@@ -32,10 +33,20 @@ function cookieOptions(url: URL) {
 	return {
 		path: '/',
 		httpOnly: true,
-		sameSite: 'lax' as const,
+		sameSite: 'strict' as const,
 		secure: url.protocol === 'https:',
 		maxAge: 12 * 60 * 60
 	};
+}
+
+/** Comparação de strings em tempo constante para evitar timing attacks. */
+function senhaCorretaEnv(input: string, expected: string): boolean {
+	const len = Math.max(input.length, expected.length, 1);
+	const a = Buffer.alloc(len);
+	const b = Buffer.alloc(len);
+	a.write(input);
+	b.write(expected);
+	return timingSafeEqual(a, b) && input.length === expected.length;
 }
 
 async function checkRateLimit(db: Database, ip: string): Promise<{ blocked: boolean; remaining: number }> {
@@ -81,7 +92,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		const envSenha = _env.ADMIN_GERAL_SENHA ?? '';
 
 		if (envLogin && envSenha && matricula === envLogin) {
-			if (senha !== envSenha) {
+			if (!senhaCorretaEnv(senha, envSenha)) {
 				await recordAttempt(db, ip, false);
 				await registrarAuditComContexto(db, {
 					usuario: null,

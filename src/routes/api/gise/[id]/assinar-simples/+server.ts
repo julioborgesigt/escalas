@@ -8,6 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import { logger } from '$lib/server/logger';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala, buscarExigirCodigoEmailAssinatura } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise } from '$lib/export';
@@ -151,9 +152,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				'Content-Disposition': `attachment; filename="${filename}"`
 			}
 		});
-	} catch (e) {
-		const message = e instanceof Error ? e.message : 'Erro ao gerar PDF';
-		console.error('[gise/assinar-simples]', e);
-		return json({ error: message }, { status: 500 });
+	} catch (e: any) {
+		logger.error('[gise/assinar-simples] Erro', { error: e?.message });
+		return json({ error: 'Falha ao gerar assinatura GISE. Tente novamente.' }, { status: 500 });
 	}
 };

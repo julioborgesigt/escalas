@@ -37,6 +37,11 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
+	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
+	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
+		return json({ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório.' }, { status: 403 });
+	}
+
 	const presencas = await buscarPresencasGise(db, id);
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;

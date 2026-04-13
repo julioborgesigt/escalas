@@ -57,13 +57,14 @@
 	let serproSignerName = $derived(assinatura.serproSignerName);
 	let serproSignerCpf = $derived(assinatura.serproSignerCpf);
 
-	async function revogarAssinatura() {
-		if (
-			!confirm(
-				'Você tem certeza que deseja revogar a assinatura digital? Isso excluirá o PDF oficial e permitirá editar a escala novamente.'
-			)
-		)
-			return;
+	let dialogRevogacaoAberto = $state(false);
+
+	function revogarAssinatura() {
+		dialogRevogacaoAberto = true;
+	}
+
+	async function confirmarRevogacao() {
+		dialogRevogacaoAberto = false;
 		assinatura.dialogSignOpen = false;
 		// Keep local revoke logic since hook doesn't cover it yet
 		try {
@@ -122,6 +123,30 @@
 		await assinatura.assinarComSerpro();
 	}
 </script>
+
+<!-- Diálogo de confirmação de revogação de assinatura -->
+<Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
+	{#snippet content()}
+		<div class="p-6 max-w-sm">
+			<h3 class="text-lg font-bold mb-2">Revogar assinatura?</h3>
+			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+				Isso excluirá o PDF oficial e permitirá editar a escala novamente. Esta ação não pode ser
+				desfeita.
+			</p>
+			<div class="flex justify-end gap-3">
+				<button
+					class="btn preset-outlined-surface-500"
+					onclick={() => (dialogRevogacaoAberto = false)}
+				>
+					Cancelar
+				</button>
+				<button class="btn preset-filled-error-500" onclick={confirmarRevogacao}>
+					Revogar
+				</button>
+			</div>
+		</div>
+	{/snippet}
+</Dialog>
 
 <!-- Banner: escala assinada -->
 {#if documentoAssinadoInfo?.existe}

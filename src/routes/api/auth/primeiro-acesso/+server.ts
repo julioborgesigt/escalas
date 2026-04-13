@@ -13,12 +13,12 @@ import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 
 function gerarSenhaProvisoria(): string {
-	// 8 chars: 4 letras maiúsculas + 4 dígitos embaralhados
+	// 12 chars para ~62 bits de entropia
 	// Evita caracteres ambíguos: 0, O, 1, I, L
 	const letras = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 	const digitos = '23456789';
-	const todos = letras + digitos;
-	const bytes = new Uint8Array(8);
+	const todos = letras + digitos; // 31 chars
+	const bytes = new Uint8Array(12);
 	crypto.getRandomValues(bytes);
 	return Array.from(bytes)
 		.map((b) => todos[b % todos.length])

@@ -1,4 +1,5 @@
 import { eq, and, gt, inArray } from 'drizzle-orm';
+import { timingSafeEqual } from 'node:crypto';
 import { sessoes, administradores, policiais, doisFatoresTokens } from './server/schema';
 import type { Database } from './db';
 
@@ -276,7 +277,9 @@ export async function verificarDesafio2FA(
 	if (new Date() > new Date(desafio.expires_at)) return 'expirado';
 	if (desafio.tentativas >= 5) return 'esgotado';
 
-	if (desafio.codigo !== codigoInput) {
+	const codigoA = Buffer.from(desafio.codigo.padEnd(10));
+	const codigoB = Buffer.from(String(codigoInput).padEnd(10));
+	if (!timingSafeEqual(codigoA, codigoB) || desafio.codigo.length !== String(codigoInput).length) {
 		await db
 			.update(doisFatoresTokens)
 			.set({ tentativas: desafio.tentativas + 1 })
