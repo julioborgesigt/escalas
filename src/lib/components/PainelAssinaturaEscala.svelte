@@ -130,7 +130,7 @@
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
 <Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
-	{#snippet content()}
+	{#snippet children()}
 		<div class="p-6 max-w-sm">
 			<h3 class="text-lg font-bold mb-2">Revogar assinatura?</h3>
 			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
