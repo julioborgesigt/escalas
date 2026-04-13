@@ -154,7 +154,8 @@
 				toaster.success({ title: 'Supervisor salvo' });
 				editandoSupervisores = false;
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 			salvando = false;
@@ -169,7 +170,8 @@
 				toaster.success({ title: 'Unidade operacional salva' });
 				editandoUnidade = false;
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 			salvando = false;
@@ -189,14 +191,21 @@
 				adicionandoSeccional = false;
 				seccionalParaAdicionarIdx = '';
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
 			salvando = false;
 		};
 	}
 
-	function handleRemoverSeccional({ cancel, formElement }: { cancel(): void; formElement: HTMLFormElement }) {
+	function handleRemoverSeccional({
+		cancel,
+		formElement
+	}: {
+		cancel(): void;
+		formElement: HTMLFormElement;
+	}) {
 		// Sempre cancela o submit padrão para mostrar o diálogo de confirmação
 		cancel();
 		formRemoverSeccionalPendente = formElement;
@@ -239,7 +248,8 @@
 				policialParaAdicionar = '';
 				cargoParaAdicionar = null;
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
 			}
 			salvando = false;
@@ -254,7 +264,8 @@
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Membro removido' });
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
 			}
 			salvando = false;
@@ -268,7 +279,8 @@
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Equipe removida' });
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
 			}
 			removendoEquipeId = null;
@@ -297,7 +309,8 @@
 				}
 				modoEdicaoSeccional = false;
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
 			salvando = false;
@@ -365,7 +378,12 @@
 		}
 	}
 
-	async function executarAssinarSimples(latitude?: number, longitude?: number, codigoValidação?: string, desafioId?: string) {
+	async function executarAssinarSimples(
+		latitude?: number,
+		longitude?: number,
+		codigoValidação?: string,
+		desafioId?: string
+	) {
 		assinandoSimples = true;
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
@@ -430,7 +448,8 @@
 				showFinalizarConfirm = false;
 				goto('/gise');
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
 		};
@@ -445,7 +464,8 @@
 				editandoEquipe = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao atualizar' });
 			}
 		};
@@ -462,7 +482,8 @@
 				});
 				await invalidate('gise:detail');
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
 			}
 		};
@@ -479,7 +500,8 @@
 				});
 				await invalidate('gise:detail');
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao revogar' });
 			}
 		};
@@ -728,7 +750,8 @@
 				showReabrirConfirm = false;
 				await invalidate('gise:detail');
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
 			}
 		};
@@ -769,7 +792,8 @@
 				showModalDataHoras = false;
 				await invalidate(page.url.href);
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
@@ -800,7 +824,8 @@
 				editandoHorariosSecId = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
@@ -821,7 +846,8 @@
 				editandoHorariosEquipeId = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
 		};
@@ -836,7 +862,8 @@
 				showExcluirGiseConfirm = false;
 				goto('/gise');
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao excluir' });
 			}
 		};
@@ -851,7 +878,8 @@
 				adicionandoEquipeSec = null;
 				await invalidate(page.url.href);
 			} else {
-				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
 		};
@@ -989,7 +1017,8 @@
 	<!-- Cabeçalho -->
 	<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
 		<div class="min-w-0">
-			<button type="button"
+			<button
+				type="button"
 				class="btn btn-sm mb-4 preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 group"
 				onclick={() => goto('/gise')}
 			>
@@ -1017,7 +1046,8 @@
 					<span class="text-sm text-surface-500 flex items-center gap-2">
 						{gise.hora_entrada}h–{gise.hora_saida}h
 						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-							<button type="button"
+							<button
+								type="button"
 								class="btn btn-xs preset-filled-surface-500 rounded p-1"
 								onclick={abrirEdicaoDatasHorarios}
 								title="Editar Data/Horários"
@@ -1155,7 +1185,8 @@
 			<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
 				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisor</h2>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
-					<button type="button"
+					<button
+						type="button"
 						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_id
 							? 'btn preset-filled-warning-500 animate-pulse'
 							: 'btn preset-outlined-primary-500'}"
@@ -1419,7 +1450,8 @@
 						{#if expandirManual}
 							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
 								{#if isMobile || !data.restringirSmartphone}
-									<button type="button"
+									<button
+										type="button"
 										class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
 										disabled={assinandoSimples}
 										onclick={() => abrirModalRubrica('simples')}
@@ -1649,7 +1681,8 @@
 										uma só vez.
 									</p>
 									{#if isMobile || !data.restringirSmartphone}
-										<button type="button"
+										<button
+											type="button"
 											class="btn btn-sm preset-filled-warning-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
 											onclick={() => abrirAssinaturaLote()}
 										>
@@ -1725,7 +1758,8 @@
 									</p>
 									{#if !isMobile}
 										<div class="flex flex-col gap-2">
-											<button type="button"
+											<button
+												type="button"
 												class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
 												onclick={() => executarAssinarRelatorioLoteSERPRO()}
 												disabled={assinandoLote}
@@ -1844,7 +1878,8 @@
 										{/if}
 									</div>
 									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-										<button type="button"
+										<button
+											type="button"
 											class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 											onclick={() => {
 												editandoHorariosSecId = sec.id;
@@ -2069,7 +2104,8 @@
 										</form>
 
 										{#if modoEdicaoSeccional}
-											<button type="button"
+											<button
+												type="button"
 												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg"
 												onclick={() => {
 													modoEdicaoSeccional = false;
@@ -2099,7 +2135,8 @@
 											<span class="text-sm font-semibold text-surface-900 dark:text-surface-100"
 												>{sec.unidade_operacional_nome}</span
 											>
-											<button type="button"
+											<button
+												type="button"
 												class="btn preset-outlined-primary-500 text-sm px-3 py-1 rounded-xl"
 												onclick={() => (editandoUnidade = true)}
 											>
@@ -2295,7 +2332,8 @@
 														{/if}
 													</div>
 													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-														<button type="button"
+														<button
+															type="button"
 															class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
 															onclick={() => {
 																editandoHorariosEquipeId = equipe.id;
@@ -2320,12 +2358,13 @@
 																	d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
 																/></svg
 															>
-															Editar Horários
+															Editar horários desta equipe
 														</button>
 													{/if}
 												{/if}
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-													<button type="button"
+													<button
+														type="button"
 														class="btn btn-sm preset-outlined-warning-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															editandoEquipe = equipe.id;
@@ -2345,7 +2384,7 @@
 																d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
 															/></svg
 														>
-														Editar vagas
+														Editar vagas desta equipe
 													</button>
 												{/if}
 											{/if}
@@ -2460,7 +2499,8 @@
 											</form>
 										{:else}
 											<div class="flex flex-wrap gap-2">
-												<button type="button"
+												<button
+													type="button"
 													class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 													onclick={() => {
 														equipeParaAdicionar = equipe.id;
@@ -2483,7 +2523,8 @@
 													+ Adicionar OIP
 												</button>
 												{#if equipe.slots_dpc > 0}
-													<button type="button"
+													<button
+														type="button"
 														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
@@ -2599,7 +2640,8 @@
 										>
 									</div>
 								{:else}
-									<button type="button"
+									<button
+										type="button"
 										class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 										onclick={() => {
 											adicionandoEquipeSec = sec.id;
@@ -2671,7 +2713,8 @@
 						</form>
 					</div>
 				{:else}
-					<button type="button"
+					<button
+						type="button"
 						class="btn preset-outlined-success-500 text-sm px-4 py-2 rounded-xl border-dashed mt-4 flex items-center gap-2"
 						onclick={() => (adicionandoSeccional = true)}
 					>
@@ -3003,24 +3046,27 @@
 	open={dialogRemoverSeccionalAberto}
 	onOpenChange={(e) => (dialogRemoverSeccionalAberto = e.open)}
 >
-	{#snippet children()}
-		<div class="p-6 max-w-sm">
-			<h3 class="text-lg font-bold mb-2">Remover seccional?</h3>
-			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="text-lg font-bold mb-2">Remover seccional?</Dialog.Title>
+			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
 				Todos os policiais escalados nesta seccional serão removidos. Esta ação não pode ser
 				desfeita.
-			</p>
+			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<button type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={() => (dialogRemoverSeccionalAberto = false)}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
+				<button
+					type="button"
+					class="btn preset-filled-error-500"
+					onclick={confirmarRemoverSeccional}
 				>
-					Cancelar
-				</button>
-				<button type="button" class="btn preset-filled-error-500" onclick={confirmarRemoverSeccional}>
 					Remover
 				</button>
 			</div>
 		</div>
-	{/snippet}
+	</Dialog.Content>
 </Dialog>
