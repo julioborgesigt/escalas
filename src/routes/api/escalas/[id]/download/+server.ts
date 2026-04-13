@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import * as exportLib from '$lib/export';
+import { contentDisposition } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
 	const u = locals.usuario;
@@ -69,7 +70,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 		return new Response(buffer as BodyInit, {
 			headers: {
 				'Content-Type': contentType,
-				'Content-Disposition': `attachment; filename="${filename}"`,
+				'Content-Disposition': contentDisposition(filename),
 				'Cache-Control': 'no-cache'
 			}
 		});

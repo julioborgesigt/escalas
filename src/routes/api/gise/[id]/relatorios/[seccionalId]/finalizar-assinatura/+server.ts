@@ -19,6 +19,7 @@ import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normaliza
 import { getR2 } from '$lib/server/platform';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
 import { logger } from '$lib/server/logger';
+import { contentDisposition } from '$lib/server/api';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -163,7 +164,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		return new Response(signedPdfBytes as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': `attachment; filename="${filename}"`
+				'Content-Disposition': contentDisposition(filename)
 			}
 		});
 	} catch (err: any) {
