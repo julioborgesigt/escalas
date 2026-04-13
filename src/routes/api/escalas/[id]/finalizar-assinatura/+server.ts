@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
+import { logger } from '$lib/server/logger';
 import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
@@ -97,7 +98,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		return json({ success: true, message: 'Escala assinada digitalmente com sucesso' });
 	} catch (err: any) {
-		console.error('[API/finalizar-assinatura] Erro:', err);
-		return json({ error: 'Falha ao processar assinatura final: ' + err.message }, { status: 500 });
+		logger.error('[API/finalizar-assinatura] Erro', { error: err?.message });
+		return json({ error: 'Falha ao finalizar assinatura. Tente novamente.' }, { status: 500 });
 	}
 };

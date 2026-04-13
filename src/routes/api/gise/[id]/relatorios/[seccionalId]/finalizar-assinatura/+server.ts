@@ -18,6 +18,7 @@ import {
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
+import { logger } from '$lib/server/logger';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -166,7 +167,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			}
 		});
 	} catch (err: any) {
-		console.error(`[GISE-SIGN] Falha ao finalizar PKI - GISE ${id}, Sec ${secIdNum}:`, err);
-		return json({ error: err.message }, { status: 500 });
+		logger.error(`[GISE-SIGN] Falha ao finalizar PKI - GISE ${id}, Sec ${secIdNum}`, { error: err?.message });
+		return json({ error: 'Falha ao finalizar assinatura do relatório. Tente novamente.' }, { status: 500 });
 	}
 };
