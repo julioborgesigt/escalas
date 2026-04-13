@@ -58,6 +58,7 @@
 	let serproSignerCpf = $derived(assinatura.serproSignerCpf);
 
 	let dialogRevogacaoAberto = $state(false);
+	let revogando = $state(false);
 
 	function revogarAssinatura() {
 		dialogRevogacaoAberto = true;
@@ -66,6 +67,7 @@
 	async function confirmarRevogacao() {
 		dialogRevogacaoAberto = false;
 		assinatura.dialogSignOpen = false;
+		revogando = true;
 		// Keep local revoke logic since hook doesn't cover it yet
 		try {
 			const res = await fetch(`/api/escalas/${escalaId}/documento-assinado`, {
@@ -84,6 +86,8 @@
 			}
 		} catch {
 			toaster.create({ title: 'Erro ao revogar assinatura', type: 'error' });
+		} finally {
+			revogando = false;
 		}
 	}
 
@@ -134,14 +138,15 @@
 				desfeita.
 			</p>
 			<div class="flex justify-end gap-3">
-				<button
+				<button type="button"
 					class="btn preset-outlined-surface-500"
 					onclick={() => (dialogRevogacaoAberto = false)}
 				>
 					Cancelar
 				</button>
-				<button class="btn preset-filled-error-500" onclick={confirmarRevogacao}>
-					Revogar
+				<button type="button" class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarRevogacao} disabled={revogando}>
+					{#if revogando}<Spinner size="sm" />{/if}
+					{revogando ? 'Revogando...' : 'Revogar'}
 				</button>
 			</div>
 		</div>
@@ -196,7 +201,7 @@
 				</svg>
 				Download PDF
 			</a>
-			<button
+			<button type="button"
 				class="btn preset-outlined-error-500 font-bold px-5 py-2.5 rounded-xl transition-all flex-1 sm:flex-none justify-center"
 				onclick={revogarAssinatura}
 				disabled={assinando}
@@ -263,7 +268,7 @@
 				</p>
 
 				{#if isMobile}
-					<button
+					<button type="button"
 						class="btn preset-filled-primary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full"
 						disabled={assinandoSimples}
 						onclick={abrirModalAssinatura}

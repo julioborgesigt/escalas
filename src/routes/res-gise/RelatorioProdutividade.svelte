@@ -109,7 +109,7 @@
 				{:else if q.tipo === 'sim_nao'}
 					<div class="flex gap-2 sm:gap-4 w-full">
 						{#each ['Sim', 'Não'] as opt}
-							<button 
+							<button type="button" 
 								type="button"
 								class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 								onclick={() => handleSimNao(q.key, opt, q)}
@@ -132,7 +132,7 @@
 						{#if !isPura}
 							<div class="flex gap-2 sm:gap-4 w-full">
 								{#each ['Sim', 'Não'] as opt}
-									<button 
+									<button type="button" 
 										type="button"
 										class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 										onclick={() => handleSimNao(q.key, opt, q)}
@@ -305,7 +305,7 @@
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
 							{#each ['Sim', 'Não'] as opt}
-								<button 
+								<button type="button" 
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 									onclick={() => handleSimNao(q.key, opt, q)}
@@ -321,7 +321,7 @@
 									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_tipo || 'Tipos de Droga Apreendidos:'}</span>
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d}
-											<button class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(respostas.drogas_selecionadas || []).includes(d) ? 'bg-primary-500 text-white border-primary-500 shadow-md' : 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
+											<button type="button" class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(respostas.drogas_selecionadas || []).includes(d) ? 'bg-primary-500 text-white border-primary-500 shadow-md' : 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
 												onclick={() => {
 													const current = respostas.drogas_selecionadas || [];
 													if (current.includes(d)) {
@@ -355,7 +355,7 @@
 
 													<div class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700">
 														{#each ['g', 'kg'] as u}
-															<button 
+															<button type="button" 
 																type="button"
 																class="px-3 py-1.5 rounded-lg text-[0.6rem] font-black uppercase transition-all {(respostas.drogas_unidade && respostas.drogas_unidade[d] === u) || (!respostas.drogas_unidade?.[d] && u === 'g') ? 'bg-white dark:bg-surface-700 text-primary-600 shadow-sm' : 'text-surface-400 hover:text-surface-600'}"
 																onclick={() => (respostas.drogas_unidade = respostas.drogas_unidade || {})[d] = u}
@@ -376,7 +376,7 @@
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
 							{#each ['Sim', 'Não'] as opt}
-								<button 
+								<button type="button" 
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[q.key] === opt ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30' : 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
 									onclick={() => handleSimNao(q.key, opt, q)}
@@ -392,7 +392,7 @@
 									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_tipo || 'Tipos de Armas/Munições:'}</span>
 									<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
 										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a}
-											<button class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(respostas.armas_selecionadas || []).includes(a) ? 'bg-primary-500 text-white border-primary-500 shadow-md' : 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
+											<button type="button" class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(respostas.armas_selecionadas || []).includes(a) ? 'bg-primary-500 text-white border-primary-500 shadow-md' : 'bg-white dark:bg-surface-900 text-surface-500 border-surface-100 dark:border-surface-800 hover:border-primary-500/50'}"
 												onclick={() => {
 													const current = respostas.armas_selecionadas || [];
 													if (current.includes(a)) {
