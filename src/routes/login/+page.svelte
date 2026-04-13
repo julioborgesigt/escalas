@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
+	import { csrfHeaders } from '$lib/csrf';
 	import Spinner from '$lib/components/Spinner.svelte';
 
 	let tipo = $state<'policial' | 'admin'>('policial');
@@ -22,6 +24,14 @@
 	let primeiroAcesso = $state(false);
 	let matriculaPrimeiroAcesso = $state('');
 	let primeiroAcessoEnviado = $state(false);
+
+	// Estado de recuperação de senha
+	let recuperacao = $state(false);
+	let identificadorRec = $state('');
+	let recuperacaoEnviada = $state(false);
+	let loadingRecuperacao = $state(false);
+
+	const mostrarBannerResetado = $derived(page.url.searchParams.get('resetado') === '1');
 
 	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
 		const parsed = loginSchema.safeParse({
@@ -99,6 +109,33 @@
 		primeiroAcessoEnviado = false;
 		matriculaPrimeiroAcesso = '';
 	}
+
+	function voltarParaRecuperacao() {
+		recuperacao = false;
+		recuperacaoEnviada = false;
+		identificadorRec = '';
+	}
+
+	async function solicitarRecuperacao() {
+		if (!identificadorRec.trim()) return;
+		loadingRecuperacao = true;
+		try {
+			const res = await fetch('/api/auth/solicitar-redefinicao', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ identificador: identificadorRec.trim(), tipo })
+			});
+			if (res.ok || res.status === 200) {
+				recuperacaoEnviada = true;
+			} else {
+				recuperacaoEnviada = true; // resposta genérica sempre
+			}
+		} catch {
+			recuperacaoEnviada = true; // não revelar erros internos
+		} finally {
+			loadingRecuperacao = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -116,7 +153,16 @@
 			</p>
 		</div>
 
-		{#if !pendente2FA && !primeiroAcesso}
+		{#if mostrarBannerResetado}
+			<div class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-success-500/10 border border-success-500/25 text-success-700 dark:text-success-300 text-sm">
+				<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+				</svg>
+				<span>Senha redefinida com sucesso! Faça login com sua nova senha.</span>
+			</div>
+		{/if}
+
+		{#if !pendente2FA && !primeiroAcesso && !recuperacao}
 			<!-- ===== Formulário de credenciais ===== -->
 			<div
 				class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5"
@@ -203,19 +249,100 @@
 				</button>
 			</form>
 
-			{#if tipo === 'policial'}
-				<p class="text-center mt-4 text-xs text-surface-500">
-					Primeiro acesso?
+			<p class="text-center mt-4 text-xs text-surface-500 space-x-1">
+				{#if tipo === 'policial'}
+					<span>
+						Primeiro acesso?
+						<button
+							type="button"
+							class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+							onclick={() => { primeiroAcesso = true; }}
+						>
+							Clique aqui
+						</button>
+					</span>
+					<span class="text-surface-300 dark:text-surface-600">·</span>
+				{/if}
+				<span>
+					Esqueceu a senha?
 					<button
 						type="button"
 						class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-						onclick={() => {
-							primeiroAcesso = true;
-						}}
+						onclick={() => { recuperacao = true; }}
 					>
-						Clique aqui
+						Recuperar
 					</button>
-				</p>
+				</span>
+			</p>
+		{:else if recuperacao}
+			<!-- ===== Recuperação de senha ===== -->
+			{#if !recuperacaoEnviada}
+				<div class="text-center mb-6">
+					<div class="text-5xl mb-3">🔒</div>
+					<p class="font-semibold mb-1">Recuperar senha</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400">
+						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um link de redefinição por e-mail.
+					</p>
+				</div>
+
+				<div class="flex flex-col gap-5">
+					<div class="flex mb-4 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5">
+						<button
+							type="button"
+							class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
+							onclick={() => { tipo = 'policial'; identificadorRec = ''; }}
+						>
+							Policial
+						</button>
+						<button
+							type="button"
+							class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin' ? 'preset-filled-primary-500' : 'text-surface-500'}"
+							onclick={() => { tipo = 'admin'; identificadorRec = ''; }}
+						>
+							Administrador
+						</button>
+					</div>
+
+					<label class="label">
+						<span class="label-text">{tipo === 'policial' ? 'Matrícula' : 'Login'}</span>
+						<input
+							class="input"
+							type="text"
+							bind:value={identificadorRec}
+							placeholder={tipo === 'policial' ? 'Digite sua matrícula' : 'Digite seu login'}
+							maxlength={tipo === 'policial' ? 8 : undefined}
+						/>
+					</label>
+
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
+						disabled={loadingRecuperacao || !identificadorRec.trim()}
+						onclick={solicitarRecuperacao}
+					>
+						{#if loadingRecuperacao}<Spinner size="md" />{/if}
+						{loadingRecuperacao ? 'Enviando...' : 'Enviar link de redefinição'}
+					</button>
+
+					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaRecuperacao}>
+						← Voltar
+					</button>
+				</div>
+			{:else}
+				<div class="text-center">
+					<div class="text-5xl mb-4">📬</div>
+					<p class="font-semibold mb-2">Link enviado!</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
+						Se o identificador estiver cadastrado com e-mail, você receberá um link de redefinição em instantes. Verifique também sua caixa de spam.
+					</p>
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 w-full"
+						onclick={voltarParaRecuperacao}
+					>
+						Ir para o login
+					</button>
+				</div>
 			{/if}
 		{:else if primeiroAcesso}
 			<!-- ===== Primeiro acesso ===== -->

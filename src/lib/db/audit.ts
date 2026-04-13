@@ -37,7 +37,9 @@ export type AcaoAudit =
 	| 'editar_gise'
 	| 'finalizar_gise'
 	| 'reabrir_gise'
-	| 'falha_login';
+	| 'falha_login'
+	| 'solicitar_redefinicao_senha'
+	| 'redefinir_senha';
 
 interface AuditEntry {
 	usuario_id: number | null;

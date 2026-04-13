@@ -1,6 +1,6 @@
 import { eq, and, gt, inArray } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
-import { sessoes, administradores, policiais, doisFatoresTokens } from './server/schema';
+import { sessoes, administradores, policiais, doisFatoresTokens, resetSenhaTokens } from './server/schema';
 import type { Database } from './db';
 
 export interface UsuarioLogado {
@@ -256,6 +256,61 @@ export async function criarDesafio2FA(
 		expires_at: expiresAt
 	});
 	return desafioId;
+}
+
+// ---- Redefinição de Senha ----
+
+/**
+ * Cria um token de redefinição de senha (256 bits, expira em 1 hora) e o persiste.
+ * Retorna o token gerado para ser incluído no link de redefinição.
+ */
+export async function criarTokenRedefinicao(
+	db: Database,
+	tipoUsuario: 'policial' | 'admin',
+	usuarioId: number
+): Promise<string> {
+	const token = gerarToken();
+	const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+	await db.insert(resetSenhaTokens).values({
+		token,
+		tipo_usuario: tipoUsuario,
+		usuario_id: usuarioId,
+		expires_at: expiresAt
+	});
+	return token;
+}
+
+/**
+ * Verifica um token de redefinição de senha usando comparação timing-safe.
+ * Retorna os dados do usuário se válido, 'expirado' ou 'invalido'.
+ */
+export async function verificarTokenRedefinicao(
+	db: Database,
+	tokenInput: string
+): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'invalido'> {
+	const SENTINEL = '0'.repeat(64); // mesmo tamanho de gerarToken()
+
+	const row = await db
+		.select()
+		.from(resetSenhaTokens)
+		.where(eq(resetSenhaTokens.token, tokenInput))
+		.get();
+
+	// Sempre executa timingSafeEqual para evitar timing oracle
+	const storedToken = row?.token ?? SENTINEL;
+	const bufA = Buffer.from(storedToken.padEnd(64, '0').slice(0, 64));
+	const bufB = Buffer.from(tokenInput.padEnd(64, '0').slice(0, 64));
+	const tokensMatch = timingSafeEqual(bufA, bufB) ? 1 : 0;
+	const lenMatch = storedToken.length === tokenInput.length ? 1 : 0;
+
+	if (!row || row.usado === 1 || (tokensMatch & lenMatch) !== 1) {
+		return 'invalido';
+	}
+	if (new Date() > new Date(row.expires_at)) {
+		return 'expirado';
+	}
+
+	return { tipo: row.tipo_usuario as 'policial' | 'admin', usuarioId: row.usuario_id };
 }
 
 /**
