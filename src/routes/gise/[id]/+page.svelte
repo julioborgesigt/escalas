@@ -1903,7 +1903,7 @@
 								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
 									{#each [...new Set((sec.equipes ?? []).map((eq: any) => eq.tipo))] as tipo}
 										<a
-											class="btn preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
+											class="btn text-xs preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
 												? 'pointer-events-none opacity-60'
 												: 'no-underline'}"
 											href={`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
@@ -1936,7 +1936,7 @@
 
 									<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
 										<a
-											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
+											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all w-full sm:w-auto {!(
 												checkAllSigned(sec) &&
 												(assRel || isAdminGeral || isSeccional || isSupervisor)
 											)
@@ -2349,6 +2349,7 @@
 												method="POST"
 												action="?/removerEquipe"
 												use:enhance={handleRemoverEquipe}
+												class="w-full sm:w-auto"
 											>
 												<input type="hidden" name="equipeId" value={equipe.id} />
 												<button
@@ -2452,37 +2453,14 @@
 												</div>
 											</form>
 										{:else}
-											<div class="flex flex-wrap gap-2">
-												<button
-													type="button"
-													class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-													onclick={() => {
-														equipeParaAdicionar = equipe.id;
-														cargoParaAdicionar = 'OIP';
-														policialParaAdicionar = '';
-													}}
-												>
-													<svg
-														class="w-3.5 h-3.5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-														/></svg
-													>
-													+ Adicionar OIP
-												</button>
-												{#if equipe.slots_dpc > 0}
+											{#if !isAdminGeral}
+												<div class="flex flex-wrap gap-2">
 													<button
 														type="button"
 														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
-															cargoParaAdicionar = 'DPC';
+															cargoParaAdicionar = 'OIP';
 															policialParaAdicionar = '';
 														}}
 													>
@@ -2498,10 +2476,35 @@
 																d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
 															/></svg
 														>
-														+ Adicionar DPC
+														+ Adicionar OIP
 													</button>
-												{/if}
-											</div>
+													{#if equipe.slots_dpc > 0}
+														<button
+															type="button"
+															class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+															onclick={() => {
+																equipeParaAdicionar = equipe.id;
+																cargoParaAdicionar = 'DPC';
+																policialParaAdicionar = '';
+															}}
+														>
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+																/></svg
+															>
+															+ Adicionar DPC
+														</button>
+													{/if}
+												</div>
+											{/if}
 										{/if}
 									{/if}
 								</div>
