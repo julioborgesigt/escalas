@@ -102,6 +102,7 @@
 	);
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
+	let pendingCrud = $state(false);
 
 	// Horários customizados por seccional
 	let editandoHorariosSecId = $state<number | null>(null);
@@ -142,9 +143,9 @@
 	}
 
 	function handleSalvarSupervisores() {
-		loading.show('Salvando supervisor...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Supervisor salvo' });
@@ -158,9 +159,9 @@
 	}
 
 	function handleSalvarUnidadeOperacional() {
-		loading.show('Salvando unidade operacional...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Unidade operacional salva' });
@@ -178,9 +179,9 @@
 			cancel();
 			return;
 		}
-		loading.show('Adicionando seccional...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional adicionada' });
@@ -210,7 +211,7 @@
 	async function confirmarRemoverSeccional() {
 		dialogRemoverSeccionalAberto = false;
 		if (!formRemoverSeccionalPendente) return;
-		loading.show('Removendo Seccional...');
+		pendingCrud = true;
 		const formData = new FormData(formRemoverSeccionalPendente);
 		try {
 			const res = await fetch(formRemoverSeccionalPendente.action, {
@@ -228,15 +229,15 @@
 		} catch {
 			toaster.error({ title: 'Erro ao remover seccional' });
 		} finally {
-			loading.hide();
+			pendingCrud = false;
 			formRemoverSeccionalPendente = null;
 		}
 	}
 
 	function handleAdicionarMembro() {
-		loading.show('Adicionando membro...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Membro adicionado' });
@@ -252,9 +253,9 @@
 	}
 
 	function handleRemoverMembro() {
-		loading.show('Removendo membro...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				removendoMembroId = null;
 				await invalidate('gise:detail');
@@ -268,7 +269,7 @@
 	}
 
 	function handleRemoverEquipe() {
-		loading.show('Removendo Equipe...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
@@ -278,14 +279,14 @@
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
 			}
 			removendoEquipeId = null;
-			loading.hide();
+			pendingCrud = false;
 		};
 	}
 
 	let removendoMembroId = $state<number | null>(null);
 
 	function handleFinalizarSeccional() {
-		loading.show('Finalizando Seccional...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
@@ -307,7 +308,7 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
-			loading.hide();
+			pendingCrud = false;
 		};
 	}
 
@@ -433,9 +434,9 @@
 	}
 
 	function handleFinalizarGise() {
-		loading.show('Finalizando Escala GISE...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala finalizada!' });
 				showFinalizarConfirm = false;
@@ -449,9 +450,9 @@
 	}
 
 	function handleSalvarSlotsEquipe() {
-		loading.show('Atualizando vagas...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Vagas atualizadas' });
 				editandoEquipe = null;
@@ -465,9 +466,9 @@
 	}
 
 	function handleSolicitarAssinatura() {
-		loading.show('Solicitando assinatura...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Edição finalizada',
@@ -483,9 +484,9 @@
 	}
 
 	function handleRevogarPedidoAssinatura() {
-		loading.show('Revogando solicitação...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Solicitação revogada',
@@ -732,9 +733,9 @@
 	}
 
 	function handleReabrirEscala() {
-		loading.show('Reabrindo escala...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Escala reaberta',
@@ -769,9 +770,9 @@
 			cancel();
 			return;
 		}
-		loading.show('Salvando alterações...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.assinatura_revogada) {
@@ -809,9 +810,9 @@
 			cancel();
 			return;
 		}
-		loading.show('Salvando horários...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da seccional atualizados' });
 				editandoHorariosSecId = null;
@@ -831,9 +832,9 @@
 			cancel();
 			return;
 		}
-		loading.show('Salvando horários...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da equipe atualizados' });
 				editandoHorariosEquipeId = null;
@@ -847,9 +848,9 @@
 	}
 
 	function handleExcluirGise() {
-		loading.show('Excluindo escala GISE...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala GISE excluída' });
 				showExcluirGiseConfirm = false;
@@ -863,9 +864,9 @@
 	}
 
 	function handleAdicionarEquipe() {
-		loading.show('Adicionando equipe...');
+		pendingCrud = true;
 		return async ({ result }: { result: ActionResult }) => {
-			loading.hide();
+			pendingCrud = false;
 			if (result.type === 'success') {
 				toaster.success({ title: 'Equipe adicionada' });
 				adicionandoEquipeSec = null;
@@ -965,7 +966,7 @@
 	<button
 		class={baseClass}
 		{onclick}
-		disabled={disabled || loading.active || isLoadingLoc}
+		disabled={disabled || loading.active || pendingCrud || isLoadingLoc}
 		type={btnType}
 	>
 		{#if iconPath}
