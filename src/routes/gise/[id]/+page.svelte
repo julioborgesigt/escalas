@@ -870,7 +870,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Equipe adicionada' });
 				adicionandoEquipeSec = null;
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -1195,9 +1195,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
-						disabled={loading.active}
+						disabled={pendingCrud}
 					>
-						{loading.active ? 'Salvando...' : 'Salvar'}
+						{pendingCrud ? 'Salvando...' : 'Salvar'}
 					</button>
 					<button
 						type="button"
@@ -1873,7 +1873,7 @@
 										<button
 											type="submit"
 											class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-											disabled={loading.active}
+											disabled={pendingCrud}
 											title="Excluir seccional desta escala"
 										>
 											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -1903,7 +1903,7 @@
 								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
 									{#each [...new Set((sec.equipes ?? []).map((eq: any) => eq.tipo))] as tipo}
 										<a
-											class="btn preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
+											class="btn text-xs preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
 												? 'pointer-events-none opacity-60'
 												: 'no-underline'}"
 											href={`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
@@ -1936,7 +1936,7 @@
 
 									<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
 										<a
-											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
+											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all w-full sm:w-auto {!(
 												checkAllSigned(sec) &&
 												(assRel || isAdminGeral || isSeccional || isSupervisor)
 											)
@@ -2042,7 +2042,7 @@
 											<button
 												type="submit"
 												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
-												disabled={loading.active ||
+												disabled={pendingCrud ||
 													!sec.unidade_operacional_id ||
 													!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
 												title={!sec.unidade_operacional_id
@@ -2126,9 +2126,9 @@
 												<button
 													type="submit"
 													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
-													disabled={loading.active}
+													disabled={pendingCrud}
 												>
-													{loading.active ? 'Salvando...' : 'Salvar'}
+													{pendingCrud ? 'Salvando...' : 'Salvar'}
 												</button>
 												{#if sec.unidade_operacional_nome}
 													<button
@@ -2200,9 +2200,9 @@
 														<button
 															type="submit"
 															class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5"
-															disabled={loading.active}
+															disabled={pendingCrud}
 														>
-															{loading.active
+															{pendingCrud
 																? 'Salvando...'
 																: 'Salvar'}
 														</button>
@@ -2349,14 +2349,15 @@
 												method="POST"
 												action="?/removerEquipe"
 												use:enhance={handleRemoverEquipe}
+												class="w-full sm:w-auto"
 											>
 												<input type="hidden" name="equipeId" value={equipe.id} />
 												<button
 													type="submit"
 													class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-													disabled={loading.active}
+													disabled={pendingCrud}
 												>
-													{loading.active ? 'Removendo...' : 'Remover equipe'}
+													{pendingCrud ? 'Removendo...' : 'Remover equipe'}
 												</button>
 											</form>
 										{/if}
@@ -2401,7 +2402,7 @@
 																class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation"
 																disabled={removendoMembroId === m.id}
 															>
-																{loading.active ? '...' : '×'}
+																{pendingCrud ? '...' : '×'}
 															</button>
 														</form>
 													{/if}
@@ -2438,7 +2439,7 @@
 													<button
 														type="submit"
 														class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
-														disabled={!policialParaAdicionar || loading.active}>Adicionar</button
+														disabled={!policialParaAdicionar || pendingCrud}>Adicionar</button
 													>
 													<button
 														type="button"
@@ -2452,37 +2453,14 @@
 												</div>
 											</form>
 										{:else}
-											<div class="flex flex-wrap gap-2">
-												<button
-													type="button"
-													class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-													onclick={() => {
-														equipeParaAdicionar = equipe.id;
-														cargoParaAdicionar = 'OIP';
-														policialParaAdicionar = '';
-													}}
-												>
-													<svg
-														class="w-3.5 h-3.5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-														/></svg
-													>
-													+ Adicionar OIP
-												</button>
-												{#if equipe.slots_dpc > 0}
+											{#if !isAdminGeral}
+												<div class="flex flex-wrap gap-2">
 													<button
 														type="button"
 														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
 														onclick={() => {
 															equipeParaAdicionar = equipe.id;
-															cargoParaAdicionar = 'DPC';
+															cargoParaAdicionar = 'OIP';
 															policialParaAdicionar = '';
 														}}
 													>
@@ -2498,10 +2476,35 @@
 																d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
 															/></svg
 														>
-														+ Adicionar DPC
+														+ Adicionar OIP
 													</button>
-												{/if}
-											</div>
+													{#if equipe.slots_dpc > 0}
+														<button
+															type="button"
+															class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+															onclick={() => {
+																equipeParaAdicionar = equipe.id;
+																cargoParaAdicionar = 'DPC';
+																policialParaAdicionar = '';
+															}}
+														>
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+																/></svg
+															>
+															+ Adicionar DPC
+														</button>
+													{/if}
+												</div>
+											{/if}
 										{/if}
 									{/if}
 								</div>
@@ -2580,11 +2583,9 @@
 											<button
 												type="submit"
 												class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-												disabled={loading.active}
+												disabled={pendingCrud}
 											>
-												{loading.active
-													? 'Adicionando...'
-													: 'Adicionar'}
+												{pendingCrud ? 'Adicionando...' : 'Adicionar'}
 											</button>
 										</form>
 										<button
@@ -2653,9 +2654,9 @@
 							<button
 								type="submit"
 								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-								disabled={!seccionalParaAdicionarIdx || loading.active}
+								disabled={!seccionalParaAdicionarIdx || pendingCrud}
 							>
-								{loading.active ? 'Adicionando...' : 'Confirmar'}
+								{pendingCrud ? 'Adicionando...' : 'Confirmar'}
 							</button>
 							<button
 								type="button"
@@ -2786,9 +2787,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
-						disabled={loading.active}
+						disabled={pendingCrud}
 					>
-						{loading.active ? 'Salvando...' : 'Salvar'}
+						{pendingCrud ? 'Salvando...' : 'Salvar'}
 					</button>
 				</form>
 			</div>
@@ -2817,9 +2818,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
-						disabled={loading.active}
+						disabled={pendingCrud}
 					>
-						{loading.active ? 'Excluindo...' : 'Confirmar Exclusão'}
+						{pendingCrud ? 'Excluindo...' : 'Confirmar Exclusão'}
 					</button>
 				</form>
 			</div>
@@ -2853,9 +2854,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
-						disabled={loading.active}
+						disabled={pendingCrud}
 					>
-						{loading.active ? 'Reabrindo...' : 'Confirmar Reabertura'}
+						{pendingCrud ? 'Reabrindo...' : 'Confirmar Reabertura'}
 					</button>
 				</form>
 			</div>
@@ -2890,7 +2891,7 @@
 					<button
 						type="submit"
 						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
-						disabled={loading.active}
+						disabled={pendingCrud}
 					>
 						Finalizar Agora
 					</button>
@@ -2900,7 +2901,7 @@
 					type="button"
 					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
 					onclick={() => (showFinalizarConfirm = false)}
-					disabled={loading.active}
+					disabled={pendingCrud}
 				>
 					Cancelar e voltar
 				</button>
