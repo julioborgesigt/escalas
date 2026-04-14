@@ -5,7 +5,6 @@ import {
 	getR2,
 	buscarGiseDetalhado,
 	listarPoliciais,
-	isSupervisorGiseAtiva,
 	buscarAssinaturasRelatoriosGise,
 	buscarGiseEscala,
 	atualizarGiseEscala,
@@ -21,9 +20,6 @@ import {
 	verificarConflitoMembroGise,
 	revogarAssinaturasSeccional,
 	reabrirGiseEscala,
-	buscarExigirFotoAssinatura,
-	buscarExigirGpsAssinatura,
-	buscarExigirCodigoEmailAssinatura,
 	buscarRestringirSmartphone
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
@@ -42,7 +38,7 @@ function getIntParam(url: URL, key: string): number {
 	return parseInt(v);
 }
 
-export const load: PageServerLoad = async ({ locals, params, platform, depends }) => {
+export const load: PageServerLoad = async ({ locals, params, platform, depends, parent }) => {
 	depends('gise:detail');
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
@@ -54,10 +50,10 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 
 	const isGeral = isAdminGeral(u);
 	const isSeccional = isAdminSeccional(u);
-	let isSupervisor = false;
-	if (u.tipo === 'policial') {
-		isSupervisor = await isSupervisorGiseAtiva(db, u.id);
-	}
+
+	// isSupervisorGise já resolvido pelo layout (evita query duplicada)
+	const parentData = await parent();
+	const isSupervisor = u.tipo === 'policial' ? (parentData.isSupervisorGise ?? false) : false;
 
 	if (!isGeral && !isSeccional && !isSupervisor) {
 		throw redirect(302, '/');
@@ -82,15 +78,13 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 					})
 				: Promise.resolve([]);
 
-		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone, exigirFoto, exigirGps, exigirCodigoEmail] = await Promise.all([
+		// 5 queries paralelas — config flags vêm do layout (cache de cookie de 5min)
+		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] = await Promise.all([
 			buscarGiseDetalhado(db, id),
 			policiaisPromise,
 			db.select().from(unidades).orderBy(asc(unidades.nome)),
 			buscarAssinaturasRelatoriosGise(db, id),
-			import('$lib/db').then(m => m.buscarRestringirSmartphone(db)),
-			import('$lib/db').then(m => m.buscarExigirFotoAssinatura(db)),
-			import('$lib/db').then(m => m.buscarExigirGpsAssinatura(db)),
-			import('$lib/db').then(m => m.buscarExigirCodigoEmailAssinatura(db))
+			buscarRestringirSmartphone(db)
 		]);
 
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
@@ -107,9 +101,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends }
 			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
 			usuarioAtual: u,
 			restringirSmartphone,
-			exigirFotoAssinatura: exigirFoto,
-			exigirGpsAssinatura: exigirGps,
-			exigirCodigoEmailAssinatura: exigirCodigoEmail
+			exigirFotoAssinatura: parentData.exigirFotoAssinatura,
+			exigirGpsAssinatura: parentData.exigirGpsAssinatura,
+			exigirCodigoEmailAssinatura: parentData.exigirCodigoEmailAssinatura
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
@@ -190,15 +184,11 @@ export const actions: Actions = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		await db.insert(giseSeccionais).values({
+		const [novaSec] = await db.insert(giseSeccionais).values({
 			gise_id: giseId,
 			seccional_id: seccionalId,
 			status: 'pendente'
-		});
-
-		const novaSec = await db.select({ id: giseSeccionais.id }).from(giseSeccionais)
-			.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.seccional_id, seccionalId)))
-			.limit(1).get();
+		}).returning({ id: giseSeccionais.id });
 
 		if (novaSec) {
 			await criarGiseEquipe(db, novaSec.id, 'operacional', 1, 3);
@@ -301,27 +291,24 @@ export const actions: Actions = {
 			return fail(400, { error: 'Escala fechada para edição' });
 		}
 
-		const membro = await db.select({ equipe_id: giseMembros.equipe_id })
-			.from(giseMembros).where(eq(giseMembros.id, memId)).get();
+		// Join único: obtém equipe_id e gise_seccional_id em uma query (evita query duplicada)
+		const membroInfo = await db
+			.select({ equipe_id: giseMembros.equipe_id, gise_seccional_id: giseEquipes.gise_seccional_id })
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.where(eq(giseMembros.id, memId))
+			.get();
 
-		if (!membro) return fail(404, { error: 'Membro não encontrado' });
+		if (!membroInfo) return fail(404, { error: 'Membro não encontrado' });
 
-		if (isAdminSeccional(u)) {
-			const equipeCheck = await db.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-				.from(giseEquipes).where(eq(giseEquipes.id, membro.equipe_id)).get();
-			if (!equipeCheck || equipeCheck.gise_seccional_id !== u.papel_unidade_id) {
-				return fail(403, { error: 'Sem permissão' });
-			}
+		if (isAdminSeccional(u) && membroInfo.gise_seccional_id !== u.papel_unidade_id) {
+			return fail(403, { error: 'Sem permissão' });
 		}
 
 		await removerGiseMembro(db, memId);
 
 		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
-			const equipe = await db.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-				.from(giseEquipes).where(eq(giseEquipes.id, membro.equipe_id)).get();
-			if (equipe) {
-				await revogarAssinaturasSeccional(db, giseId, equipe.gise_seccional_id);
-			}
+			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
 		}
 
 		return { success: true };
