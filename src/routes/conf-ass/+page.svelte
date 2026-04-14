@@ -3,16 +3,15 @@
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { invalidateAll } from '$app/navigation';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
 	let exigirCodigoEmail = $state(page.data.exigirCodigoEmail as boolean);
 	let restringirSmartphone = $state(page.data.restringirSmartphone as boolean);
-	let saving = $state(false);
 
 	async function salvar() {
-		saving = true;
+		loading.show('Salvando configurações...');
 		try {
 			const res = await fetch('/api/configuracoes/assinatura', {
 				method: 'PUT',
@@ -29,7 +28,7 @@
 		} catch {
 			toaster.create({ title: 'Erro de conexão.', type: 'error' });
 		} finally {
-			saving = false;
+			loading.hide();
 		}
 	}
 
@@ -196,10 +195,9 @@
 					type="button"
 					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all font-bold"
 					onclick={salvar}
-					disabled={saving}
+					disabled={loading.active}
 				>
-					{#if saving}<Spinner size="sm" />{/if}
-					{saving ? 'Gravando...' : 'Salvar Alterações'}
+					{loading.active ? 'Gravando...' : 'Salvar Alterações'}
 				</button>
 			</div>
 

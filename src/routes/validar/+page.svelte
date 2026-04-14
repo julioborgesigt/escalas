@@ -1,14 +1,13 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
 	import { goto } from '$app/navigation';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let hash = $state('');
-	let loading = $state(false);
 
 	function validar() {
 		if (hash.trim()) {
-			loading = true;
+			loading.show('Validando documento...');
 			goto(`/validar/${hash.trim()}`);
 		}
 	}
@@ -85,17 +84,14 @@
 
 			<button
 				type="submit"
-				disabled={!hash.trim()}
+				disabled={!hash.trim() || loading.active}
 				class="group relative w-full py-5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-black uppercase tracking-[0.15em] rounded-2xl shadow-xl shadow-primary-600/20 transition-all disabled:opacity-30 disabled:grayscale disabled:shadow-none overflow-hidden"
 			>
 				<div
 					class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
 				></div>
 				<span class="relative flex items-center justify-center gap-2">
-					{#if loading}
-						<Spinner size="sm" />
-					{/if}
-					Verificar Autenticidade
+					{loading.active ? 'Validando...' : 'Verificar Autenticidade'}
 				</span>
 			</button>
 		</form>

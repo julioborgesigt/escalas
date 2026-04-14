@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
-	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import { csrfHeaders } from '$lib/csrf';
-	import Spinner from './Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
+	import { conectarSerpro, SerproSignerClient } from '$lib/serpro';
 
 	let {
 		prepararUrl,
@@ -29,8 +29,6 @@
 	} = $props();
 
 	// ---- Estado interno ----
-	let assinando = $state(false);
-	let etapa = $state('');
 
 	// GPS (Captura silenciosa, não-bloqueante)
 	let coords = $state<{ lat: number; lng: number } | null>(null);
@@ -80,8 +78,7 @@
 			serproCms?: string;
 		}>
 	) {
-		assinando = true;
-		etapa = 'Gerando PDF e preparando assinatura...';
+		loading.show('Gerando PDF e preparando assinatura...');
 
 		try {
 			// 1. Preparar
@@ -111,11 +108,11 @@
 			} = await prepResp.json();
 
 			// 2. Assinar
-			etapa = 'Aguardando assinatura no token...';
+			loading.show('Aguardando assinatura no token...');
 			const sigResult = await getSignature(signedAttrsHashHex, messageDigest);
 
 			// 3. Finalizar
-			etapa = 'Finalizando PDF assinado...';
+			loading.show('Finalizando PDF assinado...');
 			const finResp = await fetch(finalizarUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -140,7 +137,7 @@
 			}
 
 			// 4. Baixar
-			etapa = 'Baixando PDF assinado...';
+			loading.show('Baixando PDF assinado...');
 			const blob = await finResp.blob();
 			const cd = finResp.headers.get('Content-Disposition');
 			const nome = cd?.match(/filename="(.+)"/)?.[1] || nomeArquivo;
@@ -151,21 +148,19 @@
 		} catch (err: any) {
 			toaster.error({ title: 'Erro na assinatura', description: err.message });
 		} finally {
-			assinando = false;
-			etapa = '';
+			loading.hide();
 		}
 	}
 
 	async function assinarComSerpro() {
-		if (assinando || disabled) return;
-		assinando = true;
-		etapa = 'Conectando ao Assinador SERPRO...';
+		if (loading.active || disabled) return;
+		loading.show('Conectando ao Assinador SERPRO...');
 		try {
 			const client = serproClient ?? (await conectarSerpro());
 			serproClient = client;
 
 			await executarAssinatura(async (_signedAttrsHashHex, messageDigestHex) => {
-				etapa = 'Selecione o certificado e assine no SERPRO...';
+				loading.show('Selecione o certificado e assine no SERPRO...');
 				const messageDigestBase64 = hexToBase64(messageDigestHex);
 				const result = await client.sign(messageDigestBase64);
 				return { serproCms: result.rawSignature, serproResponse: result };
@@ -174,8 +169,7 @@
 			toaster.error({ title: 'Erro no Assinador SERPRO', description: err.message });
 			serproClient?.disconnect();
 			serproClient = null;
-			assinando = false;
-			etapa = '';
+			loading.hide();
 		} finally {
 			serproClient?.disconnect();
 			serproClient = null;
@@ -267,10 +261,10 @@
 		<button type="button"
 			class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full sm:w-auto flex items-center justify-center gap-2"
 			onclick={assinarComSerpro}
-			disabled={assinando || disabled}
+			disabled={loading.active || disabled}
 		>
-			{#if assinando}
-				<Spinner size="xs" /> {etapa || 'Assinando...'}
+			{#if loading.active}
+				Assinando...
 			{:else}
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 					><path

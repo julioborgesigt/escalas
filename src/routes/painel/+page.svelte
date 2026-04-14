@@ -6,8 +6,8 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { Unidade } from '$lib/types';
 
 	let { data } = $props();
@@ -171,16 +171,15 @@
 	// Exclusão de escala (para "não assinada")
 	let escalaExcluirOpen = $state(false);
 	let itemParaExcluir = $state<ItemCompliance | null>(null);
-	let loading = $state(false);
 
 	async function carregar() {
-		loading = true;
+		loadingService.show('Atualizando dados de compliance...');
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
 		} catch { /* ignora */ }
 		await invalidate(page.url.pathname);
-		loading = false;
+		loadingService.hide();
 	}
 
 	async function onMesCorrenteChange() {
@@ -204,12 +203,10 @@
 		await goto('?', { keepFocus: true, noScroll: true });
 	}
 
-	let excluindoEscala = $state(false);
-
 	function handleExcluirEscala() {
-		excluindoEscala = true;
+		loadingService.show('Excluindo escala...');
 		return async ({ result }: { result: any }) => {
-			excluindoEscala = false;
+			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
 				await invalidate(page.url.pathname);
@@ -265,13 +262,13 @@
 					? 'preset-filled-warning-500'
 					: 'preset-outlined-primary-500 opacity-40'}"
 				onclick={limparFiltros}
-				disabled={!temFiltros && !loading}
+				disabled={!temFiltros && !loadingService.active}
 			>
 				Limpar filtros
 			</button>
-			<button type="button" class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loading}>
-				{#if loading}
-					<Spinner size="sm" />
+			<button type="button" class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loadingService.active}>
+				{#if loadingService.active}
+					Atualizando...
 				{:else}
 					<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -288,7 +285,7 @@
 	</div>
 
 	<!-- Cards de resumo -->
-	{#if !loading}
+	{#if !loadingService.active}
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
 			<div class="p-4 rounded-2xl bg-success-500/10 border border-success-500/20 text-center">
 				<p class="text-2xl font-bold text-success-600 dark:text-success-400">{totais.ok}</p>
@@ -456,14 +453,13 @@
 					>? O status voltará a ser "Não Criada".
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindoEscala}
+					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
 						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
-						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindoEscala}>
-							{#if excluindoEscala}<Spinner size="sm" />{/if}
-							{excluindoEscala ? 'Excluindo...' : 'Confirmar Exclusão'}
+						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loadingService.active}>
+							{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
 						</button>
 					</form>
 				</div>
@@ -475,11 +471,10 @@
 	<div
 		class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5"
 	>
-		{#if loading}
+		{#if loadingService.active}
 			<div
 				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
 			>
-				<Spinner size="xl" />
 				<span class="text-sm">Carregando...</span>
 			</div>
 		{:else if dadosFiltrados.length === 0}

@@ -5,6 +5,8 @@
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
+	import { loading } from '$lib/loading.svelte';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 
 	let { children } = $props();
 
@@ -125,12 +127,13 @@
 	<div class="nav-progress-wrap" aria-hidden="true">
 		<div class="nav-progress-bar"></div>
 	</div>
-
-	<div class="fixed inset-0 z-[10000] bg-surface-50/80 dark:bg-surface-950/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none">
-		<div class="w-12 h-12 border-4 border-surface-200 dark:border-surface-700 border-t-primary-500 rounded-full animate-spin"></div>
-		<p class="mt-4 text-surface-600 dark:text-surface-300 font-medium animate-pulse uppercase tracking-widest text-xs">{loadingText}</p>
-	</div>
 {/if}
+
+<!-- Global Loading Overlay -->
+<LoadingOverlay 
+	active={loading.active || (!!navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname))} 
+	message={navigating?.to ? loadingText : loading.message} 
+/>
 
 <!-- Global Toast Provider -->
 <Toast.Group {toaster} class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3">

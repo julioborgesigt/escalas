@@ -4,7 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
 
@@ -23,10 +23,8 @@
 	let regime = $state('');
 	let lotacao = $state('');
 	let email = $state('');
-	let saving = $state(false);
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
-	let salvandoPapel = $state(false);
 
 	$effect(() => {
 		if (data?.policial) {
@@ -45,9 +43,9 @@
 	});
 
 	function handleSalvar({ formData }: { formData: FormData }) {
-		saving = true;
+		loading.show('Salvando dados do policial...');
 		return async ({ result }: { result: any }) => {
-			saving = false;
+			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Policial atualizado com sucesso!', type: 'success' });
@@ -59,9 +57,9 @@
 	}
 
 	function handleSalvarPapel({ formData }: { formData: FormData }) {
-		salvandoPapel = true;
+		loading.show('Atualizando papel administrativo...');
 		return async ({ result }: { result: any }) => {
-			salvandoPapel = false;
+			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
@@ -200,10 +198,9 @@
 			<button
 				type="submit"
 				class="btn btn-sm sm:btn-md preset-filled-primary-500 flex items-center gap-2"
-				disabled={saving}
+				disabled={loading.active}
 			>
-				{#if saving}<Spinner size="sm" />{/if}
-				{saving ? 'Guardando...' : 'Salvar'}
+				{loading.active ? 'Guardando...' : 'Salvar'}
 			</button>
 			<a href="/policiais" class="btn btn-sm preset-outlined-primary-500">Cancelar</a>
 		</div>
@@ -257,10 +254,9 @@
 				<button
 					type="submit"
 					class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-					disabled={salvandoPapel}
+					disabled={loading.active}
 				>
-					{#if salvandoPapel}<Spinner size="sm" />{/if}
-					{salvandoPapel ? 'Salvando...' : 'Salvar papel'}
+					{loading.active ? 'Salvando...' : 'Salvar papel'}
 				</button>
 			</div>
 		</form>

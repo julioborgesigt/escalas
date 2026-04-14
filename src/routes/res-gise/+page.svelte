@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
+	import { useAutorizacao, useMobile } from '$lib/composables';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
-	import { useAutorizacao, useMobile } from '$lib/composables';
-	import { page } from '$app/state';
 	import { useResGise } from './useResGise.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
 	const { isAdmin: isAdminGeral } = useAutorizacao();
@@ -51,20 +51,16 @@
 	</svg>
 {/snippet}
 
-{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, disabled = false, loading = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
 	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
 	<button
 		type={btnType}
 		class={baseClass}
 		{onclick}
-		disabled={disabled || loading}
+		disabled={disabled || loading.active || loadingState}
 	>
-		{#if loading}
-			<Spinner size="sm" />
-		{:else}
-			{#if iconPath}{@render btnIcon(iconPath)}{/if}
-			<span>{label}</span>
-		{/if}
+		{#if iconPath}{@render btnIcon(iconPath)}{/if}
+		<span>{loading.active && loadingState ? 'Carregando...' : label}</span>
 	</button>
 {/snippet}
 
@@ -425,18 +421,21 @@
 					<div class="flex-1 p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
 						<p class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1">Status da Configuração</p>
 						<div class="flex items-center gap-2">
-							<div class="w-2 h-2 rounded-full {resGise.salvandoModelo ? 'bg-warning-500 animate-pulse' : 'bg-success-500'}"></div>
+							<div class="w-2 h-2 rounded-full {loading.active ? 'bg-warning-500 animate-pulse' : 'bg-success-500'}"></div>
 							<p class="text-[0.65rem] font-bold text-surface-900 dark:text-surface-100">
-								{resGise.salvandoModelo ? 'Salvando alterações...' : 'Pronto para salvar'}
+								{loading.active ? 'Salvando alterações...' : 'Pronto para salvar'}
 							</p>
 						</div>
 					</div>
 
 					{@render actionButton(
-						resGise.salvandoModelo ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo}`,
+						loading.active ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo}`,
 						undefined,
 						'primary',
-						'filled'
+						'filled',
+						undefined,
+						loading.active,
+						false
 					)}
 				</form>
 			</div>
@@ -594,13 +593,10 @@
 													e.stopPropagation();
 													resGise.baixarRelatorio(escala);
 												}}
-												disabled={resGise.baixandoProdutividade === escala.id}
+												disabled={loading.active}
 												title="Baixar PDF de Produtividade"
 											>
-												{#if resGise.baixandoProdutividade === escala.id}
-													<Spinner size="sm" />
-												{:else}
-													<svg
+												<svg
 														class="w-3.5 h-3.5"
 														fill="none"
 														stroke="currentColor"
@@ -612,7 +608,6 @@
 															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 														/></svg
 													>
-												{/if}
 											</button>
 										{/if}
 										{#if escala.extraAssinado}
@@ -622,13 +617,10 @@
 													e.stopPropagation();
 													resGise.baixarRelatorioExtra(escala);
 												}}
-												disabled={resGise.baixandoExtra === escala.id}
+												disabled={loading.active}
 												title="Baixar Relatório Extraordinário (Assinado)"
 											>
-												{#if resGise.baixandoExtra === escala.id}
-													<Spinner size="sm" />
-												{:else}
-													<svg
+												<svg
 														class="w-3.5 h-3.5"
 														fill="none"
 														stroke="currentColor"
@@ -640,7 +632,6 @@
 															d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 														/></svg
 													>
-												{/if}
 											</button>
 										{/if}
 									</div>
@@ -684,9 +675,8 @@
 							</div>
 						</div>
 
-						{#if resGise.carregandoResposta}
+						{#if loading.active}
 							<div class="flex flex-col items-center justify-center py-24 gap-4">
-								<Spinner size="lg" />
 								<p class="text-sm font-bold text-surface-500 animate-pulse">CARREGANDO DADOS...</p>
 							</div>
 						{:else}
@@ -729,13 +719,13 @@
 										<input type="hidden" name="respostas" value={resGise.respostasJson} />
 										
 										{@render actionButton(
-											resGise.salvandoResposta ? 'Salvando...' : 'Salvar Alterações',
+											loading.active ? 'Salvando...' : 'Salvar Alterações',
 											undefined,
 											'primary',
 											'filled',
 											undefined,
-											resGise.salvandoResposta,
-											resGise.salvandoResposta,
+											loading.active,
+											false,
 											'px-12 py-3 text-lg shadow-xl shadow-primary-500/20',
 											'submit'
 										)}
@@ -1136,9 +1126,8 @@
 										{/if}
 									</div>
 
-									{#if resGise.carregandoResposta}
+									{#if loading.active}
 										<div class="flex justify-center py-12">
-											<Spinner size="lg" />
 										</div>
 									{:else}
 										<div class="space-y-5">
@@ -1205,13 +1194,13 @@
 														<input type="hidden" name="respostas" value={resGise.respostasJson} />
 														
 														{@render actionButton(
-															resGise.salvandoResposta ? 'Processando...' : (resGise.escalaSelecionada.equipeRespondida ? 'Salvar Alterações' : 'Finalizar Entrega'),
+															loading.active ? 'Processando...' : (resGise.escalaSelecionada.equipeRespondida ? 'Salvar Alterações' : 'Finalizar Entrega'),
 															undefined,
 															'primary',
 															'filled',
 															undefined,
-															resGise.salvandoResposta,
-															resGise.salvandoResposta,
+															loading.active,
+															false,
 															'flex-1 py-4 text-lg shadow-xl shadow-primary-500/20',
 															'submit'
 														)}
@@ -1348,9 +1337,8 @@
 				</p>
 			</div>
 
-			{#if resGise.salvandoPresenca}
+			{#if loading.active}
 				<div class="flex flex-col items-center gap-3 py-10">
-					<Spinner size="lg" />
 					<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
 						{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
 					</p>

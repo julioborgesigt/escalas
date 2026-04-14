@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let file = $state<File | null>(null);
-	let uploading = $state(false);
 	let result = $state<{
 		imported: number;
 		skipped: number;
@@ -23,11 +22,11 @@
 	function handleUpload() {
 		if (!file) return;
 
-		uploading = true;
+		loading.show('Enviando e processando planilha...');
 		result = null;
 
 		return async ({ result: actionResult }: { result: any }) => {
-			uploading = false;
+			loading.hide();
 			if (actionResult.type === 'success') {
 				result = actionResult.data as any;
 				toaster.create({ title: `${result?.imported} policial${result?.imported !== 1 ? 'is' : ''} importado${result?.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
@@ -145,9 +144,8 @@
 			<span class="label-text">Arquivo (.xlsx, .xls, .ods, .csv)</span>
 			<input name="file" class="input" type="file" accept=".xlsx,.xls,.ods,.csv" onchange={onFileChange} required />
 		</label>
-		<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={uploading || !file}>
-			{#if uploading}<Spinner size="md" />{/if}
-			{uploading ? 'Importando...' : 'Importar'}
+		<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={loading.active || !file}>
+			{loading.active ? 'Importando...' : 'Importar'}
 		</button>
 	</form>
 </div>
