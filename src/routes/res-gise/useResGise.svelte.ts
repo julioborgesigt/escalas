@@ -1,7 +1,7 @@
 import { toaster } from '$lib/toast';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
-import { goto, invalidate, invalidateAll } from '$app/navigation';
+import { goto, invalidateAll } from '$app/navigation';
 
 export function useResGise(getData: () => any) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
@@ -163,12 +163,18 @@ export function useResGise(getData: () => any) {
 				cancel();
 				return;
 			}
+			loading.show('Enviando relatório de produtividade...');
 			return async ({ result }: any) => {
+				loading.hide();
 				if (result.type === 'success') {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
+					// Atualiza imediatamente sem precisar de reload da página
+					escalaSelecionada = { ...escalaSelecionada, equipeRespondida: true };
 					if (!podeVerListaGeral) exibirRelatorio = false;
-					await invalidate(page.url.href);
-					const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
+					await invalidateAll();
+					const atualizada = data.minhasEscalas?.find(
+						(e: any) => e.id === escalaSelecionada?.id && e.equipe_id === escalaSelecionada?.equipe_id
+					);
 					if (atualizada) escalaSelecionada = atualizada;
 				} else {
 					const d = result.data as Record<string, unknown> | undefined;
@@ -231,6 +237,17 @@ export function useResGise(getData: () => any) {
 			escala.data_inicio + 'T' + h.padStart(2, '0') + ':' + (min || '00') + ':00'
 		);
 		return agora >= dataInicioPrevista;
+	};
+
+	const isSaidaLiberada = (escala: any, podeVerListaGeral: boolean) => {
+		if (podeVerListaGeral) return true;
+		if (!escala?.horarioPrevisto?.fim) return true;
+		const agora = new Date();
+		const [h, min] = escala.horarioPrevisto.fim.split(':');
+		const dataFimPrevista = new Date(
+			escala.data_inicio + 'T' + h.padStart(2, '0') + ':' + (min || '00') + ':00'
+		);
+		return agora >= dataFimPrevista;
 	};
 
 	async function salvarSaida(
@@ -376,6 +393,7 @@ export function useResGise(getData: () => any) {
 		baixarRelatorio,
 		baixarRelatorioExtra,
 		fmtDate,
-		isHorarioLiberado
+		isHorarioLiberado,
+		isSaidaLiberada
 	};
 }
