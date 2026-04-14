@@ -20,7 +20,9 @@ import {
 	verificarConflitoMembroGise,
 	revogarAssinaturasSeccional,
 	reabrirGiseEscala,
-	buscarRestringirSmartphone
+	buscarRestringirSmartphone,
+	adicionarGiseSeccionalUnidade,
+	removerGiseSeccionalUnidade
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseRespostasFormulario } from '$lib/server/schema';
@@ -291,17 +293,22 @@ export const actions: Actions = {
 			return fail(400, { error: 'Escala fechada para edição' });
 		}
 
-		// Join único: obtém equipe_id e gise_seccional_id em uma query (evita query duplicada)
+		// Join com giseSeccionais para obter seccional_id (unidades.id) e comparar corretamente
 		const membroInfo = await db
-			.select({ equipe_id: giseMembros.equipe_id, gise_seccional_id: giseEquipes.gise_seccional_id })
+			.select({
+				equipe_id: giseMembros.equipe_id,
+				gise_seccional_id: giseEquipes.gise_seccional_id,
+				seccional_id: giseSeccionais.seccional_id
+			})
 			.from(giseMembros)
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseMembros.id, memId))
 			.get();
 
 		if (!membroInfo) return fail(404, { error: 'Membro não encontrado' });
 
-		if (isAdminSeccional(u) && membroInfo.gise_seccional_id !== u.papel_unidade_id) {
+		if (isAdminSeccional(u) && membroInfo.seccional_id !== u.papel_unidade_id) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
@@ -652,6 +659,54 @@ export const actions: Actions = {
 			await revogarAssinaturasSeccional(db, giseId, equipe.gise_seccional_id);
 		}
 
+		return { success: true };
+	},
+
+	adicionarUnidade: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (!isAdminGeral(u) && !isAdminSeccional(u)) return fail(403, { error: 'Sem permissão' });
+
+		const giseId = parseInt(params.id);
+		const formData = await request.formData();
+		const secId = getInt(formData, 'secId');
+		const unidadeId = getInt(formData, 'unidadeId');
+		if (isNaN(giseId) || isNaN(secId) || isNaN(unidadeId)) return fail(400, { error: 'IDs inválidos' });
+
+		const db = getDB(platform);
+		const sec = await db.select().from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+
+		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
+			return fail(403, { error: 'Sem permissão' });
+		}
+
+		await adicionarGiseSeccionalUnidade(db, secId, unidadeId);
+		return { success: true };
+	},
+
+	removerUnidade: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (!isAdminGeral(u) && !isAdminSeccional(u)) return fail(403, { error: 'Sem permissão' });
+
+		const giseId = parseInt(params.id);
+		const formData = await request.formData();
+		const secId = getInt(formData, 'secId');
+		const linkId = getInt(formData, 'linkId');
+		if (isNaN(giseId) || isNaN(secId) || isNaN(linkId)) return fail(400, { error: 'IDs inválidos' });
+
+		const db = getDB(platform);
+		const sec = await db.select().from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
+
+		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
+			return fail(403, { error: 'Sem permissão' });
+		}
+
+		await removerGiseSeccionalUnidade(db, linkId);
 		return { success: true };
 	}
 };

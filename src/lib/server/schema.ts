@@ -242,8 +242,7 @@ export const giseEquipes = sqliteTable(
 		hora_saida: text('hora_saida')
 	},
 	(table) => [
-		index('idx_gise_equipes_sec').on(table.gise_seccional_id),
-		unique('uq_gise_equipe').on(table.gise_seccional_id, table.tipo)
+		index('idx_gise_equipes_sec').on(table.gise_seccional_id)
 	]
 );
 
@@ -261,6 +260,23 @@ export const giseMembros = sqliteTable(
 	(table) => [
 		index('idx_gise_membros_equipe').on(table.equipe_id),
 		index('idx_gise_membros_policial').on(table.policial_id)
+	]
+);
+
+export const giseSeccionalUnidades = sqliteTable(
+	'gise_seccional_unidades',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_seccional_id: integer('gise_seccional_id')
+			.notNull()
+			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
+		unidade_id: integer('unidade_id')
+			.notNull()
+			.references(() => unidades.id, { onDelete: 'cascade' })
+	},
+	(table) => [
+		index('idx_gise_sec_unidades').on(table.gise_seccional_id),
+		unique('uq_gise_sec_unidade').on(table.gise_seccional_id, table.unidade_id)
 	]
 );
 

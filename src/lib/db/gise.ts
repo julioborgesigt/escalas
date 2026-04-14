@@ -9,6 +9,7 @@ import {
 	giseModeloFormulario,
 	giseRespostasFormulario,
 	giseAssinaturasRelatorios,
+	giseSeccionalUnidades,
 	policiais,
 	unidades
 } from '../server/schema';
@@ -25,6 +26,7 @@ export interface GiseDetalhado extends schema.GiseEscala {
 			seccional_nome: string;
 			unidade_operacional_nome: string | null;
 			temRespostas: boolean;
+			unidades_adicionais: Array<{ id: number; unidade_id: number; nome: string }>;
 			equipes: Array<
 				schema.GiseEquipe & {
 					membros: Array<
@@ -240,7 +242,8 @@ export async function buscarGiseDetalhado(
 		todosMembros,
 		todasPresencas,
 		todasRespostas,
-		assExtraRow
+		assExtraRow,
+		todasUnidadesAdicionais
 	] = await Promise.all([
 		gise.supervisor_id
 			? db
@@ -308,7 +311,18 @@ export async function buscarGiseDetalhado(
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.get()
+			.get(),
+		db
+			.select({
+				id: giseSeccionalUnidades.id,
+				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
+				unidade_id: giseSeccionalUnidades.unidade_id,
+				nome: unidades.nome
+			})
+			.from(giseSeccionalUnidades)
+			.innerJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
+			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
+			.where(eq(giseSeccionais.gise_id, id))
 	]);
 
 	const supervisor_nome = supervisorRow?.nome ?? null;
@@ -319,6 +333,14 @@ export async function buscarGiseDetalhado(
 	// Índices em memória para lookups O(1)
 	const presencaMap = new Map(todasPresencas.map((p) => [p.policial_id, p]));
 	const seccionalComRespostas = new Set(todasRespostas.map((r) => r.equipe_seccional_id));
+
+	const unidadesAdicionaisPorSeccional = new Map<number, Array<{ id: number; unidade_id: number; nome: string }>>();
+	for (const u of todasUnidadesAdicionais) {
+		if (!unidadesAdicionaisPorSeccional.has(u.gise_seccional_id)) {
+			unidadesAdicionaisPorSeccional.set(u.gise_seccional_id, []);
+		}
+		unidadesAdicionaisPorSeccional.get(u.gise_seccional_id)!.push({ id: u.id, unidade_id: u.unidade_id, nome: u.nome });
+	}
 
 	const equipesPorSeccional = new Map<number, typeof todasEquipes>();
 	for (const row of todasEquipes) {
@@ -365,6 +387,7 @@ export async function buscarGiseDetalhado(
 			unidade_operacional_nome: sec.unidade_operacional_id
 				? (uoNomes.get(sec.unidade_operacional_id) ?? null)
 				: null,
+			unidades_adicionais: unidadesAdicionaisPorSeccional.get(sec.id) ?? [],
 			equipes,
 			temRespostas: seccionalComRespostas.has(sec.id)
 		};
@@ -1477,4 +1500,26 @@ export async function revogarAssinaturasSeccional(db: Database, giseId: number, 
 			eq(giseEscalas.id, giseId),
 			ne(giseEscalas.status, 'finalizada') // Não reabrir se já estiver finalizada (isso é manual)
 		));
+}
+
+// ---- Unidades adicionais por seccional ----
+
+export async function adicionarGiseSeccionalUnidade(
+	db: Database,
+	giseSeccionalId: number,
+	unidadeId: number
+) {
+	return db
+		.insert(giseSeccionalUnidades)
+		.values({ gise_seccional_id: giseSeccionalId, unidade_id: unidadeId })
+		.onConflictDoNothing();
+}
+
+export async function removerGiseSeccionalUnidade(
+	db: Database,
+	giseSeccionalUnidadeId: number
+) {
+	return db
+		.delete(giseSeccionalUnidades)
+		.where(eq(giseSeccionalUnidades.id, giseSeccionalUnidadeId));
 }
