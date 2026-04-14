@@ -1,6 +1,7 @@
+import { toaster } from '$lib/toast';
+import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto, invalidate, invalidateAll } from '$app/navigation';
-import { toaster } from '$lib/toast';
 
 export function useResGise(getData: () => any) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
@@ -10,16 +11,11 @@ export function useResGise(getData: () => any) {
 	let activeTab = $state('relatorios'); // relatorios | configurador
 	let configTipo = $state<'operacional' | 'seint'>('operacional');
 	let perguntasConfig = $state<any[]>([]);
-	let salvandoModelo = $state(false);
-
 	// --- Estados de Escala / Resposta ---
 	let escalaSelecionada = $state<any>(null);
 	let respostas = $state<any>({});
-	let carregandoResposta = $state(false);
-	let salvandoResposta = $state(false);
 	let exibirRelatorio = $state(false);
 	let capturandoRubrica = $state(false);
-	let salvandoPresenca = $state(false);
 
 	// --- Filtros ---
 	let statusFilterUrl = $state(page.url.searchParams.get('status') || '');
@@ -130,9 +126,9 @@ export function useResGise(getData: () => any) {
 	}
 
 	function handleSalvarModelo() {
-		salvandoModelo = true;
+		loading.show(`Salvando Modelo ${configTipo}...`);
 		return async ({ result }: any) => {
-			salvandoModelo = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
 				await invalidate(page.url.href);
@@ -152,7 +148,7 @@ export function useResGise(getData: () => any) {
 		escalaSelecionada = escala;
 		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
 		respostas = {};
-		carregandoResposta = true;
+		loading.show('Abrindo Relatório...');
 
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('giseId', String(escala.id));
@@ -160,7 +156,7 @@ export function useResGise(getData: () => any) {
 		else params.delete('equipeId');
 
 		await goto(`?${params}`, { keepFocus: true, noScroll: true });
-		carregandoResposta = false;
+		loading.hide();
 	}
 
 	function handleSalvarResposta(podeVerListaGeral: boolean) {
@@ -169,9 +165,9 @@ export function useResGise(getData: () => any) {
 				cancel();
 				return;
 			}
-			salvandoResposta = true;
+			loading.show('Salvando Relatório...');
 			return async ({ result }: any) => {
-				salvandoResposta = false;
+				loading.hide();
 				if (result.type === 'success') {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
 					if (!podeVerListaGeral) exibirRelatorio = false;
@@ -195,7 +191,7 @@ export function useResGise(getData: () => any) {
 		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
-		salvandoPresenca = true;
+		loading.show('Confirmando Entrada...');
 		try {
 			const fd = new FormData();
 			fd.set('giseId', escalaSelecionada.id);
@@ -219,7 +215,7 @@ export function useResGise(getData: () => any) {
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {
-			salvandoPresenca = false;
+			loading.hide();
 		}
 	}
 
@@ -250,7 +246,7 @@ export function useResGise(getData: () => any) {
 		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
-		salvandoPresenca = true;
+		loading.show('Confirmando Saída...');
 		try {
 			const fd = new FormData();
 			fd.set('giseId', escalaSelecionada.id);
@@ -286,15 +282,12 @@ export function useResGise(getData: () => any) {
 		} catch (e: any) {
 			toaster.error({ title: 'Erro', description: e.message });
 		} finally {
-			salvandoPresenca = false;
+			loading.hide();
 		}
 	}
 
-	let baixandoProdutividade = $state<number | null>(null);
-	let baixandoExtra = $state<number | null>(null);
-
 	async function baixarRelatorio(escala: any) {
-		baixandoProdutividade = escala.id;
+		loading.show('Baixando Relatório de Produtividade...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
 			const res = await fetch(url);
@@ -313,12 +306,12 @@ export function useResGise(getData: () => any) {
 		} catch (e: any) {
 			toaster.error({ title: 'Erro no Download', description: e.message });
 		} finally {
-			baixandoProdutividade = null;
+			loading.hide();
 		}
 	}
 
 	async function baixarRelatorioExtra(escala: any) {
-		baixandoExtra = escala.id;
+		loading.show('Baixando Relatório Extraordinário...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${escala.seccional_id}`;
 			const res = await fetch(url);
@@ -337,7 +330,7 @@ export function useResGise(getData: () => any) {
 		} catch (e: any) {
 			toaster.error({ title: 'Erro no Download', description: e.message });
 		} finally {
-			baixandoExtra = null;
+			loading.hide();
 		}
 	}
 
@@ -349,22 +342,18 @@ export function useResGise(getData: () => any) {
 		set configTipo(v) { configTipo = v; },
 		get perguntasConfig() { return perguntasConfig; },
 		set perguntasConfig(v) { perguntasConfig = v; },
-		get salvandoModelo() { return salvandoModelo; },
 		get escalaSelecionada() { return escalaSelecionada; },
 		set escalaSelecionada(v) { escalaSelecionada = v; },
 		get respostas() { return respostas; },
 		set respostas(v) { respostas = v; },
-		get carregandoResposta() { return carregandoResposta; },
-		get salvandoResposta() { return salvandoResposta; },
 		get exibirRelatorio() { return exibirRelatorio; },
 		set exibirRelatorio(v) { exibirRelatorio = v; },
 		get capturandoRubrica() { return capturandoRubrica; },
 		set capturandoRubrica(v) { capturandoRubrica = v; },
-		get salvandoPresenca() { return salvandoPresenca; },
 		get seccionalFilter() { return seccionalFilter; },
 		set seccionalFilter(v) { seccionalFilter = v; },
-		get baixandoProdutividade() { return baixandoProdutividade; },
-		get baixandoExtra() { return baixandoExtra; },
+		get baixandoProdutividade() { return loading.active; },
+		get baixandoExtra() { return loading.active; },
 
 		// Derived
 		get configJson() { return configJson; },

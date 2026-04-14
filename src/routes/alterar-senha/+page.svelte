@@ -3,13 +3,12 @@
 	import { page } from '$app/state';
 	import { alterarSenhaSchema } from '$lib/schemas';
 	import { csrfHeaders } from '$lib/csrf';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
 	let confirmarSenha = $state('');
 	let error = $state('');
-	let loading = $state(false);
 
 	const primeiroAcesso = $derived(page.data.primeiro_acesso);
 
@@ -19,12 +18,11 @@
 	let codigoEmailPessoal = $state('');
 	let desafioIdEmailPessoal = $state('');
 	let emailMascaradoPessoal = $state('');
-	let loadingEmailPessoal = $state(false);
 	let erroEmailPessoal = $state('');
 
 	async function enviarCodigoEmailPessoal() {
 		erroEmailPessoal = '';
-		loadingEmailPessoal = true;
+		loading.show('Enviando código de verificação...');
 		etapaEmailPessoal = 'enviando';
 		try {
 			const res = await fetch('/api/auth/solicitar-verificacao-email-pessoal', {
@@ -45,13 +43,13 @@
 			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
 			etapaEmailPessoal = 'idle';
 		} finally {
-			loadingEmailPessoal = false;
+			loading.hide();
 		}
 	}
 
 	async function confirmarCodigoEmailPessoal() {
 		erroEmailPessoal = '';
-		loadingEmailPessoal = true;
+		loading.show('Verificando código...');
 		try {
 			const res = await fetch('/api/auth/confirmar-verificacao-email-pessoal', {
 				method: 'POST',
@@ -71,7 +69,7 @@
 		} catch {
 			erroEmailPessoal = 'Erro de conexão. Tente novamente.';
 		} finally {
-			loadingEmailPessoal = false;
+			loading.hide();
 		}
 	}
 
@@ -100,10 +98,10 @@
 			return;
 		}
 
-		loading = true;
+		loading.show('Alterando sua senha...');
 
 		return async ({ result }: { result: any }) => {
-			loading = false;
+			loading.hide();
 			if (result.type === 'success') {
 				goto('/');
 			} else if (result.type === 'failure') {
@@ -177,16 +175,13 @@
 								type="email"
 								placeholder="seu@email.com"
 								bind:value={emailPessoal}
-								disabled={loadingEmailPessoal}
+								disabled={loading.active}
 							/>
 							<button
 								type="button"
-								class="btn preset-filled-primary-500 text-xs px-3 py-2 shrink-0 flex items-center gap-1.5"
-								disabled={loadingEmailPessoal || !emailPessoal.includes('@')}
 								onclick={enviarCodigoEmailPessoal}
 							>
-								{#if loadingEmailPessoal}<Spinner size="xs" />{/if}
-								{loadingEmailPessoal ? 'Enviando...' : 'Enviar código'}
+								{loading.active ? 'Enviando...' : 'Enviar código'}
 							</button>
 						</div>
 					{:else if etapaEmailPessoal === 'aguardando_codigo'}
@@ -202,16 +197,13 @@
 								inputmode="numeric"
 								bind:value={codigoEmailPessoal}
 								oninput={(e) => (codigoEmailPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
-								disabled={loadingEmailPessoal}
+								disabled={loading.active}
 							/>
 							<button
 								type="button"
-								class="btn preset-filled-success-500 text-xs px-3 py-2 shrink-0 flex items-center gap-1.5"
-								disabled={loadingEmailPessoal || codigoEmailPessoal.length !== 6}
 								onclick={confirmarCodigoEmailPessoal}
 							>
-								{#if loadingEmailPessoal}<Spinner size="xs" />{/if}
-								{loadingEmailPessoal ? 'Verificando...' : 'Confirmar'}
+								{loading.active ? 'Verificando...' : 'Confirmar'}
 							</button>
 						</div>
 						<button
@@ -317,10 +309,9 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
-					disabled={loading || !senhaOk || !confirmaOk}
+					disabled={loading.active || !senhaOk || !confirmaOk}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
+					{loading.active ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
 				</button>
 
 			</form>

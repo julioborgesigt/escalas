@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	interface UnidadeRegime {
 		nome: string;
@@ -16,11 +16,10 @@
 	let { data, form } = $props();
 
 	// Track pending state locally
-	let enviando = $state(false);
 	function handleForm({ formData }: { formData: FormData }) {
-		enviando = true;
+		loading.show('Criando nova escala...');
 		return async ({ result }: { result: any }) => {
-			enviando = false;
+			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
@@ -255,7 +254,6 @@
 			<div
 				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
 			>
-				<Spinner size="xl" />
 				<span class="text-sm">Carregando tipos de escala...</span>
 			</div>
 		{:else if temVariasUnidades && !unidadeEscolhida}
@@ -475,10 +473,9 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 flex items-center gap-2 w-full sm:w-auto"
-					disabled={enviando}
+					disabled={loading.active}
 				>
-					{#if enviando}<Spinner size="md" />{/if}
-					{enviando ? 'Criando...' : 'Criar Escala'}
+					{loading.active ? 'Criando...' : 'Criar Escala'}
 				</button>
 				<a href="/escalas" class="btn preset-outlined-primary-500 w-full sm:w-auto text-center"
 					>Cancelar</a

@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	let novaSenha = $state('');
 	let confirmarSenha = $state('');
-	let loading = $state(false);
 	let erroForm = $state('');
 
 	const temMinimo    = $derived(novaSenha.length >= 8);
@@ -24,9 +23,9 @@
 			cancel();
 			return;
 		}
-		loading = true;
+		loading.show('Salvando nova senha...');
 		return async ({ result }: { result: any }) => {
-			loading = false;
+			loading.hide();
 			if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				erroForm = String(d?.error || 'Erro ao redefinir a senha.');
@@ -137,10 +136,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
-						disabled={loading || !senhaOk || !confirmaOk}
+						disabled={loading.active || !senhaOk || !confirmaOk}
 					>
-						{#if loading}<Spinner size="md" />{/if}
-						{loading ? 'Salvando...' : 'Definir nova senha'}
+						{loading.active ? 'Salvando...' : 'Definir nova senha'}
 					</button>
 				</form>
 			{/if}

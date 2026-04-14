@@ -5,13 +5,12 @@
 	import { toaster } from '$lib/toast';
 	import { loginSchema } from '$lib/schemas';
 	import { csrfHeaders } from '$lib/csrf';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading as loadingService } from '$lib/loading.svelte';
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let adminModulo = $state<'gise' | 'escalas'>('gise');
 	let matricula = $state('');
 	let senha = $state('');
-	let loading = $state(false);
 
 	// Estado do passo 2FA
 	let pendente2FA = $state(false);
@@ -29,7 +28,6 @@
 	let recuperacao = $state(false);
 	let identificadorRec = $state('');
 	let recuperacaoEnviada = $state(false);
-	let loadingRecuperacao = $state(false);
 
 	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
 	let loginError = $state<string | null>(null);
@@ -51,9 +49,9 @@
 			cancel();
 			return;
 		}
-		loading = true;
+		loadingService.show('Autenticando...');
 		return async ({ result }: { result: any }) => {
-			loading = false;
+			loadingService.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.pendente2FA) {
@@ -80,9 +78,9 @@
 			cancel();
 			return;
 		}
-		loading = true;
+		loadingService.show('Verificando código...');
 		return async ({ result }: { result: any }) => {
-			loading = false;
+			loadingService.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.redirect) goto(String(d.redirect), { invalidateAll: true });
@@ -95,9 +93,9 @@
 	}
 
 	function handlePrimeiroAcesso() {
-		loading = true;
+		loadingService.show('Processando primeiro acesso...');
 		return async ({ result }: { result: any }) => {
-			loading = false;
+			loadingService.hide();
 			if (result.type === 'success') {
 				primeiroAcessoEnviado = true;
 			} else if (result.type === 'failure') {
@@ -127,7 +125,7 @@
 
 	async function solicitarRecuperacao() {
 		if (!identificadorRec.trim()) return;
-		loadingRecuperacao = true;
+		loadingService.show('Solicitando recuperação...');
 		try {
 			const res = await fetch('/api/auth/solicitar-redefinicao', {
 				method: 'POST',
@@ -142,7 +140,7 @@
 		} catch {
 			recuperacaoEnviada = true; // não revelar erros internos
 		} finally {
-			loadingRecuperacao = false;
+			loadingService.hide();
 		}
 	}
 </script>
@@ -260,10 +258,9 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-					disabled={loading}
+					disabled={loadingService.active}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Entrando...' : 'Entrar'}
+					{loadingService.active ? 'Entrando...' : 'Entrar'}
 				</button>
 			</form>
 
@@ -335,11 +332,10 @@
 					<button
 						type="button"
 						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-						disabled={loadingRecuperacao || !identificadorRec.trim()}
+						disabled={loadingService.active || !identificadorRec.trim()}
 						onclick={solicitarRecuperacao}
 					>
-						{#if loadingRecuperacao}<Spinner size="md" />{/if}
-						{loadingRecuperacao ? 'Enviando...' : 'Enviar link de redefinição'}
+						{loadingService.active ? 'Enviando...' : 'Enviar link de redefinição'}
 					</button>
 
 					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaRecuperacao}>
@@ -388,10 +384,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-						disabled={loading}
+						disabled={loadingService.active}
 					>
-						{#if loading}<Spinner size="md" />{/if}
-						{loading ? 'Enviando...' : 'Enviar senha provisória'}
+						{loadingService.active ? 'Enviando...' : 'Enviar senha provisória'}
 					</button>
 					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaLogin}>
 						← Voltar
@@ -445,10 +440,9 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
-					disabled={loading || codigo2FA.length !== 6}
+					disabled={loadingService.active || codigo2FA.length !== 6}
 				>
-					{#if loading}<Spinner size="md" />{/if}
-					{loading ? 'Verificando...' : 'Confirmar'}
+					{loadingService.active ? 'Verificando...' : 'Confirmar'}
 				</button>
 
 				<button type="button" class="btn preset-outlined w-full" onclick={voltarLogin}>

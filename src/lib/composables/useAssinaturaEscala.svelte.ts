@@ -15,6 +15,7 @@ import {
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
 import { csrfHeaders } from '$lib/csrf';
+import { loading } from '$lib/loading.svelte';
 
 export interface UseAssinaturaParams {
 	getParams: () => {
@@ -35,9 +36,6 @@ export function useAssinaturaEscala({
 	const policiaisCount = $derived(getParams().policiaisCount);
 	const usuario = $derived(getParams().usuario);
 	// Estados de assinatura
-	let assinando = $state(false);
-	let etapaAssinatura = $state('');
-	let assinandoSimples = $state(false);
 	let dialogSignOpen = $state(false);
 
 	// WebPKI
@@ -106,11 +104,10 @@ export function useAssinaturaEscala({
 	}
 
 	async function assinarComWebPKI() {
-		assinando = true;
-		etapaAssinatura = 'Obtendo coordenadas...';
+		loading.show('Obtendo coordenadas...');
 		gpsCoords = await getCoordinates();
 
-		etapaAssinatura = 'Preparando assinatura...';
+		loading.show('Preparando assinatura...');
 		const prepRes = await fetch(`/api/escalas/${escalaId}/preparar-assinatura`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -119,11 +116,11 @@ export function useAssinaturaEscala({
 		if (!prepRes.ok) throw new Error((await prepRes.json()).error);
 		const prepData = await prepRes.json();
 
-		etapaAssinatura = 'Assinando com token...';
+		loading.show('Assinando com token...');
 		const hash = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
 		const signature = await assinarHash(pkInstance, certSelecionado, hash);
 
-		etapaAssinatura = 'Finalizando assinatura...';
+		loading.show('Finalizando assinatura...');
 		const finRes = await fetch(`/api/escalas/${escalaId}/finalizar-assinatura`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -144,6 +141,7 @@ export function useAssinaturaEscala({
 		toaster.success({ title: 'Escala assinada com sucesso!' });
 		const info = await finRes.json();
 		onDocumentoAssinado?.(info);
+		loading.hide();
 	}
 
 	async function conectarSerproClient() {
@@ -154,14 +152,13 @@ export function useAssinaturaEscala({
 	}
 
 	async function assinarComSerpro() {
-		assinando = true;
-		etapaAssinatura = 'Conectando ao SERPRO...';
+		loading.show('Conectando ao SERPRO...');
 		const client = await conectarSerproClient();
 
-		etapaAssinatura = 'Obtendo coordenadas...';
+		loading.show('Obtendo coordenadas...');
 		gpsCoords = await getCoordinates();
 
-		etapaAssinatura = 'Preparando assinatura...';
+		loading.show('Preparando assinatura...');
 		const prepRes = await fetch(`/api/escalas/${escalaId}/preparar-assinatura`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -170,11 +167,11 @@ export function useAssinaturaEscala({
 		if (!prepRes.ok) throw new Error((await prepRes.json()).error);
 		const prepData = await prepRes.json();
 
-		etapaAssinatura = 'Assinando com SERPRO...';
+		loading.show('Assinando com SERPRO...');
 		const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
 		const serproRes = await client.sign(messageDigestBase64);
 
-		etapaAssinatura = 'Finalizando assinatura...';
+		loading.show('Finalizando assinatura...');
 		const finRes = await fetch(`/api/escalas/${escalaId}/finalizar-assinatura`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -195,19 +192,20 @@ export function useAssinaturaEscala({
 		toaster.success({ title: 'Escala assinada com sucesso!' });
 		const info = await finRes.json();
 		onDocumentoAssinado?.(info);
+		loading.hide();
 	}
 
 	async function assinarSimples(rubrica: string, lat?: number, lng?: number, selfie?: string | null, codigoValidação?: string, desafioId?: string) {
-		assinandoSimples = true;
+		loading.show('Assinando...');
 		// Usamos a geolocalizacao já capturada no SignaturePad ou fall-back
 		if (lat && lng) {
 			gpsCoords = { lat, lng };
 		} else {
-			etapaAssinatura = 'Obtendo coordenadas...';
+			loading.show('Obtendo coordenadas...');
 			gpsCoords = await getCoordinates();
 		}
 
-		etapaAssinatura = 'Assinando...';
+		loading.show('Assinando...');
 		const res = await fetch(`/api/escalas/${escalaId}/assinar-simples`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -227,12 +225,11 @@ export function useAssinaturaEscala({
 		onDocumentoAssinado?.(info);
 		rubricaCapturada = null;
 		selfieCapturada = null;
+		loading.hide();
 	}
 
 	function reset() {
-		assinando = false;
-		etapaAssinatura = '';
-		assinandoSimples = false;
+		loading.hide();
 		dialogSignOpen = false;
 		rubricaCapturada = null;
 		selfieCapturada = null;
@@ -240,9 +237,9 @@ export function useAssinaturaEscala({
 	}
 
 	return {
-		get assinando() { return assinando; },
-		get etapaAssinatura() { return etapaAssinatura; },
-		get assinandoSimples() { return assinandoSimples; },
+		get assinando() { return loading.active; },
+		get etapaAssinatura() { return ''; },
+		get assinandoSimples() { return loading.active; },
 		get dialogSignOpen() { return dialogSignOpen; },
 		set dialogSignOpen(v: boolean) { dialogSignOpen = v; },
 		get certificados() { return certificados; },

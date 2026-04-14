@@ -4,20 +4,20 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
+	import { loading } from '$lib/loading.svelte';
 	import type { Policial, Unidade } from '$lib/types';
 
 	let { data, form } = $props();
 
-	let cadastroPending = $state(false);
 	function handleCadastro({ formData }: { formData: FormData }) {
-		cadastroPending = true;
+		loading.show('Cadastrando policial...');
 		return async ({ result }: any) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
@@ -27,7 +27,6 @@
 				const d = result.data as Record<string, unknown> | undefined;
 				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
-			cadastroPending = false;
 		};
 	}
 
@@ -98,11 +97,11 @@
 	let regime = $state<'plantao' | 'expediente'>('plantao');
 	let lotacaoInput = $state('');
 	let email = $state('');
-	let excluindo = $state(false);
 
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
+	let excluindo = $state(false);
 
 	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
@@ -259,7 +258,6 @@
 				<input type="hidden" name="regime" value={regime} />
 				<input type="hidden" name="papel" value={papel ?? ''} />
 				<input type="hidden" name="papel_unidade_id" value={papelUnidadeId ?? ''} />
-				<input type="hidden" name="email" value={email ?? ''} />
 
 				<!-- Linha 1: Nome (7), Matrícula (2), Cargo (3) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
@@ -313,6 +311,7 @@
 						<input
 							class="input py-1 px-3 text-sm"
 							type="email"
+							name="email"
 							bind:value={email}
 							placeholder="exemplo@gmail.com"
 						/>
@@ -421,13 +420,12 @@
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<button
-						type="submit"
-						class="btn btn-sm preset-filled-primary-500 flex items-center gap-2"
-						disabled={cadastroPending}
-					>
-						{#if cadastroPending}<Spinner size="sm" />{/if}
-						{cadastroPending ? 'Guardando...' : 'Cadastrar'}
-					</button>
+					type="submit"
+					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+					disabled={loading.active}
+				>
+					{loading.active ? 'Processando...' : 'Cadastrar Policial'}
+				</button>
 				</div>
 			</form>
 		</div>
@@ -447,15 +445,18 @@
 				cadastro?
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
-						{#if excluindo}<Spinner size="sm" />{/if}
-						{excluindo ? 'Excluindo...' : 'Excluir'}
-					</button>
+						<button
+							type="submit"
+							class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+							disabled={loading.active}
+						>
+							{loading.active ? 'Excluindo...' : 'Remover Policial'}
+						</button>
 				</form>
 			</div>
 		</div>

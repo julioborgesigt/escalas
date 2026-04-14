@@ -2,12 +2,12 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
-	import Spinner from './Spinner.svelte';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
+	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
 
 	interface DocumentoAssinadoInfo {
@@ -58,7 +58,6 @@
 	let serproSignerCpf = $derived(assinatura.serproSignerCpf);
 
 	let dialogRevogacaoAberto = $state(false);
-	let revogando = $state(false);
 
 	function revogarAssinatura() {
 		dialogRevogacaoAberto = true;
@@ -67,7 +66,7 @@
 	async function confirmarRevogacao() {
 		dialogRevogacaoAberto = false;
 		assinatura.dialogSignOpen = false;
-		revogando = true;
+		loading.show('Revogando assinatura...');
 		// Keep local revoke logic since hook doesn't cover it yet
 		try {
 			const res = await fetch(`/api/escalas/${escalaId}/documento-assinado`, {
@@ -87,7 +86,7 @@
 		} catch {
 			toaster.create({ title: 'Erro ao revogar assinatura', type: 'error' });
 		} finally {
-			revogando = false;
+			loading.hide();
 		}
 	}
 
@@ -144,9 +143,8 @@
 				>
 					Cancelar
 				</button>
-				<button type="button" class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarRevogacao} disabled={revogando}>
-					{#if revogando}<Spinner size="sm" />{/if}
-					{revogando ? 'Revogando...' : 'Revogar'}
+				<button type="button" class="btn preset-filled-error-500 flex items-center gap-2" onclick={confirmarRevogacao} disabled={loading.active}>
+					{loading.active ? 'Revogando...' : 'Revogar'}
 				</button>
 			</div>
 		</div>
@@ -270,10 +268,9 @@
 				{#if isMobile}
 					<button type="button"
 						class="btn preset-filled-primary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full"
-						disabled={assinandoSimples}
+						disabled={loading.active}
 						onclick={abrirModalAssinatura}
 					>
-						{#if assinandoSimples}<Spinner size="xs" />{/if}
 						Abrir Painel de Rubrica
 					</button>
 				{:else}

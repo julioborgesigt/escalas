@@ -7,8 +7,8 @@
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data, form } = $props();
 
@@ -102,8 +102,6 @@
 	let editTemFds = $state(false);
 	let editCidade = $state('');
 	let buscaCidade = $state('');
-	let salvandoEdicao = $state(false);
-	let excluindo = $state(false);
 
 	// Exclusão
 	let dialogOpen = $state(false);
@@ -135,8 +133,9 @@
 	}
 
 	function handleEditar() {
-		salvandoEdicao = true;
+		loading.show('Salvando alterações...');
 		return async ({ result }: { result: any }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
@@ -145,7 +144,6 @@
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
 			}
-			salvandoEdicao = false;
 		};
 	}
 
@@ -159,8 +157,9 @@
 	}
 
 	function handleExcluir() {
-		excluindo = true;
+		loading.show('Removendo unidade...');
 		return async ({ result }: any) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
@@ -170,7 +169,6 @@
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover unidade'), type: 'error' });
 			}
-			excluindo = false;
 		};
 	}
 
@@ -179,10 +177,10 @@
 		filtroBusca = '';
 	}
 
-	let cadastroPending = $state(false);
 	function handleCadastro({ formData }: { formData: FormData }) {
-		cadastroPending = true;
+		loading.show('Cadastrando unidade...');
 		return async ({ result }: { result: any }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
@@ -199,7 +197,6 @@
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao cadastrar'), type: 'error' });
 			}
-			cadastroPending = false;
 		};
 	}
 
@@ -288,14 +285,13 @@
 				os policiais já lotados nela.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
-						{#if excluindo}<Spinner size="sm" />{/if}
-						{excluindo ? 'Excluindo...' : 'Excluir'}
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loading.active}>
+						{loading.active ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
 			</div>
@@ -473,12 +469,11 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2"
-						disabled={cadastroPending ||
+						disabled={loading.active ||
 							!novoNome.trim() ||
 							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
 					>
-						{#if cadastroPending}<Spinner size="sm" />{/if}
-						{cadastroPending ? 'Salvando...' : 'Cadastrar'}
+						{loading.active ? 'Salvando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
@@ -625,10 +620,9 @@
 											<button
 												type="submit"
 												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
-												disabled={salvandoEdicao || !editNome.trim()}
+												disabled={loading.active || !editNome.trim()}
 											>
-												{#if salvandoEdicao}<Spinner size="xs" />{/if}
-												{salvandoEdicao ? 'Salvando...' : 'Salvar'}
+												{loading.active ? 'Salvando...' : 'Salvar'}
 											</button>
 											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
 												>Cancelar</button
@@ -715,10 +709,9 @@
 								<button
 									type="submit"
 									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
-									disabled={salvandoEdicao || !editNome.trim()}
+									disabled={loading.active || !editNome.trim()}
 								>
-									{#if salvandoEdicao}<Spinner size="xs" />{/if}
-									{salvandoEdicao ? 'Salvando...' : 'Salvar'}
+									{loading.active ? 'Salvando...' : 'Salvar'}
 								</button>
 								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
 									>Cancelar</button

@@ -6,9 +6,9 @@
 	import { browser } from '$app/environment';
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { loading as loadingService } from '$lib/loading.svelte';
 
 	let { data } = $props();
 
@@ -70,14 +70,13 @@
 		})
 	);
 
-	let recarregando = $state(false);
 
 	async function recarregar() {
-		recarregando = true;
+		loadingService.show('Atualizando caixa de entrada...');
 		try {
 			await invalidate(page.url.pathname);
 		} finally {
-			recarregando = false;
+			loadingService.hide();
 		}
 	}
 
@@ -133,7 +132,6 @@
 
 	let dialogOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; lotacao: string } | null>(null);
-	let excluindo = $state(false);
 
 	function solicitarExclusao(id: number, lotacao: string) {
 		escalaParaExcluir = { id, lotacao };
@@ -158,9 +156,9 @@
 	);
 
 	function handleExcluir() {
-		excluindo = true;
+		loadingService.show('Removendo escala...');
 		return async ({ result }: { result: any }) => {
-			excluindo = false;
+			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });
 				await invalidate(page.url.pathname);
@@ -199,9 +197,9 @@
 			>
 				Limpar filtros
 			</button>
-			<button type="button" class="btn preset-outlined-primary-500 btn-sm flex items-center gap-1.5" onclick={recarregar} disabled={recarregando}>
-				{#if recarregando}
-					<Spinner size="sm" />
+			<button type="button" class="btn preset-outlined-primary-500 btn-sm flex items-center gap-1.5" onclick={recarregar} disabled={loadingService.active}>
+				{#if loadingService.active}
+					Atualizando...
 				{:else}
 					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -212,7 +210,7 @@
 						/>
 					</svg>
 				{/if}
-				{recarregando ? 'Atualizando...' : 'Atualizar'}
+				{loadingService.active ? 'Atualizando...' : 'Atualizar'}
 			</button>
 		</div>
 	</div>
@@ -611,14 +609,13 @@
 				Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={excluindo}>
-						{#if excluindo}<Spinner size="sm" />{/if}
-						{excluindo ? 'Excluindo...' : 'Excluir'}
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loadingService.active}>
+						{loadingService.active ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
 			</div>

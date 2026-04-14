@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
 
@@ -102,7 +102,6 @@
 	let novaHoraSaida = $state('16:00');
 	let modoCriacao = $state<'completa' | 'clonada'>('completa');
 	let clonarDeId = $state<number | ''>('');
-	let criando = $state(false);
 
 	function validarHora(v: string): boolean {
 		if (!v) return true;
@@ -136,9 +135,9 @@
 			cancel();
 			return;
 		}
-		criando = true;
+		loading.show('Criando escala(s) GISE...');
 		return async ({ result }: any) => {
-			criando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				const count = (d.count as number) ?? 1;
@@ -664,10 +663,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-sm px-4 py-2 rounded-xl transition-all"
-						disabled={criando || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
+						disabled={loading.active || !novaDataInicio || (modoCriacao === 'clonada' && !clonarDeId)}
 					>
-						{#if criando}<Spinner size="sm" />{/if}
-						{criando ? 'Criando...' : 'Criar Escala'}
+						{loading.active ? 'Criando...' : 'Criar Escala'}
 					</button>
 				</form>
 			</div>

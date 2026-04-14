@@ -7,8 +7,8 @@
 	import type { Policial, EscalaPolicialComDados, Escala } from '$lib/types';
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import { useConfirmationDialog } from '$lib/composables';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
 
@@ -78,12 +78,6 @@
 	let editObservacoes = $state('');
 
 	// Pending states
-	let addingPending = $state(false);
-	let plantaoPending = $state(false);
-	let adicionarTodosPending = $state(false);
-	let gerarProximoMesPending = $state(false);
-	let editPending = $state(false);
-	let removendo = $state(false);
 
 	function getHoraEntrada(p: EscalaPolicialComDados): string {
 		return p.hora_entrada || escala?.hora_entrada || '08';
@@ -157,9 +151,9 @@
 
 	function handleAdd({ cancel }: { cancel: () => void }) {
 		if (!policialId) { cancel(); return; }
-		addingPending = true;
+		loading.show('Adicionando policial...');
 		return async ({ result, update }: any) => {
-			addingPending = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 				cargoBusca = '';
@@ -174,9 +168,9 @@
 
 	function handlePlantao({ cancel }: { cancel: () => void }) {
 		if (!policialId || addDatasSelecionadas.length === 0) { cancel(); return; }
-		plantaoPending = true;
+		loading.show('Adicionando servidor...');
 		return async ({ result, update }: any) => {
-			plantaoPending = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
 				cargoBusca = '';
@@ -193,9 +187,9 @@
 	}
 
 	function handleAdicionarTodos() {
-		adicionarTodosPending = true;
+		loading.show('Adicionando todos os servidores...');
 		return async ({ result, update }: any) => {
-			adicionarTodosPending = false;
+			loading.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (Number(d.quantidade) === 0)
@@ -210,9 +204,9 @@
 	}
 
 	function handleGerarProximoMes() {
-		gerarProximoMesPending = true;
+		loading.show('Gerando escala do próximo mês...');
 		return async ({ result }: any) => {
-			gerarProximoMesPending = false;
+			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				const tipo = escala?.tipo === 'plantao' ? 'Plantão' : 'Expediente';
@@ -247,9 +241,9 @@
 	}
 
 	function handleEditar() {
-		editPending = true;
+		loading.show('Salvando alterações...');
 		return async ({ result, update }: any) => {
-			editPending = false;
+			loading.hide();
 			if (result.type === 'success') {
 				editingId = null;
 				await update({ reset: false });
@@ -264,9 +258,9 @@
 	}
 
 	function handleRemover() {
-		removendo = true;
+		loading.show('Removendo policial...');
 		return async ({ result, update }: any) => {
-			removendo = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido da escala`, type: 'success' });
 				confirmDialog.closeDialog();
@@ -399,14 +393,13 @@
 					escala?
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={removendo}
+					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
 						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
-						<button type="submit" class="btn preset-filled-error-500" disabled={removendo}>
-							{#if removendo}<Spinner size="sm" />{/if}
-							{removendo ? 'Removendo...' : 'Remover'}
+						<button type="submit" class="btn preset-filled-error-500" disabled={loading.active}>
+							{loading.active ? 'Removendo...' : 'Remover'}
 						</button>
 					</form>
 				</div>
@@ -432,10 +425,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
-						disabled={adicionarTodosPending}
+						disabled={loading.active}
 					>
-						{#if adicionarTodosPending}<Spinner size="md" />{/if}
-						{adicionarTodosPending ? 'Adicionando...' : '+ Adicionar Todos'}
+						{loading.active ? 'Adicionando...' : '+ Adicionar Todos'}
 					</button>
 				</form>
 			</div>
@@ -464,10 +456,9 @@
 					<button
 						type="submit"
 						class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
-						disabled={gerarProximoMesPending}
+						disabled={loading.active}
 					>
-						{#if gerarProximoMesPending}<Spinner size="md" />{/if}
-						{gerarProximoMesPending ? 'Gerando...' : 'Gerar Próximo Mês →'}
+						{loading.active ? 'Gerando...' : 'Gerar Próximo Mês →'}
 					</button>
 				</form>
 			</div>
@@ -583,10 +574,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 w-full sm:w-auto"
-						disabled={plantaoPending || !policialId || addDatasSelecionadas.length === 0}
+						disabled={loading.active || !policialId || addDatasSelecionadas.length === 0}
 					>
-						{#if plantaoPending}<Spinner size="sm" />{/if}
-						{plantaoPending ? 'Adicionando...' : 'Adicionar à Escala'}
+						{loading.active ? 'Adicionando...' : 'Adicionar à Escala'}
 					</button>
 				</form>
 			{:else}
@@ -672,9 +662,9 @@
 							<button
 								type="submit"
 								class="btn preset-filled-primary-500 w-full"
-								disabled={addingPending || !policialId || !dataPlantao}
+								disabled={loading.active || !policialId || !dataPlantao}
 							>
-								{#if addingPending}<Spinner size="sm" />{:else}＋{/if}
+								{loading.active ? '...' : '＋'}
 							</button>
 						</div>
 					</div>
@@ -752,8 +742,8 @@
 														</label>
 													</div>
 													<div class="flex gap-1">
-														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={editPending}>
-															{#if editPending}<Spinner size="xs" />{/if}Salvar
+														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={loading.active}>
+															{loading.active ? 'Salvando...' : 'Salvar'}
 														</button>
 														<button type="button" class="btn btn-sm h-8 preset-outlined-surface rounded-lg px-2" onclick={() => (editingId = null)}>×</button>
 													</div>

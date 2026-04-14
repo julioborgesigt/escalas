@@ -9,9 +9,9 @@
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
+	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
 
@@ -37,9 +37,6 @@
 	const assinatura = useGiseAssinatura({ getGiseId: () => gise?.id ?? 0 });
 
 	// Estados locais (não extraídos)
-	let salvando = $state(false);
-	let assinando = $state(false);
-	let finalizando = $state(false);
 	let showFinalizarConfirm = $state(false);
 	let dialogRemoverSeccionalAberto = $state(false);
 	let formRemoverSeccionalPendente = $state<HTMLFormElement | null>(null);
@@ -66,7 +63,6 @@
 	let editSlotsOip = $state(0);
 
 	// Reabrir escala
-	let reabrindo = $state(false);
 	let showReabrirConfirm = $state(false);
 
 	// Modo Edição Geral (Admin Geral)
@@ -85,7 +81,6 @@
 	let editHoraEntrada = $state('');
 	let editHoraSaida = $state('');
 	let showExcluirGiseConfirm = $state(false);
-	let excluindo = $state(false);
 	let removendoEquipeId = $state<number | null>(null);
 
 	// Adicionar equipe
@@ -147,8 +142,9 @@
 	}
 
 	function handleSalvarSupervisores() {
-		salvando = true;
+		loading.show('Salvando supervisor...');
 		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Supervisor salvo' });
@@ -158,13 +154,13 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
-			salvando = false;
 		};
 	}
 
 	function handleSalvarUnidadeOperacional() {
-		salvando = true;
+		loading.show('Salvando unidade operacional...');
 		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Unidade operacional salva' });
@@ -174,7 +170,6 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
 			}
-			salvando = false;
 		};
 	}
 
@@ -183,8 +178,9 @@
 			cancel();
 			return;
 		}
-		salvando = true;
+		loading.show('Adicionando seccional...');
 		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional adicionada' });
@@ -195,7 +191,6 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
 			}
-			salvando = false;
 		};
 	}
 
@@ -215,7 +210,7 @@
 	async function confirmarRemoverSeccional() {
 		dialogRemoverSeccionalAberto = false;
 		if (!formRemoverSeccionalPendente) return;
-		salvando = true;
+		loading.show('Removendo Seccional...');
 		const formData = new FormData(formRemoverSeccionalPendente);
 		try {
 			const res = await fetch(formRemoverSeccionalPendente.action, {
@@ -233,14 +228,15 @@
 		} catch {
 			toaster.error({ title: 'Erro ao remover seccional' });
 		} finally {
-			salvando = false;
+			loading.hide();
 			formRemoverSeccionalPendente = null;
 		}
 	}
 
 	function handleAdicionarMembro() {
-		salvando = true;
+		loading.show('Adicionando membro...');
 		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Membro adicionado' });
@@ -252,13 +248,13 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
 			}
-			salvando = false;
 		};
 	}
 
 	function handleRemoverMembro() {
-		salvando = true;
+		loading.show('Removendo membro...');
 		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
 			if (result.type === 'success') {
 				removendoMembroId = null;
 				await invalidate('gise:detail');
@@ -268,30 +264,28 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
 			}
-			salvando = false;
 		};
 	}
 
 	function handleRemoverEquipe() {
-		salvando = true;
+		loading.show('Removendo Equipe...');
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Equipe removida' });
 			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				const d = 'data' in result ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
 			}
 			removendoEquipeId = null;
-			salvando = false;
+			loading.hide();
 		};
 	}
 
 	let removendoMembroId = $state<number | null>(null);
 
 	function handleFinalizarSeccional() {
-		salvando = true;
+		loading.show('Finalizando Seccional...');
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				await invalidate('gise:detail');
@@ -313,7 +307,7 @@
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
 			}
-			salvando = false;
+			loading.hide();
 		};
 	}
 
@@ -329,7 +323,6 @@
 				}
 			: null
 	);
-	let assinandoSimples = $state(false);
 	// SERPRO — usado pelo bloco de assinatura em LOTE de relatórios
 	let etapaAssinatura = $state('');
 
@@ -384,7 +377,7 @@
 		codigoValidação?: string,
 		desafioId?: string
 	) {
-		assinandoSimples = true;
+		loading.show('Confirmando escala e gerando PDF...');
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
@@ -417,7 +410,7 @@
 		} catch (err) {
 			toaster.error({ title: 'Erro de conexão' });
 		} finally {
-			assinandoSimples = false;
+			loading.hide();
 			rubricaCapturada = null;
 		}
 	}
@@ -440,9 +433,9 @@
 	}
 
 	function handleFinalizarGise() {
-		finalizando = true;
+		loading.show('Finalizando Escala GISE...');
 		return async ({ result }: { result: ActionResult }) => {
-			finalizando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala finalizada!' });
 				showFinalizarConfirm = false;
@@ -456,9 +449,9 @@
 	}
 
 	function handleSalvarSlotsEquipe() {
-		salvando = true;
+		loading.show('Atualizando vagas...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Vagas atualizadas' });
 				editandoEquipe = null;
@@ -472,9 +465,9 @@
 	}
 
 	function handleSolicitarAssinatura() {
-		salvando = true;
+		loading.show('Solicitando assinatura...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Edição finalizada',
@@ -490,9 +483,9 @@
 	}
 
 	function handleRevogarPedidoAssinatura() {
-		salvando = true;
+		loading.show('Revogando solicitação...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Solicitação revogada',
@@ -654,7 +647,7 @@
 		desafioId?: string
 	) {
 		if (!relatorioSendoAssinado) return;
-		salvando = true;
+		loading.show('Iniciando assinatura...');
 
 		if (relatorioSendoAssinado.lote) {
 			assinandoLote = true;
@@ -694,7 +687,7 @@
 					description: e.message
 				});
 			} finally {
-				salvando = false;
+				loading.hide();
 				assinandoLote = false;
 				etapaAssinatura = '';
 				progressoLote = { atual: 0, total: 0 };
@@ -733,15 +726,15 @@
 				description: e.message
 			});
 		} finally {
-			salvando = false;
+			loading.hide();
 			etapaAssinatura = '';
 		}
 	}
 
 	function handleReabrirEscala() {
-		reabrindo = true;
+		loading.show('Reabrindo escala...');
 		return async ({ result }: { result: ActionResult }) => {
-			reabrindo = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({
 					title: 'Escala reaberta',
@@ -776,9 +769,9 @@
 			cancel();
 			return;
 		}
-		salvando = true;
+		loading.show('Salvando alterações...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
 				if (d?.assinatura_revogada) {
@@ -816,9 +809,9 @@
 			cancel();
 			return;
 		}
-		salvando = true;
+		loading.show('Salvando horários...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da seccional atualizados' });
 				editandoHorariosSecId = null;
@@ -838,9 +831,9 @@
 			cancel();
 			return;
 		}
-		salvando = true;
+		loading.show('Salvando horários...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da equipe atualizados' });
 				editandoHorariosEquipeId = null;
@@ -854,9 +847,9 @@
 	}
 
 	function handleExcluirGise() {
-		excluindo = true;
+		loading.show('Excluindo escala GISE...');
 		return async ({ result }: { result: ActionResult }) => {
-			excluindo = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Escala GISE excluída' });
 				showExcluirGiseConfirm = false;
@@ -870,9 +863,9 @@
 	}
 
 	function handleAdicionarEquipe() {
-		salvando = true;
+		loading.show('Adicionando equipe...');
 		return async ({ result }: { result: ActionResult }) => {
-			salvando = false;
+			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: 'Equipe adicionada' });
 				adicionandoEquipeSec = null;
@@ -957,7 +950,7 @@
 	onclick?: any,
 	href?: string,
 	disabled = false,
-	loading = false,
+	isLoadingLoc = false,
 	classes = '',
 	btnType: 'button' | 'submit' = 'button',
 	size = 'sm'
@@ -969,48 +962,24 @@
 			{label}
 		</a>
 	{:else}
-		<button class={baseClass} {onclick} {disabled} type={btnType}>
-			{#if loading}
-				<Spinner size="xs" />
-			{:else if iconPath}
-				{@render btnIcon(iconPath)}
-			{/if}
-			{label}
-		</button>
+	<button
+		class={baseClass}
+		{onclick}
+		disabled={disabled || loading.active || isLoadingLoc}
+		type={btnType}
+	>
+		{#if iconPath}
+			{@render btnIcon(iconPath)}
+		{/if}
+		{label}
+	</button>
 	{/if}
 {/snippet}
 
-{#snippet loadingOverlay()}
-	{#if salvando}
-		<div
-			class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/20 backdrop-blur-[2px] transition-all duration-500"
-		>
-			<div
-				class="card p-6 shadow-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300"
-			>
-				<div class="relative">
-					<div class="absolute inset-0 blur-xl bg-primary-500/30 animate-pulse rounded-full"></div>
-					<Spinner size="lg" />
-				</div>
-				<div class="text-center">
-					<p
-						class="text-sm font-bold uppercase tracking-[0.2em] text-surface-900 dark:text-surface-50"
-					>
-						Aguarde um instante...
-					</p>
-					<p class="text-[0.65rem] uppercase tracking-widest text-surface-500 mt-1">
-						Concluindo...
-					</p>
-				</div>
-			</div>
-		</div>
-	{/if}
-{/snippet}
 
-{@render loadingOverlay()}
 
 <div
-	class="relative transition-all duration-500 {salvando
+	class="relative transition-all duration-500 {loading.active
 		? 'pointer-events-none opacity-40 blur-[3px]'
 		: 'opacity-100 blur-0'} space-y-6"
 >
@@ -1106,8 +1075,8 @@
 							'filled',
 							undefined,
 							undefined,
-							salvando || modoEdicaoGeral,
-							salvando,
+							loading.active || modoEdicaoGeral,
+							false,
 							'border-2 border-success-600/30 hover:border-success-600',
 							'submit'
 						)}
@@ -1127,8 +1096,8 @@
 							'outlined',
 							undefined,
 							undefined,
-							salvando,
-							salvando,
+							loading.active,
+							false,
 							'border-2 border-warning-500/30 hover:border-warning-500',
 							'submit'
 						)}
@@ -1225,10 +1194,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
-						disabled={salvando}
+						disabled={loading.active}
 					>
-						{#if salvando}<Spinner size="sm" />{/if}
-						{salvando ? 'Salvando...' : 'Salvar'}
+						{loading.active ? 'Salvando...' : 'Salvar'}
 					</button>
 					<button
 						type="button"
@@ -1453,17 +1421,10 @@
 									<button
 										type="button"
 										class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-										disabled={assinandoSimples}
+										disabled={loading.active}
 										onclick={() => abrirModalRubrica('simples')}
 									>
-										{#if assinandoSimples}
-											<span
-												class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"
-											></span>
-											Gerando PDF...
-										{:else}
-											Abrir Painel de Rubrica
-										{/if}
+										Abrir Painel de Rubrica
 									</button>
 								{:else}
 									<div class="flex-1 flex items-center">
@@ -1560,7 +1521,7 @@
 									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
 									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
 									extraPayload={{ rubrica: rubricaCapturada }}
-									disabled={assinando}
+									disabled={loading.active}
 									onSuccess={async () => {
 										rubricaCapturada = null;
 										await invalidate(page.url.href);
@@ -1762,9 +1723,8 @@
 												type="button"
 												class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
 												onclick={() => executarAssinarRelatorioLoteSERPRO()}
-												disabled={assinandoLote}
+												disabled={loading.active}
 											>
-												{#if assinandoLote}<Spinner size="xs" />{/if}
 												Assinar Lote com SERPRO
 											</button>
 											<p class="text-[0.55rem] text-surface-400 italic text-center">
@@ -1909,15 +1869,12 @@
 									class="contents"
 								>
 									<input type="hidden" name="secId" value={sec.id} />
-									<button
-										type="submit"
-										class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-										disabled={salvando}
-										title="Excluir seccional desta escala"
-									>
-										{#if salvando}
-											<Spinner size="xs" />
-										{:else}
+										<button
+											type="submit"
+											class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+											disabled={loading.active}
+											title="Excluir seccional desta escala"
+										>
 											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
@@ -1926,9 +1883,8 @@
 													d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 												/></svg
 											>
-										{/if}
-										Excluir
-									</button>
+											Excluir
+										</button>
 								</form>
 							{/if}
 						</div>
@@ -2085,7 +2041,7 @@
 											<button
 												type="submit"
 												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
-												disabled={salvando ||
+												disabled={loading.active ||
 													!sec.unidade_operacional_id ||
 													!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
 												title={!sec.unidade_operacional_id
@@ -2094,7 +2050,6 @@
 														? 'Adicione pelo menos 1 policial antes de finalizar'
 														: ''}
 											>
-												{#if salvando}<Spinner size="xs" />{/if}
 												{sec.status === 'preenchida'
 													? 'Finalizar edição'
 													: sec.status === 'retificada'
@@ -2170,10 +2125,9 @@
 												<button
 													type="submit"
 													class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
-													disabled={salvando}
+													disabled={loading.active}
 												>
-													{#if salvando}<Spinner size="xs" />{/if}
-													{salvando ? 'Salvando...' : 'Salvar'}
+													{loading.active ? 'Salvando...' : 'Salvar'}
 												</button>
 												{#if sec.unidade_operacional_nome}
 													<button
@@ -2245,9 +2199,9 @@
 														<button
 															type="submit"
 															class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1.5"
-															disabled={salvando}
+															disabled={loading.active}
 														>
-															{#if salvando}<Spinner size="xs" />{/if}{salvando
+															{loading.active
 																? 'Salvando...'
 																: 'Salvar'}
 														</button>
@@ -2399,10 +2353,9 @@
 												<button
 													type="submit"
 													class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-													disabled={removendoEquipeId === equipe.id}
+													disabled={loading.active}
 												>
-													{#if removendoEquipeId === equipe.id}<Spinner size="sm" />{/if}
-													{removendoEquipeId === equipe.id ? 'Removendo...' : 'Remover equipe'}
+													{loading.active ? 'Removendo...' : 'Remover equipe'}
 												</button>
 											</form>
 										{/if}
@@ -2447,7 +2400,7 @@
 																class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation"
 																disabled={removendoMembroId === m.id}
 															>
-																{#if removendoMembroId === m.id}<Spinner size="xs" />{:else}×{/if}
+																{loading.active ? '...' : '×'}
 															</button>
 														</form>
 													{/if}
@@ -2484,7 +2437,7 @@
 													<button
 														type="submit"
 														class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
-														disabled={!policialParaAdicionar || salvando}>Adicionar</button
+														disabled={!policialParaAdicionar || loading.active}>Adicionar</button
 													>
 													<button
 														type="button"
@@ -2626,9 +2579,9 @@
 											<button
 												type="submit"
 												class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-												disabled={salvando}
+												disabled={loading.active}
 											>
-												{#if salvando}<Spinner size="xs" />{/if}{salvando
+												{loading.active
 													? 'Adicionando...'
 													: 'Adicionar'}
 											</button>
@@ -2699,9 +2652,9 @@
 							<button
 								type="submit"
 								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
-								disabled={!seccionalParaAdicionarIdx || salvando}
+								disabled={!seccionalParaAdicionarIdx || loading.active}
 							>
-								{salvando ? 'Adicionando...' : 'Confirmar'}
+								{loading.active ? 'Adicionando...' : 'Confirmar'}
 							</button>
 							<button
 								type="button"
@@ -2832,10 +2785,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
-						disabled={salvando}
+						disabled={loading.active}
 					>
-						{#if salvando}<Spinner size="sm" />{/if}
-						{salvando ? 'Salvando...' : 'Salvar'}
+						{loading.active ? 'Salvando...' : 'Salvar'}
 					</button>
 				</form>
 			</div>
@@ -2864,10 +2816,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
-						disabled={excluindo}
+						disabled={loading.active}
 					>
-						{#if excluindo}<Spinner size="sm" />{/if}
-						{excluindo ? 'Excluindo...' : 'Confirmar Exclusão'}
+						{loading.active ? 'Excluindo...' : 'Confirmar Exclusão'}
 					</button>
 				</form>
 			</div>
@@ -2901,10 +2852,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
-						disabled={reabrindo}
+						disabled={loading.active}
 					>
-						{#if reabrindo}<Spinner size="sm" />{/if}
-						{reabrindo ? 'Reabrindo...' : 'Confirmar Reabertura'}
+						{loading.active ? 'Reabrindo...' : 'Confirmar Reabertura'}
 					</button>
 				</form>
 			</div>
@@ -2939,9 +2889,8 @@
 					<button
 						type="submit"
 						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
-						disabled={finalizando}
+						disabled={loading.active}
 					>
-						{#if finalizando}<Spinner size="sm" />{/if}
 						Finalizar Agora
 					</button>
 				</form>
@@ -2950,7 +2899,7 @@
 					type="button"
 					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
 					onclick={() => (showFinalizarConfirm = false)}
-					disabled={finalizando}
+					disabled={loading.active}
 				>
 					Cancelar e voltar
 				</button>
@@ -2987,7 +2936,7 @@
 				prepararUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/preparar-assinatura"
 				finalizarUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/finalizar-assinatura"
 				nomeArquivo="relatorio_extraordinario_{relatorioDigitalInfo.seccionalNome}.pdf"
-				disabled={assinando}
+				disabled={loading.active}
 				onSuccess={async () => {
 					showDigitalModalRelatorio = false;
 					relatorioDigitalInfo = null;
@@ -3002,7 +2951,7 @@
 					showDigitalModalRelatorio = false;
 					relatorioDigitalInfo = null;
 				}}
-				disabled={assinando}
+				disabled={loading.active}
 			>
 				Cancelar e fechar
 			</button>
