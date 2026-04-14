@@ -19,8 +19,6 @@
 
 	// Dados do server
 	let escala = $derived(data.escala);
-	let policiaisEscala = $derived(data.policiaisEscala as EscalaPolicialComDados[]);
-	let todosOsPoliciais = $derived(data.todosPoliciais as any[]);
 	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
@@ -31,6 +29,31 @@
 				}
 			: null
 	);
+
+	// Estado local da lista — atualizado diretamente pelos actions (sem round-trip extra)
+	let policiaisEscalaLocal = $state<EscalaPolicialComDados[]>(data.policiaisEscala as EscalaPolicialComDados[]);
+	$effect(() => {
+		// Sincroniza com dados frescos do servidor ao navegar de volta para esta página
+		policiaisEscalaLocal = data.policiaisEscala as EscalaPolicialComDados[];
+	});
+
+	// todosPoliciais vem via streaming: página renderiza imediatamente, lista chega depois
+	let todosOsPoliciais = $state<any[]>([]);
+	let loadingPoliciais = $state(true);
+	$effect(() => {
+		loadingPoliciais = true;
+		Promise.resolve(data.todosPoliciais).then((lista: any) => {
+			todosOsPoliciais = lista ?? [];
+			loadingPoliciais = false;
+		});
+	});
+
+	// Estados de loading inline por ação (sem overlay global)
+	let pendingAdd = $state(false);
+	let pendingPlantao = $state(false);
+	let pendingAdicionarTodos = $state(false);
+	let pendingEditar = $state(false);
+	let pendingRemover = $state(false);
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
@@ -151,14 +174,14 @@
 
 	function handleAdd({ cancel }: { cancel: () => void }) {
 		if (!policialId) { cancel(); return; }
-		loading.show('Adicionando policial...');
-		return async ({ result, update }: any) => {
-			loading.hide();
+		pendingAdd = true;
+		return async ({ result }: any) => {
+			pendingAdd = false;
 			if (result.type === 'success') {
+				policiaisEscalaLocal = result.data.policiais; // usa dados do server diretamente
 				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 				cargoBusca = '';
 				policialId = '';
-				await update({ reset: false });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
@@ -168,17 +191,17 @@
 
 	function handlePlantao({ cancel }: { cancel: () => void }) {
 		if (!policialId || addDatasSelecionadas.length === 0) { cancel(); return; }
-		loading.show('Adicionando servidor...');
-		return async ({ result, update }: any) => {
-			loading.hide();
+		pendingPlantao = true;
+		return async ({ result }: any) => {
+			pendingPlantao = false;
 			if (result.type === 'success') {
+				policiaisEscalaLocal = result.data.policiais; // usa dados do server diretamente
 				toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
 				cargoBusca = '';
 				policialId = '';
 				addPrimeiroPlantao = '';
 				addEquipe = '1';
 				addDatasSelecionadas = [];
-				await update({ reset: false });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
@@ -187,15 +210,15 @@
 	}
 
 	function handleAdicionarTodos() {
-		loading.show('Adicionando todos os servidores...');
-		return async ({ result, update }: any) => {
-			loading.hide();
+		pendingAdicionarTodos = true;
+		return async ({ result }: any) => {
+			pendingAdicionarTodos = false;
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;
+				policiaisEscalaLocal = result.data.policiais; // usa dados do server diretamente
 				if (Number(d.quantidade) === 0)
 					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
 				else toaster.create({ title: `${d.quantidade} servidor(es) adicionado(s)`, type: 'success' });
-				await update({ reset: false });
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
@@ -204,6 +227,7 @@
 	}
 
 	function handleGerarProximoMes() {
+		// Operação pesada que cria nova página — mantém overlay global
 		loading.show('Gerando escala do próximo mês...');
 		return async ({ result }: any) => {
 			loading.hide();
@@ -241,12 +265,12 @@
 	}
 
 	function handleEditar() {
-		loading.show('Salvando alterações...');
-		return async ({ result, update }: any) => {
-			loading.hide();
+		pendingEditar = true;
+		return async ({ result }: any) => {
+			pendingEditar = false;
 			if (result.type === 'success') {
+				policiaisEscalaLocal = result.data.policiais; // usa dados do server diretamente
 				editingId = null;
-				await update({ reset: false });
 			} else {
 				toaster.create({ title: 'Erro ao salvar', type: 'error' });
 			}
@@ -258,14 +282,20 @@
 	}
 
 	function handleRemover() {
-		loading.show('Removendo policial...');
-		return async ({ result, update }: any) => {
-			loading.hide();
+		const itemNome = confirmDialog.currentItem?.nome;
+		const itemId = confirmDialog.currentItem?.itemId;
+		const backup = [...policiaisEscalaLocal];
+
+		// Update otimista: remove imediatamente e fecha o diálogo
+		policiaisEscalaLocal = policiaisEscalaLocal.filter(p => p.id !== itemId);
+		confirmDialog.closeDialog();
+
+		return async ({ result }: any) => {
 			if (result.type === 'success') {
-				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido da escala`, type: 'success' });
-				confirmDialog.closeDialog();
-				await update({ reset: false });
+				policiaisEscalaLocal = result.data.policiais; // confirma com dados do servidor
+				toaster.create({ title: `${itemNome} removido da escala`, type: 'success' });
 			} else {
+				policiaisEscalaLocal = backup; // rollback
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
@@ -375,7 +405,7 @@
 	<PainelAssinaturaEscala
 		escalaId={String(data.escalaId)}
 		{isFDS}
-		policiaisCount={policiaisEscala.length}
+		policiaisCount={policiaisEscalaLocal.length}
 		usuario={page.data.usuario}
 		bind:documentoAssinadoInfo
 	/>
@@ -393,14 +423,10 @@
 					escala?
 				</Dialog.Description>
 				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
-						>Cancelar</Dialog.CloseTrigger
-					>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
 						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
-						<button type="submit" class="btn preset-filled-error-500" disabled={loading.active}>
-							{loading.active ? 'Removendo...' : 'Remover'}
-						</button>
+						<button type="submit" class="btn preset-filled-error-500">Remover</button>
 					</form>
 				</div>
 			</div>
@@ -425,9 +451,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
-						disabled={loading.active}
+						disabled={pendingAdicionarTodos}
 					>
-						{loading.active ? 'Adicionando...' : '+ Adicionar Todos'}
+						{pendingAdicionarTodos ? 'Adicionando...' : '+ Adicionar Todos'}
 					</button>
 				</form>
 			</div>
@@ -458,7 +484,11 @@
 						class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
 						disabled={loading.active}
 					>
-						{loading.active ? 'Gerando...' : 'Gerar Próximo Mês →'}
+						{#if loading.active}
+							<span class="animate-spin inline-block mr-1">⟳</span>Gerando...
+						{:else}
+							Gerar Próximo Mês →
+						{/if}
 					</button>
 				</form>
 			</div>
@@ -490,8 +520,8 @@
 						</label>
 						<label class="label lg:col-span-2">
 							<span class="label-text">Servidor</span>
-							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
-								<option value="">Selecione...</option>
+							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca || loadingPoliciais}>
+								<option value="">{loadingPoliciais ? 'Carregando...' : 'Selecione...'}</option>
 								{#each policialsFiltrados as p (p.id)}
 									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
 								{/each}
@@ -574,9 +604,9 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 w-full sm:w-auto"
-						disabled={loading.active || !policialId || addDatasSelecionadas.length === 0}
+						disabled={pendingPlantao || !policialId || addDatasSelecionadas.length === 0}
 					>
-						{loading.active ? 'Adicionando...' : 'Adicionar à Escala'}
+						{pendingPlantao ? 'Adicionando...' : 'Adicionar à Escala'}
 					</button>
 				</form>
 			{:else}
@@ -599,8 +629,8 @@
 
 						<label class="label sm:col-span-4">
 							<span class="label-text">Servidor</span>
-							<select class="select h-9 py-0 px-2" name="policial_id" bind:value={policialId} disabled={!cargoBusca}>
-								<option value="">Selecione...</option>
+							<select class="select h-9 py-0 px-2" name="policial_id" bind:value={policialId} disabled={!cargoBusca || loadingPoliciais}>
+								<option value="">{loadingPoliciais ? 'Carregando...' : 'Selecione...'}</option>
 								{#each policialsFiltrados as p (p.id)}
 									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
 								{/each}
@@ -662,9 +692,9 @@
 							<button
 								type="submit"
 								class="btn preset-filled-primary-500 w-full"
-								disabled={loading.active || !policialId || !dataPlantao}
+								disabled={pendingAdd || !policialId || !dataPlantao}
 							>
-								{loading.active ? '...' : '＋'}
+								{pendingAdd ? '...' : '＋'}
 							</button>
 						</div>
 					</div>
@@ -673,12 +703,12 @@
 		</div>
 	{/if}
 
-	{#if policiaisEscala.length === 0}
+	{#if policiaisEscalaLocal.length === 0}
 		<div class="text-center py-12 text-surface-500"><p>Nenhum policial nesta escala ainda.</p></div>
 	{:else}
 		<!-- Agrupado por data (Visual de Tabela Refinado) -->
 		<div class="space-y-12">
-			{#each agruparPorData(policiaisEscala) as [dataGrupo, items]}
+			{#each agruparPorData(policiaisEscalaLocal) as [dataGrupo, items]}
 				<div
 					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden"
 				>
@@ -742,8 +772,8 @@
 														</label>
 													</div>
 													<div class="flex gap-1">
-														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={loading.active}>
-															{loading.active ? 'Salvando...' : 'Salvar'}
+														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={pendingEditar}>
+															{pendingEditar ? 'Salvando...' : 'Salvar'}
 														</button>
 														<button type="button" class="btn btn-sm h-8 preset-outlined-surface rounded-lg px-2" onclick={() => (editingId = null)}>×</button>
 													</div>

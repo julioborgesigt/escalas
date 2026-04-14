@@ -47,18 +47,9 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const escalaId = Number(params.id);
 	if (isNaN(escalaId)) throw redirect(302, '/escalas');
 
-	// Verificar acesso
-	if (u.tipo === 'policial') {
-		const escala = await buscarEscala(db, escalaId);
-		if (!escala || escala.lotacao !== u.lotacao) {
-			throw redirect(302, '/escalas');
-		}
-	}
-
-	const [escala, policiaisEscala, todosPoliciais, docInfo] = await Promise.all([
+	const [escala, policiaisEscala, docInfo] = await Promise.all([
 		buscarEscala(db, escalaId),
 		listarPoliciaisEscala(db, escalaId),
-		listarPoliciais(db, undefined, false, { busca: undefined, page: undefined, limit: undefined }).then(r => r.policiais),
 		buscarDocumentoEscala(db, escalaId).then(d => d ? {
 			existe: true,
 			assinante_nome: d.assinante_nome,
@@ -68,6 +59,19 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	]);
 
 	if (!escala) throw redirect(302, '/escalas');
+
+	// Verificar acesso do policial após carregar os dados (evita query duplicada)
+	if (u.tipo === 'policial' && escala.lotacao !== u.lotacao) {
+		throw redirect(302, '/escalas');
+	}
+
+	// todosPoliciais é streamed: a página renderiza imediatamente com os dados
+	// da escala enquanto a lista de policiais chega em paralelo via streaming.
+	const todosPoliciais = listarPoliciais(db, undefined, false, {
+		busca: undefined,
+		page: undefined,
+		limit: undefined
+	}).then(r => r.policiais);
 
 	return {
 		escala,

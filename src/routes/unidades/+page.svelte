@@ -8,7 +8,6 @@
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
-	import { loading } from '$lib/loading.svelte';
 
 	let { data, form } = $props();
 
@@ -103,6 +102,11 @@
 	let editCidade = $state('');
 	let buscaCidade = $state('');
 
+	// Loading inline por ação
+	let pendingEditar = $state(false);
+	let pendingExcluir = $state(false);
+	let pendingCadastro = $state(false);
+
 	// Exclusão
 	let dialogOpen = $state(false);
 	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
@@ -133,9 +137,9 @@
 	}
 
 	function handleEditar() {
-		loading.show('Salvando alterações...');
+		pendingEditar = true;
 		return async ({ result }: { result: any }) => {
-			loading.hide();
+			pendingEditar = false;
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
@@ -157,9 +161,9 @@
 	}
 
 	function handleExcluir() {
-		loading.show('Removendo unidade...');
+		pendingExcluir = true;
 		return async ({ result }: any) => {
-			loading.hide();
+			pendingExcluir = false;
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
@@ -178,9 +182,9 @@
 	}
 
 	function handleCadastro({ formData }: { formData: FormData }) {
-		loading.show('Cadastrando unidade...');
+		pendingCadastro = true;
 		return async ({ result }: { result: any }) => {
-			loading.hide();
+			pendingCadastro = false;
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
@@ -285,13 +289,11 @@
 				os policiais já lotados nela.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
-					>Cancelar</Dialog.CloseTrigger
-				>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loading.active}>
-						{loading.active ? 'Excluindo...' : 'Excluir'}
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={pendingExcluir}>
+						{pendingExcluir ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
 			</div>
@@ -469,11 +471,11 @@
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2"
-						disabled={loading.active ||
+						disabled={pendingCadastro ||
 							!novoNome.trim() ||
 							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
 					>
-						{loading.active ? 'Salvando...' : 'Cadastrar'}
+						{pendingCadastro ? 'Cadastrando...' : 'Cadastrar'}
 					</button>
 				</div>
 			</form>
@@ -620,9 +622,9 @@
 											<button
 												type="submit"
 												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
-												disabled={loading.active || !editNome.trim()}
+												disabled={pendingEditar || !editNome.trim()}
 											>
-												{loading.active ? 'Salvando...' : 'Salvar'}
+												{pendingEditar ? 'Salvando...' : 'Salvar'}
 											</button>
 											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
 												>Cancelar</button
@@ -709,9 +711,9 @@
 								<button
 									type="submit"
 									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
-									disabled={loading.active || !editNome.trim()}
+									disabled={pendingEditar || !editNome.trim()}
 								>
-									{loading.active ? 'Salvando...' : 'Salvar'}
+									{pendingEditar ? 'Salvando...' : 'Salvar'}
 								</button>
 								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
 									>Cancelar</button

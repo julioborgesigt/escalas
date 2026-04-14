@@ -9,15 +9,14 @@
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
-	import { loading } from '$lib/loading.svelte';
 	import type { Policial, Unidade } from '$lib/types';
 
 	let { data, form } = $props();
 
 	function handleCadastro({ formData }: { formData: FormData }) {
-		loading.show('Cadastrando policial...');
+		pendingCadastro = true;
 		return async ({ result }: any) => {
-			loading.hide();
+			pendingCadastro = false;
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
@@ -102,6 +101,7 @@
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
 	let excluindo = $state(false);
+	let pendingCadastro = $state(false);
 
 	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
 	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
@@ -422,9 +422,9 @@
 					<button
 					type="submit"
 					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
-					disabled={loading.active}
+					disabled={pendingCadastro}
 				>
-					{loading.active ? 'Processando...' : 'Cadastrar Policial'}
+					{pendingCadastro ? 'Cadastrando...' : 'Cadastrar Policial'}
 				</button>
 				</div>
 			</form>
@@ -445,17 +445,15 @@
 				cadastro?
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}
-					>Cancelar</Dialog.CloseTrigger
-				>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
 						<button
 							type="submit"
 							class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
-							disabled={loading.active}
+							disabled={excluindo}
 						>
-							{loading.active ? 'Excluindo...' : 'Remover Policial'}
+							{excluindo ? 'Excluindo...' : 'Remover Policial'}
 						</button>
 				</form>
 			</div>
