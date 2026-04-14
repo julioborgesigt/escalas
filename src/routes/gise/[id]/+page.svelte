@@ -93,6 +93,14 @@
 	let unidadeOperacionalId = $state<number | null>(null);
 	let editandoUnidade = $state(false);
 
+	// Unidades adicionais (Admin Seccional)
+	let adicionandoUnidadeSecId = $state<number | null>(null);
+	let novaUnidadeId = $state<number | ''>('');
+
+	const delegaciasDaSeccional = $derived(
+		todasUnidades.filter((u: any) => u.tipo === 'delegacia' && u.seccional_id === minhaSeccionalId)
+	);
+
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
 	const seccionaisDisponiveis = $derived(
 		todasUnidades.filter(
@@ -307,6 +315,34 @@
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
+			}
+			pendingCrud = false;
+		};
+	}
+
+	function handleAdicionarUnidade() {
+		pendingCrud = true;
+		return async ({ result }: { result: ActionResult }) => {
+			if (result.type === 'success') {
+				novaUnidadeId = '';
+				adicionandoUnidadeSecId = null;
+				await invalidate('gise:detail');
+			} else {
+				const d = 'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar unidade' });
+			}
+			pendingCrud = false;
+		};
+	}
+
+	function handleRemoverUnidade() {
+		pendingCrud = true;
+		return async ({ result }: { result: ActionResult }) => {
+			if (result.type === 'success') {
+				await invalidate('gise:detail');
+			} else {
+				const d = 'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao remover unidade' });
 			}
 			pendingCrud = false;
 		};
@@ -2017,7 +2053,7 @@
 							{/if}
 
 							<!-- Ações -->
-							<div class="flex items-center gap-2 sm:ml-auto">
+							<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto">
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
 										{@render actionButton(
@@ -2029,7 +2065,7 @@
 											undefined,
 											false,
 											false,
-											'border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 shadow-sm text-sm'
+											'border-2 border-primary-600/30 hover:border-primary-600 px-4 py-1.5 shadow-sm text-sm w-full'
 										)}
 									{:else}
 										<form
@@ -2041,7 +2077,7 @@
 											<input type="hidden" name="secId" value={sec.id} />
 											<button
 												type="submit"
-												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold"
+												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold w-full"
 												disabled={pendingCrud ||
 													!sec.unidade_operacional_id ||
 													!(sec.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)}
@@ -2062,7 +2098,7 @@
 										{#if modoEdicaoSeccional}
 											<button
 												type="button"
-												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg"
+												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg w-full sm:w-auto"
 												onclick={() => {
 													modoEdicaoSeccional = false;
 													editandoUnidade = false;
@@ -2150,6 +2186,65 @@
 										>{sec.unidade_operacional_nome}</span
 									>
 								</p>
+							{/if}
+
+							<!-- Unidades Adicionais -->
+							{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')}
+								<div class="space-y-2">
+									<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Unidades em Operação</p>
+									{#if (sec.unidades_adicionais ?? []).length > 0}
+										<div class="flex flex-wrap gap-2">
+											{#each sec.unidades_adicionais as ua}
+												<div class="flex items-center gap-1 bg-primary-500/10 border border-primary-500/20 px-2 py-1 rounded-lg text-sm">
+													<span class="text-primary-700 dark:text-primary-300 font-medium">{ua.nome}</span>
+													<form method="POST" action="?/removerUnidade" use:enhance={handleRemoverUnidade} class="contents">
+														<input type="hidden" name="secId" value={sec.id} />
+														<input type="hidden" name="linkId" value={ua.id} />
+														<button type="submit" class="text-primary-400 hover:text-error-500 transition-colors ml-1" disabled={pendingCrud}>×</button>
+													</form>
+												</div>
+											{/each}
+										</div>
+									{/if}
+									{#if adicionandoUnidadeSecId === sec.id}
+										<div class="flex flex-wrap gap-2 items-end p-3 rounded-xl border border-dashed border-primary-400/40 bg-primary-500/5">
+											<select
+												bind:value={novaUnidadeId}
+												class="flex-1 min-w-40 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+											>
+												<option value="">Selecionar unidade...</option>
+												{#each delegaciasDaSeccional.filter((d: any) => !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)) as d}
+													<option value={d.id}>{d.nome}</option>
+												{/each}
+											</select>
+											<form method="POST" action="?/adicionarUnidade" use:enhance={handleAdicionarUnidade} class="flex gap-2 shrink-0">
+												<input type="hidden" name="secId" value={sec.id} />
+												<input type="hidden" name="unidadeId" value={novaUnidadeId} />
+												<button type="submit" class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl" disabled={!novaUnidadeId || pendingCrud}>
+													{pendingCrud ? 'Adicionando...' : 'Confirmar'}
+												</button>
+												<button type="button" class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl" onclick={() => { adicionandoUnidadeSecId = null; novaUnidadeId = ''; }}>
+													Cancelar
+												</button>
+											</form>
+										</div>
+									{:else if delegaciasDaSeccional.filter((d: any) => !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)).length > 0}
+										<button
+											type="button"
+											class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2"
+											onclick={() => { adicionandoUnidadeSecId = sec.id; novaUnidadeId = ''; }}
+										>
+											<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+											Adicionar Unidade
+										</button>
+									{/if}
+								</div>
+							{:else if (sec.unidades_adicionais ?? []).length > 0}
+								<div class="flex flex-wrap gap-2">
+									{#each sec.unidades_adicionais as ua}
+										<span class="bg-primary-500/10 border border-primary-500/20 px-2 py-0.5 rounded-lg text-xs text-primary-700 dark:text-primary-300 font-medium">{ua.nome}</span>
+									{/each}
+								</div>
 							{/if}
 
 							<!-- Equipes -->
