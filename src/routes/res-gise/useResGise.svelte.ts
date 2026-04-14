@@ -148,7 +148,6 @@ export function useResGise(getData: () => any) {
 		escalaSelecionada = escala;
 		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
 		respostas = {};
-		loading.show('Abrindo Relatório...');
 
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('giseId', String(escala.id));
@@ -156,7 +155,6 @@ export function useResGise(getData: () => any) {
 		else params.delete('equipeId');
 
 		await goto(`?${params}`, { keepFocus: true, noScroll: true });
-		loading.hide();
 	}
 
 	function handleSalvarResposta(podeVerListaGeral: boolean) {
@@ -165,13 +163,11 @@ export function useResGise(getData: () => any) {
 				cancel();
 				return;
 			}
-			loading.show('Salvando Relatório...');
 			return async ({ result }: any) => {
-				loading.hide();
 				if (result.type === 'success') {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
 					if (!podeVerListaGeral) exibirRelatorio = false;
-					await invalidateAll();
+					await invalidate(page.url.href);
 					const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
 					if (atualizada) escalaSelecionada = atualizada;
 				} else {

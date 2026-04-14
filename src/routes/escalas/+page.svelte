@@ -9,7 +9,6 @@
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
-	import { loading } from '$lib/loading.svelte';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 
 	let { data, form } = $props();
@@ -82,6 +81,8 @@
 	let dialogRevogarOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; titulo: string } | null>(null);
 	let escalaParaRevogar = $state<{ id: number; titulo: string } | null>(null);
+	let pendingExcluir = $state(false);
+	let pendingRevogar = $state(false);
 
 	const meses = [
 		{ value: 0, label: 'Todos' },
@@ -140,7 +141,7 @@
 
 	async function confirmarRevogacao() {
 		if (!escalaParaRevogar) return;
-		loading.show('Revogando assinatura...');
+		pendingRevogar = true;
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
 
@@ -148,7 +149,7 @@
 			method: 'DELETE',
 			headers: csrfHeaders()
 		});
-		loading.hide();
+		pendingRevogar = false;
 		if (res.ok) {
 			toaster.create({
 				title: 'Assinatura revogada',
@@ -175,9 +176,9 @@
 	);
 
 	function handleExcluir() {
-		loading.show('Excluindo escala...');
+		pendingExcluir = true;
 		return async ({ result }: { result: any }) => {
-			loading.hide();
+			pendingExcluir = false;
 			if (result.type === 'success') {
 				toaster.create({ title: `Escala de ${escalaParaExcluir!.titulo} removida`, type: 'success' });
 				dialogOpen = false;
@@ -223,11 +224,11 @@
 				ser desfeita.
 			</Dialog.Description>
 			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loading.active}>Cancelar</Dialog.CloseTrigger>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loading.active}>
-						{loading.active ? 'Excluindo...' : 'Excluir'}
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={pendingExcluir}>
+						{pendingExcluir ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
 			</div>
@@ -260,9 +261,9 @@
 				<button type="button"
 					class="btn preset-filled-error-500 flex items-center gap-2"
 					onclick={confirmarRevogacao}
-					disabled={loading.active}
+					disabled={pendingRevogar}
 				>
-					{loading.active ? 'Revogando...' : 'Revogar e Editar'}
+					{pendingRevogar ? 'Revogando...' : 'Revogar e Editar'}
 				</button>
 			</div>
 		</div>
