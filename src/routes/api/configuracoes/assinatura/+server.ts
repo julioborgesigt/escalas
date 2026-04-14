@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ platform }) => {
 	return json({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone });
 };
 
-export const PUT: RequestHandler = async ({ platform, request, locals }) => {
+export const PUT: RequestHandler = async ({ platform, request, locals, cookies }) => {
 	if (locals.usuario?.tipo !== 'admin') {
 		return json({ error: 'Acesso negado' }, { status: 403 });
 	}
@@ -57,5 +57,9 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	}
 
 	await Promise.all(saves);
+
+	// Invalida o cookie de cache para que todos busquem os novos valores no DB
+	cookies.delete('cfg_ass', { path: '/' });
+
 	return json({ ok: true });
 };

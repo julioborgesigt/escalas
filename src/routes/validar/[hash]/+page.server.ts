@@ -2,7 +2,7 @@ import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGi
 import { logger } from '$lib/server/logger';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, platform }) => {
+export const load: PageServerLoad = async ({ params, platform, setHeaders }) => {
 	const hash = params.hash;
 
 	logger.info('[validar] Iniciando validação', { hash });
@@ -91,6 +91,12 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 			logger.error('[validar] Erro ao buscar assinaturas da equipe', { err: String(err) });
 		}
 	}
+
+	// Resultado imutável: dados de assinatura não mudam após a criação.
+	// Cache no edge do Cloudflare por 1h; browser revalida após 60s.
+	setHeaders({
+		'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400'
+	});
 
 	return {
 		// ... (rest of the return block)
