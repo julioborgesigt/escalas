@@ -239,7 +239,8 @@ export async function buscarGiseDetalhado(
 		todasEquipes,
 		todosMembros,
 		todasPresencas,
-		todasRespostas
+		todasRespostas,
+		assExtraRow
 	] = await Promise.all([
 		gise.supervisor_id
 			? db
@@ -297,22 +298,21 @@ export async function buscarGiseDetalhado(
 			.from(giseRespostasFormulario)
 			.innerJoin(giseMembros, eq(giseRespostasFormulario.policial_id, giseMembros.policial_id))
 			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-			.where(eq(giseRespostasFormulario.gise_id, id))
+			.where(eq(giseRespostasFormulario.gise_id, id)),
+		db
+			.select({ count: sql<number>`count(*)` })
+			.from(giseAssinaturasRelatorios)
+			.where(
+				and(
+					eq(giseAssinaturasRelatorios.gise_id, id),
+					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
+				)
+			)
+			.get()
 	]);
 
 	const supervisor_nome = supervisorRow?.nome ?? null;
 	const supervisor_matricula = supervisorRow?.matricula ?? null;
-
-	const assExtraRow = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(giseAssinaturasRelatorios)
-		.where(
-			and(
-				eq(giseAssinaturasRelatorios.gise_id, id),
-				eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
-			)
-		)
-		.get();
 
 	const temSaidaConfirmada = todasPresencas.some((p) => p.saida_timestamp !== null);
 
@@ -498,17 +498,13 @@ export async function criarGiseEquipe(
 }
 
 export async function reabrirGiseEscala(db: Database, giseId: number) {
-	// 1. Revogar assinatura da escala principal
-	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
-
-	// 2. Revogar todas as assinaturas de relatórios (extra e produtividade) desta escala
-	await db.delete(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, giseId));
-
-	// 3. Revogar todas as presenças (entrada/saída) de todos os policiais nesta escala
-	await db.delete(gisePresencas).where(eq(gisePresencas.gise_id, giseId));
-
-	// 4. Resetar status da escala para permitir novas assinaturas
-	await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
+	// Todas as operações são independentes — executa em paralelo
+	await Promise.all([
+		db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId)),
+		db.delete(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, giseId)),
+		db.delete(gisePresencas).where(eq(gisePresencas.gise_id, giseId)),
+		atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' })
+	]);
 }
 
 // ---- Membros ----
@@ -823,7 +819,24 @@ export async function buscarRespostasProdutividadeSeccional(
 	giseId: number,
 	seccionalId: number
 ) {
-	const configRows = await db.select().from(giseModeloFormulario).all();
+	const [configRows, rows] = await Promise.all([
+		db.select().from(giseModeloFormulario).all(),
+		db
+			.select({
+				equipe_id: giseRespostasFormulario.equipe_id,
+				respostas: giseRespostasFormulario.respostas,
+				equipe_tipo: giseEquipes.tipo
+			})
+			.from(giseRespostasFormulario)
+			.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
+			.where(
+				and(
+					eq(giseRespostasFormulario.gise_id, giseId),
+					eq(giseEquipes.gise_seccional_id, seccionalId)
+				)
+			)
+			.all()
+	]);
 	const modelosMap = new Map();
 	configRows.forEach((row: any) => {
 		try {
@@ -832,22 +845,6 @@ export async function buscarRespostasProdutividadeSeccional(
 			logger.error('Erro ao parsear modelo GISE', { tipo: row.tipo, err: String(e) });
 		}
 	});
-
-	const rows = await db
-		.select({
-			equipe_id: giseRespostasFormulario.equipe_id,
-			respostas: giseRespostasFormulario.respostas,
-			equipe_tipo: giseEquipes.tipo
-		})
-		.from(giseRespostasFormulario)
-		.innerJoin(giseEquipes, eq(giseRespostasFormulario.equipe_id, giseEquipes.id))
-		.where(
-			and(
-				eq(giseRespostasFormulario.gise_id, giseId),
-				eq(giseEquipes.gise_seccional_id, seccionalId)
-			)
-		)
-		.all();
 
 	const allResults: { equipe_id: number; pergunta: string; resposta: string }[] = [];
 
