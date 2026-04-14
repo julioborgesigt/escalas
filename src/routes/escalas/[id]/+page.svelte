@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -31,7 +32,7 @@
 	);
 
 	// Estado local da lista — atualizado diretamente pelos actions (sem round-trip extra)
-	let policiaisEscalaLocal = $state<EscalaPolicialComDados[]>(data.policiaisEscala as EscalaPolicialComDados[]);
+	let policiaisEscalaLocal = $state<EscalaPolicialComDados[]>(untrack(() => data.policiaisEscala as EscalaPolicialComDados[]));
 	$effect(() => {
 		// Sincroniza com dados frescos do servidor ao navegar de volta para esta página
 		policiaisEscalaLocal = data.policiaisEscala as EscalaPolicialComDados[];
