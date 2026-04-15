@@ -22,10 +22,11 @@ import {
 	reabrirGiseEscala,
 	buscarRestringirSmartphone,
 	adicionarGiseSeccionalUnidade,
+	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
-import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseRespostasFormulario } from '$lib/server/schema';
+import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, or, and } from 'drizzle-orm';
 
 function getInt(fd: FormData, key: string): number {
@@ -147,27 +148,37 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	salvarUnidadeOperacional: async ({ request, locals, platform, params }) => {
+	// Admin Seccional: seleciona a unidade para um slot em branco criado pelo Admin Geral
+	selecionarUnidade: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
-		const secId = getInt(formData, 'secId');
-		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
-
-		const unidadeOperacionalIdStr = formData.get('unidade_operacional_id') as string;
-		const unidadeOperacionalId = unidadeOperacionalIdStr ? parseInt(unidadeOperacionalIdStr) : null;
+		const slotId = getInt(formData, 'slotId');
+		const unidadeId = getInt(formData, 'unidadeId');
+		if (isNaN(giseId) || isNaN(slotId) || isNaN(unidadeId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db.select().from(giseSeccionais).where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+
+		// Verifica que o slot pertence a uma seccional desta GISE
+		const slotInfo = await db
+			.select({ gise_seccional_id: giseSeccionalUnidades.gise_seccional_id })
+			.from(giseSeccionalUnidades)
+			.where(eq(giseSeccionalUnidades.id, slotId))
+			.get();
+		if (!slotInfo) return fail(404, { error: 'Slot não encontrado' });
+
+		const sec = await db.select().from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, slotInfo.gise_seccional_id), eq(giseSeccionais.gise_id, giseId)))
+			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
 		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
-		await atualizarGiseSeccional(db, secId, { unidade_operacional_id: unidadeOperacionalId });
+		await atualizarGiseSeccionalUnidade(db, slotId, unidadeId);
 		return { success: true };
 	},
 
@@ -339,6 +350,30 @@ export const actions: Actions = {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
+		// Valida que todos os slots têm unidade definida e pelo menos 1 membro
+		const slots = await db
+			.select({ id: giseSeccionalUnidades.id, unidade_id: giseSeccionalUnidades.unidade_id })
+			.from(giseSeccionalUnidades)
+			.where(eq(giseSeccionalUnidades.gise_seccional_id, secId))
+			.all();
+
+		if (slots.length === 0) return fail(400, { error: 'Adicione ao menos uma unidade antes de finalizar' });
+
+		const slotSemUnidade = slots.find(s => s.unidade_id === null);
+		if (slotSemUnidade) return fail(400, { error: 'Todos os slots devem ter uma unidade selecionada' });
+
+		const slotIds = slots.map(s => s.id);
+		const membrosPorSlot = await db
+			.select({ gise_unidade_id: giseEquipes.gise_unidade_id })
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.where(inArray(giseEquipes.gise_unidade_id, slotIds))
+			.all();
+
+		const slotsComMembros = new Set(membrosPorSlot.map(m => m.gise_unidade_id));
+		const slotSemMembro = slots.find(s => !slotsComMembros.has(s.id));
+		if (slotSemMembro) return fail(400, { error: 'Cada unidade deve ter pelo menos 1 policial alocado' });
+
 		const novoStatus = sec.status === 'retificada' ? 'preenchida_retificada' : 'preenchida';
 		await atualizarGiseSeccional(db, secId, { status: novoStatus });
 
@@ -462,12 +497,21 @@ export const actions: Actions = {
 
 		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint')) return fail(400, { error: 'Tipo inválido' });
 
+		// unidadeId = gise_seccional_unidades.id — equipe pertence a um slot de unidade
+		const unidadeIdRaw = formData.get('unidadeId') as string;
+		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
+
 		const db = getDB(platform);
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
 
-		await criarGiseEquipe(db, secId, tipo, isNaN(slotsDpc) ? 0 : slotsDpc, isNaN(slotsOip) ? 0 : slotsOip);
+		await criarGiseEquipe(
+			db, secId, tipo,
+			isNaN(slotsDpc) ? 0 : slotsDpc,
+			isNaN(slotsOip) ? 0 : slotsOip,
+			unidadeId
+		);
 
 		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
@@ -669,14 +713,18 @@ export const actions: Actions = {
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
 		const secId = getInt(formData, 'secId');
-		const unidadeId = getInt(formData, 'unidadeId');
-		if (isNaN(giseId) || isNaN(secId) || isNaN(unidadeId)) return fail(400, { error: 'IDs inválidos' });
+		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
+
+		// unidadeId é opcional: null = slot em branco para Adm Seccional preencher
+		const unidadeIdRaw = formData.get('unidadeId') as string;
+		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
 		const sec = await db.select().from(giseSeccionais)
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
+		// Cria o slot + equipe operacional padrão vinculada
 		await adicionarGiseSeccionalUnidade(db, secId, unidadeId);
 		return { success: true };
 	},
@@ -696,7 +744,14 @@ export const actions: Actions = {
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
+		// CASCADE apaga equipes e membros do slot automaticamente
 		await removerGiseSeccionalUnidade(db, linkId);
+
+		const gise = await buscarGiseEscala(db, giseId);
+		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
+			await revogarAssinaturasSeccional(db, giseId, secId);
+		}
+
 		return { success: true };
 	}
 };

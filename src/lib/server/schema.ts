@@ -235,6 +235,8 @@ export const giseEquipes = sqliteTable(
 		gise_seccional_id: integer('gise_seccional_id')
 			.notNull()
 			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
+		// Slot de unidade ao qual esta equipe pertence (null = legado, antes da migração 0054)
+		gise_unidade_id: integer('gise_unidade_id'),
 		tipo: text('tipo', { enum: ['operacional', 'seint'] }).notNull(),
 		slots_dpc: integer('slots_dpc').notNull().default(0),
 		slots_oip: integer('slots_oip').notNull().default(0),
@@ -242,7 +244,8 @@ export const giseEquipes = sqliteTable(
 		hora_saida: text('hora_saida')
 	},
 	(table) => [
-		index('idx_gise_equipes_sec').on(table.gise_seccional_id)
+		index('idx_gise_equipes_sec').on(table.gise_seccional_id),
+		index('idx_gise_equipes_unidade').on(table.gise_unidade_id)
 	]
 );
 
@@ -270,13 +273,12 @@ export const giseSeccionalUnidades = sqliteTable(
 		gise_seccional_id: integer('gise_seccional_id')
 			.notNull()
 			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
+		// Nullable: slot criado pelo Adm Geral sem unidade pré-definida (Adm Seccional preenche depois)
 		unidade_id: integer('unidade_id')
-			.notNull()
-			.references(() => unidades.id, { onDelete: 'cascade' })
+			.references(() => unidades.id, { onDelete: 'set null' })
 	},
 	(table) => [
-		index('idx_gise_sec_unidades').on(table.gise_seccional_id),
-		unique('uq_gise_sec_unidade').on(table.gise_seccional_id, table.unidade_id)
+		index('idx_gise_sec_unidades').on(table.gise_seccional_id)
 	]
 );
 
