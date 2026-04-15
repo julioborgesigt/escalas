@@ -131,7 +131,7 @@ export function useResGise(getData: () => any) {
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
-				await invalidate(page.url.href);
+				await invalidateAll();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: String(d?.error || 'Erro ao salvar modelo') });
