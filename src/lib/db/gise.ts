@@ -242,8 +242,7 @@ export async function buscarGiseDetalhado(
 		todosMembros,
 		todasPresencas,
 		todasRespostas,
-		assExtraRow,
-		todasUnidadesAdicionais
+		assExtraRow
 	] = await Promise.all([
 		gise.supervisor_id
 			? db
@@ -311,8 +310,13 @@ export async function buscarGiseDetalhado(
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.get(),
-		db
+			.get()
+	]);
+
+	// Carrega unidades adicionais com fallback para quando a tabela ainda não existe (migração pendente)
+	let todasUnidadesAdicionais: Array<{ id: number; gise_seccional_id: number; unidade_id: number; nome: string }> = [];
+	try {
+		todasUnidadesAdicionais = await db
 			.select({
 				id: giseSeccionalUnidades.id,
 				gise_seccional_id: giseSeccionalUnidades.gise_seccional_id,
@@ -322,8 +326,10 @@ export async function buscarGiseDetalhado(
 			.from(giseSeccionalUnidades)
 			.innerJoin(unidades, eq(giseSeccionalUnidades.unidade_id, unidades.id))
 			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
-			.where(eq(giseSeccionais.gise_id, id))
-	]);
+			.where(eq(giseSeccionais.gise_id, id));
+	} catch {
+		// Tabela pode não existir ainda — migração pendente
+	}
 
 	const supervisor_nome = supervisorRow?.nome ?? null;
 	const supervisor_matricula = supervisorRow?.matricula ?? null;
