@@ -97,10 +97,6 @@
 	let adicionandoUnidadeSecId = $state<number | null>(null);
 	let novaUnidadeId = $state<number | ''>('');
 
-	const delegaciasDaSeccional = $derived(
-		todasUnidades.filter((u: any) => u.tipo === 'delegacia' && u.seccional_id === minhaSeccionalId)
-	);
-
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
 	const seccionaisDisponiveis = $derived(
 		todasUnidades.filter(
@@ -2188,8 +2184,8 @@
 								</p>
 							{/if}
 
-							<!-- Unidades Adicionais -->
-							{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')}
+							<!-- Unidades Adicionais (somente Admin Geral em modo edição) -->
+							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 								<div class="space-y-2">
 									<p class="text-sm font-medium text-surface-600 dark:text-surface-400">Unidades em Operação</p>
 									{#if (sec.unidades_adicionais ?? []).length > 0}
@@ -2213,7 +2209,7 @@
 												class="flex-1 min-w-40 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 											>
 												<option value="">Selecionar unidade...</option>
-												{#each delegaciasDaSeccional.filter((d: any) => !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)) as d}
+												{#each todasUnidades.filter((d: any) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)) as d}
 													<option value={d.id}>{d.nome}</option>
 												{/each}
 											</select>
@@ -2228,7 +2224,7 @@
 												</button>
 											</form>
 										</div>
-									{:else if delegaciasDaSeccional.filter((d: any) => !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)).length > 0}
+									{:else if todasUnidades.filter((d: any) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades_adicionais ?? []).some((ua: any) => ua.unidade_id === d.id)).length > 0}
 										<button
 											type="button"
 											class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2"
