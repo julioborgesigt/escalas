@@ -664,8 +664,7 @@ export const actions: Actions = {
 
 	adicionarUnidade: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAdminGeral(u) && !isAdminSeccional(u)) return fail(403, { error: 'Sem permissão' });
+		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -678,18 +677,13 @@ export const actions: Actions = {
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
-		}
-
 		await adicionarGiseSeccionalUnidade(db, secId, unidadeId);
 		return { success: true };
 	},
 
 	removerUnidade: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAdminGeral(u) && !isAdminSeccional(u)) return fail(403, { error: 'Sem permissão' });
+		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
 
 		const giseId = parseInt(params.id);
 		const formData = await request.formData();
@@ -701,10 +695,6 @@ export const actions: Actions = {
 		const sec = await db.select().from(giseSeccionais)
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
-
-		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
-			return fail(403, { error: 'Sem permissão' });
-		}
 
 		await removerGiseSeccionalUnidade(db, linkId);
 		return { success: true };
