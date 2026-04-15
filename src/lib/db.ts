@@ -116,5 +116,6 @@ export {
 	verificarTodosRelatoriosExtraAssinados,
 	buscarGiseSeccionalMembros,
 	adicionarGiseSeccionalUnidade,
+	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade
 } from './db/gise';
