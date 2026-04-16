@@ -9,7 +9,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
-import { gerarPdfGise } from '$lib/export';
+import { gerarPdfGise, toGisePdfData } from '$lib/export';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
@@ -47,7 +47,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
 
-	const result = gerarPdfGise(giseDetalhado);
+	const result = gerarPdfGise(toGisePdfData(giseDetalhado));
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 

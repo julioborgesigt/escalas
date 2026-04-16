@@ -96,8 +96,8 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 					shading: { fill: '1a5c57' },
 					width: text === 'EQUIPE DE PLANTÃO DA DP' ? { size: 25, type: WidthType.PERCENTAGE } :
 						text === 'LOTAÇÃO' ? { size: 20, type: WidthType.PERCENTAGE } :
-						text === 'DATA' ? { size: 15, type: WidthType.PERCENTAGE } :
-						{ size: 10, type: WidthType.PERCENTAGE }
+							text === 'DATA' ? { size: 15, type: WidthType.PERCENTAGE } :
+								{ size: 10, type: WidthType.PERCENTAGE }
 				})
 			)
 		});
@@ -805,6 +805,58 @@ function fmtHoraGise(h: any): string {
 	const n = parseInt(String(h));
 	if (isNaN(n)) return String(h);
 	return `${String(n).padStart(2, '0')}:00`;
+}
+
+/**
+ * Transforma GiseDetalhado (estrutura do DB com unidades) em GisePdfData (estrutura plana com equipes).
+ */
+export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfData {
+	return {
+		data_inicio: gise.data_inicio,
+		hora_entrada: gise.hora_entrada,
+		hora_saida: gise.hora_saida,
+		status: gise.status,
+		supervisor_nome: gise.supervisor_nome,
+		supervisor_matricula: gise.supervisor_matricula,
+		seccionais: gise.seccionais.map(sec => {
+			// Achatar equipes de todas as unidades desta seccional
+			const equipes: GisePdfData['seccionais'][number]['equipes'] = [];
+			for (const unidade of sec.unidades ?? []) {
+				for (const eq of unidade.equipes ?? []) {
+					equipes.push({
+						tipo: eq.tipo,
+						slots_dpc: eq.slots_dpc,
+						slots_oip: eq.slots_oip,
+						hora_entrada: eq.hora_entrada,
+						hora_saida: eq.hora_saida,
+						membros: eq.membros.map(m => ({
+							policial_id: m.policial_id,
+							policial_nome: m.policial_nome,
+							policial_cargo: m.policial_cargo,
+							policial_matricula: m.policial_matricula,
+							policial_telefone: m.policial_telefone,
+							policial_lotacao: m.policial_lotacao,
+							policial_classe: m.policial_classe,
+							presenca: m.presenca
+						}))
+					});
+				}
+			}
+			return {
+				seccional_id: sec.seccional_id,
+				seccional_nome: sec.seccional_nome,
+				unidade_operacional_nome: sec.unidades?.[0]?.nome ?? null,
+				status: sec.status,
+				hora_entrada: sec.hora_entrada,
+				hora_saida: sec.hora_saida,
+				equipes
+			};
+		}),
+		documento: gise.documento ? {
+			rubrica: gise.documento.rubrica,
+			verificacao_hash: gise.documento.verificacao_hash
+		} : null
+	};
 }
 
 export function gerarPdfGise(gise: GisePdfData): PdfExportResult {

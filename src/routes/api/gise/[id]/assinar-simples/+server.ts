@@ -12,7 +12,7 @@ import { logger } from '$lib/server/logger';
 import { contentDisposition } from '$lib/server/api';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala, buscarExigirCodigoEmailAssinatura } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
-import { gerarPdfGise } from '$lib/export';
+import { gerarPdfGise, toGisePdfData } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
@@ -58,7 +58,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
 		}
 
-		const result = gerarPdfGise(giseDetalhado);
+		const result = gerarPdfGise(toGisePdfData(giseDetalhado));
 		const pdfBytes = result.pdf;
 		const sigY = result.finalY;
 
