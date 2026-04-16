@@ -35,13 +35,13 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 					resHeaders.set('Content-Type', 'application/pdf');
 					resHeaders.set('X-Debug-Source', 'R2');
 					resHeaders.set('X-Debug-Key', documento.r2_key);
-					
-					const filename = documento.tipo_doc === 'gise_relatorio' 
+
+					const filename = documento.tipo_doc === 'gise_relatorio'
 						? `relatorio_${documento.rel_tipo}_${hash}.pdf`
 						: `documento_assinado_${hash}.pdf`;
-						
+
 					resHeaders.set('Content-Disposition', contentDisposition(filename));
-					return new Response(arrayBuffer, { 
+					return new Response(arrayBuffer, {
 						headers: resHeaders,
 						status: 200
 					});
@@ -61,7 +61,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		console.log(`[DOWNLOAD] Tentando re-geração dinâmica para relatório GISE: ${hash}`);
 		try {
 			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioProdutividadeGisePdf } = await import('$lib/export');
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
 			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
 
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
@@ -80,7 +80,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 
 			if (relTipo === 'extraordinario') {
 				const presencas = await buscarPresencasGise(db, documento.escala_id);
-				const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, seccionalId, url.origin, reportSignature);
+				const result = await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, seccionalId, url.origin, reportSignature);
 				finalPdf = result.pdf;
 			} else {
 				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);

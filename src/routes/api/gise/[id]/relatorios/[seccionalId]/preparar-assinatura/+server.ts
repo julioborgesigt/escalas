@@ -8,7 +8,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
-import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
+import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
@@ -52,7 +52,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		assinante_matricula: u.matricula || '—'
 	};
 
-	const result = await gerarRelatorioExtraordinarioPdf(gise, presencas, secIdNum, url.origin, mockSignature, undefined, true);
+	const result = await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, secIdNum, url.origin, mockSignature, undefined, true);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
@@ -69,7 +69,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		verificationUrl,
 		verificationHash
 	});
-	
+
 	// Usar o PDF com rodapé para os próximos passos
 	const pdfBase = pdfComRodape;
 
@@ -101,7 +101,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 					const buf = await obj.arrayBuffer();
 					return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
 				}
-			} catch {}
+			} catch { }
 			return { prId, type, data: undefined };
 		})
 	);

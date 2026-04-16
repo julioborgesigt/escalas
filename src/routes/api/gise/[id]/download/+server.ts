@@ -10,6 +10,7 @@ import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
+import { toGisePdfData } from '$lib/export';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
@@ -36,7 +37,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	const isMembro =
 		u.tipo === 'policial' &&
 		gise.seccionais.some((s) =>
-			s.equipes.some((eq) => eq.membros.some((m) => m.policial_id === u.id))
+			s.unidades.some((unidade) =>
+				unidade.equipes.some((eq) => eq.membros.some((m) => m.policial_id === u.id))
+			)
 		);
 
 	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro) {
@@ -102,7 +105,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const presencas = await buscarPresencasGise(db, id);
 			const { gerarRelatorioExtraordinarioPdf } = await import('$lib/export');
 			const result = await gerarRelatorioExtraordinarioPdf(
-				gise,
+				toGisePdfData(gise),
 				presencas,
 				seccionalId,
 				url.origin,
@@ -150,7 +153,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Fallback: gerar PDF normal
 		const { gerarPdfGise } = await import('$lib/export');
-		const result = gerarPdfGise(gise);
+		const result = gerarPdfGise(toGisePdfData(gise));
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
@@ -170,12 +173,14 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		);
 		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
 
+		// Achatar todas as equipes da seccional (de todas as unidades)
+		const todasEquipes = (seccional.unidades ?? []).flatMap((u: any) => u.equipes ?? []);
 		const seccionalFiltrada = equipeType
 			? {
-					...seccional,
-					equipes: (seccional.equipes || []).filter((eq: any) => eq.tipo === equipeType)
-				}
-			: seccional;
+				...seccional,
+				equipes: todasEquipes.filter((eq: any) => eq.tipo === equipeType)
+			}
+			: { ...seccional, equipes: todasEquipes };
 
 		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);
 		const result = gerarRelatorioProdutividadeGisePdf({
@@ -225,22 +230,24 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	];
 
 	for (const sec of gise.seccionais ?? []) {
-		for (const equipe of sec.equipes ?? []) {
-			for (const m of equipe.membros ?? []) {
-				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-				resumoRows.push([
-					sec.seccional_nome,
-					sec.unidade_operacional_nome ?? '—',
-					equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT',
-					m.policial_nome,
-					m.policial_cargo,
-					m.policial_matricula,
-					m.policial_telefone || '—',
-					m.policial_lotacao ?? '—',
-					hEnt,
-					hSai
-				]);
+		for (const unidade of sec.unidades ?? []) {
+			for (const equipe of unidade.equipes ?? []) {
+				for (const m of equipe.membros ?? []) {
+					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+					resumoRows.push([
+						sec.seccional_nome,
+						unidade.nome ?? '—',
+						equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT',
+						m.policial_nome,
+						m.policial_cargo,
+						m.policial_matricula,
+						m.policial_telefone || '—',
+						m.policial_lotacao ?? '—',
+						hEnt,
+						hSai
+					]);
+				}
 			}
 		}
 	}
@@ -256,28 +263,30 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	for (const sec of gise.seccionais ?? []) {
 		const rows: (string | number)[][] = [
 			[`SECCIONAL: ${sec.seccional_nome}`],
-			[`Unidade Operacional: ${sec.unidade_operacional_nome ?? '—'}`],
+			[`Unidade Operacional: ${sec.unidades?.[0]?.nome ?? '—'}`],
 			[`Status: ${sec.status === 'preenchida' ? 'Preenchida' : 'Pendente'}`],
 			[]
 		];
 
-		for (const equipe of sec.equipes ?? []) {
-			rows.push([`Equipe ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`]);
-			rows.push(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']);
-			if (equipe.membros?.length) {
-				for (const m of equipe.membros) {
-					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-					rows.push([
-						m.policial_nome, m.policial_cargo, m.policial_matricula,
-						m.policial_telefone || '—', m.policial_lotacao ?? '—',
-						hEnt, hSai
-					]);
+		for (const unidade of sec.unidades ?? []) {
+			for (const equipe of unidade.equipes ?? []) {
+				rows.push([`Equipe ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`]);
+				rows.push(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']);
+				if (equipe.membros?.length) {
+					for (const m of equipe.membros) {
+						const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+						const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+						rows.push([
+							m.policial_nome, m.policial_cargo, m.policial_matricula,
+							m.policial_telefone || '—', m.policial_lotacao ?? '—',
+							hEnt, hSai
+						]);
+					}
+				} else {
+					rows.push(['(sem membros alocados)', '', '', '', '', '', '']);
 				}
-			} else {
-				rows.push(['(sem membros alocados)', '', '', '', '', '', '']);
+				rows.push([]);
 			}
-			rows.push([]);
 		}
 
 		const ws = XLSX.utils.aoa_to_sheet(rows);

@@ -12,7 +12,7 @@ import {
 } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
-import { gerarRelatorioExtraordinarioPdf } from '$lib/export';
+import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { giseSignatureSchema } from '$lib/schemas';
@@ -101,7 +101,7 @@ export const POST = async ({
 		};
 
 		const result = await gerarRelatorioExtraordinarioPdf(
-			gise,
+			toGisePdfData(gise),
 			presencas,
 			secIdNum,
 			url.origin,
