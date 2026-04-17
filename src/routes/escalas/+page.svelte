@@ -465,18 +465,8 @@
 													>
 													<a
 														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-														href={`/api/escalas/${esc.id}/download?format=odt`}
-														target="_blank">ODT (.odt)</a
-													>
-													<a
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
 														href={`/api/escalas/${esc.id}/download?format=excel`}
 														target="_blank">Excel (.xlsx)</a
-													>
-													<a
-														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-														href={`/api/escalas/${esc.id}/download?format=ods`}
-														target="_blank">ODS (.ods)</a
 													>
 													<a
 														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
@@ -602,18 +592,8 @@
 										>
 										<a
 											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-											href={`/api/escalas/${esc.id}/download?format=odt`}
-											target="_blank">ODT (.odt)</a
-										>
-										<a
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
 											href={`/api/escalas/${esc.id}/download?format=excel`}
 											target="_blank">Excel (.xlsx)</a
-										>
-										<a
-											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-											href={`/api/escalas/${esc.id}/download?format=ods`}
-											target="_blank">ODS (.ods)</a
 										>
 										<a
 											class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"

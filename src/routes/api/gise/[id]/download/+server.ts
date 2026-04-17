@@ -11,6 +11,7 @@ import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
 import { toGisePdfData } from '$lib/export';
+import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
 	const u = locals.usuario;
@@ -215,8 +216,13 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	// XLSX
-	const XLSX = await import('xlsx');
-	const wb = XLSX.utils.book_new();
+	const wb = new ExcelJS.Workbook();
+	const wsResumo = wb.addWorksheet('Resumo Geral');
+	wsResumo.columns = [
+		{ width: 24 }, { width: 24 }, { width: 16 },
+		{ width: 30 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 30 },
+		{ width: 10 }, { width: 10 }
+	];
 
 	const resumoRows: (string | number)[][] = [
 		['ESCALA GISE'],
@@ -252,13 +258,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 	}
 
-	const wsResumo = XLSX.utils.aoa_to_sheet(resumoRows);
-	wsResumo['!cols'] = [
-		{ wch: 24 }, { wch: 24 }, { wch: 16 },
-		{ wch: 30 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 30 },
-		{ wch: 10 }, { wch: 10 }
-	];
-	XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo Geral');
+	for (const row of resumoRows) wsResumo.addRow(row);
 
 	for (const sec of gise.seccionais ?? []) {
 		const rows: (string | number)[][] = [
@@ -289,15 +289,16 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		}
 
-		const ws = XLSX.utils.aoa_to_sheet(rows);
-		ws['!cols'] = [
-			{ wch: 30 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 30 },
-			{ wch: 10 }, { wch: 10 }
+		const ws = wb.addWorksheet(sec.seccional_nome.slice(0, 31));
+		ws.columns = [
+			{ width: 30 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 30 },
+			{ width: 10 }, { width: 10 }
 		];
-		XLSX.utils.book_append_sheet(wb, ws, sec.seccional_nome.slice(0, 31));
+		for (const row of rows) ws.addRow(row);
 	}
 
-	const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+	const arrayBuffer = await wb.xlsx.writeBuffer();
+	const buffer = new Uint8Array(arrayBuffer as ArrayBuffer);
 	const filename = `gise_${gise.data_inicio}.xlsx`;
 
 	return new Response(buffer as unknown as BodyInit, {
