@@ -128,6 +128,12 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const supervisorIdStr = formData.get('supervisor_id') as string;
 		const supervisorId = supervisorIdStr ? parseInt(supervisorIdStr) : null;
+		const assessorIdStr = formData.get('assessor_id') as string;
+		const assessorId = assessorIdStr ? parseInt(assessorIdStr) : null;
+		const seint1IdStr = formData.get('seint1_id') as string;
+		const seint1Id = seint1IdStr ? parseInt(seint1IdStr) : null;
+		const seint2IdStr = formData.get('seint2_id') as string;
+		const seint2Id = seint2IdStr ? parseInt(seint2IdStr) : null;
 
 		const db = getDB(platform);
 		const gise = await buscarGiseEscala(db, giseId);
@@ -135,11 +141,32 @@ export const actions: Actions = {
 
 		if (supervisorId !== null) {
 			const p = await db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, supervisorId)).get();
-			if (!p) return fail(404, { error: 'Policial não encontrado' });
+			if (!p) return fail(404, { error: 'Supervisor não encontrado' });
 			if (p.cargo !== 'DPC') return fail(400, { error: 'Apenas DPC pode ser Supervisor' });
 		}
+		
+		const checkOip = async (id: number | null, label: string) => {
+			if (id !== null) {
+				const p = await db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, id)).get();
+				if (!p) return fail(404, { error: `${label} não encontrado` });
+				if (p.cargo !== 'OIP') return fail(400, { error: `${label} deve ser OIP` });
+			}
+			return null;
+		};
 
-		const updateData: any = { supervisor_id: supervisorId };
+		const errAssessor = await checkOip(assessorId, 'Assessor');
+		if (errAssessor) return errAssessor;
+		const errSeint1 = await checkOip(seint1Id, 'SEINT 1');
+		if (errSeint1) return errSeint1;
+		const errSeint2 = await checkOip(seint2Id, 'SEINT 2');
+		if (errSeint2) return errSeint2;
+
+		const updateData: any = { 
+			supervisor_id: supervisorId,
+			assessor_id: assessorId,
+			seint1_id: seint1Id,
+			seint2_id: seint2Id
+		};
 		if (gise.status === 'em_definicao_supervisor') {
 			updateData.status = 'em_preenchimento';
 		}

@@ -1115,7 +1115,8 @@
 									</div>
 								</div>
 
-								<!-- Formulário de Resultados -->
+								<!-- Formulário de Resultados (ignorado para assessor) -->
+								{#if resGise.escalaSelecionada.equipe_tipo !== 'assessor'}
 								<div class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800">
 									<div class="flex items-center justify-between">
 										<h3 class="font-bold uppercase text-sm tracking-wider">
@@ -1217,6 +1218,7 @@
 										</div>
 									{/if}
 								</div>
+								{/if}
 
 								<!-- Saída -->
 								<div
