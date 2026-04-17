@@ -202,7 +202,7 @@ export async function upsertPolicial(
 				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
 				classe: data.classe || '',
 				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
-				email: data.email || null,
+				email: data.email ? data.email : sql`email`,
 				ativo: data.ativo ?? 1,
 				updated_at: sql`datetime('now', '-3 hours')`
 			}

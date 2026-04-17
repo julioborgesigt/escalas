@@ -7,6 +7,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { csrfHeaders } from '$lib/csrf';
@@ -1215,16 +1216,13 @@
 						class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
 						>Supervisor (DPC)</label
 					>
-					<select
+					<SearchableSelect
 						id="supId"
 						bind:value={supervisorId}
-						class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-					>
-						<option value={null}>Não definido</option>
-						{#each dpcs as p}
-							<option value={p.id}>{p.nome} ({p.matricula})</option>
-						{/each}
-					</select>
+						options={[{value: null, label: 'Não definido'}, ...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+						placeholder="Pesquisar Supervisor..."
+						class="w-full"
+					/>
 				</div>
 				<form
 					method="POST"
@@ -1619,7 +1617,7 @@
 							{etapaAssinatura}
 						</div>
 						<div
-							class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-3 overflow-hidden shadow-inner"
+							class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-3 overflow-visible shadow-inner"
 						>
 							<div
 								class="bg-warning-500 h-full transition-all duration-500 ease-out flex items-center justify-center text-[0.5rem] text-white font-bold"
@@ -1805,7 +1803,7 @@
 			{#each gise.seccionais ?? [] as sec}
 				{#if isAdminGeral || isSupervisor || sec.seccional_id === minhaSeccionalId}
 					<div
-						class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-hidden"
+						class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-visible"
 					>
 						<!-- Cabeçalho da seccional -->
 						<div
@@ -2134,7 +2132,7 @@
 							<!-- ===== Slots de Unidade ===== -->
 							{#each sec.unidades ?? [] as slot (slot.id)}
 								<div
-									class="rounded-xl border border-primary-300/50 dark:border-primary-700/40 bg-primary-500/5 overflow-hidden"
+									class="rounded-xl border border-primary-300/50 dark:border-primary-700/40 bg-primary-500/5 overflow-visible"
 								>
 									<!-- Cabeçalho do slot: nome da unidade ou seleção -->
 									<div
@@ -2146,7 +2144,7 @@
 													class="font-semibold text-sm text-surface-900 dark:text-surface-100 truncate"
 													>{slot.nome}</span
 												>
-											{:else if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')}
+											{:else if ( (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral) )}
 												<!-- Admin Seccional seleciona a unidade para este slot -->
 												{#if selecionandoUnidadeSlotId === slot.id}
 													<div class="flex flex-wrap gap-2 items-center">
@@ -2524,15 +2522,12 @@
 															/>
 															<div class="flex flex-wrap gap-2 items-end">
 																<div class="flex-1 min-w-32">
-																	<select
+																	<SearchableSelect
 																		bind:value={policialParaAdicionar}
-																		class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-																	>
-																		<option value="">Selecionar {cargoParaAdicionar}...</option>
-																		{#each policiais.filter((p: any) => p.cargo === cargoParaAdicionar) as p}
-																			<option value={p.id}>{p.nome} ({p.matricula})</option>
-																		{/each}
-																	</select>
+																		options={policiais.filter((p: any) => p.cargo === cargoParaAdicionar).map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))}
+																		placeholder={`Pesquisar ${cargoParaAdicionar}...`}
+																		class="w-full"
+																	/>
 																</div>
 																<button
 																	type="submit"

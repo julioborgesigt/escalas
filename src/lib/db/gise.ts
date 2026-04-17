@@ -394,9 +394,7 @@ export async function buscarGiseDetalhado(
 	const seccionais = secsRows.map((sec) => {
 		const slots = slotsPorSeccional.get(sec.id) ?? [];
 
-		// Se há slots, cada slot tem suas próprias equipes
-		// Se não há slots, equipes ficam no nível seccional (legado, migrado pela 0054)
-		let unidades: GiseUnidadeSlot[];
+		let unidades: GiseUnidadeSlot[] = [];
 		if (slots.length > 0) {
 			unidades = slots.map((slot) => ({
 				id: slot.id,
@@ -404,12 +402,11 @@ export async function buscarGiseDetalhado(
 				nome: slot.nome,
 				equipes: buildEquipes(equipesPorUnidade.get(slot.id) ?? [])
 			}));
-		} else {
-			// Legado: cria um slot fictício com equipes da seccional
-			const equipesLegado = buildEquipes(equipesSemUnidadePorSeccional.get(sec.id) ?? []);
-			unidades = equipesLegado.length > 0
-				? [{ id: 0, unidade_id: null, nome: null, equipes: equipesLegado }]
-				: [];
+		}
+		// Equipes sem unidade (legado ou mal formadas) aparecem em um slot avulso com ID 0
+		const equipesLegado = buildEquipes(equipesSemUnidadePorSeccional.get(sec.id) ?? []);
+		if (equipesLegado.length > 0) {
+			unidades.unshift({ id: 0, unidade_id: null, nome: null, equipes: equipesLegado });
 		}
 
 		return {
@@ -494,13 +491,22 @@ export async function upsertGiseSeccional(
 		.values({ gise_seccional_id: secId, unidade_id: null })
 		.returning({ id: giseSeccionalUnidades.id });
 	if (slotResult) {
-		await db.insert(giseEquipes).values({
-			gise_seccional_id: secId,
-			gise_unidade_id: slotResult.id,
-			tipo: 'operacional',
-			slots_dpc: 1,
-			slots_oip: 3
-		});
+		await db.insert(giseEquipes).values([
+			{
+				gise_seccional_id: secId,
+				gise_unidade_id: slotResult.id,
+				tipo: 'operacional',
+				slots_dpc: 1,
+				slots_oip: 3
+			},
+			{
+				gise_seccional_id: secId,
+				gise_unidade_id: slotResult.id,
+				tipo: 'seint',
+				slots_dpc: 0,
+				slots_oip: 2
+			}
+		]);
 	}
 
 	return secId;
@@ -783,13 +789,22 @@ export async function clonarGiseParaData(
 				unidade_id: null
 			}).returning({ id: giseSeccionalUnidades.id });
 
-			await db.insert(giseEquipes).values({
-				gise_seccional_id: secId,
-				gise_unidade_id: slot.id,
-				tipo: 'operacional' as const,
-				slots_dpc: 1,
-				slots_oip: 3
-			});
+			await db.insert(giseEquipes).values([
+				{
+					gise_seccional_id: secId,
+					gise_unidade_id: slot.id,
+					tipo: 'operacional' as const,
+					slots_dpc: 1,
+					slots_oip: 3
+				},
+				{
+					gise_seccional_id: secId,
+					gise_unidade_id: slot.id,
+					tipo: 'seint' as const,
+					slots_dpc: 0,
+					slots_oip: 2
+				}
+			]);
 		}
 	}
 
@@ -1594,14 +1609,23 @@ export async function adicionarGiseSeccionalUnidade(
 		.values({ gise_seccional_id: giseSeccionalId, unidade_id: unidadeId })
 		.returning({ id: giseSeccionalUnidades.id });
 
-	// Equipe operacional padrão vinculada ao slot
-	await db.insert(giseEquipes).values({
-		gise_seccional_id: giseSeccionalId,
-		gise_unidade_id: result.id,
-		tipo: 'operacional',
-		slots_dpc: 1,
-		slots_oip: 3
-	});
+	// Equipes padrão vinculadas ao slot
+	await db.insert(giseEquipes).values([
+		{
+			gise_seccional_id: giseSeccionalId,
+			gise_unidade_id: result.id,
+			tipo: 'operacional',
+			slots_dpc: 1,
+			slots_oip: 3
+		},
+		{
+			gise_seccional_id: giseSeccionalId,
+			gise_unidade_id: result.id,
+			tipo: 'seint',
+			slots_dpc: 0,
+			slots_oip: 2
+		}
+	]);
 
 	return result.id;
 }
