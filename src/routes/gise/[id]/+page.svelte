@@ -43,6 +43,9 @@
 	let formRemoverSeccionalPendente = $state<HTMLFormElement | null>(null);
 	let editandoSupervisores = $state(false);
 	let supervisorId = $state<number | null>(null);
+	let assessorId = $state<number | null>(null);
+	let seint1Id = $state<number | null>(null);
+	let seint2Id = $state<number | null>(null);
 	let equipeParaAdicionar = $state<number | null>(null);
 	let policialParaAdicionar = $state<number | ''>('');
 	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
@@ -125,10 +128,14 @@
 	$effect(() => {
 		if (gise) {
 			supervisorId = gise.supervisor_id ?? null;
+			assessorId = gise.assessor_id ?? null;
+			seint1Id = gise.seint1_id ?? null;
+			seint2Id = gise.seint2_id ?? null;
 		}
 	});
 
 	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
+	const oips = $derived(policiais.filter((p: any) => p.cargo === 'OIP'));
 
 	function getMembrosFromSec(sec: any): any[] {
 		return (sec.unidades ?? []).flatMap((u: any) =>
@@ -1210,19 +1217,58 @@
 			</div>
 
 			{#if editandoSupervisores}
-				<div class="mb-3">
-					<label
-						for="supId"
-						class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
-						>Supervisor (DPC)</label
-					>
-					<SearchableSelect
-						id="supId"
-						bind:value={supervisorId}
-						options={[{value: null, label: 'Não definido'}, ...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
-						placeholder="Pesquisar Supervisor..."
-						class="w-full"
-					/>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+					<div class="col-span-1 sm:col-span-2">
+						<label
+							for="supId"
+							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							>Supervisor (DPC)</label
+						>
+						<SearchableSelect
+							id="supId"
+							bind:value={supervisorId}
+							options={[{value: null, label: 'Não definido'}, ...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							placeholder="Pesquisar Supervisor..."
+							class="w-full"
+						/>
+					</div>
+					<div>
+						<label for="assessorId" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+							Assessor (OIP)
+						</label>
+						<SearchableSelect
+							id="assessorId"
+							bind:value={assessorId}
+							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							placeholder="Pesquisar Assessor..."
+							class="w-full"
+						/>
+					</div>
+					<div class="hidden sm:block"></div>
+					<div>
+						<label for="seint1Id" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+							Inteligência 1 (SEINT - OIP)
+						</label>
+						<SearchableSelect
+							id="seint1Id"
+							bind:value={seint1Id}
+							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							placeholder="Pesquisar SEINT 1..."
+							class="w-full"
+						/>
+					</div>
+					<div>
+						<label for="seint2Id" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+							Inteligência 2 (SEINT - OIP)
+						</label>
+						<SearchableSelect
+							id="seint2Id"
+							bind:value={seint2Id}
+							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							placeholder="Pesquisar SEINT 2..."
+							class="w-full"
+						/>
+					</div>
 				</div>
 				<form
 					method="POST"
@@ -1231,6 +1277,9 @@
 					class="flex gap-2"
 				>
 					<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+					<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
+					<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
+					<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
@@ -1250,10 +1299,31 @@
 				<div
 					class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700"
 				>
-					<div class="flex items-center justify-between">
-						<p class="font-semibold text-surface-900 dark:text-surface-100">
-							{gise.supervisor_nome ?? 'Não definido'}
-						</p>
+					<div class="flex items-start justify-between mb-4">
+						<div class="space-y-1">
+							<p class="font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
+								<span class="text-xs px-2 py-0.5 bg-surface-200 dark:bg-surface-700 rounded-md font-bold text-surface-600 dark:text-surface-300">DPC Supervisor</span>
+								{gise.supervisor_nome ?? 'Não definido'}
+							</p>
+							{#if gise.assessor_id}
+							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+								<span class="text-[0.65rem] px-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded text-surface-500">Assessor OIP</span>
+								{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
+							</p>
+							{/if}
+							{#if gise.seint1_id}
+							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+								<span class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help" title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span>
+								{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
+							</p>
+							{/if}
+							{#if gise.seint2_id}
+							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+								<span class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help" title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span>
+								{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
+							</p>
+							{/if}
+						</div>
 						{#if documentoAssinadoInfo?.existe}
 							<span
 								class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold"

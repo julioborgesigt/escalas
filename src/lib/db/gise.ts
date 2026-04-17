@@ -608,6 +608,7 @@ export async function verificarGiseCompleta(db: Database, giseId: number): Promi
  * Usa agregação condicional em query única em vez de 2 queries separadas.
  */
 export async function verificarTodosSairam(db: Database, giseId: number): Promise<boolean> {
+	// Membros normais das equipes das seccionais
 	const result = await db
 		.select({
 			total: sql<number>`count(*)`,
@@ -623,13 +624,32 @@ export async function verificarTodosSairam(db: Database, giseId: number): Promis
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
-	if (!result || result.total === 0) return false;
-	return (result.com_saida ?? 0) >= result.total;
+	let total = result?.total ?? 0;
+	let comSaida = result?.com_saida ?? 0;
+
+	// Adiciona validação da equipe de supervisão (onde existe)
+	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
+	if (gise) {
+		const sups = [gise.assessor_id, gise.seint1_id, gise.seint2_id].filter(id => id !== null) as number[];
+		if (sups.length > 0) {
+			const presencasSups = await db
+				.select({ id: gisePresencas.id, saida: gisePresencas.saida_timestamp })
+				.from(gisePresencas)
+				.where(and(eq(gisePresencas.gise_id, giseId), inArray(gisePresencas.policial_id, sups)))
+				.all();
+			
+			total += sups.length;
+			comSaida += presencasSups.filter(p => p.saida !== null).length;
+		}
+	}
+
+	if (total === 0) return false;
+	return comSaida >= total;
 }
 
 /**
- * Verifica se todas as equipes enviaram seus relatórios de produtividade.
- * Usa agregação condicional em query única.
+ * Verifica se todas as equipes enviaram seus relatórios de produtividade,
+ * além dos relatórios individuais das inteligências (SEINT1 e SEINT2) da supervisão.
  */
 export async function verificarTodosRelatoriosEnviados(db: Database, giseId: number): Promise<boolean> {
 	const result = await db
@@ -646,8 +666,27 @@ export async function verificarTodosRelatoriosEnviados(db: Database, giseId: num
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
-	if (!result || result.total === 0) return false;
-	return (result.com_resposta ?? 0) >= result.total;
+	let total = result?.total ?? 0;
+	let comResposta = result?.com_resposta ?? 0;
+
+	// Adiciona validação dos formulários avulsos do SEINT da equipe de supervisão
+	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
+	if (gise) {
+		const seints = [gise.seint1_id, gise.seint2_id].filter(id => id !== null) as number[];
+		if (seints.length > 0) {
+			const respostasSups = await db
+				.select({ id: giseRespostasFormulario.id, policial_id: giseRespostasFormulario.policial_id })
+				.from(giseRespostasFormulario)
+				.where(and(eq(giseRespostasFormulario.gise_id, giseId), inArray(giseRespostasFormulario.policial_id, seints)))
+				.all();
+
+			total += seints.length;
+			comResposta += respostasSups.length;
+		}
+	}
+
+	if (total === 0) return false;
+	return comResposta >= total;
 }
 
 /**
@@ -1204,22 +1243,34 @@ export async function buscarRespostaGise(
 			.from(giseMembros)
 			.where(eq(giseMembros.policial_id, policialId))
 			.get();
-		if (!meuMembro) return null;
-		targetEquipeId = meuMembro.equipe_id;
+		if (meuMembro) targetEquipeId = meuMembro.equipe_id;
 	}
 
-	if (!targetEquipeId) return null;
-
-	return db
-		.select()
-		.from(giseRespostasFormulario)
-		.where(
-			and(
-				eq(giseRespostasFormulario.gise_id, giseId),
-				eq(giseRespostasFormulario.equipe_id, targetEquipeId)
+	if (targetEquipeId) {
+		return db
+			.select()
+			.from(giseRespostasFormulario)
+			.where(
+				and(
+					eq(giseRespostasFormulario.gise_id, giseId),
+					eq(giseRespostasFormulario.equipe_id, targetEquipeId)
+				)
 			)
-		)
-		.get();
+			.get();
+	} else if (policialId) {
+		return db
+			.select()
+			.from(giseRespostasFormulario)
+			.where(
+				and(
+					eq(giseRespostasFormulario.gise_id, giseId),
+					eq(giseRespostasFormulario.policial_id, policialId)
+				)
+			)
+			.get();
+	}
+	
+	return null;
 }
 
 export async function salvarRespostaGise(

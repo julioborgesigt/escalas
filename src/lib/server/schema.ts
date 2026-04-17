@@ -194,14 +194,20 @@ export const giseEscalas = sqliteTable(
 		})
 			.notNull()
 			.default('em_definicao_supervisor'),
-		supervisor_id: integer('supervisor_id'),
+		supervisor_id: integer('supervisor_id'), // already exists
+		assessor_id: integer('assessor_id'),
+		seint1_id: integer('seint1_id'),
+		seint2_id: integer('seint2_id'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_gise_escalas_status').on(table.status),
-		index('idx_gise_escalas_supervisor').on(table.supervisor_id)
+		index('idx_gise_escalas_supervisor').on(table.supervisor_id),
+		index('idx_gise_escalas_assessor').on(table.assessor_id),
+		index('idx_gise_escalas_seint1').on(table.seint1_id),
+		index('idx_gise_escalas_seint2').on(table.seint2_id)
 	]
 );
 

@@ -66,6 +66,34 @@ export const load = async ({ locals, platform, url }: any) => {
 			.orderBy(desc(giseEscalas.data_inicio))
 			.all();
 
+		const rawSupervisoes = await db
+			.select({
+				id: giseEscalas.id,
+				data_inicio: giseEscalas.data_inicio,
+				status: giseEscalas.status,
+				hora_entrada: giseEscalas.hora_entrada,
+				hora_saida: giseEscalas.hora_saida,
+				equipe_id: sql`0`.as('equipe_id'),
+				sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
+				sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
+				eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
+				eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
+				equipe_tipo: sql`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END` as any,
+				seccional_id: sql`0`.as('seccional_id'),
+				seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
+			})
+			.from(giseEscalas)
+			.where(and(
+				sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
+				mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+				dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+			))
+			.all();
+
+		rawEscalas.push(...rawSupervisoes as any);
+		// Ordenar novamente já que fundimos duas listas
+		rawEscalas.sort((a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime());
+
 		const giseIds = [...new Set(rawEscalas.map(e => e.id))];
 
 		let presencasMap = new Map<number, any>();
