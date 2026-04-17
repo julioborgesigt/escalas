@@ -123,14 +123,15 @@ export function gerarToken(): string {
 }
 
 /**
- * Gera uma senha aleatória segura e retorna já com hash PBKDF2.
- * Usada para novos policiais que devem trocar a senha no primeiro acesso.
+ * Retorna um hash falso rápido para cadastro inicial.
+ * A senha "provisória" não precisa de um hash real pois o usuário 
+ * OBRIGATORIAMENTE passará pelo fluxo de "Primeiro Acesso/Esqueci Senha",
+ * que gerará a senha definitiva. O hash PBKDF2 estava causando lentidão e 
+ * estouro de limite de CPU na Cloudflare (Erro 1102) durante sincronização.
  */
 export async function gerarSenhaAleatoriaHash(): Promise<string> {
-	const bytes = new Uint8Array(24);
-	crypto.getRandomValues(bytes);
-	const senhaAleatoria = toHex(bytes); // 48 chars hex — impossível de adivinhar
-	return hashSenha(senhaAleatoria);
+	// Formato inválido seguro para que nenhum login acidental aconteça com senha.
+	return 'pbkdf2v1:00000000000000000000000000000000:00000000000000000000000000000000';
 }
 
 export async function criarSessao(

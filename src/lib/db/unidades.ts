@@ -1,4 +1,4 @@
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import { unidades, policiais, escalas } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
@@ -72,6 +72,42 @@ export async function atualizarUnidade(
 
 export async function excluirUnidade(db: Database, id: number) {
 	return db.delete(unidades).where(eq(unidades.id, id));
+}
+
+export async function upsertUnidade(
+	db: Database,
+	data: {
+		nome: string;
+		tipo: 'seccional' | 'delegacia';
+		seccional_id: number | null;
+		cidade: string;
+	}
+) {
+	return db
+		.insert(unidades)
+		.values({
+			nome: data.nome.trim(),
+			tipo: data.tipo,
+			seccional_id: data.seccional_id,
+			cidade: data.cidade || '',
+			tem_plantao: true,
+			tem_expediente: true,
+			tem_fds: true
+		})
+		.onConflictDoUpdate({
+			target: unidades.nome,
+			set: {
+				tipo: data.tipo,
+				seccional_id: data.seccional_id,
+				cidade: data.cidade || ''
+			}
+		});
+}
+
+export async function buscarUnidadePorNome(db: Database, nome: string) {
+	if (!nome) return null;
+	const trimmedNome = nome.trim();
+	return db.select().from(unidades).where(eq(unidades.nome, trimmedNome)).get();
 }
 
 export async function buscarSeccionaisUnidades(db: Database) {
