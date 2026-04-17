@@ -78,6 +78,7 @@ describe('escalaSchema', () => {
 		const result = escalaSchema.safeParse({
 			titulo: 'ESCALA PLANTÃO',
 			cidade: 'ICÓ',
+			lotacao: 'ICÓ',
 			data_inicio: '2026-01-01',
 			data_fim: '2026-01-02'
 		});

@@ -96,7 +96,11 @@ export async function verificarSenha(senha: string, storedHash: string): Promise
 		if (!saltBytes) return false;
 		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
 		const actualHex = await derivarPBKDF2(senha, salt);
-		return actualHex === expectedHex;
+		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
+		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
+		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
+		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
+		return (hashMatch & lenMatch) === 1;
 	}
 	// Suporte legado: SHA-256 sem salt — DEPRECADO, será removido em 2026-07-01.
 	// Policiais com hash legado devem fazer login para migrar automaticamente para PBKDF2.
@@ -130,8 +134,11 @@ export function gerarToken(): string {
  * estouro de limite de CPU na Cloudflare (Erro 1102) durante sincronização.
  */
 export async function gerarSenhaAleatoriaHash(): Promise<string> {
-	// Formato inválido seguro para que nenhum login acidental aconteça com senha.
-	return 'pbkdf2v1:00000000000000000000000000000000:00000000000000000000000000000000';
+	// Gera payload PBKDF2-formatado sem derivação pesada para evitar estouro de CPU.
+	// O hash não corresponde a senha real e continua inválido para autenticação.
+	const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
+	const fakeHash = toHex(crypto.getRandomValues(new Uint8Array(32)));
+	return `${PBKDF2_PREFIX}${salt}:${fakeHash}`;
 }
 
 export async function criarSessao(
