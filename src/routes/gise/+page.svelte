@@ -100,7 +100,7 @@
 	let novaDataFim = $state('');
 	let novaHoraEntrada = $state('08:00');
 	let novaHoraSaida = $state('16:00');
-	let modoCriacao = $state<'completa' | 'clonada'>('completa');
+	let modoCriacao = $state<'completa' | 'clonada' | 'branco'>('completa');
 	let clonarDeId = $state<number | ''>('');
 
 	function validarHora(v: string): boolean {
@@ -597,7 +597,7 @@
 			<!-- Tipo de Criação -->
 			<div class="space-y-3">
 				<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">Tipo de Escala</p>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 					<button type="button"
 						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao ===
 						'completa'
@@ -607,6 +607,16 @@
 					>
 						<span class="font-bold text-xs">Escala Completa</span>
 						<span class="text-[0.6rem] opacity-70">Seccionais padrão</span>
+					</button>
+					<button type="button"
+						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao ===
+						'branco'
+							? 'border-primary-500 bg-primary-500/10 text-primary-600'
+							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'branco')}
+					>
+						<span class="font-bold text-xs">Em Branco</span>
+						<span class="text-[0.6rem] opacity-70">Sem equipes iniciais</span>
 					</button>
 					<button type="button"
 						class="btn py-3 rounded-xl flex flex-col items-center gap-1 border transition-all {modoCriacao ===

@@ -60,7 +60,7 @@ export const actions: Actions = {
 		const data_fim = data.get('data_fim')?.toString() || data_inicio;
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
 		const hora_saida = data.get('hora_saida')?.toString() || '16:00';
-		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada';
+		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada' | 'branco';
 		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
 		if (!data_inicio) return fail(400, { error: 'data_inicio é obrigatório' });
@@ -83,6 +83,11 @@ export const actions: Actions = {
 				for (const d of datas) {
 					const novoId = await clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida);
 					ids.push(novoId);
+				}
+			} else if (modo === 'branco') {
+				for (const d of datas) {
+					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor');
+					ids.push(novaId);
 				}
 			} else {
 				// Buscar seccionais

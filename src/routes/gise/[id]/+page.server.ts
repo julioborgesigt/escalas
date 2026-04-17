@@ -64,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 
 	try {
 		const policiaisPromise = isGeral
-			? listarPoliciais(db).then(r => r.policiais)
+			? listarPoliciais(db, undefined, false, { limit: 10000 }).then(r => r.policiais)
 			: isSeccional && u.papel_unidade_id
 				? db
 					.select({ nome: unidades.nome })
@@ -174,6 +174,10 @@ export const actions: Actions = {
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
+		if (!isAdminGeral(u) && !isAdminSeccional(u)) {
+			return fail(403, { error: 'Sem permissão' });
+		}
+
 		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
 			return fail(403, { error: 'Sem permissão' });
 		}
@@ -204,7 +208,7 @@ export const actions: Actions = {
 		}).returning({ id: giseSeccionais.id });
 
 		if (novaSec) {
-			await criarGiseEquipe(db, novaSec.id, 'operacional', 1, 3);
+			await adicionarGiseSeccionalUnidade(db, novaSec.id, null);
 		}
 
 		return { success: true };
@@ -744,8 +748,14 @@ export const actions: Actions = {
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
-		// CASCADE apaga equipes e membros do slot automaticamente
-		await removerGiseSeccionalUnidade(db, linkId);
+		// Se for slot legado (0), apagamos apenas as equipes orfãs
+		if (linkId === 0) {
+			const { isNull } = await import('drizzle-orm');
+			await db.delete(giseEquipes).where(and(eq(giseEquipes.gise_seccional_id, secId), isNull(giseEquipes.gise_unidade_id)));
+		} else {
+			// CASCADE apaga equipes e membros do slot automaticamente
+			await removerGiseSeccionalUnidade(db, linkId);
+		}
 
 		const gise = await buscarGiseEscala(db, giseId);
 		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {

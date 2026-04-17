@@ -70,7 +70,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const todosPoliciais = listarPoliciais(db, undefined, false, {
 		busca: undefined,
 		page: undefined,
-		limit: undefined
+		limit: 10000
 	}).then(r => r.policiais);
 
 	return {

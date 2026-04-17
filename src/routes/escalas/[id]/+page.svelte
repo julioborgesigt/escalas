@@ -8,6 +8,7 @@
 	import type { Policial, EscalaPolicialComDados, Escala } from '$lib/types';
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { useConfirmationDialog } from '$lib/composables';
 	import { loading } from '$lib/loading.svelte';
 
@@ -521,12 +522,14 @@
 						</label>
 						<label class="label lg:col-span-2">
 							<span class="label-text">Servidor</span>
-							<select class="select" name="policial_id" bind:value={policialId} disabled={!cargoBusca || loadingPoliciais}>
-								<option value="">{loadingPoliciais ? 'Carregando...' : 'Selecione...'}</option>
-								{#each policialsFiltrados as p (p.id)}
-									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
-								{/each}
-							</select>
+							<SearchableSelect
+								name="policial_id"
+								bind:value={policialId}
+								disabled={!cargoBusca || loadingPoliciais}
+								options={[{value: '', label: loadingPoliciais ? 'Carregando...' : 'Selecione...'}, ...policialsFiltrados.map((p: any) => ({ value: String(p.id), label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}` }))]}
+								placeholder="Pesquisar servidor..."
+								class="w-full"
+							/>
 						</label>
 						{#if !isFDS}
 							<label class="label">
@@ -628,14 +631,16 @@
 							</select>
 						</label>
 
-						<label class="label sm:col-span-4">
+						<label class="label sm:col-span-4 self-center">
 							<span class="label-text">Servidor</span>
-							<select class="select h-9 py-0 px-2" name="policial_id" bind:value={policialId} disabled={!cargoBusca || loadingPoliciais}>
-								<option value="">{loadingPoliciais ? 'Carregando...' : 'Selecione...'}</option>
-								{#each policialsFiltrados as p (p.id)}
-									<option value={String(p.id)}>{p.nome}{p.lotacao ? ' — ' + p.lotacao : ''}</option>
-								{/each}
-							</select>
+							<SearchableSelect
+								name="policial_id"
+								bind:value={policialId}
+								disabled={!cargoBusca || loadingPoliciais}
+								options={[{value: '', label: loadingPoliciais ? 'Carregando...' : 'Selecione...'}, ...policialsFiltrados.map((p: any) => ({ value: String(p.id), label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}` }))]}
+								placeholder="Pesquisar servidor..."
+								class="w-full h-9"
+							/>
 						</label>
 
 						<label class="label sm:col-span-2">
@@ -711,7 +716,7 @@
 		<div class="space-y-12">
 			{#each agruparPorData(policiaisEscalaLocal) as [dataGrupo, items]}
 				<div
-					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden"
+					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-visible"
 				>
 					<div class="table-container p-2">
 						<table class="table w-full text-[0.7rem] sm:text-xs !bg-transparent">
