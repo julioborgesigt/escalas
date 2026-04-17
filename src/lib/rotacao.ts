@@ -148,6 +148,9 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 export function calcularDataSaida(dataPlantao: string, horaEntrada: string, horaSaida: string): string {
 	const he = Number((horaEntrada || '00').split(':')[0]);
 	const hs = Number((horaSaida || '00').split(':')[0]);
+	if (!horaEntrada && !horaSaida) {
+		return dataPlantao;
+	}
 	if (hs <= he) {
 		return addDias(dataPlantao, 1);
 	}

@@ -1,5 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
+import { timingSafeEqual } from 'node:crypto';
 import {
 	policiais,
 	unidades,
@@ -17,11 +18,20 @@ import {
 	escalaDocumentos
 } from '$lib/server/schema';
 
+function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
+	const expected = `Bearer ${expectedToken}`;
+	const a = Buffer.from((authHeader ?? '').padEnd(expected.length, ' ').slice(0, expected.length));
+	const b = Buffer.from(expected);
+	const valueMatch = timingSafeEqual(a, b) ? 1 : 0;
+	const lenMatch = (authHeader ?? '').length === expected.length ? 1 : 0;
+	return (valueMatch & lenMatch) === 1;
+}
+
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const authHeader = request.headers.get('Authorization');
 	const SYNC_TOKEN = (platform?.env as any)?.SYNC_TOKEN;
 
-	if (!SYNC_TOKEN || authHeader !== `Bearer ${SYNC_TOKEN}`) {
+	if (!SYNC_TOKEN || !bearerTokenValido(authHeader, SYNC_TOKEN)) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
