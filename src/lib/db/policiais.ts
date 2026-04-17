@@ -132,6 +132,7 @@ export async function criarPolicial(
 		papel?: string | null;
 		papel_unidade_id?: number | null;
 		email?: string | null;
+		ativo?: number;
 	}
 ) {
 	const senhaHash = await gerarSenhaAleatoriaHash();
@@ -148,8 +149,64 @@ export async function criarPolicial(
 		primeiro_acesso: 1,
 		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 		papel_unidade_id: data.papel_unidade_id || null,
-		email: data.email || null
+		email: data.email || null,
+		ativo: data.ativo ?? 1
 	});
+}
+
+export async function upsertPolicial(
+	db: Database,
+	data: {
+		nome: string;
+		matricula: string;
+		cargo: string;
+		cpf?: string | null;
+		telefone?: string;
+		lotacao?: string;
+		regime?: string;
+		classe?: string;
+		papel?: string | null;
+		email?: string | null;
+		ativo?: number;
+	}
+) {
+	const matriculaLimpa = limparMatricula(data.matricula);
+	const cpfLimpo = data.cpf ? limparCPF(data.cpf) : null;
+	const senhaHash = await gerarSenhaAleatoriaHash();
+
+	return db
+		.insert(policiais)
+		.values({
+			nome: data.nome,
+			matricula: matriculaLimpa,
+			cargo: data.cargo as 'DPC' | 'OIP',
+			cpf: cpfLimpo,
+			telefone: data.telefone || '',
+			lotacao: data.lotacao || '',
+			regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
+			classe: data.classe || '',
+			senha: senhaHash,
+			primeiro_acesso: 1,
+			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
+			email: data.email || null,
+			ativo: data.ativo ?? 1
+		})
+		.onConflictDoUpdate({
+			target: policiais.matricula,
+			set: {
+				nome: data.nome,
+				cargo: data.cargo as 'DPC' | 'OIP',
+				cpf: cpfLimpo,
+				telefone: data.telefone || '',
+				lotacao: data.lotacao || '',
+				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
+				classe: data.classe || '',
+				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
+				email: data.email || null,
+				ativo: data.ativo ?? 1,
+				updated_at: sql`datetime('now', '-3 hours')`
+			}
+		});
 }
 
 export async function atualizarPolicial(

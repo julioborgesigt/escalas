@@ -7,7 +7,7 @@ import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 
-const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/api/auth/verificar-2fa', '/api/auth/primeiro-acesso', '/api/auth/solicitar-redefinicao', '/redefinir-senha', '/validar', '/api/validar', '/api/health']);
+const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/api/auth/verificar-2fa', '/api/auth/primeiro-acesso', '/api/auth/solicitar-redefinicao', '/redefinir-senha', '/validar', '/api/validar', '/api/health', '/api/webhook']);
 
 function isRotaPublica(pathname: string): boolean {
 	for (const rota of ROTAS_PUBLICAS) {
@@ -17,7 +17,7 @@ function isRotaPublica(pathname: string): boolean {
 }
 
 /** Routes exempt from CSRF token verification (no session or read-only). */
-const CSRF_EXEMPT_ROUTES = new Set(['/api/auth/login', '/api/health']);
+const CSRF_EXEMPT_ROUTES = new Set(['/api/auth/login', '/api/health', '/api/webhook']);
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function isCsrfExempt(pathname: string): boolean {

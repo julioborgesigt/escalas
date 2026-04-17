@@ -3,6 +3,12 @@
 import type { UsuarioLogado } from '$lib/auth';
 
 declare global {
+	interface Env {
+		escalas_db: D1Database;
+		escalas_docs: R2Bucket;
+		SYNC_TOKEN: string;
+	}
+
 	namespace App {
 		interface Locals {
 			usuario: UsuarioLogado | null;
