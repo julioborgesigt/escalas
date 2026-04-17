@@ -104,6 +104,8 @@
 						type="button"
 						class="absolute right-2 top-1/2 -translate-y-1/2 text-surface-400"
 						onclick={() => (isOpen = false)}
+						aria-label="Minimizar opções"
+						title="Minimizar opções"
 					>
 						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
