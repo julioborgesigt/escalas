@@ -35,25 +35,11 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 			extension = 'docx';
 		} else if (format === 'xlsx' || format === 'excel' || format === 'xls') {
-			if (escala.tipo === 'plantao') buffer = exportLib.gerarXlsxPlantao(escala, policiais);
-			else if (escala.tipo === 'expediente') buffer = exportLib.gerarXlsxExpediente(escala, policiais);
-			else buffer = exportLib.gerarXlsx(escala, policiais);
+			if (escala.tipo === 'plantao') buffer = await exportLib.gerarXlsxPlantao(escala, policiais);
+			else if (escala.tipo === 'expediente') buffer = await exportLib.gerarXlsxExpediente(escala, policiais);
+			else buffer = await exportLib.gerarXlsx(escala, policiais);
 			contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 			extension = 'xlsx';
-		} else if (format === 'ods') {
-			if (escala.tipo === 'plantao') buffer = exportLib.gerarOdsPlantao(escala, policiais);
-			else if (escala.tipo === 'expediente') buffer = exportLib.gerarOdsExpediente(escala, policiais);
-			else buffer = exportLib.gerarOds(escala, policiais);
-			contentType = 'application/vnd.oasis.opendocument.spreadsheet';
-			extension = 'ods';
-		} else if (format === 'odt') {
-			// SvelteKit links may ask for ODT, if no direct ODT generator, we might use ODS or fallback
-			// In lib/export.ts there's no gerarOdt specifically but gerarOds.
-			// Let's use ODS generator if ODT is requested but with ODT extension (common fallback in this specific lib structure)
-			if (escala.tipo === 'expediente') buffer = exportLib.gerarOdsExpediente(escala, policiais);
-			else buffer = exportLib.gerarOds(escala, policiais);
-			contentType = 'application/vnd.oasis.opendocument.text';
-			extension = 'odt';
 		} else {
 			// Default PDF
 			let result;

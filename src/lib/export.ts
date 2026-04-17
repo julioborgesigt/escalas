@@ -2,9 +2,7 @@ import {
 	Document, Packer, Paragraph, Table, TableRow, TableCell,
 	TextRun, WidthType, AlignmentType, BorderStyle, PageOrientation
 } from 'docx';
-// TODO: migrar para 'exceljs' — xlsx@0.18.5 possui vulnerabilidades conhecidas (prototype pollution/ReDoS).
-// O risco atual é baixo pois somente geramos arquivos (não fazemos parsing de input externo).
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -157,18 +155,20 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 }
 
 // ---- XLSX ----
-export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export async function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
 	const dias = agruparPorData(policiais);
-	const wb = XLSX.utils.book_new();
-
-	const rows: (string | null)[][] = [];
-	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
-	rows.push([]);
+	const wb = new ExcelJS.Workbook();
+	const ws = wb.addWorksheet('Escala');
+	ws.columns = [
+		{ width: 35 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 35 }, { width: 22 }, { width: 12 }
+	];
+	ws.addRow([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
+	ws.addRow([]);
 
 	for (const dia of dias) {
-		rows.push(['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']);
+		ws.addRow(['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']);
 		for (const p of dia.policiais) {
-			rows.push([
+			ws.addRow([
 				p.nome,
 				formatarMatricula(p.matricula),
 				p.cargo,
@@ -178,16 +178,10 @@ export function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): 
 				formatarHorario(p, escala)
 			]);
 		}
-		rows.push([]);
+		ws.addRow([]);
 	}
-
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [
-		{ wch: 35 }, { wch: 15 }, { wch: 8 }, { wch: 18 }, { wch: 35 }, { wch: 22 }, { wch: 12 }
-	];
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-
-	return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
+	const out = await wb.xlsx.writeBuffer();
+	return new Uint8Array(out as ArrayBuffer);
 }
 
 export interface PdfExportResult {
@@ -349,36 +343,18 @@ export async function gerarDocxExpediente(escala: Escala, policiais: EscalaPolic
 }
 
 // ---- XLSX Expediente ----
-export function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
 	const sorted = sortExpediente(policiais);
-	const wb = XLSX.utils.book_new();
-	const rows: (string | null)[][] = [
-		[escala.titulo.toUpperCase()],
-		[`Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`],
-		[],
-		[...COLS_EXPEDIENTE],
-		...sorted.map(p => rowExpediente(p))
-	];
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 8 }, { wch: 18 }, { wch: 15 }, { wch: 35 }, { wch: 12 }, { wch: 35 }];
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-	return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
-}
-
-// ---- ODS Expediente ----
-export function gerarOdsExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
-	const sorted = sortExpediente(policiais);
-	const wb = XLSX.utils.book_new();
-	const rows: (string | null)[][] = [
-		[escala.titulo.toUpperCase()],
-		[`Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`],
-		[],
-		[...COLS_EXPEDIENTE],
-		...sorted.map(p => rowExpediente(p))
-	];
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-	return new Uint8Array(XLSX.write(wb, { bookType: 'ods', type: 'array' }));
+	const wb = new ExcelJS.Workbook();
+	const ws = wb.addWorksheet('Escala');
+	ws.columns = [{ width: 40 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 15 }, { width: 35 }, { width: 12 }, { width: 35 }];
+	ws.addRow([escala.titulo.toUpperCase()]);
+	ws.addRow([`Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`]);
+	ws.addRow([]);
+	ws.addRow([...COLS_EXPEDIENTE]);
+	for (const p of sorted) ws.addRow(rowExpediente(p));
+	const out = await wb.xlsx.writeBuffer();
+	return new Uint8Array(out as ArrayBuffer);
 }
 
 // ---- PDF Expediente ----
@@ -460,37 +436,6 @@ export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComD
 
 }
 
-
-// ---- ODS/ODT via XLSX (ODS format) ----
-export function gerarOds(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
-	const dias = agruparPorData(policiais);
-	const wb = XLSX.utils.book_new();
-
-	const rows: (string | null)[][] = [];
-	rows.push([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
-	rows.push([]);
-
-	for (const dia of dias) {
-		rows.push(['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']);
-		for (const p of dia.policiais) {
-			rows.push([
-				p.nome,
-				formatarMatricula(p.matricula),
-				p.cargo,
-				p.telefone || '',
-				p.lotacao,
-				formatarDataPlantao(p, escala),
-				formatarHorario(p, escala)
-			]);
-		}
-		rows.push([]);
-	}
-
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-
-	return new Uint8Array(XLSX.write(wb, { bookType: 'ods', type: 'array' }));
-}
 
 // ---- Shared helpers for plantão exports ----
 
@@ -635,48 +580,23 @@ export async function gerarDocxPlantao(escala: Escala, policiais: EscalaPolicial
 }
 
 // ---- XLSX Plantão ----
-export function gerarXlsxPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
+export async function gerarXlsxPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
 	const equipes = agruparPlantao(policiais);
-	const wb = XLSX.utils.book_new();
-	const rows: (string | null)[][] = [
-		['POLÍCIA CIVIL DO ESTADO DO CEARÁ'],
-		[`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`],
-		[]
-	];
+	const wb = new ExcelJS.Workbook();
+	const ws = wb.addWorksheet('Escala');
+	ws.columns = [{ width: 40 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 35 }, { width: 35 }, { width: 30 }];
+	ws.addRow(['POLÍCIA CIVIL DO ESTADO DO CEARÁ']);
+	ws.addRow([`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`]);
+	ws.addRow([]);
 
 	for (const [equipe, oficiais] of equipes) {
-		rows.push([equipe ? `EQUIPE ${equipe}` : 'EQUIPE']);
-		rows.push([...COLS_PLANTAO]);
-		for (const o of oficiais) rows.push(rowPlantao(o));
-		rows.push([]);
+		ws.addRow([equipe ? `EQUIPE ${equipe}` : 'EQUIPE']);
+		ws.addRow([...COLS_PLANTAO]);
+		for (const o of oficiais) ws.addRow(rowPlantao(o));
+		ws.addRow([]);
 	}
-
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 8 }, { wch: 18 }, { wch: 35 }, { wch: 35 }, { wch: 30 }];
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-	return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
-}
-
-// ---- ODS Plantão ----
-export function gerarOdsPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): Uint8Array {
-	const equipes = agruparPlantao(policiais);
-	const wb = XLSX.utils.book_new();
-	const rows: (string | null)[][] = [
-		['POLÍCIA CIVIL DO ESTADO DO CEARÁ'],
-		[`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`],
-		[]
-	];
-
-	for (const [equipe, oficiais] of equipes) {
-		rows.push([equipe ? `EQUIPE ${equipe}` : 'EQUIPE']);
-		rows.push([...COLS_PLANTAO]);
-		for (const o of oficiais) rows.push(rowPlantao(o));
-		rows.push([]);
-	}
-
-	const ws = XLSX.utils.aoa_to_sheet(rows);
-	XLSX.utils.book_append_sheet(wb, ws, 'Escala');
-	return new Uint8Array(XLSX.write(wb, { bookType: 'ods', type: 'array' }));
+	const out = await wb.xlsx.writeBuffer();
+	return new Uint8Array(out as ArrayBuffer);
 }
 
 // ---- PDF Plantão ----
