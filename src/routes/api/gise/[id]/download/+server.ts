@@ -269,7 +269,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	wsResumo.addRow(['ESCALA GISE']).font = { bold: true, size: 16 };
 	wsResumo.addRow([`Data: ${fmtDate(gise.data_inicio)}`]);
 	wsResumo.addRow([`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`]);
-	wsResumo.addRow([`Supervisor: ${gise.supervisor_nome ?? '—'}`]);
+	wsResumo.addRow([`Supervisão e apoio: ${gise.supervisor_nome ?? '—'}`]);
 	wsResumo.addRow([`Status: ${statusLabel(gise.status)}`]);
 	if (gise.documento?.assinante_nome) wsResumo.addRow([`Assinado por: ${gise.documento.assinante_nome}`]);
 	wsResumo.addRow([]);
@@ -387,9 +387,9 @@ function fmtHoraGise(h: any): string {
 
 function statusLabel(status: string): string {
 	const m: Record<string, string> = {
-		em_definicao_supervisor: 'Em definição do supervisor',
+		em_definicao_supervisor: 'Em definição da supervisão',
 		em_preenchimento: 'Preenchendo escalados',
-		aguardando_assinatura: 'Aguardando assinatura do supervisor',
+		aguardando_assinatura: 'Aguardando assinatura da supervisão',
 		em_andamento: 'GISE em operação',
 		aguardando_relatorios: 'Aguardando relatórios',
 		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',

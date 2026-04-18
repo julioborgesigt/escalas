@@ -908,8 +908,8 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 	let contactY = sigY - 12; 
 
 	if (gise.supervisor_nome) {
-		doc.text(`Coordenador: `, 10, contactY);
-		const nameX = 10 + doc.getTextWidth('Coordenador: ');
+		doc.text(`Supervisão e apoio: `, 10, contactY);
+		const nameX = 10 + doc.getTextWidth('Supervisão e apoio: ');
 		doc.setFont('helvetica', 'normal');
 		doc.text(`${gise.supervisor_nome} - ${gise.supervisor_telefone || '—'}`, nameX, contactY);
 		contactY += 4;
@@ -943,7 +943,7 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');
-	doc.text((gise.supervisor_nome || 'Supervisor(a) do GISE').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+	doc.text((gise.supervisor_nome || 'Supervisão do GISE').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
 	doc.setFont('helvetica', 'normal');
 	doc.text(`Matrícula: ${gise.supervisor_matricula || '—'}`, sigCenterX, sigY + 8, { align: 'center' });
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
@@ -1210,7 +1210,7 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
 			doc.setFont('helvetica', 'italic');
 			doc.setFontSize(10);
-			doc.text('Aguardando Conferência e Assinatura do Supervisor', sigCenterX, sigY + 8, { align: 'center' });
+			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, { align: 'center' });
 		}
 	} else {
 		if (reportSignature.rubrica) {
@@ -1226,7 +1226,7 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 		doc.setFontSize(8);
 		doc.setFont('helvetica', 'bold');
-		doc.text((reportSignature.assinante_nome ?? 'Supervisor(a)').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
 		doc.setFont('helvetica', 'normal');
 		doc.text(`Matrícula: ${reportSignature.assinante_matricula ?? '—'}`, sigCenterX, sigY + 8, { align: 'center' });
 		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
