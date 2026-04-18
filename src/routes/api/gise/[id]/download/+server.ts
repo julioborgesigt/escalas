@@ -154,7 +154,24 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Fallback: gerar PDF normal
 		const { gerarPdfGise } = await import('$lib/export');
-		const result = gerarPdfGise(toGisePdfData(gise));
+		const r2Logo = getR2(platform);
+		let logoBytes: Uint8Array | undefined;
+		if (r2Logo) {
+			try {
+				const logoObj = await r2Logo.get('assets/logogise.jpg');
+				if (logoObj) {
+					logoBytes = new Uint8Array(await logoObj.arrayBuffer());
+					console.log(`[GISE PDF] Logo carregada do R2: ${logoBytes.length} bytes`);
+				} else {
+					console.warn('[GISE PDF] Logo não encontrada no R2: assets/logogise.jpg');
+				}
+			} catch (e) {
+				console.error('[GISE PDF] Erro ao buscar logo do R2:', e);
+			}
+		} else {
+			console.warn('[GISE PDF] R2 binding não disponível (getR2 retornou undefined)');
+		}
+		const result = await gerarPdfGise(toGisePdfData(gise), logoBytes);
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',

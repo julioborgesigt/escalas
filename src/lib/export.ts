@@ -11,6 +11,7 @@ interface JsPDFWithAutoTable extends jsPDF {
 	lastAutoTable?: { finalY: number };
 }
 import * as QRCode from 'qrcode';
+import { PDFDocument } from 'pdf-lib';
 import type { Escala, EscalaPolicialComDados } from './types';
 import { formatarData, proximoDia, formatarDataExtenso } from './utils';
 
@@ -799,20 +800,16 @@ export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfDat
 	};
 }
 
-export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
+
+export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 
 	doc.setFontSize(14);
-	doc.text('ESCALA GISE', pageWidth / 2, 12, { align: 'center' });
+	doc.setFont('helvetica', 'bold');
+	doc.text(`Escala GISE SUL para o dia ${formatarData(gise.data_inicio)}`, pageWidth / 2, 14, { align: 'center' });
 
-	const periodoText = `Data: ${formatarData(gise.data_inicio)}`;
-	doc.setFontSize(10);
-	doc.text(periodoText, pageWidth / 2, 19, { align: 'center' });
-
-
-
-	let y = 32;
+	let y = 26;
 
 	for (const sec of gise.seccionais) {
 		if (y > 175) { doc.addPage(); y = 15; }
@@ -821,14 +818,7 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 		doc.setFont('helvetica', 'bold');
 		const secHora = sec.hora_entrada ? ` (H. ${sec.hora_entrada}-${sec.hora_saida})` : '';
 		doc.text(`${sec.seccional_nome}${secHora}`, 10, y);
-		if (sec.unidade_operacional_nome) {
-			doc.setFontSize(8);
-			doc.setFont('helvetica', 'normal');
-			doc.text(`Unidade Operacional: ${sec.unidade_operacional_nome}`, 10, y + 5);
-			y += 9;
-		} else {
-			y += 4;
-		}
+		y += 4;
 
 		for (const equipe of sec.equipes) {
 			if (y > 175) { doc.addPage(); y = 15; }
@@ -867,9 +857,11 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 					textColor: 255,
 					fontSize: 7.5,
 					fontStyle: 'bold',
-					halign: 'center'
+					halign: 'center',
+					lineColor: [255, 255, 255],
+					lineWidth: 0.3
 				},
-				bodyStyles: { fontSize: 7.5 },
+				bodyStyles: { fontSize: 7.5, lineColor: [180, 180, 180], lineWidth: 0.3 },
 				columnStyles: {
 					0: { cellWidth: 55 },
 					1: { halign: 'center', cellWidth: 15 },
@@ -956,7 +948,36 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 	doc.text(`Matrícula: ${gise.supervisor_matricula || '—'}`, sigCenterX, sigY + 8, { align: 'center' });
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
 
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+	// Pós-processamento: inserir logo via pdf-lib usando bytes puros do JPEG (vindos do R2).
+	// jsPDF.addImage falha silenciosamente no Cloudflare Workers por falta de DOM/Canvas.
+	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
+
+	if (!logoJpgBytes || logoJpgBytes.length === 0) {
+		return { pdf: pdfBytes, finalY: sigY };
+	}
+
+	try {
+		const pdfDoc = await PDFDocument.load(pdfBytes);
+		const jpgImage = await pdfDoc.embedJpg(logoJpgBytes);
+		const pages = pdfDoc.getPages();
+		const mmToPt = 2.83465;
+
+		for (const page of pages) {
+			const { height } = page.getSize();
+			page.drawImage(jpgImage, {
+				x: 10 * mmToPt,
+				y: height - (5 * mmToPt) - (14 * mmToPt),
+				width: 45 * mmToPt,
+				height: 14 * mmToPt
+			});
+		}
+
+		const modifiedPdf = await pdfDoc.save();
+		return { pdf: modifiedPdf, finalY: sigY };
+	} catch (e: any) {
+		console.error('Erro ao inserir logo com pdf-lib:', e.message || e);
+		return { pdf: pdfBytes, finalY: sigY };
+	}
 }
 
 export interface GiseProdutividadeData {

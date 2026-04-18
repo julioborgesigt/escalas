@@ -58,7 +58,15 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
 		}
 
-		const result = gerarPdfGise(toGisePdfData(giseDetalhado));
+		const r2Logo = getR2(platform);
+		let logoJpgBytes: Uint8Array | undefined;
+		if (r2Logo) {
+			try {
+				const logoObj = await r2Logo.get('assets/logo_gise.jpg');
+				if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
+			} catch (e) { /* logo optional */ }
+		}
+		const result = await gerarPdfGise(toGisePdfData(giseDetalhado), logoJpgBytes);
 		const pdfBytes = result.pdf;
 		const sigY = result.finalY;
 

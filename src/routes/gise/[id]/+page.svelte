@@ -1227,43 +1227,64 @@
 						<SearchableSelect
 							id="supId"
 							bind:value={supervisorId}
-							options={[{value: null, label: 'Não definido'}, ...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							options={[
+								{ value: null, label: 'Não definido' },
+								...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+							]}
 							placeholder="Pesquisar Supervisor..."
 							class="w-full"
 						/>
 					</div>
 					<div>
-						<label for="assessorId" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+						<label
+							for="assessorId"
+							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+						>
 							Assessor (OIP)
 						</label>
 						<SearchableSelect
 							id="assessorId"
 							bind:value={assessorId}
-							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							options={[
+								{ value: null, label: 'Não definido' },
+								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+							]}
 							placeholder="Pesquisar Assessor..."
 							class="w-full"
 						/>
 					</div>
 					<div>
-						<label for="seint1Id" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+						<label
+							for="seint1Id"
+							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+						>
 							Inteligência 1 (SEINT - OIP)
 						</label>
 						<SearchableSelect
 							id="seint1Id"
 							bind:value={seint1Id}
-							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							options={[
+								{ value: null, label: 'Não definido' },
+								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+							]}
 							placeholder="Pesquisar SEINT 1..."
 							class="w-full"
 						/>
 					</div>
 					<div>
-						<label for="seint2Id" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
+						<label
+							for="seint2Id"
+							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+						>
 							Inteligência 2 (SEINT - OIP)
 						</label>
 						<SearchableSelect
 							id="seint2Id"
 							bind:value={seint2Id}
-							options={[{value: null, label: 'Não definido'}, ...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))]}
+							options={[
+								{ value: null, label: 'Não definido' },
+								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+							]}
 							placeholder="Pesquisar SEINT 2..."
 							class="w-full"
 						/>
@@ -1300,27 +1321,41 @@
 				>
 					<div class="flex items-start justify-between mb-4">
 						<div class="space-y-1">
-							<p class="font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2">
-								<span class="text-xs px-2 py-0.5 bg-surface-200 dark:bg-surface-700 rounded-md font-bold text-surface-600 dark:text-surface-300">DPC Supervisor</span>
+							<p
+								class="font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
+							>
+								<span
+									class="text-xs px-2 py-0.5 bg-surface-200 dark:bg-surface-700 rounded-md font-bold text-surface-600 dark:text-surface-300"
+									>DPC Supervisor</span
+								>
 								{gise.supervisor_nome ?? 'Não definido'}
 							</p>
 							{#if gise.assessor_id}
-							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-								<span class="text-[0.65rem] px-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded text-surface-500">Assessor OIP</span>
-								{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
-							</p>
+								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+									<span
+										class="text-[0.65rem] px-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded text-surface-500"
+										>Assessor OIP</span
+									>
+									{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
+								</p>
 							{/if}
 							{#if gise.seint1_id}
-							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-								<span class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help" title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span>
-								{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
-							</p>
+								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+									<span
+										class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help"
+										title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span
+									>
+									{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
+								</p>
 							{/if}
 							{#if gise.seint2_id}
-							<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-								<span class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help" title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span>
-								{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
-							</p>
+								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
+									<span
+										class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help"
+										title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span
+									>
+									{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
+								</p>
 							{/if}
 						</div>
 						{#if documentoAssinadoInfo?.existe}
@@ -1373,7 +1408,7 @@
 									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
 								/></svg
 							>
-							PDF sem Assinatura
+							PDF da escala sem assinatura
 						</a>
 					{/if}
 				</div>
@@ -2213,7 +2248,7 @@
 													class="font-semibold text-sm text-surface-900 dark:text-surface-100 truncate"
 													>{slot.nome}</span
 												>
-											{:else if ( (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral) )}
+											{:else if (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral)}
 												<!-- Admin Seccional seleciona a unidade para este slot -->
 												{#if selecionandoUnidadeSlotId === slot.id}
 													<div class="flex flex-wrap gap-2 items-center">
@@ -2593,7 +2628,12 @@
 																<div class="flex-1 min-w-32">
 																	<SearchableSelect
 																		bind:value={policialParaAdicionar}
-																		options={policiais.filter((p: any) => p.cargo === cargoParaAdicionar).map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))}
+																		options={policiais
+																			.filter((p: any) => p.cargo === cargoParaAdicionar)
+																			.map((p: any) => ({
+																				value: p.id,
+																				label: `${p.nome} (${p.matricula})`
+																			}))}
 																		placeholder={`Pesquisar ${cargoParaAdicionar}...`}
 																		class="w-full"
 																	/>
