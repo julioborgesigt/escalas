@@ -49,6 +49,16 @@ export interface GiseDetalhado extends schema.GiseEscala {
 	>;
 	supervisor_nome: string | null;
 	supervisor_matricula: string | null;
+	supervisor_telefone: string | null;
+	assessor_nome: string | null;
+	assessor_matricula: string | null;
+	assessor_telefone: string | null;
+	seint1_nome: string | null;
+	seint1_matricula: string | null;
+	seint1_telefone: string | null;
+	seint2_nome: string | null;
+	seint2_matricula: string | null;
+	seint2_telefone: string | null;
 	documento: schema.GiseDocumento | null;
 	totalSeccionais: number;
 	assinaturasRelatorioExtra: number;
@@ -237,21 +247,33 @@ export async function buscarGiseDetalhado(
 	if (!gise) return null;
 
 	// Carrega dados em paralelo para minimizar round-trips ao banco
-	const [
-		supervisorRow,
-		documento,
-		secsRows,
-		todasEquipes,
-		todosMembros,
-		todasPresencas,
-		todasRespostas,
-		assExtraRow
-	] = await Promise.all([
+	const parallelResults = await Promise.all([
 		gise.supervisor_id
 			? db
-				.select({ nome: policiais.nome, matricula: policiais.matricula })
+				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
 				.from(policiais)
 				.where(eq(policiais.id, gise.supervisor_id))
+				.get()
+			: Promise.resolve(null),
+		gise.assessor_id
+			? db
+				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
+				.from(policiais)
+				.where(eq(policiais.id, gise.assessor_id))
+				.get()
+			: Promise.resolve(null),
+		gise.seint1_id
+			? db
+				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
+				.from(policiais)
+				.where(eq(policiais.id, gise.seint1_id))
+				.get()
+			: Promise.resolve(null),
+		gise.seint2_id
+			? db
+				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
+				.from(policiais)
+				.where(eq(policiais.id, gise.seint2_id))
 				.get()
 			: Promise.resolve(null),
 		db
@@ -315,6 +337,8 @@ export async function buscarGiseDetalhado(
 			)
 			.get()
 	]);
+
+	const [supervisorRow, assessorRow, seint1Row, seint2Row, documento, secsRows, todasEquipes, todosMembros, todasPresencas, todasRespostas, assExtraRow] = parallelResults;
 
 	// Carrega slots de unidade por seccional (LEFT JOIN: unidade_id pode ser null)
 	let todosSlotsUnidade: Array<{
@@ -419,8 +443,18 @@ export async function buscarGiseDetalhado(
 	return {
 		...gise,
 		seccionais,
-		supervisor_nome,
-		supervisor_matricula,
+		supervisor_nome: supervisorRow?.nome ?? null,
+		supervisor_matricula: supervisorRow?.matricula ?? null,
+		supervisor_telefone: supervisorRow?.telefone ?? null,
+		assessor_nome: assessorRow?.nome ?? null,
+		assessor_matricula: assessorRow?.matricula ?? null,
+		assessor_telefone: assessorRow?.telefone ?? null,
+		seint1_nome: seint1Row?.nome ?? null,
+		seint1_matricula: seint1Row?.matricula ?? null,
+		seint1_telefone: seint1Row?.telefone ?? null,
+		seint2_nome: seint2Row?.nome ?? null,
+		seint2_matricula: seint2Row?.matricula ?? null,
+		seint2_telefone: seint2Row?.telefone ?? null,
 		documento,
 		totalSeccionais: seccionais.length,
 		assinaturasRelatorioExtra: assExtraRow?.count ?? 0,

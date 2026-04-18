@@ -13,9 +13,9 @@
 
 import { execSync } from 'child_process';
 import { readdirSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
-const MIGRATIONS_DIR = new URL('../migrations', import.meta.url).pathname;
+const MIGRATIONS_DIR = resolve(import.meta.dirname, '../migrations');
 const DB_NAME = 'escalas-db';
 const REMOTE = process.argv.includes('--remote');
 const FLAG = REMOTE ? '--remote' : '--local';

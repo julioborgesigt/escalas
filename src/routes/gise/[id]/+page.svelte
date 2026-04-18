@@ -1218,7 +1218,7 @@
 
 			{#if editandoSupervisores}
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-					<div class="col-span-1 sm:col-span-2">
+					<div>
 						<label
 							for="supId"
 							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
@@ -1244,7 +1244,6 @@
 							class="w-full"
 						/>
 					</div>
-					<div class="hidden sm:block"></div>
 					<div>
 						<label for="seint1Id" class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">
 							Inteligência 1 (SEINT - OIP)
