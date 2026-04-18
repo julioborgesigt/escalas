@@ -1,9 +1,5 @@
 export { useAutorizacao } from './useAutorizacao';
-export {
-	useLocalStorageFilters,
-	getSavedFilters,
-	createLocalStorageSync
-} from './useLocalStorageFilters.svelte';
+export { useLocalStorageFilters, getSavedFilters } from './useLocalStorageFilters.svelte';
 export { useConfirmationDialog } from './useConfirmationDialog.svelte';
 export { useMultiSelect } from './useMultiSelect.svelte';
 export { useCharts } from './useCharts.svelte';
