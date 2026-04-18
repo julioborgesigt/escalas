@@ -806,12 +806,11 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 	doc.setFontSize(14);
 	doc.text('ESCALA GISE', pageWidth / 2, 12, { align: 'center' });
 
-	const periodoText = `Data: ${formatarData(gise.data_inicio)}  —  Horário: ${gise.hora_entrada} às ${gise.hora_saida}`;
+	const periodoText = `Data: ${formatarData(gise.data_inicio)}`;
 	doc.setFontSize(10);
 	doc.text(periodoText, pageWidth / 2, 19, { align: 'center' });
 
-	doc.setFontSize(9);
-	doc.text(`Supervisor: ${gise.supervisor_nome ?? '—'}`, 10, 26);
+
 
 	let y = 32;
 
@@ -834,11 +833,12 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 		for (const equipe of sec.equipes) {
 			if (y > 175) { doc.addPage(); y = 15; }
 
-			const eqHora = equipe.hora_entrada ? ` (H. ${equipe.hora_entrada}-${equipe.hora_saida})` : '';
-			const tipoLabel = (equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT') + eqHora;
-
 			const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
 			const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+
+			const titleLabel = equipe.tipo === 'operacional'
+				? `Equipe Operacional - ${sec.unidade_operacional_nome ?? '—'}`
+				: `Equipe SEINT`;
 
 			const tableData = equipe.membros.map(m => [
 				m.policial_nome,
@@ -857,7 +857,7 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 			}
 
 			autoTable(doc, {
-				head: [[`Equipe ${tipoLabel} — ${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP`, '', '', '', '', '', '', '', ''],
+				head: [[{ content: titleLabel, colSpan: 9, styles: { halign: 'center' } }],
 				['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']],
 				body: tableData,
 				startY: y,

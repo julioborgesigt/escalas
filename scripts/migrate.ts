@@ -48,7 +48,7 @@ for (const file of files) {
 		console.log(`  ✅ ${file}`);
 		success++;
 	} catch (err) {
-		const stderr = err.stderr?.toString() || '';
+		const stderr = (err as { stderr?: Buffer }).stderr?.toString() || '';
 		// wrangler retorna erro se a migration já foi aplicada (tabela já existe)
 		if (
 			stderr.includes('already exists') ||
