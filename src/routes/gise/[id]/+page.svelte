@@ -8,6 +8,16 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { 
+		ShieldCheck, 
+		UserRound, 
+		Users, 
+		FileDown, 
+		CheckCircle2, 
+		Clock, 
+		AlertCircle,
+		PenLine
+	} from 'lucide-svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { csrfHeaders } from '$lib/csrf';
@@ -1197,32 +1207,43 @@
 	{#if !gise}
 		<p class="text-surface-500">Escala não encontrada.</p>
 	{:else}
-		<!-- Supervisor -->
+		<!-- Supervisão e apoio -->
 		<div
-			class="rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 p-5"
+			class="relative overflow-hidden rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
 		>
-			<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
-				<h2 class="font-semibold text-surface-900 dark:text-surface-50">Supervisor</h2>
-				{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
-					<button
-						type="button"
-						class="text-sm px-3 py-1 rounded-lg font-semibold transition-all {!gise.supervisor_id
-							? 'btn preset-filled-warning-500 animate-pulse'
-							: 'btn preset-outlined-primary-500'}"
-						onclick={() => (editandoSupervisores = true)}
-					>
-						{!gise.supervisor_id ? 'Definir Supervisor' : 'Editar Supervisor'}
-					</button>
-				{/if}
-			</div>
+			<!-- Decorative gradient background -->
+			<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"></div>
+			
+			<div class="p-6">
+				<div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+					<div class="flex items-center gap-3">
+						<div class="p-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
+							<ShieldCheck size={24} />
+						</div>
+						<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Supervisão e apoio</h2>
+					</div>
+					
+					{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
+						<button
+							type="button"
+							class="flex items-center gap-2 text-sm px-4 py-2 rounded-xl font-bold transition-all duration-200 {!gise.supervisor_id
+								? 'bg-warning-500 text-white hover:bg-warning-600 shadow-lg shadow-warning-500/20 animate-pulse'
+								: 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-surface-700'}"
+							onclick={() => (editandoSupervisores = true)}
+						>
+							<PenLine size={16} />
+							{!gise.supervisor_id ? 'Definir Supervisão' : 'Editar Supervisão'}
+						</button>
+					{/if}
+				</div>
 
 			{#if editandoSupervisores}
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
 					<div>
 						<label
 							for="supId"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
-							>Supervisor (DPC)</label
+							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
+							>Supervisão e apoio (DPC)</label
 						>
 						<SearchableSelect
 							id="supId"
@@ -1231,14 +1252,14 @@
 								{ value: null, label: 'Não definido' },
 								...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
 							]}
-							placeholder="Pesquisar Supervisor..."
+							placeholder="Pesquisar Supervisão..."
 							class="w-full"
 						/>
 					</div>
 					<div>
 						<label
 							for="assessorId"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
 						>
 							Assessor (OIP)
 						</label>
@@ -1256,7 +1277,7 @@
 					<div>
 						<label
 							for="seint1Id"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
 						>
 							Inteligência 1 (SEINT - OIP)
 						</label>
@@ -1274,7 +1295,7 @@
 					<div>
 						<label
 							for="seint2Id"
-							class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
+							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
 						>
 							Inteligência 2 (SEINT - OIP)
 						</label>
@@ -1317,83 +1338,113 @@
 				</form>
 			{:else}
 				<div
-					class="p-4 rounded-xl bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700"
+					class="p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
 				>
-					<div class="flex items-start justify-between mb-4">
-						<div class="space-y-1">
-							<p
-								class="font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
-							>
-								<span
-									class="text-xs px-2 py-0.5 bg-surface-200 dark:bg-surface-700 rounded-md font-bold text-surface-600 dark:text-surface-300"
-									>DPC Supervisor</span
-								>
-								{gise.supervisor_nome ?? 'Não definido'}
-							</p>
-							{#if gise.assessor_id}
-								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-									<span
-										class="text-[0.65rem] px-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded text-surface-500"
-										>Assessor OIP</span
-									>
-									{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
-								</p>
-							{/if}
-							{#if gise.seint1_id}
-								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-									<span
-										class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help"
-										title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span
-									>
-									{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
-								</p>
-							{/if}
-							{#if gise.seint2_id}
-								<p class="text-sm text-surface-700 dark:text-surface-300 flex items-center gap-2">
-									<span
-										class="text-[0.65rem] px-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 rounded font-semibold cursor-help"
-										title="Membro SEINT - Produtividade via form. Inteligência">SEINT OIP</span
-									>
-									{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
-								</p>
+					<div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+						<div class="space-y-4 flex-1">
+							<!-- Main Supervisor Row -->
+							<div class="flex items-start gap-4">
+								<div class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm">
+									<UserRound size={20} />
+								</div>
+								<div>
+									<span class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5">DPC Supervisão</span>
+									<p class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
+										{gise.supervisor_nome ?? 'Não definido'}
+									</p>
+								</div>
+							</div>
+
+							<!-- Other Team Members -->
+							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+								{#if gise.assessor_id}
+									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-white/60 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-700/50">
+										<div class="text-surface-400 dark:text-surface-500">
+											<Users size={14} />
+										</div>
+										<div class="overflow-hidden">
+											<span class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500">Assessor</span>
+											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
+												{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
+											</p>
+										</div>
+									</div>
+								{/if}
+								
+								{#if gise.seint1_id}
+									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20">
+										<div class="text-indigo-600/70 dark:text-indigo-400/70">
+											<Users size={14} />
+										</div>
+										<div class="overflow-hidden">
+											<span class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80">SEINT OIP</span>
+											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
+												{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
+											</p>
+										</div>
+									</div>
+								{/if}
+
+								{#if gise.seint2_id}
+									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20">
+										<div class="text-indigo-600/70 dark:text-indigo-400/70">
+											<Users size={14} />
+										</div>
+										<div class="overflow-hidden">
+											<span class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80">SEINT OIP</span>
+											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
+												{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
+											</p>
+										</div>
+									</div>
+								{/if}
+							</div>
+						</div>
+
+						<div class="flex flex-col items-end gap-3 min-w-[140px]">
+							{#if documentoAssinadoInfo?.existe}
+								<div class="flex flex-col items-end">
+									<span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-success-500/20">
+										<CheckCircle2 size={12} />
+										Assinada
+									</span>
+								</div>
+							{:else}
+								<div class="flex flex-col items-end">
+									<span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20">
+										<Clock size={12} />
+										Pendente
+									</span>
+								</div>
 							{/if}
 						</div>
-						{#if documentoAssinadoInfo?.existe}
-							<span
-								class="text-sm px-2 py-0.5 rounded-full bg-success-500/20 text-success-700 dark:text-success-400 font-bold"
-								>ASSINADA</span
-							>
-						{:else}
-							<span
-								class="text-sm px-2 py-0.5 rounded-full bg-warning-500/20 text-warning-700 dark:text-warning-400 font-bold"
-								>PENDENTE</span
-							>
-						{/if}
 					</div>
+
 					{#if documentoAssinadoInfo?.existe}
-						<div class="mt-2 text-sm text-surface-500 space-y-1">
-							<p>
-								Assinado por: <span class="text-surface-900 dark:text-surface-100 font-medium"
-									>{documentoAssinadoInfo.assinante_nome}</span
-								>
-							</p>
+						<div class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 flex flex-wrap items-center justify-between gap-4">
+							<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+								<div class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center">
+									<ShieldCheck size={16} />
+								</div>
+								<div>
+									<p>Assinado digitalmente por:</p>
+									<p class="font-bold text-surface-900 dark:text-surface-100">
+										{documentoAssinadoInfo.assinante_nome}
+									</p>
+								</div>
+							</div>
+							
 							<a
 								href={`/api/gise/${gise.id}/documento-assinado`}
 								target="_blank"
-								class="text-primary-600 hover:underline font-semibold flex items-center gap-1 mt-1"
+								class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
 							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-									/></svg
-								>
+								<FileDown size={18} />
 								Baixar PDF Assinado
 							</a>
 						</div>
 					{/if}
+				</div>
 					{#if isAdminGeral || isSeccional}
 						<a
 							href={`/api/gise/${gise.id}/download?format=pdf`}
@@ -1411,8 +1462,8 @@
 							PDF da escala sem assinatura
 						</a>
 					{/if}
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
 
 		<!-- Banners de Sucesso (Assinaturas) -->
