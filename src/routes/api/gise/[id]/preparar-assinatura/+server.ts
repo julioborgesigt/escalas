@@ -18,6 +18,7 @@ import {
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
+import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -47,7 +48,15 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
 
-	const result = gerarPdfGise(toGisePdfData(giseDetalhado));
+	const r2Logo = getR2(platform);
+	let logoJpgBytes: Uint8Array | undefined;
+	if (r2Logo) {
+		try {
+			const logoObj = await r2Logo.get('assets/logogise.jpg');
+			if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
+		} catch (e) { /* logo optional */ }
+	}
+	const result = await gerarPdfGise(toGisePdfData(giseDetalhado), logoJpgBytes);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
