@@ -691,6 +691,16 @@ export interface GisePdfData {
 	status: string;
 	supervisor_nome: string | null;
 	supervisor_matricula: string | null;
+	supervisor_telefone: string | null;
+	assessor_nome: string | null;
+	assessor_matricula: string | null;
+	assessor_telefone: string | null;
+	seint1_nome: string | null;
+	seint1_matricula: string | null;
+	seint1_telefone: string | null;
+	seint2_nome: string | null;
+	seint2_matricula: string | null;
+	seint2_telefone: string | null;
 	seccionais: Array<{
 		seccional_id: number;
 		seccional_nome: string;
@@ -738,6 +748,16 @@ export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfDat
 		status: gise.status,
 		supervisor_nome: gise.supervisor_nome,
 		supervisor_matricula: gise.supervisor_matricula,
+		supervisor_telefone: gise.supervisor_telefone,
+		assessor_nome: gise.assessor_nome,
+		assessor_matricula: gise.assessor_matricula,
+		assessor_telefone: gise.assessor_telefone,
+		seint1_nome: gise.seint1_nome,
+		seint1_matricula: gise.seint1_matricula,
+		seint1_telefone: gise.seint1_telefone,
+		seint2_nome: gise.seint2_nome,
+		seint2_matricula: gise.seint2_matricula,
+		seint2_telefone: gise.seint2_telefone,
 		seccionais: gise.seccionais.map(sec => {
 			// Achatar equipes de todas as unidades desta seccional
 			const equipes: GisePdfData['seccionais'][number]['equipes'] = [];
@@ -890,6 +910,44 @@ export function gerarPdfGise(gise: GisePdfData): PdfExportResult {
 		}
 	}
 
+	// Bloco de Supervisão no canto inferior esquerdo
+	doc.setFontSize(8);
+	doc.setFont('helvetica', 'bold');
+	let contactY = sigY - 12; 
+
+	if (gise.supervisor_nome) {
+		doc.text(`Coordenador: `, 10, contactY);
+		const nameX = 10 + doc.getTextWidth('Coordenador: ');
+		doc.setFont('helvetica', 'normal');
+		doc.text(`${gise.supervisor_nome} - ${gise.supervisor_telefone || '—'}`, nameX, contactY);
+		contactY += 4;
+	}
+	if (gise.assessor_nome) {
+		doc.setFont('helvetica', 'bold');
+		doc.text(`Assessor: `, 10, contactY);
+		const nameX = 10 + doc.getTextWidth('Assessor: ');
+		doc.setFont('helvetica', 'normal');
+		doc.text(`${gise.assessor_nome} - ${gise.assessor_telefone || '—'}`, nameX, contactY);
+		contactY += 4;
+	}
+	if (gise.seint1_nome) {
+		doc.setFont('helvetica', 'bold');
+		doc.text(`Inteligência: `, 10, contactY);
+		const nameX = 10 + doc.getTextWidth('Inteligência: ');
+		doc.setFont('helvetica', 'normal');
+		doc.text(`${gise.seint1_nome} - ${gise.seint1_telefone || '—'}`, nameX, contactY);
+		contactY += 4;
+	}
+	if (gise.seint2_nome) {
+		doc.setFont('helvetica', 'bold');
+		doc.text(`Inteligência: `, 10, contactY);
+		const nameX = 10 + doc.getTextWidth('Inteligência: ');
+		doc.setFont('helvetica', 'normal');
+		doc.text(`${gise.seint2_nome} - ${gise.seint2_telefone || '—'}`, nameX, contactY);
+		contactY += 4;
+	}
+
+	// Assinatura (alinhada à direita)
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');

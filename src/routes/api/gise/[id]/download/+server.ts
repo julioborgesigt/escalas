@@ -217,84 +217,127 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 	// XLSX
 	const wb = new ExcelJS.Workbook();
+	
+	// Estilos Comuns
+	const styleTitle = (ws: ExcelJS.Worksheet, row: ExcelJS.Row, color: string) => {
+		row.height = 25;
+		row.eachCell((cell) => {
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+			cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 12 };
+			cell.alignment = { vertical: 'middle', horizontal: 'center' };
+		});
+	};
+
+	const styleHeader = (row: ExcelJS.Row) => {
+		row.height = 20;
+		row.eachCell((cell) => {
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+			cell.font = { bold: true, size: 10 };
+			cell.alignment = { vertical: 'middle', horizontal: 'center' };
+			cell.border = {
+				top: { style: 'thin' },
+				left: { style: 'thin' },
+				bottom: { style: 'thin' },
+				right: { style: 'thin' }
+			};
+		});
+	};
+
 	const wsResumo = wb.addWorksheet('Resumo Geral');
 	wsResumo.columns = [
-		{ width: 24 }, { width: 24 }, { width: 16 },
-		{ width: 30 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 30 },
-		{ width: 10 }, { width: 10 }
+		{ width: 25 }, { width: 10 }, { width: 15 }, { width: 18 }, { width: 30 },
+		{ width: 15 }, { width: 12 }, { width: 15 }, { width: 12 }
 	];
 
-	const resumoRows: (string | number)[][] = [
-		['ESCALA GISE'],
-		[`Data: ${fmtDate(gise.data_inicio)}`],
-		[`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`],
-		[`Supervisor: ${gise.supervisor_nome ?? '—'}`],
-		[`Status: ${statusLabel(gise.status)}`],
-		gise.documento?.assinante_nome ? [`Assinado por: ${gise.documento.assinante_nome}`] : [],
-		[],
-		['Seccional', 'Unidade Operacional', 'Equipe', 'Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']
-	];
+	wsResumo.addRow(['ESCALA GISE']).font = { bold: true, size: 16 };
+	wsResumo.addRow([`Data: ${fmtDate(gise.data_inicio)}`]);
+	wsResumo.addRow([`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`]);
+	wsResumo.addRow([`Supervisor: ${gise.supervisor_nome ?? '—'}`]);
+	wsResumo.addRow([`Status: ${statusLabel(gise.status)}`]);
+	if (gise.documento?.assinante_nome) wsResumo.addRow([`Assinado por: ${gise.documento.assinante_nome}`]);
+	wsResumo.addRow([]);
 
 	for (const sec of gise.seccionais ?? []) {
 		for (const unidade of sec.unidades ?? []) {
 			for (const equipe of unidade.equipes ?? []) {
-				for (const m of equipe.membros ?? []) {
-					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-					resumoRows.push([
-						sec.seccional_nome,
-						unidade.nome ?? '—',
-						equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT',
-						m.policial_nome,
-						m.policial_cargo,
-						m.policial_matricula,
-						m.policial_telefone || '—',
-						m.policial_lotacao ?? '—',
-						hEnt,
-						hSai
-					]);
+				const teamName = `${unidade.nome || sec.seccional_nome} - ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}`;
+				const titleRow = wsResumo.addRow([teamName]);
+				wsResumo.mergeCells(titleRow.number, 1, titleRow.number, 9);
+				styleTitle(wsResumo, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
+
+				const headerRow = wsResumo.addRow(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data Início', 'Hora Início', 'Data Término', 'Hora Término']);
+				styleHeader(headerRow);
+
+				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+
+				if (equipe.membros?.length) {
+					for (const m of equipe.membros) {
+						wsResumo.addRow([
+							m.policial_nome,
+							m.policial_cargo,
+							m.policial_matricula,
+							m.policial_telefone || '—',
+							m.policial_lotacao ?? '—',
+							fmtDate(gise.data_inicio),
+							fmtHoraGise(hEnt),
+							fmtDate(gise.data_inicio),
+							fmtHoraGise(hSai)
+						]);
+					}
+				} else {
+					wsResumo.addRow(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
 				}
+				wsResumo.addRow([]);
 			}
 		}
 	}
 
-	for (const row of resumoRows) wsResumo.addRow(row);
-
+	// Abas por Seccional
 	for (const sec of gise.seccionais ?? []) {
-		const rows: (string | number)[][] = [
-			[`SECCIONAL: ${sec.seccional_nome}`],
-			[`Unidade Operacional: ${sec.unidades?.[0]?.nome ?? '—'}`],
-			[`Status: ${sec.status === 'preenchida' ? 'Preenchida' : 'Pendente'}`],
-			[]
+		const ws = wb.addWorksheet(sec.seccional_nome.slice(0, 31));
+		ws.columns = [
+			{ width: 35 }, { width: 10 }, { width: 15 }, { width: 18 }, { width: 35 },
+			{ width: 15 }, { width: 12 }, { width: 15 }, { width: 12 }
 		];
+
+		ws.addRow([`SECCIONAL: ${sec.seccional_nome}`]).font = { bold: true, size: 14 };
+		ws.addRow([`Status: ${sec.status === 'preenchida' ? 'Preenchida' : 'Pendente'}`]);
+		ws.addRow([]);
 
 		for (const unidade of sec.unidades ?? []) {
 			for (const equipe of unidade.equipes ?? []) {
-				rows.push([`Equipe ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'} (${equipe.slots_dpc} DPC + ${equipe.slots_oip} OIP)`]);
-				rows.push(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Hora Entrada', 'Hora Saída']);
+				const unitTitle = unidade.nome || sec.seccional_nome;
+				const titleRow = ws.addRow([unitTitle]);
+				ws.mergeCells(titleRow.number, 1, titleRow.number, 9);
+				styleTitle(ws, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
+
+				const headerRow = ws.addRow(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data Início', 'Hora Início', 'Data Término', 'Hora Término']);
+				styleHeader(headerRow);
+
+				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+
 				if (equipe.membros?.length) {
 					for (const m of equipe.membros) {
-						const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-						const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-						rows.push([
-							m.policial_nome, m.policial_cargo, m.policial_matricula,
-							m.policial_telefone || '—', m.policial_lotacao ?? '—',
-							hEnt, hSai
+						ws.addRow([
+							m.policial_nome,
+							m.policial_cargo,
+							m.policial_matricula,
+							m.policial_telefone || '—',
+							m.policial_lotacao ?? '—',
+							fmtDate(gise.data_inicio),
+							fmtHoraGise(hEnt),
+							fmtDate(gise.data_inicio),
+							fmtHoraGise(hSai)
 						]);
 					}
 				} else {
-					rows.push(['(sem membros alocados)', '', '', '', '', '', '']);
+					ws.addRow(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
 				}
-				rows.push([]);
+				ws.addRow([]);
 			}
 		}
-
-		const ws = wb.addWorksheet(sec.seccional_nome.slice(0, 31));
-		ws.columns = [
-			{ width: 30 }, { width: 8 }, { width: 14 }, { width: 14 }, { width: 30 },
-			{ width: 10 }, { width: 10 }
-		];
-		for (const row of rows) ws.addRow(row);
 	}
 
 	const arrayBuffer = await wb.xlsx.writeBuffer();
@@ -315,6 +358,14 @@ function fmtDate(iso: string): string {
 	if (!iso) return '';
 	const [y, m, d] = iso.split('-');
 	return `${d}/${m}/${y}`;
+}
+
+function fmtHoraGise(h: any): string {
+	if (!h) return '';
+	if (String(h).includes(':')) return h;
+	const n = parseInt(String(h));
+	if (isNaN(n)) return String(h);
+	return `${String(n).padStart(2, '0')}:00`;
 }
 
 function statusLabel(status: string): string {
