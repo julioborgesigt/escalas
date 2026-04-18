@@ -8,13 +8,13 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { 
-		ShieldCheck, 
-		UserRound, 
-		Users, 
-		FileDown, 
-		CheckCircle2, 
-		Clock, 
+	import {
+		ShieldCheck,
+		UserRound,
+		Users,
+		FileDown,
+		CheckCircle2,
+		Clock,
 		AlertCircle,
 		PenLine
 	} from 'lucide-svelte';
@@ -146,6 +146,24 @@
 
 	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
 	const oips = $derived(policiais.filter((p: any) => p.cargo === 'OIP'));
+
+	// Cores sutis para cada seccional (identificação visual)
+	const seccionalColors = [
+		'bg-blue-50/50 dark:bg-blue-900/10',
+		'bg-emerald-50/50 dark:bg-emerald-900/10',
+		'bg-indigo-50/50 dark:bg-indigo-900/10',
+		'bg-violet-50/50 dark:bg-violet-900/10',
+		'bg-amber-50/50 dark:bg-amber-900/10',
+		'bg-rose-50/50 dark:bg-rose-900/10',
+		'bg-cyan-50/50 dark:bg-cyan-900/10',
+		'bg-teal-50/50 dark:bg-teal-900/10',
+		'bg-sky-50/50 dark:bg-sky-900/10',
+		'bg-slate-50/50 dark:bg-slate-900/10'
+	];
+
+	function getSeccionalColor(seccionalId: number) {
+		return seccionalColors[seccionalId % seccionalColors.length];
+	}
 
 	function getMembrosFromSec(sec: any): any[] {
 		return (sec.unidades ?? []).flatMap((u: any) =>
@@ -517,7 +535,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Vagas atualizadas' });
 				editandoEquipe = null;
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -690,7 +708,7 @@
 				title: 'Lote assinado com sucesso!',
 				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
 			});
-			await invalidate(page.url.href);
+			await invalidate('gise:detail');
 		} catch (err: any) {
 			toaster.error({ title: 'Erro no lote', description: err.message });
 		} finally {
@@ -845,7 +863,7 @@
 					toaster.success({ title: 'Datas/horários atualizados' });
 				}
 				showModalDataHoras = false;
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -877,7 +895,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da seccional atualizados' });
 				editandoHorariosSecId = null;
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -899,7 +917,7 @@
 			if (result.type === 'success') {
 				toaster.success({ title: 'Horários da equipe atualizados' });
 				editandoHorariosEquipeId = null;
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -1209,20 +1227,24 @@
 	{:else}
 		<!-- Supervisão e apoio -->
 		<div
-			class="relative overflow-hidden rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
+			class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
 		>
 			<!-- Decorative gradient background -->
-			<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"></div>
-			
+			<div
+				class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"
+			></div>
+
 			<div class="p-6">
 				<div class="flex flex-wrap items-center justify-between gap-4 mb-5">
 					<div class="flex items-center gap-3">
 						<div class="p-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
 							<ShieldCheck size={24} />
 						</div>
-						<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">Supervisão e apoio</h2>
+						<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">
+							Supervisão e apoio
+						</h2>
 					</div>
-					
+
 					{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
 						<button
 							type="button"
@@ -1237,214 +1259,251 @@
 					{/if}
 				</div>
 
-			{#if editandoSupervisores}
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-					<div>
-						<label
-							for="supId"
-							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-							>Supervisão e apoio (DPC)</label
-						>
-						<SearchableSelect
-							id="supId"
-							bind:value={supervisorId}
-							options={[
-								{ value: null, label: 'Não definido' },
-								...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-							]}
-							placeholder="Pesquisar Supervisão..."
-							class="w-full"
-						/>
-					</div>
-					<div>
-						<label
-							for="assessorId"
-							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-						>
-							Assessor (OIP)
-						</label>
-						<SearchableSelect
-							id="assessorId"
-							bind:value={assessorId}
-							options={[
-								{ value: null, label: 'Não definido' },
-								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-							]}
-							placeholder="Pesquisar Assessor..."
-							class="w-full"
-						/>
-					</div>
-					<div>
-						<label
-							for="seint1Id"
-							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-						>
-							Inteligência 1 (SEINT - OIP)
-						</label>
-						<SearchableSelect
-							id="seint1Id"
-							bind:value={seint1Id}
-							options={[
-								{ value: null, label: 'Não definido' },
-								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-							]}
-							placeholder="Pesquisar SEINT 1..."
-							class="w-full"
-						/>
-					</div>
-					<div>
-						<label
-							for="seint2Id"
-							class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-						>
-							Inteligência 2 (SEINT - OIP)
-						</label>
-						<SearchableSelect
-							id="seint2Id"
-							bind:value={seint2Id}
-							options={[
-								{ value: null, label: 'Não definido' },
-								...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-							]}
-							placeholder="Pesquisar SEINT 2..."
-							class="w-full"
-						/>
-					</div>
-				</div>
-				<form
-					method="POST"
-					action="?/salvarSupervisores"
-					use:enhance={handleSalvarSupervisores}
-					class="flex gap-2"
-				>
-					<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-					<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
-					<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
-					<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
-						disabled={pendingCrud}
-					>
-						{pendingCrud ? 'Salvando...' : 'Salvar'}
-					</button>
-					<button
-						type="button"
-						class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
-						onclick={() => (editandoSupervisores = false)}
-					>
-						Cancelar
-					</button>
-				</form>
-			{:else}
-				<div
-					class="p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
-				>
-					<div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-						<div class="space-y-4 flex-1">
-							<!-- Main Supervisor Row -->
-							<div class="flex items-start gap-4">
-								<div class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm">
-									<UserRound size={20} />
-								</div>
-								<div>
-									<span class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5">DPC Supervisão</span>
-									<p class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
-										{gise.supervisor_nome ?? 'Não definido'}
-									</p>
-								</div>
-							</div>
-
-							<!-- Other Team Members -->
-							<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-								{#if gise.assessor_id}
-									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-white/60 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-700/50">
-										<div class="text-surface-400 dark:text-surface-500">
-											<Users size={14} />
-										</div>
-										<div class="overflow-hidden">
-											<span class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500">Assessor</span>
-											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
-												{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
-											</p>
-										</div>
-									</div>
-								{/if}
-								
-								{#if gise.seint1_id}
-									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20">
-										<div class="text-indigo-600/70 dark:text-indigo-400/70">
-											<Users size={14} />
-										</div>
-										<div class="overflow-hidden">
-											<span class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80">SEINT OIP</span>
-											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
-												{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
-											</p>
-										</div>
-									</div>
-								{/if}
-
-								{#if gise.seint2_id}
-									<div class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20">
-										<div class="text-indigo-600/70 dark:text-indigo-400/70">
-											<Users size={14} />
-										</div>
-										<div class="overflow-hidden">
-											<span class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80">SEINT OIP</span>
-											<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
-												{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
-											</p>
-										</div>
-									</div>
-								{/if}
-							</div>
-						</div>
-
-						<div class="flex flex-col items-end gap-3 min-w-[140px]">
-							{#if documentoAssinadoInfo?.existe}
-								<div class="flex flex-col items-end">
-									<span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-success-500/20">
-										<CheckCircle2 size={12} />
-										Assinada
-									</span>
-								</div>
-							{:else}
-								<div class="flex flex-col items-end">
-									<span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20">
-										<Clock size={12} />
-										Pendente
-									</span>
-								</div>
-							{/if}
-						</div>
-					</div>
-
-					{#if documentoAssinadoInfo?.existe}
-						<div class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 flex flex-wrap items-center justify-between gap-4">
-							<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-								<div class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center">
-									<ShieldCheck size={16} />
-								</div>
-								<div>
-									<p>Assinado digitalmente por:</p>
-									<p class="font-bold text-surface-900 dark:text-surface-100">
-										{documentoAssinadoInfo.assinante_nome}
-									</p>
-								</div>
-							</div>
-							
-							<a
-								href={`/api/gise/${gise.id}/documento-assinado`}
-								target="_blank"
-								class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
+				{#if editandoSupervisores}
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+						<div>
+							<label
+								for="supId"
+								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
+								>Supervisão e apoio (DPC)</label
 							>
-								<FileDown size={18} />
-								Baixar PDF Assinado
-							</a>
+							<SearchableSelect
+								id="supId"
+								bind:value={supervisorId}
+								options={[
+									{ value: null, label: 'Não definido' },
+									...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+								]}
+								placeholder="Pesquisar Supervisão..."
+								class="w-full"
+							/>
 						</div>
-					{/if}
-				</div>
+						<div>
+							<label
+								for="assessorId"
+								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
+							>
+								Assessor (OIP)
+							</label>
+							<SearchableSelect
+								id="assessorId"
+								bind:value={assessorId}
+								options={[
+									{ value: null, label: 'Não definido' },
+									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+								]}
+								placeholder="Pesquisar Assessor..."
+								class="w-full"
+							/>
+						</div>
+						<div>
+							<label
+								for="seint1Id"
+								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
+							>
+								Inteligência 1 (SEINT - OIP)
+							</label>
+							<SearchableSelect
+								id="seint1Id"
+								bind:value={seint1Id}
+								options={[
+									{ value: null, label: 'Não definido' },
+									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+								]}
+								placeholder="Pesquisar SEINT 1..."
+								class="w-full"
+							/>
+						</div>
+						<div>
+							<label
+								for="seint2Id"
+								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
+							>
+								Inteligência 2 (SEINT - OIP)
+							</label>
+							<SearchableSelect
+								id="seint2Id"
+								bind:value={seint2Id}
+								options={[
+									{ value: null, label: 'Não definido' },
+									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
+								]}
+								placeholder="Pesquisar SEINT 2..."
+								class="w-full"
+							/>
+						</div>
+					</div>
+					<form
+						method="POST"
+						action="?/salvarSupervisores"
+						use:enhance={handleSalvarSupervisores}
+						class="flex gap-2"
+					>
+						<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+						<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
+						<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
+						<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+						<button
+							type="submit"
+							class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+							disabled={pendingCrud}
+						>
+							{pendingCrud ? 'Salvando...' : 'Salvar'}
+						</button>
+						<button
+							type="button"
+							class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
+							onclick={() => (editandoSupervisores = false)}
+						>
+							Cancelar
+						</button>
+					</form>
+				{:else}
+					<div
+						class="p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
+					>
+						<div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+							<div class="space-y-4 flex-1">
+								<!-- Main Supervisor Row -->
+								<div class="flex items-start gap-4">
+									<div
+										class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
+									>
+										<UserRound size={20} />
+									</div>
+									<div>
+										<span
+											class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
+											>DPC Supervisão</span
+										>
+										<p class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
+											{gise.supervisor_nome ?? 'Não definido'}
+										</p>
+									</div>
+								</div>
+
+								<!-- Other Team Members -->
+								<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+									{#if gise.assessor_id}
+										<div
+											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-white/60 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-700/50"
+										>
+											<div class="text-surface-400 dark:text-surface-500">
+												<Users size={14} />
+											</div>
+											<div class="overflow-hidden">
+												<span
+													class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
+													>Assessor</span
+												>
+												<p
+													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+												>
+													{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ??
+														'Carregando...'}
+												</p>
+											</div>
+										</div>
+									{/if}
+
+									{#if gise.seint1_id}
+										<div
+											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
+										>
+											<div class="text-indigo-600/70 dark:text-indigo-400/70">
+												<Users size={14} />
+											</div>
+											<div class="overflow-hidden">
+												<span
+													class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
+													>SEINT OIP</span
+												>
+												<p
+													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+												>
+													{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ??
+														'Carregando...'}
+												</p>
+											</div>
+										</div>
+									{/if}
+
+									{#if gise.seint2_id}
+										<div
+											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
+										>
+											<div class="text-indigo-600/70 dark:text-indigo-400/70">
+												<Users size={14} />
+											</div>
+											<div class="overflow-hidden">
+												<span
+													class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
+													>SEINT OIP</span
+												>
+												<p
+													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+												>
+													{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ??
+														'Carregando...'}
+												</p>
+											</div>
+										</div>
+									{/if}
+								</div>
+							</div>
+
+							<div class="flex flex-col items-end gap-3 min-w-[140px]">
+								{#if documentoAssinadoInfo?.existe}
+									<div class="flex flex-col items-end">
+										<span
+											class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-success-500/20"
+										>
+											<CheckCircle2 size={12} />
+											Assinada
+										</span>
+									</div>
+								{:else}
+									<div class="flex flex-col items-end">
+										<span
+											class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20"
+										>
+											<Clock size={12} />
+											Pendente
+										</span>
+									</div>
+								{/if}
+							</div>
+						</div>
+
+						{#if documentoAssinadoInfo?.existe}
+							<div
+								class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 flex flex-wrap items-center justify-between gap-4"
+							>
+								<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+									<div
+										class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center"
+									>
+										<ShieldCheck size={16} />
+									</div>
+									<div>
+										<p>Assinado digitalmente por:</p>
+										<p class="font-bold text-surface-900 dark:text-surface-100">
+											{documentoAssinadoInfo.assinante_nome}
+										</p>
+									</div>
+								</div>
+
+								<a
+									href={`/api/gise/${gise.id}/documento-assinado`}
+									target="_blank"
+									class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
+								>
+									<FileDown size={18} />
+									Baixar PDF Assinado
+								</a>
+							</div>
+						{/if}
+					</div>
 					{#if isAdminGeral || isSeccional}
 						<a
 							href={`/api/gise/${gise.id}/download?format=pdf`}
@@ -1719,7 +1778,7 @@
 									disabled={loading.active}
 									onSuccess={async () => {
 										rubricaCapturada = null;
-										await invalidate(page.url.href);
+										await invalidate('gise:detail');
 									}}
 								/>
 
@@ -1962,7 +2021,9 @@
 					>
 						<!-- Cabeçalho da seccional -->
 						<div
-							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 bg-surface-100 dark:bg-surface-800"
+							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColor(
+								sec.seccional_id
+							)}"
 						>
 							<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 								<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
@@ -2028,7 +2089,7 @@
 										{#if sec.hora_entrada || sec.hora_saida}
 											<span
 												class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20"
-												>PERSONALIZADO</span
+												>H. Personalizado</span
 											>
 										{/if}
 									</div>
@@ -2086,7 +2147,9 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div
-							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700"
+							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColor(
+								sec.seccional_id
+							)} border-b border-surface-200 dark:border-surface-700"
 						>
 							{#if podeDownload}
 								{@const assRel = data.assinaturasRelatorios?.find(
@@ -2528,7 +2591,7 @@
 																	{#if equipe.hora_entrada || equipe.hora_saida}
 																		<span
 																			class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase"
-																			>Horário Equipe</span
+																			>H. Personalizado</span
 																		>
 																	{/if}
 																</div>
@@ -2562,7 +2625,7 @@
 																				d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
 																			/></svg
 																		>
-																		Editar horários desta equipe
+																		Editar horários equipe
 																	</button>
 																{/if}
 															{/if}
@@ -2588,7 +2651,7 @@
 																			d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
 																		/></svg
 																	>
-																	Editar vagas desta equipe
+																	Editar vagas equipe
 																</button>
 															{/if}
 														{/if}
@@ -3273,7 +3336,7 @@
 				onSuccess={async () => {
 					showDigitalModalRelatorio = false;
 					relatorioDigitalInfo = null;
-					await invalidate(page.url.href);
+					await invalidate('gise:detail');
 				}}
 			/>
 

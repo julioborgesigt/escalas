@@ -47,7 +47,7 @@
 
 <svelte:window onclick={handleWindowClick} />
 
-<div class="relative w-full {className}" bind:this={containerRef}>
+<div class="relative w-full {className} {isOpen ? 'z-[60]' : 'z-0'}" bind:this={containerRef}>
 	<!-- Hidden input to make it work with native forms naturally -->
 	<input type="hidden" {name} {id} {value} />
 
@@ -118,7 +118,7 @@
 
 	{#if isOpen}
 		<ul
-			class="absolute z-50 w-full mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl max-h-60 overflow-y-auto"
+			class="absolute z-50 w-full mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl max-h-80 overflow-y-auto"
 		>
 			{#if filteredOptions.length === 0}
 				<li class="px-3 py-2 text-sm text-surface-500 cursor-default">
