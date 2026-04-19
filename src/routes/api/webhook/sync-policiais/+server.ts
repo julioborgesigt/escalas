@@ -14,7 +14,7 @@ function bearerTokenValido(authHeader: string | null, expectedToken: string): bo
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const authHeader = request.headers.get('Authorization');
-	const SYNC_TOKEN = (platform?.env as any)?.SYNC_TOKEN;
+	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
 
 	// Validação de segurança básica: Bearer Token
 	if (!SYNC_TOKEN || !bearerTokenValido(authHeader, SYNC_TOKEN)) {
@@ -75,8 +75,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 					papel: papelMap
 				});
 				successCount++;
-			} catch (err: any) {
-				errors.push(`${rowId}: ${err.message}`);
+			} catch (err: unknown) {
+				errors.push(`${rowId}: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
 
@@ -87,7 +87,13 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			failed: errors.length,
 			errorDetails: errors.length > 0 ? errors : undefined
 		});
-	} catch (err: any) {
-		return json({ error: 'Erro crítico no processamento', details: err.message }, { status: 400 });
+	} catch (err: unknown) {
+		return json(
+			{
+				error: 'Erro crítico no processamento',
+				details: err instanceof Error ? err.message : String(err)
+			},
+			{ status: 400 }
+		);
 	}
 };

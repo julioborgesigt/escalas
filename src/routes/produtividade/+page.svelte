@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import type { Snippet } from 'svelte';
+	import type { Unidade } from '$lib/types';
+	import type { GiseRespostaListagemItem } from '$lib/db/gise';
 	import { useMultiSelect, useCharts } from '$lib/composables';
 	import {
 		mapQuestions,
@@ -18,8 +21,13 @@
 		type DetailItem
 	} from '$lib/export-charts';
 
+	type ChartJs = (typeof import('chart.js/auto'))['default'];
+
+	type ProdutividadeListaItem = GiseRespostaListagemItem;
+	type ProdutividadeParsedRow = ProdutividadeListaItem & { respostasParsed: Record<string, unknown> };
+
 	// Chart.js loaded lazily to save ~200KB on initial bundle
-	let Chart: any = null;
+	let Chart: ChartJs | null = null;
 	let chartLoaded = $state(false);
 
 	async function loadChart() {
@@ -49,7 +57,7 @@
 	];
 
 	function selectAllCharts() {
-		selection.selectAll([...QUESTIONS.map((q: any) => q.id), ...TOP_IDS]);
+		selection.selectAll([...QUESTIONS.map((q) => q.id), ...TOP_IDS]);
 	}
 
 	// Alias para compatibilidade com template
@@ -73,7 +81,7 @@
 
 	// Derived Data
 	let filteredData = $derived(
-		(data.lista || []).filter((item: any) => {
+		(data.lista || []).filter((item: ProdutividadeListaItem) => {
 			const date = item.data_inicio;
 			const tipo = (item.equipe_tipo || 'operacional').toLowerCase();
 			if (tipo !== filterTipo) return false;
@@ -88,9 +96,9 @@
 
 	// Parse respostas UMA VEZ — evita JSON.parse duplicado em stats, rankings e charts
 	let parsedData = $derived(
-		filteredData.map((item: any) => ({
+		filteredData.map((item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
 			...item,
-			respostasParsed: JSON.parse(item.respostas || '{}')
+			respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
 		}))
 	);
 
@@ -137,11 +145,11 @@
 
 	// Destroy all stale chart instances when question set changes
 	$effect(() => {
-		const currentIds = new Set(QUESTIONS.map((q: any) => q.id));
+		const currentIds = new Set(QUESTIONS.map((q) => q.id));
 		charts.destroyStaleCharts(currentIds);
 	});
 
-	async function updateChartsFn(list: any[]) {
+	async function updateChartsFn(list: ProdutividadeParsedRow[]) {
 		await loadChart();
 		// Pass parsed data (respostas already parsed)
 		charts.updateCharts(QUESTIONS as Question[], list, filterSeccional);
@@ -150,7 +158,7 @@
 	$effect(() => {
 		const _data = parsedData;
 		const allCanvasesReady =
-			QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
+			QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
 		if (_data && allCanvasesReady) {
 			tick().then(() => updateChartsFn(_data));
 		}
@@ -158,7 +166,7 @@
 
 	$effect(() => {
 		// Initial chart render on mount — ensures charts are drawn before user scrolls
-		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q: any) => !!canvasElements[q.id]);
+		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
 		if (parsedData.length > 0 && allReady) {
 			updateChartsFn(parsedData);
 		}
@@ -168,7 +176,7 @@
 		if (selectedCharts.length === 0) return;
 
 		const seccionalName =
-			data.seccionais?.find((s: any) => s.id === Number(filterSeccional))?.nome ||
+			data.seccionais?.find((s: Unidade) => s.id === Number(filterSeccional))?.nome ||
 			'Todas as Seccionais';
 		const start = filterInicio || defaultStart;
 		const end = filterFim || defaultEnd;
@@ -181,7 +189,7 @@
 
 			if (!isVirtual) {
 				// Chart normal — usar utilitário
-				const q = QUESTIONS.find((qi: any) => qi.id === id);
+				const q = QUESTIONS.find((qi) => qi.id === id);
 				if (!q) continue;
 				const sourceCanvas = canvasElements[id as number];
 				if (!sourceCanvas) continue;
@@ -258,9 +266,9 @@
 {#snippet subRanking(
 	id: string,
 	title: string,
-	ranking: any[],
+	ranking: RankingItem[],
 	color: string,
-	icon: any,
+	icon: Snippet<[string]>,
 	labelUnit: string
 )}
 	<div
@@ -734,11 +742,11 @@
 						{#if q.specialStore === 'drogasGeral'}
 							{(stats.drogasGeral / 1000).toFixed(2)}<span class="text-sm ml-1 opacity-60">kg</span>
 						{:else if q.isBool}
-							{parsedData.filter((i: any) => i.respostasParsed[q.key] === 'Sim').length}
+							{parsedData.filter((i) => i.respostasParsed[q.key] === 'Sim').length}
 						{:else}
 							{stats[q.key as keyof typeof stats] ??
 								parsedData.reduce(
-									(acc: number, i: any) => acc + (Number(i.respostasParsed[q.key]) || 0),
+									(acc: number, i) => acc + (Number(i.respostasParsed[q.key]) || 0),
 									0
 								)}
 						{/if}

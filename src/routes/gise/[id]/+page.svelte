@@ -11,7 +11,12 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
-	import type { Policial, Unidade } from '$lib/server/schema';
+	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import type { GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
+
+	function messageFromUnknown(e: unknown): string {
+		return e instanceof Error ? e.message : String(e);
+	}
 	import {
 		checkAllSigned,
 		filtrarDelegacias,
@@ -262,8 +267,8 @@
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
-				const data = await res.json().catch(() => ({}));
-				toaster.error({ title: String((data as any)?.error || 'Erro ao remover') });
+				const data = (await res.json().catch(() => ({}))) as { error?: string };
+				toaster.error({ title: String(data?.error || 'Erro ao remover') });
 			}
 		} catch {
 			toaster.error({ title: 'Erro ao remover seccional' });
@@ -578,7 +583,7 @@
 		const lista: Array<{ seccionalId: number; tipo: 'extraordinario' }> = [];
 		for (const sec of gise?.seccionais || []) {
 			const relAssinado = data.assinaturasRelatorios?.find(
-				(a: any) =>
+				(a: GiseAssinaturaRelatorio) =>
 					(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
 					a.tipo === 'extraordinario'
 			);
@@ -701,8 +706,8 @@
 				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
 			});
 			await invalidate('gise:detail');
-		} catch (err: any) {
-			toaster.error({ title: 'Erro no lote', description: err.message });
+		} catch (err: unknown) {
+			toaster.error({ title: 'Erro no lote', description: messageFromUnknown(err) });
 		} finally {
 			assinandoLote = false;
 			etapaAssinatura = '';
@@ -753,10 +758,10 @@
 				toaster.success({ title: 'Lote assinado com sucesso!' });
 				relatorioSendoAssinado = null;
 				await invalidate('gise:detail');
-			} catch (e: any) {
+			} catch (e: unknown) {
 				toaster.error({
 					title: 'Erro ao assinar lote',
-					description: e.message
+					description: messageFromUnknown(e)
 				});
 			} finally {
 				loading.hide();
@@ -792,10 +797,10 @@
 			toaster.success({ title: 'Relatório assinado com sucesso!' });
 			relatorioSendoAssinado = null;
 			await invalidate('gise:detail');
-		} catch (e: any) {
+		} catch (e: unknown) {
 			toaster.error({
 				title: 'Erro ao assinar relatório',
-				description: e.message
+				description: messageFromUnknown(e)
 			});
 		} finally {
 			loading.hide();
@@ -1019,7 +1024,7 @@
 	iconPath?: string,
 	variant = 'primary',
 	type = 'outlined',
-	onclick?: any,
+	onclick?: () => void,
 	href?: string,
 	disabled = false,
 	isLoadingLoc = false,
@@ -1288,12 +1293,12 @@
 						>
 							{#if podeDownload}
 								{@const assRel = data.assinaturasRelatorios?.find(
-									(a: any) =>
+									(a: GiseAssinaturaRelatorio) =>
 										(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
 										a.tipo === 'extraordinario'
 								)}
 								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
-									{#each [...new Set((sec.equipes ?? []).map((eq: any) => eq.tipo))] as tipo}
+									{#each [...new Set((sec.equipes ?? []).map((eq: GiseEquipeComMembros) => eq.tipo))] as tipo}
 										<a
 											class="btn text-xs preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
 												? 'pointer-events-none opacity-60'
@@ -1438,19 +1443,22 @@
 												class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold w-full"
 												disabled={pendingCrud ||
 													(sec.unidades ?? []).length === 0 ||
-													(sec.unidades ?? []).some((s: any) => s.unidade_id === null) ||
+													(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||
 													(sec.unidades ?? []).some(
-														(s: any) =>
-															!(s.equipes ?? []).some((eq: any) => (eq.membros ?? []).length > 0)
+														(s: GiseUnidadeSlot) =>
+															!(s.equipes ?? []).some(
+																(eq: GiseEquipeComMembros) => (eq.membros ?? []).length > 0
+															)
 													)}
 												title={(sec.unidades ?? []).length === 0
 													? 'Adicione ao menos uma unidade antes de finalizar'
-													: (sec.unidades ?? []).some((s: any) => s.unidade_id === null)
+													: (sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null)
 														? 'Todos os slots devem ter uma unidade selecionada'
 														: (sec.unidades ?? []).some(
-																	(s: any) =>
+																	(s: GiseUnidadeSlot) =>
 																		!(s.equipes ?? []).some(
-																			(eq: any) => (eq.membros ?? []).length > 0
+																			(eq: GiseEquipeComMembros) =>
+																				(eq.membros ?? []).length > 0
 																		)
 															  )
 															? 'Cada unidade deve ter pelo menos 1 policial alocado'
@@ -1506,7 +1514,7 @@
 															class="flex-1 min-w-40 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 														>
 															<option value="">Selecionar unidade...</option>
-															{#each todasUnidades.filter((d: any) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: any) => s.unidade_id === d.id && s.id !== slot.id)) as d}
+															{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
 																<option value={d.id}>{d.nome}</option>
 															{/each}
 														</select>
@@ -2093,7 +2101,7 @@
 												class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 											>
 												<option value="">Slot em branco (Adm Seccional preenche depois)</option>
-												{#each todasUnidades.filter((d: any) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: any) => s.unidade_id === d.id)) as d}
+												{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id)) as d}
 													<option value={d.id}>{d.nome}</option>
 												{/each}
 											</select>
