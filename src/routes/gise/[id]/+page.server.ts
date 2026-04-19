@@ -63,41 +63,73 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	}
 
 	try {
-		const policiaisPromise = isGeral
-			? listarPoliciais(db, undefined, false, { limit: 10000 }).then(r => r.policiais)
-			: isSeccional && u.papel_unidade_id
-				? db
-					.select({ nome: unidades.nome })
-					.from(unidades)
-					.where(or(eq(unidades.seccional_id, u.papel_unidade_id!), eq(unidades.id, u.papel_unidade_id!)))
-					.then(async (unidadesSubordinadas) => {
-						const nomesUnidades = unidadesSubordinadas.map(un => un.nome);
-						if (nomesUnidades.length === 0) return [];
-						return db
-							.select()
-							.from(policiais)
-							.where(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, nomesUnidades)))
-							.orderBy(asc(policiais.cargo), asc(policiais.nome));
-					})
-				: Promise.resolve([]);
-
-		// 5 queries paralelas — config flags vêm do layout (cache de cookie de 5min)
-		const [gise, policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] = await Promise.all([
-			buscarGiseDetalhado(db, id),
-			policiaisPromise,
-			db.select().from(unidades).orderBy(asc(unidades.nome)),
-			buscarAssinaturasRelatoriosGise(db, id),
-			buscarRestringirSmartphone(db)
-		]);
-
+		const gise = await buscarGiseDetalhado(db, id);
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
+
+		const supportIds = [
+			gise.supervisor_id,
+			gise.assessor_id,
+			gise.seint1_id,
+			gise.seint2_id
+		].filter((val): val is number => val !== null);
+
+		const policiaisPromise = isGeral
+			? listarPoliciais(db, undefined, false, { limit: 10000 }).then((r) => r.policiais)
+			: (async () => {
+					// Perto de Admin Seccional: busca lotações permitidas
+					let permittedUnits: string[] = [];
+					if (isSeccional && u.papel_unidade_id) {
+						const unitsList = await db
+							.select({ nome: unidades.nome })
+							.from(unidades)
+							.where(
+								or(
+									eq(unidades.seccional_id, u.papel_unidade_id!),
+									eq(unidades.id, u.papel_unidade_id!)
+								)
+							);
+						permittedUnits = unitsList.map((un) => un.nome);
+					}
+
+					// Sempre inclui os IDs de suporte da GISE atual na consulta
+					const conditions = [];
+					if (permittedUnits.length > 0) {
+						conditions.push(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, permittedUnits)));
+					}
+					if (supportIds.length > 0) {
+						conditions.push(inArray(policiais.id, supportIds));
+					}
+
+					if (conditions.length === 0) return [];
+
+					return db
+						.select()
+						.from(policiais)
+						.where(or(...conditions))
+						.orderBy(asc(policiais.cargo), asc(policiais.nome));
+				})();
+
+		// Queries paralelas restantes
+		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] =
+			await Promise.all([
+				policiaisPromise,
+				db.select().from(unidades).orderBy(asc(unidades.nome)),
+				buscarAssinaturasRelatoriosGise(db, id),
+				buscarRestringirSmartphone(db)
+			]);
 
 		return {
 			gise,
 			policiais: policiaisListResult,
 			todasUnidades,
 			assinaturasRelatorios,
-			papelGise: isGeral ? 'admin_geral' : (isSeccional ? 'admin_seccional' : (isSupervisor ? 'supervisor' : 'policial')),
+			papelGise: isGeral
+				? 'admin_geral'
+				: isSeccional
+					? 'admin_seccional'
+					: isSupervisor
+						? 'supervisor'
+						: 'policial',
 			isGeral,
 			isSeccional,
 			isSupervisor,

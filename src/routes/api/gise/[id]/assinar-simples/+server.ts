@@ -162,7 +162,12 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			}
 		});
 	} catch (e: any) {
-		logger.error('[gise/assinar-simples] Erro', { error: e?.message });
-		return json({ error: 'Falha ao gerar assinatura GISE. Tente novamente.' }, { status: 500 });
+		logger.error('[gise/assinar-simples] Erro', { 
+			error: e?.message,
+			stack: e?.stack,
+			giseId: id,
+			usuario: u?.nome
+		});
+		return json({ error: `Falha ao gerar assinatura GISE: ${e?.message || 'Tente novamente.'}` }, { status: 500 });
 	}
 };

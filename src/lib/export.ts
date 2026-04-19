@@ -742,11 +742,13 @@ function fmtHoraGise(h: any): string {
  * Transforma GiseDetalhado (estrutura do DB com unidades) em GisePdfData (estrutura plana com equipes).
  */
 export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfData {
+	if (!gise) throw new Error('Dados da GISE não fornecidos');
+
 	return {
-		data_inicio: gise.data_inicio,
-		hora_entrada: gise.hora_entrada,
-		hora_saida: gise.hora_saida,
-		status: gise.status,
+		data_inicio: gise.data_inicio || '',
+		hora_entrada: gise.hora_entrada || '08:00',
+		hora_saida: gise.hora_saida || '16:00',
+		status: gise.status || '',
 		supervisor_nome: gise.supervisor_nome,
 		supervisor_matricula: gise.supervisor_matricula,
 		supervisor_telefone: gise.supervisor_telefone,
@@ -759,38 +761,39 @@ export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfDat
 		seint2_nome: gise.seint2_nome,
 		seint2_matricula: gise.seint2_matricula,
 		seint2_telefone: gise.seint2_telefone,
-		seccionais: gise.seccionais.map(sec => {
-			// Achatar equipes de todas as unidades desta seccional
-			const equipes: GisePdfData['seccionais'][number]['equipes'] = [];
-			for (const unidade of sec.unidades ?? []) {
-				for (const eq of unidade.equipes ?? []) {
-					equipes.push({
+		seccionais: (gise.seccionais || []).map(sec => {
+			const equipesList: GisePdfData['seccionais'][number]['equipes'] = [];
+
+			(sec.unidades || []).forEach(slot => {
+				(slot.equipes || []).forEach(eq => {
+					equipesList.push({
 						tipo: eq.tipo,
-						slots_dpc: eq.slots_dpc,
-						slots_oip: eq.slots_oip,
+						slots_dpc: eq.slots_dpc || 0,
+						slots_oip: eq.slots_oip || 0,
 						hora_entrada: eq.hora_entrada,
 						hora_saida: eq.hora_saida,
-						membros: eq.membros.map(m => ({
+						membros: (eq.membros || []).map(m => ({
 							policial_id: m.policial_id,
-							policial_nome: m.policial_nome,
-							policial_cargo: m.policial_cargo,
-							policial_matricula: m.policial_matricula,
+							policial_nome: m.policial_nome || '—',
+							policial_cargo: m.policial_cargo || '',
+							policial_matricula: m.policial_matricula || '',
 							policial_telefone: m.policial_telefone,
 							policial_lotacao: m.policial_lotacao,
 							policial_classe: m.policial_classe,
 							presenca: m.presenca
 						}))
 					});
-				}
-			}
+				});
+			});
+
 			return {
 				seccional_id: sec.seccional_id,
-				seccional_nome: sec.seccional_nome,
+				seccional_nome: sec.seccional_nome || '—',
 				unidade_operacional_nome: sec.unidades?.[0]?.nome ?? null,
-				status: sec.status,
+				status: sec.status || '',
 				hora_entrada: sec.hora_entrada,
 				hora_saida: sec.hora_saida,
-				equipes
+				equipes: equipesList
 			};
 		}),
 		documento: gise.documento ? {
