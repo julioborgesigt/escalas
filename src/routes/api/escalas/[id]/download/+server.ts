@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import * as exportLib from '$lib/export';
 import { contentDisposition } from '$lib/server/api';
+import { logger } from '$lib/server/logger';
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
 	const u = locals.usuario;
@@ -61,7 +62,11 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			}
 		});
 	} catch (err) {
-		console.error('[API/download] Erro ao gerar arquivo:', err);
+		logger.error('[escalas/download] Erro ao gerar arquivo', {
+			escala_id: id,
+			error: err instanceof Error ? err.message : String(err),
+			stack: err instanceof Error ? err.stack : undefined
+		});
 		return json({ error: 'Erro ao gerar o arquivo para download.' }, { status: 500 });
 	}
 };

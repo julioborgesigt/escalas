@@ -101,9 +101,10 @@
 				faceapi = await import('@vladmandic/face-api');
 			}
 			if (faceapi && !isFaceModelLoaded) {
-				await faceapi.nets.tinyFaceDetector.loadFromUri(
-					'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/'
-				);
+				// Self-hostado em `static/face-api/` — servido pela CDN do Cloudflare
+				// Pages. Removemos a dependência de `cdn.jsdelivr.net` (anti rate-limit
+				// e simplifica a CSP).
+				await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/');
 				isFaceModelLoaded = true;
 			}
 			startDetectionLoop();

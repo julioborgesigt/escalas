@@ -9,6 +9,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
+import { prepararAssinaturaSchema } from '$lib/schemas';
+import { validateBody } from '$lib/server/api';
 import { gerarPdfGise, toGisePdfData } from '$lib/export';
 import {
 	prepararPdfParaAssinatura,
@@ -26,7 +28,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
-	const { signerName, signerCpf, rubrica, latitude, longitude } = await request.json();
+	const validated = await validateBody(request, prepararAssinaturaSchema);
+	if (!validated.ok) return validated.response;
+	const { signerName, signerCpf, rubrica, latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 

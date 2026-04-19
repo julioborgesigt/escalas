@@ -2,6 +2,9 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import { logger } from '$lib/server/logger';
 import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
+import { assinarSimplesEscalasSchema } from '$lib/schemas';
+import { validateBody } from '$lib/server/api';
+import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
@@ -11,7 +14,15 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const u = locals.usuario;
 	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
 
-	const { rubrica, latitude, longitude } = await request.json();
+	const validated = await validateBody(request, assinarSimplesEscalasSchema);
+	if (!validated.ok) return validated.response;
+	const { rubrica, latitude, longitude } = validated.data;
+
+	// CRÍTICO: revalidar flags de evidência no servidor — nunca confie no cliente.
+	const flags = await lerFlagsAssinatura(platform);
+	if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
+		return json({ error: 'Coordenadas GPS são obrigatórias para esta assinatura.' }, { status: 400 });
+	}
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 

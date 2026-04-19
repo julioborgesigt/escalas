@@ -12,13 +12,13 @@
  */
 
 import nodemailer from 'nodemailer';
+import { logger } from './logger';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getCredenciais(platform: any): { user: string; pass: string } {
-  const env = platform?.env || platform || {};
+function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
+  const e = platform?.env as Env | undefined;
   return {
-    user: env.GMAIL_USER ?? '',
-    pass: env.GMAIL_APP_PASSWORD ?? ''
+    user: e?.GMAIL_USER ?? '',
+    pass: e?.GMAIL_APP_PASSWORD ?? ''
   };
 }
 
@@ -26,8 +26,7 @@ export async function enviarSenhaProvisoria(
   destinatario: string,
   senhaProvisoria: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -95,8 +94,7 @@ export async function enviarCodigo2FA(
   destinatario: string,
   codigo: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -160,9 +158,15 @@ export async function enviarCodigo2FA(
 </body>
 </html>`
     });
-    console.log(`[Email] Código 2FA enviado para ${destinatario}. MessageId: ${info.messageId}`);
+    logger.info('[email/2fa] Código enviado', {
+      destinatario,
+      messageId: info.messageId
+    });
   } catch (err) {
-    console.error(`[Email] Erro ao enviar 2FA para ${destinatario}:`, err);
+    logger.error('[email/2fa] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
     throw err;
   }
 }
@@ -171,8 +175,7 @@ export async function enviarCodigoEmailPessoal(
   destinatario: string,
   codigo: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -235,9 +238,15 @@ export async function enviarCodigoEmailPessoal(
 </body>
 </html>`
     });
-    console.log(`[Email] Código de verificação e-mail pessoal enviado para ${destinatario}. MessageId: ${info.messageId}`);
+    logger.info('[email/verificacao-pessoal] Código enviado', {
+      destinatario,
+      messageId: info.messageId
+    });
   } catch (err) {
-    console.error(`[Email] Erro ao enviar verificação e-mail pessoal para ${destinatario}:`, err);
+    logger.error('[email/verificacao-pessoal] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
     throw err;
   }
 }
@@ -246,8 +255,7 @@ export async function enviarLinkRedefinicaoSenha(
   destinatario: string,
   nomeUsuario: string,
   linkRedefinicao: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -320,9 +328,15 @@ export async function enviarLinkRedefinicaoSenha(
 </body>
 </html>`
     });
-    console.log(`[Email] Link de redefinição enviado para ${destinatario}. MessageId: ${info.messageId}`);
+    logger.info('[email/redefinicao] Link enviado', {
+      destinatario,
+      messageId: info.messageId
+    });
   } catch (err) {
-    console.error(`[Email] Erro ao enviar link de redefinição para ${destinatario}:`, err);
+    logger.error('[email/redefinicao] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
     throw err;
   }
 }

@@ -15,11 +15,12 @@ import {
 	verificarTodosRelatoriosExtraAssinados,
 	atualizarGiseEscala
 } from '$lib/db';
+import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
 import { logger } from '$lib/server/logger';
-import { contentDisposition } from '$lib/server/api';
+import { contentDisposition, validateBody } from '$lib/server/api';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -39,7 +40,20 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
 	}
 
-	const payload = await request.json().catch(() => ({}));
+	// Mesma regra do preparar-assinatura: somente admin ou supervisor designado pode finalizar.
+	// Sem isto, qualquer membro de equipe poderia chamar finalizar com um preparedPdf
+	// arbitrário e produzir um relatório "assinado" como se fosse o supervisor.
+	const giseAuth = await buscarGiseEscala(db, id);
+	if (!giseAuth) return json({ error: 'GISE não encontrada' }, { status: 404 });
+	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
+		return json(
+			{ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório' },
+			{ status: 403 }
+		);
+	}
+
+	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
+	if (!validated.ok) return validated.response;
 	const {
 		preparedPdf,
 		rawSignature,
@@ -47,8 +61,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		certificateBase64,
 		messageDigest,
 		signingTimeISO,
-		signerName,
-		signerCpf,
 		verificationHash,
 		latitude,
 		longitude,
@@ -56,7 +68,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		serproResponse,
 		documentHash: documentHashOriginal,
 		assinanteEmail
-	} = payload;
+	} = validated.data;
 
 	try {
 		const pdfBytesInput = new Uint8Array(Buffer.from(preparedPdf, 'base64'));
@@ -102,6 +114,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			type = 'serpro';
 			signedPdfBytes = await embedSerproCms(pdfBytesInput, serproCms);
 		} else {
+			// Sem SERPRO CMS, exigimos os campos do fluxo Web PKI.
+			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
+				return json(
+					{ error: 'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)' },
+					{ status: 400 }
+				);
+			}
 			signedPdfBytes = await finalizarAssinatura(
 				pdfBytesInput,
 				rawSignature,
@@ -117,8 +136,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const gise = await buscarGiseEscala(db, id);
-		if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
+		const gise = giseAuth;
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/relatorios_extra`;

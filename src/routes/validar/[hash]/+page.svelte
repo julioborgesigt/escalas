@@ -30,19 +30,25 @@
 	async function handleDownload() {
 		if (baixando) return;
 		baixando = true;
-		console.log('[Download] Iniciando requisição para:', `/api/validar/${data.hash}/download`);
-		
+		if (import.meta.env.DEV) {
+			console.debug('[Download] requisição', `/api/validar/${data.hash}/download`);
+		}
+
 		try {
 			const res = await fetch(`/api/validar/${data.hash}/download`);
-			console.log('[Download] Resposta Recebida:', {
-				status: res.status,
-				statusText: res.statusText,
-				headers: Object.fromEntries(res.headers.entries())
-			});
+			if (import.meta.env.DEV) {
+				console.debug('[Download] resposta', {
+					status: res.status,
+					statusText: res.statusText,
+					headers: Object.fromEntries(res.headers.entries())
+				});
+			}
 
 			if (!res.ok) {
 				const errorText = await res.text();
-				console.error('[Download] Erro no corpo da resposta:', errorText);
+				if (import.meta.env.DEV) {
+					console.error('[Download] corpo de erro', errorText);
+				}
 				alert(`Erro ao carregar o arquivo (Status ${res.status}). Verifique o console (F12) para detalhes técnicos.`);
 				baixando = false;
 				return;
@@ -51,7 +57,9 @@
 			const contentType = res.headers.get('content-type');
 			if (contentType && contentType.includes('application/json')) {
 				const errJson = await res.json();
-				console.error('[Download] Erro do Servidor:', errJson);
+				if (import.meta.env.DEV) {
+					console.error('[Download] JSON de erro', errJson);
+				}
 				alert(`Erro do Servidor: ${errJson.error || 'Erro desconhecido'}`);
 				baixando = false;
 				return;
@@ -67,7 +75,9 @@
 			document.body.removeChild(a);
 			window.URL.revokeObjectURL(url);
 		} catch (err) {
-			console.error('[Download] Erro:', err);
+			if (import.meta.env.DEV) {
+				console.error('[Download] exceção', err);
+			}
 			alert('Falha na comunicação com o servidor.');
 		} finally {
 			baixando = false;

@@ -1,6 +1,12 @@
 <script lang="ts">
+	type Option = { value: any; label: string };
+
 	let {
 		options = [],
+		loadOptions = undefined,
+		selectedOption = undefined,
+		debounceMs = 300,
+		minSearchChars = 0,
 		value = $bindable(null),
 		placeholder = 'Selecione...',
 		id = '',
@@ -8,7 +14,27 @@
 		class: className = '',
 		disabled = false
 	}: {
-		options: { value: any; label: string }[];
+		/** Lista síncrona de opções (modo client-side, padrão histórico). */
+		options?: Option[];
+		/**
+		 * Modo assíncrono: callback que faz a busca server-side.
+		 * Quando definido, o componente ignora `options` e usa apenas o resultado
+		 * desta função. O `query` é o texto digitado no campo de busca.
+		 * Aborte requisições em flight verificando `signal.aborted`.
+		 */
+		loadOptions?: (query: string, signal: AbortSignal) => Promise<Option[]>;
+		/**
+		 * Apenas no modo async: opção atualmente selecionada — usada para
+		 * renderizar o label sem precisar buscá-la do servidor a cada montagem.
+		 */
+		selectedOption?: Option | null;
+		/** Apenas no modo async: ms para debounce do `loadOptions` (default 300). */
+		debounceMs?: number;
+		/**
+		 * Apenas no modo async: nº mínimo de caracteres para disparar busca.
+		 * Default 0 (busca também com query vazia).
+		 */
+		minSearchChars?: number;
 		value: any;
 		placeholder?: string;
 		id?: string;
@@ -17,19 +43,32 @@
 		disabled?: boolean;
 	} = $props();
 
+	const isAsync = $derived(typeof loadOptions === 'function');
+
 	let isOpen = $state(false);
 	let searchTerm = $state('');
 	let containerRef: HTMLDivElement;
 
+	// Modo assíncrono — estado próprio
+	let asyncOptions = $state<Option[]>([]);
+	let asyncLoading = $state(false);
+	let asyncError = $state<string | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let inFlightController: AbortController | null = null;
+
 	const selectedLabel = $derived(
-		options.find((o) => o.value === value)?.label || ''
+		isAsync
+			? selectedOption?.label ?? ''
+			: options.find((o) => o.value === value)?.label || ''
 	);
 
 	const filteredOptions = $derived(
-		options.filter((o) => {
-			if (!searchTerm) return true;
-			return o.label.toLowerCase().includes(searchTerm.toLowerCase());
-		})
+		isAsync
+			? asyncOptions
+			: options.filter((o) => {
+					if (!searchTerm) return true;
+					return o.label.toLowerCase().includes(searchTerm.toLowerCase());
+				})
 	);
 
 	function handleSelect(val: any) {
@@ -43,6 +82,50 @@
 			isOpen = false;
 		}
 	}
+
+	/**
+	 * Modo async: dispara `loadOptions` com debounce sempre que o termo de
+	 * busca muda E o dropdown está aberto. Cancela buscas anteriores em flight.
+	 */
+	$effect(() => {
+		if (!isAsync || !isOpen) return;
+
+		const term = searchTerm.trim();
+		if (term.length < minSearchChars) {
+			asyncOptions = [];
+			asyncLoading = false;
+			return;
+		}
+
+		if (debounceTimer) clearTimeout(debounceTimer);
+		if (inFlightController) inFlightController.abort();
+
+		const controller = new AbortController();
+		inFlightController = controller;
+		asyncLoading = true;
+		asyncError = null;
+
+		debounceTimer = setTimeout(async () => {
+			try {
+				const result = await loadOptions!(term, controller.signal);
+				if (!controller.signal.aborted) {
+					asyncOptions = result;
+					asyncLoading = false;
+				}
+			} catch (err) {
+				if (!controller.signal.aborted) {
+					asyncOptions = [];
+					asyncError = err instanceof Error ? err.message : 'Erro na busca';
+					asyncLoading = false;
+				}
+			}
+		}, debounceMs);
+
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			controller.abort();
+		};
+	});
 </script>
 
 <svelte:window onclick={handleWindowClick} />
@@ -120,7 +203,23 @@
 		<ul
 			class="absolute z-50 w-full mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl max-h-80 overflow-y-auto"
 		>
-			{#if filteredOptions.length === 0}
+			{#if isAsync && asyncLoading}
+				<li class="px-3 py-2 text-sm text-surface-500 cursor-default flex items-center gap-2">
+					<svg class="animate-spin h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+					</svg>
+					Buscando...
+				</li>
+			{:else if isAsync && asyncError}
+				<li class="px-3 py-2 text-sm text-error-600 cursor-default">
+					{asyncError}
+				</li>
+			{:else if isAsync && minSearchChars > 0 && searchTerm.trim().length < minSearchChars}
+				<li class="px-3 py-2 text-sm text-surface-500 cursor-default">
+					Digite ao menos {minSearchChars} caractere{minSearchChars > 1 ? 's' : ''} para buscar
+				</li>
+			{:else if filteredOptions.length === 0}
 				<li class="px-3 py-2 text-sm text-surface-500 cursor-default">
 					Nenhum resultado encontrado
 				</li>
