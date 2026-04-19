@@ -61,7 +61,8 @@ export {
 	atualizarEscalaPolicial,
 	removerPolicialEscala,
 	adicionarTodosPoliciais,
-	listarPoliciaisEscala
+	listarPoliciaisEscala,
+	listarPoliciaisEscalaQuery
 } from './db/escalas';
 
 export {
