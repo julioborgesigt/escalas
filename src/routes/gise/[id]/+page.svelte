@@ -1111,10 +1111,7 @@
 			onSubmit={handleSalvarSupervisores}
 		/>
 
-		<GiseBannersAssinaturas
-			{documentoAssinadoInfo}
-			assinaturasRelatorios={data.assinaturasRelatorios}
-		/>
+		<GiseBannersAssinaturas assinaturasRelatorios={data.assinaturasRelatorios} />
 
 		{#if podeAssinar}
 			<GisePainelAssinaturaSupervisor
