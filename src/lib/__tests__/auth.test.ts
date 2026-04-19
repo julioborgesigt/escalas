@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { hashSenha, verificarSenha, isHashLegado, gerarToken, gerarSenhaAleatoriaHash } from '../auth';
+import {
+	hashSenha,
+	verificarSenha,
+	isHashLegado,
+	gerarToken,
+	gerarSenhaAleatoriaHash,
+	compararSegredoUtf8TimingSafe
+} from '../auth';
 
 describe('hashSenha (PBKDF2)', () => {
 	it('produz hash no formato pbkdf2v1:<salt>:<hash>', async () => {
@@ -53,6 +60,22 @@ describe('gerarToken', () => {
 	it('gera tokens únicos', () => {
 		const tokens = new Set(Array.from({ length: 10 }, () => gerarToken()));
 		expect(tokens.size).toBe(10);
+	});
+});
+
+describe('compararSegredoUtf8TimingSafe', () => {
+	it('aceita par exato', () => {
+		expect(compararSegredoUtf8TimingSafe('segredo', 'segredo')).toBe(true);
+	});
+	it('rejeita senha errada mesmo comprimento', () => {
+		expect(compararSegredoUtf8TimingSafe('segredo1', 'segredo2')).toBe(false);
+	});
+	it('rejeita comprimentos diferentes', () => {
+		expect(compararSegredoUtf8TimingSafe('curto', 'curtoo')).toBe(false);
+	});
+	it('suporta UTF-8', () => {
+		expect(compararSegredoUtf8TimingSafe('café', 'café')).toBe(true);
+		expect(compararSegredoUtf8TimingSafe('café', 'cafe')).toBe(false);
 	});
 });
 

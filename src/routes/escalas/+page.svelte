@@ -64,17 +64,13 @@
 				)
 	);
 
-	const escalas = $derived(data.escalas as EscalaListagem[]);
+	const escalas = $derived((data.escalas ?? []) as EscalaListagem[]);
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
 
-	// Atualiza estado local quando dados do server mudam (após action ou filtro)
+	/** Sincroniza página com o resultado do servidor — não mutar `$derived` (imutável). */
 	$effect(() => {
-		if (data.escalas) {
-			escalas.length = 0;
-			escalas.push(...data.escalas);
-			paginaAtual = data.pagination.page;
-		}
+		paginaAtual = data.pagination.page;
 	});
 
 	let dialogOpen = $state(false);

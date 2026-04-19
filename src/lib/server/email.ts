@@ -13,12 +13,11 @@
 
 import nodemailer from 'nodemailer';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getCredenciais(platform: any): { user: string; pass: string } {
-  const env = platform?.env || platform || {};
+function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
+  const e = platform?.env as Env | undefined;
   return {
-    user: env.GMAIL_USER ?? '',
-    pass: env.GMAIL_APP_PASSWORD ?? ''
+    user: e?.GMAIL_USER ?? '',
+    pass: e?.GMAIL_APP_PASSWORD ?? ''
   };
 }
 
@@ -26,8 +25,7 @@ export async function enviarSenhaProvisoria(
   destinatario: string,
   senhaProvisoria: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -95,8 +93,7 @@ export async function enviarCodigo2FA(
   destinatario: string,
   codigo: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -171,8 +168,7 @@ export async function enviarCodigoEmailPessoal(
   destinatario: string,
   codigo: string,
   nomeUsuario: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 
@@ -246,8 +242,7 @@ export async function enviarLinkRedefinicaoSenha(
   destinatario: string,
   nomeUsuario: string,
   linkRedefinicao: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  platform: any
+  platform: App.Platform | undefined
 ): Promise<void> {
   const { user, pass } = getCredenciais(platform);
 

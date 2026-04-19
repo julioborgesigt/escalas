@@ -7,6 +7,11 @@ declare global {
 		escalas_db: D1Database;
 		escalas_docs: R2Bucket;
 		SYNC_TOKEN: string;
+		GMAIL_USER?: string;
+		GMAIL_APP_PASSWORD?: string;
+		/** Login admin via variáveis de ambiente (opcional) */
+		ADMIN_GERAL_LOGIN?: string;
+		ADMIN_GERAL_SENHA?: string;
 	}
 
 	namespace App {

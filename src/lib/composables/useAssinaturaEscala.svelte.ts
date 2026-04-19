@@ -86,7 +86,10 @@ export function useAssinaturaEscala({
 				pkInstance = await initWebPKI();
 			}
 			certificados = await listarCertificados(pkInstance);
-		} catch {
+		} catch (e) {
+			if (import.meta.env.DEV) {
+				console.warn('[Assinatura] listar certificados Web PKI', e);
+			}
 			certificados = [];
 		} finally {
 			lendoCertificados = false;
@@ -99,7 +102,11 @@ export function useAssinaturaEscala({
 			try {
 				const info = await lerCertificado(pkInstance, alias);
 				// info is base64 string, we just store it for later use
-			} catch { /* ignora */ }
+			} catch (e) {
+				if (import.meta.env.DEV) {
+					console.warn('[Assinatura] ler certificado', e);
+				}
+			}
 		}
 	}
 

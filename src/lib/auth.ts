@@ -127,11 +127,29 @@ export function gerarToken(): string {
 }
 
 /**
- * Retorna um hash falso rápido para cadastro inicial.
- * A senha "provisória" não precisa de um hash real pois o usuário 
- * OBRIGATORIAMENTE passará pelo fluxo de "Primeiro Acesso/Esqueci Senha",
- * que gerará a senha definitiva. O hash PBKDF2 estava causando lentidão e 
- * estouro de limite de CPU na Cloudflare (Erro 1102) durante sincronização.
+ * Compara dois segredos em texto (ex.: `ADMIN_GERAL_SENHA`) de forma timing-safe
+ * sobre os bytes UTF-8: buffers com o mesmo tamanho máximo e `timingSafeEqual`.
+ */
+export function compararSegredoUtf8TimingSafe(input: string, expected: string): boolean {
+	const a = Buffer.from(input, 'utf8');
+	const b = Buffer.from(expected, 'utf8');
+	const len = Math.max(a.length, b.length, 1);
+	const bufA = Buffer.alloc(len);
+	const bufB = Buffer.alloc(len);
+	a.copy(bufA);
+	b.copy(bufB);
+	const match = timingSafeEqual(bufA, bufB);
+	const sameLen = a.length === b.length;
+	return match && sameLen;
+}
+
+/**
+ * Retorna um hash no formato PBKDF2 **inválido para login**: não é derivado da senha.
+ * Usado no cadastro/sincronização em massa para evitar Erro 1102 (CPU) na Cloudflare.
+ *
+ * **Invariantes:** quem recebe este hash deve ter `primeiro_acesso = 1` e só autenticar
+ * após `hashSenha` real (primeiro acesso ou redefinição). `verificarSenha` continuará
+ * falhando para qualquer senha digitada até lá — comportamento esperado.
  */
 export async function gerarSenhaAleatoriaHash(): Promise<string> {
 	// Gera payload PBKDF2-formatado sem derivação pesada para evitar estouro de CPU.

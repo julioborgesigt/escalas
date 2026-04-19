@@ -23,6 +23,14 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
+	import type { Policial, Unidade } from '$lib/server/schema';
+	import {
+		checkAllSigned,
+		filtrarDelegacias,
+		filtrarSeccionaisDisponiveis,
+		getFaltandoRubrica,
+		getSeccionalColorClass
+	} from '$lib/gise/gise-page-helpers';
 
 	let { data } = $props();
 
@@ -116,10 +124,7 @@
 
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
 	const seccionaisDisponiveis = $derived(
-		todasUnidades.filter(
-			(u: any) =>
-				u.tipo === 'seccional' && !gise?.seccionais.some((s: any) => s.seccional_id === u.id)
-		)
+		filtrarSeccionaisDisponiveis(gise, todasUnidades as Unidade[])
 	);
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
@@ -144,49 +149,8 @@
 		}
 	});
 
-	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
-	const oips = $derived(policiais.filter((p: any) => p.cargo === 'OIP'));
-
-	// Cores sutis para cada seccional (identificação visual)
-	const seccionalColors = [
-		'bg-blue-50/50 dark:bg-blue-900/10',
-		'bg-emerald-50/50 dark:bg-emerald-900/10',
-		'bg-indigo-50/50 dark:bg-indigo-900/10',
-		'bg-violet-50/50 dark:bg-violet-900/10',
-		'bg-amber-50/50 dark:bg-amber-900/10',
-		'bg-rose-50/50 dark:bg-rose-900/10',
-		'bg-cyan-50/50 dark:bg-cyan-900/10',
-		'bg-teal-50/50 dark:bg-teal-900/10',
-		'bg-sky-50/50 dark:bg-sky-900/10',
-		'bg-slate-50/50 dark:bg-slate-900/10'
-	];
-
-	function getSeccionalColor(seccionalId: number) {
-		return seccionalColors[seccionalId % seccionalColors.length];
-	}
-
-	function getMembrosFromSec(sec: any): any[] {
-		return (sec.unidades ?? []).flatMap((u: any) =>
-			(u.equipes ?? []).flatMap((eq: any) => eq.membros ?? [])
-		);
-	}
-
-	function checkAllSigned(sec: any) {
-		const members = getMembrosFromSec(sec);
-		if (members.length === 0) return false;
-		return members.every((m: any) => m.presenca?.entrada_timestamp && m.presenca?.saida_timestamp);
-	}
-
-	function getFaltandoRubrica(sec: any) {
-		const members = getMembrosFromSec(sec);
-		const faltantes = members.filter(
-			(m: any) => !m.presenca?.entrada_timestamp || !m.presenca?.saida_timestamp
-		);
-		if (faltantes.length === 0) return '';
-		return (
-			'Faltando rubrica de: ' + faltantes.map((m: any) => m.policial_nome.split(' ')[0]).join(', ')
-		);
-	}
+	const dpcs = $derived((policiais as Policial[]).filter((p) => p.cargo === 'DPC'));
+	const oips = $derived((policiais as Policial[]).filter((p) => p.cargo === 'OIP'));
 
 	function handleSalvarSupervisores() {
 		pendingCrud = true;
@@ -976,7 +940,7 @@
 				gise?.status === 'finalizada')
 	);
 
-	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
+	const delegacias = $derived(filtrarDelegacias(todasUnidades as Unidade[]));
 </script>
 
 <svelte:head>
@@ -2021,7 +1985,7 @@
 					>
 						<!-- Cabeçalho da seccional -->
 						<div
-							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColor(
+							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)}"
 						>
@@ -2147,7 +2111,7 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div
-							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColor(
+							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)} border-b border-surface-200 dark:border-surface-700"
 						>
