@@ -4,7 +4,6 @@ import {
 	getDB,
 	buscarEscala,
 	listarPoliciaisEscala,
-	listarPoliciais,
 	buscarDocumentoEscala,
 	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
@@ -91,18 +90,13 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		throw redirect(302, '/escalas');
 	}
 
-	// todosPoliciais é streamed: a página renderiza imediatamente com os dados
-	// da escala enquanto a lista de policiais chega em paralelo via streaming.
-	const todosPoliciais = listarPoliciais(db, undefined, false, {
-		busca: undefined,
-		page: undefined,
-		limit: 10000
-	}).then(r => r.policiais);
+	// A lista completa de policiais NÃO é mais carregada no load (era até 10 000
+	// linhas em todo acesso). O `<SearchableSelect>` agora consulta
+	// `/api/policiais/search` sob demanda com debounce, paginado.
 
 	return {
 		escala,
 		policiaisEscala,
-		todosPoliciais,
 		documentoAssinadoInfo: docInfo,
 		escalaId
 	};
