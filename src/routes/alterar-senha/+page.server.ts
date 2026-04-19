@@ -37,7 +37,7 @@ export const actions = {
 					.from(administradores)
 					.where(eq(administradores.id, usuario.id))
 					.get();
-				if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
+				if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
 					return fail(401, { error: 'Senha atual incorreta' });
 				}
 			} else {
@@ -46,7 +46,7 @@ export const actions = {
 					.from(policiais)
 					.where(eq(policiais.id, usuario.id))
 					.get();
-				if (!registro || !(await verificarSenha(senha_atual, registro.senha))) {
+				if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
 					return fail(401, { error: 'Senha atual incorreta' });
 				}
 			}

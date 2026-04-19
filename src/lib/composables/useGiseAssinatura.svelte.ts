@@ -8,6 +8,7 @@ import { page } from '$app/state';
 import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
+import { logger } from '$lib/logger';
 
 export interface UseGiseAssinaturaParams {
 	getGiseId: () => number;
@@ -96,7 +97,8 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 				const j = await r.json();
 				toaster.error({ title: j.error || 'Erro ao assinar' });
 			}
-		} catch {
+		} catch (err) {
+			logger.warn('[GiseAssinatura] assinar simples / download', { err: String(err) });
 			toaster.error({ title: 'Erro de conexão' });
 		} finally {
 			assinandoSimples = false;

@@ -361,10 +361,10 @@ export async function buscarGiseDetalhado(
 			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseSeccionais.gise_id, id))
 			.orderBy(asc(giseSeccionalUnidades.id));
-	} catch (e) {
-		logger.warn('buscarGiseDetalhado: slots/unidades — possível migração pendente', {
+	} catch (err) {
+		logger.warn('[buscarGiseDetalhado] slots/unidades — possível migração pendente', {
 			gise_id: id,
-			err: e instanceof Error ? e.message : String(e)
+			err: String(err)
 		});
 	}
 
@@ -1031,8 +1031,8 @@ export async function buscarRespostasProdutividadeSeccional(
 	configRows.forEach((row: any) => {
 		try {
 			modelosMap.set(row.tipo, JSON.parse(row.config));
-		} catch (e) {
-			logger.error('Erro ao parsear modelo GISE', { tipo: row.tipo, err: String(e) });
+		} catch (err) {
+			logger.error('[gise] parse modelo formulário', { tipo: row.tipo, err: String(err) });
 		}
 	});
 
@@ -1236,8 +1236,8 @@ export async function isMembroGiseAtiva(db: Database, policialId: number): Promi
 export async function buscarGiseModeloFormulario(db: Database, tipo: 'operacional' | 'seint' = 'operacional') {
 	try {
 		return db.select().from(giseModeloFormulario).where(eq(giseModeloFormulario.tipo, tipo)).get();
-	} catch (e) {
-		logger.error('Erro ao buscar modelo GISE — migration 0042 pode não ter sido aplicada', { tipo, err: String(e) });
+	} catch (err) {
+		logger.error('[buscarGiseModeloFormulario] falha na query', { tipo, err: String(err) });
 		return null;
 	}
 }

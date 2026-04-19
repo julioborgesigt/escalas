@@ -16,6 +16,7 @@ import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
 import { csrfHeaders } from '$lib/csrf';
 import { loading } from '$lib/loading.svelte';
+import { logger } from '$lib/logger';
 
 export interface UseAssinaturaParams {
 	getParams: () => {
@@ -71,9 +72,9 @@ export function useAssinaturaEscala({
 			});
 			gpsIndisponivel = false;
 			return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-		} catch {
+		} catch (err) {
 			gpsIndisponivel = true;
-			console.warn('[Assinatura] GPS indisponível — coordenadas não serão registradas.');
+			logger.warn('[AssinaturaEscala] geolocation indisponível', { err: String(err) });
 			return null;
 		}
 	}
@@ -86,10 +87,8 @@ export function useAssinaturaEscala({
 				pkInstance = await initWebPKI();
 			}
 			certificados = await listarCertificados(pkInstance);
-		} catch (e) {
-			if (import.meta.env.DEV) {
-				console.warn('[Assinatura] listar certificados Web PKI', e);
-			}
+		} catch (err) {
+			logger.warn('[AssinaturaEscala] listar certificados Web PKI', { err: String(err) });
 			certificados = [];
 		} finally {
 			lendoCertificados = false;
@@ -102,10 +101,8 @@ export function useAssinaturaEscala({
 			try {
 				const info = await lerCertificado(pkInstance, alias);
 				// info is base64 string, we just store it for later use
-			} catch (e) {
-				if (import.meta.env.DEV) {
-					console.warn('[Assinatura] ler certificado', e);
-				}
+			} catch (err) {
+				logger.warn('[AssinaturaEscala] ler certificado Web PKI', { err: String(err) });
 			}
 		}
 	}
