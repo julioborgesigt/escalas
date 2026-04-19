@@ -11,7 +11,8 @@
 
 	let { data, form } = $props();
 
-	const { isAdmin } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdmin = $derived(auth.isAdmin);
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
 	let unidades = $derived(data.unidades as Unidade[]);

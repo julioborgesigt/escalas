@@ -12,7 +12,8 @@
 
 	let { data } = $props();
 
-	const { isAdmin } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdmin = $derived(auth.isAdmin);
 	const savedFilters = getSavedFilters('filtros_painel', {
 		regime: 'todos',
 		seccional: 'todas',

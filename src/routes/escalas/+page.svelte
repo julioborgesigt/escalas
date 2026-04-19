@@ -13,7 +13,9 @@
 
 	let { data, form } = $props();
 
-	const { isAdmin, lotacaoUsuario } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdmin = $derived(auth.isAdmin);
+	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const savedFilters = getSavedFilters('filtros_escalas', {
 		lotacao: '',
 		mes: new Date().getMonth() + 1,

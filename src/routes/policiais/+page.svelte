@@ -29,7 +29,11 @@
 		};
 	}
 
-	const { isAdmin, isAdminOrSeccional, isAdminUnidade, lotacaoUsuario } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdmin = $derived(auth.isAdmin);
+	const isAdminOrSeccional = $derived(auth.isAdminOrSeccional);
+	const isAdminUnidade = $derived(auth.isAdminUnidade);
+	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const savedFilters = getSavedFilters('filtros_policiais', {
 		lotacao: '',
 		cargo: '',
