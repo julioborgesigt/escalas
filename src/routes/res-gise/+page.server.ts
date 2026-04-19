@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, sincronizarStatusGiseAposPresencaRelatorios, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone, isSupervisaoGiseAtiva, isSupervisorGiseAtiva } from '$lib/db';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { parseRespostasFormularioJsonLoose, parseRespostasFormularioJsonStrict } from '$lib/schemas/gise-respostas-form';
@@ -18,18 +19,18 @@ export const load = async ({ locals, platform, url }: any) => {
 
 	const db = getDB(platform);
 
-	// Checar se é supervisor de alguma GISE
-	const giseSupervisor = await db.select({ id: giseEscalas.id })
-		.from(giseEscalas)
-		.where(eq(giseEscalas.supervisor_id, u.id))
-		.limit(1)
-		.get();
-	const isSupervisorGise = !!giseSupervisor;
+	const supervisaoExtraUnidadeId = await buscarUnidadeIdSupervisaoExtra(db);
 
-	// Apenas admin geral e membros de GISE podem acessar
+	// Supervisor DPC com GISE ativa (não finalizada) — mesmo critério do menu / cache de papel
+	const isSupervisorGise =
+		u.tipo === 'policial' ? await isSupervisorGiseAtiva(db, u.id) : false;
+	const isSupervisaoGise =
+		u.tipo === 'policial' ? await isSupervisaoGiseAtiva(db, u.id) : false;
+
+	// Admin geral, membros de equipe, supervisor DPC ativo na GISE ou quadro de supervisão (assessor/SEINT)
 	if (u.tipo !== 'admin') {
 		const result = await db.select({ id: giseMembros.id }).from(giseMembros).where(eq(giseMembros.policial_id, u.id)).limit(1).get();
-		if (!result && !isSupervisorGise) throw redirect(302, '/');
+		if (!result && !isSupervisorGise && !isSupervisaoGise) throw redirect(302, '/');
 	}
 
 	let minhasEscalas: any[] = [];
@@ -37,7 +38,7 @@ export const load = async ({ locals, platform, url }: any) => {
 
 	const effectiveStatus = statusFilter || 'ativas';
 
-	if (u.tipo === 'policial' && !isSupervisorGise) {
+	if (u.tipo === 'policial') {
 		const rawEscalas = await db
 			.select({
 				id: giseEscalas.id,
@@ -93,6 +94,39 @@ export const load = async ({ locals, platform, url }: any) => {
 			.all();
 
 		rawEscalas.push(...rawSupervisoes as any);
+
+		// DPC supervisor da escala: mesma UX de assessor (entrada/saída, sem formulário de produtividade aqui)
+		if (isSupervisorGise) {
+			const rawSupervisorDpc = await db
+				.select({
+					id: giseEscalas.id,
+					data_inicio: giseEscalas.data_inicio,
+					status: giseEscalas.status,
+					hora_entrada: giseEscalas.hora_entrada,
+					hora_saida: giseEscalas.hora_saida,
+					equipe_id: sql`0`.as('equipe_id'),
+					sec_hora_entrada: sql`NULL`.as('sec_hora_entrada'),
+					sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
+					eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
+					eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
+					equipe_tipo: sql`'supervisor'`.as('equipe_tipo'),
+					seccional_id: sql`0`.as('seccional_id'),
+					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
+				})
+				.from(giseEscalas)
+				.where(
+					and(
+						eq(giseEscalas.supervisor_id, u.id),
+						mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+						dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+					)
+				)
+				.all();
+			for (const row of rawSupervisorDpc as any[]) {
+				if (!rawEscalas.some((r) => r.id === row.id)) rawEscalas.push(row);
+			}
+		}
+
 		// Ordenar novamente já que fundimos duas listas
 		rawEscalas.sort((a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime());
 
@@ -102,6 +136,7 @@ export const load = async ({ locals, platform, url }: any) => {
 		let docsAssinadosMap = new Map<number, boolean>();
 		let extrasAssinadosMap = new Map<string, boolean>();
 		let respostasEquipeMap = new Map<string, boolean>();
+		let respostasPolicialMap = new Map<string, boolean>();
 
 		if (giseIds.length > 0) {
 			// 4 queries independentes em paralelo
@@ -114,15 +149,28 @@ export const load = async ({ locals, platform, url }: any) => {
 				db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
 					.from(giseAssinaturasRelatorios)
 					.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIds), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all(),
-				db.select({ gise_id: giseRespostasFormulario.gise_id, equipe_id: giseRespostasFormulario.equipe_id })
+				db
+					.select({
+						gise_id: giseRespostasFormulario.gise_id,
+						equipe_id: giseRespostasFormulario.equipe_id,
+						policial_id: giseRespostasFormulario.policial_id
+					})
 					.from(giseRespostasFormulario)
-					.where(inArray(giseRespostasFormulario.gise_id, giseIds)).all()
+					.where(inArray(giseRespostasFormulario.gise_id, giseIds))
+					.all()
 			]);
 
 			presencas.forEach((p: any) => presencasMap.set(p.gise_id, p));
 			docs.forEach((doc: any) => docsAssinadosMap.set(doc.gise_id, true));
 			extras.forEach((ext: any) => extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true));
-			respostas.forEach((res: any) => respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true));
+			respostas.forEach((res: any) => {
+				if (res.equipe_id != null) {
+					respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true);
+				}
+				if (res.policial_id != null) {
+					respostasPolicialMap.set(`${res.gise_id}_${res.policial_id}`, true);
+				}
+			});
 		}
 
 		for (const e of rawEscalas) {
@@ -133,8 +181,17 @@ export const load = async ({ locals, platform, url }: any) => {
 			if (effectiveStatus === 'finalizadas' && !isFinished) continue;
 
 			const docAssinado = docsAssinadosMap.get(e.id);
-			const extraAssinado = extrasAssinadosMap.get(`${e.id}_${e.seccional_id}`);
-			const respostaEquipe = respostasEquipeMap.get(`${e.id}_${e.equipe_id}`);
+			const secKeyExtra =
+				e.seccional_id === 0 && supervisaoExtraUnidadeId != null
+					? supervisaoExtraUnidadeId
+					: e.seccional_id;
+			const extraAssinado = extrasAssinadosMap.get(`${e.id}_${secKeyExtra}`);
+			const respostaEquipe =
+				e.seccional_id === 0
+					? e.equipe_tipo === 'seint'
+						? !!respostasPolicialMap.get(`${e.id}_${u.id}`)
+						: true
+					: !!respostasEquipeMap.get(`${e.id}_${e.equipe_id}`);
 
 			// Prioridade de horário: equipe > seccional > escala
 			const hEnt = e.eq_hora_entrada ?? e.sec_hora_entrada ?? e.hora_entrada ?? '08:00';
@@ -149,8 +206,10 @@ export const load = async ({ locals, platform, url }: any) => {
 				horarioPrevisto: { inicio: hEnt, fim: hSai }
 			});
 		}
-	} else {
-		// Admin Geral / Supervisor: Lista escalas de acordo com o filtro principal
+	}
+
+	if (isAdminGeral) {
+		// Admin Geral: visão por equipe / seccional (gestão)
 		let rawAdmin: any[] = [];
 		let giseIdsAdmin: number[] = [];
 
@@ -172,11 +231,6 @@ export const load = async ({ locals, platform, url }: any) => {
 
 			if (mesFilter) filters.push(like(giseEscalas.data_inicio, `${mesFilter}%`));
 			if (dataFilter) filters.push(eq(giseEscalas.data_inicio, dataFilter));
-
-			// Se for supervisor, ver apenas as suas GISEs, senão vê tudo
-			if (!isAdminGeral && isSupervisorGise) {
-				filters.push(eq(giseEscalas.supervisor_id, u.id));
-			}
 
 			rawAdmin = await db.select({
 				id: giseEscalas.id,
@@ -334,6 +388,8 @@ export const load = async ({ locals, platform, url }: any) => {
 		minhasEscalas,
 		listaAdmin,
 		isSupervisorGise,
+		isSupervisaoGise,
+		supervisaoExtraUnidadeId,
 		giseIdSelected,
 		equipeIdSelected,
 		respostas: respostasData,
@@ -367,17 +423,7 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		await salvarRespostaGise(db, giseId, u.id, JSON.stringify(parsed.data), equipeId);
 
-		// Verificar transição de status
-		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && gise.status === 'aguardando_relatorios') {
-			const [todosSairam, todosEnviaram] = await Promise.all([
-				verificarTodosSairam(db, giseId),
-				verificarTodosRelatoriosEnviados(db, giseId)
-			]);
-			if (todosSairam && todosEnviaram) {
-				await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura_relat' });
-			}
-		}
+		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 
 		return { success: true, giseId, equipeId };
 	},
@@ -498,19 +544,7 @@ export const actions: Actions = {
 
 		await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 
-		// Verificar transição de status após saída
-		const gise = await buscarGiseEscala(db, giseId);
-		if (gise && gise.status === 'em_andamento') {
-			const [todosSairam, todosEnviaram] = await Promise.all([
-				verificarTodosSairam(db, giseId),
-				verificarTodosRelatoriosEnviados(db, giseId)
-			]);
-			if (todosSairam) {
-				await atualizarGiseEscala(db, giseId, {
-					status: todosEnviaram ? 'aguardando_assinatura_relat' : 'aguardando_relatorios'
-				});
-			}
-		}
+		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 
 		return { success: true, giseId };
 	},

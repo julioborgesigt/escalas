@@ -13,9 +13,11 @@ export {
 	verificarGiseCompleta,
 	verificarTodosSairam,
 	verificarTodosRelatoriosEnviados,
+	sincronizarStatusGiseAposPresencaRelatorios,
 	verificarTodosRelatoriosExtraAssinados,
 	isSupervisorGiseAtiva,
-	isMembroGiseAtiva
+	isMembroGiseAtiva,
+	isSupervisaoGiseAtiva
 } from './escalas';
 
 export {

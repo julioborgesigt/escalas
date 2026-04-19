@@ -225,7 +225,10 @@ export function useResGise(getData: () => ResGisePageData) {
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
 			await invalidateAll();
-			const atualizada = data.minhasEscalas?.find((e) => e.id === giseAlvoId);
+			const eqIdEnt = escalaSelecionada?.equipe_id;
+			const atualizada = data.minhasEscalas?.find(
+				(e) => e.id === giseAlvoId && e.equipe_id === eqIdEnt
+			);
 			if (atualizada) escalaSelecionada = atualizada;
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
@@ -294,7 +297,10 @@ export function useResGise(getData: () => ResGisePageData) {
 			await invalidateAll();
 			// After saving saída, the escala is filtered out of minhasEscalas (it's now 'finished').
 			// Patch escalaSelecionada directly so the UI shows 'Saída Confirmada' without a page reload.
-			const atualizada = data.minhasEscalas?.find((e) => e.id === giseAlvoIdSaida);
+			const eqId = escalaSelecionada?.equipe_id;
+			const atualizada = data.minhasEscalas?.find(
+				(e) => e.id === giseAlvoIdSaida && e.equipe_id === eqId
+			);
 			if (atualizada) {
 				escalaSelecionada = atualizada;
 			} else {
@@ -339,7 +345,11 @@ export function useResGise(getData: () => ResGisePageData) {
 	async function baixarRelatorioExtra(escala: ResGiseEscalaSelecionavel) {
 		loading.show('Baixando Relatório Extraordinário...');
 		try {
-			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${escala.seccional_id}`;
+			const secId =
+				escala.seccional_id === 0 && data.supervisaoExtraUnidadeId != null
+					? data.supervisaoExtraUnidadeId
+					: escala.seccional_id;
+			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${secId}`;
 			const res = await fetch(url);
 			if (!res.ok) {
 				const err = await res.json();

@@ -40,7 +40,7 @@
 					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 				/></svg
 			>
-			Assinaturas Pendentes
+			Painel de assinaturas em lote(assine todos os pendentes)
 		</h3>
 		<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
 			Você possui <strong>{quantidadePendentes} relatório(s) extraordinário(s)</strong> aptos

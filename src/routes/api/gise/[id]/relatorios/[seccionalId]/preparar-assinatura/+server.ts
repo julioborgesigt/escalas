@@ -10,7 +10,12 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
-import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
+import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/export';
+import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
+import {
+	giseAutorizaSeccionalRelatorioExtra,
+	secIdEhSupervisaoExtra
+} from '$lib/server/gise-supervisao-extra';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
@@ -40,6 +45,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
 
+	const secOk = await giseAutorizaSeccionalRelatorioExtra(db, id, secIdNum);
+	if (!secOk) return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
+
 	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
 	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
 		return json({ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório.' }, { status: 403 });
@@ -55,7 +63,18 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		assinante_matricula: u.matricula || '—'
 	};
 
-	const result = await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, secIdNum, url.origin, mockSignature, undefined, true);
+	const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
+	const result = isSupervisaoExtra
+		? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, mockSignature, undefined, true)
+		: await gerarRelatorioExtraordinarioPdf(
+				toGisePdfData(gise),
+				presencas,
+				secIdNum,
+				url.origin,
+				mockSignature,
+				undefined,
+				true
+			);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
@@ -79,7 +98,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	// Construir lista de assinantes para a folha de auditoria
 	const signers: AuditTrailOptions[] = [];
 
-	const membrosSec = await buscarGiseSeccionalMembros(db, id, secIdNum);
+	const membrosSec = isSupervisaoExtra
+		? listarPoliciaisSupervisaoExtra(gise).map((r) => ({ policial_id: r.policial_id }))
+		: await buscarGiseSeccionalMembros(db, id, secIdNum);
 	const idsMembros = new Set(membrosSec.map((m: any) => m.policial_id));
 	const presencasFiltradas = presencas.filter((p: any) => idsMembros.has(p.policial_id));
 

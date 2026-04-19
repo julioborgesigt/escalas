@@ -24,7 +24,8 @@ import { z } from 'zod';
  * o tipo final é `T | undefined`, compatível com as assinaturas existentes
  * dos helpers de PDF/DB.
  */
-const optionalNullable = <T extends z.ZodTypeAny>(schema: T) =>
+/** Exportado para reutilizar em outros schemas (ex.: `giseSignatureSchema`) sem duplicar lógica. */
+export const optionalNullable = <T extends z.ZodTypeAny>(schema: T) =>
 	schema.nullish().transform((v) => v ?? undefined);
 
 /** Latitude WGS-84. Aceita número, null ou ausente — devolve `number | undefined`. */

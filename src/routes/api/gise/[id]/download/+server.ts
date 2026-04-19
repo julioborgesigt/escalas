@@ -12,6 +12,10 @@ import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
 import { toGisePdfData } from '$lib/export';
 import { logger } from '$lib/server/logger';
+import {
+	giseAutorizaSeccionalRelatorioExtra,
+	secIdEhSupervisaoExtra
+} from '$lib/server/gise-supervisao-extra';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -43,8 +47,11 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				unidade.equipes.some((eq) => eq.membros.some((m) => m.policial_id === u.id))
 			)
 		);
+	const isQuadroSupervisao =
+		u.tipo === 'policial' &&
+		[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].some((pid) => pid === u.id);
 
-	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro) {
+	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro && !isQuadroSupervisao) {
 		return json(
 			{ error: 'Sem permissão para acessar downloads desta escala GISE.' },
 			{ status: 403 }
@@ -53,11 +60,17 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Prioriza Download do R2)
 	if (format === 'extraordinario') {
+		if (seccionalId === undefined || seccionalId === null) {
+			return json({ error: 'Parâmetro seccionalId é obrigatório.' }, { status: 400 });
+		}
+		const secAutorizada = await giseAutorizaSeccionalRelatorioExtra(db, id, seccionalId);
+		if (!secAutorizada) {
+			return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
+		}
+
 		const r2 = getR2(platform);
 
-		const reportSignature = seccionalId
-			? await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario')
-			: null;
+		const reportSignature = await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario');
 
 		// 1. Se existir assinatura, baixar do R2 preferencialmente usando a chave do banco
 		if (reportSignature?.verification_hash) {
@@ -105,16 +118,23 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		try {
 			const presencas = await buscarPresencasGise(db, id);
-			const { gerarRelatorioExtraordinarioPdf } = await import('$lib/export');
-			const result = await gerarRelatorioExtraordinarioPdf(
-				toGisePdfData(gise),
-				presencas,
-				seccionalId,
-				url.origin,
-				null,
-				undefined
+			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } = await import(
+				'$lib/export'
 			);
-			const filename = `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
+			const result = isSupervisaoExtra
+				? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, null, undefined, true)
+				: await gerarRelatorioExtraordinarioPdf(
+						toGisePdfData(gise),
+						presencas,
+						seccionalId,
+						url.origin,
+						null,
+						undefined
+					);
+			const filename = isSupervisaoExtra
+				? `RASCUNHO_extraordinario_supervisao_${gise.data_inicio}.pdf`
+				: `RASCUNHO_extraordinario_${gise.data_inicio}_sec_${seccionalId || 'geral'}.pdf`;
 
 			return new Response(result.pdf as unknown as BodyInit, {
 				headers: {

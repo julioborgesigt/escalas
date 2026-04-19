@@ -4,6 +4,7 @@ import {
 	getDB,
 	getR2,
 	buscarGiseDetalhado,
+	buscarPresencasGise,
 	buscarAssinaturasRelatoriosGise,
 	buscarGiseEscala,
 	atualizarGiseEscala,
@@ -27,8 +28,9 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
 import { logger } from '$lib/server/logger';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
-import { eq, asc, inArray, and } from 'drizzle-orm';
+import { eq, asc, inArray, and, isNull } from 'drizzle-orm';
 
 function getInt(fd: FormData, key: string): number {
 	const v = fd.get(key);
@@ -102,20 +104,46 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 						.orderBy(asc(policiais.nome))
 				: Promise.resolve([]);
 
+		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter((x): x is number => x != null);
+
 		// Queries paralelas restantes
-		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] =
+		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone, presencasGise, supervisaoExtraUnidadeId, respostasSeintSupervisaoRows] =
 			await Promise.all([
 				policiaisPromise,
 				db.select().from(unidades).orderBy(asc(unidades.nome)),
 				buscarAssinaturasRelatoriosGise(db, id),
-				buscarRestringirSmartphone(db)
+				buscarRestringirSmartphone(db),
+				buscarPresencasGise(db, id),
+				buscarUnidadeIdSupervisaoExtra(db),
+				seintIdsParaRelatorio.length
+					? db
+							.select({ policial_id: giseRespostasFormulario.policial_id })
+							.from(giseRespostasFormulario)
+							.where(
+								and(
+									eq(giseRespostasFormulario.gise_id, id),
+									inArray(giseRespostasFormulario.policial_id, seintIdsParaRelatorio),
+									isNull(giseRespostasFormulario.equipe_id)
+								)
+							)
+							.all()
+					: Promise.resolve([] as { policial_id: number | null }[])
 			]);
+
+		const seintSupervisaoComRelatorio = [
+			...new Set(
+				respostasSeintSupervisaoRows.map((r) => r.policial_id).filter((pid): pid is number => pid != null)
+			)
+		];
 
 		return {
 			gise,
 			policiais: policiaisListResult,
 			todasUnidades,
 			assinaturasRelatorios,
+			presencasGise,
+			supervisaoExtraUnidadeId,
+			seintSupervisaoComRelatorio,
 			papelGise: isGeral
 				? 'admin_geral'
 				: isSeccional
@@ -204,7 +232,16 @@ export const actions: Actions = {
 
 		// Cache invalidation: o "isSupervisor" muda quando o supervisor entra ou sai.
 		// Invalida o anterior (lido antes do update) e o novo, se diferentes.
-		await invalidarPapelGiseMultiplos([gise.supervisor_id, supervisorId]);
+		await invalidarPapelGiseMultiplos([
+			gise.supervisor_id,
+			supervisorId,
+			gise.assessor_id,
+			assessorId,
+			gise.seint1_id,
+			seint1Id,
+			gise.seint2_id,
+			seint2Id
+		]);
 
 		return { success: true };
 	},

@@ -8,6 +8,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 
 	let isSupervisorGise = false;
 	let isMembroGise = false;
+	let isSupervisaoGise = false;
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
@@ -33,6 +34,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 				const papel = await lerPapelGise(db, u.id);
 				isSupervisorGise = papel.isSupervisor;
 				isMembroGise = papel.isMembro;
+				isSupervisaoGise = papel.isSupervisao;
 			}
 		} catch {
 			// DB indisponível — mantém defaults seguros (exige tudo)
@@ -48,6 +50,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 		usuario: u,
 		isSupervisorGise,
 		isMembroGise,
+		isSupervisaoGise,
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,

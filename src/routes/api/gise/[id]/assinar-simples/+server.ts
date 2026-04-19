@@ -14,7 +14,7 @@ import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atua
 import { assinarSimplesGiseSchema } from '$lib/schemas';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
-import { gerarPdfGise, toGisePdfData } from '$lib/export';
+import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
@@ -80,7 +80,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
 			} catch (e) { /* logo optional */ }
 		}
-		const result = await gerarPdfGise(toGisePdfData(giseDetalhado), logoJpgBytes);
+		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
+		const result = await gerarPdfGise(toGisePdfData(gisePdf), logoJpgBytes);
 		const pdfBytes = result.pdf;
 		const sigY = result.finalY;
 

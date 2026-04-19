@@ -18,6 +18,7 @@ import { eq } from 'drizzle-orm';
 import {
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
+	isSupervisaoGiseAtiva,
 	type Database
 } from '$lib/db';
 import { giseEscalas, giseEquipes, giseMembros, giseSeccionais } from '$lib/server/schema';
@@ -25,6 +26,8 @@ import { giseEscalas, giseEquipes, giseMembros, giseSeccionais } from '$lib/serv
 export interface PapelGise {
 	isSupervisor: boolean;
 	isMembro: boolean;
+	/** Assessor ou SEINT no quadro de supervisão (GISE ativa). */
+	isSupervisao: boolean;
 }
 
 const TTL_SECONDS = 60;
@@ -59,12 +62,13 @@ export async function lerPapelGise(db: Database, policialId: number): Promise<Pa
 		}
 	}
 
-	const [isSupervisor, isMembro] = await Promise.all([
+	const [isSupervisor, isMembro, isSupervisao] = await Promise.all([
 		isSupervisorGiseAtiva(db, policialId),
-		isMembroGiseAtiva(db, policialId)
+		isMembroGiseAtiva(db, policialId),
+		isSupervisaoGiseAtiva(db, policialId)
 	]);
 
-	const papel: PapelGise = { isSupervisor, isMembro };
+	const papel: PapelGise = { isSupervisor, isMembro, isSupervisao };
 
 	if (cache) {
 		try {
@@ -120,12 +124,20 @@ export async function invalidarPapelGiseMultiplos(
 export async function coletarAfetadosGise(db: Database, giseId: number): Promise<number[]> {
 	const ids = new Set<number>();
 
-	const sup = await db
-		.select({ id: giseEscalas.supervisor_id })
+	const quadro = await db
+		.select({
+			supervisor_id: giseEscalas.supervisor_id,
+			assessor_id: giseEscalas.assessor_id,
+			seint1_id: giseEscalas.seint1_id,
+			seint2_id: giseEscalas.seint2_id
+		})
 		.from(giseEscalas)
 		.where(eq(giseEscalas.id, giseId))
 		.get();
-	if (sup?.id != null) ids.add(sup.id);
+	if (quadro?.supervisor_id != null) ids.add(quadro.supervisor_id);
+	if (quadro?.assessor_id != null) ids.add(quadro.assessor_id);
+	if (quadro?.seint1_id != null) ids.add(quadro.seint1_id);
+	if (quadro?.seint2_id != null) ids.add(quadro.seint2_id);
 
 	const membros = await db
 		.select({ id: giseMembros.policial_id })

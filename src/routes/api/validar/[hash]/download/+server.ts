@@ -74,7 +74,8 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		logger.info('[validar/download] Re-geração dinâmica de relatório GISE', { hash });
 		try {
 			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
+			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise-supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
 
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
@@ -96,7 +97,16 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 
 			if (relTipo === 'extraordinario') {
 				const presencas = await buscarPresencasGise(db, documento.escala_id);
-				const result = await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, seccionalId, url.origin, reportSignature);
+				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
+				const result = isSupExtra
+					? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, reportSignature)
+					: await gerarRelatorioExtraordinarioPdf(
+							toGisePdfData(gise),
+							presencas,
+							seccionalId,
+							url.origin,
+							reportSignature
+						);
 				finalPdf = result.pdf;
 			} else {
 				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
