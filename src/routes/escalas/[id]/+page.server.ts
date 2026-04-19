@@ -4,16 +4,17 @@ import {
 	getDB,
 	buscarEscala,
 	listarPoliciaisEscala,
+	listarPoliciaisEscalaQuery,
 	buscarDocumentoEscala,
 	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
-	atualizarEscalaPolicial,
-	removerPolicialEscala,
 	adicionarTodosPoliciais,
 	criarEscala,
 	verificarEscalaExistente,
 	registrarAuditComContexto
 } from '$lib/db';
+import { eq } from 'drizzle-orm';
+import { escalaPoliciais } from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
 	proximoMes,
@@ -129,8 +130,20 @@ export const actions: Actions = {
 		const dataSaida = calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
 
 		try {
-			await adicionarPolicialEscala(db, escalaId, policial_id, data_plantao, dataSaida, horaEnt, horaSai, '', equipe);
-			const policiais = await listarPoliciaisEscala(db, escalaId);
+			// D1 batch: insert + listagem em 1 round-trip (antes: 2 round-trips serializados)
+			const [, policiais] = await db.batch([
+				db.insert(escalaPoliciais).values({
+					escala_id: escalaId,
+					policial_id,
+					data_plantao,
+					data_saida: dataSaida,
+					hora_entrada: horaEnt,
+					hora_saida: horaSai,
+					observacoes: '',
+					equipe
+				}),
+				listarPoliciaisEscalaQuery(db, escalaId)
+			]);
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao adicionar policial' });
@@ -334,8 +347,20 @@ export const actions: Actions = {
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
 		try {
-			await atualizarEscalaPolicial(db, item_id, data_plantao, data_saida, hora_entrada, hora_saida, observacoes);
-			const policiais = await listarPoliciaisEscala(db, escalaId);
+			// D1 batch: update + listagem em 1 round-trip
+			const [, policiais] = await db.batch([
+				db
+					.update(escalaPoliciais)
+					.set({
+						data_plantao,
+						data_saida,
+						hora_entrada,
+						hora_saida,
+						observacoes
+					})
+					.where(eq(escalaPoliciais.id, item_id)),
+				listarPoliciaisEscalaQuery(db, escalaId)
+			]);
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao salvar alterações' });
@@ -356,8 +381,11 @@ export const actions: Actions = {
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
 		try {
-			await removerPolicialEscala(db, item_id);
-			const policiais = await listarPoliciaisEscala(db, escalaId);
+			// D1 batch: delete + listagem em 1 round-trip
+			const [, policiais] = await db.batch([
+				db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, item_id)),
+				listarPoliciaisEscalaQuery(db, escalaId)
+			]);
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao remover policial' });
