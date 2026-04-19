@@ -6,11 +6,11 @@ import { hashSenha, verificarDesafio2FA, criarSessao } from '$lib/auth';
 import { enviarSenhaProvisoria } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import {
-	executeLoginPassword,
+	tentarLogin,
 	LOGIN_WINDOW_MINUTES,
+	cookieOptionsLogin,
 	type AdminModulo
-} from '$lib/server/auth-login-flow';
-import { cookieOptionsLogin } from '$lib/server/login-helpers';
+} from '$lib/server/auth-flow';
 import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 
@@ -50,36 +50,43 @@ export const actions: Actions = {
 			return fail(400, { error: parsed.error.issues[0].message, fields: { matricula, tipo } });
 		}
 
-		const result = await executeLoginPassword(db, ip, platform, parsed.data, {
+		const result = await tentarLogin({
+			db,
+			ip,
+			matricula: parsed.data.matricula,
+			senha: parsed.data.senha,
+			tipo: parsed.data.tipo,
+			platform,
 			formAdminModulo: adminModulo
 		});
 
-		if (result.outcome === 'rate_limited') {
+		if (!result.sucesso && result.statusCode === 429) {
 			return fail(429, {
 				error: `Muitas tentativas. Tente em ${LOGIN_WINDOW_MINUTES} minutos.`,
 				fields: { matricula, tipo }
 			});
 		}
 
-		if (result.outcome === 'error') {
-			return fail(result.httpStatus as 400 | 401 | 429 | 500, {
-				error: result.message,
-				fields: result.fields ?? { matricula, tipo }
-			});
-		}
-
-		if (result.outcome === '2fa') {
+		if (!result.sucesso && 'pendente2FA' in result) {
 			if (result.setAdminModuloPendingCookie) {
 				cookies.set('admin_modulo_pending', adminModulo, { ...cookieOptions(url), maxAge: 15 * 60 });
 			}
+			const p = result.pendente2FA;
 			return {
 				pendente2FA: true,
-				desafioId: result.desafioId,
-				nome: result.nome,
-				primeiro_acesso: result.primeiro_acesso,
-				emailMascarado: result.emailMascarado,
-				tipoUsuario2FA: result.tipoUsuario2FA
+				desafioId: p.desafioId,
+				nome: p.nome,
+				primeiro_acesso: p.primeiroAcesso,
+				emailMascarado: p.emailMascarado,
+				tipoUsuario2FA: p.tipoUsuario2FA
 			};
+		}
+
+		if (!result.sucesso) {
+			return fail(result.statusCode as 400 | 401 | 429 | 500, {
+				error: result.erro,
+				fields: result.fields ?? { matricula, tipo }
+			});
 		}
 
 		cookies.set('session_token', result.token, cookieOptions(url));
@@ -92,7 +99,7 @@ export const actions: Actions = {
 		return {
 			success: true,
 			redirect: result.formRedirect,
-			primeiro_acesso: result.primeiro_acesso,
+			primeiro_acesso: result.primeiroAcesso,
 			nome: result.nome
 		};
 	},

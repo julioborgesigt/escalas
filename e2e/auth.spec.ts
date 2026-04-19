@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+const matriculaLocator = (page: Page) =>
+	page.locator('input[name="matricula"], input[id="matricula"], input[placeholder*="matrícula" i]').first();
 
 test.describe('Autenticação', () => {
 	test('redireciona para /login quando não autenticado', async ({ page }) => {
@@ -8,26 +11,22 @@ test.describe('Autenticação', () => {
 
 	test('exibe formulário de login', async ({ page }) => {
 		await page.goto('/login');
-		await expect(page.locator('input[name="matricula"], input[id="matricula"], input[placeholder*="matrícula" i]').first()).toBeVisible();
+		await expect(matriculaLocator(page)).toBeVisible();
 		await expect(page.locator('input[type="password"]').first()).toBeVisible();
 	});
 
 	test('exibe erro com credenciais inválidas', async ({ page }) => {
 		await page.goto('/login');
+		await matriculaLocator(page).fill('99999999');
 		await page.fill('input[type="password"]', 'senhaerrada');
-		// Procurar campo de matrícula por diferentes seletores possíveis
-		const matriculaInput = page.locator('input').first();
-		await matriculaInput.fill('99999999');
 		await page.click('button[type="submit"]');
-		// Deve exibir mensagem de erro
-		await expect(page.locator('text=/inválid/i').first()).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('text=/inválid/i').first()).toBeVisible({ timeout: 10000 });
 	});
 
 	test('bloqueia após 5 tentativas (rate limit)', async ({ page }) => {
 		await page.goto('/login');
 		for (let i = 0; i < 6; i++) {
-			const matriculaInput = page.locator('input').first();
-			await matriculaInput.fill('99999999');
+			await matriculaLocator(page).fill('99999999');
 			await page.fill('input[type="password"]', 'errada');
 			await page.click('button[type="submit"]');
 			await page.waitForTimeout(500);

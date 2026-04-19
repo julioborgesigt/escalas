@@ -48,6 +48,10 @@ describe('Content-Security-Policy — HTML (gerenciado pelo SvelteKit)', () => {
 	it('upgrade-insecure-requests está habilitado', () => {
 		expect(directives['upgrade-insecure-requests']).toBe(true);
 	});
+
+	it('block-all-mixed-content está habilitado', () => {
+		expect(directives['block-all-mixed-content']).toBe(true);
+	});
 });
 
 describe('Content-Security-Policy — não-HTML (buildCSP)', () => {
