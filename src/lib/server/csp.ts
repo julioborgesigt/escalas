@@ -35,7 +35,9 @@ export function buildCSP(
 		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
 		`img-src 'self' data: blob: https://fonts.gstatic.com`,
 		`font-src 'self' data: https://fonts.gstatic.com`,
-		`connect-src 'self' ${serproWS}${connectExtra} https://cdn.jsdelivr.net`,
+		// Modelos do face-api foram self-hostados em /face-api/ (estáticos).
+		// Antes precisávamos de `https://cdn.jsdelivr.net` no connect-src.
+		`connect-src 'self' ${serproWS}${connectExtra}`,
 		`frame-src 'none'`,
 		`object-src 'none'`,
 		`base-uri 'self'`,
