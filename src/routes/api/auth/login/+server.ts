@@ -1,10 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
-import {
-	executeLoginPassword,
-	LOGIN_WINDOW_MINUTES
-} from '$lib/server/auth-login-flow';
-import { cookieOptionsLogin } from '$lib/server/login-helpers';
+import { tentarLogin, cookieOptionsLogin } from '$lib/server/auth-flow';
 import { loginSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -22,39 +18,38 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 
 	const { matricula, senha, tipo } = parsed.data;
 
-	const result = await executeLoginPassword(
+	const result = await tentarLogin({
 		db,
 		ip,
-		platform,
-		{ matricula, senha, tipo },
-		{}
-	);
+		matricula,
+		senha,
+		tipo,
+		platform
+	});
 
-	if (result.outcome === 'rate_limited') {
-		return json(
-			{ error: `Muitas tentativas de login. Tente novamente em ${LOGIN_WINDOW_MINUTES} minutos.` },
-			{ status: 429 }
-		);
+	if (!result.sucesso && result.statusCode === 429) {
+		return json({ error: result.erro }, { status: 429 });
 	}
 
-	if (result.outcome === 'error') {
-		return json({ error: result.message }, { status: result.httpStatus });
-	}
-
-	if (result.outcome === '2fa') {
+	if (!result.sucesso && 'pendente2FA' in result) {
+		const p = result.pendente2FA;
 		return json({
 			pendente2FA: true,
-			desafioId: result.desafioId,
-			nome: result.nome,
-			primeiro_acesso: result.primeiro_acesso,
-			emailMascarado: result.emailMascarado
+			desafioId: p.desafioId,
+			nome: p.nome,
+			primeiro_acesso: p.primeiroAcesso,
+			emailMascarado: p.emailMascarado
 		});
+	}
+
+	if (!result.sucesso) {
+		return json({ error: result.erro }, { status: result.statusCode });
 	}
 
 	cookies.set('session_token', result.token, cookieOptions(url));
 	return json({
 		success: true,
-		primeiro_acesso: result.primeiro_acesso,
+		primeiro_acesso: result.primeiroAcesso,
 		nome: result.nome
 	});
 };

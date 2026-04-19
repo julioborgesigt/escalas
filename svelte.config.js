@@ -46,6 +46,7 @@ const config = {
 				'object-src': ['none'],
 				'base-uri': ['self'],
 				'form-action': ['self'],
+				'block-all-mixed-content': true,
 				'upgrade-insecure-requests': true
 			}
 		}
