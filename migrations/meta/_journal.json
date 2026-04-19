@@ -8,6 +8,13 @@
       "when": 1776532858779,
       "tag": "0000_pale_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776532860000,
+      "tag": "0001_lat_lng_real_normalize",
+      "breakpoints": true
     }
   ]
 }
