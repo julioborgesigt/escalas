@@ -5,21 +5,9 @@
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import {
-		ShieldCheck,
-		UserRound,
-		Users,
-		FileDown,
-		CheckCircle2,
-		Clock,
-		AlertCircle,
-		PenLine
-	} from 'lucide-svelte';
+	import { AlertCircle } from 'lucide-svelte';
 	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
-	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
@@ -31,6 +19,18 @@
 		getFaltandoRubrica,
 		getSeccionalColorClass
 	} from '$lib/gise/gise-page-helpers';
+	import GiseCabecalho from './_components/GiseCabecalho.svelte';
+	import GiseSupervisao from './_components/GiseSupervisao.svelte';
+	import GiseBannersAssinaturas from './_components/GiseBannersAssinaturas.svelte';
+	import GisePainelAssinaturaSupervisor from './_components/GisePainelAssinaturaSupervisor.svelte';
+	import GiseLoteAssinaturas from './_components/GiseLoteAssinaturas.svelte';
+	import ModalExcluirGise from './_components/modais/ModalExcluirGise.svelte';
+	import ModalReabrir from './_components/modais/ModalReabrir.svelte';
+	import ModalFinalizar from './_components/modais/ModalFinalizar.svelte';
+	import ModalDatasHoras from './_components/modais/ModalDatasHoras.svelte';
+	import ModalRubrica from './_components/modais/ModalRubrica.svelte';
+	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
+	import ModalRemoverSeccional from './_components/modais/ModalRemoverSeccional.svelte';
 
 	let { data } = $props();
 
@@ -68,10 +68,6 @@
 	let policialParaAdicionar = $state<number | ''>('');
 	let cargoParaAdicionar = $state<'OIP' | 'DPC' | null>(null);
 	let modoEdicaoSeccional = $state(false);
-	let expandirManual = $state(false);
-	let expandirDigital = $state(false);
-	let expandirLoteManual = $state(false);
-	let expandirLoteDigital = $state(false);
 	let showDigitalModalRelatorio = $state(false);
 	let relatorioDigitalInfo = $state<{
 		seccionalId: number;
@@ -1057,943 +1053,94 @@
 		? 'pointer-events-none opacity-40 blur-[3px]'
 		: 'opacity-100 blur-0'} space-y-6"
 >
-	<!-- Cabeçalho -->
-	<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-		<div class="min-w-0">
-			<button
-				type="button"
-				class="btn btn-sm mb-4 preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 group"
-				onclick={() => goto('/gise')}
-			>
-				<svg
-					class="w-4 h-4 transition-transform group-hover:-translate-x-1"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2.5"
-						d="M10 19l-7-7m0 0l7-7m-7 7h18"
-					/>
-				</svg>
-				<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
-			</button>
-			{#if gise}
-				<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Escala GISE #{gise.id} — {diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
-				</h1>
-				<div class="flex items-center gap-2 mt-1">
-					{@render statusBadge(gise.status)}
-					<span class="text-sm text-surface-500 flex items-center gap-2">
-						{gise.hora_entrada}h–{gise.hora_saida}h
-						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-							<button
-								type="button"
-								class="btn btn-xs preset-filled-surface-500 rounded p-1"
-								onclick={abrirEdicaoDatasHorarios}
-								title="Editar Data/Horários"
-							>
-								<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-									/></svg
-								>
-							</button>
-						{/if}
-					</span>
-				</div>
-			{/if}
-		</div>
-
-		<div class="flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
-			{#if (isAdminGeral || isSeccional) && gise && podeDownload}
-				{@render actionButton(
-					'Baixar XLSX',
-					undefined,
-					'success',
-					'outlined',
-					undefined,
-					`/api/gise/${gise.id}/download?format=xlsx`
-				)}
-			{/if}
-			{#if isAdminGeral && gise}
-				{@render actionButton(
-					modoEdicaoGeral ? 'Concluir Edição' : 'Editar escala',
-					undefined,
-					'primary',
-					modoEdicaoGeral ? 'filled' : 'outlined',
-					() => (modoEdicaoGeral = !modoEdicaoGeral),
-					undefined,
-					editaBloqueado,
-					false,
-					modoEdicaoGeral
-						? 'border-2 border-primary-600 shadow-xl'
-						: 'border-2 border-primary-500/30 hover:border-primary-500'
-				)}
-				{#if gise.status === 'em_preenchimento' && todasSeccionaisPreenchidas}
-					<form
-						method="POST"
-						action="?/solicitarAssinatura"
-						use:enhance={handleSolicitarAssinatura}
-						class="contents"
-					>
-						{@render actionButton(
-							'Solicitar Nova Assinatura',
-							undefined,
-							'success',
-							'filled',
-							undefined,
-							undefined,
-							loading.active || modoEdicaoGeral,
-							false,
-							'border-2 border-success-600/30 hover:border-success-600',
-							'submit'
-						)}
-					</form>
-				{/if}
-				{#if gise.status === 'aguardando_assinatura' && !documentoAssinadoInfo?.existe}
-					<form
-						method="POST"
-						action="?/revogarPedidoAssinatura"
-						use:enhance={handleRevogarPedidoAssinatura}
-						class="contents"
-					>
-						{@render actionButton(
-							'Revogar solicitação de ass.',
-							undefined,
-							'warning',
-							'outlined',
-							undefined,
-							undefined,
-							loading.active,
-							false,
-							'border-2 border-warning-500/30 hover:border-warning-500',
-							'submit'
-						)}
-					</form>
-				{/if}
-				{@render actionButton(
-					'Excluir GISE',
-					undefined,
-					'error',
-					'outlined',
-					() => (showExcluirGiseConfirm = true),
-					undefined,
-					editaBloqueado,
-					false,
-					'border-2 border-error-500/30 hover:border-error-500'
-				)}
-			{/if}
-			{#if podeReabrir}
-				{@render actionButton(
-					'Reabrir para Edição',
-					undefined,
-					'warning',
-					'outlined',
-					() => (showReabrirConfirm = true),
-					undefined,
-					false,
-					false,
-					'border-2 border-warning-500/30 hover:border-warning-500'
-				)}
-			{/if}
-			{#if podeFinalizar}
-				{@render actionButton(
-					'Marcar como Finalizada',
-					undefined,
-					'error',
-					'outlined',
-					() => (showFinalizarConfirm = true),
-					undefined,
-					false,
-					false,
-					'border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15'
-				)}
-			{/if}
-		</div>
-	</div>
+	{#if gise}
+		<GiseCabecalho
+			{gise}
+			{statusLabel}
+			{statusColor}
+			{diaSemana}
+			{fmtDate}
+			{isAdminGeral}
+			{isSeccional}
+			{podeDownload}
+			{podeEditar}
+			{podeReabrir}
+			{podeFinalizar}
+			{editaBloqueado}
+			{modoEdicaoGeral}
+			{todasSeccionaisPreenchidas}
+			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
+			{pendingCrud}
+			onToggleEdit={() => (modoEdicaoGeral = !modoEdicaoGeral)}
+			onAbrirDataHoras={abrirEdicaoDatasHorarios}
+			onAbrirExcluir={() => (showExcluirGiseConfirm = true)}
+			onAbrirReabrir={() => (showReabrirConfirm = true)}
+			onAbrirFinalizar={() => (showFinalizarConfirm = true)}
+			onSolicitarAssinatura={handleSolicitarAssinatura}
+			onRevogarPedido={handleRevogarPedidoAssinatura}
+		/>
+	{/if}
 
 	{#if !gise}
 		<p class="text-surface-500">Escala não encontrada.</p>
 	{:else}
-		<!-- Supervisão e apoio -->
-		<div
-			class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
-		>
-			<!-- Decorative gradient background -->
-			<div
-				class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"
-			></div>
+		<GiseSupervisao
+			{gise}
+			{policiais}
+			{isAdminGeral}
+			{isSeccional}
+			{podeEditar}
+			{modoEdicaoGeral}
+			editando={editandoSupervisores}
+			{documentoAssinadoInfo}
+			{pendingCrud}
+			{buscarDpcs}
+			{buscarOips}
+			{selectedFromPoliciais}
+			bind:supervisorId
+			bind:assessorId
+			bind:seint1Id
+			bind:seint2Id
+			onEditar={() => (editandoSupervisores = true)}
+			onCancelar={() => (editandoSupervisores = false)}
+			onSubmit={handleSalvarSupervisores}
+		/>
 
-			<div class="p-6">
-				<div class="flex flex-wrap items-center justify-between gap-4 mb-5">
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
-							<ShieldCheck size={24} />
-						</div>
-						<h2 class="text-xl font-bold text-surface-900 dark:text-surface-50 tracking-tight">
-							Supervisão e apoio
-						</h2>
-					</div>
+		<GiseBannersAssinaturas
+			{documentoAssinadoInfo}
+			assinaturasRelatorios={data.assinaturasRelatorios}
+		/>
 
-					{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editandoSupervisores}
-						<button
-							type="button"
-							class="flex items-center gap-2 text-sm px-4 py-2 rounded-xl font-bold transition-all duration-200 {!gise.supervisor_id
-								? 'bg-warning-500 text-white hover:bg-warning-600 shadow-lg shadow-warning-500/20 animate-pulse'
-								: 'bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-surface-700'}"
-							onclick={() => (editandoSupervisores = true)}
-						>
-							<PenLine size={16} />
-							{!gise.supervisor_id ? 'Definir Supervisão' : 'Editar Supervisão'}
-						</button>
-					{/if}
-				</div>
-
-				{#if editandoSupervisores}
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-						<div>
-							<label
-								for="supId"
-								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-								>Supervisão e apoio (DPC)</label
-							>
-							<SearchableSelect
-								id="supId"
-								bind:value={supervisorId}
-								loadOptions={buscarDpcs}
-								selectedOption={selectedFromPoliciais(supervisorId)}
-								placeholder="Pesquisar Supervisão..."
-								class="w-full"
-							/>
-						</div>
-						<div>
-							<label
-								for="assessorId"
-								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-							>
-								Assessor (OIP)
-							</label>
-							<SearchableSelect
-								id="assessorId"
-								bind:value={assessorId}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(assessorId)}
-								placeholder="Pesquisar Assessor..."
-								class="w-full"
-							/>
-						</div>
-						<div>
-							<label
-								for="seint1Id"
-								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-							>
-								Inteligência 1 (SEINT - OIP)
-							</label>
-							<SearchableSelect
-								id="seint1Id"
-								bind:value={seint1Id}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(seint1Id)}
-								placeholder="Pesquisar SEINT 1..."
-								class="w-full"
-							/>
-						</div>
-						<div>
-							<label
-								for="seint2Id"
-								class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-							>
-								Inteligência 2 (SEINT - OIP)
-							</label>
-							<SearchableSelect
-								id="seint2Id"
-								bind:value={seint2Id}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(seint2Id)}
-								placeholder="Pesquisar SEINT 2..."
-								class="w-full"
-							/>
-						</div>
-					</div>
-					<form
-						method="POST"
-						action="?/salvarSupervisores"
-						use:enhance={handleSalvarSupervisores}
-						class="flex gap-2"
-					>
-						<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-						<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
-						<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
-						<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
-						<button
-							type="submit"
-							class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
-							disabled={pendingCrud}
-						>
-							{pendingCrud ? 'Salvando...' : 'Salvar'}
-						</button>
-						<button
-							type="button"
-							class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
-							onclick={() => (editandoSupervisores = false)}
-						>
-							Cancelar
-						</button>
-					</form>
-				{:else}
-					<div
-						class="p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
-					>
-						<div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-							<div class="space-y-4 flex-1">
-								<!-- Main Supervisor Row -->
-								<div class="flex items-start gap-4">
-									<div
-										class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
-									>
-										<UserRound size={20} />
-									</div>
-									<div>
-										<span
-											class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
-											>DPC Supervisão</span
-										>
-										<p class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
-											{gise.supervisor_nome ?? 'Não definido'}
-										</p>
-									</div>
-								</div>
-
-								<!-- Other Team Members -->
-								<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-									{#if gise.assessor_id}
-										<div
-											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-white/60 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-700/50"
-										>
-											<div class="text-surface-400 dark:text-surface-500">
-												<Users size={14} />
-											</div>
-											<div class="overflow-hidden">
-												<span
-													class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
-													>Assessor</span
-												>
-												<p
-													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-												>
-													{policiais.find((p: any) => p.id === gise.assessor_id)?.nome ??
-														'Carregando...'}
-												</p>
-											</div>
-										</div>
-									{/if}
-
-									{#if gise.seint1_id}
-										<div
-											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
-										>
-											<div class="text-indigo-600/70 dark:text-indigo-400/70">
-												<Users size={14} />
-											</div>
-											<div class="overflow-hidden">
-												<span
-													class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
-													>SEINT OIP</span
-												>
-												<p
-													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-												>
-													{policiais.find((p: any) => p.id === gise.seint1_id)?.nome ??
-														'Carregando...'}
-												</p>
-											</div>
-										</div>
-									{/if}
-
-									{#if gise.seint2_id}
-										<div
-											class="flex items-center gap-2.5 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
-										>
-											<div class="text-indigo-600/70 dark:text-indigo-400/70">
-												<Users size={14} />
-											</div>
-											<div class="overflow-hidden">
-												<span
-													class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
-													>SEINT OIP</span
-												>
-												<p
-													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-												>
-													{policiais.find((p: any) => p.id === gise.seint2_id)?.nome ??
-														'Carregando...'}
-												</p>
-											</div>
-										</div>
-									{/if}
-								</div>
-							</div>
-
-							<div class="flex flex-col items-end gap-3 min-w-[140px]">
-								{#if documentoAssinadoInfo?.existe}
-									<div class="flex flex-col items-end">
-										<span
-											class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-success-500/20"
-										>
-											<CheckCircle2 size={12} />
-											Assinada
-										</span>
-									</div>
-								{:else}
-									<div class="flex flex-col items-end">
-										<span
-											class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20"
-										>
-											<Clock size={12} />
-											Pendente
-										</span>
-									</div>
-								{/if}
-							</div>
-						</div>
-
-						{#if documentoAssinadoInfo?.existe}
-							<div
-								class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 flex flex-wrap items-center justify-between gap-4"
-							>
-								<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
-									<div
-										class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center"
-									>
-										<ShieldCheck size={16} />
-									</div>
-									<div>
-										<p>Assinado digitalmente por:</p>
-										<p class="font-bold text-surface-900 dark:text-surface-100">
-											{documentoAssinadoInfo.assinante_nome}
-										</p>
-									</div>
-								</div>
-
-								<a
-									href={`/api/gise/${gise.id}/documento-assinado`}
-									target="_blank"
-									class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
-								>
-									<FileDown size={18} />
-									Baixar PDF Assinado
-								</a>
-							</div>
-						{/if}
-					</div>
-					{#if isAdminGeral || isSeccional}
-						<a
-							href={`/api/gise/${gise.id}/download?format=pdf`}
-							target="_blank"
-							class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-								/></svg
-							>
-							PDF da escala sem assinatura
-						</a>
-					{/if}
-				{/if}
-			</div>
-		</div>
-
-		<!-- Banners de Sucesso (Assinaturas) -->
-		<div class="space-y-3">
-			<!-- Card de Escala Assinada -->
-			{#if documentoAssinadoInfo?.existe}
-				<div
-					class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm"
-				>
-					<div class="bg-success-500 text-white p-2 rounded-full mt-1">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="3"
-								d="M5 13l4 4L19 7"
-							/></svg
-						>
-					</div>
-					<div class="flex-1">
-						<h3 class="font-bold text-success-800 dark:text-success-400 uppercase tracking-tight">
-							Escala GISE Assinada
-						</h3>
-						<p class="text-sm text-surface-600 dark:text-surface-300 mt-1 font-medium">
-							Assinado por {documentoAssinadoInfo.assinante_nome}.
-						</p>
-					</div>
-				</div>
-			{/if}
-
-			<!-- Relatórios Extraordinários Assinados -->
-			{#if data.assinaturasRelatorios?.length > 0}
-				{#each data.assinaturasRelatorios.filter((a: any) => a.tipo === 'extraordinario') as assRel}
-					<div
-						class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm"
-					>
-						<div class="bg-success-500 text-white p-2 rounded-full mt-1">
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="3"
-									d="M5 13l4 4L19 7"
-								/></svg
-							>
-						</div>
-						<div class="flex-1">
-							<h3 class="font-bold text-success-800 dark:text-success-400 uppercase tracking-tight">
-								Relatório Extraordinário Assinado
-							</h3>
-							<p class="text-sm text-surface-600 dark:text-surface-300 mt-1 font-medium">
-								Assinado por {assRel.assinante_nome}.
-							</p>
-						</div>
-					</div>
-				{/each}
-			{/if}
-		</div>
-
-		<!-- Seção de assinatura (Supervisor) -->
 		{#if podeAssinar}
-			<div id="secao-assinatura-digital" class="space-y-6">
-				<h3
-					class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500"
-				>
-					<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-						/></svg
-					>
-					Assinar Escala GISE
-				</h3>
-
-				<div class="grid grid-cols-1 gap-6">
-					<!-- 1. ASSINATURA MANUAL (TELA/MOBILE) -->
-					<div
-						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {isMobile ||
-						!data.restringirSmartphone
-							? 'border-primary-500/30'
-							: 'border-surface-200 dark:border-white/5 opacity-60'} rounded-3xl flex flex-col justify-start gap-5 shadow-xl transition-all"
-					>
-						<button
-							type="button"
-							class="w-full text-left flex flex-col gap-2"
-							onclick={() => (expandirManual = !expandirManual)}
-						>
-							<div class="flex items-center justify-between">
-								<h4
-									class="font-bold text-sm flex items-center gap-2 text-surface-900 dark:text-surface-50"
-								>
-									<svg
-										class="w-5 h-5 {isMobile || !data.restringirSmartphone
-											? 'text-primary-500'
-											: 'text-surface-400'}"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-										/>
-									</svg>
-									Assinar na Tela (Manual)
-								</h4>
-								<div class="flex items-center gap-3">
-									{#if isMobile || !data.restringirSmartphone}
-										<span
-											class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-											>Disponível</span
-										>
-									{:else}
-										<span
-											class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-											>Indisponível no PC</span
-										>
-									{/if}
-									<svg
-										class="w-4 h-4 text-surface-400 transition-transform duration-300 {expandirManual
-											? 'rotate-180'
-											: ''}"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 9l-7 7-7-7"
-										/>
-									</svg>
-								</div>
-							</div>
-							<p class="text-xs text-surface-500 leading-relaxed">
-								Gera o PDF com sua rubrica manual desenhada diretamente na tela do seu dispositivo. <strong
-									>Ideal para tablets e smartphones.</strong
-								>
-							</p>
-						</button>
-
-						{#if expandirManual}
-							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
-								{#if isMobile || !data.restringirSmartphone}
-									<button
-										type="button"
-										class="btn preset-filled-primary-500 w-full py-3 rounded-2xl font-bold uppercase text-xs shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all"
-										disabled={loading.active}
-										onclick={() => abrirModalRubrica('simples')}
-									>
-										Abrir Painel de Rubrica
-									</button>
-								{:else}
-									<div class="flex-1 flex items-center">
-										<div class="bg-error-500/10 p-3 rounded-xl border border-error-500/20 w-full">
-											<p
-												class="text-[0.7rem] text-error-600 dark:text-error-400 font-bold uppercase text-center leading-tight"
-											>
-												A assinatura em tela é restrita a dispositivos móveis. Utilize o Token A3 no
-												computador.
-											</p>
-										</div>
-									</div>
-								{/if}
-							</div>
-						{/if}
-					</div>
-
-					<!-- 2. ASSINATURA DIGITAL (TOKEN A3) -->
-					<div
-						class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border-2 {!isMobile &&
-						data.restringirSmartphone
-							? 'border-tertiary-500/30'
-							: 'border-surface-200 dark:border-white/5'} rounded-3xl flex flex-col justify-start gap-5 shadow-xl transition-all"
-					>
-						<button
-							type="button"
-							class="w-full text-left flex flex-col gap-2"
-							onclick={() => (expandirDigital = !expandirDigital)}
-						>
-							<div class="flex items-center justify-between">
-								<h4
-									class="font-bold text-sm flex items-center gap-2 text-surface-900 dark:text-surface-50"
-								>
-									<svg
-										class="w-5 h-5 {!isMobile || data.restringirSmartphone
-											? 'text-tertiary-500'
-											: 'text-surface-400'}"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-										/>
-									</svg>
-									Assinatura Digital (Token A3)
-								</h4>
-								<div class="flex items-center gap-3">
-									{#if !isMobile}
-										<span
-											class="badge preset-filled-tertiary-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-											>Recomendado</span
-										>
-									{:else}
-										<span
-											class="badge bg-surface-200 dark:bg-surface-700 text-surface-500 text-[0.6rem] uppercase font-black px-2 py-0.5"
-											>Apenas Desktop</span
-										>
-									{/if}
-									<svg
-										class="w-4 h-4 text-surface-400 transition-transform duration-300 {expandirDigital
-											? 'rotate-180'
-											: ''}"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M19 9l-7 7-7-7"
-										/>
-									</svg>
-								</div>
-							</div>
-							<p class="text-xs text-surface-500 leading-relaxed">
-								Assinatura com validade <strong>Qualificada (ICP-Brasil)</strong> usando seu certificado
-								digital físico. Requer o Assinador Desktop instalado no computador.
-							</p>
-						</button>
-
-						{#if expandirDigital}
-							<div class="pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col gap-5">
-								<PainelAssinaturaToken
-									bind:control={painelTokenGise}
-									bind:signerName={serproSignerName}
-									bind:signerCpf={serproSignerCpf}
-									signerEmail={data.usuarioAtual?.email ?? undefined}
-									prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
-									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
-									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-									extraPayload={{ rubrica: rubricaCapturada }}
-									disabled={loading.active}
-									onSuccess={async () => {
-										rubricaCapturada = null;
-										await invalidate('gise:detail');
-									}}
-								/>
-
-								{#if isMobile}
-									<div
-										class="bg-surface-200 dark:bg-surface-700/30 p-3 rounded-xl border border-surface-300 dark:border-surface-600/30"
-									>
-										<p
-											class="text-[0.65rem] text-surface-500 font-bold uppercase text-center leading-tight"
-										>
-											Certificados físicos (USB/Token/Cartão) só podem ser lidos em computadores.
-										</p>
-									</div>
-								{/if}
-							</div>
-						{/if}
-					</div>
-				</div>
-			</div>
+			<GisePainelAssinaturaSupervisor
+				giseId={gise.id}
+				dataInicio={gise.data_inicio}
+				{isMobile}
+				restringirSmartphone={data.restringirSmartphone}
+				signerEmail={data.usuarioAtual?.email ?? undefined}
+				{rubricaCapturada}
+				bind:painelTokenControl={painelTokenGise}
+				bind:signerName={serproSignerName}
+				bind:signerCpf={serproSignerCpf}
+				onAbrirManual={() => abrirModalRubrica('simples')}
+				onSuccessDigital={async () => {
+					rubricaCapturada = null;
+					await invalidate('gise:detail');
+				}}
+			/>
 		{/if}
 
-		<!-- Bloco de Lote de Assinaturas Extraordinárias (Supervisor) -->
 		{#if pendentesExtra.length > 0}
-			<div
-				class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm space-y-4"
-			>
-				<div>
-					<h3 class="font-bold text-warning-800 dark:text-warning-400 flex items-center gap-2">
-						<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-							/></svg
-						>
-						Assinaturas Pendentes
-					</h3>
-					<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
-						Você possui <strong>{pendentesExtra.length} relatório(s) extraordinário(s)</strong> aptos
-						para assinatura em lote.
-					</p>
-				</div>
-
-				{#if assinandoLote}
-					<div
-						class="flex flex-col items-center gap-1 bg-white/50 dark:bg-surface-800/50 p-6 rounded-3xl border border-warning-500/20 shadow-xl"
-					>
-						<div class="text-xs font-bold text-warning-700 uppercase tracking-widest mb-2">
-							{etapaAssinatura}
-						</div>
-						<div
-							class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-3 overflow-visible shadow-inner"
-						>
-							<div
-								class="bg-warning-500 h-full transition-all duration-500 ease-out flex items-center justify-center text-[0.5rem] text-white font-bold"
-								style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
-							>
-								{Math.round((progressoLote.atual / progressoLote.total) * 100)}%
-							</div>
-						</div>
-						<div class="mt-2 text-[0.6rem] text-surface-500 font-medium">
-							Item {progressoLote.atual} de {progressoLote.total}
-						</div>
-					</div>
-				{:else}
-					<div class="flex flex-col gap-4">
-						<!-- Lote Manual -->
-						<div
-							class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
-						>
-							<button
-								type="button"
-								class="w-full text-left flex items-center justify-between"
-								onclick={() => (expandirLoteManual = !expandirLoteManual)}
-							>
-								<div class="flex items-center gap-2">
-									<div class="p-1.5 bg-warning-500/10 rounded-lg text-warning-600">
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-											/>
-										</svg>
-									</div>
-									<h4
-										class="font-bold text-xs text-warning-800 dark:text-warning-400 uppercase tracking-tight"
-									>
-										Assinatura Manual (Lote - Tela)
-									</h4>
-								</div>
-								<svg
-									class="w-4 h-4 text-warning-400 transition-transform duration-300 {expandirLoteManual
-										? 'rotate-180'
-										: ''}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 9l-7 7-7-7"
-									/>
-								</svg>
-							</button>
-
-							{#if expandirLoteManual}
-								<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
-									<p class="text-[0.65rem] text-surface-500 leading-tight">
-										Aplica sua rubrica manual em todos os relatórios extraordinários pendentes de
-										uma só vez.
-									</p>
-									{#if isMobile || !data.restringirSmartphone}
-										<button
-											type="button"
-											class="btn btn-sm preset-filled-warning-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
-											onclick={() => abrirAssinaturaLote()}
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-												/></svg
-											>
-											Assinar Agora
-										</button>
-									{:else}
-										<div class="bg-error-500/5 p-2 rounded-lg border border-error-500/10">
-											<p class="text-[0.6rem] text-error-600 font-bold uppercase text-center">
-												Indisponível no PC. Use o Token A3.
-											</p>
-										</div>
-									{/if}
-								</div>
-							{/if}
-						</div>
-
-						<!-- Lote Digital -->
-						<div
-							class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
-						>
-							<button
-								type="button"
-								class="w-full text-left flex items-center justify-between"
-								onclick={() => (expandirLoteDigital = !expandirLoteDigital)}
-							>
-								<div class="flex items-center gap-2">
-									<div class="p-1.5 bg-tertiary-500/10 rounded-lg text-tertiary-600">
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-											/>
-										</svg>
-									</div>
-									<h4
-										class="font-bold text-xs text-tertiary-700 dark:text-tertiary-400 uppercase tracking-tight"
-									>
-										Assinatura Digital (Lote - Token A3)
-									</h4>
-								</div>
-								<svg
-									class="w-4 h-4 text-tertiary-400 transition-transform duration-300 {expandirLoteDigital
-										? 'rotate-180'
-										: ''}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 9l-7 7-7-7"
-									/>
-								</svg>
-							</button>
-
-							{#if expandirLoteDigital}
-								<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
-									<p class="text-[0.65rem] text-surface-500 leading-tight">
-										Assine todos os relatórios digitalmente usando seu Token A3 através do assinador
-										SERPRO.
-									</p>
-									{#if !isMobile}
-										<div class="flex flex-col gap-2">
-											<button
-												type="button"
-												class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
-												onclick={() => executarAssinarRelatorioLoteSERPRO()}
-												disabled={loading.active}
-											>
-												Assinar Lote com SERPRO
-											</button>
-											<p class="text-[0.55rem] text-surface-400 italic text-center">
-												Requer o <a
-													href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
-													target="_blank"
-													class="underline">Assinador Desktop</a
-												> instalado e aberto.
-											</p>
-										</div>
-									{:else}
-										<div
-											class="bg-surface-200 dark:bg-surface-700/30 p-2 rounded-xl border border-surface-300 dark:border-surface-600/30"
-										>
-											<p
-												class="text-[0.6rem] text-surface-500 font-bold uppercase text-center leading-tight"
-											>
-												Certificados físicos só podem ser lidos em computadores.
-											</p>
-										</div>
-									{/if}
-								</div>
-							{/if}
-						</div>
-					</div>
-				{/if}
-			</div>
+			<GiseLoteAssinaturas
+				quantidadePendentes={pendentesExtra.length}
+				{assinandoLote}
+				{etapaAssinatura}
+				{progressoLote}
+				{isMobile}
+				restringirSmartphone={data.restringirSmartphone}
+				onAssinarManualLote={abrirAssinaturaLote}
+				onAssinarDigitalLote={executarAssinarRelatorioLoteSERPRO}
+			/>
 		{/if}
 
 		<!-- Seccionais -->
@@ -3088,315 +2235,74 @@
 	{/if}
 </div>
 
-<!-- Modal Editar Data/Horários -->
-{#if showModalDataHoras}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4"
-		>
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">
-				Editar Data e Horários
-			</h2>
-			{#if editaBloqueado}
-				<div
-					class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-4 py-2 text-sm text-warning-700 dark:text-warning-400"
-				>
-					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
-				</div>
-			{/if}
-			<div>
-				<label
-					for="editDataInicio"
-					class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1">Data</label
-				>
-				<input
-					id="editDataInicio"
-					type="date"
-					bind:value={editDataInicio}
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-				/>
-			</div>
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">Horários</p>
-				<div class="grid grid-cols-2 gap-3">
-					<div>
-						<label for="editHoraEntrada" class="text-sm text-surface-500 block mb-1">Entrada</label>
-						<input
-							id="editHoraEntrada"
-							type="text"
-							placeholder="Ex: 08:00"
-							bind:value={editHoraEntrada}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraEntrada &&
-							!validarHora(editHoraEntrada)
-								? 'border-error-500'
-								: 'border-surface-300 dark:border-surface-700'}"
-						/>
-					</div>
-					<div>
-						<label for="editHoraSaida" class="text-sm text-surface-500 block mb-1">Saída</label>
-						<input
-							id="editHoraSaida"
-							type="text"
-							placeholder="Ex: 16:00"
-							bind:value={editHoraSaida}
-							class="w-full px-3 py-2 rounded-xl border bg-white dark:bg-surface-800 text-sm {editHoraSaida &&
-							!validarHora(editHoraSaida)
-								? 'border-error-500'
-								: 'border-surface-300 dark:border-surface-700'}"
-						/>
-					</div>
-				</div>
-				<p class="text-xs text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
-			</div>
-			<div class="flex justify-end gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showModalDataHoras = false)}>Cancelar</button
-				>
-				<form
-					method="POST"
-					action="?/salvarDatasHorarios"
-					use:enhance={handleSalvarDatasHorarios}
-					class="contents"
-				>
-					<input type="hidden" name="data_inicio" value={editDataInicio} />
-					<input type="hidden" name="hora_entrada" value={normalizarHora(editHoraEntrada) ?? ''} />
-					<input type="hidden" name="hora_saida" value={normalizarHora(editHoraSaida) ?? ''} />
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex items-center gap-2"
-						disabled={pendingCrud}
-					>
-						{pendingCrud ? 'Salvando...' : 'Salvar'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</div>
+<ModalDatasHoras
+	open={showModalDataHoras}
+	{pendingCrud}
+	{editaBloqueado}
+	bind:dataInicio={editDataInicio}
+	bind:horaEntrada={editHoraEntrada}
+	bind:horaSaida={editHoraSaida}
+	onClose={() => (showModalDataHoras = false)}
+	onSubmit={handleSalvarDatasHorarios}
+	{normalizarHora}
+	{validarHora}
+/>
+
+<ModalExcluirGise
+	open={showExcluirGiseConfirm}
+	{pendingCrud}
+	onClose={() => (showExcluirGiseConfirm = false)}
+	onSubmit={handleExcluirGise}
+/>
+
+<ModalReabrir
+	open={showReabrirConfirm}
+	{pendingCrud}
+	onClose={() => (showReabrirConfirm = false)}
+	onSubmit={handleReabrirEscala}
+/>
+
+<ModalFinalizar
+	open={showFinalizarConfirm}
+	{pendingCrud}
+	onClose={() => (showFinalizarConfirm = false)}
+	onSubmit={handleFinalizarGise}
+/>
+
+{#if showDigitalModalRelatorio && relatorioDigitalInfo && gise}
+	<ModalRelatorioDigital
+		open={showDigitalModalRelatorio}
+		giseId={gise.id}
+		seccionalId={relatorioDigitalInfo.seccionalId}
+		seccionalNome={relatorioDigitalInfo.seccionalNome}
+		signerEmail={data.usuarioAtual?.email ?? undefined}
+		disabled={loading.active}
+		bind:control={painelTokenRelatorio}
+		bind:signerName={relatorioSignerName}
+		bind:signerCpf={relatorioSignerCpf}
+		onSuccess={async () => {
+			showDigitalModalRelatorio = false;
+			relatorioDigitalInfo = null;
+			await invalidate('gise:detail');
+		}}
+		onClose={() => {
+			showDigitalModalRelatorio = false;
+			relatorioDigitalInfo = null;
+		}}
+	/>
 {/if}
 
-<!-- Modal Confirmar Exclusão GISE -->
-{#if showExcluirGiseConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4"
-		>
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Excluir Escala GISE</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				Esta ação é <strong>irreversível</strong>. Todos os dados desta escala GISE serão
-				permanentemente removidos, incluindo equipes, membros e assinatura digital.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showExcluirGiseConfirm = false)}>Cancelar</button
-				>
-				<form method="POST" action="?/excluirGise" use:enhance={handleExcluirGise} class="contents">
-					<button
-						type="submit"
-						class="btn preset-filled-error-500 text-sm px-4 py-2 rounded-xl"
-						disabled={pendingCrud}
-					>
-						{pendingCrud ? 'Excluindo...' : 'Confirmar Exclusão'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</div>
-{/if}
+<ModalRubrica
+	open={showRubricaModal}
+	exigirFoto={page.data.exigirFotoAssinatura ?? true}
+	exigirGps={page.data.exigirGpsAssinatura ?? true}
+	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	onConfirm={confirmarRubrica}
+	onCancel={() => (showRubricaModal = false)}
+/>
 
-<!-- Confirmar Reabrir -->
-{#if showReabrirConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4"
-		>
-			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">Reabrir Escala GISE</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
-				A assinatura digital será <strong>revogada</strong> e será necessário que o supervisor assine
-				novamente.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
-					onclick={() => (showReabrirConfirm = false)}>Cancelar</button
-				>
-				<form
-					method="POST"
-					action="?/reabrirEscala"
-					use:enhance={handleReabrirEscala}
-					class="contents"
-				>
-					<button
-						type="submit"
-						class="btn preset-filled-warning-500 text-sm px-4 py-2 rounded-xl"
-						disabled={pendingCrud}
-					>
-						{pendingCrud ? 'Reabrindo...' : 'Confirmar Reabertura'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Confirmar Finalizar -->
-{#if showFinalizarConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-6 border border-white/10"
-		>
-			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Finalizar Escala GISE
-				</h2>
-				<p class="text-sm text-surface-500">
-					A escala atual será marcada como <span
-						class="font-bold text-surface-900 dark:text-surface-50 uppercase">Finalizada</span
-					>. Esta ação não poderá ser desfeita e a escala sairá da lista de escalas ativas.
-				</p>
-			</div>
-
-			<div class="pt-2">
-				<form
-					method="POST"
-					action="?/finalizarGise"
-					use:enhance={handleFinalizarGise}
-					class="contents"
-				>
-					<button
-						type="submit"
-						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
-						disabled={pendingCrud}
-					>
-						Finalizar Agora
-					</button>
-				</form>
-
-				<button
-					type="button"
-					class="w-full text-sm text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 transition-colors py-4 mt-2"
-					onclick={() => (showFinalizarConfirm = false)}
-					disabled={pendingCrud}
-				>
-					Cancelar e voltar
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Modal Assinatura Digital Individual de Relatório -->
-{#if showDigitalModalRelatorio && relatorioDigitalInfo}
-	<div
-		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-	>
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-lg p-8 space-y-6 border border-white/10"
-		>
-			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Assinatura Digital Individual
-				</h2>
-				<p class="text-sm text-surface-500">
-					Você está assinando o Relatório Extraordinário da seccional: <br />
-					<strong class="text-surface-900 dark:text-surface-50"
-						>{relatorioDigitalInfo.seccionalNome}</strong
-					>
-				</p>
-			</div>
-
-			<PainelAssinaturaToken
-				bind:control={painelTokenRelatorio}
-				bind:signerName={relatorioSignerName}
-				bind:signerCpf={relatorioSignerCpf}
-				signerEmail={data.usuarioAtual?.email ?? undefined}
-				prepararUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/preparar-assinatura"
-				finalizarUrl="/api/gise/{gise.id}/relatorios/{relatorioDigitalInfo.seccionalId}/finalizar-assinatura"
-				nomeArquivo="relatorio_extraordinario_{relatorioDigitalInfo.seccionalNome}.pdf"
-				disabled={loading.active}
-				onSuccess={async () => {
-					showDigitalModalRelatorio = false;
-					relatorioDigitalInfo = null;
-					await invalidate('gise:detail');
-				}}
-			/>
-
-			<button
-				type="button"
-				class="w-full btn preset-outlined-surface py-3 rounded-2xl text-sm"
-				onclick={() => {
-					showDigitalModalRelatorio = false;
-					relatorioDigitalInfo = null;
-				}}
-				disabled={loading.active}
-			>
-				Cancelar e fechar
-			</button>
-		</div>
-	</div>
-{/if}
-
-{#if showRubricaModal}
-	<div
-		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-	>
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-6 border border-white/10"
-		>
-			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Rubrica do Supervisor
-				</h2>
-				<p class="text-sm text-surface-500">
-					Desenhe sua rubrica no quadro abaixo para assinar a escala.
-				</p>
-			</div>
-
-			<SignaturePad
-				onConfirm={confirmarRubrica}
-				onCancel={() => (showRubricaModal = false)}
-				exigirFoto={page.data.exigirFotoAssinatura ?? true}
-				exigirGps={page.data.exigirGpsAssinatura ?? true}
-				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			/>
-
-			<p class="text-sm text-surface-400 text-center italic">
-				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
-			</p>
-		</div>
-	</div>
-{/if}
-
-<!-- Diálogo de confirmação para remover seccional -->
-<Dialog
+<ModalRemoverSeccional
 	open={dialogRemoverSeccionalAberto}
-	onOpenChange={(e) => (dialogRemoverSeccionalAberto = e.open)}
->
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
-	>
-		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
-			<Dialog.Title class="text-lg font-bold mb-2">Remover seccional?</Dialog.Title>
-			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
-				Todos os policiais escalados nesta seccional serão removidos. Esta ação não pode ser
-				desfeita.
-			</Dialog.Description>
-			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
-				<button
-					type="button"
-					class="btn preset-filled-error-500"
-					onclick={confirmarRemoverSeccional}
-				>
-					Remover
-				</button>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
+	onOpenChange={(open) => (dialogRemoverSeccionalAberto = open)}
+	onConfirm={confirmarRemoverSeccional}
+/>
