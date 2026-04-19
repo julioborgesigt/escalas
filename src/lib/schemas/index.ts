@@ -4,3 +4,4 @@ export { loginSchema, alterarSenhaSchema, type LoginInput, type AlterarSenhaInpu
 export { unidadeSchema, type UnidadeInput } from './unidade';
 export { giseSignatureSchema, giseIdParamSchema, giseDownloadSchema, type GiseSignatureInput } from './gise';
 export { assinaturaConfigSchema, type AssinaturaConfigInput } from './config';
+export { policialSearchQuerySchema, type PolicialSearchQuery } from './policial-search';
