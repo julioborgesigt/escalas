@@ -1406,6 +1406,10 @@ export async function listarTodasRespostasGise(
 	return { respostas: resultados, total, page, limit, totalPages };
 }
 
+export type GiseRespostaListagemItem = Awaited<
+	ReturnType<typeof listarTodasRespostasGise>
+>['respostas'][number];
+
 // ---- Presenças ----
 
 export async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {

@@ -1036,7 +1036,7 @@
 									<p class="text-sm text-surface-500">
 										O registro de entrada estará disponível às <span
 											class="font-bold text-primary-500"
-											>{resGise.escalaSelecionada.horarioPrevisto.inicio}</span
+											>{resGise.escalaSelecionada.horarioPrevisto?.inicio ?? '—'}</span
 										>.
 									</p>
 								</div>
@@ -1250,7 +1250,7 @@
 													<p class="text-sm text-surface-500">
 														A confirmação de saída estará disponível às <span
 															class="font-bold text-primary-500"
-															>{resGise.escalaSelecionada.horarioPrevisto.fim}</span
+															>{resGise.escalaSelecionada.horarioPrevisto?.fim ?? '—'}</span
 														>.
 													</p>
 												</div>

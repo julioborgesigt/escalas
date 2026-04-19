@@ -499,6 +499,7 @@ export type GiseMembro = typeof giseMembros.$inferSelect;
 export type GiseDocumento = typeof giseDocumentos.$inferSelect;
 export type GisePresenca = typeof gisePresencas.$inferSelect;
 export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
+export type GiseAssinaturaRelatorio = typeof giseAssinaturasRelatorios.$inferSelect;
 export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NovoAuditLog = typeof auditLog.$inferInsert;

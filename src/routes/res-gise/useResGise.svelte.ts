@@ -2,18 +2,29 @@ import { toaster } from '$lib/toast';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto, invalidateAll } from '$app/navigation';
+import type { ActionResult } from '@sveltejs/kit';
+import type {
+	GiseModeloPerguntaConfig,
+	ResGiseEscalaSelecionavel,
+	ResGisePageData
+} from '$lib/types';
+import type { GisePresenca } from '$lib/server/schema';
 
-export function useResGise(getData: () => any) {
+function messageFromUnknown(e: unknown): string {
+	return e instanceof Error ? e.message : String(e);
+}
+
+export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
 	const data = $derived(getData());
 
 	// --- Estados de Interface ---
 	let activeTab = $state('relatorios'); // relatorios | configurador
 	let configTipo = $state<'operacional' | 'seint'>('operacional');
-	let perguntasConfig = $state<any[]>([]);
+	let perguntasConfig = $state<GiseModeloPerguntaConfig[]>([]);
 	// --- Estados de Escala / Resposta ---
-	let escalaSelecionada = $state<any>(null);
-	let respostas = $state<any>({});
+	let escalaSelecionada = $state<ResGiseEscalaSelecionavel | null>(null);
+	let respostas = $state<Record<string, unknown>>({});
 	let exibirRelatorio = $state(false);
 	let capturandoRubrica = $state(false);
 
@@ -38,8 +49,8 @@ export function useResGise(getData: () => any) {
 	const respostasJson = $derived(JSON.stringify(respostas));
 
 	const seccionaisUnicas = $derived(
-		['todas', ...Array.from(new Set(data.listaAdmin?.map((e: any) => e.seccional_nome) || []))].sort(
-			(a: any, b: any) => {
+		['todas', ...Array.from(new Set(data.listaAdmin?.map((e) => e.seccional_nome) || []))].sort(
+			(a: string, b: string) => {
 				if (a === 'todas') return -1;
 				if (b === 'todas') return 1;
 				return String(a).localeCompare(String(b));
@@ -48,7 +59,7 @@ export function useResGise(getData: () => any) {
 	);
 
 	const listaFiltrada = $derived(
-		(data.listaAdmin || []).filter((e: any) => {
+		(data.listaAdmin || []).filter((e) => {
 			return seccionalFilter === 'todas' || e.seccional_nome === seccionalFilter;
 		})
 	);
@@ -103,7 +114,7 @@ export function useResGise(getData: () => any) {
 		];
 	}
 
-	function adicionarSubPergunta(pai: any) {
+	function adicionarSubPergunta(pai: GiseModeloPerguntaConfig) {
 		const id = Date.now();
 		pai.filhos = [
 			...(pai.filhos || []),
@@ -113,7 +124,7 @@ export function useResGise(getData: () => any) {
 	}
 
 	function removerPergunta(id: number, lista = perguntasConfig) {
-		const idx = lista.findIndex((p: any) => p.id === id);
+		const idx = lista.findIndex((p) => p.id === id);
 		if (idx > -1) {
 			lista.splice(idx, 1);
 			perguntasConfig = [...perguntasConfig];
@@ -127,12 +138,12 @@ export function useResGise(getData: () => any) {
 
 	function handleSalvarModelo() {
 		loading.show(`Salvando Modelo ${configTipo}...`);
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			if (result.type === 'success') {
 				toaster.success({ title: `Modelo ${configTipo} salvo com sucesso` });
 				await invalidateAll();
-			} else {
+			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: String(d?.error || 'Erro ao salvar modelo') });
 			}
@@ -140,7 +151,7 @@ export function useResGise(getData: () => any) {
 	}
 
 	// --- Funções de Escala ---
-	async function selecionarEscala(escala: any, podeVerListaGeral: boolean) {
+	async function selecionarEscala(escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) {
 		const isSame =
 			escalaSelecionada?.id === escala.id && escalaSelecionada?.equipe_id === escala.equipe_id;
 		if (isSame) return;
@@ -158,25 +169,26 @@ export function useResGise(getData: () => any) {
 	}
 
 	function handleSalvarResposta(podeVerListaGeral: boolean) {
-		return ({ cancel }: any) => {
-			if (!escalaSelecionada) {
+		return ({ cancel }: { cancel: () => void }) => {
+			const sel = escalaSelecionada;
+			if (!sel) {
 				cancel();
 				return;
 			}
 			loading.show('Enviando relatório de produtividade...');
-			return async ({ result }: any) => {
+			return async ({ result }: { result: ActionResult }) => {
 				loading.hide();
 				if (result.type === 'success') {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
 					// Atualiza imediatamente sem precisar de reload da página
-					escalaSelecionada = { ...escalaSelecionada, equipeRespondida: true };
+					escalaSelecionada = { ...sel, equipeRespondida: true } as ResGiseEscalaSelecionavel;
 					if (!podeVerListaGeral) exibirRelatorio = false;
 					await invalidateAll();
 					const atualizada = data.minhasEscalas?.find(
-						(e: any) => e.id === escalaSelecionada?.id && e.equipe_id === escalaSelecionada?.equipe_id
+						(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
 					);
 					if (atualizada) escalaSelecionada = atualizada;
-				} else {
+				} else if (result.type === 'failure') {
 					const d = result.data as Record<string, unknown> | undefined;
 					toaster.error({ title: String(d?.error || 'Erro ao salvar resposta') });
 				}
@@ -193,10 +205,11 @@ export function useResGise(getData: () => any) {
 		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
+		const giseAlvoId = escalaSelecionada.id;
 		loading.show('Confirmando Entrada...');
 		try {
 			const fd = new FormData();
-			fd.set('giseId', escalaSelecionada.id);
+			fd.set('giseId', String(giseAlvoId));
 			fd.set('rubrica', rubrica);
 			if (latitude !== undefined) fd.set('latitude', String(latitude));
 			if (longitude !== undefined) fd.set('longitude', String(longitude));
@@ -212,10 +225,10 @@ export function useResGise(getData: () => any) {
 			toaster.success({ title: 'Entrada confirmada com sucesso' });
 			capturandoRubrica = false;
 			await invalidateAll();
-			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
+			const atualizada = data.minhasEscalas?.find((e) => e.id === giseAlvoId);
 			if (atualizada) escalaSelecionada = atualizada;
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
 		}
@@ -228,7 +241,7 @@ export function useResGise(getData: () => any) {
 		return `${d}/${m}/${y}`;
 	};
 
-	const isHorarioLiberado = (escala: any, podeVerListaGeral: boolean) => {
+	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) => {
 		if (podeVerListaGeral) return true;
 		if (!escala?.horarioPrevisto?.inicio) return true;
 		const agora = new Date();
@@ -239,7 +252,7 @@ export function useResGise(getData: () => any) {
 		return agora >= dataInicioPrevista;
 	};
 
-	const isSaidaLiberada = (escala: any, podeVerListaGeral: boolean) => {
+	const isSaidaLiberada = (escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) => {
 		if (podeVerListaGeral) return true;
 		if (!escala?.horarioPrevisto?.fim) return true;
 		const agora = new Date();
@@ -259,10 +272,11 @@ export function useResGise(getData: () => any) {
 		desafioId?: string
 	) {
 		if (!escalaSelecionada) return;
+		const giseAlvoIdSaida = escalaSelecionada.id;
 		loading.show('Confirmando Saída...');
 		try {
 			const fd = new FormData();
-			fd.set('giseId', escalaSelecionada.id);
+			fd.set('giseId', String(giseAlvoIdSaida));
 			fd.set('rubrica', rubrica);
 			if (latitude !== undefined) fd.set('latitude', String(latitude));
 			if (longitude !== undefined) fd.set('longitude', String(longitude));
@@ -280,26 +294,25 @@ export function useResGise(getData: () => any) {
 			await invalidateAll();
 			// After saving saída, the escala is filtered out of minhasEscalas (it's now 'finished').
 			// Patch escalaSelecionada directly so the UI shows 'Saída Confirmada' without a page reload.
-			const atualizada = data.minhasEscalas?.find((e: any) => e.id === escalaSelecionada.id);
+			const atualizada = data.minhasEscalas?.find((e) => e.id === giseAlvoIdSaida);
 			if (atualizada) {
 				escalaSelecionada = atualizada;
 			} else {
+				const sel = escalaSelecionada;
+				const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
 				escalaSelecionada = {
-					...escalaSelecionada,
-					presenca: {
-						...(escalaSelecionada.presenca || {}),
-						saida_timestamp: new Date().toISOString()
-					}
-				};
+					...sel,
+					presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
+				} as ResGiseEscalaSelecionavel;
 			}
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
 		}
 	}
 
-	async function baixarRelatorio(escala: any) {
+	async function baixarRelatorio(escala: ResGiseEscalaSelecionavel) {
 		loading.show('Baixando Relatório de Produtividade...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
@@ -316,14 +329,14 @@ export function useResGise(getData: () => any) {
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro no Download', description: e.message });
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
 		}
 	}
 
-	async function baixarRelatorioExtra(escala: any) {
+	async function baixarRelatorioExtra(escala: ResGiseEscalaSelecionavel) {
 		loading.show('Baixando Relatório Extraordinário...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=extraordinario&seccionalId=${escala.seccional_id}`;
@@ -340,8 +353,8 @@ export function useResGise(getData: () => any) {
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
-		} catch (e: any) {
-			toaster.error({ title: 'Erro no Download', description: e.message });
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
 		}
