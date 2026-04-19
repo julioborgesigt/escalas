@@ -2,26 +2,35 @@ import { page } from '$app/state';
 
 /**
  * Autorização reativa a partir de `page.data.usuario` (SvelteKit load).
- * Cada flag é `$derived` para acompanhar navegação e `invalidate`.
+ * Propriedades são getters para ler `page.data` em cada acesso (evita
+ * `state_referenced_locally` ao retornar objeto literal com `$derived`).
+ *
+ * Preferir `const auth = useAutorizacao()` e `const isAdmin = $derived(auth.isAdmin)`
+ * em vez de desestruturar na primeira linha (perde reatividade).
  */
 export function useAutorizacao() {
-	const isAdmin = $derived(page.data.usuario?.tipo === 'admin');
-	const isAdminSeccional = $derived(page.data.usuario?.papel === 'admin_seccional');
-	const isAdminUnidade = $derived(page.data.usuario?.papel === 'admin_unidade');
-	const isAdminOrSeccional = $derived(
-		page.data.usuario?.tipo === 'admin' || page.data.usuario?.papel === 'admin_seccional'
-	);
-	const tipoUsuario = $derived(page.data.usuario?.tipo ?? null);
-	const papelUsuario = $derived(page.data.usuario?.papel ?? null);
-	const lotacaoUsuario = $derived(page.data.usuario?.lotacao ?? null);
-
 	return {
-		isAdmin,
-		isAdminSeccional,
-		isAdminUnidade,
-		isAdminOrSeccional,
-		tipoUsuario,
-		papelUsuario,
-		lotacaoUsuario
+		get isAdmin() {
+			return page.data.usuario?.tipo === 'admin';
+		},
+		get isAdminSeccional() {
+			return page.data.usuario?.papel === 'admin_seccional';
+		},
+		get isAdminUnidade() {
+			return page.data.usuario?.papel === 'admin_unidade';
+		},
+		get isAdminOrSeccional() {
+			const u = page.data.usuario;
+			return u?.tipo === 'admin' || u?.papel === 'admin_seccional';
+		},
+		get tipoUsuario() {
+			return page.data.usuario?.tipo ?? null;
+		},
+		get papelUsuario() {
+			return page.data.usuario?.papel ?? null;
+		},
+		get lotacaoUsuario() {
+			return page.data.usuario?.lotacao ?? null;
+		}
 	};
 }

@@ -12,7 +12,8 @@
 
 	let { data } = $props();
 
-	const { isAdmin } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdmin = $derived(auth.isAdmin);
 
 	let escalas = $derived(data.escalas as EscalaListagem[]);
 	let unidades = $derived(data.unidades as Unidade[]);

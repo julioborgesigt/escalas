@@ -10,7 +10,8 @@
 	import { loading } from '$lib/loading.svelte';
 
 	let { data } = $props();
-	const { isAdmin: isAdminGeral } = useAutorizacao();
+	const auth = useAutorizacao();
+	const isAdminGeral = $derived(auth.isAdmin);
 	const resGise = useResGise(() => data);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
