@@ -122,7 +122,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 /** 3. Security Layer: Headers and CSP application */
 const handleSecurity: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
-	
+
 	// Apply basic security headers
 	for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(key, value);
@@ -139,6 +139,15 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 	// HSTS
 	if (event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	}
+
+	// Default: respostas autenticadas NUNCA podem ser cacheadas pelo edge ou por
+	// proxies intermediários. Sem isto, o Cloudflare poderia servir uma resposta
+	// com `set-cookie: session_token` ou dados pessoais a outro usuário.
+	// Rotas que querem cache (ex.: /validar/[hash]) já setam Cache-Control e
+	// continuam funcionando — só preenchemos o default quando nada foi setado.
+	if (event.locals.usuario && !response.headers.has('Cache-Control')) {
+		response.headers.set('Cache-Control', 'private, no-store');
 	}
 
 	return response;

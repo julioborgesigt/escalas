@@ -421,7 +421,7 @@
 		codigoValidação?: string,
 		desafioId?: string
 	) {
-		loading.show('Confirmando escala e gerando PDF...');
+		loading.show('Assinando e gerando PDF...');
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
