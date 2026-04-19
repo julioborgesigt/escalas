@@ -24,10 +24,13 @@
 		getFaltandoRubrica,
 		getSeccionalColorClass
 	} from '$lib/gise/gise-page-helpers';
+	import {
+		quadroSupervisaoExtraExigeRelatorio,
+		supervisaoExtraRubricasCompletas
+	} from '$lib/gise/gise-supervisao-extra';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import GiseBannersAssinaturas from './_components/GiseBannersAssinaturas.svelte';
-	import GisePainelAssinaturaSupervisor from './_components/GisePainelAssinaturaSupervisor.svelte';
 	import GiseLoteAssinaturas from './_components/GiseLoteAssinaturas.svelte';
 	import ModalExcluirGise from './_components/modais/ModalExcluirGise.svelte';
 	import ModalReabrir from './_components/modais/ModalReabrir.svelte';
@@ -578,9 +581,33 @@
 	}
 
 	// Relatórios extraordinários pendentes de assinatura
+	const nomesSupervisaoPorId = $derived.by(() => {
+		const m = new Map<number, string>();
+		if (!gise) return m;
+		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
+		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
+		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);
+		if (gise.seint2_id && gise.seint2_nome) m.set(gise.seint2_id, gise.seint2_nome);
+		return m;
+	});
+
 	const pendentesExtra = $derived.by(() => {
 		if (!isSupervisor) return [];
 		const lista: Array<{ seccionalId: number; tipo: 'extraordinario' }> = [];
+		const supId = data.supervisaoExtraUnidadeId;
+		if (
+			supId &&
+			gise &&
+			quadroSupervisaoExtraExigeRelatorio(gise) &&
+			supervisaoExtraRubricasCompletas(gise, data.presencasGise ?? [])
+		) {
+			const relSup = data.assinaturasRelatorios?.find(
+				(a: GiseAssinaturaRelatorio) => a.seccional_id === supId && a.tipo === 'extraordinario'
+			);
+			if (!relSup) {
+				lista.push({ seccionalId: supId, tipo: 'extraordinario' });
+			}
+		}
 		for (const sec of gise?.seccionais || []) {
 			const relAssinado = data.assinaturasRelatorios?.find(
 				(a: GiseAssinaturaRelatorio) =>
@@ -1102,6 +1129,8 @@
 			{buscarDpcs}
 			{buscarOips}
 			{selectedFromPoliciais}
+			presencasGise={data.presencasGise}
+			seintSupervisaoComRelatorio={data.seintSupervisaoComRelatorio ?? []}
 			bind:supervisorId
 			bind:assessorId
 			bind:seint1Id
@@ -1109,28 +1138,38 @@
 			onEditar={() => (editandoSupervisores = true)}
 			onCancelar={() => (editandoSupervisores = false)}
 			onSubmit={handleSalvarSupervisores}
+			supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+			assinaturasRelatorios={data.assinaturasRelatorios}
+			{podeDownload}
+			{isSupervisor}
+			{isMobile}
+			restringirSmartphone={data.restringirSmartphone}
+			onAssinarExtraSupervisaoManual={() => {
+				const id = data.supervisaoExtraUnidadeId;
+				if (id) abrirAssinaturaRelatorio(id, 'extraordinario');
+			}}
+			onAssinarExtraSupervisaoDigital={() => {
+				const id = data.supervisaoExtraUnidadeId;
+				if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
+			}}
+			mostrarPainelAssinaturaEscala={podeAssinar}
+			assinaturaEscalaSignerEmail={data.usuarioAtual?.email ?? undefined}
+			bind:rubricaCapturada
+			bind:painelTokenGise
+			bind:serproSignerName
+			bind:serproSignerCpf
+			onAbrirAssinaturaEscalaManual={() => abrirModalRubrica('simples')}
+			onAssinaturaEscalaDigitalSuccess={async () => {
+				rubricaCapturada = null;
+				await invalidate('gise:detail');
+			}}
 		/>
 
-		<GiseBannersAssinaturas assinaturasRelatorios={data.assinaturasRelatorios} />
-
-		{#if podeAssinar}
-			<GisePainelAssinaturaSupervisor
-				giseId={gise.id}
-				dataInicio={gise.data_inicio}
-				{isMobile}
-				restringirSmartphone={data.restringirSmartphone}
-				signerEmail={data.usuarioAtual?.email ?? undefined}
-				{rubricaCapturada}
-				bind:painelTokenControl={painelTokenGise}
-				bind:signerName={serproSignerName}
-				bind:signerCpf={serproSignerCpf}
-				onAbrirManual={() => abrirModalRubrica('simples')}
-				onSuccessDigital={async () => {
-					rubricaCapturada = null;
-					await invalidate('gise:detail');
-				}}
-			/>
-		{/if}
+		<GiseBannersAssinaturas
+			assinaturasRelatorios={data.assinaturasRelatorios}
+			supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+			seccionais={gise.seccionais}
+		/>
 
 		{#if pendentesExtra.length > 0}
 			<GiseLoteAssinaturas

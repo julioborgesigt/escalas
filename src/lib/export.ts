@@ -739,8 +739,21 @@ function fmtHoraGise(h: any): string {
 }
 
 /**
- * Transforma GiseDetalhado (estrutura do DB com unidades) em GisePdfData (estrutura plana com equipes).
+ * Se o cadastro do policial supervisor estiver sem matrícula, usa a matrícula do usuário da sessão
+ * (mesmo id) para o PDF da escala — evita "Matrícula: —" quando o DPC assina.
  */
+export function giseDetalhadoComMatriculaSupervisorSessao(
+	gise: import('$lib/db').GiseDetalhado,
+	u: { tipo: 'policial' | 'admin'; id: number; matricula?: string }
+): import('$lib/db').GiseDetalhado {
+	if (u.tipo !== 'policial' || gise.supervisor_id !== u.id) return gise;
+	const m = u.matricula?.trim();
+	if (!m) return gise;
+	if (gise.supervisor_matricula?.trim()) return gise;
+	return { ...gise, supervisor_matricula: m };
+}
+
+/** Transforma GiseDetalhado (DB) em GisePdfData (estrutura plana com equipes) para geração de PDF. */
 export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfData {
 	if (!gise) throw new Error('Dados da GISE não fornecidos');
 
@@ -948,7 +961,9 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 	doc.setFont('helvetica', 'bold');
 	doc.text((gise.supervisor_nome || 'Supervisão do GISE').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
 	doc.setFont('helvetica', 'normal');
-	doc.text(`Matrícula: ${gise.supervisor_matricula || '—'}`, sigCenterX, sigY + 8, { align: 'center' });
+	const matSup =
+		(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) || '—';
+	doc.text(`Matrícula: ${matSup}`, sigCenterX, sigY + 8, { align: 'center' });
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
 
 	// Pós-processamento: inserir logo via pdf-lib usando bytes puros do JPEG (vindos do R2).
@@ -1255,6 +1270,244 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
 		} catch (e) {
 			console.warn('[relatorio-extra] Erro ao inserir QR code:', e);
+		}
+	}
+
+	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+}
+
+/**
+ * Relatório de serviço extraordinário do quadro de supervisão GISE
+ * (supervisor DPC, assessor e SEINTs OIP), com rubricas de presença.
+ */
+export async function gerarRelatorioExtraordinarioSupervisaoPdf(
+	gise: import('$lib/db').GiseDetalhado,
+	presencas: any[],
+	baseUrl?: string,
+	reportSignature?: any,
+	qrCodeBase64?: string,
+	isPreparando = false
+): Promise<PdfExportResult> {
+	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+	const pageWidth = 297;
+	const margin = 10;
+
+	let y = 14;
+	doc.setFontSize(11);
+	doc.setFont('helvetica', 'bold');
+	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	doc.setFontSize(10);
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, { align: 'center' });
+	y += 5;
+	doc.text('SUPERVISÃO GISE — QUADRO DE SUPERVISÃO', pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	doc.setFontSize(12);
+	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (SUPERVISÃO)', pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	const hEnt = gise.hora_entrada;
+	const hSai = gise.hora_saida;
+
+	let dataSaidaEfetiva = gise.data_inicio;
+	const heVal = parseInt(hEnt.split(':')[0]);
+	const hsVal = parseInt(hSai.split(':')[0]);
+	if (hsVal <= heVal) {
+		const dObj = new Date(gise.data_inicio + 'T12:00:00');
+		dObj.setDate(dObj.getDate() + 1);
+		dataSaidaEfetiva = dObj.toISOString().split('T')[0];
+	}
+
+	let diff = hsVal - heVal;
+	if (diff <= 0) diff += 24;
+
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	const textoData = `DATA: das ${hEnt} de ${formatarData(gise.data_inicio)} às ${hSai} horas de ${formatarData(dataSaidaEfetiva)} (${diff} horas)`;
+	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
+	y += 10;
+
+	doc.text('BREVE RELATÓRIO:', margin, y);
+	y += 5;
+	doc.setFont('helvetica', 'bold');
+	const boxY = y;
+	doc.rect(margin, boxY, pageWidth - 20, 15);
+	const relatorioTexto =
+		'EM RAZÃO DE SERVIÇO EXTRAORDINÁRIO (GISE) OS SERVIDORES DO QUADRO DE SUPERVISÃO ABAIXO RELACIONADOS RECEBERÃO GRATIFICAÇÃO NA FORMA DE DIÁRIAS DE REFORÇO OPERACIONAL.';
+	const splitText = doc.splitTextToSize(relatorioTexto, pageWidth - 30);
+	doc.text(splitText, margin + 5, boxY + 7);
+	y += 25;
+
+	const slots: Array<{
+		policial_id: number;
+		nome: string;
+		cargo: string;
+		matricula: string;
+		classe: string;
+		lotacao: string;
+	}> = [];
+
+	const pushSlot = (
+		id: number | null | undefined,
+		nome: string | null | undefined,
+		matricula: string | null | undefined,
+		cargo: string,
+		lotacao: string
+	) => {
+		if (id == null || !nome) return;
+		const pres = presencas.find((p: any) => p.policial_id === id);
+		slots.push({
+			policial_id: id,
+			nome,
+			cargo,
+			matricula: matricula ?? '',
+			classe: (pres?.policial_classe as string) || '',
+			lotacao: (pres?.policial_lotacao as string) || lotacao
+		});
+	};
+
+	pushSlot(gise.supervisor_id, gise.supervisor_nome, gise.supervisor_matricula, 'DPC', 'Supervisão GISE');
+	pushSlot(gise.assessor_id, gise.assessor_nome, gise.assessor_matricula, 'OIP', 'Supervisão GISE');
+	pushSlot(gise.seint1_id, gise.seint1_nome, gise.seint1_matricula, 'OIP', 'Supervisão GISE — SEINT');
+	pushSlot(gise.seint2_id, gise.seint2_nome, gise.seint2_matricula, 'OIP', 'Supervisão GISE — SEINT');
+
+	const tableData = slots.map((m) => {
+		const pres = presencas.find((p: any) => p.policial_id === m.policial_id);
+		return [
+			m.nome,
+			m.cargo,
+			m.matricula,
+			m.classe || '',
+			m.lotacao,
+			`${formatarData(gise.data_inicio)}\n${pres?.entrada_timestamp ? new Date(pres.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+			{ content: '', image: pres?.entrada_rubrica },
+			`${formatarData(dataSaidaEfetiva)}\n${pres?.saida_timestamp ? new Date(pres.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+			{ content: '', image: pres?.saida_rubrica }
+		];
+	});
+
+	if (tableData.length === 0) {
+		doc.setFontSize(10);
+		doc.text('Nenhum integrante definido no quadro de supervisão.', margin, y);
+		return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: y + 10 };
+	}
+
+	autoTable(doc, {
+		head: [['NOME COMPLETO', 'CARGO', 'MATRÍCULA', 'CLASSE', 'LOTAÇÃO', 'HORA DE INÍCIO', 'RUBRICA', 'HORA DE SAÍDA', 'RUBRICA']],
+		body: tableData,
+		startY: y,
+		theme: 'grid',
+		margin: { left: margin, right: margin },
+		styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', minCellHeight: 16 },
+		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
+		didDrawCell: (data) => {
+			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
+				const rawCell = data.cell.raw as { image?: string; content?: string } | string | null;
+				const imgData = typeof rawCell === 'object' && rawCell !== null ? rawCell.image : rawCell;
+
+				const isValidBase64Image =
+					typeof imgData === 'string' &&
+					imgData.startsWith('data:image/') &&
+					imgData.includes(';base64,') &&
+					imgData.length > 200;
+
+				if (!isValidBase64Image) return;
+
+				const targetW = data.cell.width - 4;
+				const targetH = targetW / 2;
+				const xPos = data.cell.x + 2;
+				const yPos = data.cell.y + (data.cell.height - targetH) / 2;
+
+				try {
+					const format = getImgFormat(imgData);
+					if (!format) return;
+					doc.addImage(imgData, format, xPos, yPos, targetW, targetH, undefined, 'FAST');
+				} catch {
+					/* ignora rubrica inválida */
+				}
+			}
+		},
+		columnStyles: {
+			0: { halign: 'left', cellWidth: 70 },
+			1: { cellWidth: 15 },
+			2: { cellWidth: 25 },
+			3: { cellWidth: 15 },
+			4: { cellWidth: 42 },
+			5: { cellWidth: 25 },
+			6: { cellWidth: 30 },
+			7: { cellWidth: 25 },
+			8: { cellWidth: 30 }
+		}
+	});
+	const lastAutoY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
+	let sigY = lastAutoY + 40;
+	if (sigY > 185) {
+		doc.addPage();
+		sigY = 40;
+	}
+
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	doc.text(`Fortaleza/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, { align: 'right' });
+
+	const sigCenterX = pageWidth / 2;
+
+	if (!reportSignature) {
+		if (!isPreparando) {
+			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
+			doc.setFont('helvetica', 'italic');
+			doc.setFontSize(10);
+			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, { align: 'center' });
+		}
+	} else {
+		if (reportSignature.rubrica) {
+			try {
+				const rubW = 65;
+				const rubH = 25;
+				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
+				doc.addImage(reportSignature.rubrica, rubricaFormat, sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
+			} catch {
+				/* ignora */
+			}
+		}
+		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
+		doc.setFontSize(8);
+		doc.setFont('helvetica', 'bold');
+		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+		doc.setFont('helvetica', 'normal');
+		const matRelSup =
+			(reportSignature.assinante_matricula && String(reportSignature.assinante_matricula).trim()) ||
+			(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) ||
+			'—';
+		doc.text(`Matrícula: ${matRelSup}`, sigCenterX, sigY + 8, { align: 'center' });
+		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
+	}
+
+	if (reportSignature && qrCodeBase64) {
+		try {
+			const qrSize = 14;
+			const qrX = margin;
+			const qrY = sigY - 2;
+			doc.addImage(qrCodeBase64, 'PNG', qrX, qrY, qrSize, qrSize);
+
+			const txtX = qrX + qrSize + 2;
+			doc.setFontSize(6);
+			doc.setFont('helvetica', 'bold');
+			doc.text(`Confirmado eletronicamente por: ${(reportSignature.assinante_nome ?? '').toUpperCase()}`, txtX, qrY + 3);
+
+			doc.setFont('helvetica', 'normal');
+			const dataH = reportSignature.created_at
+				? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+				: '';
+			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 7);
+
+			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
+			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
+		} catch {
+			/* ignora QR */
 		}
 	}
 

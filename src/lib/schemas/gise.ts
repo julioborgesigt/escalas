@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalNullable } from './assinatura-pdf';
 
 /** Schema para validação de assinatura de relatórios GISE */
 export const giseSignatureSchema = z.object({
@@ -8,15 +9,21 @@ export const giseSignatureSchema = z.object({
 			lng: z.number().nullable()
 		})
 		.optional(),
-	rubrica: z.string().min(1, 'Rubrica é obrigatória'),
-	selfieBase64: z.string().optional(),
-	codigoEmail: z.string().optional(),
-	codigoValidação: z.string().optional(),
-	desafioId: z.string().optional(),
-	type: z.string().optional(),
-	hash: z.string().optional(),
-	signerName: z.string().optional(),
-	signerCpf: z.string().optional(),
+	/** `JSON.stringify` envia `null` para selfie/código quando ausentes; `z.string().optional()` não aceita null. */
+	rubrica: z
+		.union([z.string(), z.null()])
+		.transform((v) => v ?? '')
+		.pipe(z.string().min(1, 'Rubrica é obrigatória')),
+	selfieBase64: optionalNullable(
+		z.string().max(5 * 1024 * 1024, 'Imagem muito grande (máx 5 MB)')
+	),
+	codigoEmail: optionalNullable(z.string().trim().max(200)),
+	codigoValidação: optionalNullable(z.string().max(32)),
+	desafioId: optionalNullable(z.string().max(80)),
+	type: optionalNullable(z.string()),
+	hash: optionalNullable(z.string()),
+	signerName: optionalNullable(z.string().max(200)),
+	signerCpf: optionalNullable(z.string().max(20)),
 	latitude: z.number().nullable().optional(),
 	longitude: z.number().nullable().optional()
 });

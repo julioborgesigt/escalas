@@ -13,6 +13,7 @@
 	const usuario = $derived(page.data.usuario);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
+	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived(
 		(page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas'
 	);
@@ -32,9 +33,12 @@
 		isSupervisorGise
 	);
 
+	// Rel. Gise: escalados (membro), quadro de supervisão (assessor/SEINT) e supervisor DPC ativo
 	const showResGise = $derived(
 		usuario?.tipo === 'admin' ||
-		isMembroGise
+		isMembroGise ||
+		isSupervisaoGise ||
+		isSupervisorGise
 	);
 
 	// For admins: control menu group visibility based on chosen module
@@ -282,7 +286,7 @@
 					onclick={() => sidebarOpen = false}
 				>
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-					Rel. Gise
+					Entrada/Saída
 				</a>
 				{/if}
 				{#if usuario?.tipo === 'admin'}

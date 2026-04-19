@@ -11,7 +11,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
-import { gerarPdfGise, toGisePdfData } from '$lib/export';
+import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/export';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
@@ -60,7 +60,8 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
 		} catch (e) { /* logo optional */ }
 	}
-	const result = await gerarPdfGise(toGisePdfData(giseDetalhado), logoJpgBytes);
+	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
+	const result = await gerarPdfGise(toGisePdfData(gisePdf), logoJpgBytes);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 

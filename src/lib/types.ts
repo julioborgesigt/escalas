@@ -66,6 +66,10 @@ export type ResGisePageData = {
 	minhasEscalas: ResGiseMinhaEscalaLinha[];
 	listaAdmin: ResGiseListaAdminLinha[];
 	isSupervisorGise: boolean;
+	/** Assessor ou SEINT em GISE ativa (quadro de supervisão). */
+	isSupervisaoGise?: boolean;
+	/** ID da unidade sintética usada em assinaturas do relatório de extra da supervisão. */
+	supervisaoExtraUnidadeId: number | null;
 	giseIdSelected: number | null;
 	equipeIdSelected: number | null;
 	respostas: Record<string, unknown>;

@@ -1,4 +1,6 @@
-import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGiseSeccionalMembros, buscarPresencasGise } from '$lib/db';
+import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGiseDetalhado, buscarGiseSeccionalMembros, buscarPresencasGise } from '$lib/db';
+import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
+import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
 import type { PageServerLoad } from './$types';
 
@@ -76,12 +78,35 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 	let membros = [];
 	if (documento.tipo_doc === 'gise_relatorio' && documento.seccional_id) {
 		try {
-			const [membrosSec, todasPresencas] = await Promise.all([
-				buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id),
-				buscarPresencasGise(db, documento.escala_id)
-			]);
+			const todasPresencas = await buscarPresencasGise(db, documento.escala_id);
+			const presencaMap = new Map(todasPresencas.map((p) => [p.policial_id, p]));
 
-			const presencaMap = new Map(todasPresencas.map(p => [p.policial_id, p]));
+			const supExtra = await secIdEhSupervisaoExtra(db, documento.seccional_id);
+			let membrosSec: Array<{ policial_id: number; policial_nome: string; policial_cpf: string | null }> = [];
+			if (supExtra) {
+				const giseDet = await buscarGiseDetalhado(db, documento.escala_id);
+				if (giseDet) {
+					membrosSec = listarPoliciaisSupervisaoExtra(giseDet).map((r) => {
+						const nome =
+							r.policial_id === giseDet.supervisor_id
+								? giseDet.supervisor_nome
+								: r.policial_id === giseDet.assessor_id
+									? giseDet.assessor_nome
+									: r.policial_id === giseDet.seint1_id
+										? giseDet.seint1_nome
+										: r.policial_id === giseDet.seint2_id
+											? giseDet.seint2_nome
+											: r.papel;
+						return {
+							policial_id: r.policial_id,
+							policial_nome: nome ?? r.papel,
+							policial_cpf: null
+						};
+					});
+				}
+			} else {
+				membrosSec = await buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id);
+			}
 
 			membros = membrosSec.map((m: any) => ({
 				...m,

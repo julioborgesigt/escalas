@@ -13,7 +13,12 @@ import {
 import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
 import { logger } from '$lib/server/logger';
-import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
+import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/export';
+import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
+import {
+	giseAutorizaSeccionalRelatorioExtra,
+	secIdEhSupervisaoExtra
+} from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { giseSignatureSchema } from '$lib/schemas';
@@ -70,6 +75,9 @@ export const POST = async ({
 		const gise = await buscarGiseDetalhado(db, giseIdNum);
 		if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
+		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
+		if (!secOk) return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
+
 		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
 		if (exigirCodigoEmail && type !== 'serpro') {
 			if (
@@ -97,17 +105,15 @@ export const POST = async ({
 
 		const mockSignature = {
 			assinante_nome: signerName || u.nome,
+			assinante_matricula: u.tipo === 'policial' ? (u.matricula?.trim() || '') : '',
 			verification_hash: hash,
 			rubrica: rubrica || ''
 		};
 
-		const result = await gerarRelatorioExtraordinarioPdf(
-			toGisePdfData(gise),
-			presencas,
-			secIdNum,
-			url.origin,
-			mockSignature
-		);
+		const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
+		const result = isSupervisaoExtra
+			? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, mockSignature)
+			: await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, secIdNum, url.origin, mockSignature);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
 

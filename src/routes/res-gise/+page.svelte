@@ -16,8 +16,8 @@
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 
-	const isSupervisorGise = $derived(data.isSupervisorGise);
-	const podeVerListaGeral = $derived(isAdminGeral || isSupervisorGise);
+	/** Só admin vê a lista “por equipe/seccional”; supervisor e escalados usam `minhasEscalas`. */
+	const podeVerListaGeral = $derived(isAdminGeral);
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
 	let dialogRestaurarAberto = $state(false);
@@ -863,7 +863,7 @@
 						role="button"
 						tabindex="0"
 						class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {resGise.escalaSelecionada?.id ===
-						escala.id
+							escala.id && resGise.escalaSelecionada?.equipe_id === escala.equipe_id
 							? 'border-primary-500 bg-primary-500/10'
 							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
 						onclick={() => resGise.selecionarEscala(escala, podeVerListaGeral)}
@@ -1116,8 +1116,8 @@
 									</div>
 								</div>
 
-								<!-- Formulário de Resultados (ignorado para assessor) -->
-								{#if resGise.escalaSelecionada.equipe_tipo !== 'assessor'}
+								<!-- Formulário de produtividade (só equipes operacionais / SEINT com relatório) -->
+								{#if resGise.escalaSelecionada.equipe_tipo !== 'assessor' && resGise.escalaSelecionada.equipe_tipo !== 'supervisor'}
 								<div class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800">
 									<div class="flex items-center justify-between">
 										<h3 class="font-bold uppercase text-sm tracking-wider">
