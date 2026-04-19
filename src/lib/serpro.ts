@@ -14,6 +14,8 @@
  * Verifique a documentação oficial caso ocorram erros de protocolo.
  */
 
+import { logger } from '$lib/logger';
+
 /**
  * Resultado do comando "sign" do Assinador SERPRO.
  */
@@ -259,7 +261,8 @@ export class SerproSignerClient {
 					} else {
 						resolve(parsed as T);
 					}
-				} catch {
+				} catch (err) {
+					logger.warn('[SERPRO] parse da resposta do assinador', { err: String(err) });
 					reject(new Error('Resposta inválida do Assinador SERPRO'));
 				}
 			};

@@ -2,6 +2,10 @@ import { eq, and, gt, inArray } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import { sessoes, administradores, policiais, doisFatoresTokens, resetSenhaTokens } from './server/schema';
 import type { Database } from './db';
+import {
+	getLegacyPasswordDeadline,
+	getLegacyPasswordDeadlineDefault
+} from './server/auth-legacy-deadline-cache';
 
 export interface UsuarioLogado {
 	id: number;
@@ -86,8 +90,13 @@ export async function hashSenha(senha: string): Promise<string> {
 /**
  * Verifica se uma senha corresponde ao hash armazenado.
  * Suporta hashes PBKDF2 (novo) e SHA-256 legado (migração automática).
+ * Com `db`, o prazo do legado vem de `configuracoes.auth.legacy_password_deadline` (cache 5 min).
  */
-export async function verificarSenha(senha: string, storedHash: string): Promise<boolean> {
+export async function verificarSenha(
+	senha: string,
+	storedHash: string,
+	db?: Database
+): Promise<boolean> {
 	if (storedHash.startsWith(PBKDF2_PREFIX)) {
 		const parts = storedHash.slice(PBKDF2_PREFIX.length).split(':');
 		if (parts.length !== 2) return false;
@@ -102,9 +111,9 @@ export async function verificarSenha(senha: string, storedHash: string): Promise
 		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
 		return (hashMatch & lenMatch) === 1;
 	}
-	// Suporte legado: SHA-256 sem salt — DEPRECADO, será removido em 2026-07-01.
+	// Suporte legado: SHA-256 sem salt — DEPRECADO (prazo em `auth.legacy_password_deadline`).
 	// Policiais com hash legado devem fazer login para migrar automaticamente para PBKDF2.
-	const LEGACY_DEADLINE = new Date('2026-07-01T00:00:00Z');
+	const LEGACY_DEADLINE = db ? await getLegacyPasswordDeadline(db) : getLegacyPasswordDeadlineDefault();
 	if (new Date() > LEGACY_DEADLINE) {
 		// Após o deadline, hash legado não é mais aceito — forçar reset de senha
 		return false;

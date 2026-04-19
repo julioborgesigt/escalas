@@ -1088,7 +1088,9 @@ export async function adicionarPaginaAuditoria(
 						}
 					}
 				}
-			} catch (e) { }
+			} catch (err) {
+				logger.warn('[pdf-signing] QR code de validação', { err: String(err) });
+			}
 		}
 
 		page.drawLine({ start: { x: 40, y: currY - 10 }, end: { x: width - 40, y: currY - 10 }, thickness: 0.5, color: cBorder });
@@ -1154,7 +1156,9 @@ export async function adicionarPaginaAuditoria(
 						const img = s.rubricBase64.includes('image/jpeg') ? await pdfDoc.embedJpg(s.rubricBase64) : await pdfDoc.embedPng(s.rubricBase64);
 						const iw = 80; const ih = (img.height / img.width) * iw;
 						page.drawImage(img, { x: rubX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
-					} catch (e) { }
+					} catch (err) {
+						logger.warn('[pdf-signing] incorporar rúbrica no manifesto', { err: String(err) });
+					}
 				}
 				page.drawText('FOTO', { x: fotX, y: rowY, size: 7, font: fontBold, color: cGray });
 				page.drawLine({ start: { x: fotX, y: rowY - 5 }, end: { x: fotX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
@@ -1165,7 +1169,9 @@ export async function adicionarPaginaAuditoria(
 						const img = await pdfDoc.embedJpg(bytes);
 						const iw = 80; const ih = (img.height / img.width) * iw;
 						page.drawImage(img, { x: fotX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
-					} catch (e) { }
+					} catch (err) {
+						logger.warn('[pdf-signing] incorporar selfie no manifesto', { err: String(err) });
+					}
 				}
 			}
 			currY -= boxH + 15;

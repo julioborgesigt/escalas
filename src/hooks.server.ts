@@ -92,9 +92,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		const db = getDB(event.platform);
 		usuario = await validarSessao(db, token);
 	} catch (err) {
-		logger.warn('validarSessao falhou', {
-			message: err instanceof Error ? err.message : String(err)
-		});
+		logger.warn('[hooks] validarSessao falhou', { err: String(err) });
 	}
 
 	if (!usuario) {
@@ -174,7 +172,9 @@ export const handleError: HandleServerError = ({ error, event }) => {
 		path: event.url.pathname,
 		method: event.request.method,
 		message: error instanceof Error ? error.message : String(error),
-		stack: error instanceof Error ? error.stack : undefined
+		...(import.meta.env.DEV && error instanceof Error && error.stack
+			? { stack: error.stack }
+			: {})
 	});
 
 	captureException(error, {

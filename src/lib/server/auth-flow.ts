@@ -210,7 +210,7 @@ export async function tentarLogin({
 		}
 
 		const admin = await db.select().from(administradores).where(eq(administradores.login, matricula)).get();
-		if (!admin || !(await verificarSenha(senha, admin.senha))) {
+		if (!admin || !(await verificarSenha(senha, admin.senha, db))) {
 			await recordAttempt(db, ip, false);
 			return {
 				sucesso: false,
@@ -277,7 +277,7 @@ export async function tentarLogin({
 		.where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial || !(await verificarSenha(senha, policial.senha))) {
+	if (!policial || !(await verificarSenha(senha, policial.senha, db))) {
 		await recordAttempt(db, ip, false);
 		return {
 			sucesso: false,

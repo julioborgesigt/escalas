@@ -290,7 +290,7 @@ export const load = async ({ locals, platform, url }: any) => {
 	const giseIdSelected = url.searchParams.get('giseId') ? parseInt(url.searchParams.get('giseId')!) : null;
 	const equipeIdSelected = url.searchParams.get('equipeId') ? parseInt(url.searchParams.get('equipeId')!) : null;
 
-	const [[modeloOp, modeloSeint], respostaRow, restringirSmartphone] = await Promise.all([
+	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone] = await Promise.all([
 		Promise.all([
 			buscarGiseModeloFormulario(db, 'operacional'),
 			buscarGiseModeloFormulario(db, 'seint')
@@ -313,6 +313,23 @@ export const load = async ({ locals, platform, url }: any) => {
 		}
 	}
 
+	let modeloOperacional = defaultGiseQuestions;
+	if (modeloOp?.config) {
+		try {
+			modeloOperacional = JSON.parse(modeloOp.config);
+		} catch (err) {
+			logger.warn('[res-gise] modelo operacional JSON inválido', { err: String(err) });
+		}
+	}
+	let modeloSeint = defaultSeintQuestions;
+	if (modeloSeintRow?.config) {
+		try {
+			modeloSeint = JSON.parse(modeloSeintRow.config);
+		} catch (err) {
+			logger.warn('[res-gise] modelo seint JSON inválido', { err: String(err) });
+		}
+	}
+
 	return {
 		minhasEscalas,
 		listaAdmin,
@@ -321,9 +338,8 @@ export const load = async ({ locals, platform, url }: any) => {
 		equipeIdSelected,
 		respostas: respostasData,
 		restringirSmartphone,
-		// Se o banco retornar null (ex: migration não rodada ou sem registros ainda), usa o default code-fixed
-		modeloOperacional: (modeloOp && modeloOp.config) ? JSON.parse(modeloOp.config) : defaultGiseQuestions,
-		modeloSeint: (modeloSeint && modeloSeint.config) ? JSON.parse(modeloSeint.config) : defaultSeintQuestions,
+		modeloOperacional,
+		modeloSeint,
 		modeloPadraoOperacional: defaultGiseQuestions,
 		modeloPadraoSeint: defaultSeintQuestions
 	};
@@ -513,7 +529,8 @@ export const actions: Actions = {
 
 		try {
 			JSON.parse(configStr); // Validate JSON
-		} catch {
+		} catch (err) {
+			logger.warn('[res-gise] salvarModelo: JSON inválido', { err: String(err) });
 			return fail(400, { error: 'Configuração JSON inválida' });
 		}
 
