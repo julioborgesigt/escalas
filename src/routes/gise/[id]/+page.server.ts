@@ -26,6 +26,7 @@ import {
 	removerGiseSeccionalUnidade
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, or, and } from 'drizzle-orm';
 
@@ -204,6 +205,11 @@ export const actions: Actions = {
 		}
 
 		await atualizarGiseEscala(db, giseId, updateData);
+
+		// Cache invalidation: o "isSupervisor" muda quando o supervisor entra ou sai.
+		// Invalida o anterior (lido antes do update) e o novo, se diferentes.
+		await invalidarPapelGiseMultiplos([gise.supervisor_id, supervisorId]);
+
 		return { success: true };
 	},
 
@@ -342,6 +348,9 @@ export const actions: Actions = {
 
 		await adicionarGiseMembro(db, equipeId, policialId);
 
+		// Cache invalidation: o "isMembro" do policial muda agora.
+		await invalidarPapelGise(policialId);
+
 		const gise = await buscarGiseEscala(db, giseId);
 		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, secId);
@@ -371,6 +380,7 @@ export const actions: Actions = {
 		const membroInfo = await db
 			.select({
 				equipe_id: giseMembros.equipe_id,
+				policial_id: giseMembros.policial_id,
 				gise_seccional_id: giseEquipes.gise_seccional_id,
 				seccional_id: giseSeccionais.seccional_id
 			})
@@ -387,6 +397,9 @@ export const actions: Actions = {
 		}
 
 		await removerGiseMembro(db, memId);
+
+		// Cache invalidation: o "isMembro" do policial muda agora.
+		await invalidarPapelGise(membroInfo.policial_id);
 
 		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
@@ -628,7 +641,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status não permite finalizar' });
 		}
 
+		// Cache invalidation: ao finalizar, supervisor + todos membros perdem o
+		// papel GISE — precisamos coletar antes do update.
+		const afetados = await coletarAfetadosGise(db, giseId);
 		await atualizarGiseEscala(db, giseId, { status: 'finalizada' });
+		await invalidarPapelGiseMultiplos(afetados);
+
 		return { success: true };
 	},
 
@@ -648,7 +666,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status não permite reabrir' });
 		}
 
+		// Cache invalidation: ao reabrir uma GISE finalizada, supervisor + membros
+		// voltam a ter papel ativo — coletamos os IDs antes da mudança de status.
+		const afetados = await coletarAfetadosGise(db, giseId);
 		await reabrirGiseEscala(db, giseId);
+		await invalidarPapelGiseMultiplos(afetados);
+
 		return { success: true };
 	},
 
@@ -703,6 +726,9 @@ export const actions: Actions = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
+		// Cache invalidation: coleta antes do CASCADE deletar tudo.
+		const afetados = await coletarAfetadosGise(db, giseId);
+
 		const fileKeys = new Set<string>();
 
 		const [docs, presencas, assRelat] = await Promise.all([
@@ -739,6 +765,7 @@ export const actions: Actions = {
 		}
 
 		await db.delete(giseEscalas).where(eq(giseEscalas.id, giseId));
+		await invalidarPapelGiseMultiplos(afetados);
 		return { success: true, files_deleted: fileKeys.size };
 	},
 

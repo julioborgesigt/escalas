@@ -14,6 +14,7 @@ import {
 	atualizarGiseEscala
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
 import { giseIdParamSchema } from '$lib/schemas';
 
 export const POST: RequestHandler = async ({ locals, params, platform }) => {
@@ -42,8 +43,10 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 		}, { status: 400 });
 	}
 
-	// Marcar como finalizada
+	// Cache invalidation: supervisor + membros perdem papel ativo após finalizar.
+	const afetados = await coletarAfetadosGise(db, id);
 	await atualizarGiseEscala(db, id, { status: 'finalizada' });
+	await invalidarPapelGiseMultiplos(afetados);
 
 	return json({ ok: true });
 };
