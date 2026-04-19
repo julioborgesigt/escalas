@@ -6,6 +6,7 @@ import { validarSessao } from '$lib/auth';
 import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
+import { buildCSP } from '$lib/server/csp';
 
 const ROTAS_PUBLICAS = new Set(['/login', '/api/auth/login', '/api/auth/verificar-2fa', '/api/auth/primeiro-acesso', '/api/auth/solicitar-redefinicao', '/redefinir-senha', '/validar', '/api/validar', '/api/health', '/api/webhook']);
 
@@ -36,57 +37,6 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'X-XSS-Protection': '1; mode=block'
 };
 
-/**
- * Content-Security-Policy adaptada por tipo de resposta.
- * Retorna null em desenvolvimento — extensões de browser (ex: Kaspersky)
- * modificam o header CSP removendo 'unsafe-inline', o que quebra a
- * hidratação do SvelteKit. Sem o header, o browser usa a política padrão
- * permissiva e extensões não têm nada a modificar.
- */
-export function buildCSP(isHTML: boolean): string | null {
-	if (!isHTML) {
-		return "default-src 'none'; base-uri 'none'; form-action 'none'";
-	}
-
-	const isDev = !import.meta.env.PROD;
-
-	// Em desenvolvimento não enviamos CSP: extensões de segurança (Kaspersky,
-	// uBlock etc.) interceptam e modificam o header, removendo 'unsafe-inline'
-	// e quebrando a hidratação do SvelteKit.
-	if (isDev) return null;
-
-	const connectExtra = '';
-
-	const serproWS = [
-		'wss://assinador-desktop.serpro.gov.br:65166',
-		'wss://assinador-desktop.serpro.gov.br:65156',
-		'wss://assinador-desktop.serpro.gov.br:65500',
-		'wss://127.0.0.1:65166',
-		'wss://127.0.0.1:65156',
-		'wss://127.0.0.1:65500',
-		'ws://127.0.0.1:65166',
-		'ws://127.0.0.1:65156',
-		'ws://127.0.0.1:65500'
-	].join(' ');
-
-	// Em produção: 'unsafe-inline' é necessário para os scripts de serialização
-	// de dados do SvelteKit (hydration chunks). Sem ele, a hidratação falha.
-	return [
-		`default-src 'self'`,
-		`script-src 'self' 'unsafe-inline'`,
-		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-		`img-src 'self' data: blob: https://fonts.gstatic.com`,
-		`font-src 'self' data: https://fonts.gstatic.com`,
-		`connect-src 'self' ${serproWS}${connectExtra} https://cdn.jsdelivr.net`,
-		`frame-src 'none'`,
-		`object-src 'none'`,
-		`base-uri 'self'`,
-		`form-action 'self'`,
-		`upgrade-insecure-requests`,
-		`block-all-mixed-content`
-	].join('; ');
-}
-
 /** 1. CSRF Layer: Double-submit cookie pattern verification */
 const handleCsrf: Handle = async ({ event, resolve }) => {
 	const { pathname } = event.url;
@@ -98,7 +48,13 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 			path: '/',
 			httpOnly: false, // deve ser false para o padrão double-submit (JS precisa ler o token)
 			secure: event.url.protocol === 'https:',
-			sameSite: 'strict',
+			// `lax` em vez de `strict`: garante que o cookie viaje em navegações
+			// top-level cross-site (ex.: clique em link de redefinição de senha
+			// vindo de e-mail). Como este cookie é apenas o "lado JS" do padrão
+			// double-submit (o servidor compara com o header `x-csrf-token`
+			// enviado por XHR mesma-origem), `lax` mantém a proteção CSRF: um
+			// formulário cross-site não consegue ler o cookie nem montar o header.
+			sameSite: 'lax',
 			maxAge: 60 * 60 * 24 // 24 hours
 		});
 	}
@@ -136,7 +92,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		const db = getDB(event.platform);
 		usuario = await validarSessao(db, token);
 	} catch (err) {
-		// Log error if needed, but fail silently for UX
+		logger.warn('validarSessao falhou', {
+			message: err instanceof Error ? err.message : String(err)
+		});
 	}
 
 	if (!usuario) {
@@ -170,16 +128,19 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 /** 3. Security Layer: Headers and CSP application */
 const handleSecurity: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
-	
+
 	// Apply basic security headers
 	for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
 		response.headers.set(key, value);
 	}
 
-	// CSP based on content type
+	// CSP por tipo de conteúdo:
+	//  - HTML: gerenciada pelo SvelteKit via `kit.csp` em svelte.config.js.
+	//    Não setamos manualmente para não sobrescrever os nonces injetados.
+	//  - Não-HTML (JSON, downloads, etc.): default-src 'none' via `buildCSP`.
 	const contentType = response.headers.get('content-type') || '';
 	const isHTML = contentType.includes('text/html');
-	const csp = buildCSP(isHTML);
+	const csp = buildCSP(isHTML, { isProduction: import.meta.env.PROD });
 	if (csp !== null) {
 		response.headers.set('Content-Security-Policy', csp);
 	}
@@ -187,6 +148,15 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 	// HSTS
 	if (event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	}
+
+	// Default: respostas autenticadas NUNCA podem ser cacheadas pelo edge ou por
+	// proxies intermediários. Sem isto, o Cloudflare poderia servir uma resposta
+	// com `set-cookie: session_token` ou dados pessoais a outro usuário.
+	// Rotas que querem cache (ex.: /validar/[hash]) já setam Cache-Control e
+	// continuam funcionando — só preenchemos o default quando nada foi setado.
+	if (event.locals.usuario && !response.headers.has('Cache-Control')) {
+		response.headers.set('Cache-Control', 'private, no-store');
 	}
 
 	return response;

@@ -10,6 +10,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
 import { giseIdParamSchema } from '$lib/schemas';
 
 export const POST = async ({ locals, params, platform }: RequestEvent) => {
@@ -38,7 +39,11 @@ export const POST = async ({ locals, params, platform }: RequestEvent) => {
 		return json({ error: 'Apenas escalas em andamento ou finalizadas podem ser reabertas' }, { status: 400 });
 	}
 
+	// Cache invalidation: ao reabrir, supervisor + membros voltam a ter papel
+	// ativo; coletamos antes da mudança para invalidar todos.
+	const afetados = await coletarAfetadosGise(db, id);
 	await reabrirGiseEscala(db, id);
+	await invalidarPapelGiseMultiplos(afetados);
 
 	return json({ ok: true });
 };

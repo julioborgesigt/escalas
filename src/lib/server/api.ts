@@ -12,7 +12,9 @@
  */
 
 import { json } from '@sveltejs/kit';
+import type { z } from 'zod';
 import type { UsuarioLogado } from '$lib/auth';
+import { logger } from './logger';
 
 // ---- Autenticação e autorização ----
 
@@ -73,9 +75,43 @@ export function notFound(recurso = 'Recurso'): Response {
 	return json({ error: `${recurso} não encontrado` }, { status: 404 });
 }
 
+/**
+ * Lê e valida o body JSON de uma requisição contra um schema Zod.
+ *
+ * Em sucesso devolve `{ ok: true, data }`. Em falha devolve `{ ok: false, response }`
+ * com uma `Response` 400 já formatada — o handler só precisa retorná-la.
+ *
+ * @example
+ *   const v = await validateBody(request, prepararAssinaturaSchema);
+ *   if (!v.ok) return v.response;
+ *   const { signerName, latitude, longitude } = v.data;
+ */
+export async function validateBody<T extends z.ZodTypeAny>(
+	request: Request,
+	schema: T
+): Promise<{ ok: true; data: z.infer<T> } | { ok: false; response: Response }> {
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return { ok: false, response: json({ error: 'Body JSON inválido' }, { status: 400 }) };
+	}
+	const parsed = schema.safeParse(body);
+	if (!parsed.success) {
+		return {
+			ok: false,
+			response: json({ error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }, { status: 400 })
+		};
+	}
+	return { ok: true, data: parsed.data };
+}
+
 /** Resposta 500 Internal Server Error — não expõe detalhes ao cliente */
 export function serverError(contexto: string, err: unknown): Response {
-	console.error(`[${contexto}]`, err);
+	logger.error(contexto, {
+		error: err instanceof Error ? err.message : String(err),
+		stack: err instanceof Error ? err.stack : undefined
+	});
 	return json({ error: 'Erro interno do servidor' }, { status: 500 });
 }
 

@@ -5,6 +5,7 @@ import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
 import { parseUserAgent, mascaraCPF, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
+import { logger } from './logger';
 
 const SIGNATURE_LENGTH = 8192;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
@@ -73,7 +74,9 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 
 		return { nome, cpf };
 	} catch (e) {
-		console.error('[PDF-SIGN] Erro ao extrair dados do certificado:', e);
+		logger.error('[PDF-SIGN] Erro ao extrair dados do certificado', {
+			error: e instanceof Error ? e.message : String(e)
+		});
 		throw new Error('Falha ao processar o certificado digital do Token.');
 	}
 }
@@ -164,12 +167,17 @@ function berToDer(ber: Buffer): Buffer {
 
 	try {
 		const der = parseElement();
-		if (der.length !== ber.length) {
-			console.log(`[PDF] CMS BER→DER: ${ber.length} → ${der.length} bytes (comprimentos indefinidos convertidos)`);
+		if (import.meta.env.DEV && der.length !== ber.length) {
+			logger.debug('[PDF] CMS BER→DER conversão', {
+				antes: ber.length,
+				depois: der.length
+			});
 		}
 		return der;
 	} catch (e) {
-		console.warn('[PDF] Falha ao converter CMS BER→DER — usando original:', e);
+		logger.warn('[PDF] Falha ao converter CMS BER→DER — usando original', {
+			error: e instanceof Error ? e.message : String(e)
+		});
 		return ber;
 	}
 }
@@ -430,7 +438,9 @@ export async function prepararPdfParaAssinatura(
 				opacity: 0.85
 			});
 		} catch (err) {
-			console.error('Erro ao embutir rubrica no prep:', err);
+			logger.error('Erro ao embutir rubrica no prep', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 		}
 	}
 
@@ -496,8 +506,10 @@ export async function prepararPdfParaAssinatura(
 					}
 				}
 			}
-		} catch (err: any) {
-			console.error('Erro ao gerar QR Code para assinatura:', err);
+		} catch (err: unknown) {
+			logger.error('Erro ao gerar QR Code para assinatura', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 		}
 	}
 
@@ -705,12 +717,16 @@ export async function embedSerproCms(
 ): Promise<Uint8Array> {
 	// Decodifica o CMS retornado pelo SERPRO (BER, com comprimentos indefinidos nos wrappers)
 	const cmsBer = Buffer.from(forge.util.decode64(serproCmsBase64), 'binary');
-	console.log(`[PDF] CMS raw BER bytes[0..19]: ${cmsBer.subarray(0, 20).toString('hex')}`);
+	if (import.meta.env.DEV) {
+		logger.debug('[PDF] CMS raw BER prefix', { hex: cmsBer.subarray(0, 20).toString('hex') });
+	}
 
 	// Converte APENAS os wrappers externos para DER, preservando o SignedData intacto.
 	// Adobe exige DER; re-codificação completa via forge quebraria a assinatura RSA.
 	const cmsDer = berToDer(cmsBer);
-	console.log(`[PDF] CMS DER bytes[0..19]:     ${cmsDer.subarray(0, 20).toString('hex')}`);
+	if (import.meta.env.DEV) {
+		logger.debug('[PDF] CMS DER prefix', { hex: cmsDer.subarray(0, 20).toString('hex') });
+	}
 
 	const cmsHex = cmsDer.toString('hex');
 
@@ -726,11 +742,19 @@ export async function embedSerproCms(
 	const sigEnd = pdfString.indexOf('>', sigStart);
 	const placeholderLength = sigEnd - sigStart - 1;
 
-	// Diagnóstico
+	// Diagnóstico (somente desenvolvimento — evita ruído em produção)
 	const byteRangeMatch = pdfString.match(/\/ByteRange\s*\[([^\]]+)\]/);
-	console.log(`[PDF] /ByteRange: ${byteRangeMatch?.[1]?.trim() ?? 'NÃO ENCONTRADO'}`);
-	console.log(`[PDF] /Contents: sigStart=${sigStart}, sigEnd=${sigEnd}, placeholderLength=${placeholderLength} (${placeholderLength / 2} bytes)`);
-	console.log(`[PDF] cmsHex.length=${cmsHex.length} (${cmsHex.length / 2} bytes)`);
+	if (import.meta.env.DEV) {
+		logger.debug('[PDF] embedSerproCms diagnóstico', {
+			byteRange: byteRangeMatch?.[1]?.trim() ?? 'NÃO ENCONTRADO',
+			sigStart,
+			sigEnd,
+			placeholderLength,
+			placeholderBytes: placeholderLength / 2,
+			cmsHexChars: cmsHex.length,
+			cmsDerBytes: cmsHex.length / 2
+		});
+	}
 
 	if (cmsHex.length > placeholderLength) {
 		throw new Error(
@@ -885,8 +909,10 @@ export async function adicionarRodapeSimples(
 					}
 				}
 			}
-		} catch (err: any) {
-			console.error('Erro ao gerar QR Code para rodape simples:', err);
+		} catch (err: unknown) {
+			logger.error('Erro ao gerar QR Code para rodape simples', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 		}
 	}
 
@@ -935,7 +961,9 @@ export async function adicionarRodapeSimples(
 				opacity: 0.90
 			});
 		} catch (err) {
-			console.error('Erro ao embutir rubrica simples:', err);
+			logger.error('Erro ao embutir rubrica simples', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 		}
 	}
 

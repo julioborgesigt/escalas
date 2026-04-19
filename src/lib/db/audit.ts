@@ -14,6 +14,7 @@ import { desc, eq, and, like, sql } from 'drizzle-orm';
 import { auditLog } from '../server/schema';
 import type { Database } from './core';
 import type { AuditLog } from '../server/schema';
+import { logger } from '../server/logger';
 
 export type AcaoAudit =
 	| 'login'
@@ -75,7 +76,11 @@ export async function registrarAudit(
 		});
 	} catch (err) {
 		// Nunca bloquear o fluxo principal por falha de auditoria
-		console.error('[AUDIT] Falha ao registrar log:', err);
+		logger.error('[audit] Falha ao registrar log', {
+			acao: entry.acao,
+			entidade: entry.entidade,
+			error: err instanceof Error ? err.message : String(err)
+		});
 	}
 }
 

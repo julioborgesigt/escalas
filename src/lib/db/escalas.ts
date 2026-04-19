@@ -293,11 +293,13 @@ export async function adicionarTodosPoliciais(
 	return novos.length;
 }
 
-export async function listarPoliciaisEscala(
-	db: Database,
-	escalaId: number
-): Promise<EscalaPolicialComDados[]> {
-	const result = await db
+/**
+ * Constrói a query de listagem de policiais de uma escala SEM executá-la.
+ * Útil para uso com `db.batch([mutation, listarPoliciaisEscalaQuery(...)])`,
+ * que combina mutação + listagem em um único round-trip ao D1.
+ */
+export function listarPoliciaisEscalaQuery(db: Database, escalaId: number) {
+	return db
 		.select({
 			id: escalaPoliciais.id,
 			escala_id: escalaPoliciais.escala_id,
@@ -321,6 +323,12 @@ export async function listarPoliciaisEscala(
 		.innerJoin(policiais, eq(escalaPoliciais.policial_id, policiais.id))
 		.where(eq(escalaPoliciais.escala_id, escalaId))
 		.orderBy(asc(escalaPoliciais.data_plantao), desc(policiais.cargo), asc(policiais.nome));
+}
 
+export async function listarPoliciaisEscala(
+	db: Database,
+	escalaId: number
+): Promise<EscalaPolicialComDados[]> {
+	const result = await listarPoliciaisEscalaQuery(db, escalaId);
 	return result as EscalaPolicialComDados[];
 }

@@ -25,11 +25,16 @@
 		assinante_nome: string;
 	}
 
+	type LoadOptionsFn = (
+		query: string,
+		signal: AbortSignal
+	) => Promise<{ value: number | null; label: string }[]>;
+
+	type SelectedOption = { value: number | null; label: string } | null;
+
 	interface Props {
 		gise: Gise;
 		policiais: Policial[];
-		dpcs: Policial[];
-		oips: Policial[];
 		isAdminGeral: boolean;
 		isSeccional: boolean;
 		podeEditar: boolean;
@@ -37,6 +42,9 @@
 		editando: boolean;
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
 		pendingCrud: boolean;
+		buscarDpcs: LoadOptionsFn;
+		buscarOips: LoadOptionsFn;
+		selectedFromPoliciais: (id: number | null) => SelectedOption;
 		supervisorId: number | null;
 		assessorId: number | null;
 		seint1Id: number | null;
@@ -49,8 +57,6 @@
 	let {
 		gise,
 		policiais,
-		dpcs,
-		oips,
 		isAdminGeral,
 		isSeccional,
 		podeEditar,
@@ -58,6 +64,9 @@
 		editando,
 		documentoAssinadoInfo,
 		pendingCrud,
+		buscarDpcs,
+		buscarOips,
+		selectedFromPoliciais,
 		supervisorId = $bindable(),
 		assessorId = $bindable(),
 		seint1Id = $bindable(),
@@ -111,10 +120,8 @@
 					<SearchableSelect
 						id="supId"
 						bind:value={supervisorId}
-						options={[
-							{ value: null, label: 'Não definido' },
-							...dpcs.map((p) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-						]}
+						loadOptions={buscarDpcs}
+						selectedOption={selectedFromPoliciais(supervisorId)}
 						placeholder="Pesquisar Supervisão..."
 						class="w-full"
 					/>
@@ -129,10 +136,8 @@
 					<SearchableSelect
 						id="assessorId"
 						bind:value={assessorId}
-						options={[
-							{ value: null, label: 'Não definido' },
-							...oips.map((p) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-						]}
+						loadOptions={buscarOips}
+						selectedOption={selectedFromPoliciais(assessorId)}
 						placeholder="Pesquisar Assessor..."
 						class="w-full"
 					/>
@@ -147,10 +152,8 @@
 					<SearchableSelect
 						id="seint1Id"
 						bind:value={seint1Id}
-						options={[
-							{ value: null, label: 'Não definido' },
-							...oips.map((p) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-						]}
+						loadOptions={buscarOips}
+						selectedOption={selectedFromPoliciais(seint1Id)}
 						placeholder="Pesquisar SEINT 1..."
 						class="w-full"
 					/>
@@ -165,10 +168,8 @@
 					<SearchableSelect
 						id="seint2Id"
 						bind:value={seint2Id}
-						options={[
-							{ value: null, label: 'Não definido' },
-							...oips.map((p) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-						]}
+						loadOptions={buscarOips}
+						selectedOption={selectedFromPoliciais(seint2Id)}
 						placeholder="Pesquisar SEINT 2..."
 						class="w-full"
 					/>

@@ -11,6 +11,14 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
+	import type { Policial, Unidade } from '$lib/server/schema';
+	import {
+		checkAllSigned,
+		filtrarDelegacias,
+		filtrarSeccionaisDisponiveis,
+		getFaltandoRubrica,
+		getSeccionalColorClass
+	} from '$lib/gise/gise-page-helpers';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import GiseBannersAssinaturas from './_components/GiseBannersAssinaturas.svelte';
@@ -112,10 +120,7 @@
 
 	// Gerenciamento de seccionais (Admin Geral) — derivado dos dados já carregados
 	const seccionaisDisponiveis = $derived(
-		todasUnidades.filter(
-			(u: any) =>
-				u.tipo === 'seccional' && !gise?.seccionais.some((s: any) => s.seccional_id === u.id)
-		)
+		filtrarSeccionaisDisponiveis(gise, todasUnidades as Unidade[])
 	);
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
@@ -140,49 +145,40 @@
 		}
 	});
 
-	const dpcs = $derived(policiais.filter((p: any) => p.cargo === 'DPC'));
-	const oips = $derived(policiais.filter((p: any) => p.cargo === 'OIP'));
-
-	// Cores sutis para cada seccional (identificação visual)
-	const seccionalColors = [
-		'bg-blue-50/50 dark:bg-blue-900/10',
-		'bg-emerald-50/50 dark:bg-emerald-900/10',
-		'bg-indigo-50/50 dark:bg-indigo-900/10',
-		'bg-violet-50/50 dark:bg-violet-900/10',
-		'bg-amber-50/50 dark:bg-amber-900/10',
-		'bg-rose-50/50 dark:bg-rose-900/10',
-		'bg-cyan-50/50 dark:bg-cyan-900/10',
-		'bg-teal-50/50 dark:bg-teal-900/10',
-		'bg-sky-50/50 dark:bg-sky-900/10',
-		'bg-slate-50/50 dark:bg-slate-900/10'
-	];
-
-	function getSeccionalColor(seccionalId: number) {
-		return seccionalColors[seccionalId % seccionalColors.length];
+	/**
+	 * `data.policiais` agora contém APENAS os supports já vinculados (≤ 4 registros)
+	 * para servir de label-resolver dos selects abaixo. A busca de novos nomes vai
+	 * para `/api/policiais/search` sob demanda. Antes: até 10 000 linhas no load.
+	 */
+	function selectedFromPoliciais(id: number | null) {
+		if (id == null) return null;
+		const p = (policiais as Policial[]).find((x) => x.id === id);
+		return p ? { value: p.id, label: `${p.nome} (${p.matricula})` } : null;
 	}
 
-	function getMembrosFromSec(sec: any): any[] {
-		return (sec.unidades ?? []).flatMap((u: any) =>
-			(u.equipes ?? []).flatMap((eq: any) => eq.membros ?? [])
-		);
+	/** Factory de `loadOptions` parametrizado por cargo. Usa AbortSignal para cancelar. */
+	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
+		return async (query: string, signal: AbortSignal) => {
+			const params = new URLSearchParams({ cargo, limit: '50' });
+			if (query) params.set('q', query);
+			const res = await fetch(`/api/policiais/search?${params}`, { signal });
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
+				throw new Error(err.error ?? 'Erro na busca');
+			}
+			const data = (await res.json()) as { policiais: { id: number; nome: string; matricula: string }[] };
+			return data.policiais.map((p) => ({
+				value: p.id,
+				label: `${p.nome} (${p.matricula})`
+			}));
+		};
 	}
-
-	function checkAllSigned(sec: any) {
-		const members = getMembrosFromSec(sec);
-		if (members.length === 0) return false;
-		return members.every((m: any) => m.presenca?.entrada_timestamp && m.presenca?.saida_timestamp);
-	}
-
-	function getFaltandoRubrica(sec: any) {
-		const members = getMembrosFromSec(sec);
-		const faltantes = members.filter(
-			(m: any) => !m.presenca?.entrada_timestamp || !m.presenca?.saida_timestamp
-		);
-		if (faltantes.length === 0) return '';
-		return (
-			'Faltando rubrica de: ' + faltantes.map((m: any) => m.policial_nome.split(' ')[0]).join(', ')
-		);
-	}
+	const buscarDpcs = buscarPorCargo('DPC');
+	const buscarOips = buscarPorCargo('OIP');
+	/** Estabiliza a referência conforme `cargoParaAdicionar` muda — evita re-runs do effect interno do SearchableSelect a cada render do pai. */
+	const buscarMembroAdicional = $derived(
+		cargoParaAdicionar ? buscarPorCargo(cargoParaAdicionar) : undefined
+	);
 
 	function handleSalvarSupervisores() {
 		pendingCrud = true;
@@ -453,7 +449,7 @@
 		codigoValidação?: string,
 		desafioId?: string
 	) {
-		loading.show('Confirmando escala e gerando PDF...');
+		loading.show('Assinando e gerando PDF...');
 		try {
 			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 				method: 'POST',
@@ -972,7 +968,7 @@
 				gise?.status === 'finalizada')
 	);
 
-	const delegacias = $derived(todasUnidades.filter((u: any) => u.tipo === 'delegacia'));
+	const delegacias = $derived(filtrarDelegacias(todasUnidades as Unidade[]));
 </script>
 
 <svelte:head>
@@ -1091,8 +1087,6 @@
 		<GiseSupervisao
 			{gise}
 			{policiais}
-			{dpcs}
-			{oips}
 			{isAdminGeral}
 			{isSeccional}
 			{podeEditar}
@@ -1100,6 +1094,9 @@
 			editando={editandoSupervisores}
 			{documentoAssinadoInfo}
 			{pendingCrud}
+			{buscarDpcs}
+			{buscarOips}
+			{selectedFromPoliciais}
 			bind:supervisorId
 			bind:assessorId
 			bind:seint1Id
@@ -1159,7 +1156,7 @@
 					>
 						<!-- Cabeçalho da seccional -->
 						<div
-							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColor(
+							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)}"
 						>
@@ -1285,7 +1282,7 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div
-							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColor(
+							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)} border-b border-surface-200 dark:border-surface-700"
 						>
@@ -1878,17 +1875,14 @@
 															/>
 															<div class="flex flex-wrap gap-2 items-end">
 																<div class="flex-1 min-w-32">
-																	<SearchableSelect
-																		bind:value={policialParaAdicionar}
-																		options={policiais
-																			.filter((p: any) => p.cargo === cargoParaAdicionar)
-																			.map((p: any) => ({
-																				value: p.id,
-																				label: `${p.nome} (${p.matricula})`
-																			}))}
-																		placeholder={`Pesquisar ${cargoParaAdicionar}...`}
-																		class="w-full"
-																	/>
+																	{#key cargoParaAdicionar}
+																		<SearchableSelect
+																			bind:value={policialParaAdicionar}
+																			loadOptions={buscarMembroAdicional}
+																			placeholder={`Pesquisar ${cargoParaAdicionar}...`}
+																			class="w-full"
+																		/>
+																	{/key}
 																</div>
 																<button
 																	type="submit"

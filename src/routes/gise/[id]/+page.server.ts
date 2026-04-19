@@ -4,7 +4,6 @@ import {
 	getDB,
 	getR2,
 	buscarGiseDetalhado,
-	listarPoliciais,
 	buscarAssinaturasRelatoriosGise,
 	buscarGiseEscala,
 	atualizarGiseEscala,
@@ -26,8 +25,10 @@ import {
 	removerGiseSeccionalUnidade
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
+import { logger } from '$lib/server/logger';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
-import { eq, asc, inArray, or, and } from 'drizzle-orm';
+import { eq, asc, inArray, and } from 'drizzle-orm';
 
 function getInt(fd: FormData, key: string): number {
 	const v = fd.get(key);
@@ -73,41 +74,33 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			gise.seint2_id
 		].filter((val): val is number => val !== null);
 
-		const policiaisPromise = isGeral
-			? listarPoliciais(db, undefined, false, { limit: 10000 }).then((r) => r.policiais)
-			: (async () => {
-					// Perto de Admin Seccional: busca lotações permitidas
-					let permittedUnits: string[] = [];
-					if (isSeccional && u.papel_unidade_id) {
-						const unitsList = await db
-							.select({ nome: unidades.nome })
-							.from(unidades)
-							.where(
-								or(
-									eq(unidades.seccional_id, u.papel_unidade_id!),
-									eq(unidades.id, u.papel_unidade_id!)
-								)
-							);
-						permittedUnits = unitsList.map((un) => un.nome);
-					}
-
-					// Sempre inclui os IDs de suporte da GISE atual na consulta
-					const conditions = [];
-					if (permittedUnits.length > 0) {
-						conditions.push(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, permittedUnits)));
-					}
-					if (supportIds.length > 0) {
-						conditions.push(inArray(policiais.id, supportIds));
-					}
-
-					if (conditions.length === 0) return [];
-
-					return db
-						.select()
+		// Antes carregávamos até 10 000 policiais aqui só para popular `<SearchableSelect>`
+		// no cliente. Agora os selects buscam sob demanda em `/api/policiais/search`
+		// (paginado, com RBAC). O servidor só envia o **mínimo necessário** para
+		// renderizar labels dos valores já selecionados:
+		//   - Os 4 supportIds (supervisor/assessor/SEINT1/SEINT2) — para o card de supervisão.
+		//   - Membros já alocados são entregues via `gise.seccionais[].equipes[].membros`
+		//     (já vêm com nome/matrícula em `buscarGiseDetalhado`), nada a fazer.
+		const policiaisPromise: Promise<Array<{
+			id: number;
+			nome: string;
+			matricula: string;
+			cargo: 'DPC' | 'OIP';
+			lotacao: string;
+		}>> =
+			supportIds.length > 0
+				? db
+						.select({
+							id: policiais.id,
+							nome: policiais.nome,
+							matricula: policiais.matricula,
+							cargo: policiais.cargo,
+							lotacao: policiais.lotacao
+						})
 						.from(policiais)
-						.where(or(...conditions))
-						.orderBy(asc(policiais.cargo), asc(policiais.nome));
-				})();
+						.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
+						.orderBy(asc(policiais.nome))
+				: Promise.resolve([]);
 
 		// Queries paralelas restantes
 		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] =
@@ -143,7 +136,11 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
 		const msg = e instanceof Error ? e.message : String(e);
-		console.error('[gise/load]', msg);
+		logger.error('[gise/load] Erro ao carregar GISE', {
+			gise_id: id,
+			error: msg,
+			stack: e instanceof Error ? e.stack : undefined
+		});
 		throw error(500, `Erro ao carregar GISE: ${msg}`);
 	}
 };
@@ -204,6 +201,11 @@ export const actions: Actions = {
 		}
 
 		await atualizarGiseEscala(db, giseId, updateData);
+
+		// Cache invalidation: o "isSupervisor" muda quando o supervisor entra ou sai.
+		// Invalida o anterior (lido antes do update) e o novo, se diferentes.
+		await invalidarPapelGiseMultiplos([gise.supervisor_id, supervisorId]);
+
 		return { success: true };
 	},
 
@@ -342,6 +344,9 @@ export const actions: Actions = {
 
 		await adicionarGiseMembro(db, equipeId, policialId);
 
+		// Cache invalidation: o "isMembro" do policial muda agora.
+		await invalidarPapelGise(policialId);
+
 		const gise = await buscarGiseEscala(db, giseId);
 		if (gise && !['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, secId);
@@ -371,6 +376,7 @@ export const actions: Actions = {
 		const membroInfo = await db
 			.select({
 				equipe_id: giseMembros.equipe_id,
+				policial_id: giseMembros.policial_id,
 				gise_seccional_id: giseEquipes.gise_seccional_id,
 				seccional_id: giseSeccionais.seccional_id
 			})
@@ -387,6 +393,9 @@ export const actions: Actions = {
 		}
 
 		await removerGiseMembro(db, memId);
+
+		// Cache invalidation: o "isMembro" do policial muda agora.
+		await invalidarPapelGise(membroInfo.policial_id);
 
 		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
 			await revogarAssinaturasSeccional(db, giseId, membroInfo.gise_seccional_id);
@@ -628,7 +637,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status não permite finalizar' });
 		}
 
+		// Cache invalidation: ao finalizar, supervisor + todos membros perdem o
+		// papel GISE — precisamos coletar antes do update.
+		const afetados = await coletarAfetadosGise(db, giseId);
 		await atualizarGiseEscala(db, giseId, { status: 'finalizada' });
+		await invalidarPapelGiseMultiplos(afetados);
+
 		return { success: true };
 	},
 
@@ -648,7 +662,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status não permite reabrir' });
 		}
 
+		// Cache invalidation: ao reabrir uma GISE finalizada, supervisor + membros
+		// voltam a ter papel ativo — coletamos os IDs antes da mudança de status.
+		const afetados = await coletarAfetadosGise(db, giseId);
 		await reabrirGiseEscala(db, giseId);
+		await invalidarPapelGiseMultiplos(afetados);
+
 		return { success: true };
 	},
 
@@ -703,6 +722,9 @@ export const actions: Actions = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
+		// Cache invalidation: coleta antes do CASCADE deletar tudo.
+		const afetados = await coletarAfetadosGise(db, giseId);
+
 		const fileKeys = new Set<string>();
 
 		const [docs, presencas, assRelat] = await Promise.all([
@@ -730,7 +752,10 @@ export const actions: Actions = {
 					listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
 				}
 			} catch (e) {
-				console.warn('[GISE DELETE] Erro ao listar prefixo R2:', e);
+				logger.warn('[gise/excluir] Erro ao listar prefixo R2', {
+					gise_id: giseId,
+					error: e instanceof Error ? e.message : String(e)
+				});
 			}
 
 			if (fileKeys.size > 0) {
@@ -739,6 +764,7 @@ export const actions: Actions = {
 		}
 
 		await db.delete(giseEscalas).where(eq(giseEscalas.id, giseId));
+		await invalidarPapelGiseMultiplos(afetados);
 		return { success: true, files_deleted: fileKeys.size };
 	},
 

@@ -1,7 +1,9 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, isMembroGiseAtiva, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone } from '$lib/db';
+import type { Actions } from './$types';
+import { getDB, getR2, hasR2, buscarGiseModeloFormulario, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, verificarTodosSairam, verificarTodosRelatoriosEnviados, atualizarGiseEscala, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
+import { logger } from '$lib/server/logger';
+import { parseRespostasFormularioJsonLoose, parseRespostasFormularioJsonStrict } from '$lib/schemas/gise-respostas-form';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
@@ -301,7 +303,14 @@ export const load = async ({ locals, platform, url }: any) => {
 
 	let respostasData: Record<string, unknown> = {};
 	if (respostaRow?.respostas) {
-		try { respostasData = JSON.parse(respostaRow.respostas); } catch { /* ignora JSON inválido */ }
+		respostasData = parseRespostasFormularioJsonLoose(respostaRow.respostas);
+		const raw = respostaRow.respostas.trim();
+		if (raw && raw !== '{}' && Object.keys(respostasData).length === 0) {
+			logger.warn('res-gise load: respostas não é objeto JSON válido', {
+				giseId: giseIdSelected,
+				amostra: raw.slice(0, 80)
+			});
+		}
 	}
 
 	return {
@@ -334,15 +343,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos', giseId, equipeId });
 		}
 
-		let respostas: any;
-		try {
-			respostas = JSON.parse(respostasStr);
-		} catch {
+		const parsed = parseRespostasFormularioJsonStrict(respostasStr);
+		if (!parsed.ok) {
 			return fail(400, { error: 'Respostas em formato inválido', giseId, equipeId });
 		}
 
 		const db = getDB(platform);
-		await salvarRespostaGise(db, giseId, u.id, JSON.stringify(respostas), equipeId);
+		await salvarRespostaGise(db, giseId, u.id, JSON.stringify(parsed.data), equipeId);
 
 		// Verificar transição de status
 		const gise = await buscarGiseEscala(db, giseId);

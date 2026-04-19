@@ -39,16 +39,26 @@
 		policiaisEscalaLocal = data.policiaisEscala as EscalaPolicialComDados[];
 	});
 
-	// todosPoliciais vem via streaming: página renderiza imediatamente, lista chega depois
-	let todosOsPoliciais = $state<any[]>([]);
-	let loadingPoliciais = $state(true);
-	$effect(() => {
-		loadingPoliciais = true;
-		Promise.resolve(data.todosPoliciais).then((lista: any) => {
-			todosOsPoliciais = lista ?? [];
-			loadingPoliciais = false;
-		});
-	});
+	/**
+	 * Busca incremental no servidor (substitui o load eager de até 10 000 linhas).
+	 * `cargoBusca` é incluído na query — o servidor já filtra por DPC/OIP.
+	 * O `signal` é usado pelo `SearchableSelect` para abortar buscas em flight.
+	 */
+	async function buscarPoliciaisAsync(query: string, signal: AbortSignal) {
+		if (!cargoBusca) return [];
+		const params = new URLSearchParams({ cargo: cargoBusca, limit: '50' });
+		if (query) params.set('q', query);
+		const res = await fetch(`/api/policiais/search?${params}`, { signal });
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
+			throw new Error(err.error ?? 'Erro na busca');
+		}
+		const data = (await res.json()) as { policiais: { id: number; nome: string; lotacao: string }[] };
+		return data.policiais.map((p) => ({
+			value: String(p.id),
+			label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}`
+		}));
+	}
 
 	// Estados de loading inline por ação (sem overlay global)
 	let pendingAdd = $state(false);
@@ -85,13 +95,6 @@
 	let addPrimeiroPlantao = $state('');
 	let addDatasSelecionadas = $state<string[]>([]);
 
-	const policialsFiltrados = $derived(
-		cargoBusca
-			? todosOsPoliciais
-					.filter((p: any) => p.cargo && p.cargo.startsWith(cargoBusca))
-					.sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-			: []
-	);
 
 	let editingId = $state<number | null>(null);
 	let editDataEntrada = $state('');
@@ -522,14 +525,16 @@
 						</label>
 						<label class="label lg:col-span-2">
 							<span class="label-text">Servidor</span>
-							<SearchableSelect
-								name="policial_id"
-								bind:value={policialId}
-								disabled={!cargoBusca || loadingPoliciais}
-								options={[{value: '', label: loadingPoliciais ? 'Carregando...' : 'Selecione...'}, ...policialsFiltrados.map((p: any) => ({ value: String(p.id), label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}` }))]}
-								placeholder="Pesquisar servidor..."
-								class="w-full"
-							/>
+							{#key cargoBusca}
+								<SearchableSelect
+									name="policial_id"
+									bind:value={policialId}
+									disabled={!cargoBusca}
+									loadOptions={buscarPoliciaisAsync}
+									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+									class="w-full"
+								/>
+							{/key}
 						</label>
 						{#if !isFDS}
 							<label class="label">
@@ -633,14 +638,16 @@
 
 						<label class="label sm:col-span-4 self-center">
 							<span class="label-text">Servidor</span>
-							<SearchableSelect
-								name="policial_id"
-								bind:value={policialId}
-								disabled={!cargoBusca || loadingPoliciais}
-								options={[{value: '', label: loadingPoliciais ? 'Carregando...' : 'Selecione...'}, ...policialsFiltrados.map((p: any) => ({ value: String(p.id), label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}` }))]}
-								placeholder="Pesquisar servidor..."
-								class="w-full h-9"
-							/>
+							{#key cargoBusca}
+								<SearchableSelect
+									name="policial_id"
+									bind:value={policialId}
+									disabled={!cargoBusca}
+									loadOptions={buscarPoliciaisAsync}
+									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+									class="w-full h-9"
+								/>
+							{/key}
 						</label>
 
 						<label class="label sm:col-span-2">
