@@ -1,6 +1,26 @@
+/**
+ * POST /api/webhook/reset-policiais
+ *
+ * **OPERAÇÃO DESTRUTIVA E IRREVERSÍVEL.** Apaga todas as tabelas operacionais.
+ *
+ * Antes de executar exige:
+ *  1. `Authorization: Bearer <SYNC_TOKEN>`            — segredo padrão de webhooks.
+ *  2. `X-Reset-Token: <RESET_TOKEN>`                  — segredo SEPARADO, nunca igual ao SYNC.
+ *  3. `X-Confirm-Reset: <YYYY-MM-DD UTC do dia atual>` — anti-replay, válido só hoje.
+ *
+ * Caso o `RESET_TOKEN` não esteja configurado no ambiente, o endpoint **sempre**
+ * retorna 401 — fail-closed por padrão, evitando que um deploy esqueça a guarda.
+ *
+ * Antes da deleção, grava no log estruturado um snapshot com a contagem de
+ * linhas por tabela. Esse snapshot serve de prova forense em caso de
+ * comprometimento ou execução acidental.
+ */
+
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { timingSafeEqual } from 'node:crypto';
+import { logger } from '$lib/server/logger';
+import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import {
 	policiais,
 	unidades,
@@ -20,24 +40,97 @@ import {
 
 function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
 	const expected = `Bearer ${expectedToken}`;
-	const a = Buffer.from((authHeader ?? '').padEnd(expected.length, ' ').slice(0, expected.length));
-	const b = Buffer.from(expected);
-	const valueMatch = timingSafeEqual(a, b) ? 1 : 0;
-	const lenMatch = (authHeader ?? '').length === expected.length ? 1 : 0;
-	return (valueMatch & lenMatch) === 1;
+	return compararSegredoUtf8TimingSafe(authHeader ?? '', expected);
 }
 
-export const POST: RequestHandler = async ({ request, platform }) => {
-	const authHeader = request.headers.get('Authorization');
-	const SYNC_TOKEN = (platform?.env as any)?.SYNC_TOKEN;
+/** YYYY-MM-DD em UTC. Diferenças de fuso entre cliente e Worker são absorvidas pela janela de 24h. */
+function dataIsoHojeUtc(): string {
+	const now = new Date();
+	const yyyy = now.getUTCFullYear();
+	const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+	const dd = String(now.getUTCDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
 
-	if (!SYNC_TOKEN || !bearerTokenValido(authHeader, SYNC_TOKEN)) {
+export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+	// `platform.env` resolve para `Env` em runtime Cloudflare, mas o tipo
+	// gerado pelo svelte-kit local não enxerga isso sem cast.
+	const env = (platform?.env ?? {}) as Env;
+	const SYNC_TOKEN = env.SYNC_TOKEN;
+	const RESET_TOKEN = env.RESET_TOKEN;
+	const ip = getClientAddress();
+
+	// Fail-closed: sem RESET_TOKEN configurado, ninguém apaga nada.
+	if (!SYNC_TOKEN || !RESET_TOKEN) {
+		logger.warn('[reset-policiais] tentativa sem segredos configurados', { ip });
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
+	const authHeader = request.headers.get('Authorization');
+	const resetHeader = request.headers.get('X-Reset-Token');
+	const confirmHeader = request.headers.get('X-Confirm-Reset');
+
+	if (!bearerTokenValido(authHeader, SYNC_TOKEN)) {
+		logger.warn('[reset-policiais] bearer inválido', { ip });
+		return json({ error: 'Não autorizado' }, { status: 401 });
+	}
+
+	if (!resetHeader || !compararSegredoUtf8TimingSafe(resetHeader, RESET_TOKEN)) {
+		logger.warn('[reset-policiais] X-Reset-Token ausente ou inválido', { ip });
+		return json({ error: 'Não autorizado' }, { status: 401 });
+	}
+
+	const hoje = dataIsoHojeUtc();
+	if (!confirmHeader || !compararSegredoUtf8TimingSafe(confirmHeader, hoje)) {
+		logger.warn('[reset-policiais] X-Confirm-Reset ausente ou fora da janela', {
+			ip,
+			esperado: hoje,
+			recebido: confirmHeader ?? '(vazio)'
+		});
+		return json(
+			{ error: `Cabeçalho X-Confirm-Reset deve ser igual a "${hoje}" (UTC).` },
+			{ status: 401 }
+		);
+	}
+
+	const db = getDB(platform);
+
+	// Snapshot pré-deleção. Útil para auditoria/recuperação forense.
+	let snapshot: Record<string, number>;
 	try {
-		const db = getDB(platform);
-		
+		const tabelas = [
+			['policiais', policiais],
+			['unidades', unidades],
+			['escalas', escalas],
+			['escala_policiais', escalaPoliciais],
+			['escala_documentos', escalaDocumentos],
+			['gise_escalas', giseEscalas],
+			['gise_seccionais', giseSeccionais],
+			['gise_seccional_unidades', giseSeccionalUnidades],
+			['gise_equipes', giseEquipes],
+			['gise_membros', giseMembros],
+			['gise_presencas', gisePresencas],
+			['gise_respostas_formulario', giseRespostasFormulario],
+			['gise_assinaturas_relatorios', giseAssinaturasRelatorios],
+			['gise_documentos', giseDocumentos]
+		] as const;
+
+		const counts = await Promise.all(
+			tabelas.map(([_, t]) => db.select({ n: count() }).from(t).get())
+		);
+		snapshot = Object.fromEntries(
+			tabelas.map(([nome], i) => [nome, counts[i]?.n ?? 0])
+		);
+		logger.warn('[reset-policiais] snapshot pré-deleção', { ip, snapshot });
+	} catch (err) {
+		logger.error('[reset-policiais] falha ao gerar snapshot — abortando', {
+			ip,
+			error: err instanceof Error ? err.message : String(err)
+		});
+		return json({ error: 'Falha ao preparar reset' }, { status: 500 });
+	}
+
+	try {
 		// IMPORTANTE: Limpeza profunda em ordem reversa de dependência
 		// 1. Tabelas de transação e logs
 		await db.delete(gisePresencas);
@@ -45,14 +138,14 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		await db.delete(giseAssinaturasRelatorios);
 		await db.delete(giseDocumentos);
 		await db.delete(escalaDocumentos);
-		
+
 		// 2. Hierarquia GISE
 		await db.delete(giseMembros);
 		await db.delete(giseEquipes);
 		await db.delete(giseSeccionalUnidades);
 		await db.delete(giseSeccionais);
 		await db.delete(giseEscalas);
-		
+
 		// 3. Escalas antigas
 		await db.delete(escalaPoliciais);
 		await db.delete(escalas);
@@ -61,11 +154,18 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		await db.delete(policiais);
 		await db.delete(unidades);
 
-		return json({ 
-			success: true, 
-			message: 'Banco de dados resetado com sucesso (Tabelas operacionais, Policiais e Unidades limpas).' 
+		logger.warn('[reset-policiais] reset concluído', { ip, snapshot });
+
+		return json({
+			success: true,
+			message: 'Banco de dados resetado com sucesso (Tabelas operacionais, Policiais e Unidades limpas).',
+			snapshot
 		});
-	} catch (err: any) {
-		return json({ error: 'Erro ao limpar banco de dados', details: err.message }, { status: 500 });
+	} catch (err) {
+		logger.error('[reset-policiais] falha durante deleção', {
+			ip,
+			error: err instanceof Error ? err.message : String(err)
+		});
+		return json({ error: 'Erro ao limpar banco de dados' }, { status: 500 });
 	}
 };

@@ -34,6 +34,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const escala = await buscarEscala(db, id);
 	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
+	// Mesma regra do preparar-assinatura: somente admin ou dono da lotação pode finalizar.
+	// Sem isto, qualquer usuário autenticado poderia enviar um preparedPdf arbitrário e
+	// produzir um documento "assinado" em nome de outra unidade.
+	if (u.tipo !== 'admin' && u.lotacao !== escala.lotacao) {
+		return json({ error: 'Sem permissão para assinar esta escala' }, { status: 403 });
+	}
+
 	try {
 		const preparedPdfBytes = Buffer.from(preparedPdf, 'base64');
 		let signedPdf: Uint8Array;

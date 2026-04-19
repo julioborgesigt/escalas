@@ -1,10 +1,6 @@
 import type { LayoutServerLoad } from './$types';
-import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarExigirCodigoEmailAssinatura } from '$lib/db';
-
-/** Nome do cookie de cache das flags de configuração de assinatura. */
-const CFG_ASS_COOKIE = 'cfg_ass';
-/** TTL do cache: 5 minutos. Elimina queries redundantes em toda navegação. */
-const CFG_ASS_MAX_AGE = 300;
+import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva } from '$lib/db';
+import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	const u = locals.usuario;
@@ -17,37 +13,25 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 
 	if (u) {
 		try {
-			const db = getDB(platform);
-
-			// Flags de config lidas do cookie em cache (evita 3 queries por navegação).
-			// Só consulta o DB se o cookie estiver ausente ou expirado.
-			const cfgCookie = cookies.get(CFG_ASS_COOKIE);
-			if (cfgCookie) {
-				const cfg = JSON.parse(cfgCookie);
-				exigirFotoAssinatura = cfg.foto === 1;
-				exigirGpsAssinatura = cfg.gps === 1;
-				exigirCodigoEmailAssinatura = cfg.codigo === 1;
-			} else {
-				await Promise.all([
-					buscarExigirFotoAssinatura(db).then((v) => { exigirFotoAssinatura = v; }),
-					buscarExigirGpsAssinatura(db).then((v) => { exigirGpsAssinatura = v; }),
-					buscarExigirCodigoEmailAssinatura(db).then((v) => { exigirCodigoEmailAssinatura = v; })
-				]);
-				cookies.set(CFG_ASS_COOKIE, JSON.stringify({
-					foto: exigirFotoAssinatura ? 1 : 0,
-					gps: exigirGpsAssinatura ? 1 : 0,
-					codigo: exigirCodigoEmailAssinatura ? 1 : 0
-				}), { path: '/', httpOnly: false, sameSite: 'lax', maxAge: CFG_ASS_MAX_AGE });
-			}
+			// Flags vêm do cache server-side (Cache API edge, TTL 5min). Antes
+			// usávamos cookie do cliente, mas como não era assinado, o usuário
+			// podia editá-lo e desligar exigências de selfie/GPS/código.
+			// Esses valores são EXIBIÇÃO; toda decisão de aceitar/dispensar
+			// evidência DEVE chamar `lerFlagsAssinatura` no próprio endpoint.
+			const flags = await lerFlagsAssinatura(platform);
+			exigirFotoAssinatura = flags.exigirFotoAssinatura;
+			exigirGpsAssinatura = flags.exigirGpsAssinatura;
+			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
 
 			if (u.tipo === 'policial') {
+				const db = getDB(platform);
 				await Promise.all([
 					isSupervisorGiseAtiva(db, u.id).then((v) => { isSupervisorGise = v; }),
 					isMembroGiseAtiva(db, u.id).then((v) => { isMembroGise = v; })
 				]);
 			}
 		} catch {
-			// DB indisponível
+			// DB indisponível — mantém defaults seguros (exige tudo)
 		}
 	}
 

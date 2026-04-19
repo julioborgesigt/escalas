@@ -1,27 +1,20 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarExigirFotoAssinatura,
-	buscarExigirGpsAssinatura,
-	buscarExigirCodigoEmailAssinatura,
-	buscarRestringirSmartphone,
-	salvarConfiguracao
-} from '$lib/db';
+import { getDB, salvarConfiguracao } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
+import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 
 export const GET: RequestHandler = async ({ platform }) => {
-	const db = getDB(platform);
-	const [exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone] = await Promise.all([
-		buscarExigirFotoAssinatura(db),
-		buscarExigirGpsAssinatura(db),
-		buscarExigirCodigoEmailAssinatura(db),
-		buscarRestringirSmartphone(db)
-	]);
-	return json({ exigirFoto, exigirGps, exigirCodigoEmail, restringirSmartphone });
+	const flags = await lerFlagsAssinatura(platform);
+	return json({
+		exigirFoto: flags.exigirFotoAssinatura,
+		exigirGps: flags.exigirGpsAssinatura,
+		exigirCodigoEmail: flags.exigirCodigoEmailAssinatura,
+		restringirSmartphone: flags.restringirSmartphone
+	});
 };
 
-export const PUT: RequestHandler = async ({ platform, request, locals, cookies }) => {
+export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	if (locals.usuario?.tipo !== 'admin') {
 		return json({ error: 'Acesso negado' }, { status: 403 });
 	}
@@ -58,8 +51,9 @@ export const PUT: RequestHandler = async ({ platform, request, locals, cookies }
 
 	await Promise.all(saves);
 
-	// Invalida o cookie de cache para que todos busquem os novos valores no DB
-	cookies.delete('cfg_ass', { path: '/' });
+	// Invalida o cache edge server-side para que toda assinatura subsequente
+	// leia os novos valores do D1 (não mais do cliente).
+	await invalidarFlagsAssinatura();
 
 	return json({ ok: true });
 };
