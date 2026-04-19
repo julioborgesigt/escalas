@@ -149,8 +149,40 @@
 		}
 	});
 
-	const dpcs = $derived((policiais as Policial[]).filter((p) => p.cargo === 'DPC'));
-	const oips = $derived((policiais as Policial[]).filter((p) => p.cargo === 'OIP'));
+	/**
+	 * `data.policiais` agora contém APENAS os supports já vinculados (≤ 4 registros)
+	 * para servir de label-resolver dos selects abaixo. A busca de novos nomes vai
+	 * para `/api/policiais/search` sob demanda. Antes: até 10 000 linhas no load.
+	 */
+	function selectedFromPoliciais(id: number | null) {
+		if (id == null) return null;
+		const p = (policiais as Policial[]).find((x) => x.id === id);
+		return p ? { value: p.id, label: `${p.nome} (${p.matricula})` } : null;
+	}
+
+	/** Factory de `loadOptions` parametrizado por cargo. Usa AbortSignal para cancelar. */
+	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
+		return async (query: string, signal: AbortSignal) => {
+			const params = new URLSearchParams({ cargo, limit: '50' });
+			if (query) params.set('q', query);
+			const res = await fetch(`/api/policiais/search?${params}`, { signal });
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
+				throw new Error(err.error ?? 'Erro na busca');
+			}
+			const data = (await res.json()) as { policiais: { id: number; nome: string; matricula: string }[] };
+			return data.policiais.map((p) => ({
+				value: p.id,
+				label: `${p.nome} (${p.matricula})`
+			}));
+		};
+	}
+	const buscarDpcs = buscarPorCargo('DPC');
+	const buscarOips = buscarPorCargo('OIP');
+	/** Estabiliza a referência conforme `cargoParaAdicionar` muda — evita re-runs do effect interno do SearchableSelect a cada render do pai. */
+	const buscarMembroAdicional = $derived(
+		cargoParaAdicionar ? buscarPorCargo(cargoParaAdicionar) : undefined
+	);
 
 	function handleSalvarSupervisores() {
 		pendingCrud = true;
@@ -1234,10 +1266,8 @@
 							<SearchableSelect
 								id="supId"
 								bind:value={supervisorId}
-								options={[
-									{ value: null, label: 'Não definido' },
-									...dpcs.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-								]}
+								loadOptions={buscarDpcs}
+								selectedOption={selectedFromPoliciais(supervisorId)}
 								placeholder="Pesquisar Supervisão..."
 								class="w-full"
 							/>
@@ -1252,10 +1282,8 @@
 							<SearchableSelect
 								id="assessorId"
 								bind:value={assessorId}
-								options={[
-									{ value: null, label: 'Não definido' },
-									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-								]}
+								loadOptions={buscarOips}
+								selectedOption={selectedFromPoliciais(assessorId)}
 								placeholder="Pesquisar Assessor..."
 								class="w-full"
 							/>
@@ -1270,10 +1298,8 @@
 							<SearchableSelect
 								id="seint1Id"
 								bind:value={seint1Id}
-								options={[
-									{ value: null, label: 'Não definido' },
-									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-								]}
+								loadOptions={buscarOips}
+								selectedOption={selectedFromPoliciais(seint1Id)}
 								placeholder="Pesquisar SEINT 1..."
 								class="w-full"
 							/>
@@ -1288,10 +1314,8 @@
 							<SearchableSelect
 								id="seint2Id"
 								bind:value={seint2Id}
-								options={[
-									{ value: null, label: 'Não definido' },
-									...oips.map((p: any) => ({ value: p.id, label: `${p.nome} (${p.matricula})` }))
-								]}
+								loadOptions={buscarOips}
+								selectedOption={selectedFromPoliciais(seint2Id)}
 								placeholder="Pesquisar SEINT 2..."
 								class="w-full"
 							/>
@@ -2704,17 +2728,14 @@
 															/>
 															<div class="flex flex-wrap gap-2 items-end">
 																<div class="flex-1 min-w-32">
-																	<SearchableSelect
-																		bind:value={policialParaAdicionar}
-																		options={policiais
-																			.filter((p: any) => p.cargo === cargoParaAdicionar)
-																			.map((p: any) => ({
-																				value: p.id,
-																				label: `${p.nome} (${p.matricula})`
-																			}))}
-																		placeholder={`Pesquisar ${cargoParaAdicionar}...`}
-																		class="w-full"
-																	/>
+																	{#key cargoParaAdicionar}
+																		<SearchableSelect
+																			bind:value={policialParaAdicionar}
+																			loadOptions={buscarMembroAdicional}
+																			placeholder={`Pesquisar ${cargoParaAdicionar}...`}
+																			class="w-full"
+																		/>
+																	{/key}
 																</div>
 																<button
 																	type="submit"

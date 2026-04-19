@@ -4,7 +4,6 @@ import {
 	getDB,
 	getR2,
 	buscarGiseDetalhado,
-	listarPoliciais,
 	buscarAssinaturasRelatoriosGise,
 	buscarGiseEscala,
 	atualizarGiseEscala,
@@ -28,7 +27,7 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
-import { eq, asc, inArray, or, and } from 'drizzle-orm';
+import { eq, asc, inArray, and } from 'drizzle-orm';
 
 function getInt(fd: FormData, key: string): number {
 	const v = fd.get(key);
@@ -74,41 +73,33 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			gise.seint2_id
 		].filter((val): val is number => val !== null);
 
-		const policiaisPromise = isGeral
-			? listarPoliciais(db, undefined, false, { limit: 10000 }).then((r) => r.policiais)
-			: (async () => {
-					// Perto de Admin Seccional: busca lotações permitidas
-					let permittedUnits: string[] = [];
-					if (isSeccional && u.papel_unidade_id) {
-						const unitsList = await db
-							.select({ nome: unidades.nome })
-							.from(unidades)
-							.where(
-								or(
-									eq(unidades.seccional_id, u.papel_unidade_id!),
-									eq(unidades.id, u.papel_unidade_id!)
-								)
-							);
-						permittedUnits = unitsList.map((un) => un.nome);
-					}
-
-					// Sempre inclui os IDs de suporte da GISE atual na consulta
-					const conditions = [];
-					if (permittedUnits.length > 0) {
-						conditions.push(and(eq(policiais.ativo, 1), inArray(policiais.lotacao, permittedUnits)));
-					}
-					if (supportIds.length > 0) {
-						conditions.push(inArray(policiais.id, supportIds));
-					}
-
-					if (conditions.length === 0) return [];
-
-					return db
-						.select()
+		// Antes carregávamos até 10 000 policiais aqui só para popular `<SearchableSelect>`
+		// no cliente. Agora os selects buscam sob demanda em `/api/policiais/search`
+		// (paginado, com RBAC). O servidor só envia o **mínimo necessário** para
+		// renderizar labels dos valores já selecionados:
+		//   - Os 4 supportIds (supervisor/assessor/SEINT1/SEINT2) — para o card de supervisão.
+		//   - Membros já alocados são entregues via `gise.seccionais[].equipes[].membros`
+		//     (já vêm com nome/matrícula em `buscarGiseDetalhado`), nada a fazer.
+		const policiaisPromise: Promise<Array<{
+			id: number;
+			nome: string;
+			matricula: string;
+			cargo: 'DPC' | 'OIP';
+			lotacao: string;
+		}>> =
+			supportIds.length > 0
+				? db
+						.select({
+							id: policiais.id,
+							nome: policiais.nome,
+							matricula: policiais.matricula,
+							cargo: policiais.cargo,
+							lotacao: policiais.lotacao
+						})
 						.from(policiais)
-						.where(or(...conditions))
-						.orderBy(asc(policiais.cargo), asc(policiais.nome));
-				})();
+						.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
+						.orderBy(asc(policiais.nome))
+				: Promise.resolve([]);
 
 		// Queries paralelas restantes
 		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone] =
