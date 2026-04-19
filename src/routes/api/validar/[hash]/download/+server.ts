@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { getR2 } from '$lib/server/platform';
 import { contentDisposition } from '$lib/server/api';
+import { logger } from '$lib/server/logger';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const GET = async ({ platform, params, url }: RequestEvent) => {
@@ -12,15 +13,19 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		return json({ error: 'Código de verificação ausente' }, { status: 400 });
 	}
 
-	console.log(`[DOWNLOAD] Iniciando para hash: ${hash}`);
+	logger.info('[validar/download] Iniciando', { hash });
 
 	const documento = await buscarDocumentoPorHash(db, hash);
 	if (!documento) {
-		console.error(`[DOWNLOAD] Documento não encontrado para hash: ${hash}`);
+		logger.warn('[validar/download] Documento não encontrado', { hash });
 		return json({ error: 'Documento não encontrado' }, { status: 404 });
 	}
 
-	console.log(`[DOWNLOAD] Documento tipo: ${documento.tipo_doc}, R2 Key: ${documento.r2_key || 'N/A'}`);
+	logger.info('[validar/download] Documento localizado', {
+		hash,
+		tipo: documento.tipo_doc,
+		r2_key: documento.r2_key || null
+	});
 
 	// Tentar buscar do R2 primeiro se houver r2_key (preferível para integridade digital)
 	if (documento.r2_key) {
@@ -29,12 +34,13 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			try {
 				const obj = await r2.get(documento.r2_key);
 				if (obj) {
-					console.log(`[DOWNLOAD] Sucesso ao recuperar do R2: ${documento.r2_key}`);
+					logger.info('[validar/download] PDF recuperado do R2', {
+						hash,
+						r2_key: documento.r2_key
+					});
 					const arrayBuffer = await obj.arrayBuffer();
 					const resHeaders = new Headers();
 					resHeaders.set('Content-Type', 'application/pdf');
-					resHeaders.set('X-Debug-Source', 'R2');
-					resHeaders.set('X-Debug-Key', documento.r2_key);
 
 					const filename = documento.tipo_doc === 'gise_relatorio'
 						? `relatorio_${documento.rel_tipo}_${hash}.pdf`
@@ -46,19 +52,26 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 						status: 200
 					});
 				} else {
-					console.warn(`[DOWNLOAD] R2 Key existe mas arquivo não foi encontrado: ${documento.r2_key}`);
+					logger.warn('[validar/download] R2 key existe mas arquivo ausente', {
+						hash,
+						r2_key: documento.r2_key
+					});
 				}
-			} catch (r2Err: any) {
-				console.error(`[DOWNLOAD] Erro ao acessar R2 (${documento.r2_key}):`, r2Err);
+			} catch (r2Err) {
+				logger.error('[validar/download] Erro ao acessar R2', {
+					hash,
+					r2_key: documento.r2_key,
+					error: r2Err instanceof Error ? r2Err.message : String(r2Err)
+				});
 			}
 		} else {
-			console.warn('[DOWNLOAD] R2 Bucket não configurado no platform.env');
+			logger.warn('[validar/download] R2 binding ausente no platform.env', { hash });
 		}
 	}
 
 	// Se for gise_relatorio e não encontramos no R2 (legado ou erro de sync), geramos na hora
 	if (documento.tipo_doc === 'gise_relatorio') {
-		console.log(`[DOWNLOAD] Tentando re-geração dinâmica para relatório GISE: ${hash}`);
+		logger.info('[validar/download] Re-geração dinâmica de relatório GISE', { hash });
 		try {
 			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
@@ -66,7 +79,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) {
-				console.error(`[DOWNLOAD] GISE ${documento.escala_id} não encontrada para re-geração.`);
+				logger.error('[validar/download] GISE ausente para re-geração', {
+					hash,
+					escala_id: documento.escala_id
+				});
 				return json({ error: 'GISE não encontrada' }, { status: 404 });
 			}
 
@@ -85,7 +101,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 			} else {
 				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
 				if (!seccional) {
-					console.error(`[DOWNLOAD] Seccional ${seccionalId} não encontrada na GISE.`);
+					logger.error('[validar/download] Seccional ausente na GISE', {
+						hash,
+						seccional_id: seccionalId
+					});
 					return json({ error: 'Seccional não encontrada' }, { status: 404 });
 				}
 
@@ -108,19 +127,21 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 				);
 			}
 
-			console.log(`[DOWNLOAD] Sucesso na re-geração dinâmica do relatório: ${hash}`);
+			logger.info('[validar/download] Re-geração dinâmica concluída', { hash });
 			const filename = `relatorio_${relTipo}_${hash}.pdf`;
 			return new Response(finalPdf as any, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),
-					'Cache-Control': 'no-cache',
-					'X-Debug-Source': 'Regeneration',
-					'X-Debug-Timestamp': new Date().toISOString()
+					'Cache-Control': 'no-cache'
 				}
 			});
-		} catch (err: any) {
-			console.error('[DOWNLOAD] FALHA CRÍTICA NA GERAÇÃO DINÂMICA:', err);
+		} catch (err) {
+			logger.error('[validar/download] Falha crítica na geração dinâmica', {
+				hash,
+				error: err instanceof Error ? err.message : String(err),
+				stack: err instanceof Error ? err.stack : undefined
+			});
 			return new Response(JSON.stringify({
 				error: 'Erro ao processar documento. Tente novamente.'
 			}), {
@@ -130,6 +151,6 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		}
 	}
 
-	console.error(`[DOWNLOAD] Caso final atingido: Documento sem PDF disponível no Storage ou geração falhou. Hash: ${hash}`);
+	logger.error('[validar/download] PDF indisponível em todas as fontes', { hash });
 	return json({ error: 'Arquivo PDF não disponível para este documento' }, { status: 404 });
 };

@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { hashSenha, verificarDesafio2FA, criarSessao } from '$lib/auth';
 import { enviarSenhaProvisoria } from '$lib/server/email';
+import { logger } from '$lib/server/logger';
 import {
 	executeLoginPassword,
 	LOGIN_WINDOW_MINUTES,
@@ -184,7 +185,10 @@ export const actions: Actions = {
 		try {
 			await enviarSenhaProvisoria(policial.email, senhaProvisoria, policial.nome, platform);
 		} catch (err) {
-			console.error('[primeiro-acesso] Falha ao enviar e-mail:', err);
+			logger.error('[login/primeiro-acesso] Falha ao enviar e-mail', {
+				policial_id: policial.id,
+				error: err instanceof Error ? err.message : String(err)
+			});
 			return fail(500, { error: 'Falha ao enviar e-mail. Tente novamente.' });
 		}
 

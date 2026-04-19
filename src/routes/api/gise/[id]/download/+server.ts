@@ -11,6 +11,7 @@ import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
 import { toGisePdfData } from '$lib/export';
+import { logger } from '$lib/server/logger';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -147,7 +148,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						});
 					}
 				} catch (e) {
-					console.warn('[download-pdf] Falha ao buscar PDF assinado de R2:', e);
+					logger.warn('[gise/download] Falha ao buscar PDF assinado do R2', {
+						gise_id: id,
+						error: e instanceof Error ? e.message : String(e)
+					});
 				}
 			}
 		}
@@ -161,15 +165,17 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				const logoObj = await r2Logo.get('assets/logogise.jpg');
 				if (logoObj) {
 					logoBytes = new Uint8Array(await logoObj.arrayBuffer());
-					console.log(`[GISE PDF] Logo carregada do R2: ${logoBytes.length} bytes`);
+					logger.debug('[gise/download] Logo carregada do R2', { bytes: logoBytes.length });
 				} else {
-					console.warn('[GISE PDF] Logo não encontrada no R2: assets/logogise.jpg');
+					logger.warn('[gise/download] Logo ausente no R2 (assets/logogise.jpg)');
 				}
 			} catch (e) {
-				console.error('[GISE PDF] Erro ao buscar logo do R2:', e);
+				logger.error('[gise/download] Erro ao buscar logo do R2', {
+					error: e instanceof Error ? e.message : String(e)
+				});
 			}
 		} else {
-			console.warn('[GISE PDF] R2 binding não disponível (getR2 retornou undefined)');
+			logger.warn('[gise/download] R2 binding indisponível');
 		}
 		const result = await gerarPdfGise(toGisePdfData(gise), logoBytes);
 		return new Response(result.pdf as unknown as BodyInit, {

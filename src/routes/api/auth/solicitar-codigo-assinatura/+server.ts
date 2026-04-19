@@ -13,7 +13,9 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 		const u = locals.usuario;
 
 		if (!u) {
-			console.error('[Assinatura 2FA] Usuário não encontrado em locals.usuario. Path:', url.pathname);
+			logger.error('[assinatura/2fa] Usuário ausente em locals.usuario', {
+				path: url.pathname
+			});
 			return json({ error: 'Sessão inválida ou expirada. Faça login novamente.' }, { status: 401 });
 		}
 

@@ -9,6 +9,7 @@ import {
 import { escalaSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
+import { logger } from '$lib/server/logger';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
@@ -117,7 +118,12 @@ export const actions: Actions = {
 
 			return { success: true, id: result[0]?.id };
 		} catch (err) {
-			console.error('[escalas/nova actions.criar] erro:', err);
+			logger.error('[escalas/nova/criar] Erro interno ao criar escala', {
+				lotacao,
+				tipo,
+				error: err instanceof Error ? err.message : String(err),
+				stack: err instanceof Error ? err.stack : undefined
+			});
 			return fail(500, {
 				error: 'Erro interno ao criar escala',
 				fields: { titulo, cidade, data_inicio, data_fim, lotacao, tipo }

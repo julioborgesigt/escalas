@@ -8,6 +8,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
+import { prepararAssinaturaSchema } from '$lib/schemas';
+import { validateBody } from '$lib/server/api';
 import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
@@ -21,8 +23,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
-	const body = await request.json().catch(() => ({}));
-	const { signerName, signerCpf, rubrica, latitude, longitude } = body;
+	const validated = await validateBody(request, prepararAssinaturaSchema);
+	if (!validated.ok) return validated.response;
+	const { signerName, signerCpf, rubrica, latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 

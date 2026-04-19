@@ -9,8 +9,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { logger } from '$lib/server/logger';
-import { contentDisposition } from '$lib/server/api';
+import { contentDisposition, validateBody } from '$lib/server/api';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import { assinarSimplesGiseSchema } from '$lib/schemas';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise, toGisePdfData } from '$lib/export';
@@ -19,11 +20,14 @@ import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = await request.json().catch(() => ({} as Record<string, unknown>));
 	const u = locals.usuario;
 	if (!u) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
+
+	const validated = await validateBody(request, assinarSimplesGiseSchema);
+	if (!validated.ok) return validated.response;
+	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = validated.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';

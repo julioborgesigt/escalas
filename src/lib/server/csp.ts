@@ -1,48 +1,20 @@
 /**
- * Content-Security-Policy por tipo de resposta.
- * Em desenvolvimento (HTML), retorna null — extensões de browser podem
- * modificar o header CSP e quebrar a hidratação do SvelteKit.
+ * Content-Security-Policy aplicada manualmente em respostas **não-HTML**
+ * (`/api/...`, downloads, etc.) via `hooks.server.ts`.
+ *
+ * Para respostas HTML, a CSP é gerenciada nativamente pelo SvelteKit a partir
+ * de `kit.csp` em `svelte.config.js`. Isso permite que o framework adicione
+ * automaticamente nonces aos inline scripts que ele emite na hidratação,
+ * tornando possível remover `'unsafe-inline'` de `script-src` (defesa anti-XSS).
  */
 export function buildCSP(
 	isHTML: boolean,
-	options: { isProduction: boolean }
+	_options: { isProduction: boolean }
 ): string | null {
-	if (!isHTML) {
-		return "default-src 'none'; base-uri 'none'; form-action 'none'";
-	}
-
-	if (!options.isProduction) {
+	if (isHTML) {
+		// HTML é tratado pelo SvelteKit; não setamos manualmente para evitar
+		// sobrescrever os nonces que ele injeta automaticamente.
 		return null;
 	}
-
-	const connectExtra = '';
-
-	const serproWS = [
-		'wss://assinador-desktop.serpro.gov.br:65166',
-		'wss://assinador-desktop.serpro.gov.br:65156',
-		'wss://assinador-desktop.serpro.gov.br:65500',
-		'wss://127.0.0.1:65166',
-		'wss://127.0.0.1:65156',
-		'wss://127.0.0.1:65500',
-		'ws://127.0.0.1:65166',
-		'ws://127.0.0.1:65156',
-		'ws://127.0.0.1:65500'
-	].join(' ');
-
-	return [
-		`default-src 'self'`,
-		`script-src 'self' 'unsafe-inline'`,
-		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-		`img-src 'self' data: blob: https://fonts.gstatic.com`,
-		`font-src 'self' data: https://fonts.gstatic.com`,
-		// Modelos do face-api foram self-hostados em /face-api/ (estáticos).
-		// Antes precisávamos de `https://cdn.jsdelivr.net` no connect-src.
-		`connect-src 'self' ${serproWS}${connectExtra}`,
-		`frame-src 'none'`,
-		`object-src 'none'`,
-		`base-uri 'self'`,
-		`form-action 'self'`,
-		`upgrade-insecure-requests`,
-		`block-all-mixed-content`
-	].join('; ');
+	return "default-src 'none'; base-uri 'none'; form-action 'none'";
 }

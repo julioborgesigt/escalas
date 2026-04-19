@@ -1,7 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import { logger } from '$lib/server/logger';
+import { validateBody } from '$lib/server/api';
 import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
+import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
 
@@ -12,6 +14,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
+	const validated = await validateBody(request, finalizarAssinaturaEscalasSchema);
+	if (!validated.ok) return validated.response;
 	const {
 		preparedPdf,
 		signature,
@@ -25,7 +29,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		assinanteEmail,
 		latitude,
 		longitude
-	} = await request.json();
+	} = validated.data;
 
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
@@ -54,6 +58,15 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			nomeAssinante = dados.nome;
 			cpfAssinante = dados.cpf;
 		} else {
+			// Sem SERPRO CMS, exigimos os 4 campos do fluxo Web PKI (signature + certificate
+			// + messageDigest + signingTime). Antes a ausência crashava em runtime; agora
+			// devolvemos 400 com mensagem clara.
+			if (!signature || !certificate || !messageDigestHex || !signingTimeISO) {
+				return json(
+					{ error: 'Faltam campos do fluxo Web PKI (signature, certificate, messageDigestHex, signingTimeISO)' },
+					{ status: 400 }
+				);
+			}
 			signedPdf = await finalizarAssinatura(
 				preparedPdfBytes,
 				signature,
