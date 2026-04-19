@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from './$types';
-import { getDB, isSupervisorGiseAtiva, isMembroGiseAtiva } from '$lib/db';
+import { getDB } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { lerPapelGise } from '$lib/server/gise-papel-cache';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	const u = locals.usuario;
@@ -24,11 +25,14 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
 
 			if (u.tipo === 'policial') {
+				// Papel GISE vem do cache edge (TTL 60s). Mutações diretas
+				// (mudar supervisor, add/remove membro) invalidam o cache no
+				// próprio handler, então o stale window real é só para
+				// cascatas raras (ex.: deletar uma seccional inteira).
 				const db = getDB(platform);
-				await Promise.all([
-					isSupervisorGiseAtiva(db, u.id).then((v) => { isSupervisorGise = v; }),
-					isMembroGiseAtiva(db, u.id).then((v) => { isMembroGise = v; })
-				]);
+				const papel = await lerPapelGise(db, u.id);
+				isSupervisorGise = papel.isSupervisor;
+				isMembroGise = papel.isMembro;
 			}
 		} catch {
 			// DB indisponível — mantém defaults seguros (exige tudo)
