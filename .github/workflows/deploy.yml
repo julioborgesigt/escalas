@@ -21,6 +21,12 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
 
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npx playwright test
+
   deploy-staging:
     needs: test
     if: github.ref == 'refs/heads/staging'

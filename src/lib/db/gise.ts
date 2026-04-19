@@ -15,6 +15,7 @@ import {
 } from '../server/schema';
 import { getNowBR } from '../utils';
 import { logger } from '../server/logger';
+import { parseRespostasFormularioJsonLoose } from '../schemas/gise-respostas-form';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 
@@ -360,8 +361,11 @@ export async function buscarGiseDetalhado(
 			.innerJoin(giseSeccionais, eq(giseSeccionalUnidades.gise_seccional_id, giseSeccionais.id))
 			.where(eq(giseSeccionais.gise_id, id))
 			.orderBy(asc(giseSeccionalUnidades.id));
-	} catch {
-		// Tabela pode não existir ainda — migração pendente
+	} catch (e) {
+		logger.warn('buscarGiseDetalhado: slots/unidades — possível migração pendente', {
+			gise_id: id,
+			err: e instanceof Error ? e.message : String(e)
+		});
 	}
 
 	const supervisor_nome = supervisorRow?.nome ?? null;
@@ -1124,17 +1128,12 @@ export async function buscarRespostasProdutividadeSeccional(
 	};
 
 	for (const r of rows) {
-		let resps: any;
-		try {
-			resps = JSON.parse(r.respostas);
-		} catch {
-			continue;
-		}
+		const resps = parseRespostasFormularioJsonLoose(r.respostas) as Record<string, unknown>;
 
 		const modeloPerguntas = modelosMap.get(r.equipe_tipo) ||
 			(r.equipe_tipo === 'seint' ? DEFAULT_SEINT_QUESTIONS : DEFAULT_QUESTIONS);
 
-		processarPerguntas(modeloPerguntas, resps, r.equipe_id!);
+		processarPerguntas(modeloPerguntas, resps as any, r.equipe_id!);
 	}
 
 	return allResults;

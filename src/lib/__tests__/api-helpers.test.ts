@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { buildCSP } from '../server/csp';
 
 // ===========================================================================
 // apiError — testado via importação direta (módulo puro, sem dependência SvelteKit runtime)
@@ -44,98 +45,70 @@ describe('apiError', () => {
 });
 
 // ===========================================================================
-// buildCSP — função duplicada para teste isolado (evita import de hooks.server)
+// buildCSP — mesmo módulo que hooks.server ($lib/server/csp)
 // ===========================================================================
 
-function buildCSP(isHTML: boolean): string {
-	if (!isHTML) {
-		return "default-src 'none'; base-uri 'none'; form-action 'none'";
-	}
-	const isDev = process.env.NODE_ENV !== 'production';
-	const scriptExtra = isDev ? " 'unsafe-eval'" : '';
-	const connectExtra = isDev ? ' http://localhost:*' : '';
-	return [
-		`default-src 'self'`,
-		`script-src 'self' 'unsafe-inline'${scriptExtra}`,
-		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-		`img-src 'self' data: blob: https://fonts.gstatic.com`,
-		`font-src 'self' data: https://fonts.gstatic.com`,
-		`connect-src 'self'${connectExtra}`,
-		`frame-src 'none'`,
-		`object-src 'none'`,
-		`base-uri 'self'`,
-		`form-action 'self'`,
-		`upgrade-insecure-requests`,
-		`block-all-mixed-content`
-	].join('; ');
-}
-
 describe('buildCSP', () => {
-	it('CSP para HTML contém script-src com self e unsafe-inline', () => {
-		const csp = buildCSP(true);
+	const prodHtml = () => buildCSP(true, { isProduction: true });
+
+	it('CSP para HTML (produção) contém script-src com self e unsafe-inline', () => {
+		const csp = prodHtml();
+		expect(csp).not.toBeNull();
 		expect(csp).toContain("script-src 'self' 'unsafe-inline'");
 	});
 
-	it('CSP para HTML contém style-src com Google Fonts', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) contém style-src com Google Fonts', () => {
+		const csp = prodHtml();
 		expect(csp).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
 	});
 
-	it('CSP para HTML contém img-src com data e blob', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) contém img-src com data e blob', () => {
+		const csp = prodHtml();
 		expect(csp).toContain("img-src 'self' data: blob:");
 	});
 
-	it('CSP para HTML contém font-src com Google Fonts', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) contém font-src com Google Fonts', () => {
+		const csp = prodHtml();
 		expect(csp).toContain("font-src 'self' data: https://fonts.gstatic.com");
 	});
 
-	it('CSP para HTML bloqueia frames e objects', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) bloqueia frames e objects', () => {
+		const csp = prodHtml();
 		expect(csp).toContain("frame-src 'none'");
 		expect(csp).toContain("object-src 'none'");
 	});
 
-	it('CSP para HTML restringe base-uri e form-action a self', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) restringe base-uri e form-action a self', () => {
+		const csp = prodHtml();
 		expect(csp).toContain("base-uri 'self'");
 		expect(csp).toContain("form-action 'self'");
 	});
 
-	it('CSP para HTML inclui upgrade-insecure-requests e block-all-mixed-content', () => {
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) inclui upgrade-insecure-requests e block-all-mixed-content', () => {
+		const csp = prodHtml();
 		expect(csp).toContain('upgrade-insecure-requests');
 		expect(csp).toContain('block-all-mixed-content');
 	});
 
 	it('CSP para API bloqueia tudo', () => {
-		const csp = buildCSP(false);
+		const csp = buildCSP(false, { isProduction: true });
 		expect(csp).toContain("default-src 'none'");
 		expect(csp).toContain("base-uri 'none'");
 		expect(csp).toContain("form-action 'none'");
 	});
 
-	it('CSP para HTML em modo dev inclui unsafe-eval e localhost', () => {
-		const original = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'development';
-		const csp = buildCSP(true);
-		expect(csp).toContain("'unsafe-eval'");
-		expect(csp).toContain('http://localhost:*');
-		process.env.NODE_ENV = original;
+	it('CSP para HTML em desenvolvimento é omitida (null)', () => {
+		expect(buildCSP(true, { isProduction: false })).toBeNull();
 	});
 
-	it('CSP para HTML em produção NÃO inclui unsafe-eval nem localhost', () => {
-		const original = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'production';
-		const csp = buildCSP(true);
+	it('CSP para HTML (produção) NÃO inclui unsafe-eval nem http localhost wildcard', () => {
+		const csp = prodHtml();
 		expect(csp).not.toContain("'unsafe-eval'");
-		expect(csp).not.toContain('http://localhost');
-		process.env.NODE_ENV = original;
+		expect(csp).not.toContain('http://localhost:*');
 	});
 
-	it('CSP é uma única string separada por "; "', () => {
-		const csp = buildCSP(true);
+	it('CSP (produção HTML) é uma única string com várias diretivas', () => {
+		const csp = prodHtml() as string;
 		expect(csp).toMatch(/^[\w\-]+[\s\S]*; [\w\-]+/);
 		expect(csp.split('; ').length).toBeGreaterThan(5);
 	});
