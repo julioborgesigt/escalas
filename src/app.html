@@ -5,24 +5,19 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<!-- Carregamento non-blocking do CSS de fontes: o `preload as=style` baixa
-		     o CSS em paralelo com o HTML; o `onload` o promove a stylesheet quando
-		     pronto. `display=swap` mantém o texto visível com fallback enquanto a
-		     fonte chega. Estimativa: -150 a -250 ms no FCP. -->
-		<link rel="preload" as="style"
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
-			onload="this.onload=null;this.rel='stylesheet'">
+		<!--
+			Carregamento non-blocking do CSS de fontes:
+			`preload as=style` baixa o CSS em paralelo com o HTML; a promoção para
+			rel="stylesheet" é feita por /init.js (sem inline event handler — CSP).
+			`display=swap` mantém o texto visível com fallback enquanto a fonte chega.
+		-->
+		<link rel="preload" as="style" data-font-preload
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap">
 		<noscript>
 			<link rel="stylesheet"
 				href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap">
 		</noscript>
-		<script>
-			if (localStorage.getItem('color-theme') === 'light' || (!('color-theme' in localStorage) && !window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-				document.documentElement.classList.remove('dark');
-			} else {
-				document.documentElement.classList.add('dark');
-			}
-		</script>
+		<script src="/init.js"></script>
 		%sveltekit.head%
 	</head>
 	<body data-theme="policial" class="bg-surface-50 dark:bg-surface-950 text-surface-950 dark:text-surface-50 antialiased selection:bg-primary-500/30 selection:text-primary-100" data-sveltekit-preload-data="hover">

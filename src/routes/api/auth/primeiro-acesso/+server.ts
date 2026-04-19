@@ -9,6 +9,7 @@ import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
 import { hashSenha } from '$lib/auth';
 import { enviarSenhaProvisoria } from '$lib/server/email';
+import { logger } from '$lib/server/logger';
 import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 
@@ -63,7 +64,10 @@ export const POST: RequestHandler = async ({ platform, request }) => {
 	try {
 		await enviarSenhaProvisoria(policial.email, senhaProvisoria, policial.nome, platform);
 	} catch (err) {
-		console.error('[primeiro-acesso] Falha ao enviar e-mail:', err);
+		logger.error('[primeiro-acesso] Falha ao enviar e-mail', {
+			policial_id: policial.id,
+			error: err instanceof Error ? err.message : String(err)
+		});
 		return json(
 			{ error: 'Falha ao enviar e-mail. Tente novamente ou contate o administrador.' },
 			{ status: 500 }

@@ -3,6 +3,7 @@ import type { RequestEvent } from './$types';
 import { getDB, getR2, hasR2, buscarDocumentoEscala, excluirDocumentoEscala, buscarEscala } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
 import { contentDisposition } from '$lib/server/api';
+import { logger } from '$lib/server/logger';
 
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	const u = locals.usuario;
@@ -62,7 +63,11 @@ export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 		try {
 			await bucket.delete(documento.r2_key);
 		} catch (e) {
-			console.error('[API/Revogar] Erro ao deletar do R2:', e);
+			logger.error('[escalas/revogar] Erro ao deletar do R2', {
+				escala_id: id,
+				r2_key: documento.r2_key,
+				error: e instanceof Error ? e.message : String(e)
+			});
 		}
 	}
 

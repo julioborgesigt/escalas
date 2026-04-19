@@ -2,59 +2,68 @@ import { describe, it, expect } from 'vitest';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade, isAnyAdmin } from '../auth';
 import type { UsuarioLogado } from '../auth';
 import { buildCSP } from '../server/csp';
+// Importa o config do SvelteKit para verificar as diretivas CSP de HTML.
+// `svelte.config.js` é a fonte autoritativa para CSP HTML (gerenciada pelo
+// framework com nonce automático). `csp.ts` cuida apenas de respostas não-HTML.
+import svelteConfig from '../../../svelte.config.js';
 
-describe('Content-Security-Policy', () => {
-	it('CSP para HTML (produção) inclui diretivas de script, style e font', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).not.toBeNull();
-		expect(csp).toContain("script-src 'self'");
-		expect(csp).toContain("style-src 'self'");
-		expect(csp).toContain('https://fonts.googleapis.com');
-		expect(csp).toContain('https://fonts.gstatic.com');
+describe('Content-Security-Policy — HTML (gerenciado pelo SvelteKit)', () => {
+	const directives = svelteConfig.kit?.csp?.directives ?? {};
+
+	it("modo CSP é 'auto' (nonce em SSR / hash em prerender)", () => {
+		expect(svelteConfig.kit?.csp?.mode).toBe('auto');
 	});
 
-	it('CSP para HTML (produção) bloqueia frames e objects', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).toContain("frame-src 'none'");
-		expect(csp).toContain("object-src 'none'");
+	it("script-src é apenas 'self' — SEM unsafe-inline (anti-XSS)", () => {
+		expect(directives['script-src']).toEqual(['self']);
+		expect(directives['script-src']).not.toContain('unsafe-inline');
+		expect(directives['script-src']).not.toContain('unsafe-eval');
 	});
 
-	it('CSP para HTML inclui upgrade-insecure-requests e block-all-mixed-content', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).toContain('upgrade-insecure-requests');
-		expect(csp).toContain('block-all-mixed-content');
+	it('style-src permite Google Fonts CSS', () => {
+		expect(directives['style-src']).toContain('https://fonts.googleapis.com');
 	});
 
-	it('CSP para API bloqueia tudo', () => {
+	it('font-src e img-src permitem fontes/assets do Google', () => {
+		expect(directives['font-src']).toContain('https://fonts.gstatic.com');
+		expect(directives['img-src']).toContain('https://fonts.gstatic.com');
+	});
+
+	it('frame-src e object-src bloqueiam tudo', () => {
+		expect(directives['frame-src']).toEqual(['none']);
+		expect(directives['object-src']).toEqual(['none']);
+	});
+
+	it("base-uri e form-action restritos a 'self'", () => {
+		expect(directives['base-uri']).toEqual(['self']);
+		expect(directives['form-action']).toEqual(['self']);
+	});
+
+	it('connect-src permite WebSocket SERPRO e localhost para o assinador', () => {
+		const connect = directives['connect-src'] ?? [];
+		expect(connect.some((s) => s.includes('assinador-desktop.serpro.gov.br'))).toBe(true);
+		expect(connect.some((s) => s.includes('127.0.0.1'))).toBe(true);
+	});
+
+	it('upgrade-insecure-requests está habilitado', () => {
+		expect(directives['upgrade-insecure-requests']).toBe(true);
+	});
+});
+
+describe('Content-Security-Policy — não-HTML (buildCSP)', () => {
+	it('para HTML retorna null (gerenciado pelo SvelteKit)', () => {
+		expect(buildCSP(true, { isProduction: true })).toBeNull();
+		expect(buildCSP(true, { isProduction: false })).toBeNull();
+	});
+
+	it('para não-HTML bloqueia tudo (default-src none)', () => {
 		const csp = buildCSP(false, { isProduction: true });
 		expect(csp).toContain("default-src 'none'");
 		expect(csp).toContain("base-uri 'none'");
 		expect(csp).toContain("form-action 'none'");
 	});
 
-	it('CSP para HTML restringe base-uri e form-action a self', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).toContain("base-uri 'self'");
-		expect(csp).toContain("form-action 'self'");
-	});
-
-	it('CSP para produção não inclui unsafe-eval', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).not.toContain("'unsafe-eval'");
-		expect(csp).not.toContain('http://localhost');
-	});
-
-	it('CSP para HTML em desenvolvimento é omitida (null)', () => {
-		expect(buildCSP(true, { isProduction: false })).toBeNull();
-	});
-
-	it('CSP para HTML (produção) permite WebSocket Serpro e localhost para assinador', () => {
-		const csp = buildCSP(true, { isProduction: true });
-		expect(csp).toContain('wss://assinador-desktop.serpro.gov.br');
-		expect(csp).toContain('127.0.0.1');
-	});
-
-	it('CSP para API não depende do modo dev/prod', () => {
+	it('para não-HTML não depende do modo dev/prod', () => {
 		const prod = buildCSP(false, { isProduction: true });
 		const dev = buildCSP(false, { isProduction: false });
 		expect(prod).toBe(dev);

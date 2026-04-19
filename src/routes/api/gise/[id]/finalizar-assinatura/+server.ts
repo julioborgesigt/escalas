@@ -10,10 +10,11 @@ import type { RequestEvent } from '@sveltejs/kit';
 import forge from 'node-forge';
 import { logger } from '$lib/server/logger';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { determinarTipoCarimbo } from '$lib/server/document-utils';
-import { contentDisposition } from '$lib/server/api';
+import { contentDisposition, validateBody } from '$lib/server/api';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
 	const p = platform as App.Platform | undefined;
@@ -27,7 +28,23 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const id = parseInt(params.id!);
 	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
 
-	const { preparedPdf, rawSignature, serproCms, serproResponse, certificateBase64, messageDigest, signingTimeISO, signerName, signerCpf, verificationHash, dia, latitude, longitude, documentHash: documentHashOriginal, assinanteEmail } = await request.json();
+	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
+	if (!validated.ok) return validated.response;
+	const {
+		preparedPdf,
+		rawSignature,
+		serproCms,
+		serproResponse,
+		certificateBase64,
+		messageDigest,
+		signingTimeISO,
+		verificationHash,
+		dia,
+		latitude,
+		longitude,
+		documentHash: documentHashOriginal,
+		assinanteEmail
+	} = validated.data;
 
 	try {
 		const gise = await buscarGiseEscala(db, id);
@@ -88,6 +105,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		if (serproCms) {
 			signedPdfBytes = await embedSerproCms(pdfBytesInput, serproCms);
 		} else {
+			// Sem SERPRO CMS, exigimos os campos do fluxo Web PKI.
+			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
+				return json(
+					{ error: 'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)' },
+					{ status: 400 }
+				);
+			}
 			signedPdfBytes = await finalizarAssinatura(
 				pdfBytesInput,
 				rawSignature,

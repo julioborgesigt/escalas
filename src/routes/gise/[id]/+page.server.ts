@@ -26,6 +26,7 @@ import {
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
+import { logger } from '$lib/server/logger';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, and } from 'drizzle-orm';
 
@@ -135,7 +136,11 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
 		const msg = e instanceof Error ? e.message : String(e);
-		console.error('[gise/load]', msg);
+		logger.error('[gise/load] Erro ao carregar GISE', {
+			gise_id: id,
+			error: msg,
+			stack: e instanceof Error ? e.stack : undefined
+		});
 		throw error(500, `Erro ao carregar GISE: ${msg}`);
 	}
 };
@@ -747,7 +752,10 @@ export const actions: Actions = {
 					listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
 				}
 			} catch (e) {
-				console.warn('[GISE DELETE] Erro ao listar prefixo R2:', e);
+				logger.warn('[gise/excluir] Erro ao listar prefixo R2', {
+					gise_id: giseId,
+					error: e instanceof Error ? e.message : String(e)
+				});
 			}
 
 			if (fileKeys.size > 0) {

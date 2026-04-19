@@ -12,6 +12,7 @@ import {
 } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
+import { logger } from '$lib/server/logger';
 import { gerarRelatorioExtraordinarioPdf, toGisePdfData } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
@@ -205,8 +206,13 @@ export const POST = async ({
 		}
 
 		return json({ success: true });
-	} catch (e: any) {
-		console.error(`[GISE-SIGN] Falha ao salvar assinatura: GISE ${id}, Sec ${seccionalId}. Erro:`, e);
+	} catch (e) {
+		logger.error('[gise/relatorios/assinar] Falha ao salvar assinatura', {
+			gise_id: id,
+			seccional_id: seccionalId,
+			error: e instanceof Error ? e.message : String(e),
+			stack: e instanceof Error ? e.stack : undefined
+		});
 		return json(
 			{
 				error: 'Falha técnica ao gravar a assinatura no banco de dados.'

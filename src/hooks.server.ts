@@ -48,7 +48,13 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 			path: '/',
 			httpOnly: false, // deve ser false para o padrão double-submit (JS precisa ler o token)
 			secure: event.url.protocol === 'https:',
-			sameSite: 'strict',
+			// `lax` em vez de `strict`: garante que o cookie viaje em navegações
+			// top-level cross-site (ex.: clique em link de redefinição de senha
+			// vindo de e-mail). Como este cookie é apenas o "lado JS" do padrão
+			// double-submit (o servidor compara com o header `x-csrf-token`
+			// enviado por XHR mesma-origem), `lax` mantém a proteção CSRF: um
+			// formulário cross-site não consegue ler o cookie nem montar o header.
+			sameSite: 'lax',
 			maxAge: 60 * 60 * 24 // 24 hours
 		});
 	}
@@ -128,7 +134,10 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 		response.headers.set(key, value);
 	}
 
-	// CSP based on content type
+	// CSP por tipo de conteúdo:
+	//  - HTML: gerenciada pelo SvelteKit via `kit.csp` em svelte.config.js.
+	//    Não setamos manualmente para não sobrescrever os nonces injetados.
+	//  - Não-HTML (JSON, downloads, etc.): default-src 'none' via `buildCSP`.
 	const contentType = response.headers.get('content-type') || '';
 	const isHTML = contentType.includes('text/html');
 	const csp = buildCSP(isHTML, { isProduction: import.meta.env.PROD });

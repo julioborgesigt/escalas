@@ -45,72 +45,29 @@ describe('apiError', () => {
 });
 
 // ===========================================================================
-// buildCSP — mesmo módulo que hooks.server ($lib/server/csp)
+// buildCSP — não-HTML apenas
+// CSP para HTML é gerenciada pelo SvelteKit em svelte.config.js (com nonce
+// automático para inline scripts da hidratação). Os testes específicos da CSP
+// HTML vivem em src/lib/__tests__/security.test.ts.
 // ===========================================================================
 
 describe('buildCSP', () => {
-	const prodHtml = () => buildCSP(true, { isProduction: true });
-
-	it('CSP para HTML (produção) contém script-src com self e unsafe-inline', () => {
-		const csp = prodHtml();
-		expect(csp).not.toBeNull();
-		expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+	it('para HTML retorna null (delegado ao SvelteKit)', () => {
+		expect(buildCSP(true, { isProduction: true })).toBeNull();
+		expect(buildCSP(true, { isProduction: false })).toBeNull();
 	});
 
-	it('CSP para HTML (produção) contém style-src com Google Fonts', () => {
-		const csp = prodHtml();
-		expect(csp).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
-	});
-
-	it('CSP para HTML (produção) contém img-src com data e blob', () => {
-		const csp = prodHtml();
-		expect(csp).toContain("img-src 'self' data: blob:");
-	});
-
-	it('CSP para HTML (produção) contém font-src com Google Fonts', () => {
-		const csp = prodHtml();
-		expect(csp).toContain("font-src 'self' data: https://fonts.gstatic.com");
-	});
-
-	it('CSP para HTML (produção) bloqueia frames e objects', () => {
-		const csp = prodHtml();
-		expect(csp).toContain("frame-src 'none'");
-		expect(csp).toContain("object-src 'none'");
-	});
-
-	it('CSP para HTML (produção) restringe base-uri e form-action a self', () => {
-		const csp = prodHtml();
-		expect(csp).toContain("base-uri 'self'");
-		expect(csp).toContain("form-action 'self'");
-	});
-
-	it('CSP para HTML (produção) inclui upgrade-insecure-requests e block-all-mixed-content', () => {
-		const csp = prodHtml();
-		expect(csp).toContain('upgrade-insecure-requests');
-		expect(csp).toContain('block-all-mixed-content');
-	});
-
-	it('CSP para API bloqueia tudo', () => {
+	it("para não-HTML bloqueia tudo (default-src 'none')", () => {
 		const csp = buildCSP(false, { isProduction: true });
 		expect(csp).toContain("default-src 'none'");
 		expect(csp).toContain("base-uri 'none'");
 		expect(csp).toContain("form-action 'none'");
 	});
 
-	it('CSP para HTML em desenvolvimento é omitida (null)', () => {
-		expect(buildCSP(true, { isProduction: false })).toBeNull();
-	});
-
-	it('CSP para HTML (produção) NÃO inclui unsafe-eval nem http localhost wildcard', () => {
-		const csp = prodHtml();
-		expect(csp).not.toContain("'unsafe-eval'");
-		expect(csp).not.toContain('http://localhost:*');
-	});
-
-	it('CSP (produção HTML) é uma única string com várias diretivas', () => {
-		const csp = prodHtml() as string;
-		expect(csp).toMatch(/^[\w\-]+[\s\S]*; [\w\-]+/);
-		expect(csp.split('; ').length).toBeGreaterThan(5);
+	it('para não-HTML é a mesma string em dev e prod', () => {
+		expect(buildCSP(false, { isProduction: true })).toBe(
+			buildCSP(false, { isProduction: false })
+		);
 	});
 });
 
