@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, unique } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ---- Policiais ----
@@ -165,8 +165,8 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	arquivo_hash: text('arquivo_hash'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
-	latitude: integer('latitude', { mode: 'number' }),
-	longitude: integer('longitude', { mode: 'number' }),
+	latitude: real('latitude'),
+	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
@@ -304,8 +304,8 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	rubrica: text('rubrica'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
-	latitude: integer('latitude', { mode: 'number' }),
-	longitude: integer('longitude', { mode: 'number' }),
+	latitude: real('latitude'),
+	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
@@ -356,8 +356,8 @@ export const gisePresencas = sqliteTable('gise_presencas', {
 	saida_selfie_key: text('saida_selfie_key'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
-	latitude: integer('latitude', { mode: 'number' }),
-	longitude: integer('longitude', { mode: 'number' }),
+	latitude: real('latitude'),
+	longitude: real('longitude'),
 	created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
@@ -385,8 +385,8 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	verification_hash: text('verification_hash').unique(),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
-	latitude: integer('latitude', { mode: 'number' }),
-	longitude: integer('longitude', { mode: 'number' }),
+	latitude: real('latitude'),
+	longitude: real('longitude'),
 	r2_key: text('r2_key'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
