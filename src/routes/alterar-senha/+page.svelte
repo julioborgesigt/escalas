@@ -248,7 +248,7 @@
 							type="password"
 							name="senha_atual"
 							bind:value={senhaAtual}
-							placeholder="••••••••"
+							placeholder="Digite a senha atual"
 							required
 						/>
 					</label>
@@ -261,7 +261,7 @@
 						type="password"
 						name="nova_senha"
 						bind:value={novaSenha}
-						placeholder="••••••••"
+						placeholder="Digite a nova senha"
 						required
 					/>
 				</label>
@@ -291,7 +291,7 @@
 							class="input {confirmarSenha.length > 0 ? (confirmaOk ? 'border-success-500 focus:ring-success-500' : 'border-error-500 focus:ring-error-500') : ''}"
 							type="password"
 							bind:value={confirmarSenha}
-							placeholder="••••••••"
+							placeholder="Confirme a nova senha"
 							required
 						/>
 						{#if confirmarSenha.length > 0}
