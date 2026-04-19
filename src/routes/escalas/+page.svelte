@@ -25,8 +25,8 @@
 
 	const unidades = $derived(data.unidades as Unidade[]);
 
-	// Paginação — usa dados do server, mas permite navegação local
-	let paginaAtual = $state(untrack(() => data.pagination.page));
+	/** Página atual vem só do servidor — mudanças de página atualizam a URL (`goto`). */
+	const paginaAtual = $derived(data.pagination.page);
 
 	// Filtros — inicializa com valores do server ou localStorage
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
@@ -68,11 +68,6 @@
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
 
-	/** Sincroniza página com o resultado do servidor — não mutar `$derived` (imutável). */
-	$effect(() => {
-		paginaAtual = data.pagination.page;
-	});
-
 	let dialogOpen = $state(false);
 	let dialogRevogarOpen = $state(false);
 	let escalaParaExcluir = $state<{ id: number; titulo: string } | null>(null);
@@ -97,7 +92,7 @@
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
 
-	function navegarComFiltros() {
+	function buildQueryParamsComFiltros(page: number) {
 		const params = new URLSearchParams();
 		if (filtroLotacao && filtroLotacao !== 'todas') {
 			params.set('lotacao', filtroLotacao);
@@ -106,9 +101,16 @@
 		if (filtroAno) params.set('ano', String(filtroAno));
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
-		params.set('page', '1');
-		const query = params.toString();
-		goto(`?${query}`, { keepFocus: true, noScroll: true });
+		params.set('page', String(page));
+		return params.toString();
+	}
+
+	function navegarComFiltros() {
+		goto(`?${buildQueryParamsComFiltros(1)}`, { keepFocus: true, noScroll: true });
+	}
+
+	function irParaPaginaListagem(p: number) {
+		goto(`?${buildQueryParamsComFiltros(p)}`, { keepFocus: true, noScroll: true });
 	}
 
 	function limparFiltros() {
@@ -615,7 +617,7 @@
 			itensPorPagina={ITEMS_POR_PAGINA}
 			labelSingular="escala"
 			labelPlural="escala(s)"
-			onPageChange={(p) => (paginaAtual = p)}
+			onPageChange={irParaPaginaListagem}
 		/>
 	{/if}
 </div>
