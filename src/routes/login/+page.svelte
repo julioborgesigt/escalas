@@ -264,31 +264,35 @@
 				</button>
 			</form>
 
-			<p class="text-center mt-4 text-xs text-surface-500 space-x-1">
+			<div
+				class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-500 text-center"
+				role="navigation"
+				aria-label="Ajuda de acesso"
+			>
 				{#if tipo === 'policial'}
-					<span>
-						Primeiro acesso?
+					<span class="inline-flex flex-nowrap items-baseline gap-1">
+						<span class="shrink-0">Primeiro acesso?</span>
 						<button
 							type="button"
-							class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+							class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
 							onclick={() => { primeiroAcesso = true; }}
 						>
 							Clique aqui
 						</button>
 					</span>
-					<span class="text-surface-300 dark:text-surface-600">·</span>
+					<span class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none" aria-hidden="true">·</span>
 				{/if}
-				<span>
-					Esqueceu a senha?
+				<span class="inline-flex flex-nowrap items-baseline gap-1">
+					<span class="shrink-0">Esqueceu a senha?</span>
 					<button
 						type="button"
-						class="text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+						class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
 						onclick={() => { recuperacao = true; }}
 					>
 						Recuperar
 					</button>
 				</span>
-			</p>
+			</div>
 		{:else if recuperacao}
 			<!-- ===== Recuperação de senha ===== -->
 			{#if !recuperacaoEnviada}
