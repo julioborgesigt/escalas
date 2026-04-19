@@ -24,6 +24,32 @@ import {
 	MESES_PT
 } from '$lib/rotacao';
 
+/**
+ * Garante que o usuário tem permissão para mutar a escala alvo.
+ * Sem isto, qualquer usuário autenticado poderia chamar form actions diretamente
+ * (POST para `/escalas/<id>/?/adicionar` etc.) e modificar escalas de outras lotações.
+ * Devolve a `escala` carregada para reaproveitamento; ou um `fail()` pronto para retornar.
+ */
+async function carregarEscalaComPermissao(
+	platform: App.Platform | undefined,
+	usuario: NonNullable<App.Locals['usuario']>,
+	escalaIdRaw: string | undefined
+) {
+	const escalaId = Number(escalaIdRaw);
+	if (isNaN(escalaId)) {
+		return { erro: fail(400, { error: 'ID da escala inválido' }) } as const;
+	}
+	const db = getDB(platform);
+	const escala = await buscarEscala(db, escalaId);
+	if (!escala) {
+		return { erro: fail(404, { error: 'Escala não encontrada' }) } as const;
+	}
+	if (usuario.tipo !== 'admin' && usuario.lotacao !== escala.lotacao) {
+		return { erro: fail(403, { error: 'Sem permissão para alterar esta escala' }) } as const;
+	}
+	return { db, escala, escalaId } as const;
+}
+
 function calcularDataSaidaInicial(
 	dataEntrada: string,
 	horaEntrada: string,
@@ -87,8 +113,11 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
 		const data = await request.formData();
-		const escalaId = Number(params.id);
 		const policial_id = Number(data.get('policial_id'));
 		const data_plantao = data.get('data_plantao')?.toString() || '';
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
@@ -101,7 +130,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos' });
 		}
 
-		const db = getDB(platform);
 		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
 		const horaSai = `${hora_saida}:${minuto_saida}`;
 		const dataSaida = calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
@@ -119,8 +147,11 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
 		const data = await request.formData();
-		const escalaId = Number(params.id);
 		const policial_id = Number(data.get('policial_id'));
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08';
 		const minuto_entrada = data.get('minuto_entrada')?.toString() || '00';
@@ -141,7 +172,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
 
-		const db = getDB(platform);
 		const he = `${hora_entrada}:${minuto_entrada}`;
 		const hs = `${hora_saida}:${minuto_saida}`;
 
@@ -154,14 +184,13 @@ export const actions: Actions = {
 		}
 	},
 
-	adicionarTodos: async ({ request, locals, platform, params }) => {
+	adicionarTodos: async ({ locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
-		const escalaId = Number(params.id);
-		const db = getDB(platform);
-		const escala = await buscarEscala(db, escalaId);
-		if (!escala) return fail(404, { error: 'Escala não encontrada' });
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escala, escalaId } = ctx;
 
 		if (escala.tipo !== 'plantao' && escala.tipo !== 'expediente') {
 			return fail(400, { error: 'Operação inválida para este tipo de escala' });
@@ -187,10 +216,9 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
-		const escalaId = Number(params.id);
-		const db = getDB(platform);
-		const escalaAtual = await buscarEscala(db, escalaId);
-		if (!escalaAtual) return fail(404, { error: 'Escala não encontrada' });
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escala: escalaAtual, escalaId } = ctx;
 
 		if (escalaAtual.tipo !== 'plantao' && escalaAtual.tipo !== 'expediente') {
 			return fail(400, { error: 'Operação inválida para este tipo de escala' });
@@ -297,8 +325,11 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
 		const data = await request.formData();
-		const escalaId = Number(params.id);
 		const item_id = Number(data.get('item_id'));
 		const data_plantao = data.get('data_plantao')?.toString() || '';
 		const data_saida = data.get('data_saida')?.toString() || '';
@@ -308,7 +339,6 @@ export const actions: Actions = {
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
-		const db = getDB(platform);
 		try {
 			await atualizarEscalaPolicial(db, item_id, data_plantao, data_saida, hora_entrada, hora_saida, observacoes);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
@@ -322,13 +352,15 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
 		const data = await request.formData();
-		const escalaId = Number(params.id);
 		const item_id = Number(data.get('item_id'));
 
 		if (isNaN(item_id)) return fail(400, { error: 'ID inválido' });
 
-		const db = getDB(platform);
 		try {
 			await removerPolicialEscala(db, item_id);
 			const policiais = await listarPoliciaisEscala(db, escalaId);

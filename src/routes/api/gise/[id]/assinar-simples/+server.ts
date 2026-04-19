@@ -10,7 +10,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { logger } from '$lib/server/logger';
 import { contentDisposition } from '$lib/server/api';
-import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala, buscarExigirCodigoEmailAssinatura } from '$lib/db';
+import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise, toGisePdfData } from '$lib/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
@@ -46,8 +47,17 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		const giseDetalhado = await buscarGiseDetalhado(db, id);
 		if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
 
-		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
-		if (exigirCodigoEmail) {
+		// CRÍTICO: revalidar TODAS as flags de evidência no servidor.
+		// Não confie no cliente — o estado de cookies/UI pode ter sido manipulado.
+		const flags = await lerFlagsAssinatura(platform);
+
+		if (flags.exigirFotoAssinatura && (!selfieBase64 || typeof selfieBase64 !== 'string')) {
+			return json({ error: 'Selfie é obrigatória para esta assinatura.' }, { status: 400 });
+		}
+		if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
+			return json({ error: 'Coordenadas GPS são obrigatórias para esta assinatura.' }, { status: 400 });
+		}
+		if (flags.exigirCodigoEmailAssinatura) {
 			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
 				return json({ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' }, { status: 400 });
 			}

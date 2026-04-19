@@ -33,6 +33,16 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const gise = await buscarGiseEscala(db, id);
 		if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
 
+		// Mesma regra do preparar-assinatura: somente admin ou supervisor designado pode finalizar.
+		// Sem isto, qualquer membro de equipe poderia chamar finalizar com um preparedPdf
+		// arbitrário (e até com seu próprio token A3) e produzir um documento "assinado".
+		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
+			return json(
+				{ error: 'Apenas o supervisor designado ou administradores podem finalizar esta escala' },
+				{ status: 403 }
+			);
+		}
+
 		const diaFinal = dia || 'ambos';
 
 		// Finalizar o PDF (assinado)

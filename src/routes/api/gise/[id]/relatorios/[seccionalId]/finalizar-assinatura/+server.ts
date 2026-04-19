@@ -39,6 +39,18 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
 	}
 
+	// Mesma regra do preparar-assinatura: somente admin ou supervisor designado pode finalizar.
+	// Sem isto, qualquer membro de equipe poderia chamar finalizar com um preparedPdf
+	// arbitrário e produzir um relatório "assinado" como se fosse o supervisor.
+	const giseAuth = await buscarGiseEscala(db, id);
+	if (!giseAuth) return json({ error: 'GISE não encontrada' }, { status: 404 });
+	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
+		return json(
+			{ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório' },
+			{ status: 403 }
+		);
+	}
+
 	const payload = await request.json().catch(() => ({}));
 	const {
 		preparedPdf,
@@ -117,8 +129,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		const gise = await buscarGiseEscala(db, id);
-		if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
+		const gise = giseAuth;
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/relatorios_extra`;
