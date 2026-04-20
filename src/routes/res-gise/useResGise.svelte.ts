@@ -14,6 +14,17 @@ function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
 }
 
+/** Admin geral: mesmo padrão do servidor — sem `status` na URL, lista ativas. */
+function resolveStatusFilterFromUrl(
+	usuario: { tipo?: string } | null | undefined,
+	url: URL
+): string {
+	const q = url.searchParams.get('status');
+	if (q === 'ativas' || q === 'finalizadas') return q;
+	if (usuario?.tipo === 'admin') return 'ativas';
+	return '';
+}
+
 export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived do Objeto de Dados (Reactive Root) ---
 	const data = $derived(getData());
@@ -29,7 +40,7 @@ export function useResGise(getData: () => ResGisePageData) {
 	let capturandoRubrica = $state(false);
 
 	// --- Filtros ---
-	let statusFilterUrl = $state(page.url.searchParams.get('status') || '');
+	let statusFilterUrl = $state(resolveStatusFilterFromUrl(page.data.usuario, page.url));
 	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
 	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
 	let seccionalFilter = $state('todas');
@@ -42,6 +53,14 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	$effect(() => {
 		respostas = data.respostas ?? {};
+	});
+
+	/** Sincroniza com a URL quando `?status=` está presente (evita sobrescrever antes do `goto`). */
+	$effect(() => {
+		const q = page.url.searchParams.get('status');
+		if (q === 'ativas' || q === 'finalizadas') {
+			if (q !== statusFilterUrl) statusFilterUrl = q;
+		}
 	});
 
 	// --- Derived ---

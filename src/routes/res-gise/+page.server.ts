@@ -213,10 +213,12 @@ export const load = async ({ locals, platform, url }: any) => {
 		let rawAdmin: any[] = [];
 		let giseIdsAdmin: number[] = [];
 
-		if (statusFilter === 'ativas' || statusFilter === 'finalizadas') {
-			let filters = [];
-			if (statusFilter === 'ativas') {
-				filters.push(inArray(giseEscalas.status, [
+		// Sem `?status=` na URL, o padrão é o mesmo da lista de policiais: escalas ativas.
+		const adminStatus = statusFilter === 'finalizadas' ? 'finalizadas' : 'ativas';
+		const filters = [];
+		if (adminStatus === 'ativas') {
+			filters.push(
+				inArray(giseEscalas.status, [
 					'em_definicao_supervisor',
 					'em_preenchimento',
 					'aguardando_assinatura',
@@ -224,15 +226,17 @@ export const load = async ({ locals, platform, url }: any) => {
 					'aguardando_relatorios',
 					'aguardando_assinatura_relat',
 					'pronta_para_finalizar'
-				]));
-			} else if (statusFilter === 'finalizadas') {
-				filters.push(eq(giseEscalas.status, 'finalizada'));
-			}
+				])
+			);
+		} else {
+			filters.push(eq(giseEscalas.status, 'finalizada'));
+		}
 
-			if (mesFilter) filters.push(like(giseEscalas.data_inicio, `${mesFilter}%`));
-			if (dataFilter) filters.push(eq(giseEscalas.data_inicio, dataFilter));
+		if (mesFilter) filters.push(like(giseEscalas.data_inicio, `${mesFilter}%`));
+		if (dataFilter) filters.push(eq(giseEscalas.data_inicio, dataFilter));
 
-			rawAdmin = await db.select({
+		rawAdmin = await db
+			.select({
 				id: giseEscalas.id,
 				data_inicio: giseEscalas.data_inicio,
 				status: giseEscalas.status,
@@ -241,16 +245,15 @@ export const load = async ({ locals, platform, url }: any) => {
 				equipe_id: giseEquipes.id,
 				equipe_tipo: giseEquipes.tipo
 			})
-				.from(giseEquipes)
-				.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-				.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
-				.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-				.where(and(...filters))
-				.orderBy(giseEscalas.data_inicio)
-				.all();
+			.from(giseEquipes)
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
+			.where(and(...filters))
+			.orderBy(giseEscalas.data_inicio)
+			.all();
 
-			giseIdsAdmin = [...new Set(rawAdmin.map(r => r.id))];
-		}
+		giseIdsAdmin = [...new Set(rawAdmin.map((r) => r.id))];
 
 		let respostasEquipeMapAdmin = new Map<string, boolean>();
 		let extrasAssinadosMapAdmin = new Map<string, boolean>();
