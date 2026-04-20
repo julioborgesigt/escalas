@@ -1,6 +1,15 @@
 import type { GiseDetalhado } from '$lib/db/gise';
 
-/** Nome único da unidade “virtual” usada em `gise_assinaturas_relatorios.seccional_id`. */
+/**
+ * Departamento pai ao qual o relatório de extra do quadro de supervisão e apoio fica vinculado
+ * (`gise_assinaturas_relatorios.seccional_id` e downloads `seccionalId=`).
+ */
+export const GISE_SUPERVISAO_EXTRA_DEPARTAMENTO_NOME = 'Departamento de Polícia do Interior Sul';
+
+/**
+ * Unidade sintética legada (pré-hierarquia de departamentos). Mantida só para reconhecer IDs
+ * antigos em URLs e migração de dados.
+ */
 export const GISE_SUPERVISAO_EXTRA_UNIDADE_NOME = '__GISE_SUPERVISAO_EXTRA__';
 
 /** Papéis do quadro de supervisão que entram no relatório de extra (presenças). */

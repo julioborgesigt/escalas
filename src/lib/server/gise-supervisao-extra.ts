@@ -1,65 +1,82 @@
 import { and, eq } from 'drizzle-orm';
 import { unidades, giseSeccionais } from '$lib/server/schema';
 import type { Database } from '$lib/db/core';
-import { GISE_SUPERVISAO_EXTRA_UNIDADE_NOME } from '$lib/gise/gise-supervisao-extra';
+import {
+	GISE_SUPERVISAO_EXTRA_DEPARTAMENTO_NOME,
+	GISE_SUPERVISAO_EXTRA_UNIDADE_NOME
+} from '$lib/gise/gise-supervisao-extra';
 
 /**
- * Só cacheia ID encontrado. Nunca cachear `null`: antes o código fazia `cache = null` e
- * `null !== undefined` era true, então todas as chamadas seguintes retornavam null sem
- * reconsultar o banco — migração aplicada depois do start nunca era vista.
+ * `undefined` = ainda não consultado; `number` = ID a usar; `null` = nenhum departamento/legado
+ * no banco (evita reconsultar a cada request após primeira resolução).
  */
-let unidadeSupervisaoExtraIdCache: number | undefined;
+let unidadeSupervisaoExtraIdCache: number | null | undefined;
+/** IDs aceitos como “extra do quadro de supervisão” (departamento atual + unidade legada). */
+let idsSupervisaoExtraCache: Set<number> | undefined;
 
+async function buscarIdDepartamentoSupervisaoExtra(db: Database): Promise<number | null> {
+	const row = await db
+		.select({ id: unidades.id })
+		.from(unidades)
+		.where(
+			and(
+				eq(unidades.nome, GISE_SUPERVISAO_EXTRA_DEPARTAMENTO_NOME),
+				eq(unidades.tipo, 'departamento')
+			)
+		)
+		.get();
+	return row?.id ?? null;
+}
+
+async function buscarIdUnidadeLegadaSupervisaoExtra(db: Database): Promise<number | null> {
+	const row = await db
+		.select({ id: unidades.id })
+		.from(unidades)
+		.where(eq(unidades.nome, GISE_SUPERVISAO_EXTRA_UNIDADE_NOME))
+		.get();
+	return row?.id ?? null;
+}
+
+/**
+ * ID usado em fluxos novos (assinatura, download, UI): preferencialmente o departamento pai.
+ * Se o departamento ainda não existir no banco, usa a unidade sintética legada, se houver.
+ * Não cria linhas automaticamente — o departamento deve vir da sincronização/cadastro de unidades.
+ */
 export async function buscarUnidadeIdSupervisaoExtra(db: Database): Promise<number | null> {
 	if (unidadeSupervisaoExtraIdCache !== undefined) {
 		return unidadeSupervisaoExtraIdCache;
 	}
 
-	let row = await db
-		.select({ id: unidades.id })
-		.from(unidades)
-		.where(eq(unidades.nome, GISE_SUPERVISAO_EXTRA_UNIDADE_NOME))
-		.get();
+	const deptId = await buscarIdDepartamentoSupervisaoExtra(db);
+	const legadoId = deptId == null ? await buscarIdUnidadeLegadaSupervisaoExtra(db) : null;
 
-	if (!row?.id) {
-		await db
-			.insert(unidades)
-			.values({
-				nome: GISE_SUPERVISAO_EXTRA_UNIDADE_NOME,
-				tipo: 'delegacia',
-				seccional_id: null,
-				cidade: '',
-				tem_plantao: false,
-				tem_expediente: false,
-				tem_fds: false
-			})
-			.onConflictDoNothing();
+	const resolved = deptId ?? legadoId;
+	unidadeSupervisaoExtraIdCache = resolved;
+	return resolved;
+}
 
-		row = await db
-			.select({ id: unidades.id })
-			.from(unidades)
-			.where(eq(unidades.nome, GISE_SUPERVISAO_EXTRA_UNIDADE_NOME))
-			.get();
-	}
-
-	if (row?.id != null) {
-		unidadeSupervisaoExtraIdCache = row.id;
-		return row.id;
-	}
-
-	return null;
+async function idsSupervisaoExtraReconhecidos(db: Database): Promise<Set<number>> {
+	if (idsSupervisaoExtraCache) return idsSupervisaoExtraCache;
+	const s = new Set<number>();
+	const deptId = await buscarIdDepartamentoSupervisaoExtra(db);
+	if (deptId != null) s.add(deptId);
+	const legadoId = await buscarIdUnidadeLegadaSupervisaoExtra(db);
+	if (legadoId != null) s.add(legadoId);
+	idsSupervisaoExtraCache = s;
+	return s;
 }
 
 export function limparCacheUnidadeSupervisaoExtra() {
 	unidadeSupervisaoExtraIdCache = undefined;
+	idsSupervisaoExtraCache = undefined;
 }
 
+/** Autoriza `seccionalId` como slot de relatório de extra do quadro de supervisão (dept ou legado). */
 export async function secIdEhSupervisaoExtra(db: Database, seccionalId: number): Promise<boolean> {
-	const sid = await buscarUnidadeIdSupervisaoExtra(db);
-	return sid !== null && seccionalId === sid;
+	return (await idsSupervisaoExtraReconhecidos(db)).has(seccionalId);
 }
 
-/** A seccional pertence a esta GISE (tabela `gise_seccionais`) ou é o slot sintético de extra da supervisão. */
+/** A seccional pertence a esta GISE (tabela `gise_seccionais`) ou é o slot de extra da supervisão. */
 export async function giseAutorizaSeccionalRelatorioExtra(
 	db: Database,
 	giseId: number,
