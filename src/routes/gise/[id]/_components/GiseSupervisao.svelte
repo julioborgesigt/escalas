@@ -184,6 +184,11 @@
 			rubSupOk &&
 			(assRelSup || isAdminGeral || isSeccional || isSupervisor)
 	);
+	const assinaturaEscalaHabilitada = $derived(!!podeDownload);
+	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
+	const mostrarPainelAssinaturaEscalaReadonly = $derived(
+		isAdminGeral && !documentoAssinadoInfo?.existe
+	);
 </script>
 
 <div
@@ -478,7 +483,7 @@
 									class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20"
 								>
 									<Clock size={12} />
-									Pendente
+									Ass. Pendente
 								</span>
 							</div>
 						</div>
@@ -531,7 +536,7 @@
 					</section>
 				{/if}
 
-				{#if mostrarPainelAssinaturaEscala}
+				{#if mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly}
 					<section
 						class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 space-y-2"
 					>
@@ -561,7 +566,9 @@
 								</div>
 								<div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
 									<a
-										class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline preset-tonal-primary border-primary-500/30 hover:border-primary-500"
+										class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline {assinaturaEscalaHabilitada
+											? 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'
+											: 'pointer-events-none opacity-60 border-transparent'}"
 										href="/api/gise/{gise.id}/download?format=pdf"
 										target="_blank"
 										title="Baixar PDF da escala para conferência (sem assinatura digital)"
@@ -580,57 +587,61 @@
 										>
 										<span class="whitespace-nowrap">Escala GISE (conferência)</span>
 									</a>
-									{#if isMobile || !restringirSmartphone}
+									{#if mostrarPainelAssinaturaEscala && (isMobile || !restringirSmartphone)}
 										<button
 											type="button"
 											class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
-											disabled={loading.active}
+											disabled={loading.active || !assinaturaEscalaHabilitada}
 											onclick={() => onAbrirAssinaturaEscalaManual()}
 										>
-											Ass. Indiv.
+											Ass. tela
 										</button>
 									{/if}
-									{#if !isMobile}
+									{#if mostrarPainelAssinaturaEscala && !isMobile}
 										<button
 											type="button"
 											class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
-											disabled={loading.active}
+											disabled={loading.active || !assinaturaEscalaHabilitada}
 											onclick={() => painelTokenGise?.assinarComSerpro()}
 										>
-											Ass. Digital
+											Ass. token
 										</button>
 									{/if}
 								</div>
 							</div>
 						</div>
-						<!-- Montado fora da tela: expõe `assinarComSerpro` para o botão Ass. Digital. -->
-						<div class="sr-only" aria-hidden="true">
-							<PainelAssinaturaToken
-								bind:control={painelTokenGise}
-								bind:signerName={serproSignerName}
-								bind:signerCpf={serproSignerCpf}
-								signerEmail={assinaturaEscalaSignerEmail ?? ''}
-								prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
-								finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
-								nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-								extraPayload={{ rubrica: rubricaCapturada }}
-								disabled={loading.active}
-								onSuccess={onAssinaturaEscalaDigitalSuccess}
-							/>
-						</div>
+						{#if mostrarPainelAssinaturaEscala}
+							<!-- Montado fora da tela: expõe `assinarComSerpro` para o botão Ass. token. -->
+							<div class="sr-only" aria-hidden="true">
+								<PainelAssinaturaToken
+									bind:control={painelTokenGise}
+									bind:signerName={serproSignerName}
+									bind:signerCpf={serproSignerCpf}
+									signerEmail={assinaturaEscalaSignerEmail ?? ''}
+									prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
+									finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
+									nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
+									extraPayload={{ rubrica: rubricaCapturada }}
+									disabled={loading.active}
+									onSuccess={onAssinaturaEscalaDigitalSuccess}
+								/>
+							</div>
+						{/if}
 					</section>
 				{/if}
 
 				{#if mostrarBlocoExtraSupervisao}
 					<section
-						class="{documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala
+						class="{documentoAssinadoInfo?.existe ||
+						mostrarPainelAssinaturaEscala ||
+						mostrarPainelAssinaturaEscalaReadonly
 							? 'mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60'
 							: 'mt-5 pt-4 border-t border-surface-200/60 dark:border-surface-700/60'} space-y-2"
 					>
 						<p
 							class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
 						>
-							Relatório de extra (quadro de supervisão)
+							Relatório de extra (Supervisão e apoio)
 						</p>
 						<div
 							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-4"
@@ -661,7 +672,7 @@
 													{assRelSup.assinante_nome}
 												</p>
 											{:else}
-												<p>Relatório de extra do quadro de supervisão</p>
+												<p>Relatório de extra do quadro de supervisão(disponível após rúbricas)</p>
 												<p class="text-surface-600 dark:text-surface-400 text-[0.7rem] leading-snug mt-0.5">
 													{#if !rubSupOk}
 														{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}
@@ -719,31 +730,30 @@
 														d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 													/></svg
 												>
-												<span class="whitespace-nowrap">Relat. Extraordinário (conferência)</span>
-												<span
-													class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
-													>({!rubSupOk ? 'não concluído' : 'conferência'})</span
-												>
+												<span class="whitespace-nowrap">Relat. Extra (conferência)</span>
+												
 											</a>
 										{/if}
-										{#if isSupervisor && !assRelSup && rubSupOk && extraSupervisaoConfigurado}
+										{#if isSupervisor && !assRelSup && extraSupervisaoConfigurado}
 											<div class="flex flex-wrap items-center justify-end gap-2">
 												{#if isMobile || !restringirSmartphone}
 													<button
 														type="button"
 														class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoManual?.()}
 													>
-														Ass. Indiv.
+														Ass. tela
 													</button>
 												{/if}
 												{#if !isMobile}
 													<button
 														type="button"
 														class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoDigital?.()}
 													>
-														Ass. Digital
+														Ass. token
 													</button>
 												{/if}
 											</div>
@@ -755,23 +765,6 @@
 					</section>
 				{/if}
 			</div>
-			{#if isAdminGeral || isSeccional}
-				<a
-					href={`/api/gise/${gise.id}/download?format=pdf`}
-					target="_blank"
-					class="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300 hover:underline text-sm flex items-center gap-1 mt-1"
-				>
-					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-						/></svg
-					>
-					PDF da escala sem assinatura
-				</a>
-			{/if}
 		{/if}
 	</div>
 </div>

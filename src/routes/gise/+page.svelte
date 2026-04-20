@@ -327,7 +327,7 @@
 	{/if}
 
 	<!-- Histórico -->
-	{#if historico.length > 0 && !isMembro}
+	{#if historico.length > 0 && !isMembro && !isSupervisor}
 		<div class="mt-8">
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 
