@@ -135,8 +135,13 @@ export const unidades = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		nome: text('nome').notNull().unique(),
-		tipo: text('tipo', { enum: ['seccional', 'delegacia'] }).notNull().default('delegacia'),
-		seccional_id: integer('seccional_id'), // Reference to another unidade.id
+		tipo: text('tipo', {
+			enum: ['departamento', 'sub_departamento', 'seccional', 'delegacia']
+		})
+			.notNull()
+			.default('delegacia'),
+		/** ID da unidade pai na hierarquia (dept → subdept → seccional → delegacia). */
+		seccional_id: integer('seccional_id'),
 		cidade: text('cidade').notNull().default(''),
 		tem_plantao: integer('tem_plantao', { mode: 'boolean' }).default(false).notNull(),
 		tem_expediente: integer('tem_expediente', { mode: 'boolean' }).default(false).notNull(),

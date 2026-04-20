@@ -1,0 +1,4 @@
+-- Hierarquia organizacional acima de Seccional (D1 / SQLite).
+-- Novos valores em `unidades.tipo`: 'departamento', 'sub_departamento'.
+-- O vínculo hierárquico continua em `unidades.seccional_id` (ID do pai), como já ocorre
+-- entre delegacia → seccional. Nenhuma alteração estrutural de coluna é necessária.

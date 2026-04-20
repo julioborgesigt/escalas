@@ -39,6 +39,7 @@
 	const unidadesFiltradas = $derived(
 		unidades.filter((u) => {
 			if (filtroSeccional !== 'todas') {
+				if (u.tipo === 'departamento' || u.tipo === 'sub_departamento') return false;
 				if (u.tipo === 'seccional' && u.id !== filtroSeccional) return false;
 				if (u.tipo === 'delegacia' && u.seccional_id !== filtroSeccional) return false;
 			}
@@ -47,29 +48,62 @@
 		})
 	);
 
+	const tipoRank: Record<string, number> = {
+		departamento: 0,
+		sub_departamento: 1,
+		seccional: 2,
+		delegacia: 3
+	};
+
+	type LinhaUnidade = Unidade & {
+		depth: number;
+		isChild?: boolean;
+		isLastChild?: boolean;
+		hasChildren?: boolean;
+	};
+
 	const unidadesAgrupadas = $derived.by(() => {
-		const result: (Unidade & {
-			isChild?: boolean;
-			isLastChild?: boolean;
-			hasChildren?: boolean;
-		})[] = [];
-		const seccionais = unidadesFiltradas.filter((u) => u.tipo === 'seccional');
-		const delegacias = unidadesFiltradas.filter((u) => u.tipo === 'delegacia');
+		const all = unidadesFiltradas;
+		const childrenOf = (pid: number) =>
+			all
+				.filter((u) => u.seccional_id === pid)
+				.sort((a, b) => {
+					const ta = tipoRank[a.tipo] ?? 9;
+					const tb = tipoRank[b.tipo] ?? 9;
+					if (ta !== tb) return ta - tb;
+					return a.nome.localeCompare(b.nome, 'pt-BR');
+				});
 
-		for (const sec of seccionais) {
-			const filhos = delegacias.filter((d) => d.seccional_id === sec.id);
-			result.push({ ...sec, isChild: false, isLastChild: false, hasChildren: filhos.length > 0 });
-			filhos.forEach((f, index) => {
-				result.push({ ...f, isChild: true, isLastChild: index === filhos.length - 1 });
+		const roots = all
+			.filter(
+				(u) =>
+					(u.tipo === 'departamento' && u.seccional_id == null) ||
+					(u.tipo === 'seccional' && u.seccional_id == null)
+			)
+			.sort((a, b) => {
+				if (a.tipo !== b.tipo) return a.tipo === 'departamento' ? -1 : 1;
+				return a.nome.localeCompare(b.nome, 'pt-BR');
 			});
+
+		const out: LinhaUnidade[] = [];
+
+		function walk(u: Unidade, depth: number) {
+			const kids = childrenOf(u.id);
+			out.push({ ...u, depth, isChild: depth > 0, hasChildren: kids.length > 0 });
+			kids.forEach((k) => walk(k, depth + 1));
 		}
 
-		const orfaos = delegacias.filter((d) => !seccionais.some((s) => s.id === d.seccional_id));
-		for (const f of orfaos) {
-			result.push({ ...f, isChild: false, isLastChild: false, hasChildren: false });
+		for (const r of roots) walk(r, 0);
+
+		const linked = new Set(out.map((x) => x.id));
+		const orphans = all
+			.filter((u) => !linked.has(u.id))
+			.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+		for (const o of orphans) {
+			out.push({ ...o, depth: 0, isChild: false, hasChildren: false, isLastChild: true });
 		}
 
-		return result;
+		return out;
 	});
 
 	// Estado para o cadastro guiado
@@ -95,7 +129,7 @@
 	// Edição inline
 	let editandoId = $state<number | null>(null);
 	let editNome = $state('');
-	let editTipo = $state<'seccional' | 'delegacia'>('delegacia');
+	let editTipo = $state<Unidade['tipo']>('delegacia');
 	let editSeccionalId = $state<number | null>(null);
 	let editTemPlantao = $state(false);
 	let editTemExpediente = $state(false);
@@ -515,6 +549,7 @@
 				<thead>
 					<tr>
 						<th>Nome da Unidade</th>
+						<th>Tipo / Hierarquia</th>
 						<th>Localização</th>
 						{#if isAdmin}<th>Ações</th>{/if}
 					</tr>
@@ -522,7 +557,10 @@
 				<tbody>
 					{#each unidadesAgrupadas as u (u.id)}
 						<tr>
-							<td class="relative {u.isChild ? 'pl-6' : ''}">
+							<td
+								class="relative"
+								style:padding-left={u.depth > 0 ? `${Math.min(u.depth, 8) * 0.75}rem` : null}
+							>
 								{#if u.hasChildren}
 									<div
 										class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"
@@ -588,6 +626,16 @@
 								{:else}
 									<div>
 										<span class="font-medium block">{u.nome}</span>
+										<span
+											class="inline-block mt-1 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
+											>{u.tipo === 'departamento'
+												? 'Departamento'
+												: u.tipo === 'sub_departamento'
+													? 'Subdepartamento'
+													: u.tipo === 'seccional'
+														? 'Seccional'
+														: 'Delegacia'}</span
+										>
 										<div class="flex gap-1.5 mt-1.5 items-center">
 											{#if u.tem_plantao}<span
 													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
@@ -603,6 +651,16 @@
 												>{/if}
 										</div>
 									</div>
+								{/if}
+							</td>
+							<td class="text-surface-600 dark:text-surface-300 text-xs">
+								{#if u.seccional_id}
+									<span class="opacity-70">Subordinada a</span>
+									<span class="font-semibold block truncate max-w-[14rem]">
+										{unidades.find((x) => x.id === u.seccional_id)?.nome ?? `#${u.seccional_id}`}
+									</span>
+								{:else}
+									<span class="italic opacity-60">—</span>
 								{/if}
 							</td>
 							<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic"
@@ -725,6 +783,20 @@
 						<div class="flex items-center justify-between gap-3">
 							<div class="min-w-0">
 								<p class="font-semibold text-sm">{u.nome}</p>
+								<p class="text-[0.65rem] font-bold uppercase text-surface-500 mt-0.5">
+									{u.tipo === 'departamento'
+										? 'Departamento'
+										: u.tipo === 'sub_departamento'
+											? 'Subdepartamento'
+											: u.tipo === 'seccional'
+												? 'Seccional'
+												: 'Delegacia'}
+								</p>
+								{#if u.seccional_id}
+									<p class="text-[0.65rem] text-surface-500 mt-0.5 truncate">
+										Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ?? u.seccional_id}
+									</p>
+								{/if}
 								<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
 									{#if u.tem_plantao}<span
 											class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"

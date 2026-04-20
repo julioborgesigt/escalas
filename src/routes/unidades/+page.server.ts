@@ -9,7 +9,7 @@ import {
 } from '$lib/db';
 import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
-import { unidades, escalas } from '$lib/server/schema';
+import { unidades, escalas, type Unidade } from '$lib/server/schema';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
@@ -31,7 +31,7 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const nome = data.get('nome')?.toString() || '';
-		const tipo = data.get('tipo')?.toString() as 'seccional' | 'delegacia';
+		const tipo = data.get('tipo')?.toString() as Unidade['tipo'];
 		const seccional_id = data.get('seccional_id') ? Number(data.get('seccional_id')) : null;
 		const tem_plantao = data.get('tem_plantao') === 'on';
 		const tem_expediente = data.get('tem_expediente') === 'on';
@@ -75,7 +75,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const nome = data.get('nome')?.toString() || '';
-		const tipo = data.get('tipo')?.toString() as 'seccional' | 'delegacia';
+		const tipo = data.get('tipo')?.toString() as Unidade['tipo'];
 		const seccional_id = data.get('seccional_id') ? Number(data.get('seccional_id')) : null;
 		const tem_plantao = data.get('tem_plantao') === 'on';
 		const tem_expediente = data.get('tem_expediente') === 'on';

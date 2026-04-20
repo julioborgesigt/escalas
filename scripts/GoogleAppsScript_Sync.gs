@@ -15,6 +15,15 @@ const API_BASE_URL = 'https://escalas.pages.dev/api/webhook';
 const TAB_SERVIDORES = 'DB_SERVIDORES';
 const TAB_UNIDADES = 'DB_UNIDADES';
 
+/**
+ * Planilha DB_UNIDADES (linhas de dados a partir da linha 2):
+ *   A — Nome do nível FILHO (vazio se for só o pai na coluna B: departamento raiz ou seccional raiz).
+ *   B — Nome do nível PAI ou nome da própria entidade quando A está vazio (mesmo padrão legado).
+ *   C — Cidade (pode ficar vazio para departamentos).
+ *   D — NIVEL: DEPARTAMENTO | SUB_DEPARTAMENTO | SECCIONAL | DELEGACIA (opcional; vazio = legado:
+ *       A vazio + B = seccional raiz; A + B = delegacia sob seccional B).
+ */
+
 const PROP_SYNC_TOKEN = 'SYNC_TOKEN';
 const PROP_RESET_TOKEN = 'RESET_TOKEN';
 
@@ -123,14 +132,15 @@ function syncServerRow(row) {
 function syncUnitRow(row) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB_UNIDADES);
   if (!sheet) return;
-  const data = sheet.getRange(row, 1, 1, 3).getValues()[0];
+  const data = sheet.getRange(row, 1, 1, 4).getValues()[0];
 
   if (!data[1] || String(data[1]).trim() === '') return;
 
   const payload = {
     unidade: data[0],
     seccional: data[1],
-    cidade: data[2]
+    cidade: data[2],
+    nivel: data[3] ? String(data[3]).trim().toUpperCase() : ''
   };
 
   sendToAPI('/sync-unidades', payload);
@@ -151,29 +161,56 @@ function fullSyncUnits() {
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB_UNIDADES);
   if (!sheet) return;
-  const rows = sheet.getLastRow();
-  const data = sheet.getRange(2, 1, rows - 1, 3).getValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    ui.alert('Planilha vazia', 'Não há linhas de dados em DB_UNIDADES.', ui.ButtonSet.OK);
+    return;
+  }
+  const data = sheet.getRange(2, 1, lastRow, 4).getValues();
 
   const cleanData = data.filter(r => r[1] && String(r[1]).trim() !== '');
 
-  // Fase 1: Apenas Seccionais
-  const seccionais = cleanData.filter(r => !r[0] || String(r[0]).trim() === '');
-  if (seccionais.length > 0) {
-    const payloads = seccionais.map(item => ({ unidade: '', seccional: item[1], cidade: item[2] }));
-    sendToAPI('/sync-unidades', payloads);
+  function rowPayload(item) {
+    return {
+      unidade: item[0] ? String(item[0]).trim() : '',
+      seccional: item[1] ? String(item[1]).trim() : '',
+      cidade: item[2] ? String(item[2]).trim() : '',
+      nivel: item[3] ? String(item[3]).trim().toUpperCase() : ''
+    };
   }
 
-  // Fase 2: Apenas Delegacias
-  const delegacias = cleanData.filter(r => r[0] && String(r[0]).trim() !== '');
-  if (delegacias.length > 0) {
-    const payloads = delegacias.map(item => ({ unidade: item[0], seccional: item[1], cidade: item[2] }));
+  const departamentos = cleanData.filter(r => String(r[3] || '').trim().toUpperCase() === 'DEPARTAMENTO');
+  const subDepartamentos = cleanData.filter(r => String(r[3] || '').trim().toUpperCase() === 'SUB_DEPARTAMENTO');
+  const seccionaisRaiz = cleanData.filter(r => {
+    const d = String(r[3] || '').trim().toUpperCase();
+    if (d === 'DEPARTAMENTO' || d === 'SUB_DEPARTAMENTO' || d === 'DELEGACIA') return false;
+    return (!r[0] || String(r[0]).trim() === '') && (d === 'SECCIONAL' || d === '');
+  });
+  const seccionaisComPai = cleanData.filter(
+    r => String(r[3] || '').trim().toUpperCase() === 'SECCIONAL' && r[0] && String(r[0]).trim() !== ''
+  );
+  const delegacias = cleanData.filter(r => {
+    const d = String(r[3] || '').trim().toUpperCase();
+    if (d === 'DEPARTAMENTO' || d === 'SUB_DEPARTAMENTO' || d === 'SECCIONAL') return false;
+    if (d === 'DELEGACIA') return r[0] && String(r[0]).trim() !== '' && r[1] && String(r[1]).trim() !== '';
+    return r[0] && String(r[0]).trim() !== '';
+  });
+
+  function sendChunked(list) {
+    const payloads = list.map(rowPayload);
     const chunkSize = 50;
     for (let i = 0; i < payloads.length; i += chunkSize) {
       sendToAPI('/sync-unidades', payloads.slice(i, i + chunkSize));
     }
   }
 
-  ui.alert('Sucesso', 'Unidades e Seccionais sincronizadas.', ui.ButtonSet.OK);
+  if (departamentos.length > 0) sendChunked(departamentos);
+  if (subDepartamentos.length > 0) sendChunked(subDepartamentos);
+  if (seccionaisRaiz.length > 0) sendChunked(seccionaisRaiz);
+  if (seccionaisComPai.length > 0) sendChunked(seccionaisComPai);
+  if (delegacias.length > 0) sendChunked(delegacias);
+
+  ui.alert('Sucesso', 'Departamentos, seccionais e delegacias sincronizados (ordem respeitada).', ui.ButtonSet.OK);
 }
 
 function fullSyncServers() {

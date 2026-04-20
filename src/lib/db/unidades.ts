@@ -11,7 +11,7 @@ export async function criarUnidade(
 	db: Database,
 	data: {
 		nome: string;
-		tipo: 'seccional' | 'delegacia';
+		tipo: 'departamento' | 'sub_departamento' | 'seccional' | 'delegacia';
 		seccional_id: number | null;
 		tem_plantao: boolean;
 		tem_expediente: boolean;
@@ -19,18 +19,16 @@ export async function criarUnidade(
 		cidade: string;
 	}
 ) {
-	const values: any = {
+	const values: Record<string, unknown> = {
 		nome: data.nome.trim(),
 		tipo: data.tipo,
 		tem_plantao: data.tem_plantao,
 		tem_expediente: data.tem_expediente,
 		tem_fds: data.tem_fds,
-		cidade: data.cidade || ''
+		cidade: data.cidade || '',
+		seccional_id: data.seccional_id ?? null
 	};
-	if (data.seccional_id) {
-		values.seccional_id = data.seccional_id;
-	}
-	return db.insert(unidades).values(values);
+	return db.insert(unidades).values(values as any);
 }
 
 export async function atualizarUnidade(
@@ -38,7 +36,7 @@ export async function atualizarUnidade(
 	id: number,
 	data: {
 		nome: string;
-		tipo: 'seccional' | 'delegacia';
+		tipo: 'departamento' | 'sub_departamento' | 'seccional' | 'delegacia';
 		seccional_id: number | null;
 		tem_plantao: boolean;
 		tem_expediente: boolean;
@@ -78,7 +76,7 @@ export async function upsertUnidade(
 	db: Database,
 	data: {
 		nome: string;
-		tipo: 'seccional' | 'delegacia';
+		tipo: 'departamento' | 'sub_departamento' | 'seccional' | 'delegacia';
 		seccional_id: number | null;
 		cidade: string;
 	}
