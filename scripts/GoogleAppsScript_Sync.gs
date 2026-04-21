@@ -17,11 +17,19 @@ const TAB_UNIDADES = 'DB_UNIDADES';
 
 /**
  * Planilha DB_UNIDADES (linhas de dados a partir da linha 2):
- *   A — Nome do nível FILHO (vazio se for só o pai na coluna B: departamento raiz ou seccional raiz).
- *   B — Nome do nível PAI ou nome da própria entidade quando A está vazio (mesmo padrão legado).
- *   C — Cidade (pode ficar vazio para departamentos).
- *   D — NIVEL: DEPARTAMENTO | SUB_DEPARTAMENTO | SECCIONAL | DELEGACIA (opcional; vazio = legado:
- *       A vazio + B = seccional raiz; A + B = delegacia sob seccional B).
+ *   A — Unidade operacional (delegacia / UAA etc.); vazio para níveis organizacionais.
+ *   B — Seccional; vazio para departamento, subdepartamento ou seccional “sem coluna B”.
+ *   C — Subdepartamento (filho do departamento em D); vazio se a seccional for filha direta do D.
+ *   D — Departamento (pai do subdepartamento em C, ou pai direto da seccional quando C vazio).
+ *   E — Cidade.
+ *
+ * Inferência enviada ao backend (payload unidade / seccional / cidade / nivel):
+ *   • A,B,C vazios e D preenchido → DEPARTAMENTO (nome em D).
+ *   • A,B vazios, C e D preenchidos → SUB_DEPARTAMENTO (C subordinado a D).
+ *   • A vazio, B preenchido, C preenchido → SECCIONAL com pai organizacional C (subdepartamento).
+ *   • A vazio, B preenchido, C vazio, D preenchido → SECCIONAL com pai organizacional D (departamento).
+ *   • A vazio, B preenchido, C e D vazios → SECCIONAL raiz (legado; nivel vazio).
+ *   • A e B preenchidos → DELEGACIA (A sob seccional B; C/D ignorados pelo upsert da delegacia).
  */
 
 const PROP_SYNC_TOKEN = 'SYNC_TOKEN';
@@ -129,20 +137,50 @@ function syncServerRow(row) {
   }
 }
 
+/** Normaliza célula para string trimada (planilha com 4 ou 5 colunas). */
+function trimUnidadeCell_(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).trim();
+}
+
+/**
+ * Converte uma linha DB_UNIDADES (A–E) no payload esperado por /sync-unidades.
+ * Retorna null se a linha não for reconhecível.
+ */
+function parseUnidadesRow_(row) {
+  const a = trimUnidadeCell_(row[0]);
+  const b = trimUnidadeCell_(row[1]);
+  const c = trimUnidadeCell_(row[2]);
+  const d = trimUnidadeCell_(row[3]);
+  const e = trimUnidadeCell_(row[4]);
+
+  if (a && b) {
+    return { unidade: a, seccional: b, cidade: e, nivel: 'DELEGACIA' };
+  }
+  if (!a && !b && !c && d) {
+    return { unidade: '', seccional: d, cidade: e, nivel: 'DEPARTAMENTO' };
+  }
+  if (!a && !b && c && d) {
+    return { unidade: c, seccional: d, cidade: e, nivel: 'SUB_DEPARTAMENTO' };
+  }
+  if (!a && b && c) {
+    return { unidade: b, seccional: c, cidade: e, nivel: 'SECCIONAL' };
+  }
+  if (!a && b && !c && d) {
+    return { unidade: b, seccional: d, cidade: e, nivel: 'SECCIONAL' };
+  }
+  if (!a && b && !c && !d) {
+    return { unidade: '', seccional: b, cidade: e, nivel: '' };
+  }
+  return null;
+}
+
 function syncUnitRow(row) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB_UNIDADES);
   if (!sheet) return;
-  const data = sheet.getRange(row, 1, 1, 4).getValues()[0];
-
-  if (!data[1] || String(data[1]).trim() === '') return;
-
-  const payload = {
-    unidade: data[0],
-    seccional: data[1],
-    cidade: data[2],
-    nivel: data[3] ? String(data[3]).trim().toUpperCase() : ''
-  };
-
+  const data = sheet.getRange(row, 1, 1, 5).getValues()[0];
+  const payload = parseUnidadesRow_(data);
+  if (!payload) return;
   sendToAPI('/sync-unidades', payload);
 }
 
@@ -166,41 +204,24 @@ function fullSyncUnits() {
     ui.alert('Planilha vazia', 'Não há linhas de dados em DB_UNIDADES.', ui.ButtonSet.OK);
     return;
   }
-  const data = sheet.getRange(2, 1, lastRow, 4).getValues();
+  const data = sheet.getRange(2, 1, lastRow, 5).getValues();
 
-  const cleanData = data.filter(r => r[1] && String(r[1]).trim() !== '');
-
-  function rowPayload(item) {
-    return {
-      unidade: item[0] ? String(item[0]).trim() : '',
-      seccional: item[1] ? String(item[1]).trim() : '',
-      cidade: item[2] ? String(item[2]).trim() : '',
-      nivel: item[3] ? String(item[3]).trim().toUpperCase() : ''
-    };
+  const parsedRows = [];
+  for (let i = 0; i < data.length; i++) {
+    const p = parseUnidadesRow_(data[i]);
+    if (p) parsedRows.push(p);
   }
 
-  const departamentos = cleanData.filter(r => String(r[3] || '').trim().toUpperCase() === 'DEPARTAMENTO');
-  const subDepartamentos = cleanData.filter(r => String(r[3] || '').trim().toUpperCase() === 'SUB_DEPARTAMENTO');
-  const seccionaisRaiz = cleanData.filter(r => {
-    const d = String(r[3] || '').trim().toUpperCase();
-    if (d === 'DEPARTAMENTO' || d === 'SUB_DEPARTAMENTO' || d === 'DELEGACIA') return false;
-    return (!r[0] || String(r[0]).trim() === '') && (d === 'SECCIONAL' || d === '');
-  });
-  const seccionaisComPai = cleanData.filter(
-    r => String(r[3] || '').trim().toUpperCase() === 'SECCIONAL' && r[0] && String(r[0]).trim() !== ''
-  );
-  const delegacias = cleanData.filter(r => {
-    const d = String(r[3] || '').trim().toUpperCase();
-    if (d === 'DEPARTAMENTO' || d === 'SUB_DEPARTAMENTO' || d === 'SECCIONAL') return false;
-    if (d === 'DELEGACIA') return r[0] && String(r[0]).trim() !== '' && r[1] && String(r[1]).trim() !== '';
-    return r[0] && String(r[0]).trim() !== '';
-  });
+  const departamentos = parsedRows.filter((p) => p.nivel === 'DEPARTAMENTO');
+  const subDepartamentos = parsedRows.filter((p) => p.nivel === 'SUB_DEPARTAMENTO');
+  const seccionaisRaiz = parsedRows.filter((p) => p.nivel === '' && !p.unidade && p.seccional);
+  const seccionaisComPai = parsedRows.filter((p) => p.nivel === 'SECCIONAL');
+  const delegacias = parsedRows.filter((p) => p.nivel === 'DELEGACIA');
 
   function sendChunked(list) {
-    const payloads = list.map(rowPayload);
     const chunkSize = 50;
-    for (let i = 0; i < payloads.length; i += chunkSize) {
-      sendToAPI('/sync-unidades', payloads.slice(i, i + chunkSize));
+    for (let i = 0; i < list.length; i += chunkSize) {
+      sendToAPI('/sync-unidades', list.slice(i, i + chunkSize));
     }
   }
 
