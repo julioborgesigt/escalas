@@ -4,6 +4,7 @@ import {
 	getDB,
 	listarPoliciais,
 	criarPolicial,
+	atualizarPolicial,
 	excluirPolicial,
 	listarUnidades,
 	registrarAuditComContexto
@@ -143,6 +144,72 @@ export const actions: Actions = {
 				error: 'Erro interno ao criar policial',
 				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
 			});
+		}
+	},
+	atualizar: async ({ request, locals, platform }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+			return fail(403, { error: 'Sem permissão para editar policiais' });
+		}
+
+		const data = await request.formData();
+		const policialId = Number(data.get('policial_id'));
+		if (Number.isNaN(policialId)) return fail(400, { error: 'Policial inválido' });
+
+		const nome = data.get('nome')?.toString() || '';
+		const matricula = data.get('matricula')?.toString() || '';
+		const cargoVal = data.get('cargo')?.toString() as 'DPC' | 'OIP';
+		const cpf = data.get('cpf')?.toString() || '';
+		const telefone = data.get('telefone')?.toString() || '';
+		const classe = data.get('classe')?.toString() || '';
+		const regime = data.get('regime')?.toString() as 'plantao' | 'expediente' | 'ambos';
+		const lotacao = data.get('lotacao')?.toString() || '';
+		const email = data.get('email')?.toString() || null;
+		const papel = data.get('papel')?.toString() || null;
+		const papelUnidadeId = data.get('papel_unidade_id')
+			? Number(data.get('papel_unidade_id'))
+			: null;
+
+		const parsed = policialSchema.safeParse({
+			nome,
+			matricula,
+			cargo: cargoVal,
+			cpf: cpf || null,
+			telefone,
+			lotacao,
+			regime,
+			classe,
+			papel: papel || null,
+			papel_unidade_id: papelUnidadeId || null,
+			email: email || null
+		});
+		if (!parsed.success) {
+			return fail(400, {
+				error: parsed.error.issues[0].message
+			});
+		}
+
+		const db = getDB(platform);
+		try {
+			await atualizarPolicial(db, policialId, {
+				...parsed.data,
+				email: email || null
+			});
+			await registrarAuditComContexto(db, {
+				usuario: u,
+				acao: 'editar_policial',
+				entidade: 'policial',
+				entidade_id: policialId,
+				detalhes: `Atualizado policial: ${nome} (matrícula: ${matricula})`
+			});
+			return { success: true };
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			if (message.includes('UNIQUE')) {
+				return fail(409, { error: 'Matrícula já cadastrada' });
+			}
+			return fail(500, { error: 'Erro interno ao atualizar policial' });
 		}
 	},
 

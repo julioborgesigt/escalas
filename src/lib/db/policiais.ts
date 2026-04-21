@@ -166,6 +166,7 @@ export async function upsertPolicial(
 		regime?: string;
 		classe?: string;
 		papel?: string | null;
+		papel_unidade_id?: number | null;
 		email?: string | null;
 		ativo?: number;
 	}
@@ -188,6 +189,7 @@ export async function upsertPolicial(
 			senha: senhaHash,
 			primeiro_acesso: 1,
 			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
+			papel_unidade_id: data.papel_unidade_id ?? null,
 			email: data.email || null,
 			ativo: data.ativo ?? 1
 		})
@@ -202,6 +204,7 @@ export async function upsertPolicial(
 				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
 				classe: data.classe || '',
 				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
+				papel_unidade_id: data.papel_unidade_id ?? null,
 				email: data.email ? data.email : sql`email`,
 				ativo: data.ativo ?? 1,
 				updated_at: sql`datetime('now', '-3 hours')`
@@ -222,6 +225,8 @@ export async function atualizarPolicial(
 		ativo: number;
 		regime: string;
 		classe: string;
+		papel: 'admin_seccional' | 'admin_unidade' | null;
+		papel_unidade_id: number | null;
 		email: string | null;
 	}>
 ) {
@@ -236,6 +241,8 @@ export async function atualizarPolicial(
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;
 	if (data.regime !== undefined) updateData.regime = data.regime;
 	if (data.classe !== undefined) updateData.classe = data.classe;
+	if (data.papel !== undefined) updateData.papel = data.papel;
+	if (data.papel_unidade_id !== undefined) updateData.papel_unidade_id = data.papel_unidade_id;
 	if (data.email !== undefined) updateData.email = data.email;
 
 	updateData.updated_at = sql`datetime('now', '-3 hours')`;

@@ -137,11 +137,6 @@
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 	let pendingCrud = $state(false);
 
-	// Horários customizados por seccional
-	let editandoHorariosSecId = $state<number | null>(null);
-	let editSecHoraEnt = $state('');
-	let editSecHoraSai = $state('');
-
 	// Horários customizados por equipe
 	let editandoHorariosEquipeId = $state<number | null>(null);
 	let editEqHoraEnt = $state('');
@@ -388,7 +383,7 @@
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao remover unidade' });
+				toaster.error({ title: (d?.error as string) || 'Erro ao remover DP' });
 			}
 			pendingCrud = false;
 		};
@@ -909,28 +904,6 @@
 		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
 	}
 
-	function handleSalvarHorariosSec({ cancel }: { cancel(): void }) {
-		const horas = [editSecHoraEnt, editSecHoraSai].filter(Boolean);
-		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
-			cancel();
-			return;
-		}
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Horários da seccional atualizados' });
-				editandoHorariosSecId = null;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
-			}
-		};
-	}
-
 	function handleSalvarHorariosEquipe({ cancel }: { cancel(): void }) {
 		const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
 		if (horas.some((h) => !validarHora(h))) {
@@ -1084,7 +1057,7 @@
 {/snippet}
 
 <div
-	class="relative transition-all duration-500 {loading.active
+	class="relative min-w-0 transition-all duration-500 {loading.active
 		? 'pointer-events-none opacity-40 blur-[3px]'
 		: 'opacity-100 blur-0'} space-y-6"
 >
@@ -1119,54 +1092,56 @@
 	{#if !gise}
 		<p class="text-surface-500">Escala não encontrada.</p>
 	{:else}
-		<GiseSupervisao
-			{gise}
-			{policiais}
-			{isAdminGeral}
-			{isSeccional}
-			{podeEditar}
-			{modoEdicaoGeral}
-			editando={editandoSupervisores}
-			{documentoAssinadoInfo}
-			{pendingCrud}
-			{buscarDpcs}
-			{buscarOips}
-			{selectedFromPoliciais}
-			presencasGise={data.presencasGise}
-			seintSupervisaoComRelatorio={data.seintSupervisaoComRelatorio ?? []}
-			bind:supervisorId
-			bind:assessorId
-			bind:seint1Id
-			bind:seint2Id
-			onEditar={() => (editandoSupervisores = true)}
-			onCancelar={() => (editandoSupervisores = false)}
-			onSubmit={handleSalvarSupervisores}
-			supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
-			assinaturasRelatorios={data.assinaturasRelatorios}
-			{podeDownload}
-			{isSupervisor}
-			{isMobile}
-			restringirSmartphone={data.restringirSmartphone}
-			onAssinarExtraSupervisaoManual={() => {
-				const id = data.supervisaoExtraUnidadeId;
-				if (id) abrirAssinaturaRelatorio(id, 'extraordinario');
-			}}
-			onAssinarExtraSupervisaoDigital={() => {
-				const id = data.supervisaoExtraUnidadeId;
-				if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
-			}}
-			mostrarPainelAssinaturaEscala={podeAssinar}
-			assinaturaEscalaSignerEmail={data.usuarioAtual?.email ?? undefined}
-			bind:rubricaCapturada
-			bind:painelTokenGise
-			bind:serproSignerName
-			bind:serproSignerCpf
-			onAbrirAssinaturaEscalaManual={() => abrirModalRubrica('simples')}
-			onAssinaturaEscalaDigitalSuccess={async () => {
-				rubricaCapturada = null;
-				await invalidate('gise:detail');
-			}}
-		/>
+		{#if !isSeccional}
+			<GiseSupervisao
+				{gise}
+				{policiais}
+				{isAdminGeral}
+				{isSeccional}
+				{podeEditar}
+				{modoEdicaoGeral}
+				editando={editandoSupervisores}
+				{documentoAssinadoInfo}
+				{pendingCrud}
+				{buscarDpcs}
+				{buscarOips}
+				{selectedFromPoliciais}
+				presencasGise={data.presencasGise}
+				seintSupervisaoComRelatorio={data.seintSupervisaoComRelatorio ?? []}
+				bind:supervisorId
+				bind:assessorId
+				bind:seint1Id
+				bind:seint2Id
+				onEditar={() => (editandoSupervisores = true)}
+				onCancelar={() => (editandoSupervisores = false)}
+				onSubmit={handleSalvarSupervisores}
+				supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+				assinaturasRelatorios={data.assinaturasRelatorios}
+				{podeDownload}
+				{isSupervisor}
+				{isMobile}
+				restringirSmartphone={data.restringirSmartphone}
+				onAssinarExtraSupervisaoManual={() => {
+					const id = data.supervisaoExtraUnidadeId;
+					if (id) abrirAssinaturaRelatorio(id, 'extraordinario');
+				}}
+				onAssinarExtraSupervisaoDigital={() => {
+					const id = data.supervisaoExtraUnidadeId;
+					if (id) abrirAssinaturaRelatorioDigital(id, 'extraordinario', 'Supervisão GISE');
+				}}
+				mostrarPainelAssinaturaEscala={podeAssinar}
+				assinaturaEscalaSignerEmail={data.usuarioAtual?.email ?? undefined}
+				bind:rubricaCapturada
+				bind:painelTokenGise
+				bind:serproSignerName
+				bind:serproSignerCpf
+				onAbrirAssinaturaEscalaManual={() => abrirModalRubrica('simples')}
+				onAssinaturaEscalaDigitalSuccess={async () => {
+					rubricaCapturada = null;
+					await invalidate('gise:detail');
+				}}
+			/>
+		{/if}
 
 		<GiseBannersAssinaturas
 			assinaturasRelatorios={data.assinaturasRelatorios}
@@ -1189,25 +1164,27 @@
 
 		<!-- Seccionais -->
 		<div>
-			<div
-				class="mb-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/60 dark:bg-surface-800/40 p-3"
-			>
-				<div class="flex items-center justify-between gap-2">
-					<h2 class="font-semibold text-surface-900 dark:text-surface-50">
-						Seccionais ({gise.seccionais?.length ?? 0})
-					</h2>
-					{#if supervisorSomente}
-						<button
-							type="button"
-							class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm"
-							onclick={() =>
-								(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
-						>
-							{exibirQuadroSeccionais ? 'Ocultar participantes' : 'Exibir participantes'}
-						</button>
-					{/if}
+			{#if !isSeccional}
+				<div
+					class="mb-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/60 dark:bg-surface-800/40 p-3"
+				>
+					<div class="flex items-center justify-between gap-2">
+						<h2 class="font-semibold text-surface-900 dark:text-surface-50">
+							Seccionais ({gise.seccionais?.length ?? 0})
+						</h2>
+						{#if supervisorSomente}
+							<button
+								type="button"
+								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm"
+								onclick={() =>
+									(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
+							>
+								{exibirQuadroSeccionais ? 'Ocultar participantes' : 'Exibir participantes'}
+							</button>
+						{/if}
+					</div>
 				</div>
-			</div>
+			{/if}
 
 			{#if exibirQuadroSeccionais}
 				{#each gise.seccionais ?? [] as sec}
@@ -1226,91 +1203,15 @@
 									{sec.seccional_nome}
 								</span>
 								{@render statusBadge(sec.status, true)}
-								{#if editandoHorariosSecId === sec.id}
-									<div class="flex flex-wrap items-center gap-2">
-										<input
-											type="text"
-											placeholder="08:00"
-											class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEnt &&
-											!validarHora(editSecHoraEnt)
-												? 'border-error-500'
-												: 'border-surface-300 dark:border-surface-600'}"
-											bind:value={editSecHoraEnt}
-										/>
-										<span class="opacity-30">-</span>
-										<input
-											type="text"
-											placeholder="16:00"
-											class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSai &&
-											!validarHora(editSecHoraSai)
-												? 'border-error-500'
-												: 'border-surface-300 dark:border-surface-600'}"
-											bind:value={editSecHoraSai}
-										/>
-										<form
-											method="POST"
-											action="?/salvarHorariosSec"
-											use:enhance={handleSalvarHorariosSec}
-											class="contents"
-										>
-											<input type="hidden" name="secId" value={sec.id} />
-											<input
-												type="hidden"
-												name="hora_entrada"
-												value={normalizarHora(editSecHoraEnt) ?? ''}
-											/>
-											<input
-												type="hidden"
-												name="hora_saida"
-												value={normalizarHora(editSecHoraSai) ?? ''}
-											/>
-											<button
-												type="submit"
-												class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
-												>✓</button
-											>
-										</form>
-										<button
-											type="button"
-											class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded"
-											onclick={() => (editandoHorariosSecId = null)}>×</button
-										>
-									</div>
-								{:else}
-									<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
+								<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
+									<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
+									{#if sec.hora_entrada || sec.hora_saida}
 										<span
-											>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ??
-												gise.hora_saida}h</span
+											class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20"
+											>H. Personalizado</span
 										>
-										{#if sec.hora_entrada || sec.hora_saida}
-											<span
-												class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20"
-												>H. Personalizado</span
-											>
-										{/if}
-									</div>
-									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-										<button
-											type="button"
-											class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
-											onclick={() => {
-												editandoHorariosSecId = sec.id;
-												editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
-												editSecHoraSai = sec.hora_saida ?? gise.hora_saida ?? '';
-											}}
-										>
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-												/></svg
-											>
-											Editar horários desta seccional
-										</button>
 									{/if}
-								{/if}
+								</div>
 							</div>
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -1335,7 +1236,7 @@
 												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 											/></svg
 										>
-										Excluir
+										Excluir seccional
 									</button>
 								</form>
 							{/if}
@@ -1393,7 +1294,7 @@
 												checkAllSigned(sec) &&
 												(assRel || isAdminGeral || isSeccional || isSupervisor)
 											)
-												? 'pointer-events-none opacity-60 border-transparent'
+												? 'pointer-events-none opacity-60 border-primary-500/30'
 												: 'no-underline'} {assRel
 												? 'preset-filled-primary-500 border-primary-600/30 hover:border-primary-600'
 												: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'}"
@@ -1545,7 +1446,7 @@
 							</div>
 						</div>
 
-						<div class="p-5 space-y-4">
+						<div class="p-4 space-y-3">
 							<!-- ===== Slots de Unidade ===== -->
 							{#each sec.unidades ?? [] as slot (slot.id)}
 								<div
@@ -1553,38 +1454,40 @@
 								>
 									<!-- Cabeçalho do slot: nome da unidade ou seleção -->
 									<div
-										class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-primary-300/30 dark:border-primary-700/30"
+										class="flex flex-col gap-2 px-4 py-3 border-b border-primary-300/30 dark:border-primary-700/30"
 									>
-										<div class="flex items-center gap-2 min-w-0">
-											{#if slot.nome}
+										{#if slot.nome}
+											<div class="flex items-center gap-2 min-w-0">
 												<span
 													class="font-semibold text-sm text-surface-900 dark:text-surface-100 truncate"
 													>{slot.nome}</span
 												>
-											{:else if (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral)}
-												<!-- Admin Seccional seleciona a unidade para este slot -->
-												{#if selecionandoUnidadeSlotId === slot.id}
-													<div class="flex flex-wrap gap-2 items-center">
-														<select
-															bind:value={slotUnidadeId}
-															class="flex-1 min-w-40 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-														>
-															<option value="">Selecionar unidade...</option>
-															{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
-																<option value={d.id}>{d.nome}</option>
-															{/each}
-														</select>
+											</div>
+										{:else if (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral)}
+											<!-- Admin Seccional seleciona a unidade para este slot -->
+											{#if selecionandoUnidadeSlotId === slot.id}
+												<div class="flex flex-col gap-2 w-full min-w-0">
+													<select
+														bind:value={slotUnidadeId}
+														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+													>
+														<option value="">Selecionar unidade...</option>
+														{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
+															<option value={d.id}>{d.nome}</option>
+														{/each}
+													</select>
+													<div class="flex gap-2 w-full">
 														<form
 															method="POST"
 															action="?/selecionarUnidade"
 															use:enhance={handleSelecionarUnidade}
-															class="flex gap-2 shrink-0"
+															class="flex-1 min-w-0"
 														>
 															<input type="hidden" name="slotId" value={slot.id} />
 															<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 															<button
 																type="submit"
-																class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl"
+																class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full"
 																disabled={!slotUnidadeId || pendingCrud}
 															>
 																{pendingCrud ? 'Salvando...' : 'Confirmar'}
@@ -1592,7 +1495,7 @@
 														</form>
 														<button
 															type="button"
-															class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl"
+															class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl flex-1 min-w-0 w-full"
 															onclick={() => {
 																selecionandoUnidadeSlotId = null;
 																slotUnidadeId = '';
@@ -1601,10 +1504,44 @@
 															Cancelar
 														</button>
 													</div>
-												{:else}
+													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+														<form
+															method="POST"
+															action="?/removerUnidade"
+															use:enhance={handleRemoverUnidade}
+															class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
+														>
+															<input type="hidden" name="secId" value={sec.id} />
+															<input type="hidden" name="linkId" value={slot.id} />
+															<button
+																type="submit"
+																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+																disabled={pendingCrud}
+															>
+																<svg
+																	class="w-3.5 h-3.5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/></svg
+																>
+																Remover DP
+															</button>
+														</form>
+													{/if}
+												</div>
+											{:else}
+												<div
+													class="flex flex-col sm:flex-row sm:justify-end sm:items-stretch gap-2 w-full min-w-0"
+												>
 													<button
 														type="button"
-														class="btn preset-outlined-warning-500 text-sm px-3 py-1.5 rounded-xl flex items-center gap-1.5"
+														class="btn preset-outlined-warning-500 w-full sm:w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
 														onclick={() => {
 															selecionandoUnidadeSlotId = slot.id;
 															slotUnidadeId = '';
@@ -1622,27 +1559,57 @@
 																d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 															/></svg
 														>
-														Selecionar unidade
+														Definir DP
 													</button>
-												{/if}
-											{:else}
-												<span class="text-sm text-surface-400 italic">Unidade não definida</span>
+													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+														<form
+															method="POST"
+															action="?/removerUnidade"
+															use:enhance={handleRemoverUnidade}
+															class="w-full sm:w-auto sm:min-w-0"
+														>
+															<input type="hidden" name="secId" value={sec.id} />
+															<input type="hidden" name="linkId" value={slot.id} />
+															<button
+																type="submit"
+																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+																disabled={pendingCrud}
+															>
+																<svg
+																	class="w-3.5 h-3.5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/></svg
+																>
+																Remover DP
+															</button>
+														</form>
+													{/if}
+												</div>
 											{/if}
-										</div>
+										{:else}
+											<span class="text-sm text-surface-400 italic">Unidade não definida</span>
+										{/if}
 
-										<!-- Admin Geral: remover slot -->
-										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+										<!-- Admin Geral: remover slot (quando já há unidade definida) -->
+										{#if slot.nome && isAdminGeral && podeEditar && modoEdicaoGeral}
 											<form
 												method="POST"
 												action="?/removerUnidade"
 												use:enhance={handleRemoverUnidade}
-												class="shrink-0"
+												class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
 											>
 												<input type="hidden" name="secId" value={sec.id} />
 												<input type="hidden" name="linkId" value={slot.id} />
 												<button
 													type="submit"
-													class="btn btn-sm preset-outlined-error-500 text-sm px-2 py-1 rounded-lg flex items-center gap-1 whitespace-nowrap"
+													class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 													disabled={pendingCrud}
 												>
 													<svg
@@ -1657,49 +1624,83 @@
 															d="M6 18L18 6M6 6l12 12"
 														/></svg
 													>
-													Remover slot
+													Remover DP
 												</button>
 											</form>
 										{/if}
+
 									</div>
 
 									<!-- Equipes do slot -->
-									<div class="p-4 space-y-3">
+									<div class="p-3 space-y-2.5">
 										{#each slot.equipes ?? [] as equipe}
 											<div
 												class="rounded-xl border border-surface-300 dark:border-surface-600 p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
 											>
-												<div class="flex flex-wrap items-start gap-y-1 justify-between mb-3">
-													<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+												<div
+													class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4"
+												>
+													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+														<form
+															id="remover-equipe-form-{equipe.id}"
+															method="POST"
+															action="?/removerEquipe"
+															use:enhance={handleRemoverEquipe}
+															class="hidden"
+															aria-hidden="true"
+														>
+															<input type="hidden" name="equipeId" value={equipe.id} />
+														</form>
+													{/if}
+
+													<div
+														class="flex min-w-0 items-center justify-between gap-2 lg:contents"
+													>
 														<span
-															class="text-sm font-semibold text-surface-900 dark:text-surface-100 capitalize"
+															class="min-w-0 shrink text-sm font-semibold capitalize text-surface-900 dark:text-surface-100 lg:shrink-0"
 														>
 															Equipe {equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}
 														</span>
-														{#if editandoEquipe === equipe.id}
-															<div class="flex items-center gap-1.5">
-																<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-500"
-																	>DPC:</label
-																>
-																<input
-																	id="edit-dpc-{equipe.id}"
-																	type="number"
-																	min="0"
-																	max="20"
-																	bind:value={editSlotsDpc}
-																	class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
-																/>
-																<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500"
-																	>OIP:</label
-																>
-																<input
-																	id="edit-oip-{equipe.id}"
-																	type="number"
-																	min="0"
-																	max="20"
-																	bind:value={editSlotsOip}
-																	class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
-																/>
+														{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+															<button
+																type="submit"
+																form="remover-equipe-form-{equipe.id}"
+																class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs lg:hidden"
+																disabled={pendingCrud}
+															>
+																{pendingCrud ? 'Removendo...' : 'Remover equipe'}
+															</button>
+														{/if}
+													</div>
+
+													<div
+														class="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-3 lg:gap-y-2"
+													>
+													{#if editandoEquipe === equipe.id}
+														<div class="flex flex-wrap items-center gap-1.5">
+															<label for="edit-dpc-{equipe.id}" class="text-sm text-surface-500"
+																>DPC:</label
+															>
+															<input
+																id="edit-dpc-{equipe.id}"
+																type="number"
+																min="0"
+																max="20"
+																bind:value={editSlotsDpc}
+																class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+															/>
+															<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500"
+																>OIP:</label
+															>
+															<input
+																id="edit-oip-{equipe.id}"
+																type="number"
+																min="0"
+																max="20"
+																bind:value={editSlotsOip}
+																class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+															/>
+															<div class="flex items-center gap-2 shrink-0">
 																<form
 																	method="POST"
 																	action="?/salvarSlotsEquipe"
@@ -1711,172 +1712,168 @@
 																	<input type="hidden" name="slots_oip" value={editSlotsOip} />
 																	<button
 																		type="submit"
-																		class="btn preset-filled-primary-500 text-sm px-2 py-1 rounded-lg"
+																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
 																		disabled={pendingCrud}
-																		>{pendingCrud ? 'Salvando...' : 'Salvar'}</button
+																		aria-label="Salvar vagas"
+																		title="Confirmar"
+																		>{pendingCrud ? '…' : '✓'}</button
 																	>
 																</form>
 																<button
 																	type="button"
-																	class="btn preset-outlined-surface text-sm px-2 py-1 rounded-lg"
-																	onclick={() => (editandoEquipe = null)}>×</button
+																	class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+																	onclick={() => (editandoEquipe = null)}
+																	aria-label="Cancelar edição de vagas"
+																	title="Cancelar">×</button
 																>
 															</div>
-														{:else}
+														</div>
+													{:else}
+														<div class="flex flex-wrap items-center gap-2 min-w-0">
 															<span class="text-sm text-surface-500"
 																>{equipe.slots_dpc} DPC + {equipe.slots_oip} OIP</span
 															>
-															{#if editandoHorariosEquipeId === equipe.id}
-																<div class="flex flex-wrap items-center gap-2">
-																	<input
-																		type="text"
-																		placeholder="08:00"
-																		class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEnt &&
-																		!validarHora(editEqHoraEnt)
-																			? 'border-error-500'
-																			: 'border-surface-300 dark:border-surface-600'}"
-																		bind:value={editEqHoraEnt}
-																	/>
-																	<span class="opacity-30">-</span>
-																	<input
-																		type="text"
-																		placeholder="16:00"
-																		class="w-20 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSai &&
-																		!validarHora(editEqHoraSai)
-																			? 'border-error-500'
-																			: 'border-surface-300 dark:border-surface-600'}"
-																		bind:value={editEqHoraSai}
-																	/>
-																	<form
-																		method="POST"
-																		action="?/salvarHorariosEquipe"
-																		use:enhance={handleSalvarHorariosEquipe}
-																		class="contents"
-																	>
-																		<input type="hidden" name="eqId" value={equipe.id} />
-																		<input
-																			type="hidden"
-																			name="hora_entrada"
-																			value={normalizarHora(editEqHoraEnt) ?? ''}
-																		/>
-																		<input
-																			type="hidden"
-																			name="hora_saida"
-																			value={normalizarHora(editEqHoraSai) ?? ''}
-																		/>
-																		<button
-																			type="submit"
-																			class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
-																			>✓</button
-																		>
-																	</form>
-																	<button
-																		type="button"
-																		class="btn btn-sm preset-outlined-surface text-sm py-1 px-2 rounded"
-																		onclick={() => (editandoHorariosEquipeId = null)}>×</button
-																	>
-																</div>
-															{:else}
-																<div
-																	class="flex items-center gap-1.5 text-sm text-surface-400 font-medium ml-2"
-																>
-																	<span
-																		>{equipe.hora_entrada ??
-																			sec.hora_entrada ??
-																			gise.hora_entrada}h-{equipe.hora_saida ??
-																			sec.hora_saida ??
-																			gise.hora_saida}h</span
-																	>
-																	{#if equipe.hora_entrada || equipe.hora_saida}
-																		<span
-																			class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase"
-																			>H. Personalizado</span
-																		>
-																	{/if}
-																</div>
-																{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-																	<button
-																		type="button"
-																		class="btn btn-sm border border-violet-500 hover:bg-violet-500/10 dark:border-violet-400 dark:hover:bg-violet-400/10 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap transition-all"
-																		onclick={() => {
-																			editandoHorariosEquipeId = equipe.id;
-																			editEqHoraEnt =
-																				equipe.hora_entrada ??
-																				sec.hora_entrada ??
-																				gise.hora_entrada ??
-																				'';
-																			editEqHoraSai =
-																				equipe.hora_saida ??
-																				sec.hora_saida ??
-																				gise.hora_saida ??
-																				'';
-																		}}
-																	>
-																		<svg
-																			class="w-3.5 h-3.5"
-																			fill="none"
-																			stroke="currentColor"
-																			viewBox="0 0 24 24"
-																			><path
-																				stroke-linecap="round"
-																				stroke-linejoin="round"
-																				stroke-width="2"
-																				d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-																			/></svg
-																		>
-																		Editar horários equipe
-																	</button>
-																{/if}
-															{/if}
 															{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 																<button
 																	type="button"
-																	class="btn btn-sm preset-outlined-warning-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
+																	class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
 																	onclick={() => {
 																		editandoEquipe = equipe.id;
 																		editSlotsDpc = equipe.slots_dpc;
 																		editSlotsOip = equipe.slots_oip;
 																	}}
+																	title="Editar vagas da equipe"
 																>
-																	<svg
-																		class="w-3.5 h-3.5"
-																		fill="none"
-																		stroke="currentColor"
-																		viewBox="0 0 24 24"
+																	<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 																		><path
 																			stroke-linecap="round"
 																			stroke-linejoin="round"
 																			stroke-width="2"
-																			d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 																		/></svg
 																	>
-																	Editar vagas equipe
 																</button>
 															{/if}
-														{/if}
-													</div>
-													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-														<form
-															method="POST"
-															action="?/removerEquipe"
-															use:enhance={handleRemoverEquipe}
-															class="w-full sm:w-auto"
-														>
-															<input type="hidden" name="equipeId" value={equipe.id} />
-															<button
-																type="submit"
-																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-																disabled={pendingCrud}
-															>
-																{pendingCrud ? 'Removendo...' : 'Remover equipe'}
-															</button>
-														</form>
+														</div>
 													{/if}
+
+													{#if editandoHorariosEquipeId === equipe.id}
+														<div class="flex flex-wrap items-center gap-2">
+															<input
+																type="text"
+																placeholder="08:00"
+																class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraEnt &&
+																!validarHora(editEqHoraEnt)
+																	? 'border-error-500'
+																	: 'border-surface-300 dark:border-surface-600'}"
+																bind:value={editEqHoraEnt}
+															/>
+															<span class="opacity-30">-</span>
+															<input
+																type="text"
+																placeholder="16:00"
+																class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editEqHoraSai &&
+																!validarHora(editEqHoraSai)
+																	? 'border-error-500'
+																	: 'border-surface-300 dark:border-surface-600'}"
+																bind:value={editEqHoraSai}
+															/>
+															<div class="flex items-center gap-2 shrink-0">
+																<form
+																	method="POST"
+																	action="?/salvarHorariosEquipe"
+																	use:enhance={handleSalvarHorariosEquipe}
+																	class="contents"
+																>
+																	<input type="hidden" name="eqId" value={equipe.id} />
+																	<input
+																		type="hidden"
+																		name="hora_entrada"
+																		value={normalizarHora(editEqHoraEnt) ?? ''}
+																	/>
+																	<input
+																		type="hidden"
+																		name="hora_saida"
+																		value={normalizarHora(editEqHoraSai) ?? ''}
+																	/>
+																	<button
+																		type="submit"
+																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
+																		>✓</button
+																	>
+																</form>
+																<button
+																	type="button"
+																	class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+																	onclick={() => (editandoHorariosEquipeId = null)}>×</button
+																>
+															</div>
+														</div>
+													{:else}
+														<div class="flex flex-wrap items-center gap-2 min-w-0">
+															<div class="flex flex-wrap items-center gap-1.5 text-sm text-surface-400 font-medium min-w-0">
+																<span
+																	>{equipe.hora_entrada ??
+																		sec.hora_entrada ??
+																		gise.hora_entrada}h-{equipe.hora_saida ??
+																		sec.hora_saida ??
+																		gise.hora_saida}h</span
+																>
+																{#if equipe.hora_entrada || equipe.hora_saida}
+																	<span
+																		class="px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase"
+																		>H. Personalizado</span
+																	>
+																{/if}
+															</div>
+															{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+																<button
+																	type="button"
+																	class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0"
+																	onclick={() => {
+																		editandoHorariosEquipeId = equipe.id;
+																		editEqHoraEnt =
+																			equipe.hora_entrada ??
+																			sec.hora_entrada ??
+																			gise.hora_entrada ??
+																			'';
+																		editEqHoraSai =
+																			equipe.hora_saida ??
+																			sec.hora_saida ??
+																			gise.hora_saida ??
+																			'';
+																	}}
+																	title="Editar horários da equipe"
+																>
+																	<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+																		><path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																		/></svg
+																	>
+																</button>
+															{/if}
+														</div>
+													{/if}
+
+													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+														<button
+															type="submit"
+															form="remover-equipe-form-{equipe.id}"
+															class="btn btn-sm preset-outlined-error-500 hidden w-full items-center justify-center gap-1 whitespace-nowrap lg:inline-flex lg:w-auto"
+															disabled={pendingCrud}
+														>
+															{pendingCrud ? 'Removendo...' : 'Remover equipe'}
+														</button>
+													{/if}
+													</div>
 												</div>
 
 												<!-- Membros -->
 												{#if equipe.membros?.length}
-													<div class="space-y-1 mb-3">
+													<div class="space-y-1 mb-2">
 														{#each equipe.membros as m}
 															<div
 																class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800"
@@ -1905,14 +1902,18 @@
 																		method="POST"
 																		action="?/removerMembro"
 																		use:enhance={handleRemoverMembro}
+																		class="ml-2"
 																	>
 																		<input type="hidden" name="memId" value={m.id} />
 																		<button
 																			type="submit"
-																			class="text-error-500 hover:text-error-400 transition-colors p-1.5 -mr-1.5 touch-manipulation"
+																			class="inline-flex items-center justify-center w-5 h-9 rounded-md border border-error-500/35 bg-error-500/10 text-error-600 hover:bg-error-500/20 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300 transition-colors touch-manipulation -mr-1"
 																			disabled={removendoMembroId === m.id}
-																			>{pendingCrud ? '...' : '×'}</button
+																			aria-label="Remover policial da equipe"
+																			title="Remover policial"
 																		>
+																			{pendingCrud ? '...' : '×'}
+																		</button>
 																	</form>
 																{/if}
 															</div>
@@ -1937,8 +1938,8 @@
 																name="policial_id"
 																value={policialParaAdicionar}
 															/>
-															<div class="flex flex-wrap gap-2 items-end">
-																<div class="flex-1 min-w-32">
+															<div class="flex flex-col sm:flex-row gap-2 sm:items-end">
+																<div class="w-full flex-1 min-w-32">
 																	{#key cargoParaAdicionar}
 																		<SearchableSelect
 																			bind:value={policialParaAdicionar}
@@ -1948,20 +1949,22 @@
 																		/>
 																	{/key}
 																</div>
-																<button
-																	type="submit"
-																	class="btn preset-filled-primary-500 text-sm px-2 py-1.5 rounded-lg"
-																	disabled={!policialParaAdicionar || pendingCrud}>Adicionar</button
-																>
-																<button
-																	type="button"
-																	class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
-																	onclick={() => {
-																		equipeParaAdicionar = null;
-																		policialParaAdicionar = '';
-																		cargoParaAdicionar = null;
-																	}}>×</button
-																>
+																<div class="w-full sm:w-auto flex gap-2">
+																	<button
+																		type="submit"
+																		class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
+																		disabled={!policialParaAdicionar || pendingCrud}>Adicionar</button
+																	>
+																	<button
+																		type="button"
+																		class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
+																		onclick={() => {
+																			equipeParaAdicionar = null;
+																			policialParaAdicionar = '';
+																			cargoParaAdicionar = null;
+																		}}>Fechar</button
+																	>
+																</div>
 															</div>
 														</form>
 													{:else if !isAdminGeral}
@@ -2203,7 +2206,7 @@
 												d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 											/></svg
 										>
-										+ Adicionar unidade
+										+ Adicionar outra DP	
 									</button>
 								{/if}
 							{/if}

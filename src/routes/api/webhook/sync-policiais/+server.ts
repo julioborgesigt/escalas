@@ -2,6 +2,8 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { upsertPolicial } from '$lib/db/policiais';
 import { timingSafeEqual } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { unidades } from '$lib/server/schema';
 
 function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
 	const expected = `Bearer ${expectedToken}`;
@@ -61,6 +63,29 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				if (papelLower.includes('seccional')) papelMap = 'admin_seccional';
 				else if (papelLower.includes('unidade')) papelMap = 'admin_unidade';
 
+				// Regra de negócio do sync da planilha:
+				// unidade de exercício do papel deve ser a mesma lotação do servidor.
+				const lotacaoMap = String(item.lotacao || '').trim();
+				const papelUnidadeNome = String(item.papel_unidade || lotacaoMap).trim();
+				let papelUnidadeId: number | null = null;
+				if (papelMap) {
+					if (!papelUnidadeNome) {
+						throw new Error('Papel administrativo informado sem lotação/unidade de exercício.');
+					}
+					const unidade = await db
+						.select({ id: unidades.id })
+						.from(unidades)
+						.where(eq(unidades.nome, papelUnidadeNome))
+						.get();
+					if (!unidade) {
+						throw new Error(
+							`Unidade de exercício do papel não encontrada: "${papelUnidadeNome}". ` +
+							'Garanta que a lotação exista em DB_UNIDADES e esteja sincronizada.'
+						);
+					}
+					papelUnidadeId = unidade.id;
+				}
+
 				await upsertPolicial(db, {
 					matricula: String(item.matricula).trim(),
 					nome: String(item.nome).trim(),
@@ -68,11 +93,12 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 					telefone: telefoneMap,
 					cpf: String(item.cpf || '').trim(),
 					classe: String(item.classe || '').trim(),
-					lotacao: String(item.lotacao || '').trim(),
+					lotacao: lotacaoMap,
 					ativo: statusMap,
 					email: String(item.email || '').toLowerCase().trim(),
 					regime: regimeMap,
-					papel: papelMap
+					papel: papelMap,
+					papel_unidade_id: papelUnidadeId
 				});
 				successCount++;
 			} catch (err: unknown) {

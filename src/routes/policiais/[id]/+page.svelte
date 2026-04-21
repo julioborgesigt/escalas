@@ -72,7 +72,7 @@
 
 	const classesDisponiveis = $derived(
 		cargo === 'DPC'
-			? ['1', '2', '3', 'Especial']
+			? ['1ª', '2ª', '3ª', 'ESPECIAL']
 			: ['A', 'B', 'C', 'D']
 	);
 </script>
