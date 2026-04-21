@@ -483,7 +483,7 @@
 									class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20"
 								>
 									<Clock size={12} />
-									Ass. Pendente
+									Ass. Escala Pend.
 								</span>
 							</div>
 						</div>
@@ -672,7 +672,7 @@
 													{assRelSup.assinante_nome}
 												</p>
 											{:else}
-												<p>Relatório de extra do quadro de supervisão(disponível após rúbricas)</p>
+												<p>Relatório de extra do quadro de supervisão (disponível após rúbricas)</p>
 												<p class="text-surface-600 dark:text-surface-400 text-[0.7rem] leading-snug mt-0.5">
 													{#if !rubSupOk}
 														{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}

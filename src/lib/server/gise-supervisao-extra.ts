@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { unidades, giseSeccionais } from '$lib/server/schema';
 import type { Database } from '$lib/db/core';
 import {
@@ -15,7 +15,7 @@ let unidadeSupervisaoExtraIdCache: number | null | undefined;
 let idsSupervisaoExtraCache: Set<number> | undefined;
 
 async function buscarIdDepartamentoSupervisaoExtra(db: Database): Promise<number | null> {
-	const row = await db
+	const preferencial = await db
 		.select({ id: unidades.id })
 		.from(unidades)
 		.where(
@@ -25,7 +25,17 @@ async function buscarIdDepartamentoSupervisaoExtra(db: Database): Promise<number
 			)
 		)
 		.get();
-	return row?.id ?? null;
+	if (preferencial?.id != null) return preferencial.id;
+
+	// Em bases antigas ou sincronizadas com nomes divergentes, se houver um único
+	// departamento cadastrado ele é, por definição, o pai do relatório extra.
+	const departamentos = await db
+		.select({ id: unidades.id })
+		.from(unidades)
+		.where(eq(unidades.tipo, 'departamento'))
+		.orderBy(asc(unidades.nome))
+		.all();
+	return departamentos.length === 1 ? departamentos[0].id : null;
 }
 
 async function buscarIdUnidadeLegadaSupervisaoExtra(db: Database): Promise<number | null> {
@@ -39,8 +49,8 @@ async function buscarIdUnidadeLegadaSupervisaoExtra(db: Database): Promise<numbe
 
 /**
  * ID usado em fluxos novos (assinatura, download, UI): preferencialmente o departamento pai.
- * Se o departamento ainda não existir no banco, usa a unidade sintética legada, se houver.
- * Não cria linhas automaticamente — o departamento deve vir da sincronização/cadastro de unidades.
+ * Se não achar pelo nome configurado, aceita o único departamento existente na base.
+ * Se ainda assim não existir departamento, usa a unidade sintética legada, se houver.
  */
 export async function buscarUnidadeIdSupervisaoExtra(db: Database): Promise<number | null> {
 	if (unidadeSupervisaoExtraIdCache !== undefined) {
