@@ -183,6 +183,7 @@ export const giseEscalas = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		data_inicio: text('data_inicio').notNull(),
+		feriado: integer('feriado').notNull().default(0),
 		hora_entrada: text('hora_entrada').notNull().default('08:00'),
 		hora_saida: text('hora_saida').notNull().default('16:00'),
 		status: text('status', {
