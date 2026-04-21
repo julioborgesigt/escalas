@@ -9,7 +9,8 @@
 		estadoMarcadorRodagemSupervisao,
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas,
-		faltantesSupervisaoExtra
+		faltantesSupervisaoExtra,
+		FALTANTE_RUBRICA_SUPER_PREFIX
 	} from '$lib/gise/gise-supervisao-extra';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
 
@@ -560,7 +561,7 @@
 									<div class="min-w-0">
 										<p>Assinatura da escala GISE</p>
 										<p class="text-surface-600 dark:text-surface-400 text-[0.7rem] leading-snug mt-0.5">
-											Use assinatura individual na tela ou certificado digital (token) no computador.
+											O supervisor fará a assinatura na tela ou com certificado digital (token) no computador.
 										</p>
 									</div>
 								</div>
@@ -675,7 +676,14 @@
 												<p>Relatório de extra do quadro de supervisão (disponível após rúbricas)</p>
 												<p class="text-surface-600 dark:text-surface-400 text-[0.7rem] leading-snug mt-0.5">
 													{#if !rubSupOk}
-														{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}
+														{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+															<span class="font-medium text-error-600 dark:text-error-400"
+																>Faltando rubrica de:</span
+															>
+															{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+														{:else}
+															{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}
+														{/if}
 													{:else}
 														Conferência disponível; aguardando assinatura do supervisor.
 													{/if}
@@ -709,9 +717,9 @@
 											</a>
 										{:else}
 											<a
-												class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline {!downloadExtraSupHabilitado
-													? 'pointer-events-none opacity-60 border-transparent'
-													: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'}"
+												class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline preset-tonal-primary border-primary-500/30 {!downloadExtraSupHabilitado
+													? 'pointer-events-none cursor-not-allowed opacity-60'
+													: 'hover:border-primary-500'}"
 												href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 												target="_blank"
 												title={!rubSupOk

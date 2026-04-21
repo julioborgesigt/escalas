@@ -206,7 +206,7 @@
 				unidadeParaExcluir = null;
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao remover unidade'), type: 'error' });
+				toaster.create({ title: String(d?.error || 'Erro ao remover DP'), type: 'error' });
 			}
 		};
 	}

@@ -176,8 +176,7 @@
 			</svg>
 		</button>
 		<a href="/" class="ml-3 flex items-center gap-2 no-underline">
-			<span class="text-primary-600 dark:text-primary-500 text-lg">⚡</span>
-			<span class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">Escalas</span>
+			<span class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
 		</a>
 	</div>
 
@@ -204,8 +203,7 @@
 		<!-- Logo -->
 		<div class="h-16 flex items-center px-5 border-b border-surface-200 dark:border-white/5 shrink-0">
 			<a href="/" class="flex items-center gap-2 no-underline group" onclick={() => sidebarOpen = false}>
-				<span class="text-primary-600 dark:text-primary-500 text-xl group-hover:text-primary-500 dark:group-hover:text-primary-400 transition-colors">⚡</span>
-				<span class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">Escalas</span>
+				<span class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
 			</a>
 			<!-- Mobile close button -->
 			<button type="button"
@@ -393,7 +391,7 @@
 
 	<!-- Main content with sidebar offset -->
 	<main class="md:ml-60 min-h-screen">
-		<div class="max-w-6xl mx-auto px-4 pt-20 md:pt-8 pb-12">
+		<div class="max-w-6xl mx-auto min-w-0 px-4 pt-20 md:pt-8 pb-12">
 			{@render children()}
 		</div>
 	</main>

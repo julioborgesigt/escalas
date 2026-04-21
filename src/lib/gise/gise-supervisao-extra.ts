@@ -63,6 +63,9 @@ export function supervisaoExtraRubricasCompletas(
 	return true;
 }
 
+/** Prefixo da mensagem quando faltam rubricas (UI pode colorir só este trecho). */
+export const FALTANTE_RUBRICA_SUPER_PREFIX = 'Faltando rubrica de: ';
+
 export function faltantesSupervisaoExtra(
 	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>,
 	presencas: PresencaMin[],
@@ -79,7 +82,7 @@ export function faltantesSupervisaoExtra(
 		}
 	}
 	if (falt.length === 0) return '';
-	return 'Faltando rubrica de: ' + falt.join(', ');
+	return FALTANTE_RUBRICA_SUPER_PREFIX + falt.join(', ');
 }
 
 export type PapelMarcadorSupervisao = 'supervisor' | 'assessor' | 'seint';

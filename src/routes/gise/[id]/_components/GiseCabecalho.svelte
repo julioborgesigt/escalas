@@ -45,7 +45,7 @@
 		diaSemana,
 		fmtDate,
 		isAdminGeral,
-		isSeccional,
+		isSeccional: _isSeccional,
 		podeDownload,
 		podeEditar,
 		podeReabrir,
@@ -65,15 +65,22 @@
 	}: Props = $props();
 </script>
 
-<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-	<div class="min-w-0">
+<!--
+  Evita sm:flex-row no raiz: com sidebar, ~700–900px ainda espreme título + ações.
+  Abaixo de lg: coluna única — Voltar + título em largura total; ações em faixa com wrap.
+  A partir de lg: título à esquerda, ações à direita (alinhadas ao topo).
+-->
+<div
+	class="flex flex-col gap-4 border-b border-surface-200/70 pb-5 dark:border-surface-700/60 lg:flex-row lg:items-start lg:justify-between lg:gap-6 xl:gap-8"
+>
+	<div class="min-w-0 flex-1 space-y-3">
 		<button
 			type="button"
-			class="btn btn-sm mb-4 preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex items-center gap-2 group"
+			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
 			onclick={() => goto('/gise')}
 		>
 			<svg
-				class="w-4 h-4 transition-transform group-hover:-translate-x-1"
+				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -87,15 +94,24 @@
 			</svg>
 			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
 		</button>
-		<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-			Escala GISE #{gise.id} — {diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
+
+		<h1
+			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl lg:text-3xl"
+		>
+			<span class="block">Escala GISE #{gise.id}</span>
+			<span
+				class="mt-1 block font-semibold text-surface-700 dark:text-surface-200 text-base sm:text-lg lg:text-xl"
+			>
+				{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
+			</span>
 		</h1>
-		<div class="flex items-center gap-2 mt-1">
-			<span class="text-sm px-2 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
+
+		<div class="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+			<span class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 				{statusLabel(gise.status)}
 			</span>
-			<span class="text-sm text-surface-500 flex items-center gap-2">
-				{gise.hora_entrada}h–{gise.hora_saida}h
+			<span class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
+				<span class="whitespace-nowrap">{gise.hora_entrada}h–{gise.hora_saida}h</span>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 					<button
 						type="button"
@@ -117,10 +133,10 @@
 		</div>
 	</div>
 
-	<div class="flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
-		{#if (isAdminGeral || isSeccional) && podeDownload}
+	<div class="flex min-w-0 flex-wrap gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
+		{#if isAdminGeral && podeDownload}
 			<a
-				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 no-underline"
+				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 no-underline sm:flex-none sm:min-w-0"
 				href={`/api/gise/${gise.id}/download?format=xlsx`}
 				target="_blank"
 			>
@@ -131,7 +147,7 @@
 			<button
 				class="btn btn-sm preset-{modoEdicaoGeral
 					? 'filled'
-					: 'outlined'}-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 {modoEdicaoGeral
+					: 'outlined'}-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 sm:flex-none sm:min-w-0 {modoEdicaoGeral
 					? 'border-2 border-primary-600 shadow-xl'
 					: 'border-2 border-primary-500/30 hover:border-primary-500'}"
 				onclick={onToggleEdit}
@@ -148,7 +164,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-success-600/30 hover:border-success-600"
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-success-600/30 hover:border-success-600 sm:flex-none sm:min-w-0"
 						disabled={loading.active || modoEdicaoGeral || pendingCrud}
 						type="submit"
 					>
@@ -164,7 +180,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500"
+						class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 sm:flex-none sm:min-w-0"
 						disabled={loading.active || pendingCrud}
 						type="submit"
 					>
@@ -173,7 +189,7 @@
 				</form>
 			{/if}
 			<button
-				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-error-500/30 hover:border-error-500"
+				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-error-500/30 hover:border-error-500 sm:flex-none sm:min-w-0"
 				onclick={onAbrirExcluir}
 				disabled={editaBloqueado || loading.active || pendingCrud}
 				type="button"
@@ -183,7 +199,7 @@
 		{/if}
 		{#if podeReabrir}
 			<button
-				class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500"
+				class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 sm:flex-none sm:min-w-0"
 				onclick={onAbrirReabrir}
 				disabled={loading.active || pendingCrud}
 				type="button"
@@ -193,7 +209,7 @@
 		{/if}
 		{#if podeFinalizar}
 			<button
-				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15"
+				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 sm:flex-none sm:min-w-0"
 				onclick={onAbrirFinalizar}
 				disabled={loading.active || pendingCrud}
 				type="button"

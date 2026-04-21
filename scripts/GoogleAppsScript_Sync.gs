@@ -124,7 +124,9 @@ function syncServerRow(row) {
     status: data[7],
     email: data[8],
     regime: data[9],
-    papel: data[10]
+    papel: data[10],
+    // Regra de negócio: unidade de exercício do papel = lotação do servidor.
+    papel_unidade: data[6]
   };
 
   const response = sendToAPI('/sync-policiais', payload);
@@ -261,7 +263,9 @@ function fullSyncServers() {
     status: item[7],
     email: item[8],
     regime: item[9],
-    papel: item[10]
+    papel: item[10],
+    // Regra de negócio: unidade de exercício do papel = lotação do servidor.
+    papel_unidade: item[6]
   }));
 
   const chunkSize = 25; // Reduzido de 50 para 25 para evitar timeout no backend

@@ -10,16 +10,20 @@
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data, form } = $props();
 
-	function handleCadastro({ formData }: { formData: FormData }) {
+	function handleSalvarPolicial({ formData }: { formData: FormData }) {
 		pendingCadastro = true;
 		return async ({ result }: any) => {
 			pendingCadastro = false;
 			if (result.type === 'success') {
 				await invalidateAll();
-				toaster.create({ title: 'Policial cadastrado com sucesso!', type: 'success' });
+				toaster.create({
+					title: editingPolicialId ? 'Policial atualizado com sucesso!' : 'Policial cadastrado com sucesso!',
+					type: 'success'
+				});
 				resetForm();
 				cadastroOpen = false;
 			} else {
@@ -104,6 +108,7 @@
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
 	let papelUnidadeId = $state<number | null>(null);
+	let editingPolicialId = $state<number | null>(null);
 	let excluindo = $state(false);
 	let pendingCadastro = $state(false);
 
@@ -112,17 +117,28 @@
 
 	$effect(() => {
 		if (cadastroOpen) {
-			lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
+			// Só aplica lotação padrão ao abrir em modo cadastro.
+			// Em edição, preserva a lotação já carregada do policial.
+			if (!editingPolicialId) {
+				lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
+			}
 		}
 	});
 
 	const classesDisponiveis = $derived(
 		cargo === 'DPC'
-			? ['1', '2', '3', 'Especial']
+			? ['1ª', '2ª', '3ª', 'ESPECIAL']
 			: ['A', 'B', 'C', 'D']
 	);
+	const lotacaoSelectedOption = $derived(
+		lotacaoInput ? { value: lotacaoInput, label: lotacaoInput } : null
+	);
+	const modalTitle = $derived(editingPolicialId ? 'Editar Policial' : 'Cadastrar Novo Policial');
+	const submitLabel = $derived(editingPolicialId ? 'Salvar Alterações' : 'Cadastrar Policial');
+	const submitLoadingLabel = $derived(editingPolicialId ? 'Salvando...' : 'Cadastrando...');
 
 	function resetForm() {
+		editingPolicialId = null;
 		nome = '';
 		matricula = '';
 		cargo = 'OIP';
@@ -134,6 +150,47 @@
 		email = '';
 		papel = null;
 		papelUnidadeId = null;
+	}
+
+	function openCreateModal() {
+		resetForm();
+		cadastroOpen = true;
+	}
+
+	function openEditModal(policial: Policial) {
+		editingPolicialId = policial.id;
+		nome = policial.nome ?? '';
+		matricula = policial.matricula ?? '';
+		cargo = (policial.cargo as 'DPC' | 'OIP') ?? 'OIP';
+		cpf = formatarCPF(policial.cpf ?? '');
+		telefone = policial.telefone ?? '';
+		classe = policial.classe ?? '';
+		regime = (policial.regime as 'plantao' | 'expediente') ?? 'plantao';
+		lotacaoInput = policial.lotacao ?? '';
+		email = policial.email ?? '';
+		papel = (policial.papel as string | null) ?? null;
+		papelUnidadeId = policial.papel_unidade_id ?? null;
+		cadastroOpen = true;
+	}
+
+	async function loadLotacoes(query: string, signal: AbortSignal) {
+		const params = new URLSearchParams({
+			tipo: 'delegacia',
+			limit: '30'
+		});
+		if (query.trim()) params.set('q', query.trim());
+
+		const res = await fetch(`/api/unidades/search?${params.toString()}`, { signal });
+		if (!res.ok) {
+			const body = await res.json().catch(() => ({}));
+			throw new Error(body?.error || 'Erro ao buscar lotações');
+		}
+		const dataRes = await res.json();
+		const baseOptions = (dataRes.items || []).map((u: { nome: string }) => ({
+			value: u.nome,
+			label: u.nome
+		}));
+		return [{ value: '', label: '— Sem lotação —' }, ...baseOptions];
 	}
 
 	// Removido filtragem local: agora é feita no servidor para respeitar a paginação
@@ -231,10 +288,7 @@
 		{/if}
 		<button type="button"
 			class="btn btn-sm preset-filled-primary-500"
-			onclick={() => {
-				resetForm();
-				cadastroOpen = true;
-			}}>Novo Policial</button
+			onclick={openCreateModal}>Novo Policial</button
 		>
 	</div>
 </div>
@@ -250,12 +304,13 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card p-5 max-w-2xl w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="cadastro-policial-modal card p-5 max-w-2xl w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
-			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Novo Policial</Dialog.Title>
+			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
 
-			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="space-y-3">
+			<form method="POST" action={editingPolicialId ? '?/atualizar' : '?/criar'} use:enhance={handleSalvarPolicial} class="space-y-3">
 				<!-- Campos hidden -->
+				<input type="hidden" name="policial_id" value={editingPolicialId ?? ''} />
 				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
 				<input type="hidden" name="telefone" value={telefone} />
 				<input type="hidden" name="lotacao" value={lotacaoInput} />
@@ -363,12 +418,15 @@
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span
 						>
 						{#if isAdmin}
-							<select class="select py-1 px-3 text-sm" bind:value={lotacaoInput}>
-								<option value="">— Sem lotação —</option>
-								{#each unidades as u (u.id)}
-									<option value={u.nome}>{u.nome}</option>
-								{/each}
-							</select>
+							<SearchableSelect
+								bind:value={lotacaoInput}
+								loadOptions={loadLotacoes}
+								selectedOption={lotacaoSelectedOption}
+								class="lotacao-searchable"
+								debounceMs={250}
+								minSearchChars={0}
+								placeholder="Buscar lotação..."
+							/>
 						{:else}
 							<input
 								class="input py-1 px-3 text-sm bg-surface-200 dark:bg-surface-800 cursor-not-allowed opacity-75"
@@ -428,7 +486,7 @@
 					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
 					disabled={pendingCadastro}
 				>
-					{pendingCadastro ? 'Cadastrando...' : 'Cadastrar Policial'}
+					{pendingCadastro ? submitLoadingLabel : submitLabel}
 				</button>
 				</div>
 			</form>
@@ -596,9 +654,13 @@
 							<td>{p.lotacao}</td>
 							<td>
 								<div class="flex gap-2">
-									<a href="/policiais/{p.id}" class="btn btn-sm preset-outlined-primary-500"
-										>Editar</a
+									<button
+										type="button"
+										class="btn btn-sm preset-outlined-primary-500"
+										onclick={() => openEditModal(p)}
 									>
+										Editar
+									</button>
 									<button type="button"
 										class="btn btn-sm preset-filled-error-500"
 										onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
@@ -640,11 +702,13 @@
 						</div>
 					</div>
 					<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
-						<a
-							href="/policiais/{p.id}"
+						<button
+							type="button"
 							class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1"
-							>Editar</a
+							onclick={() => openEditModal(p)}
 						>
+							Editar
+						</button>
 						<button type="button"
 							class="btn btn-sm preset-filled-error-500 transition-all flex-1"
 							onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
@@ -670,3 +734,19 @@
 		/>
 	{/if}
 </div>
+
+<style>
+	:global(.cadastro-policial-modal .input),
+	:global(.cadastro-policial-modal .select),
+	:global(.cadastro-policial-modal .lotacao-searchable input),
+	:global(.cadastro-policial-modal .lotacao-searchable button) {
+		background-color: #f8fafc;
+	}
+
+	:global(.dark .cadastro-policial-modal .input),
+	:global(.dark .cadastro-policial-modal .select),
+	:global(.dark .cadastro-policial-modal .lotacao-searchable input),
+	:global(.dark .cadastro-policial-modal .lotacao-searchable button) {
+		background-color: #1f2937;
+	}
+</style>
