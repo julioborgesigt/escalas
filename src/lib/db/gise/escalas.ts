@@ -184,11 +184,18 @@ export async function criarGiseEscala(
 	dataInicio: string,
 	horaEntrada: string,
 	horaSaida: string,
-	statusInicial: 'em_definicao_supervisor' | 'em_preenchimento' = 'em_definicao_supervisor'
+	statusInicial: 'em_definicao_supervisor' | 'em_preenchimento' = 'em_definicao_supervisor',
+	feriado = false
 ): Promise<number> {
 	const result = await db
 		.insert(giseEscalas)
-		.values({ data_inicio: dataInicio, hora_entrada: horaEntrada, hora_saida: horaSaida, status: statusInicial })
+		.values({
+			data_inicio: dataInicio,
+			feriado: feriado ? 1 : 0,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida,
+			status: statusInicial
+		})
 		.returning({ id: giseEscalas.id });
 	return result[0].id;
 }
@@ -657,16 +664,20 @@ export async function clonarGiseParaData(
 	novaData: string,
 	modo: 'clonada' | 'completa' = 'clonada',
 	horaEntrada?: string,
-	horaSaida?: string
+	horaSaida?: string,
+	feriado?: boolean
 ): Promise<number> {
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
 	if (!gise) throw new Error('GISE não encontrada');
 
+	const feriadoNovo = feriado ?? !!gise.feriado;
 	const novoId = await criarGiseEscala(
 		db,
 		novaData,
 		horaEntrada ?? gise.hora_entrada,
-		horaSaida ?? gise.hora_saida
+		horaSaida ?? gise.hora_saida,
+		'em_definicao_supervisor',
+		feriadoNovo
 	);
 
 	let secsParaClonar: any[] = [];

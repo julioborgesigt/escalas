@@ -50,43 +50,66 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	};
 };
 
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDatasCriacaoGise(raw: string | undefined): { ok: true; dias: { data: string; feriado: boolean }[] } | { ok: false; error: string } {
+	if (!raw?.trim()) return { ok: false, error: 'Selecione pelo menos um dia no calendário' };
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { ok: false, error: 'Lista de datas inválida' };
+	}
+	if (!Array.isArray(parsed) || parsed.length === 0) {
+		return { ok: false, error: 'Selecione pelo menos um dia no calendário' };
+	}
+	const vistos = new Set<string>();
+	const dias: { data: string; feriado: boolean }[] = [];
+	for (const item of parsed) {
+		if (!item || typeof item !== 'object') return { ok: false, error: 'Lista de datas inválida' };
+		const data = (item as { data?: unknown }).data;
+		const feriado = !!(item as { feriado?: unknown }).feriado;
+		if (typeof data !== 'string' || !DATA_ISO.test(data)) return { ok: false, error: 'Data inválida na seleção' };
+		if (vistos.has(data)) continue;
+		vistos.add(data);
+		dias.push({ data, feriado });
+	}
+	dias.sort((a, b) => a.data.localeCompare(b.data));
+	if (dias.length === 0) return { ok: false, error: 'Selecione pelo menos um dia no calendário' };
+	return { ok: true, dias };
+}
+
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas o Administrador Geral pode criar escalas GISE' });
 
 		const data = await request.formData();
-		const data_inicio = data.get('data_inicio')?.toString() || '';
-		const data_fim = data.get('data_fim')?.toString() || data_inicio;
+		const datasJson = data.get('datas_json')?.toString();
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
 		const hora_saida = data.get('hora_saida')?.toString() || '16:00';
 		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada' | 'branco';
 		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
-		if (!data_inicio) return fail(400, { error: 'data_inicio é obrigatório' });
+		const parsed = parseDatasCriacaoGise(datasJson);
+		if (!parsed.ok) return fail(400, { error: parsed.error });
+		if (modo === 'clonada' && !clonar_de) {
+			return fail(400, { error: 'Escolha a escala de origem para copiar' });
+		}
 
 		const db = getDB(platform);
-
-		// Gerar array de datas
-		const datas: string[] = [];
-		const cursor = new Date(data_inicio + 'T00:00:00Z');
-		const dataFimObj = new Date(data_fim + 'T00:00:00Z');
-		while (cursor <= dataFimObj) {
-			datas.push(cursor.toISOString().slice(0, 10));
-			cursor.setUTCDate(cursor.getUTCDate() + 1);
-		}
 
 		try {
 			const ids: number[] = [];
 
 			if (modo === 'clonada' && clonar_de) {
-				for (const d of datas) {
-					const novoId = await clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida);
+				for (const { data: d, feriado } of parsed.dias) {
+					const novoId = await clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida, feriado);
 					ids.push(novoId);
 				}
 			} else if (modo === 'branco') {
-				for (const d of datas) {
-					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor');
+				for (const { data: d, feriado } of parsed.dias) {
+					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
 					ids.push(novaId);
 				}
 			} else {
@@ -94,8 +117,8 @@ export const actions: Actions = {
 				const seccionais = await db.select({ id: unidades.id, nome: unidades.nome })
 					.from(unidades).where(eq(unidades.tipo, 'seccional')).all();
 
-				for (const d of datas) {
-					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor');
+				for (const { data: d, feriado } of parsed.dias) {
+					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
 					ids.push(novaId);
 
 					for (const sec of seccionais) {
