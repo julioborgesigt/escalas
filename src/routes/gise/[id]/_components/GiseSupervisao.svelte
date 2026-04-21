@@ -219,7 +219,7 @@
 					onclick={onEditar}
 				>
 					<PenLine size={16} />
-					{!gise.supervisor_id ? 'Definir Supervisão' : 'Editar Supervisão'}
+					{!gise.supervisor_id ? 'Definir Supervisão' : 'Editar'}
 				</button>
 			{/if}
 		</div>

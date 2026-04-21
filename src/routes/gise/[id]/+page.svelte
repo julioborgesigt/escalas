@@ -1674,7 +1674,10 @@
 													</div>
 
 													<div
-														class="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-3 lg:gap-y-2"
+														class="flex min-w-0 flex-1 gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-3 lg:gap-y-2 {editandoEquipe ===
+														equipe.id || editandoHorariosEquipeId === equipe.id
+															? 'flex-col'
+															: 'flex-row flex-wrap items-center'}"
 													>
 													{#if editandoEquipe === equipe.id}
 														<div class="flex flex-wrap items-center gap-1.5">

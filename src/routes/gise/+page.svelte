@@ -197,12 +197,12 @@
 	<title>Escalas GISE - Portal de Escalas</title>
 </svelte:head>
 
-<div class="space-y-6">
-	<!-- Cabeçalho -->
-	<div class="flex items-center justify-between flex-wrap gap-3">
-		<div>
-			<h1 class="text-2xl font-bold text-surface-900 dark:text-surface-50">Escala GISE</h1>
-			<p class="text-sm text-surface-500 dark:text-surface-400 mt-0.5">
+<div class="min-w-0 space-y-6">
+	<!-- Cabeçalho: coluna no mobile (título + botão largura total); linha a partir de sm -->
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+		<div class="min-w-0">
+			<h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 sm:text-2xl">Escala GISE</h1>
+			<p class="mt-0.5 text-sm text-surface-500 dark:text-surface-400">
 				{#if isAdminGeral}
 					Gerenciamento completo das escalas GISE
 				{:else if isSeccional}
@@ -217,7 +217,7 @@
 
 		{#if isAdminGeral}
 			<button type="button"
-				class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-sm font-medium px-4 py-2 rounded-xl transition-all"
+				class="btn w-full shrink-0 preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 px-4 py-2.5 text-sm font-medium transition-all sm:w-auto sm:py-2 rounded-xl"
 				onclick={abrirCriarModal}
 			>
 				+ Nova Escala GISE
@@ -256,45 +256,52 @@
 		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
 			Escalas Ativas
 		</h2>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			{#each ativasPaginadas as ativa}
 				<div
-					class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-5"
+					class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-4 sm:p-5"
 				>
-					<div class="flex items-start justify-between flex-wrap gap-3">
-						<div>
+					<!-- Mobile: conteúdo empilhado + botão largura total; sm+: linha com botão à direita -->
+					<div
+						class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+					>
+						<div class="min-w-0 flex-1 space-y-1">
 							<div class="flex items-center gap-2">
-								<span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+								<span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary-500"></span>
 								<span class="text-sm font-semibold text-primary-700 dark:text-primary-400"
 									>Escala Ativa #{ativa.id}</span
 								>
 							</div>
-							<p class="text-xl font-bold mt-1 text-surface-900 dark:text-surface-50">
+							<p class="text-lg font-bold text-surface-900 dark:text-surface-50 sm:text-xl">
 								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
 							</p>
-							<div class="flex items-center gap-2 mt-2">
+							<div
+								class="mt-2 flex flex-col items-start gap-1.5 min-[380px]:flex-row min-[380px]:flex-wrap min-[380px]:items-center min-[380px]:gap-x-2 min-[380px]:gap-y-1"
+							>
 								<span
-									class="text-xs px-2 py-0.5 rounded-full font-semibold {statusColor(ativa.status)}"
+									class="max-w-full text-xs font-semibold leading-snug px-2 py-0.5 rounded-full {statusColor(
+										ativa.status
+									)}"
 								>
 									{statusLabel(ativa.status)}
 								</span>
-								<span class="text-xs text-surface-500"
+								<span class="shrink-0 text-xs whitespace-nowrap text-surface-500 dark:text-surface-400"
 									>{ativa.hora_entrada} às {ativa.hora_saida}</span
 								>
 							</div>
 						</div>
 
-						<div class="flex items-center gap-3">
+						<div class="flex w-full shrink-0 sm:w-auto sm:justify-end">
 							{#if isSupervisor && ativa.status === 'aguardando_assinatura'}
 								<button type="button"
-									class="btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 text-sm px-4 py-2 rounded-xl transition-all font-bold"
+									class="btn w-full preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-2.5 text-sm font-bold transition-all sm:w-auto sm:py-2 rounded-xl"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
 									{ativa.temSaidaConfirmada ? 'Assinar Rel. extra' : 'Assinar Escala'}
 								</button>
 							{:else}
 								<button type="button"
-									class="btn preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 text-sm px-4 py-2 rounded-xl transition-all"
+									class="btn w-full preset-filled-primary-500 border-2 border-primary-600/30 hover:border-primary-600 px-4 py-2.5 text-sm transition-all sm:w-auto sm:py-2 rounded-xl"
 									onclick={() => goto(`/gise/${ativa.id}`)}
 								>
 									Acessar
@@ -305,15 +312,17 @@
 				</div>
 			{/each}
 		</div>
-		<div class="flex items-center justify-between gap-2 mt-3">
+		<div class="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
 			<button type="button"
-				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+				class="btn preset-outlined-surface-500 shrink-0 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 				disabled={paginaAtivas === 1}
 				onclick={() => paginaAtivas--}
 			>← Anterior</button>
-			<span class="text-xs text-surface-500">Página {paginaAtivas} de {totalPaginasAtivas}</span>
+			<span class="min-w-0 flex-1 px-1 text-center text-xs text-surface-500"
+				>Página {paginaAtivas} de {totalPaginasAtivas}</span
+			>
 			<button type="button"
-				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
+				class="btn preset-outlined-surface-500 shrink-0 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
 				disabled={paginaAtivas === totalPaginasAtivas}
 				onclick={() => paginaAtivas++}
 			>Próxima →</button>
