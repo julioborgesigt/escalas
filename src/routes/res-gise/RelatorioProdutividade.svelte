@@ -71,7 +71,7 @@
 		{@const resKey = q.tipo === 'mandados_maiores' ? 'mandados_lista' : (q.tipo === 'prisoes_maiores' ? 'prisoes_lista' : (q.tipo === 'apreensoes_menores' ? 'apreensoes_lista' : (q.tipo === 'celulares_complex' ? 'celulares_lista' : (q.tipo === 'analise_complex' ? 'analise_lista' : (q.tipo === 'relatorios_seint_complex' ? 'relatorios_seint_lista' : (q.tipo === 'foragidos_complex' ? 'foragidos_lista' : (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura' ? 'operacoes_seint_lista' : 'operacoes_seint_lista')))))))}
 		{@const resQtdKey = q.tipo === 'mandados_maiores' ? 'mandados_qtd' : (q.tipo === 'prisoes_maiores' ? 'prisoes_qtd' : (q.tipo === 'apreensoes_menores' ? 'apreensoes_qtd' : (q.tipo === 'celulares_complex' ? 'celulares_qtd' : (q.tipo === 'analise_complex' ? 'analise_qtd' : (q.tipo === 'relatorios_seint_complex' ? 'relatorios_seint_qtd' : (q.tipo === 'foragidos_complex' ? 'foragidos_qtd' : (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura' ? 'operacoes_seint_qtd' : 'operacoes_seint_qtd')))))))}
 		
-		<div class="nested-card card p-3 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500" style="--level: {level}">
+		<div class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500" style="--level: {level}">
 			<div class="space-y-1">
 				<label for="q-{q.id}" class="text-sm font-bold text-surface-900 dark:text-surface-50 uppercase tracking-tight leading-tight block">
 					{q.texto}
@@ -144,7 +144,7 @@
 						{/if}
 
 						{#if respostas[q.key] === 'Sim' || (isPura && (respostas[resQtdKey] !== undefined || true))}
-							<div class="p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+							<div class="p-3 sm:p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
 								<div class="flex items-center gap-4">
 									<label class="block">
 										<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_qtd || 'Quantidade:'}</span>
@@ -197,7 +197,7 @@
 												</div>
 											</div>
 										{:else if q.tipo === 'analise_complex'}
-											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
+											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
 												<div class="space-y-1">
 													<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for="tam-{q.id}-{i}">Tam. Arquivo</label>
 													<input id="tam-{q.id}-{i}" type="text" placeholder="Ex: 256GB" class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium" 
@@ -220,7 +220,7 @@
 												</div>
 											</div>
 										{:else if q.tipo === 'relatorios_seint_complex'}
-											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
+											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
 												<div class="space-y-1">
 													<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for="nrel-{q.id}-{i}">Nº Relatório</label>
 													<input id="nrel-{q.id}-{i}" type="text" placeholder="Ex: 001/2026" class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium" 
@@ -243,7 +243,7 @@
 												</div>
 											</div>
 										{:else if q.tipo === 'foragidos_complex'}
-											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
+											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30">
 												<div class="space-y-1">
 													<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for="nom-{q.id}-{i}">Nome do Alvo</label>
 													<input id="nom-{q.id}-{i}" type="text" placeholder="Nome Completo" class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium" 
@@ -316,7 +316,7 @@
 						</div>
 
 						{#if respostas[q.key] === 'Sim'}
-							<div class="p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+							<div class="p-3 sm:p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
 								<div class="space-y-3">
 									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_tipo || 'Tipos de Droga Apreendidos:'}</span>
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -339,11 +339,11 @@
 									<div class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all">
 										<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_detalhe || 'Indique o Peso Aproximado e a Unidade:'}</span>
 										{#each respostas.drogas_selecionadas as d}
-											<div class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300">
-												<span class="text-xs font-black w-24 text-surface-600 dark:text-surface-400 uppercase tracking-tight shrink-0">{d}:</span>
-												
-												<div class="flex items-center gap-3 w-full sm:flex-1">
-													<div class="relative w-full sm:flex-1 sm:max-w-[150px]">
+											<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300">
+												<span class="text-xs font-black w-auto sm:w-24 text-surface-600 dark:text-surface-400 uppercase tracking-tight shrink-0">{d}:</span>
+
+												<div class="flex items-center gap-2 sm:gap-3 w-full sm:flex-1 min-w-0">
+													<div class="relative w-full min-w-0 sm:flex-1 sm:max-w-[150px]">
 														<input 
 															type="number" 
 															step="0.001" 
@@ -387,7 +387,7 @@
 						</div>
 
 						{#if respostas[q.key] === 'Sim'}
-							<div class="p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
+							<div class="p-3 sm:p-4 md:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border border-surface-200 dark:border-surface-800 space-y-6 animate-in fade-in zoom-in-95 duration-500">
 								<div class="space-y-3">
 									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_tipo || 'Tipos de Armas/Munições:'}</span>
 									<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -412,10 +412,10 @@
 									<div class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all">
 										<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block">{q.subtexto_detalhe || 'Indique a Quantidade:'}</span>
 										{#each respostas.armas_selecionadas as a}
-											<div class="flex items-center flex-wrap gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300">
-												<span class="text-xs font-black w-24 text-surface-600 dark:text-surface-400 uppercase tracking-tight shrink-0">{a}:</span>
-												
-												<select class="flex-1 sm:flex-none sm:w-32 px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all"
+											<div class="flex items-center flex-wrap gap-2 sm:gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300">
+												<span class="text-xs font-black w-auto min-w-[4.5rem] text-surface-600 dark:text-surface-400 uppercase tracking-tight shrink-0">{a}:</span>
+
+												<select class="flex-1 min-w-0 sm:flex-none sm:w-32 px-3 sm:px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all"
 													bind:value={respostas.armas_detalhe[a]}
 												>
 													{#each Array(100) as _, i}

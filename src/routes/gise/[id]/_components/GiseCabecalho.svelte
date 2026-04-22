@@ -139,10 +139,10 @@
 		</div>
 	</div>
 
-	<div class="flex min-w-0 flex-wrap gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
+	<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:min-w-0 sm:gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
 		{#if isAdminGeral && podeDownload}
 			<a
-				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 no-underline sm:flex-none sm:min-w-0"
+				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 no-underline sm:w-auto"
 				href={`/api/gise/${gise.id}/download?format=xlsx`}
 				target="_blank"
 			>
@@ -152,7 +152,7 @@
 		{#if isAdminGeral && modoEdicaoGeral && onAbrirBreveRelatorio}
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:flex-none sm:min-w-0"
+				class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:w-auto"
 				onclick={onAbrirBreveRelatorio}
 				disabled={loading.active || pendingCrud}
 			>
@@ -163,7 +163,7 @@
 			<button
 				class="btn btn-sm preset-{modoEdicaoGeral
 					? 'filled'
-					: 'outlined'}-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 sm:flex-none sm:min-w-0 {modoEdicaoGeral
+					: 'outlined'}-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 sm:w-auto {modoEdicaoGeral
 					? 'border-2 border-primary-600 shadow-xl'
 					: 'border-2 border-primary-500/30 hover:border-primary-500'}"
 				onclick={onToggleEdit}
@@ -180,7 +180,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-success-600/30 hover:border-success-600 sm:flex-none sm:min-w-0"
+						class="btn btn-sm preset-filled-success-500 rounded-lg font-semibold transition-all flex w-full items-center justify-center gap-1.5 border-2 border-success-600/30 hover:border-success-600 text-center leading-tight sm:w-auto sm:whitespace-nowrap"
 						disabled={loading.active || modoEdicaoGeral || pendingCrud}
 						type="submit"
 					>
@@ -196,7 +196,7 @@
 					class="contents"
 				>
 					<button
-						class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 sm:flex-none sm:min-w-0"
+						class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold transition-all flex w-full items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 text-center leading-tight sm:w-auto sm:whitespace-nowrap"
 						disabled={loading.active || pendingCrud}
 						type="submit"
 					>
@@ -205,7 +205,7 @@
 				</form>
 			{/if}
 			<button
-				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-error-500/30 hover:border-error-500 sm:flex-none sm:min-w-0"
+				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-error-500/30 hover:border-error-500 sm:w-auto"
 				onclick={onAbrirExcluir}
 				disabled={editaBloqueado || loading.active || pendingCrud}
 				type="button"
@@ -215,7 +215,7 @@
 		{/if}
 		{#if podeReabrir}
 			<button
-				class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 sm:flex-none sm:min-w-0"
+				class="btn btn-sm preset-outlined-warning-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-warning-500/30 hover:border-warning-500 sm:w-auto"
 				onclick={onAbrirReabrir}
 				disabled={loading.active || pendingCrud}
 				type="button"
@@ -225,7 +225,7 @@
 		{/if}
 		{#if podeFinalizar}
 			<button
-				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 sm:flex-none sm:min-w-0"
+				class="btn btn-sm preset-outlined-error-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-error-600/30 hover:border-error-600 bg-error-500/10 hover:bg-error-500/20 dark:bg-error-500/15 sm:w-auto"
 				onclick={onAbrirFinalizar}
 				disabled={loading.active || pendingCrud}
 				type="button"
@@ -242,7 +242,7 @@
 			>
 				<button
 					type="submit"
-					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:flex-none sm:min-w-0"
+					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:w-auto"
 					disabled={loading.active || pendingCrud}
 					title="Reenvia os dados desta GISE para a aba Base_Equipe da planilha"
 				>
