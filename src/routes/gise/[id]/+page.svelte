@@ -1238,7 +1238,7 @@
 					>
 						<!-- Cabeçalho da seccional -->
 						<div
-							class="flex flex-wrap items-start gap-y-2 justify-between px-5 py-3 {getSeccionalColorClass(
+							class="flex flex-wrap items-start gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)}"
 						>
@@ -1288,7 +1288,7 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div
-							class="flex flex-col sm:flex-row sm:items-stretch sm:items-center gap-3 sm:gap-4 px-5 pb-3 {getSeccionalColorClass(
+							class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 pb-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)} border-b border-surface-200 dark:border-surface-700"
 						>
@@ -1519,7 +1519,7 @@
 							</div>
 						</div>
 
-						<div class="p-4 space-y-3">
+						<div class="p-3 sm:p-4 space-y-3">
 							<!-- ===== Slots de Unidade ===== -->
 							{#each sec.unidades ?? [] as slot (slot.id)}
 								<div
@@ -1708,7 +1708,7 @@
 									<div class="p-3 space-y-2.5">
 										{#each slot.equipes ?? [] as equipe}
 											<div
-												class="rounded-xl border border-surface-300 dark:border-surface-600 p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
+												class="rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
 											>
 												<div
 													class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4"
@@ -2295,9 +2295,9 @@
 			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 				{#if adicionandoSeccional}
 					<div
-						class="mt-4 p-5 rounded-2xl border border-dashed border-primary-500/50 bg-primary-500/5 flex flex-wrap items-end gap-3"
+						class="mt-4 p-4 sm:p-5 rounded-2xl border border-dashed border-primary-500/50 bg-primary-500/5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
 					>
-						<div class="flex-1 min-w-[200px]">
+						<div class="w-full sm:flex-1 sm:min-w-[200px]">
 							<label
 								for="novaSeccional"
 								class="text-sm font-medium text-surface-600 dark:text-surface-400 block mb-1"
@@ -2318,19 +2318,19 @@
 							method="POST"
 							action="?/adicionarSeccional"
 							use:enhance={handleAdicionarSeccional}
-							class="flex gap-2"
+							class="flex w-full gap-2 sm:w-auto"
 						>
 							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
 								disabled={!seccionalParaAdicionarIdx || pendingCrud}
 							>
 								{pendingCrud ? 'Adicionando...' : 'Confirmar'}
 							</button>
 							<button
 								type="button"
-								class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
+								class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
 								onclick={() => (adicionandoSeccional = false)}
 							>
 								Cancelar

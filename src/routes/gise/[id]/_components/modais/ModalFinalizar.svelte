@@ -13,12 +13,12 @@
 </script>
 
 {#if open}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-6 border border-white/10"
+			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-md p-5 sm:p-8 space-y-5 sm:space-y-6 border border-white/10"
 		>
 			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
+				<h2 class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
 					Finalizar Escala GISE
 				</h2>
 				<p class="text-sm text-surface-500">
