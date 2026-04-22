@@ -10,24 +10,16 @@ import { getDB } from '$lib/db';
 import { hashSenha } from '$lib/auth';
 import { enviarSenhaProvisoria } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import { policiais } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { gerarSenhaProvisoria } from '$lib/server/provisional-password';
+import { policiais, loginAttempts } from '$lib/server/schema';
+import { and, count, eq, gt } from 'drizzle-orm';
 
-function gerarSenhaProvisoria(): string {
-	// 12 chars para ~62 bits de entropia
-	// Evita caracteres ambíguos: 0, O, 1, I, L
-	const letras = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-	const digitos = '23456789';
-	const todos = letras + digitos; // 31 chars
-	const bytes = new Uint8Array(12);
-	crypto.getRandomValues(bytes);
-	return Array.from(bytes)
-		.map((b) => todos[b % todos.length])
-		.join('');
-}
+const MAX_TENTATIVAS_IP = 5;
+const JANELA_IP_MINUTOS = 15;
 
-export const POST: RequestHandler = async ({ platform, request }) => {
+export const POST: RequestHandler = async ({ platform, request, getClientAddress }) => {
 	const db = getDB(platform);
+	const ip = getClientAddress();
 	const body = await request.json().catch(() => ({}));
 	const { matricula } = body;
 
@@ -35,17 +27,31 @@ export const POST: RequestHandler = async ({ platform, request }) => {
 		return json({ error: 'Matrícula inválida.' }, { status: 400 });
 	}
 
-	const policial = await db
-		.select()
-		.from(policiais)
-		.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
-		.get();
-
 	// Resposta genérica para não revelar se a matrícula existe
 	const respostaGenerica = json({
 		ok: true,
 		message: 'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá a senha por e-mail.'
 	});
+
+	// Rate limit por IP: previne DoS de conta via ciclo de senha provisória.
+	// Reusa `loginAttempts` (mesmo padrão de `solicitar-redefinicao`).
+	const windowIp = new Date(Date.now() - JANELA_IP_MINUTOS * 60 * 1000).toISOString();
+	const [ipCount] = await db
+		.select({ n: count() })
+		.from(loginAttempts)
+		.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
+
+	if ((ipCount?.n ?? 0) >= MAX_TENTATIVAS_IP) {
+		return respostaGenerica;
+	}
+
+	await db.insert(loginAttempts).values({ ip, success: 0 });
+
+	const policial = await db
+		.select()
+		.from(policiais)
+		.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
+		.get();
 
 	if (!policial) return respostaGenerica;
 	if (policial.primeiro_acesso !== 1) return respostaGenerica;

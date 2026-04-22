@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count, gt } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { hashSenha, verificarDesafio2FA, criarSessao } from '$lib/auth';
 import { enviarSenhaProvisoria } from '$lib/server/email';
@@ -11,21 +11,14 @@ import {
 	cookieOptionsLogin,
 	type AdminModulo
 } from '$lib/server/auth-flow';
-import { administradores, policiais } from '$lib/server/schema';
+import { gerarSenhaProvisoria } from '$lib/server/provisional-password';
+import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 
 const cookieOptions = cookieOptionsLogin;
 
-function gerarSenhaProvisoria(): string {
-	const letras = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-	const digitos = '23456789';
-	const todos = letras + digitos;
-	const bytes = new Uint8Array(8);
-	crypto.getRandomValues(bytes);
-	return Array.from(bytes)
-		.map((b) => todos[b % todos.length])
-		.join('');
-}
+const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
+const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const u = locals.usuario;
@@ -162,8 +155,9 @@ export const actions: Actions = {
 		};
 	},
 
-	solicitarPrimeiroAcesso: async ({ request, platform }) => {
+	solicitarPrimeiroAcesso: async ({ request, platform, getClientAddress }) => {
 		const db = getDB(platform);
+		const ip = getClientAddress();
 		const formData = await request.formData();
 		const matricula = formData.get('matricula') as string;
 
@@ -171,13 +165,29 @@ export const actions: Actions = {
 			return fail(400, { error: 'Matrícula inválida.' });
 		}
 
+		const respostaGenerica = { success: true, enviado: true };
+
+		// Rate limit por IP: previne DoS de conta via ciclo de senha provisória.
+		// Reusa `loginAttempts` (mesmo padrão de `solicitar-redefinicao`).
+		const windowIp = new Date(
+			Date.now() - PRIMEIRO_ACESSO_JANELA_IP_MINUTOS * 60 * 1000
+		).toISOString();
+		const [ipCount] = await db
+			.select({ n: count() })
+			.from(loginAttempts)
+			.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
+
+		if ((ipCount?.n ?? 0) >= PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP) {
+			return respostaGenerica;
+		}
+
+		await db.insert(loginAttempts).values({ ip, success: 0 });
+
 		const policial = await db
 			.select()
 			.from(policiais)
 			.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
 			.get();
-
-		const respostaGenerica = { success: true, enviado: true };
 
 		if (!policial) return respostaGenerica;
 		if (policial.primeiro_acesso !== 1) return respostaGenerica;
