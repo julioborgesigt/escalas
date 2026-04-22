@@ -48,12 +48,12 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm"
 		role="presentation"
 		onclick={(e) => e.target === e.currentTarget && onClose()}
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(90vh,720px)] flex flex-col p-6"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(calc(100vh-1.5rem),720px)] flex flex-col p-4 sm:p-6"
 			role="dialog"
 			aria-labelledby="br-modal-title"
 			aria-modal="true"

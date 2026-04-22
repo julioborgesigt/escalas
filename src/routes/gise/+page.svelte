@@ -431,7 +431,7 @@
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 
 			<!-- Filtros -->
-			<div class="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_150px_1fr] gap-3 p-4 rounded-2xl bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800">
+			<div class="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3 sm:p-4 rounded-2xl bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800">
 				<div>
 					<label for="filtro-seccional" class="text-xs font-medium text-surface-500 block mb-1">Seccional</label>
 					<select
@@ -465,11 +465,11 @@
 				</div>
 				<div>
 					<label for="filtro-ano-ciclo" class="text-xs font-medium text-surface-500 block mb-1">Ano / Ciclo</label>
-					<div class="flex gap-1.5">
+					<div class="flex gap-1.5 min-w-0">
 						<select
 							id="filtro-ano-ciclo"
 							bind:value={filtroAnoCiclo}
-							class="w-20 shrink-0 px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+							class="w-[4.5rem] shrink-0 px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 						>
 							<option value="">Ano</option>
 							{#each anosDisponiveisHistorico as ano}
@@ -489,7 +489,7 @@
 					</div>
 				</div>
 				{#if filtroSeccional !== '' || filtroMesAno || filtroData || filtroAnoCiclo !== ''}
-					<div class="sm:col-span-2 lg:col-span-4 flex items-center justify-between">
+					<div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center justify-between gap-2">
 						<span class="text-xs text-surface-500">{historicoFiltrado.length} resultado(s)</span>
 						<button type="button"
 							class="text-xs text-primary-600 dark:text-primary-400 underline"
@@ -505,11 +505,11 @@
 				{:else}
 				{#each historicoPaginado as escala}
 					<div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all">
-						<!-- Linha principal -->
-						<div class="flex items-center gap-2 px-4 py-3">
+						<!-- Linha principal: em mobile muito estreito os botões de download ficam em linha separada -->
+						<div class="flex flex-col gap-2 px-3 py-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-2 sm:px-4">
 							<!-- Área clicável -->
 							<button type="button"
-								class="flex-1 min-w-0 flex items-center justify-between gap-3 text-left"
+								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
 								onclick={() => { dropdownAberto = null; goto(`/gise/${escala.id}`); }}
 							>
 								<div class="min-w-0">
@@ -519,19 +519,20 @@
 									</p>
 									<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada} às {escala.hora_saida}</p>
 								</div>
-								<span class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 {statusColor(escala.status)}">
+								<span class="text-[0.65rem] sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(escala.status)}">
 									{statusLabel(escala.status)}
 								</span>
 							</button>
 
 							<!-- Botões de download -->
-							<div class="flex items-center gap-1 shrink-0 border-l border-surface-200 dark:border-surface-700 pl-2 ml-1">
+							<div class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[420px]:border-t-0 min-[420px]:border-l min-[420px]:pt-0 min-[420px]:pl-2 min-[420px]:ml-1 justify-end">
 								<!-- Escala assinada (PDF) -->
 								<a
 									href="/api/gise/{escala.id}/download?format=pdf"
 									download
 									title="Baixar escala assinada (PDF)"
-									class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-primary-500/10 hover:text-primary-600 transition-colors"
+									aria-label="Baixar escala assinada (PDF)"
+									class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-primary-500/10 hover:text-primary-600 transition-colors touch-manipulation"
 									onclick={(e) => e.stopPropagation()}
 								>
 									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -541,24 +542,25 @@
 								<div class="relative">
 									<button type="button"
 										title="Baixar relatório de produtividade"
-										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors"
+										aria-label="Baixar relatório de produtividade"
+										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors touch-manipulation"
 										onclick={(e) => toggleDropdown(escala.id, 'prod', e)}
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
 									</button>
 									{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'prod'}
-										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 min-w-[180px]">
+										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
 											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Produtividade por seccional</p>
 											{#each (escala.seccionais ?? []) as sec}
 												{#each (sec.tipos ?? ['operacional']) as tipo}
 													<a
 														href="/api/gise/{escala.id}/download?format=produtividade&seccionalId={sec.id}&equipeType={tipo}"
 														download
-														class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 														onclick={() => dropdownAberto = null}
 													>
 														<svg class="w-3 h-3 shrink-0 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-														{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}
+														<span class="truncate">{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span>
 													</a>
 												{/each}
 											{/each}
@@ -570,23 +572,24 @@
 								<div class="relative">
 									<button type="button"
 										title="Baixar relatório de extra assinado"
-										class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors"
+										aria-label="Baixar relatório de extra assinado"
+										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors touch-manipulation"
 										onclick={(e) => toggleDropdown(escala.id, 'extra', e)}
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
 									</button>
 									{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'extra'}
-										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 min-w-[180px]">
+										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
 											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Extra por seccional</p>
 											{#each (escala.seccionais ?? []) as sec}
 												<a
 													href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
 													download
-													class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+													class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 													onclick={() => dropdownAberto = null}
 												>
 													<svg class="w-3 h-3 shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-													{sec.nome}
+													<span class="truncate">{sec.nome}</span>
 												</a>
 											{/each}
 										</div>
@@ -618,9 +621,9 @@
 
 <!-- Modal Criar GISE -->
 {#if showCriarModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-4 space-y-2.5 overflow-hidden"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto"
 		>
 			<h2 class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">Nova Escala GISE</h2>
 			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
@@ -667,7 +670,7 @@
 							<button
 								type="button"
 								onclick={() => calCicloDia(iso)}
-								class="relative h-8 sm:h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center
+								class="relative h-9 sm:h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center touch-manipulation
 									{sel
 									? fer
 										? 'border-error-500 bg-error-500/15 text-error-900 dark:text-error-100'
@@ -683,7 +686,7 @@
 								{/if}
 							</button>
 						{:else}
-							<div class="h-8 sm:h-9"></div>
+							<div class="h-9 sm:h-9"></div>
 						{/if}
 					{/each}
 				</div>

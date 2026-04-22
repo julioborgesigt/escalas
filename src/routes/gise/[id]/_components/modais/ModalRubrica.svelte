@@ -22,13 +22,13 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-6 border border-white/10"
+			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-5 sm:space-y-6 border border-white/10 max-h-[calc(100vh-1.5rem)] overflow-y-auto"
 		>
 			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
+				<h2 class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
 					Rubrica do Supervisor
 				</h2>
 				<p class="text-sm text-surface-500">
