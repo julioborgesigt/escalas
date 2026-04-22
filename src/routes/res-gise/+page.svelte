@@ -82,9 +82,9 @@
 		</div>
 
 		{#if podeVerListaGeral}
-			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner">
+			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner w-full md:w-auto">
 				<button type="button"
-					class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
+					class="flex-1 md:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
 						? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
 						: 'text-surface-500 hover:text-surface-700'}"
 					onclick={() => (resGise.activeTab = 'relatorios')}
@@ -93,7 +93,7 @@
 				</button>
 				{#if isAdminGeral}
 					<button type="button"
-						class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab ===
+						class="flex-1 md:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab ===
 						'configurador'
 							? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
 							: 'text-surface-500 hover:text-surface-700'}"
@@ -162,20 +162,20 @@
 				</div>
 			</div>
 
-			<div class="grid grid-cols-1 gap-4 max-h-[70vh] overflow-y-auto pr-4 custom-scrollbar">
+			<div class="grid grid-cols-1 gap-4 max-h-[70vh] overflow-y-auto pr-1 sm:pr-4 custom-scrollbar">
 				{#snippet renderItem(p: any, level = 0)}
 					<div
-						class="group p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
-						style="margin-left: {level * 2}rem"
+						class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
+						style="margin-left: clamp(0px, {level * 1.5}vw, {level * 2}rem)"
 					>
-						<div class="flex flex-col md:flex-row gap-5 items-start">
+						<div class="flex flex-col md:flex-row gap-3 sm:gap-5 items-start">
 							<div
 								class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-[0.6rem] font-black text-surface-500 shrink-0"
 							>
 								{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
 							</div>
 
-							<div class="space-y-1.5 flex-1">
+							<div class="space-y-1.5 flex-1 w-full min-w-0">
 								<label
 									for="qtxt-{p.id}"
 									class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
@@ -204,7 +204,7 @@
 								</div>
 							</div>
 
-							<div class="w-full md:w-56 space-y-1.5 shrink-0">
+							<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
 								<label
 									for="p-tp-{p.id}"
 									class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
@@ -241,7 +241,7 @@
 								</select>
 							</div>
 
-							<div class="flex gap-2 shrink-0">
+							<div class="flex gap-2 shrink-0 self-end md:self-start">
 								{#if p.tipo === 'sim_nao' || p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'drogas_complex' || p.tipo === 'armas_complex' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
 									<button type="button"
 										class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
@@ -959,7 +959,7 @@
 						</div>
 
 						<!-- Stepper Visual -->
-						<div class="flex items-center justify-between px-4 mb-4">
+						<div class="flex items-center justify-between px-2 sm:px-4 mb-4">
 							<div class="flex flex-col items-center gap-1 group">
 								<div
 									class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {resGise.escalaSelecionada
