@@ -45,58 +45,62 @@
 					class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-100/50 dark:bg-surface-800/30"
 				>
 					<p class="text-sm font-semibold text-surface-800 dark:text-surface-100">Equipe operacional</p>
-					<div class="flex flex-wrap items-center gap-2">
-						<label class="text-sm text-surface-600 dark:text-surface-400" for="op_dpc">DPC</label>
-						<input
-							id="op_dpc"
-							name="op_dpc"
-							type="number"
-							min="0"
-							max="999"
-							class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-							value={vagas.operacional.dpc}
-						/>
-					</div>
-					<div class="flex flex-wrap items-center gap-2">
-						<label class="text-sm text-surface-600 dark:text-surface-400" for="op_oip">OIP</label>
-						<input
-							id="op_oip"
-							name="op_oip"
-							type="number"
-							min="0"
-							max="999"
-							class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-							value={vagas.operacional.oip}
-						/>
+					<div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+						<div class="flex flex-wrap items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400" for="op_dpc">DPC</label>
+							<input
+								id="op_dpc"
+								name="op_dpc"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.operacional.dpc}
+							/>
+						</div>
+						<div class="flex flex-wrap items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400" for="op_oip">OIP</label>
+							<input
+								id="op_oip"
+								name="op_oip"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.operacional.oip}
+							/>
+						</div>
 					</div>
 				</div>
 				<div
 					class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-100/50 dark:bg-surface-800/30"
 				>
 					<p class="text-sm font-semibold text-surface-800 dark:text-surface-100">Equipe SEINT</p>
-					<div class="flex flex-wrap items-center gap-2">
-						<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_dpc">DPC</label>
-						<input
-							id="seint_dpc"
-							name="seint_dpc"
-							type="number"
-							min="0"
-							max="999"
-							class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-							value={vagas.seint.dpc}
-						/>
-					</div>
-					<div class="flex flex-wrap items-center gap-2">
-						<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_oip">OIP</label>
-						<input
-							id="seint_oip"
-							name="seint_oip"
-							type="number"
-							min="0"
-							max="999"
-							class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-							value={vagas.seint.oip}
-						/>
+					<div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+						<div class="flex flex-wrap items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_dpc">DPC</label>
+							<input
+								id="seint_dpc"
+								name="seint_dpc"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.seint.dpc}
+							/>
+						</div>
+						<div class="flex flex-wrap items-center gap-2">
+							<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_oip">OIP</label>
+							<input
+								id="seint_oip"
+								name="seint_oip"
+								type="number"
+								min="0"
+								max="999"
+								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+								value={vagas.seint.oip}
+							/>
+						</div>
 					</div>
 				</div>
 			</div>
