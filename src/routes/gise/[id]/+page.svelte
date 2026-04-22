@@ -578,6 +578,26 @@
 		};
 	}
 
+	function handleEnviarPlanilha() {
+		pendingCrud = true;
+		return async ({ result }: { result: ActionResult }) => {
+			pendingCrud = false;
+			if (result.type === 'success') {
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				const n = typeof d?.linhas === 'number' ? d.linhas : undefined;
+				toaster.success({
+					title: 'Dados enviados para a planilha',
+					description: n != null ? `${n} linha(s) na Base_Equipe.` : undefined
+				});
+			} else {
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				toaster.error({ title: (d?.error as string) || 'Falha ao enviar para a planilha' });
+			}
+		};
+	}
+
 	// Relatórios extraordinários pendentes de assinatura
 	const nomesSupervisaoPorId = $derived.by(() => {
 		const m = new Map<number, string>();
@@ -1086,6 +1106,7 @@
 			onAbrirFinalizar={() => (showFinalizarConfirm = true)}
 			onSolicitarAssinatura={handleSolicitarAssinatura}
 			onRevogarPedido={handleRevogarPedidoAssinatura}
+			onEnviarPlanilha={isAdminGeral ? handleEnviarPlanilha : undefined}
 		/>
 	{/if}
 

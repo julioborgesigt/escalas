@@ -48,7 +48,7 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		em_preenchimento: 'Preenchendo escalados',
 		aguardando_assinatura: 'Aguardando assinatura do supervisor',
 		em_andamento: 'GISE em operação',
-		aguardando_relatorios: 'Aguardando relatórios',
+		aguardando_relatorios: 'Aguardando entradas',
 		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
 		pronta_para_finalizar: 'Pronta para finalizar',
 		finalizada: 'Concluída'

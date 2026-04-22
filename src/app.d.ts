@@ -18,6 +18,10 @@ declare global {
 		/** Login admin via variáveis de ambiente (opcional) */
 		ADMIN_GERAL_LOGIN?: string;
 		ADMIN_GERAL_SENHA?: string;
+		/** Web App URL do Google Apps Script que grava na aba Base_Equipe (POST JSON). */
+		GISE_BASE_EQUIPE_WEBHOOK_URL?: string;
+		/** Segredo compartilhado com ScriptProperties BASE_EQUIPE_SECRET na planilha. */
+		GISE_BASE_EQUIPE_SECRET?: string;
 	}
 
 	namespace App {

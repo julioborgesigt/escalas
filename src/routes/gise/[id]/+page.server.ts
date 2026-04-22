@@ -27,6 +27,11 @@ import {
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
+import {
+	agendarSyncBaseEquipeAposFinalizar,
+	executarSyncBaseEquipeGiseComResultado,
+	type BaseEquipeEnv
+} from '$lib/server/gise-base-equipe-sync';
 import { logger } from '$lib/server/logger';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
@@ -680,7 +685,34 @@ export const actions: Actions = {
 		await atualizarGiseEscala(db, giseId, { status: 'finalizada' });
 		await invalidarPapelGiseMultiplos(afetados);
 
+		agendarSyncBaseEquipeAposFinalizar(platform, db, giseId);
+
 		return { success: true };
+	},
+
+	reenviarBaseEquipePlanilha: async ({ locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+
+		const giseId = parseInt(params.id);
+		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
+
+		const db = getDB(platform);
+		const gise = await buscarGiseEscala(db, giseId);
+		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+		if (gise.status !== 'finalizada') {
+			return fail(400, { error: 'Só é possível enviar à planilha com a escala finalizada.' });
+		}
+
+		const r = await executarSyncBaseEquipeGiseComResultado(
+			platform?.env as BaseEquipeEnv | undefined,
+			db,
+			giseId
+		);
+		if (!r.ok) {
+			return fail(502, { error: r.error });
+		}
+		return { success: true, linhas: r.linhas };
 	},
 
 	reabrirEscala: async ({ locals, platform, params }) => {

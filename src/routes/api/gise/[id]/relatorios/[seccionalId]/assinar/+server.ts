@@ -5,9 +5,7 @@ import {
 	salvarAssinaturaRelatorioGise,
 	buscarGiseDetalhado,
 	buscarPresencasGise,
-	buscarGiseEscala,
-	verificarTodosRelatoriosExtraAssinados,
-	atualizarGiseEscala,
+	tentarPromoverGiseProntaParaFinalizar,
 	buscarExigirCodigoEmailAssinatura
 } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
@@ -202,14 +200,7 @@ export const POST = async ({
 			arquivo_hash: arquivo_hash
 		});
 
-		// Transição automática: se todos os relatórios de extra foram assinados → pronta_para_finalizar
-		const giseAtual = await buscarGiseEscala(db, giseIdNum);
-		if (giseAtual && giseAtual.status === 'aguardando_assinatura_relat') {
-			const todosAssinados = await verificarTodosRelatoriosExtraAssinados(db, giseIdNum);
-			if (todosAssinados) {
-				await atualizarGiseEscala(db, giseIdNum, { status: 'pronta_para_finalizar' });
-			}
-		}
+		await tentarPromoverGiseProntaParaFinalizar(db, giseIdNum);
 
 		return json({ success: true });
 	} catch (e) {

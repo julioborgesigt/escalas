@@ -12,8 +12,7 @@ import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
 	buscarGiseEscala,
-	verificarTodosRelatoriosExtraAssinados,
-	atualizarGiseEscala
+	tentarPromoverGiseProntaParaFinalizar
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
@@ -170,13 +169,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			tipo_carimbo_tempo: tipoCarimboTempo
 		});
 
-		// Transição automática: se todos os relatórios de extra foram assinados → pronta_para_finalizar
-		if (gise.status === 'aguardando_assinatura_relat') {
-			const todosAssinados = await verificarTodosRelatoriosExtraAssinados(db, id);
-			if (todosAssinados) {
-				await atualizarGiseEscala(db, id, { status: 'pronta_para_finalizar' });
-			}
-		}
+		await tentarPromoverGiseProntaParaFinalizar(db, id);
 
 		// Retorna o PDF assinado como bytes binários
 		return new Response(signedPdfBytes as unknown as BodyInit, {
