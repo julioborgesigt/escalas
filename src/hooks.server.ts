@@ -157,6 +157,21 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 		response.headers.set('Cache-Control', 'private, no-store');
 	}
 
+	// CORS: Aplicar headers explícitos para APIs
+	if (event.url.pathname.startsWith('/api/')) {
+		response.headers.set('Access-Control-Allow-Origin', event.url.origin);
+		response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+		response.headers.set('Access-Control-Allow-Headers', 'Content-Type, x-csrf-token');
+		response.headers.set('Access-Control-Max-Age', '86400');
+		response.headers.set('Access-Control-Allow-Credentials', 'true');
+	}
+
+	// Cache-Control: assets estáticos (CSS, JS, fonts, imagens)
+	const isStaticAsset = event.url.pathname.match(/\.(css|js|woff2?|ttf|eot|svg|png|jpg|jpeg|webp|gif)$/i);
+	if (isStaticAsset && !response.headers.has('Cache-Control')) {
+		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+	}
+
 	return response;
 };
 

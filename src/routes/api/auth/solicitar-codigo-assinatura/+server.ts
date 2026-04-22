@@ -1,11 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
-import { policiais, administradores } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { policiais, administradores, doisFatoresTokens } from '$lib/server/schema';
+import { eq, and, gt, count } from 'drizzle-orm';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
+
+const MAX_TENTATIVAS_USUARIO = 5;
+const JANELA_USUARIO_MINUTOS = 60;
 
 export const POST: RequestHandler = async ({ platform, locals, url }) => {
 	try {
@@ -17,6 +20,26 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 				path: url.pathname
 			});
 			return json({ error: 'Sessão inválida ou expirada. Faça login novamente.' }, { status: 401 });
+		}
+
+		// Rate limit por usuário (máx 5 códigos na última hora)
+		const windowUsuario = new Date(Date.now() - JANELA_USUARIO_MINUTOS * 60 * 1000).toISOString();
+		const [codeCount] = await db
+			.select({ n: count() })
+			.from(doisFatoresTokens)
+			.where(
+				and(
+					eq(doisFatoresTokens.tipo, 'assinatura'),
+					eq(doisFatoresTokens.usuario_id, u.id),
+					gt(doisFatoresTokens.created_at, windowUsuario)
+				)
+			);
+
+		if ((codeCount?.n ?? 0) >= MAX_TENTATIVAS_USUARIO) {
+			return json(
+				{ error: `Muitas solicitações. Tente novamente em ${JANELA_USUARIO_MINUTOS} minutos.` },
+				{ status: 429 }
+			);
 		}
 
 		// Recuperar o usuário do DB para confirmar o e-mail

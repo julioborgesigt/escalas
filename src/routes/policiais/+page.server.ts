@@ -219,7 +219,7 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const policialId = Number(data.get('policial_id'));
-		if (isNaN(policialId)) return fail(400, { error: 'ID inválido' });
+		if (Number.isNaN(policialId)) return fail(400, { error: 'ID inválido' });
 
 		const db = getDB(platform);
 
