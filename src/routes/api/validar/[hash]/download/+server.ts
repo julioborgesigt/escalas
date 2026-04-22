@@ -47,6 +47,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 						: `documento_assinado_${hash}.pdf`;
 
 					resHeaders.set('Content-Disposition', contentDisposition(filename));
+					// Documento é imutável por hash — pode ser cacheado agressivamente
+					// pelo edge/CDN e pelo navegador. Reduz leituras no R2 em hits
+					// repetidos (validação pública da mesma URL).
+					resHeaders.set('Cache-Control', 'public, max-age=86400, immutable');
 					return new Response(arrayBuffer, {
 						headers: resHeaders,
 						status: 200

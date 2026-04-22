@@ -46,6 +46,8 @@
 		"wrangler": "^4.0.0"
 	},
 	"dependencies": {
+		"@fontsource/inter": "^5.2.8",
+		"@fontsource/outfit": "^5.2.8",
 		"@sentry/cloudflare": "^10.47.0",
 		"@signpdf/placeholder-pdf-lib": "^3.3.0",
 		"@signpdf/signpdf": "^3.3.0",
