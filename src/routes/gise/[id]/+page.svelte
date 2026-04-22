@@ -32,6 +32,7 @@
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import GiseBannersAssinaturas from './_components/GiseBannersAssinaturas.svelte';
 	import GiseLoteAssinaturas from './_components/GiseLoteAssinaturas.svelte';
+	import GiseStatusAvisos from './_components/GiseStatusAvisos.svelte';
 	import ModalExcluirGise from './_components/modais/ModalExcluirGise.svelte';
 	import ModalReabrir from './_components/modais/ModalReabrir.svelte';
 	import ModalFinalizar from './_components/modais/ModalFinalizar.svelte';
@@ -2305,25 +2306,13 @@
 			{/if}
 		</div>
 
-		<!-- Aviso para Admin Seccional sobre retificação -->
-		{#if isSeccional && minhaSeccional?.status === 'retificada'}
-			<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
-				<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
-				<p class="text-warning-600 dark:text-warning-300 mt-1 text-sm">
-					Você realizou alterações após o envio. A assinatura digital da escala foi revogada.
-					Finalize o envio novamente para prosseguir com a assinatura.
-				</p>
-			</div>
-		{/if}
-
-		<!-- Aviso: Supervisor aguardando seccionais -->
-		{#if isSupervisor && gise.status === 'em_preenchimento'}
-			<div class="rounded-2xl border border-warning-500/30 bg-warning-500/5 p-5 text-center">
-				<p class="text-warning-700 dark:text-warning-400 text-sm font-medium">
-					A escala ainda não está concluída pelas seccionais.
-				</p>
-			</div>
-		{/if}
+		<!-- Avisos contextuais de status (retificação seccional, aguardando conclusão) -->
+		<GiseStatusAvisos
+			{isSeccional}
+			{isSupervisor}
+			minhaSeccionalRetificada={minhaSeccional?.status === 'retificada'}
+			giseEmPreenchimento={gise.status === 'em_preenchimento'}
+		/>
 	{/if}
 </div>
 
