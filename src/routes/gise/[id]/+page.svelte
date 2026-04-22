@@ -22,7 +22,8 @@
 		filtrarDelegacias,
 		filtrarSeccionaisDisponiveis,
 		getFaltandoRubrica,
-		getSeccionalColorClass
+		getSeccionalColorClass,
+		tiposEquipeNaSeccional
 	} from '$lib/gise/gise-page-helpers';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
@@ -40,6 +41,7 @@
 	import ModalRubrica from './_components/modais/ModalRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalRemoverSeccional from './_components/modais/ModalRemoverSeccional.svelte';
+	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 
 	let { data } = $props();
 
@@ -104,6 +106,7 @@
 		}
 	});
 	let showModalDataHoras = $state(false);
+	let showModalBreveRelatorio = $state(false);
 	let editDataInicio = $state('');
 	let editHoraEntrada = $state('');
 	let editHoraSaida = $state('');
@@ -195,6 +198,22 @@
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Supervisor salvo' });
 				editandoSupervisores = false;
+			} else {
+				const d =
+					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
+				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
+			}
+		};
+	}
+
+	function handleSalvarBreveRelatorio() {
+		pendingCrud = true;
+		return async ({ result }: { result: ActionResult }) => {
+			pendingCrud = false;
+			if (result.type === 'success') {
+				showModalBreveRelatorio = false;
+				await invalidate('gise:detail');
+				toaster.success({ title: 'Textos do breve relatório salvos' });
 			} else {
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
@@ -1056,7 +1075,7 @@
 	btnType: 'button' | 'submit' = 'button',
 	size = 'sm'
 )}
-	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${classes}`}
+	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-lg font-semibold min-w-0 max-w-full text-center whitespace-normal sm:whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${classes}`}
 	{#if href}
 		<a class="{baseClass} no-underline" {href} target="_blank">
 			{#if iconPath}{@render btnIcon(iconPath)}{/if}
@@ -1108,6 +1127,9 @@
 			onSolicitarAssinatura={handleSolicitarAssinatura}
 			onRevogarPedido={handleRevogarPedidoAssinatura}
 			onEnviarPlanilha={isAdminGeral ? handleEnviarPlanilha : undefined}
+			onAbrirBreveRelatorio={
+				isAdminGeral ? () => (showModalBreveRelatorio = true) : undefined
+			}
 		/>
 	{/if}
 
@@ -1266,7 +1288,7 @@
 
 						<!-- Ações Seccional & Downloads -->
 						<div
-							class="flex flex-col sm:flex-row sm:items-center gap-4 px-5 pb-3 {getSeccionalColorClass(
+							class="flex flex-col sm:flex-row sm:items-stretch sm:items-center gap-3 sm:gap-4 px-5 pb-3 {getSeccionalColorClass(
 								sec.seccional_id
 							)} border-b border-surface-200 dark:border-surface-700"
 						>
@@ -1276,43 +1298,69 @@
 										(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
 										a.tipo === 'extraordinario'
 								)}
-								<div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
-									{#each [...new Set((sec.equipes ?? []).map((eq: GiseEquipeComMembros) => eq.tipo))] as tipo}
-										<a
-											class="btn text-xs preset-tonal-success w-full sm:w-auto justify-center {!sec.temRespostas
-												? 'pointer-events-none opacity-60'
-												: 'no-underline'}"
-											href={`/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
-											target="_blank"
-											title={!sec.temRespostas
-												? 'Aguardando preenchimento do formulário'
-												: `Baixar Produtividade ${tipo === 'seint' ? 'SEINT' : 'Operacional'}`}
-										>
-											<svg
-												class="w-4 h-4 shrink-0"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-												/></svg
+								{@const tiposProd = tiposEquipeNaSeccional(sec)}
+								<div
+									class="w-full min-w-0 sm:flex-1 flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-end gap-2 sm:gap-2.5"
+								>
+									{#each tiposProd as tipo (tipo)}
+										{@const hrefProd = `/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
+										{@const rótuloProd = tipo === 'seint' ? 'Prod. SEINT' : 'Prod. Operacional'}
+										{#if sec.temRespostas}
+											<a
+												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 w-full min-[400px]:w-auto sm:w-auto max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all"
+												href={hrefProd}
+												target="_blank"
+												rel="noopener noreferrer"
+												title="Baixar {rótuloProd === 'Prod. SEINT' ? 'produtividade SEINT' : 'produtividade operacional'}"
 											>
-											<span>{tipo === 'seint' ? 'Prod. SEINT' : 'Prod. Operacional'}</span>
-											{#if !sec.temRespostas}
-												<span
-													class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
-													>(aguardando)</span
+												<svg
+													class="w-4 h-4 shrink-0"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+													/></svg
 												>
-											{/if}
-										</a>
+												<span class="shrink-0">{rótuloProd}</span>
+											</a>
+										{:else}
+											<button
+												type="button"
+												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 w-full min-[400px]:w-auto sm:w-auto max-w-full inline-flex items-center justify-center gap-1.5 select-none
+													border-surface-300/80 dark:border-surface-600
+													bg-surface-100/90 dark:bg-surface-800/50
+													text-surface-600 dark:text-surface-400
+													shadow-sm cursor-not-allowed"
+												disabled
+												title="Aguardando preenchimento do formulário de produtividade desta seccional"
+											>
+												<svg
+													class="w-4 h-4 shrink-0 opacity-90"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+													/></svg
+												>
+												<span class="shrink-0">{rótuloProd}</span>
+												<span class="text-[0.6rem] font-medium italic">(aguardando)</span>
+											</button>
+										{/if}
 									{/each}
 
-									<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+									<div
+										class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2 w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0"
+									>
 										<a
-											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all w-full sm:w-auto {!(
+											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all w-full min-[400px]:w-auto {!(
 												checkAllSigned(sec) &&
 												(assRel || isAdminGeral || isSeccional || isSupervisor)
 											)
@@ -1322,6 +1370,7 @@
 												: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'}"
 											href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 											target="_blank"
+											rel="noopener noreferrer"
 											title={!checkAllSigned(sec)
 												? getFaltandoRubrica(sec)
 												: assRel
@@ -1349,7 +1398,9 @@
 											{/if}
 										</a>
 										{#if isSupervisor && !assRel && checkAllSigned(sec)}
-											<div class="flex items-center gap-2">
+											<div
+												class="flex flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2 w-full min-[400px]:w-auto"
+											>
 												{#if isMobile || !data.restringirSmartphone}
 													{@render actionButton(
 														'Ass. tela',
@@ -1360,7 +1411,7 @@
 														undefined,
 														false,
 														false,
-														'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase',
+														'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 														'button',
 														'xs'
 													)}
@@ -1381,7 +1432,7 @@
 														undefined,
 														false,
 														false,
-														'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase',
+														'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 														'button',
 														'xs'
 													)}
@@ -2328,6 +2379,17 @@
 	{normalizarHora}
 	{validarHora}
 />
+
+{#if gise}
+	<ModalBreveRelatorio
+		open={showModalBreveRelatorio}
+		{gise}
+		global={data.breveRelatorioEnv}
+		{pendingCrud}
+		onClose={() => (showModalBreveRelatorio = false)}
+		onSubmit={handleSalvarBreveRelatorio}
+	/>
+{/if}
 
 <ModalExcluirGise
 	open={showExcluirGiseConfirm}

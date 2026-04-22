@@ -11,6 +11,7 @@ import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMem
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
 import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
@@ -64,10 +65,19 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	};
 
 	const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
+	const brEnv = await getBreveRelatorioEnvMergido(db);
 	const result = isSupervisaoExtra
-		? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, mockSignature, undefined, true)
+		? await gerarRelatorioExtraordinarioSupervisaoPdf(
+				gise,
+				presencas,
+				url.origin,
+				mockSignature,
+				undefined,
+				true,
+				brEnv
+			)
 		: await gerarRelatorioExtraordinarioPdf(
-				toGisePdfData(gise),
+				toGisePdfData(gise, brEnv),
 				presencas,
 				secIdNum,
 				url.origin,

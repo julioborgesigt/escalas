@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseMembros,
@@ -35,8 +35,10 @@ async function cidadePorNomeLotacao(db: Database, lotacao: string): Promise<stri
 }
 
 /**
- * Todos os policiais escalados em equipes da GISE (uma linha por policial),
- * com presença quando houver; cidade do slot ou da lotação (painel supervisão/apoio).
+ * Policiais da GISE para a planilha Base_Equipe (uma linha por pessoa):
+ * — escalados em equipes (`gise_membros`);
+ * — e integrantes do quadro "Supervisão e apoio" que não estejam em nenhuma equipe
+ *   (supervisor, assessor, SEINT), com as mesmas regras de cidade (lotação) e presença.
  */
 export async function listarMembrosParaBaseEquipe(
 	db: Database,
@@ -120,6 +122,28 @@ export async function listarMembrosParaBaseEquipe(
 			entrada_timestamp: pres?.entrada_timestamp ?? null,
 			saida_timestamp: pres?.saida_timestamp ?? null
 		});
+	}
+
+	const jaIncluidos = new Set(out.map((r) => r.policial_id));
+	const faltamPainel = [...painelIds].filter((id) => !jaIncluidos.has(id));
+	if (faltamPainel.length > 0) {
+		const polsPainel = await db
+			.select({ id: policiais.id, nome: policiais.nome, lotacao: policiais.lotacao })
+			.from(policiais)
+			.where(inArray(policiais.id, faltamPainel))
+			.all();
+		for (const p of polsPainel) {
+			const lot = (p.lotacao ?? '').trim();
+			const cidade = lot ? await cidadePorNomeLotacao(db, lot) : '';
+			const pres = presMap.get(p.id);
+			out.push({
+				policial_id: p.id,
+				nome: p.nome,
+				cidade_atuacao: cidade,
+				entrada_timestamp: pres?.entrada_timestamp ?? null,
+				saida_timestamp: pres?.saida_timestamp ?? null
+			});
+		}
 	}
 
 	out.sort((a, b) => a.policial_id - b.policial_id);

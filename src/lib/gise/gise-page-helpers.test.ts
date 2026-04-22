@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
 	filtrarDelegacias,
 	filtrarSeccionaisDisponiveis,
-	getSeccionalColorClass
+	getSeccionalColorClass,
+	tiposEquipeNaSeccional
 } from './gise-page-helpers';
+import type { GiseEquipeComMembros } from '$lib/db/gise';
 import type { GiseDetalhado } from '$lib/db/gise';
 import type { Unidade } from '$lib/server/schema';
 
@@ -38,5 +40,28 @@ describe('gise-page-helpers', () => {
 	it('getSeccionalColorClass é estável por id', () => {
 		expect(getSeccionalColorClass(0)).toBe(getSeccionalColorClass(0));
 		expect(getSeccionalColorClass(5)).not.toBe('');
+	});
+
+	it('tiposEquipeNaSeccional lê unidades[].equipes (não só sec.equipes)', () => {
+		const op = { tipo: 'operacional' } as GiseEquipeComMembros;
+		expect(
+			tiposEquipeNaSeccional({
+				unidades: [{ id: 1, unidade_id: 1, nome: 'X', equipes: [op] }]
+			})
+		).toEqual(['operacional']);
+	});
+
+	it('tiposEquipeNaSeccional agrega seint e operacional em ordem fixa', () => {
+		const sec = {
+			unidades: [
+				{
+					id: 1,
+					unidade_id: 1,
+					nome: 'A',
+					equipes: [{ tipo: 'seint' } as GiseEquipeComMembros, { tipo: 'operacional' } as GiseEquipeComMembros]
+				}
+			]
+		};
+		expect(tiposEquipeNaSeccional(sec)).toEqual(['operacional', 'seint']);
 	});
 });

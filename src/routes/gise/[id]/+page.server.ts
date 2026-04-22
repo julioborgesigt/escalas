@@ -34,6 +34,7 @@ import {
 } from '$lib/server/gise-base-equipe-sync';
 import { logger } from '$lib/server/logger';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, and, isNull } from 'drizzle-orm';
 
@@ -143,6 +144,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 
 		return {
 			gise,
+			breveRelatorioEnv: await getBreveRelatorioEnvMergido(db),
 			policiais: policiaisListResult,
 			todasUnidades,
 			assinaturasRelatorios,
@@ -247,6 +249,33 @@ export const actions: Actions = {
 			gise.seint2_id,
 			seint2Id
 		]);
+
+		return { success: true };
+	},
+
+	/** Textos do bloco "Breve relatório" nos PDFs de extra (por GISE; vazio = Config. GISE + padrão do sistema). */
+	salvarBreveRelatorio: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral' });
+
+		const giseId = parseInt(params.id);
+		if (isNaN(giseId)) return fail(400, { error: 'ID inválido' });
+
+		const formData = await request.formData();
+		const titulo = (formData.get('breve_relatorio_titulo') as string | null)?.trim() ?? '';
+		const textoSec = (formData.get('breve_relatorio_texto_seccional') as string | null)?.trim() ?? '';
+		const textoSup = (formData.get('breve_relatorio_texto_supervisao') as string | null)?.trim() ?? '';
+
+		const db = getDB(platform);
+		const gise = await buscarGiseEscala(db, giseId);
+		if (!gise) return fail(404, { error: 'GISE não encontrada' });
+
+		await atualizarGiseEscala(db, giseId, {
+			breve_relatorio_titulo: titulo ? titulo : null,
+			breve_relatorio_texto_seccional: textoSec ? textoSec : null,
+			breve_relatorio_texto_supervisao: textoSup ? textoSup : null
+		});
 
 		return { success: true };
 	},

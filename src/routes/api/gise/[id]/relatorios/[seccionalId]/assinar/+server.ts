@@ -12,6 +12,7 @@ import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
 import { logger } from '$lib/server/logger';
 import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
@@ -109,9 +110,24 @@ export const POST = async ({
 		};
 
 		const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
+		const brEnv = await getBreveRelatorioEnvMergido(db);
 		const result = isSupervisaoExtra
-			? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, mockSignature)
-			: await gerarRelatorioExtraordinarioPdf(toGisePdfData(gise), presencas, secIdNum, url.origin, mockSignature);
+			? await gerarRelatorioExtraordinarioSupervisaoPdf(
+					gise,
+					presencas,
+					url.origin,
+					mockSignature,
+					undefined,
+					false,
+					brEnv
+				)
+			: await gerarRelatorioExtraordinarioPdf(
+					toGisePdfData(gise, brEnv),
+					presencas,
+					secIdNum,
+					url.origin,
+					mockSignature
+				);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
 

@@ -60,6 +60,14 @@ export { listarMembrosParaBaseEquipe } from './base-equipe';
 export type { LinhaBaseEquipeMembro } from './base-equipe';
 
 export {
+	buscarVagasPadraoEquipesGise,
+	salvarVagasPadraoEquipesGise,
+	parseVagasEquipesGiseJson,
+	VAGAS_EQUIPES_FALLBACK,
+	GISE_EQUIPES_VAGAS_JSON_KEY
+} from './vagas-padrao';
+
+export {
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise

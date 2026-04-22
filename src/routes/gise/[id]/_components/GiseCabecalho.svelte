@@ -38,6 +38,8 @@
 		onRevogarPedido: SubmitFunction;
 		/** Reenvio manual para Base_Equipe (GISE finalizada). */
 		onEnviarPlanilha?: SubmitFunction;
+		/** Edição dos textos do "Breve relatório" (PDFs de extra) — ex.: ao lado de Baixar XLSX. */
+		onAbrirBreveRelatorio?: () => void;
 	}
 
 	let {
@@ -64,7 +66,8 @@
 		onAbrirFinalizar,
 		onSolicitarAssinatura,
 		onRevogarPedido,
-		onEnviarPlanilha
+		onEnviarPlanilha,
+		onAbrirBreveRelatorio
 	}: Props = $props();
 </script>
 
@@ -145,6 +148,16 @@
 			>
 				Baixar XLSX
 			</a>
+		{/if}
+		{#if isAdminGeral && modoEdicaoGeral && onAbrirBreveRelatorio}
+			<button
+				type="button"
+				class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:flex-none sm:min-w-0"
+				onclick={onAbrirBreveRelatorio}
+				disabled={loading.active || pendingCrud}
+			>
+				Alterar texto
+			</button>
 		{/if}
 		{#if isAdminGeral}
 			<button

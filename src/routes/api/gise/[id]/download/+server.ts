@@ -11,6 +11,7 @@ import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
 import { toGisePdfData } from '$lib/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { logger } from '$lib/server/logger';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
@@ -122,10 +123,19 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } = await import(
 				'$lib/export'
 			);
+			const brEnv = await getBreveRelatorioEnvMergido(db);
 			const result = isSupervisaoExtra
-				? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, null, undefined, true)
+				? await gerarRelatorioExtraordinarioSupervisaoPdf(
+						gise,
+						presencas,
+						url.origin,
+						null,
+						undefined,
+						true,
+						brEnv
+					)
 				: await gerarRelatorioExtraordinarioPdf(
-						toGisePdfData(gise),
+						toGisePdfData(gise, brEnv),
 						presencas,
 						seccionalId,
 						url.origin,
@@ -197,7 +207,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		} else {
 			logger.warn('[gise/download] R2 binding indisponível');
 		}
-		const result = await gerarPdfGise(toGisePdfData(gise), logoBytes);
+		const brForPdf = await getBreveRelatorioEnvMergido(db);
+		const result = await gerarPdfGise(toGisePdfData(gise, brForPdf), logoBytes);
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',

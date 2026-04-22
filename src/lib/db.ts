@@ -123,5 +123,8 @@ export {
 	adicionarGiseSeccionalUnidade,
 	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade,
-	listarMembrosParaBaseEquipe
+	listarMembrosParaBaseEquipe,
+	buscarVagasPadraoEquipesGise,
+	salvarVagasPadraoEquipesGise,
+	VAGAS_EQUIPES_FALLBACK
 } from './db/gise';

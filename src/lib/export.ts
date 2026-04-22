@@ -14,6 +14,12 @@ import * as QRCode from 'qrcode';
 import { PDFDocument } from 'pdf-lib';
 import type { Escala, EscalaPolicialComDados } from './types';
 import { formatarData, proximoDia, formatarDataExtenso } from './utils';
+import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
+import {
+	resolveBreveRelatorioConteudoSeccional,
+	resolveBreveRelatorioConteudoSupervisao,
+	resolveBreveRelatorioTitulo
+} from '$lib/gise/breve-relatorio';
 
 interface DiaPlantao {
 	data: string;
@@ -690,6 +696,9 @@ export interface GisePdfData {
 	hora_entrada: string;
 	hora_saida: string;
 	status: string;
+	/** Rótulo e parágrafo do bloco "Breve relatório" (já resolvidos: GISE + env + padrão). */
+	breve_relatorio_titulo: string;
+	breve_relatorio_conteudo: string;
 	supervisor_nome: string | null;
 	supervisor_matricula: string | null;
 	supervisor_telefone: string | null;
@@ -754,7 +763,10 @@ export function giseDetalhadoComMatriculaSupervisorSessao(
 }
 
 /** Transforma GiseDetalhado (DB) em GisePdfData (estrutura plana com equipes) para geração de PDF. */
-export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfData {
+export function toGisePdfData(
+	gise: import('$lib/db').GiseDetalhado,
+	breveEnv?: BreveRelatorioEnv | null
+): GisePdfData {
 	if (!gise) throw new Error('Dados da GISE não fornecidos');
 
 	return {
@@ -762,6 +774,8 @@ export function toGisePdfData(gise: import('$lib/db').GiseDetalhado): GisePdfDat
 		hora_entrada: gise.hora_entrada || '08:00',
 		hora_saida: gise.hora_saida || '16:00',
 		status: gise.status || '',
+		breve_relatorio_titulo: resolveBreveRelatorioTitulo(gise, breveEnv),
+		breve_relatorio_conteudo: resolveBreveRelatorioConteudoSeccional(gise, breveEnv),
 		supervisor_nome: gise.supervisor_nome,
 		supervisor_matricula: gise.supervisor_matricula,
 		supervisor_telefone: gise.supervisor_telefone,
@@ -1126,12 +1140,12 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
-	doc.text('BREVE RELATÓRIO:', margin, y);
+	doc.text(gise.breve_relatorio_titulo, margin, y);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	const boxY = y;
 	doc.rect(margin, boxY, pageWidth - 20, 15);
-	const relatorioTexto = 'EM RAZÃO DE SERVIÇO EXTRAORDINÁRIO (GISE) OS SERVIDORES ABAIXO RELACIONADOS RECEBERÃO GRATIFICAÇÃO NA FORMA DE DIÁRIAS DE REFORÇO OPERACIONAL.';
+	const relatorioTexto = gise.breve_relatorio_conteudo;
 	const splitText = doc.splitTextToSize(relatorioTexto, pageWidth - 30);
 	doc.text(splitText, margin + 5, boxY + 7);
 	y += 25;
@@ -1260,14 +1274,15 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			const txtX = qrX + qrSize + 2;
 			doc.setFontSize(6);
 			doc.setFont('helvetica', 'bold');
-			doc.text(`Confirmado eletronicamente por: ${(reportSignature.assinante_nome ?? '').toUpperCase()}`, txtX, qrY + 3);
+			doc.text('Confirmado eletronicamente por:', txtX, qrY + 3);
+			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
 
 			doc.setFont('helvetica', 'normal');
 			const dataH = reportSignature.created_at ? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
-			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 7);
+			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 10);
 
 			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
+			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 14);
 		} catch (e) {
 			console.warn('[relatorio-extra] Erro ao inserir QR code:', e);
 		}
@@ -1286,8 +1301,12 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	baseUrl?: string,
 	reportSignature?: any,
 	qrCodeBase64?: string,
-	isPreparando = false
+	isPreparando = false,
+	breveEnv?: BreveRelatorioEnv | null
 ): Promise<PdfExportResult> {
+	const breveTitulo = resolveBreveRelatorioTitulo(gise, breveEnv);
+	const breveConteudo = resolveBreveRelatorioConteudoSupervisao(gise, breveEnv);
+
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 	const margin = 10;
@@ -1330,14 +1349,12 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
-	doc.text('BREVE RELATÓRIO:', margin, y);
+	doc.text(breveTitulo, margin, y);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	const boxY = y;
 	doc.rect(margin, boxY, pageWidth - 20, 15);
-	const relatorioTexto =
-		'EM RAZÃO DE SERVIÇO EXTRAORDINÁRIO (GISE) OS SERVIDORES DO QUADRO DE SUPERVISÃO ABAIXO RELACIONADOS RECEBERÃO GRATIFICAÇÃO NA FORMA DE DIÁRIAS DE REFORÇO OPERACIONAL.';
-	const splitText = doc.splitTextToSize(relatorioTexto, pageWidth - 30);
+	const splitText = doc.splitTextToSize(breveConteudo, pageWidth - 30);
 	doc.text(splitText, margin + 5, boxY + 7);
 	y += 25;
 
@@ -1496,16 +1513,17 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 			const txtX = qrX + qrSize + 2;
 			doc.setFontSize(6);
 			doc.setFont('helvetica', 'bold');
-			doc.text(`Confirmado eletronicamente por: ${(reportSignature.assinante_nome ?? '').toUpperCase()}`, txtX, qrY + 3);
+			doc.text('Confirmado eletronicamente por:', txtX, qrY + 3);
+			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
 
 			doc.setFont('helvetica', 'normal');
 			const dataH = reportSignature.created_at
 				? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 				: '';
-			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 7);
+			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 10);
 
 			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 11);
+			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 14);
 		} catch {
 			/* ignora QR */
 		}

@@ -134,7 +134,8 @@ function doPost(e) {
     removerLinhasBaseEquipePorGiseId_(sh, giseId);
     if (rows.length > 0) {
       var start = sh.getLastRow() + 1;
-      sh.getRange(start, 1, start + rows.length - 1, 10).setValues(rows);
+      // getRange: 3º/4º args são numRows e numCols, não linha/coluna de fim.
+      sh.getRange(start, 1, rows.length, 10).setValues(rows);
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: true, inserted: rows.length })).setMimeType(
       ContentService.MimeType.JSON

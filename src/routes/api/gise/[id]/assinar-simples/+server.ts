@@ -15,6 +15,7 @@ import { assinarSimplesGiseSchema } from '$lib/schemas';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { verificarDesafio2FA } from '$lib/auth';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
@@ -81,7 +82,11 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 			} catch (e) { /* logo optional */ }
 		}
 		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
-		const result = await gerarPdfGise(toGisePdfData(gisePdf), logoJpgBytes);
+		const brEnv = await getBreveRelatorioEnvMergido(db);
+		const result = await gerarPdfGise(
+			toGisePdfData(gisePdf, brEnv),
+			logoJpgBytes
+		);
 		const pdfBytes = result.pdf;
 		const sigY = result.finalY;
 
