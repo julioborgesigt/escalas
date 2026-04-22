@@ -36,6 +36,8 @@
 		onAbrirFinalizar: () => void;
 		onSolicitarAssinatura: SubmitFunction;
 		onRevogarPedido: SubmitFunction;
+		/** Reenvio manual para Base_Equipe (GISE finalizada). */
+		onEnviarPlanilha?: SubmitFunction;
 	}
 
 	let {
@@ -61,7 +63,8 @@
 		onAbrirReabrir,
 		onAbrirFinalizar,
 		onSolicitarAssinatura,
-		onRevogarPedido
+		onRevogarPedido,
+		onEnviarPlanilha
 	}: Props = $props();
 </script>
 
@@ -216,6 +219,23 @@
 			>
 				Marcar como Finalizada
 			</button>
+		{/if}
+		{#if isAdminGeral && gise.status === 'finalizada' && onEnviarPlanilha}
+			<form
+				method="POST"
+				action="?/reenviarBaseEquipePlanilha"
+				use:enhance={onEnviarPlanilha}
+				class="contents"
+			>
+				<button
+					type="submit"
+					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex flex-1 min-w-[9.25rem] items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:flex-none sm:min-w-0"
+					disabled={loading.active || pendingCrud}
+					title="Reenvia os dados desta GISE para a aba Base_Equipe da planilha"
+				>
+					Enviar para a planilha
+				</button>
+			</form>
 		{/if}
 	</div>
 </div>

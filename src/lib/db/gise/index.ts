@@ -12,8 +12,10 @@ export {
 	clonarGiseParaData,
 	verificarGiseCompleta,
 	verificarTodosSairam,
+	verificarTodosEntraram,
 	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,
+	tentarPromoverGiseProntaParaFinalizar,
 	verificarTodosRelatoriosExtraAssinados,
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
@@ -53,6 +55,9 @@ export {
 	isDailyGiseSigned,
 	buscarPresencasGise
 } from './presencas';
+
+export { listarMembrosParaBaseEquipe } from './base-equipe';
+export type { LinhaBaseEquipeMembro } from './base-equipe';
 
 export {
 	buscarAssinaturasRelatoriosGise,

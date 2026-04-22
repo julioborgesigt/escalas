@@ -8,13 +8,10 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	getDB,
-	buscarGiseEscala,
-	atualizarGiseEscala
-} from '$lib/db';
+import { getDB, buscarGiseEscala, atualizarGiseEscala } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
+import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise-base-equipe-sync';
 import { giseIdParamSchema } from '$lib/schemas';
 
 export const POST: RequestHandler = async ({ locals, params, platform }) => {
@@ -47,6 +44,8 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 	const afetados = await coletarAfetadosGise(db, id);
 	await atualizarGiseEscala(db, id, { status: 'finalizada' });
 	await invalidarPapelGiseMultiplos(afetados);
+
+	agendarSyncBaseEquipeAposFinalizar(platform, db, id);
 
 	return json({ ok: true });
 };

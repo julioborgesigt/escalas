@@ -8,12 +8,23 @@
  *
  * Os segredos ficam guardados no PropertiesService da planilha — NÃO no código.
  * Assim, quem tem acesso de leitura à planilha não vê os tokens.
+ *
+ * Base_Equipe (recebimento do portal ao finalizar GISE):
+ *   1. Menu → "⚙️ Secret Base_Equipe (portal)" e cole o mesmo valor de GISE_BASE_EQUIPE_SECRET do Cloudflare.
+ *   2. Implantar como aplicativo da Web (executar como: Eu; acesso: Qualquer pessoa) e copiar a URL para GISE_BASE_EQUIPE_WEBHOOK_URL no Pages.
+ *   3. A aba "Base_Equipe" deve existir (colunas A–J conforme seu modelo).
+ *
+ * IMPORTANTE: em Web App, getActiveSpreadsheet() costuma ser null. O script tenta
+ * ScriptApp.getScriptContainerInfo().spreadsheetId quando a API existir (runtime V8);
+ * senão use o menu "⚙️ ID planilha Base_Equipe (portal)" (BASE_EQUIPE_SPREADSHEET_ID).
+ * Em Projeto → Configurações do editor, use o motor **V8** (recomendado).
  */
 
 const API_BASE_URL = 'https://escalas.pages.dev/api/webhook';
 
 const TAB_SERVIDORES = 'DB_SERVIDORES';
 const TAB_UNIDADES = 'DB_UNIDADES';
+const TAB_BASE_EQUIPE = 'Base_Equipe';
 
 /**
  * Planilha DB_UNIDADES (linhas de dados a partir da linha 2):
@@ -34,6 +45,159 @@ const TAB_UNIDADES = 'DB_UNIDADES';
 
 const PROP_SYNC_TOKEN = 'SYNC_TOKEN';
 const PROP_RESET_TOKEN = 'RESET_TOKEN';
+const PROP_BASE_EQUIPE_SECRET = 'BASE_EQUIPE_SECRET';
+const PROP_BASE_EQUIPE_SPREADSHEET_ID = 'BASE_EQUIPE_SPREADSHEET_ID';
+
+/**
+ * ID da planilha quando o script é container-bound (API pode não existir em runtime antigo).
+ * @return {string} id ou string vazia
+ */
+function getSpreadsheetIdFromContainer_() {
+  try {
+    if (typeof ScriptApp.getScriptContainerInfo !== 'function') {
+      return '';
+    }
+    var info = ScriptApp.getScriptContainerInfo();
+    if (info && info.spreadsheetId) {
+      return String(info.spreadsheetId).trim();
+    }
+  } catch (ignore) {
+    // Motor antigo ou projeto sem container
+  }
+  return '';
+}
+
+/**
+ * Planilha onde grava a Base_Equipe (Web App não tem "planilha ativa").
+ * 1) ScriptApp.getScriptContainerInfo().spreadsheetId (se disponível; motor V8).
+ * 2) Script Property BASE_EQUIPE_SPREADSHEET_ID (menu no script).
+ * 3) Último recurso: getActiveSpreadsheet() (ex.: teste pelo editor).
+ */
+function getSpreadsheetForPortal_() {
+  var fromContainer = getSpreadsheetIdFromContainer_();
+  if (fromContainer) {
+    return SpreadsheetApp.openById(fromContainer);
+  }
+  var sid = PropertiesService.getScriptProperties().getProperty(PROP_BASE_EQUIPE_SPREADSHEET_ID);
+  if (sid && String(sid).trim()) {
+    return SpreadsheetApp.openById(String(sid).trim());
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+  throw new Error(
+    'planilha_nao_resolvida: use o menu "ID planilha Base_Equipe (portal)" com o ID da URL docs.google.com/.../d/ID/... ou vincule o script à planilha (motor V8).'
+  );
+}
+
+/**
+ * POST do Cloudflare após finalizar GISE: body JSON { secret, gise_id, rows }.
+ * Remove todas as linhas cuja coluna A = gise_id e reinsere `rows` (cada linha = 10 células A–J).
+ */
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const body = JSON.parse(e.postData.contents || '{}');
+    const expected = PropertiesService.getScriptProperties().getProperty(PROP_BASE_EQUIPE_SECRET);
+    if (!expected || body.secret !== expected) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'unauthorized' })).setMimeType(
+        ContentService.MimeType.JSON
+      );
+    }
+    var giseId = body.gise_id;
+    if (giseId === undefined || giseId === null || String(giseId).trim() === '') {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'gise_id_required' })).setMimeType(
+        ContentService.MimeType.JSON
+      );
+    }
+    giseId = Number(giseId);
+    var rows = body.rows;
+    if (!Array.isArray(rows)) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'rows_must_be_array' })).setMimeType(
+        ContentService.MimeType.JSON
+      );
+    }
+    for (var i = 0; i < rows.length; i++) {
+      if (!Array.isArray(rows[i]) || rows[i].length !== 10) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_row' })).setMimeType(
+          ContentService.MimeType.JSON
+        );
+      }
+    }
+    var ss = getSpreadsheetForPortal_();
+    var sh = ss.getSheetByName(TAB_BASE_EQUIPE);
+    if (!sh) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'sheet_not_found' })).setMimeType(
+        ContentService.MimeType.JSON
+      );
+    }
+    removerLinhasBaseEquipePorGiseId_(sh, giseId);
+    if (rows.length > 0) {
+      var start = sh.getLastRow() + 1;
+      sh.getRange(start, 1, start + rows.length - 1, 10).setValues(rows);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, inserted: rows.length })).setMimeType(
+      ContentService.MimeType.JSON
+    );
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) })).setMimeType(
+      ContentService.MimeType.JSON
+    );
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Apaga linhas de dados (≥2) cuja coluna A numérica coincide com giseId. */
+function removerLinhasBaseEquipePorGiseId_(sh, giseId) {
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  for (var r = last; r >= 2; r--) {
+    var v = sh.getRange(r, 1).getValue();
+    if (Number(v) === giseId) {
+      sh.deleteRow(r);
+    }
+  }
+}
+
+/** Menu: grava BASE_EQUIPE_SECRET (mesmo valor do Cloudflare GISE_BASE_EQUIPE_SECRET). */
+function configurarSecretBaseEquipePortal() {
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt(
+    'Secret Base_Equipe (portal)',
+    'Cole o segredo GISE_BASE_EQUIPE_SECRET configurado no Cloudflare Pages:',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const v = res.getResponseText().trim();
+  if (!v) {
+    ui.alert('Valor vazio', 'Nada foi alterado.', ui.ButtonSet.OK);
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty(PROP_BASE_EQUIPE_SECRET, v);
+  ui.alert('OK', 'BASE_EQUIPE_SECRET salvo em ScriptProperties.', ui.ButtonSet.OK);
+}
+
+/** Menu: ID do arquivo Google Sheets (só necessário se o Apps Script NÃO for vinculado à planilha). */
+function configurarIdPlanilhaBaseEquipePortal() {
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt(
+    'ID planilha Base_Equipe (portal)',
+    'Cole o ID da planilha (trecho da URL .../spreadsheets/d/ESTE_ID/edit). ' +
+      'Deixe vazio para remover e depender só do script vinculado ao arquivo:',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const v = res.getResponseText().trim();
+  const props = PropertiesService.getScriptProperties();
+  if (!v) {
+    props.deleteProperty(PROP_BASE_EQUIPE_SPREADSHEET_ID);
+    ui.alert('OK', 'BASE_EQUIPE_SPREADSHEET_ID removido.', ui.ButtonSet.OK);
+    return;
+  }
+  props.setProperty(PROP_BASE_EQUIPE_SPREADSHEET_ID, v);
+  ui.alert('OK', 'BASE_EQUIPE_SPREADSHEET_ID salvo.', ui.ButtonSet.OK);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Property helpers
@@ -430,6 +594,8 @@ function onOpen() {
     .addItem('2. Sincronizar SERVIDORES (Total)', 'fullSyncServers')
     .addSeparator()
     .addItem('⚙️ Configurar tokens', 'configurarTokens')
+    .addItem('⚙️ Secret Base_Equipe (portal)', 'configurarSecretBaseEquipePortal')
+    .addItem('⚙️ ID planilha Base_Equipe (portal)', 'configurarIdPlanilhaBaseEquipePortal')
     .addSeparator()
     .addItem('⚠️ ZERAR Banco de Dados (Global)', 'resetDatabase')
     .addToUi();

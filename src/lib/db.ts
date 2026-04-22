@@ -114,11 +114,14 @@ export {
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise,
 	verificarTodosSairam,
+	verificarTodosEntraram,
 	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,
+	tentarPromoverGiseProntaParaFinalizar,
 	verificarTodosRelatoriosExtraAssinados,
 	buscarGiseSeccionalMembros,
 	adicionarGiseSeccionalUnidade,
 	atualizarGiseSeccionalUnidade,
-	removerGiseSeccionalUnidade
+	removerGiseSeccionalUnidade,
+	listarMembrosParaBaseEquipe
 } from './db/gise';

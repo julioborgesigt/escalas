@@ -487,6 +487,7 @@ export const actions: Actions = {
 		}
 
 		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
+		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
 		return { success: true, giseId };
 	},
 
