@@ -1,0 +1,22 @@
+# Cloudflare Pages `_headers`.
+# Cacheia ativos estáticos no edge/navegador. `_app/*` já tem hash no nome e
+# é cacheado automaticamente pelo adapter, então não precisa entrar aqui.
+
+# Modelos face-api: binários imutáveis (~10 MB), versionados pelo nome do arquivo.
+/face-api/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Logos e base64 estáticos da PCCE: mudam raramente.
+/logo_*
+  Cache-Control: public, max-age=604800
+/logogise.jpg
+  Cache-Control: public, max-age=604800
+
+# Boot script de tema/fontes — curto porque pode mudar entre deploys.
+/init.js
+  Cache-Control: public, max-age=3600
+  Content-Type: text/javascript; charset=utf-8
+
+# robots.txt: pode ser ajustado sem emergência.
+/robots.txt
+  Cache-Control: public, max-age=86400

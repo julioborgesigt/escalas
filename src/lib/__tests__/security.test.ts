@@ -20,13 +20,20 @@ describe('Content-Security-Policy — HTML (gerenciado pelo SvelteKit)', () => {
 		expect(directives['script-src']).not.toContain('unsafe-eval');
 	});
 
-	it('style-src permite Google Fonts CSS', () => {
-		expect(directives['style-src']).toContain('https://fonts.googleapis.com');
+	it("style-src não libera CDNs externos (fontes são self-hosted via @fontsource)", () => {
+		const styleSrc = directives['style-src'] ?? [];
+		expect(styleSrc).not.toContain('https://fonts.googleapis.com');
+		expect(styleSrc.every((s) => s === 'self' || s === 'unsafe-inline')).toBe(true);
 	});
 
-	it('font-src e img-src permitem fontes/assets do Google', () => {
-		expect(directives['font-src']).toContain('https://fonts.gstatic.com');
-		expect(directives['img-src']).toContain('https://fonts.gstatic.com');
+	it("font-src é apenas 'self' e data: (fontes empacotadas no bundle)", () => {
+		const fontSrc = directives['font-src'] ?? [];
+		expect(fontSrc).not.toContain('https://fonts.gstatic.com');
+		expect(fontSrc.every((s) => s === 'self' || s === 'data:')).toBe(true);
+	});
+
+	it("img-src não libera fonts.gstatic (sem dependência externa do Google)", () => {
+		expect(directives['img-src']).not.toContain('https://fonts.gstatic.com');
 	});
 
 	it('frame-src e object-src bloqueiam tudo', () => {
