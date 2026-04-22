@@ -1,6 +1,7 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
 	import { formatarData, mascararNome, mascararCPF, mascararIP, mascararCoordenada } from '$lib/utils';
+	import { toaster } from '$lib/toast';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -49,7 +50,11 @@
 				if (import.meta.env.DEV) {
 					console.error('[Download] corpo de erro', errorText);
 				}
-				alert(`Erro ao carregar o arquivo (Status ${res.status}). Verifique o console (F12) para detalhes técnicos.`);
+				toaster.create({
+					title: 'Erro ao carregar o arquivo',
+					description: `Status ${res.status}. Tente novamente em instantes.`,
+					type: 'error'
+				});
 				baixando = false;
 				return;
 			}
@@ -60,7 +65,11 @@
 				if (import.meta.env.DEV) {
 					console.error('[Download] JSON de erro', errJson);
 				}
-				alert(`Erro do Servidor: ${errJson.error || 'Erro desconhecido'}`);
+				toaster.create({
+					title: 'Erro do servidor',
+					description: errJson.error || 'Erro desconhecido',
+					type: 'error'
+				});
 				baixando = false;
 				return;
 			}
@@ -78,7 +87,11 @@
 			if (import.meta.env.DEV) {
 				console.error('[Download] exceção', err);
 			}
-			alert('Falha na comunicação com o servidor.');
+			toaster.create({
+				title: 'Falha de comunicação',
+				description: 'Não foi possível contatar o servidor. Verifique sua conexão.',
+				type: 'error'
+			});
 		} finally {
 			baixando = false;
 		}

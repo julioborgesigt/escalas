@@ -221,6 +221,9 @@
 				{/if}
 				<label class="label">
 					<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
+					<!-- svelte-ignore a11y_autofocus — página dedicada de login: foco
+					     inicial no primeiro campo é exceção amplamente aceita pela
+					     comunidade a11y e elimina 1 toque em mobile. -->
 					<input
 						class="input"
 						type="text"
@@ -230,6 +233,11 @@
 							? 'Digite seu login'
 							: 'Digite sua matrícula (8 caracteres)'}
 						maxlength={tipo === 'admin' ? undefined : 8}
+						autocomplete="username"
+						inputmode={tipo === 'policial' ? 'numeric' : 'text'}
+						enterkeyhint="next"
+						aria-describedby={loginErrorDisplay ? 'login-error' : undefined}
+						autofocus
 						required
 					/>
 				</label>
@@ -242,12 +250,20 @@
 						name="senha"
 						bind:value={senha}
 						placeholder="Digite sua senha"
+						autocomplete="current-password"
+						enterkeyhint="go"
+						aria-describedby={loginErrorDisplay ? 'login-error' : undefined}
 						required
 					/>
 				</label>
 
 				{#if loginErrorDisplay}
-					<div class="flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm">
+					<div
+						id="login-error"
+						role="alert"
+						aria-live="assertive"
+						class="flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
+					>
 						<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 						</svg>

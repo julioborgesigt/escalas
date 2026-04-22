@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { csrfHeaders } from '$lib/csrf';
+	import { toaster } from '$lib/toast';
 	let faceapi: any = $state(null);
 
 	let {
@@ -397,9 +398,10 @@
 			return true;
 		} catch (e: any) {
 			codigoError = e.message;
-			// Se o erro for de login/sessão, podemos alertar de forma mais incisiva
+			// Se o erro for de login/sessão, avisar de forma mais incisiva (toast
+			// de erro no canto — bloqueia menos que alert() e respeita o tema).
 			if (e.message.includes('Sessão inválida')) {
-				alert(e.message);
+				toaster.create({ title: 'Sessão expirada', description: e.message, type: 'error' });
 			}
 			return false;
 		} finally {

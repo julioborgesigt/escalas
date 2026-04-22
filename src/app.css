@@ -34,3 +34,19 @@ body {
                           radial-gradient(circle at bottom left, oklch(25% 0.05 260deg / 20%), transparent 40%);
     }
 }
+
+/* Respeita a preferência do SO para reduzir movimento. Cobre transitions do
+ * Svelte (fade/slide), animações Tailwind (`animate-spin`, `animate-pulse`,
+ * `animate-in`) e smooth-scroll. Usuários com vertigem/enjoo de movimento e
+ * plataformas com "Reduce Motion" ligado (iOS, Android, macOS, Windows)
+ * deixam de ver micro-animações sem que a gente toque em cada componente. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
