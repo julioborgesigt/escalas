@@ -11,6 +11,32 @@ export type GiseSecComMembros = {
 	unidades?: GiseUnidadeSlot[];
 };
 
+/** Tipos de equipe com relatório de produtividade, na ordem exibida na UI. */
+export type GiseEquipeTipo = 'operacional' | 'seint';
+
+const ORDEM_TIPOS: readonly GiseEquipeTipo[] = ['operacional', 'seint'];
+
+/**
+ * Coleta `operacional` / `seint` presentes nas equipes da seccional.
+ * Lê `unidades[].equipes` (modelo atual) e `equipes` no topo (legado).
+ * Se ainda não houver equipe, retorna `['operacional']` para exibir o botão desabilitado.
+ */
+export function tiposEquipeNaSeccional(sec: {
+	unidades?: GiseUnidadeSlot[];
+	equipes?: GiseEquipeComMembros[];
+}): GiseEquipeTipo[] {
+	const fromUnidades = (sec.unidades ?? []).flatMap((u) => u.equipes ?? []);
+	const legacy = sec.equipes ?? [];
+	const present = new Set<GiseEquipeTipo>();
+	for (const eq of [...fromUnidades, ...legacy]) {
+		if (eq.tipo === 'operacional' || eq.tipo === 'seint') present.add(eq.tipo);
+	}
+	if (present.size > 0) {
+		return ORDEM_TIPOS.filter((t) => present.has(t));
+	}
+	return ['operacional'];
+}
+
 export function getMembrosFromSec(sec: GiseSecComMembros): GiseMembro[] {
 	return (sec.unidades ?? []).flatMap((u: GiseUnidadeSlot) =>
 		(u.equipes ?? []).flatMap((eq: GiseEquipeComMembros) => eq.membros ?? [])

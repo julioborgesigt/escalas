@@ -79,8 +79,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		try {
 			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
+			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
 			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise-supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
+			const brEnv = await getBreveRelatorioEnvMergido(db);
 
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) {
@@ -103,9 +105,17 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 				const presencas = await buscarPresencasGise(db, documento.escala_id);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const result = isSupExtra
-					? await gerarRelatorioExtraordinarioSupervisaoPdf(gise, presencas, url.origin, reportSignature)
+					? await gerarRelatorioExtraordinarioSupervisaoPdf(
+							gise,
+							presencas,
+							url.origin,
+							reportSignature,
+							undefined,
+							false,
+							brEnv
+						)
 					: await gerarRelatorioExtraordinarioPdf(
-							toGisePdfData(gise),
+							toGisePdfData(gise, brEnv),
 							presencas,
 							seccionalId,
 							url.origin,

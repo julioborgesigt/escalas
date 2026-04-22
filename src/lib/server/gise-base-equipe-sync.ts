@@ -12,7 +12,8 @@
  * A finalização da GISE não falha se o envio à planilha falhar; erros vão para o log.
  *
  * Regras de dados:
- *   — Uma linha por policial em gise_membros (mesmo sem presença).
+ *   — Uma linha por policial em gise_membros (mesmo sem presença), mais o quadro «Supervisão e apoio»
+ *     (supervisor, assessor, SEINT) quando não estiverem alocados em equipe.
  *   — Cidade: unidade do slot, exceto supervisor/assessor/SEINT da escala → cidade pela lotação
  *     (nome da unidade = texto de lotação, case-insensitive).
  *   — Datas/horas: presença quando existir; senão alinhado ao PDF (data prevista, hora vazia se ausente).

@@ -199,9 +199,9 @@
 		class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"
 	></div>
 
-	<div class="p-6">
-		<div class="flex flex-wrap items-center justify-between gap-4 mb-5">
-			<div class="flex items-center gap-3">
+	<div class="p-3 sm:p-5 md:p-6">
+		<div class="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-5">
+			<div class="flex items-center gap-2 sm:gap-3">
 				<div class="p-2 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
 					<ShieldCheck size={24} />
 				</div>
@@ -225,7 +225,7 @@
 		</div>
 
 		{#if editando}
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 mb-3 sm:mb-4">
 				<div>
 					<label
 						for="supId"
@@ -317,11 +317,11 @@
 			</form>
 		{:else}
 			<div
-				class="p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
+				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
 			>
-				<div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-					<div class="space-y-4 flex-1">
-						<div class="flex items-start gap-4">
+				<div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5 md:gap-6">
+					<div class="space-y-2.5 sm:space-y-4 flex-1">
+						<div class="flex items-start gap-2.5 sm:gap-4">
 							<div
 								class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
 							>
@@ -351,7 +351,7 @@
 							</div>
 						</div>
 
-						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+						<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
 							{#if gise.assessor_id}
 								{@const stAss = marcador('assessor', gise.assessor_id)}
 								<div
@@ -478,7 +478,7 @@
 					</div>
 
 					{#if !documentoAssinadoInfo?.existe}
-						<div class="flex flex-col items-end gap-3 min-w-[140px]">
+						<div class="flex flex-col items-end gap-1.5 sm:gap-3 min-w-0 min-[360px]:min-w-[140px]">
 							<div class="flex flex-col items-end">
 								<span
 									class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-warning-500/20"
@@ -493,7 +493,7 @@
 
 				{#if documentoAssinadoInfo?.existe}
 					<section
-						class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 space-y-2"
+						class="mt-3.5 sm:mt-5 md:mt-6 pt-2.5 sm:pt-3 md:pt-4 border-t border-surface-200/60 dark:border-surface-700/60 space-y-1.5 sm:space-y-2"
 					>
 						<p
 							class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
@@ -501,7 +501,7 @@
 							Escala GISE
 						</p>
 						<div
-							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-4 flex flex-wrap items-center justify-between gap-4"
+							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 md:gap-4"
 						>
 							<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 min-w-0 flex-1">
 								<div
@@ -539,7 +539,7 @@
 
 				{#if mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly}
 					<section
-						class="mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60 space-y-2"
+						class="mt-3.5 sm:mt-5 md:mt-6 pt-2.5 sm:pt-3 md:pt-4 border-t border-surface-200/60 dark:border-surface-700/60 space-y-1.5 sm:space-y-2"
 					>
 						<p
 							class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
@@ -547,9 +547,11 @@
 							Assinatura da escala GISE
 						</p>
 						<div
-							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-4"
+							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4"
 						>
-							<div class="flex flex-wrap items-center justify-between gap-4">
+							<div
+								class="flex flex-col gap-2.5 min-[480px]:gap-4 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center min-[480px]:justify-between"
+							>
 								<div
 									class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 min-w-0 flex-1"
 								>
@@ -565,9 +567,11 @@
 										</p>
 									</div>
 								</div>
-								<div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
+								<div
+									class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:justify-end gap-2 w-full min-[400px]:w-auto min-w-0"
+								>
 									<a
-										class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline {assinaturaEscalaHabilitada
+										class="btn text-xs font-bold px-3 py-2.5 min-[400px]:py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline w-full min-[400px]:w-auto min-w-0 touch-manipulation {assinaturaEscalaHabilitada
 											? 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'
 											: 'pointer-events-none opacity-60 border-transparent'}"
 										href="/api/gise/{gise.id}/download?format=pdf"
@@ -586,12 +590,12 @@
 												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 											/></svg
 										>
-										<span class="whitespace-nowrap">Escala GISE (conferência)</span>
+										<span class="text-left sm:text-center leading-tight">Escala GISE (conferência)</span>
 									</a>
 									{#if mostrarPainelAssinaturaEscala && (isMobile || !restringirSmartphone)}
 										<button
 											type="button"
-											class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+											class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-2.5 min-[400px]:py-1 shadow-sm font-bold uppercase rounded-xl w-full min-[400px]:w-auto min-h-11 min-[400px]:min-h-0 touch-manipulation"
 											disabled={loading.active || !assinaturaEscalaHabilitada}
 											onclick={() => onAbrirAssinaturaEscalaManual()}
 										>
@@ -601,7 +605,7 @@
 									{#if mostrarPainelAssinaturaEscala && !isMobile}
 										<button
 											type="button"
-											class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+											class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-2.5 min-[400px]:py-1 shadow-sm font-bold uppercase rounded-xl w-full min-[400px]:w-auto min-h-11 min-[400px]:min-h-0 touch-manipulation"
 											disabled={loading.active || !assinaturaEscalaHabilitada}
 											onclick={() => painelTokenGise?.assinarComSerpro()}
 										>
@@ -636,8 +640,8 @@
 						class="{documentoAssinadoInfo?.existe ||
 						mostrarPainelAssinaturaEscala ||
 						mostrarPainelAssinaturaEscalaReadonly
-							? 'mt-6 pt-4 border-t border-surface-200/60 dark:border-surface-700/60'
-							: 'mt-5 pt-4 border-t border-surface-200/60 dark:border-surface-700/60'} space-y-2"
+							? 'mt-3.5 sm:mt-5 md:mt-6 pt-2.5 sm:pt-3 md:pt-4 border-t border-surface-200/60 dark:border-surface-700/60'
+							: 'mt-2.5 sm:mt-4 md:mt-5 pt-2.5 sm:pt-3 md:pt-4 border-t border-surface-200/60 dark:border-surface-700/60'} space-y-1.5 sm:space-y-2"
 					>
 						<p
 							class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-400"
@@ -645,7 +649,7 @@
 							Relatório de extra (Supervisão e apoio)
 						</p>
 						<div
-							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-4"
+							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4"
 						>
 							{#if !extraSupervisaoConfigurado}
 								<p
@@ -656,7 +660,7 @@
 								</p>
 							{:else}
 								<div
-									class="flex flex-wrap items-center justify-between gap-4"
+									class="flex flex-col gap-2.5 min-[480px]:gap-4 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center min-[480px]:justify-between"
 								>
 									<div
 										class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 min-w-0 flex-1"
@@ -693,7 +697,7 @@
 									</div>
 
 									<div
-										class="flex flex-wrap items-center justify-end gap-3 shrink-0 w-full sm:w-auto"
+										class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:justify-end gap-2 w-full min-[400px]:w-auto min-w-0"
 									>
 										{#if assRelSup}
 											<span
@@ -708,16 +712,16 @@
 												href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 												target="_blank"
 												title={`Assinado por ${assRelSup.assinante_nome}`}
-												class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95 no-underline {!downloadExtraSupHabilitado
+												class="flex items-center justify-center gap-2 px-4 py-2.5 min-[400px]:py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95 no-underline w-full min-[400px]:w-auto touch-manipulation {!downloadExtraSupHabilitado
 													? 'pointer-events-none opacity-60'
 													: ''}"
 											>
-												<FileDown size={18} />
+												<FileDown size={18} class="shrink-0" />
 												Baixar PDF Assinado
 											</a>
 										{:else}
 											<a
-												class="btn text-xs font-bold px-3 py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline preset-tonal-primary border-primary-500/30 {!downloadExtraSupHabilitado
+												class="btn text-xs font-bold px-3 py-2.5 min-[400px]:py-2 sm:px-4 sm:py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all no-underline w-full min-[400px]:w-auto min-w-0 touch-manipulation preset-tonal-primary border-primary-500/30 {!downloadExtraSupHabilitado
 													? 'pointer-events-none cursor-not-allowed opacity-60'
 													: 'hover:border-primary-500'}"
 												href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
@@ -738,16 +742,19 @@
 														d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 													/></svg
 												>
-												<span class="whitespace-nowrap">Relat. Extra (conferência)</span>
-												
+												<span class="text-left leading-tight min-[400px]:whitespace-nowrap"
+													>Relat. Extra (conferência)</span
+												>
 											</a>
 										{/if}
 										{#if isSupervisor && !assRelSup && extraSupervisaoConfigurado}
-											<div class="flex flex-wrap items-center justify-end gap-2">
+											<div
+												class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2 w-full min-[400px]:w-auto"
+											>
 												{#if isMobile || !restringirSmartphone}
 													<button
 														type="button"
-														class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+														class="btn btn-xs preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-2.5 min-[400px]:py-1 shadow-sm font-bold uppercase rounded-xl w-full min-[400px]:w-auto min-h-11 min-[400px]:min-h-0 touch-manipulation"
 														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoManual?.()}
 													>
@@ -757,7 +764,7 @@
 												{#if !isMobile}
 													<button
 														type="button"
-														class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1 shadow-sm font-bold uppercase rounded-xl"
+														class="btn btn-xs preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-2.5 min-[400px]:py-1 shadow-sm font-bold uppercase rounded-xl w-full min-[400px]:w-auto min-h-11 min-[400px]:min-h-0 touch-manipulation"
 														disabled={!assinaturaExtraHabilitada}
 														onclick={() => onAssinarExtraSupervisaoDigital?.()}
 													>

@@ -12,6 +12,7 @@ import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/export';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
@@ -61,7 +62,11 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		} catch (e) { /* logo optional */ }
 	}
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
-	const result = await gerarPdfGise(toGisePdfData(gisePdf), logoJpgBytes);
+	const brEnv = await getBreveRelatorioEnvMergido(db);
+	const result = await gerarPdfGise(
+		toGisePdfData(gisePdf, brEnv),
+		logoJpgBytes
+	);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 

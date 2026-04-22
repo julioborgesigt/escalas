@@ -1,4 +1,5 @@
 import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
+import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -48,6 +49,7 @@ export async function upsertGiseSeccional(
 		.returning({ id: giseSeccionais.id });
 
 	const secId = result[0].id;
+	const v = await buscarVagasPadraoEquipesGise(db);
 
 	// Cria 1 slot de unidade em branco (sem unidade definida) com equipe padrão
 	const [slotResult] = await db
@@ -60,15 +62,15 @@ export async function upsertGiseSeccional(
 				gise_seccional_id: secId,
 				gise_unidade_id: slotResult.id,
 				tipo: 'operacional',
-				slots_dpc: 1,
-				slots_oip: 3
+				slots_dpc: v.operacional.dpc,
+				slots_oip: v.operacional.oip
 			},
 			{
 				gise_seccional_id: secId,
 				gise_unidade_id: slotResult.id,
 				tipo: 'seint',
-				slots_dpc: 0,
-				slots_oip: 2
+				slots_dpc: v.seint.dpc,
+				slots_oip: v.seint.oip
 			}
 		]);
 	}
@@ -152,6 +154,7 @@ export async function adicionarGiseSeccionalUnidade(
 	giseSeccionalId: number,
 	unidadeId: number | null
 ): Promise<number> {
+	const v = await buscarVagasPadraoEquipesGise(db);
 	const [result] = await db
 		.insert(giseSeccionalUnidades)
 		.values({ gise_seccional_id: giseSeccionalId, unidade_id: unidadeId })
@@ -163,15 +166,15 @@ export async function adicionarGiseSeccionalUnidade(
 			gise_seccional_id: giseSeccionalId,
 			gise_unidade_id: result.id,
 			tipo: 'operacional',
-			slots_dpc: 1,
-			slots_oip: 3
+			slots_dpc: v.operacional.dpc,
+			slots_oip: v.operacional.oip
 		},
 		{
 			gise_seccional_id: giseSeccionalId,
 			gise_unidade_id: result.id,
 			tipo: 'seint',
-			slots_dpc: 0,
-			slots_oip: 2
+			slots_dpc: v.seint.dpc,
+			slots_oip: v.seint.oip
 		}
 	]);
 

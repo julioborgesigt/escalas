@@ -918,9 +918,20 @@ export async function adicionarRodapeSimples(
 
 	const textX = marginX + qrSize + 10;
 
-	// 2 — Informações do assinante - Padrão solicitado pelo usuário
-	lastPage.drawText(`Confirmado eletronicamente por: ${assinante.toUpperCase()}`, {
-		x: textX, y: qrY + 24, size: 8.5, font: fontBold, color: cDark
+	// 2 — Informações do assinante (rótulo e nome em linhas separadas; data/URL como antes)
+	lastPage.drawText('Confirmado eletronicamente por:', {
+		x: textX,
+		y: qrY + 32,
+		size: 8.5,
+		font: fontBold,
+		color: cDark
+	});
+	lastPage.drawText(assinante.toUpperCase(), {
+		x: textX,
+		y: qrY + 22,
+		size: 8.5,
+		font: fontBold,
+		color: cDark
 	});
 
 	// 3 — Data e validadores
@@ -929,13 +940,21 @@ export async function adicionarRodapeSimples(
 		infoLine += `  |  Código: ${verificationHash}`;
 	}
 	lastPage.drawText(infoLine, {
-		x: textX, y: qrY + 12, size: 7, font, color: cGray
+		x: textX,
+		y: qrY + 12,
+		size: 7,
+		font,
+		color: cGray
 	});
 
 	if (verificationUrl) {
 		const cleanUrl = verificationUrl.replace('https://', '').replace('http://', '');
 		lastPage.drawText(`Verificar em: ${cleanUrl}`, {
-			x: textX, y: qrY + 4, size: 7, font, color: cGray
+			x: textX,
+			y: qrY + 4,
+			size: 7,
+			font,
+			color: cGray
 		});
 	}
 

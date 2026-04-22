@@ -19,6 +19,7 @@ import type { Database } from '../core';
 import { logger } from '../../server/logger';
 
 import type { GiseDetalhado, GiseUnidadeSlot } from './types';
+import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
 import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise-supervisao-extra';
 import { quadroSupervisaoExtraExigeRelatorio } from '../../gise/gise-supervisao-extra';
 
@@ -447,6 +448,9 @@ export async function atualizarGiseEscala(
 		| 'pronta_para_finalizar'
 		| 'finalizada';
 		supervisor_id: number | null;
+		breve_relatorio_titulo: string | null;
+		breve_relatorio_texto_seccional: string | null;
+		breve_relatorio_texto_supervisao: string | null;
 	}>
 ) {
 	return db.update(giseEscalas).set(data).where(eq(giseEscalas.id, id));
@@ -840,6 +844,7 @@ export async function clonarGiseParaData(
 			(id) => !slotsExistentes.some((s) => s.gise_seccional_id === id)
 		);
 
+		const v = await buscarVagasPadraoEquipesGise(db);
 		for (const secId of secIdsSemSlot) {
 			const [slot] = await db.insert(giseSeccionalUnidades).values({
 				gise_seccional_id: secId,
@@ -851,15 +856,15 @@ export async function clonarGiseParaData(
 					gise_seccional_id: secId,
 					gise_unidade_id: slot.id,
 					tipo: 'operacional' as const,
-					slots_dpc: 1,
-					slots_oip: 3
+					slots_dpc: v.operacional.dpc,
+					slots_oip: v.operacional.oip
 				},
 				{
 					gise_seccional_id: secId,
 					gise_unidade_id: slot.id,
 					tipo: 'seint' as const,
-					slots_dpc: 0,
-					slots_oip: 2
+					slots_dpc: v.seint.dpc,
+					slots_oip: v.seint.oip
 				}
 			]);
 		}

@@ -204,6 +204,12 @@ export const giseEscalas = sqliteTable(
 		assessor_id: integer('assessor_id'),
 		seint1_id: integer('seint1_id'),
 		seint2_id: integer('seint2_id'),
+		/** Rótulo do bloco "Breve relatório" nos PDFs de extra; null = padrão global. */
+		breve_relatorio_titulo: text('breve_relatorio_titulo'),
+		/** Texto do quadro no relatório de extra por seccional; null = padrão global. */
+		breve_relatorio_texto_seccional: text('breve_relatorio_texto_seccional'),
+		/** Texto do quadro no relatório de extra do quadro de supervisão; null = padrão global. */
+		breve_relatorio_texto_supervisao: text('breve_relatorio_texto_supervisao'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
