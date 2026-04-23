@@ -1,47 +1,93 @@
 /**
- * Hook de assinatura digital para página GISE detalhada.
- * Centraliza WebPKI, SERPRO, assinatura simples, relatórios e lotes.
+ * Hook que concentra todos os fluxos de assinatura da página GISE detalhada:
+ *   - Modal de rubrica (captura + roteamento de destino)
+ *   - Assinatura simples da escala GISE (fetch + download do PDF)
+ *   - Assinatura com token SERPRO (escala + relatórios extraordinários)
+ *   - Assinatura em lote de relatórios (manual e digital via SERPRO)
+ *
+ * Os estados `painelTokenGise`, `painelTokenRelatorio`, `serproSigner*`,
+ * `rubricaCapturada` são expostos com getters/setters para funcionar com
+ * `bind:` nas props dos componentes filho (`GiseSupervisao`,
+ * `ModalRelatorioDigital`).
  */
 
 import { invalidate } from '$app/navigation';
-import { page } from '$app/state';
 import { toaster } from '$lib/toast';
+import { loading } from '$lib/loading.svelte';
 import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
-import { logger } from '$lib/logger';
+
+export type PendenteExtra = {
+	seccionalId: number;
+	tipo: 'extraordinario';
+};
+
+export type PainelToken = {
+	assinarComSerpro: () => Promise<void>;
+} | null;
+
+export type RelatorioSendoAssinado =
+	| {
+			lote?: PendenteExtra[];
+			seccionalId?: number;
+			tipo?: 'extraordinario' | 'produtividade';
+	  }
+	| null;
 
 export interface UseGiseAssinaturaParams {
 	getGiseId: () => number;
+	/** Usado para nomear o arquivo PDF baixado após `assinar-simples`. */
+	getGiseDataInicio: () => string | undefined;
+	/** Lista de relatórios extraordinários pendentes (derivada na página). */
+	getPendentesExtra: () => PendenteExtra[];
+	/** Nome inicial do signatário (usuário logado). */
+	initialSignerName?: string;
+	/** CPF inicial do signatário (usuário logado). */
+	initialSignerCpf?: string;
 }
 
-export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
-	// Estados de assinatura
-	let assinandoSimples = $state(false);
+function messageFromUnknown(e: unknown): string {
+	return e instanceof Error ? e.message : String(e);
+}
+
+export function useGiseAssinatura({
+	getGiseId,
+	getGiseDataInicio,
+	getPendentesExtra,
+	initialSignerName = '',
+	initialSignerCpf = ''
+}: UseGiseAssinaturaParams) {
+	let etapaAssinatura = $state('');
 	let assinandoLote = $state(false);
 	let progressoLote = $state({ atual: 0, total: 0 });
-	let etapaAssinatura = $state('');
+
+	// Modal de rubrica
+	let showRubricaModal = $state(false);
+	let tipoAssinaturaPendente = $state<'simples' | 'serpro' | null>(null);
 	let rubricaCapturada = $state<string | null>(null);
 	let selfieCapturada = $state<string | null>(null);
-	let tipoAssinaturaPendente = $state<'simples' | 'serpro' | null>(null);
-	let showRubricaModal = $state(false);
-	let documentoAssinadoInfo = $state<any>(null);
 
-	// SERPRO
+	// SERPRO — escala GISE principal
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state('');
-	let serproSignerCpf = $state('');
-	let painelTokenGise = $state<any>(null);
+	let painelTokenGise = $state<PainelToken>(null);
+	let serproSignerName = $state(initialSignerName);
+	let serproSignerCpf = $state(initialSignerCpf);
 
-	// Relatório sendo assinado
-	let relatorioSendoAssinado = $state<{
-		lote?: Array<{ seccionalId: number; tipo: 'extraordinario' }>;
-		seccionalId?: number;
-		tipo?: 'extraordinario' | 'produtividade';
-	} | null>(null);
+	// SERPRO — relatórios extraordinários (modal separado)
+	let painelTokenRelatorio = $state<PainelToken>(null);
+	let relatorioSignerName = $state(initialSignerName);
+	let relatorioSignerCpf = $state(initialSignerCpf);
+
+	// Relatório alvo (lote ou singular) quando o usuário aciona "Assinar em tela"
+	let relatorioSendoAssinado = $state<RelatorioSendoAssinado>(null);
 
 	function abrirModalRubrica(tipo: 'simples' | 'serpro') {
 		tipoAssinaturaPendente = tipo;
 		showRubricaModal = true;
+	}
+
+	function fecharModalRubrica() {
+		showRubricaModal = false;
 	}
 
 	async function confirmarRubrica(
@@ -66,10 +112,16 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 		}
 	}
 
-	async function executarAssinarSimples(latitude?: number, longitude?: number, codigoValidação?: string, desafioId?: string) {
-		assinandoSimples = true;
+	async function executarAssinarSimples(
+		latitude?: number,
+		longitude?: number,
+		codigoValidação?: string,
+		desafioId?: string
+	) {
+		loading.show('Assinando e gerando PDF...');
 		try {
-			const r = await fetch(`/api/gise/${getGiseId()}/assinar-simples`, {
+			const giseId = getGiseId();
+			const r = await fetch(`/api/gise/${giseId}/assinar-simples`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -89,19 +141,18 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = `gise_${getGiseId()}_confirmada.pdf`;
+				a.download = `gise_${getGiseDataInicio() ?? giseId}_confirmada.pdf`;
 				a.click();
 				toaster.success({ title: 'Escala confirmada com sucesso' });
-				await invalidate(page.url.href);
+				await invalidate('gise:detail');
 			} else {
 				const j = await r.json();
 				toaster.error({ title: j.error || 'Erro ao assinar' });
 			}
-		} catch (err) {
-			logger.warn('[GiseAssinatura] assinar simples / download', { err: String(err) });
+		} catch {
 			toaster.error({ title: 'Erro de conexão' });
 		} finally {
-			assinandoSimples = false;
+			loading.hide();
 			rubricaCapturada = null;
 		}
 	}
@@ -122,15 +173,33 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 		}
 	}
 
-	async function executarAssinarRelatorioLoteSERPRO(pendentesExtra: any[]) {
+	function abrirAssinaturaLote() {
+		relatorioSendoAssinado = { lote: getPendentesExtra() };
+		abrirModalRubrica('simples');
+	}
+
+	function abrirAssinaturaRelatorio(
+		seccionalId: number,
+		tipo: 'extraordinario' | 'produtividade'
+	) {
+		relatorioSendoAssinado = { seccionalId, tipo };
+		abrirModalRubrica('simples');
+	}
+
+	async function executarAssinarRelatorioLoteSERPRO() {
+		const pendentesExtra = getPendentesExtra();
 		if (pendentesExtra.length === 0) return;
 		assinandoLote = true;
 		progressoLote = { atual: 0, total: pendentesExtra.length };
 		etapaAssinatura = 'Iniciando assinatura em lote...';
 
 		try {
-			let clientSerpro = serproClient ?? (await conectarSerpro());
+			const signerName = serproSignerName;
+			const signerCpf = serproSignerCpf;
+
+			const clientSerpro = serproClient ?? (await conectarSerpro());
 			serproClient = clientSerpro;
+			const giseId = getGiseId();
 
 			for (let i = 0; i < pendentesExtra.length; i++) {
 				const item = pendentesExtra[i];
@@ -138,55 +207,72 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
 
 				const prepResp = await fetch(
-					`/api/gise/${getGiseId()}/relatorios/${item.seccionalId}/preparar-assinatura`,
+					`/api/gise/${giseId}/relatorios/${item.seccionalId}/preparar-assinatura`,
 					{
 						method: 'POST',
-						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-						body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf, rubrica: null })
-					}
-				);
-				if (!prepResp.ok) throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
-				const {
-					preparedPdf,
-					signedAttrsHashHex,
-					messageDigest,
-					signingTimeISO,
-					verificationHash,
-					documentHash,
-					assinanteEmail
-				} = await prepResp.json();
-
-				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
-				const messageDigestBase64 = btoa(messageDigest.match(/.{2}/g)!.map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
-				const serproRes = await clientSerpro.sign(messageDigestBase64);
-
-				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
-				const finResp = await fetch(
-					`/api/gise/${getGiseId()}/relatorios/${item.seccionalId}/finalizar-assinatura`,
-					{
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+						headers: {
+							'Content-Type': 'application/json',
+							...csrfHeaders()
+						},
 						body: JSON.stringify({
-							preparedPdf,
-							serproCms: serproRes.rawSignature,
-							serproResponse: serproRes,
-							messageDigest,
-							signingTimeISO,
-							signerName: serproSignerName,
-							signerCpf: serproSignerCpf,
-							verificationHash,
-							documentHash,
-							assinanteEmail
+							signerName,
+							signerCpf,
+							rubrica: null
 						})
 					}
 				);
-				if (!finResp.ok) throw new Error(`Falha ao finalizar item ${item.seccionalId}: ` + (await finResp.json()).error);
+				if (!prepResp.ok)
+					throw new Error(
+						`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error
+					);
+				const prepData = await prepResp.json();
+
+				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
+
+				const messageDigestBase64 = btoa(
+					prepData.messageDigest
+						.match(/.{2}/g)!
+						.map((h: string) => String.fromCharCode(parseInt(h, 16)))
+						.join('')
+				);
+				const serproRes = await clientSerpro.sign(messageDigestBase64);
+				const serproCms = serproRes.rawSignature;
+
+				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
+
+				const finResp = await fetch(
+					`/api/gise/${giseId}/relatorios/${item.seccionalId}/finalizar-assinatura`,
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							...csrfHeaders()
+						},
+						body: JSON.stringify({
+							preparedPdf: prepData.preparedPdf,
+							serproCms,
+							messageDigest: prepData.messageDigest,
+							signingTimeISO: prepData.signingTimeISO,
+							signerName,
+							signerCpf,
+							verificationHash: prepData.verificationHash
+						})
+					}
+				);
+
+				if (!finResp.ok)
+					throw new Error(
+						`Falha ao finalizar item ${item.seccionalId}: ` + (await finResp.json()).error
+					);
 			}
 
-			toaster.success({ title: 'Lote assinado com sucesso!', description: `${pendentesExtra.length} relatórios assinados digitalmente.` });
-			await invalidate(page.url.href);
-		} catch (err: any) {
-			toaster.error({ title: 'Erro no lote', description: err.message });
+			toaster.success({
+				title: 'Lote assinado com sucesso!',
+				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
+			});
+			await invalidate('gise:detail');
+		} catch (err: unknown) {
+			toaster.error({ title: 'Erro no lote', description: messageFromUnknown(err) });
 		} finally {
 			assinandoLote = false;
 			etapaAssinatura = '';
@@ -203,63 +289,194 @@ export function useGiseAssinatura({ getGiseId }: UseGiseAssinaturaParams) {
 		desafioId?: string
 	) {
 		if (!relatorioSendoAssinado) return;
-		// Implementation continues...
-	}
+		loading.show('Iniciando assinatura...');
+		const giseId = getGiseId();
 
-	function abrirAssinaturaLote(pendentesExtra: any[]) {
-		relatorioSendoAssinado = { lote: pendentesExtra };
-		abrirModalRubrica('simples');
-	}
+		if (relatorioSendoAssinado.lote) {
+			const lote = relatorioSendoAssinado.lote;
+			assinandoLote = true;
+			progressoLote = { atual: 0, total: lote.length };
+			try {
+				for (let i = 0; i < lote.length; i++) {
+					const item = lote[i];
+					progressoLote.atual = i + 1;
+					etapaAssinatura = `Assinando ${i + 1} de ${lote.length}...`;
+					const res = await fetch(
+						`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`,
+						{
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+								...csrfHeaders()
+							},
+							body: JSON.stringify({
+								tipo: item.tipo,
+								rubrica,
+								latitude,
+								longitude,
+								selfieBase64,
+								codigoValidação,
+								desafioId
+							})
+						}
+					);
+					if (!res.ok) throw new Error((await res.json()).error);
+				}
+				toaster.success({ title: 'Lote assinado com sucesso!' });
+				relatorioSendoAssinado = null;
+				await invalidate('gise:detail');
+			} catch (e: unknown) {
+				toaster.error({
+					title: 'Erro ao assinar lote',
+					description: messageFromUnknown(e)
+				});
+			} finally {
+				loading.hide();
+				assinandoLote = false;
+				etapaAssinatura = '';
+				progressoLote = { atual: 0, total: 0 };
+			}
+			return;
+		}
 
-	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
-		relatorioSendoAssinado = { seccionalId, tipo };
-		abrirModalRubrica('simples');
-	}
-
-	async function finalizarGise() {
 		try {
-			const res = await fetch(`/api/gise/${getGiseId()}/finalizar`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() }
+			etapaAssinatura = 'Processando assinatura...';
+			const res = await fetch(
+				`/api/gise/${giseId}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						...csrfHeaders()
+					},
+					body: JSON.stringify({
+						tipo: relatorioSendoAssinado.tipo,
+						rubrica,
+						latitude,
+						longitude,
+						selfieBase64,
+						codigoValidação,
+						desafioId
+					})
+				}
+			);
+			if (!res.ok) throw new Error((await res.json()).error);
+			toaster.success({ title: 'Relatório assinado com sucesso!' });
+			relatorioSendoAssinado = null;
+			await invalidate('gise:detail');
+		} catch (e: unknown) {
+			toaster.error({
+				title: 'Erro ao assinar relatório',
+				description: messageFromUnknown(e)
 			});
-			const json = await res.json();
-			if (!res.ok) throw new Error(json.error);
-			toaster.success({ title: 'Escala finalizada!' });
-		} catch (e: any) {
-			toaster.error({ title: 'Erro', description: e.message });
+		} finally {
+			loading.hide();
+			etapaAssinatura = '';
 		}
 	}
 
-	function resetRubrica() {
-		rubricaCapturada = null;
-		selfieCapturada = null;
-		showRubricaModal = false;
-		tipoAssinaturaPendente = null;
-	}
-
 	return {
-		get assinandoSimples() { return assinandoSimples; },
-		get assinandoLote() { return assinandoLote; },
-		get progressoLote() { return progressoLote; },
-		get etapaAssinatura() { return etapaAssinatura; },
-		get rubricaCapturada() { return rubricaCapturada; },
-		get selfieCapturada() { return selfieCapturada; },
-		get showRubricaModal() { return showRubricaModal; },
-		get documentoAssinadoInfo() { return documentoAssinadoInfo; },
-		get serproSignerName() { return serproSignerName; },
-		get serproSignerCpf() { return serproSignerCpf; },
-		get painelTokenGise() { return painelTokenGise; },
-		set painelTokenGise(v: any) { painelTokenGise = v; },
-		get relatorioSendoAssinado() { return relatorioSendoAssinado; },
+		get etapaAssinatura() {
+			return etapaAssinatura;
+		},
+		set etapaAssinatura(v: string) {
+			etapaAssinatura = v;
+		},
+
+		get assinandoLote() {
+			return assinandoLote;
+		},
+		get progressoLote() {
+			return progressoLote;
+		},
+
+		get showRubricaModal() {
+			return showRubricaModal;
+		},
+		set showRubricaModal(v: boolean) {
+			showRubricaModal = v;
+		},
+
+		get tipoAssinaturaPendente() {
+			return tipoAssinaturaPendente;
+		},
+
+		get rubricaCapturada() {
+			return rubricaCapturada;
+		},
+		set rubricaCapturada(v: string | null) {
+			rubricaCapturada = v;
+		},
+
+		get selfieCapturada() {
+			return selfieCapturada;
+		},
+		set selfieCapturada(v: string | null) {
+			selfieCapturada = v;
+		},
+
+		get serproClient() {
+			return serproClient;
+		},
+
+		get painelTokenGise() {
+			return painelTokenGise;
+		},
+		set painelTokenGise(v: PainelToken) {
+			painelTokenGise = v;
+		},
+
+		get serproSignerName() {
+			return serproSignerName;
+		},
+		set serproSignerName(v: string) {
+			serproSignerName = v;
+		},
+
+		get serproSignerCpf() {
+			return serproSignerCpf;
+		},
+		set serproSignerCpf(v: string) {
+			serproSignerCpf = v;
+		},
+
+		get painelTokenRelatorio() {
+			return painelTokenRelatorio;
+		},
+		set painelTokenRelatorio(v: PainelToken) {
+			painelTokenRelatorio = v;
+		},
+
+		get relatorioSignerName() {
+			return relatorioSignerName;
+		},
+		set relatorioSignerName(v: string) {
+			relatorioSignerName = v;
+		},
+
+		get relatorioSignerCpf() {
+			return relatorioSignerCpf;
+		},
+		set relatorioSignerCpf(v: string) {
+			relatorioSignerCpf = v;
+		},
+
+		get relatorioSendoAssinado() {
+			return relatorioSendoAssinado;
+		},
+		set relatorioSendoAssinado(v: RelatorioSendoAssinado) {
+			relatorioSendoAssinado = v;
+		},
+
 		abrirModalRubrica,
+		fecharModalRubrica,
 		confirmarRubrica,
 		executarAssinarSimples,
 		executarAssinarComSerpro,
 		prepararSerproLote,
 		executarAssinarRelatorioLoteSERPRO,
+		executarAssinarRelatorio,
 		abrirAssinaturaLote,
-		abrirAssinaturaRelatorio,
-		finalizarGise,
-		resetRubrica
+		abrirAssinaturaRelatorio
 	};
 }

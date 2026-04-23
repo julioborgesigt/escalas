@@ -4,19 +4,13 @@
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
-	import type { ActionResult } from '@sveltejs/kit';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { AlertCircle } from 'lucide-svelte';
-	import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 	import { csrfHeaders } from '$lib/csrf';
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import type { GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
-
-	function messageFromUnknown(e: unknown): string {
-		return e instanceof Error ? e.message : String(e);
-	}
 	import {
 		checkAllSigned,
 		filtrarDelegacias,
@@ -29,6 +23,8 @@
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas
 	} from '$lib/gise/gise-supervisao-extra';
+	import { validarHora, normalizarHora } from '$lib/gise/gise-horarios';
+	import { makeEnhanceHandler } from '$lib/enhance-handler';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import GiseBannersAssinaturas from './_components/GiseBannersAssinaturas.svelte';
@@ -63,8 +59,58 @@
 	const policiais = $derived(giseEstado.policiais);
 	const todasUnidades = $derived(giseEstado.todasUnidades);
 
-	// Hook de assinatura
-	const assinatura = useGiseAssinatura({ getGiseId: () => gise?.id ?? 0 });
+	// Relatórios extraordinários pendentes de assinatura (usado pelo hook de assinatura e pelo template)
+	const pendentesExtra = $derived.by(() => {
+		if (!isSupervisor) return [];
+		const lista: Array<{ seccionalId: number; tipo: 'extraordinario' }> = [];
+		const supId = data.supervisaoExtraUnidadeId;
+		if (
+			supId &&
+			gise &&
+			quadroSupervisaoExtraExigeRelatorio(gise) &&
+			supervisaoExtraRubricasCompletas(gise, data.presencasGise ?? [])
+		) {
+			const relSup = data.assinaturasRelatorios?.find(
+				(a: GiseAssinaturaRelatorio) => a.seccional_id === supId && a.tipo === 'extraordinario'
+			);
+			if (!relSup) {
+				lista.push({ seccionalId: supId, tipo: 'extraordinario' });
+			}
+		}
+		for (const sec of gise?.seccionais || []) {
+			const relAssinado = data.assinaturasRelatorios?.find(
+				(a: GiseAssinaturaRelatorio) =>
+					(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
+					a.tipo === 'extraordinario'
+			);
+			if (!relAssinado && checkAllSigned(sec)) {
+				lista.push({
+					seccionalId: sec.seccional_id,
+					tipo: 'extraordinario'
+				});
+			}
+		}
+		return lista;
+	});
+
+	const nomesSupervisaoPorId = $derived.by(() => {
+		const m = new Map<number, string>();
+		if (!gise) return m;
+		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
+		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
+		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);
+		if (gise.seint2_id && gise.seint2_nome) m.set(gise.seint2_id, gise.seint2_nome);
+		return m;
+	});
+
+	// Hook de assinatura (captura de rubrica, assinatura simples/SERPRO, lote de relatórios)
+	const assinatura = useGiseAssinatura({
+		getGiseId: () => gise?.id ?? 0,
+		getGiseDataInicio: () => gise?.data_inicio,
+		getPendentesExtra: () => pendentesExtra,
+		initialSignerName: untrack(() => data.usuarioAtual?.nome ?? ''),
+		initialSignerCpf: untrack(() => data.usuarioAtual?.cpf ?? '')
+	});
 
 	// Estados locais (não extraídos)
 	let showFinalizarConfirm = $state(false);
@@ -107,9 +153,6 @@
 	});
 	let showModalDataHoras = $state(false);
 	let showModalBreveRelatorio = $state(false);
-	let editDataInicio = $state('');
-	let editHoraEntrada = $state('');
-	let editHoraSaida = $state('');
 	let showExcluirGiseConfirm = $state(false);
 	let removendoEquipeId = $state<number | null>(null);
 	let supervisorExpandiuQuadroSeccionais = $state(false);
@@ -200,75 +243,46 @@
 		cargoParaAdicionar ? buscarPorCargo(cargoParaAdicionar) : undefined
 	);
 
-	function handleSalvarSupervisores() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Supervisor salvo' });
-				editandoSupervisores = false;
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
-			}
-		};
-	}
+	const setPending = (p: boolean) => (pendingCrud = p);
 
-	function handleSalvarBreveRelatorio() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				showModalBreveRelatorio = false;
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Textos do breve relatório salvos' });
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
-			}
-		};
-	}
-
-	function handleSelecionarUnidade() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Unidade selecionada' });
-				selecionandoUnidadeSlotId = null;
-				slotUnidadeId = '';
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao selecionar' });
-			}
-		};
-	}
-
-	function handleAdicionarSeccional({ cancel }: { cancel(): void }) {
-		if (seccionalParaAdicionarIdx === '') {
-			cancel();
-			return;
+	const handleSalvarSupervisores = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Supervisor salvo',
+		errorTitle: 'Erro ao salvar',
+		onSuccess: () => {
+			editandoSupervisores = false;
 		}
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Seccional adicionada' });
-				adicionandoSeccional = false;
-				seccionalParaAdicionarIdx = '';
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
-			}
-		};
-	}
+	});
+
+	const handleSalvarBreveRelatorio = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Textos do breve relatório salvos',
+		errorTitle: 'Erro ao salvar',
+		onSuccess: () => {
+			showModalBreveRelatorio = false;
+		}
+	});
+
+	const handleSelecionarUnidade = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Unidade selecionada',
+		errorTitle: 'Erro ao selecionar',
+		onSuccess: () => {
+			selecionandoUnidadeSlotId = null;
+			slotUnidadeId = '';
+		}
+	});
+
+	const handleAdicionarSeccional = makeEnhanceHandler({
+		setPending,
+		beforeSubmit: () => seccionalParaAdicionarIdx !== '',
+		successTitle: 'Seccional adicionada',
+		errorTitle: 'Erro ao adicionar',
+		onSuccess: () => {
+			adicionandoSeccional = false;
+			seccionalParaAdicionarIdx = '';
+		}
+	});
 
 	function handleRemoverSeccional({
 		cancel,
@@ -309,115 +323,67 @@
 		}
 	}
 
-	function handleAdicionarMembro() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Membro adicionado' });
-				equipeParaAdicionar = null;
-				policialParaAdicionar = '';
-				cargoParaAdicionar = null;
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar membro' });
-			}
-		};
-	}
+	const handleAdicionarMembro = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Membro adicionado',
+		errorTitle: 'Erro ao adicionar membro',
+		onSuccess: () => {
+			equipeParaAdicionar = null;
+			policialParaAdicionar = '';
+			cargoParaAdicionar = null;
+		}
+	});
 
-	function handleRemoverMembro() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				removendoMembroId = null;
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Membro removido' });
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao remover membro' });
-			}
-		};
-	}
+	const handleRemoverMembro = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Membro removido',
+		errorTitle: 'Erro ao remover membro',
+		onSuccess: () => {
+			removendoMembroId = null;
+		}
+	});
 
-	function handleRemoverEquipe() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Equipe removida' });
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao remover' });
-			}
+	const handleRemoverEquipe = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Equipe removida',
+		errorTitle: 'Erro ao remover',
+		onSuccess: () => {
 			removendoEquipeId = null;
-			pendingCrud = false;
-		};
-	}
+		}
+	});
 
 	let removendoMembroId = $state<number | null>(null);
 
-	function handleFinalizarSeccional() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-				const d = result.data as Record<string, unknown>;
-				if (d?.gise_status === 'aguardando_assinatura') {
-					toaster.success({
-						title: 'Todas as seccionais finalizadas!',
-						description: 'Escala aguardando assinatura do Supervisor.'
-					});
-				} else {
-					toaster.success({
-						title: 'Seccional finalizada',
-						description: 'Aguardando demais seccionais.'
-					});
-				}
-				modoEdicaoSeccional = false;
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
-			}
-			pendingCrud = false;
-		};
-	}
+	const handleFinalizarSeccional = makeEnhanceHandler<{ gise_status?: string }>({
+		setPending,
+		successTitle: (d) =>
+			d?.gise_status === 'aguardando_assinatura'
+				? 'Todas as seccionais finalizadas!'
+				: 'Seccional finalizada',
+		successDescription: (d) =>
+			d?.gise_status === 'aguardando_assinatura'
+				? 'Escala aguardando assinatura do Supervisor.'
+				: 'Aguardando demais seccionais.',
+		errorTitle: 'Erro ao finalizar',
+		onSuccess: () => {
+			modoEdicaoSeccional = false;
+		}
+	});
 
-	function handleAdicionarUnidade() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
-				novoSlotUnidadeId = '';
-				adicionandoSlotSecId = null;
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Unidade adicionada' });
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar unidade' });
-			}
-			pendingCrud = false;
-		};
-	}
+	const handleAdicionarUnidade = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Unidade adicionada',
+		errorTitle: 'Erro ao adicionar unidade',
+		onSuccess: () => {
+			novoSlotUnidadeId = '';
+			adicionandoSlotSecId = null;
+		}
+	});
 
-	function handleRemoverUnidade() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			if (result.type === 'success') {
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao remover DP' });
-			}
-			pendingCrud = false;
-		};
-	}
+	const handleRemoverUnidade = makeEnhanceHandler({
+		setPending,
+		errorTitle: 'Erro ao remover DP'
+	});
 
 	// Documento assinado
 	const documentoAssinadoInfo = $derived(
@@ -431,266 +397,52 @@
 				}
 			: null
 	);
-	// SERPRO — usado pelo bloco de assinatura em LOTE de relatórios
-	let etapaAssinatura = $state('');
 
-	// Componente PainelAssinaturaToken (GISE principal)
-	let painelTokenGise = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
-	let serproSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
-	let serproSignerCpf = $state(untrack(() => data.usuarioAtual?.cpf ?? ''));
-
-	let serproClient = $state<SerproSignerClient | null>(null);
-
-	// Componente PainelAssinaturaToken (relatório extraordinário por seccional)
-	let painelTokenRelatorio = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
-	let relatorioSignerName = $state(untrack(() => data.usuarioAtual?.nome ?? ''));
-	let relatorioSignerCpf = $state(untrack(() => data.usuarioAtual?.cpf ?? ''));
-
-	// Rubrica modal
-	let showRubricaModal = $state(false);
-	let tipoAssinaturaPendente = $state<'simples' | 'serpro' | null>(null);
-	let rubricaCapturada = $state<string | null>(null);
-	let selfieCapturada = $state<string | null>(null);
-
-	function abrirModalRubrica(tipo: 'simples' | 'serpro') {
-		tipoAssinaturaPendente = tipo;
-		showRubricaModal = true;
-	}
-
-	async function confirmarRubrica(
-		dataUrl: string,
-		lat?: number,
-		lng?: number,
-		selfie?: string | null,
-		codigoValidação?: string,
-		desafioId?: string
-	) {
-		rubricaCapturada = dataUrl;
-		selfieCapturada = selfie ?? null;
-		showRubricaModal = false;
-
-		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId);
-			relatorioSendoAssinado = null;
-		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(lat, lng, codigoValidação, desafioId);
-		} else if (tipoAssinaturaPendente === 'serpro') {
-			await executarAssinarComSerpro(lat, lng);
+	const handleFinalizarGise = makeEnhanceHandler({
+		setPending,
+		invalidateKey: false,
+		successTitle: 'Escala finalizada!',
+		errorTitle: 'Erro ao finalizar',
+		onSuccess: () => {
+			showFinalizarConfirm = false;
+			goto('/gise');
 		}
-	}
-
-	async function executarAssinarSimples(
-		latitude?: number,
-		longitude?: number,
-		codigoValidação?: string,
-		desafioId?: string
-	) {
-		loading.show('Assinando e gerando PDF...');
-		try {
-			const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...csrfHeaders()
-				},
-				body: JSON.stringify({
-					rubrica: rubricaCapturada,
-					latitude,
-					longitude,
-					selfieBase64: selfieCapturada,
-					codigoValidação,
-					desafioId
-				})
-			});
-			if (r.ok) {
-				const blob = await r.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = `gise_${gise.data_inicio}_confirmada.pdf`;
-				a.click();
-				toaster.success({ title: 'Escala confirmada com sucesso' });
-				await invalidate('gise:detail');
-			} else {
-				const j = await r.json();
-				toaster.error({ title: j.error || 'Erro ao assinar' });
-			}
-		} catch (err) {
-			toaster.error({ title: 'Erro de conexão' });
-		} finally {
-			loading.hide();
-			rubricaCapturada = null;
-		}
-	}
-
-	async function executarAssinarComSerpro(_lat?: number, _lng?: number) {
-		await painelTokenGise?.assinarComSerpro();
-	}
-
-	/** Carrega cliente SERPRO para o bloco de assinatura em LOTE */
-	async function prepararSerproLote() {
-		try {
-			if (!serproClient) {
-				serproClient = await conectarSerpro();
-			}
-		} catch (err) {
-			toaster.error({
-				title: err instanceof Error ? err.message : 'Erro ao conectar ao SERPRO'
-			});
-		}
-	}
-
-	function handleFinalizarGise() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Escala finalizada!' });
-				showFinalizarConfirm = false;
-				goto('/gise');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao finalizar' });
-			}
-		};
-	}
-
-	function handleSalvarSlotsEquipe() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Vagas atualizadas' });
-				editandoEquipe = null;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao atualizar' });
-			}
-		};
-	}
-
-	function handleSolicitarAssinatura() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({
-					title: 'Edição finalizada',
-					description: 'Escala enviada para assinatura do Supervisor.'
-				});
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao enviar' });
-			}
-		};
-	}
-
-	function handleRevogarPedidoAssinatura() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({
-					title: 'Solicitação revogada',
-					description: 'Escala retornada para edição.'
-				});
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao revogar' });
-			}
-		};
-	}
-
-	function handleEnviarPlanilha() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				planilhaBaseEquipeAlimentadaOk = true;
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				const n = typeof d?.linhas === 'number' ? d.linhas : undefined;
-				toaster.success({
-					title: 'Dados enviados para a planilha',
-					description: n != null ? `${n} linha(s) na Base_Equipe.` : undefined
-				});
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Falha ao enviar para a planilha' });
-			}
-		};
-	}
-
-	// Relatórios extraordinários pendentes de assinatura
-	const nomesSupervisaoPorId = $derived.by(() => {
-		const m = new Map<number, string>();
-		if (!gise) return m;
-		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
-		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
-		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);
-		if (gise.seint2_id && gise.seint2_nome) m.set(gise.seint2_id, gise.seint2_nome);
-		return m;
 	});
 
-	const pendentesExtra = $derived.by(() => {
-		if (!isSupervisor) return [];
-		const lista: Array<{ seccionalId: number; tipo: 'extraordinario' }> = [];
-		const supId = data.supervisaoExtraUnidadeId;
-		if (
-			supId &&
-			gise &&
-			quadroSupervisaoExtraExigeRelatorio(gise) &&
-			supervisaoExtraRubricasCompletas(gise, data.presencasGise ?? [])
-		) {
-			const relSup = data.assinaturasRelatorios?.find(
-				(a: GiseAssinaturaRelatorio) => a.seccional_id === supId && a.tipo === 'extraordinario'
-			);
-			if (!relSup) {
-				lista.push({ seccionalId: supId, tipo: 'extraordinario' });
-			}
+	const handleSalvarSlotsEquipe = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Vagas atualizadas',
+		errorTitle: 'Erro ao atualizar',
+		onSuccess: () => {
+			editandoEquipe = null;
 		}
-		for (const sec of gise?.seccionais || []) {
-			const relAssinado = data.assinaturasRelatorios?.find(
-				(a: GiseAssinaturaRelatorio) =>
-					(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
-					a.tipo === 'extraordinario'
-			);
-			if (!relAssinado && checkAllSigned(sec)) {
-				lista.push({
-					seccionalId: sec.seccional_id,
-					tipo: 'extraordinario'
-				});
-			}
-		}
-		return lista;
 	});
 
-	let assinandoLote = $state(false);
-	let progressoLote = $state({ atual: 0, total: 0 });
+	const handleSolicitarAssinatura = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Edição finalizada',
+		successDescription: 'Escala enviada para assinatura do Supervisor.',
+		errorTitle: 'Erro ao enviar'
+	});
 
-	let relatorioSendoAssinado = $state<{
-		lote?: Array<{ seccionalId: number; tipo: 'extraordinario' }>;
-		seccionalId?: number;
-		tipo?: 'extraordinario' | 'produtividade';
-	} | null>(null);
+	const handleRevogarPedidoAssinatura = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Solicitação revogada',
+		successDescription: 'Escala retornada para edição.',
+		errorTitle: 'Erro ao revogar'
+	});
 
-	function abrirAssinaturaLote() {
-		relatorioSendoAssinado = { lote: pendentesExtra };
-		abrirModalRubrica('simples');
-	}
-
-	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
-		relatorioSendoAssinado = { seccionalId, tipo };
-		abrirModalRubrica('simples');
-	}
+	const handleEnviarPlanilha = makeEnhanceHandler<{ linhas?: number }>({
+		setPending,
+		invalidateKey: false,
+		successTitle: 'Dados enviados para a planilha',
+		successDescription: (d) =>
+			typeof d?.linhas === 'number' ? `${d.linhas} linha(s) na Base_Equipe.` : undefined,
+		errorTitle: 'Falha ao enviar para a planilha',
+		onSuccess: () => {
+			planilhaBaseEquipeAlimentadaOk = true;
+		}
+	});
 
 	function abrirAssinaturaRelatorioDigital(
 		seccionalId: number,
@@ -701,313 +453,71 @@
 		showDigitalModalRelatorio = true;
 	}
 
-	async function executarAssinarRelatorioLoteSERPRO() {
-		if (pendentesExtra.length === 0) return;
-		assinandoLote = true;
-		progressoLote = { atual: 0, total: pendentesExtra.length };
-		etapaAssinatura = 'Iniciando assinatura em lote...';
-
-		try {
-			const signerName = serproSignerName;
-			const signerCpf = serproSignerCpf;
-
-			let clientSerpro = serproClient ?? (await conectarSerpro());
-			serproClient = clientSerpro;
-
-			for (let i = 0; i < pendentesExtra.length; i++) {
-				const item = pendentesExtra[i];
-				progressoLote.atual = i + 1;
-				etapaAssinatura = `Preparando PDF ${i + 1} de ${pendentesExtra.length}...`;
-
-				const prepResp = await fetch(
-					`/api/gise/${gise.id}/relatorios/${item.seccionalId}/preparar-assinatura`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
-						},
-						body: JSON.stringify({
-							signerName,
-							signerCpf,
-							rubrica: null
-						})
-					}
-				);
-				if (!prepResp.ok)
-					throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
-				const prepData = await prepResp.json();
-
-				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
-
-				const messageDigestBase64 = btoa(
-					prepData.messageDigest
-						.match(/.{2}/g)!
-						.map((h: string) => String.fromCharCode(parseInt(h, 16)))
-						.join('')
-				);
-				const serproRes = await clientSerpro.sign(messageDigestBase64);
-				const serproCms = serproRes.rawSignature;
-
-				etapaAssinatura = `Finalizando PDF ${i + 1} de ${pendentesExtra.length}...`;
-
-				const finResp = await fetch(
-					`/api/gise/${gise.id}/relatorios/${item.seccionalId}/finalizar-assinatura`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
-						},
-						body: JSON.stringify({
-							preparedPdf: prepData.preparedPdf,
-							serproCms,
-							messageDigest: prepData.messageDigest,
-							signingTimeISO: prepData.signingTimeISO,
-							signerName,
-							signerCpf,
-							verificationHash: prepData.verificationHash
-						})
-					}
-				);
-
-				if (!finResp.ok)
-					throw new Error(
-						`Falha ao finalizar item ${item.seccionalId}: ` + (await finResp.json()).error
-					);
-			}
-
-			toaster.success({
-				title: 'Lote assinado com sucesso!',
-				description: `${pendentesExtra.length} relatórios assinados digitalmente.`
-			});
-			await invalidate('gise:detail');
-		} catch (err: unknown) {
-			toaster.error({ title: 'Erro no lote', description: messageFromUnknown(err) });
-		} finally {
-			assinandoLote = false;
-			etapaAssinatura = '';
-			progressoLote = { atual: 0, total: 0 };
+	const handleReabrirEscala = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Escala reaberta',
+		successDescription: 'A assinatura foi revogada. A escala pode ser editada novamente.',
+		errorTitle: 'Erro ao reabrir',
+		onSuccess: () => {
+			showReabrirConfirm = false;
 		}
-	}
+	});
 
-	async function executarAssinarRelatorio(
-		rubrica: string,
-		latitude?: number,
-		longitude?: number,
-		selfieBase64?: string | null,
-		codigoValidação?: string,
-		desafioId?: string
-	) {
-		if (!relatorioSendoAssinado) return;
-		loading.show('Iniciando assinatura...');
+	const handleSalvarDatasHorarios = makeEnhanceHandler<{ assinatura_revogada?: boolean }>({
+		setPending,
+		errorTitle: 'Erro ao salvar',
+		onSuccess: (d) => {
+			if (d?.assinatura_revogada) {
+				toaster.warning({
+					title: 'Datas/horários atualizados',
+					description: 'A assinatura digital foi revogada. Será necessário assinar novamente.'
+				});
+			} else {
+				toaster.success({ title: 'Datas/horários atualizados' });
+			}
+			showModalDataHoras = false;
+		}
+	});
 
-		if (relatorioSendoAssinado.lote) {
-			assinandoLote = true;
-			progressoLote = {
-				atual: 0,
-				total: relatorioSendoAssinado.lote.length
-			};
-			try {
-				for (let i = 0; i < relatorioSendoAssinado.lote.length; i++) {
-					const item = relatorioSendoAssinado.lote[i];
-					progressoLote.atual = i + 1;
-					etapaAssinatura = `Assinando ${i + 1} de ${relatorioSendoAssinado.lote.length}...`;
-					const res = await fetch(`/api/gise/${gise.id}/relatorios/${item.seccionalId}/assinar`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...csrfHeaders()
-						},
-						body: JSON.stringify({
-							tipo: item.tipo,
-							rubrica,
-							latitude,
-							longitude,
-							selfieBase64,
-							codigoValidação,
-							desafioId
-						})
-					});
-					if (!res.ok) throw new Error((await res.json()).error);
-				}
-				toaster.success({ title: 'Lote assinado com sucesso!' });
-				relatorioSendoAssinado = null;
-				await invalidate('gise:detail');
-			} catch (e: unknown) {
+	const handleSalvarHorariosEquipe = makeEnhanceHandler({
+		setPending,
+		beforeSubmit: () => {
+			const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
+			if (horas.some((h) => !validarHora(h))) {
 				toaster.error({
-					title: 'Erro ao assinar lote',
-					description: messageFromUnknown(e)
+					title: 'Formato inválido',
+					description: 'Use o formato HH:MM, ex: 14:00'
 				});
-			} finally {
-				loading.hide();
-				assinandoLote = false;
-				etapaAssinatura = '';
-				progressoLote = { atual: 0, total: 0 };
+				return false;
 			}
-			return;
+			return true;
+		},
+		successTitle: 'Horários da equipe atualizados',
+		errorTitle: 'Erro ao salvar',
+		onSuccess: () => {
+			editandoHorariosEquipeId = null;
 		}
+	});
 
-		try {
-			etapaAssinatura = 'Processando assinatura...';
-			const res = await fetch(
-				`/api/gise/${gise.id}/relatorios/${relatorioSendoAssinado.seccionalId}/assinar`,
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						...csrfHeaders()
-					},
-					body: JSON.stringify({
-						tipo: relatorioSendoAssinado.tipo,
-						rubrica,
-						latitude,
-						longitude,
-						selfieBase64,
-						codigoValidação,
-						desafioId
-					})
-				}
-			);
-			if (!res.ok) throw new Error((await res.json()).error);
-			toaster.success({ title: 'Relatório assinado com sucesso!' });
-			relatorioSendoAssinado = null;
-			await invalidate('gise:detail');
-		} catch (e: unknown) {
-			toaster.error({
-				title: 'Erro ao assinar relatório',
-				description: messageFromUnknown(e)
-			});
-		} finally {
-			loading.hide();
-			etapaAssinatura = '';
+	const handleExcluirGise = makeEnhanceHandler({
+		setPending,
+		invalidateKey: false,
+		successTitle: 'Escala GISE excluída',
+		errorTitle: 'Erro ao excluir',
+		onSuccess: () => {
+			showExcluirGiseConfirm = false;
+			goto('/gise');
 		}
-	}
+	});
 
-	function handleReabrirEscala() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({
-					title: 'Escala reaberta',
-					description: 'A assinatura foi revogada. A escala pode ser editada novamente.'
-				});
-				showReabrirConfirm = false;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao reabrir' });
-			}
-		};
-	}
-
-	async function abrirEdicaoDatasHorarios() {
-		editDataInicio = gise.data_inicio;
-		editHoraEntrada = gise.hora_entrada ?? '';
-		editHoraSaida = gise.hora_saida ?? '';
-		showModalDataHoras = true;
-	}
-
-	function handleSalvarDatasHorarios({ cancel }: { cancel(): void }) {
-		const horas = [editHoraEntrada, editHoraSaida];
-		if (horas.some((h) => !h)) {
-			toaster.error({ title: 'Preencha todos os horários' });
-			cancel();
-			return;
+	const handleAdicionarEquipe = makeEnhanceHandler({
+		setPending,
+		successTitle: 'Equipe adicionada',
+		errorTitle: 'Erro ao adicionar',
+		onSuccess: () => {
+			adicionandoEquipeSec = null;
 		}
-		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
-			cancel();
-			return;
-		}
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				if (d?.assinatura_revogada) {
-					toaster.warning({
-						title: 'Datas/horários atualizados',
-						description: 'A assinatura digital foi revogada. Será necessário assinar novamente.'
-					});
-				} else {
-					toaster.success({ title: 'Datas/horários atualizados' });
-				}
-				showModalDataHoras = false;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
-			}
-		};
-	}
-
-	function normalizarHora(v: string): string | null {
-		if (!v) return null;
-		return v.replace(/[.,]/g, ':');
-	}
-
-	function validarHora(v: string): boolean {
-		if (!v) return true;
-		return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
-	}
-
-	function handleSalvarHorariosEquipe({ cancel }: { cancel(): void }) {
-		const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
-		if (horas.some((h) => !validarHora(h))) {
-			toaster.error({ title: 'Formato inválido', description: 'Use o formato HH:MM, ex: 14:00' });
-			cancel();
-			return;
-		}
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Horários da equipe atualizados' });
-				editandoHorariosEquipeId = null;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao salvar' });
-			}
-		};
-	}
-
-	function handleExcluirGise() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Escala GISE excluída' });
-				showExcluirGiseConfirm = false;
-				goto('/gise');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao excluir' });
-			}
-		};
-	}
-
-	function handleAdicionarEquipe() {
-		pendingCrud = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingCrud = false;
-			if (result.type === 'success') {
-				toaster.success({ title: 'Equipe adicionada' });
-				adicionandoEquipeSec = null;
-				await invalidate('gise:detail');
-			} else {
-				const d =
-					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
-				toaster.error({ title: (d?.error as string) || 'Erro ao adicionar' });
-			}
-		};
-	}
+	});
 
 	const podeFinalizar = $derived(
 		isAdminGeral && (gise?.status === 'pronta_para_finalizar' || gise?.status === 'em_andamento')
@@ -1131,7 +641,7 @@
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{pendingCrud}
 			onToggleEdit={() => (modoEdicaoGeral = !modoEdicaoGeral)}
-			onAbrirDataHoras={abrirEdicaoDatasHorarios}
+			onAbrirDataHoras={() => (showModalDataHoras = true)}
 			onAbrirExcluir={() => (showExcluirGiseConfirm = true)}
 			onAbrirReabrir={() => (showReabrirConfirm = true)}
 			onAbrirFinalizar={() => (showFinalizarConfirm = true)}
@@ -1179,7 +689,7 @@
 				restringirSmartphone={data.restringirSmartphone}
 				onAssinarExtraSupervisaoManual={() => {
 					const id = data.supervisaoExtraUnidadeId;
-					if (id) abrirAssinaturaRelatorio(id, 'extraordinario');
+					if (id) assinatura.abrirAssinaturaRelatorio(id, 'extraordinario');
 				}}
 				onAssinarExtraSupervisaoDigital={() => {
 					const id = data.supervisaoExtraUnidadeId;
@@ -1187,13 +697,13 @@
 				}}
 				mostrarPainelAssinaturaEscala={podeAssinar}
 				assinaturaEscalaSignerEmail={data.usuarioAtual?.email ?? undefined}
-				bind:rubricaCapturada
-				bind:painelTokenGise
-				bind:serproSignerName
-				bind:serproSignerCpf
-				onAbrirAssinaturaEscalaManual={() => abrirModalRubrica('simples')}
+				bind:rubricaCapturada={assinatura.rubricaCapturada}
+				bind:painelTokenGise={assinatura.painelTokenGise}
+				bind:serproSignerName={assinatura.serproSignerName}
+				bind:serproSignerCpf={assinatura.serproSignerCpf}
+				onAbrirAssinaturaEscalaManual={() => assinatura.abrirModalRubrica('simples')}
 				onAssinaturaEscalaDigitalSuccess={async () => {
-					rubricaCapturada = null;
+					assinatura.rubricaCapturada = null;
 					await invalidate('gise:detail');
 				}}
 			/>
@@ -1208,13 +718,13 @@
 		{#if pendentesExtra.length > 0}
 			<GiseLoteAssinaturas
 				quantidadePendentes={pendentesExtra.length}
-				{assinandoLote}
-				{etapaAssinatura}
-				{progressoLote}
+				assinandoLote={assinatura.assinandoLote}
+				etapaAssinatura={assinatura.etapaAssinatura}
+				progressoLote={assinatura.progressoLote}
 				{isMobile}
 				restringirSmartphone={data.restringirSmartphone}
-				onAssinarManualLote={abrirAssinaturaLote}
-				onAssinarDigitalLote={executarAssinarRelatorioLoteSERPRO}
+				onAssinarManualLote={assinatura.abrirAssinaturaLote}
+				onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
 			/>
 		{/if}
 
@@ -1419,7 +929,7 @@
 														undefined,
 														'warning',
 														'filled',
-														() => abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario'),
+														() => assinatura.abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario'),
 														undefined,
 														false,
 														false,
@@ -2379,18 +1889,16 @@
 	{/if}
 </div>
 
-<ModalDatasHoras
-	open={showModalDataHoras}
-	{pendingCrud}
-	{editaBloqueado}
-	bind:dataInicio={editDataInicio}
-	bind:horaEntrada={editHoraEntrada}
-	bind:horaSaida={editHoraSaida}
-	onClose={() => (showModalDataHoras = false)}
-	onSubmit={handleSalvarDatasHorarios}
-	{normalizarHora}
-	{validarHora}
-/>
+{#if gise}
+	<ModalDatasHoras
+		open={showModalDataHoras}
+		{pendingCrud}
+		{editaBloqueado}
+		{gise}
+		onClose={() => (showModalDataHoras = false)}
+		onSubmit={handleSalvarDatasHorarios}
+	/>
+{/if}
 
 {#if gise}
 	<ModalBreveRelatorio
@@ -2432,9 +1940,9 @@
 		seccionalNome={relatorioDigitalInfo.seccionalNome}
 		signerEmail={data.usuarioAtual?.email ?? undefined}
 		disabled={loading.active}
-		bind:control={painelTokenRelatorio}
-		bind:signerName={relatorioSignerName}
-		bind:signerCpf={relatorioSignerCpf}
+		bind:control={assinatura.painelTokenRelatorio}
+		bind:signerName={assinatura.relatorioSignerName}
+		bind:signerCpf={assinatura.relatorioSignerCpf}
 		onSuccess={async () => {
 			showDigitalModalRelatorio = false;
 			relatorioDigitalInfo = null;
@@ -2448,12 +1956,12 @@
 {/if}
 
 <ModalRubrica
-	open={showRubricaModal}
+	open={assinatura.showRubricaModal}
 	exigirFoto={page.data.exigirFotoAssinatura ?? true}
 	exigirGps={page.data.exigirGpsAssinatura ?? true}
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-	onConfirm={confirmarRubrica}
-	onCancel={() => (showRubricaModal = false)}
+	onConfirm={assinatura.confirmarRubrica}
+	onCancel={assinatura.fecharModalRubrica}
 />
 
 <ModalRemoverSeccional
