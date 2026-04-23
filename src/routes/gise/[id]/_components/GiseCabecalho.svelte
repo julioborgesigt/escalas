@@ -10,6 +10,8 @@
 		data_inicio: string;
 		hora_entrada: string;
 		hora_saida: string;
+		/** ISO 8601 quando a planilha Base_Equipe já recebeu dados desta GISE com sucesso. */
+		planilha_base_equipe_alimentada_em?: string | null;
 	}
 
 	interface Props {
@@ -38,7 +40,7 @@
 		onRevogarPedido: SubmitFunction;
 		/** Reenvio manual para Base_Equipe (GISE finalizada). */
 		onEnviarPlanilha?: SubmitFunction;
-		/** Após um envio manual com sucesso nesta visita à página (por GISE). */
+		/** Há registro de envio com sucesso à planilha (campo persistido na GISE). */
 		planilhaBaseEquipeAlimentadaOk?: boolean;
 		/** Edição dos textos do "Breve relatório" (PDFs de extra) — ex.: ao lado de Baixar XLSX. */
 		onAbrirBreveRelatorio?: () => void;
@@ -119,6 +121,14 @@
 			<span class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
 				{statusLabel(gise.status)}
 			</span>
+			{#if gise.status === 'finalizada' && gise.planilha_base_equipe_alimentada_em}
+				<span
+					class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-800 border border-emerald-500/35 dark:text-emerald-200 dark:border-emerald-500/40"
+					title="Dados desta GISE já foram enviados com sucesso para a planilha Base_Equipe."
+				>
+					Planilha alimentada
+				</span>
+			{/if}
 			<span class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
 				<span class="whitespace-nowrap">{gise.hora_entrada}h–{gise.hora_saida}h</span>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
@@ -223,7 +233,7 @@
 				disabled={loading.active || pendingCrud}
 				type="button"
 			>
-				Reabrir para Edição
+				Reabrir edição
 			</button>
 		{/if}
 		{#if podeFinalizar}
@@ -233,7 +243,7 @@
 				disabled={loading.active || pendingCrud}
 				type="button"
 			>
-				Marcar como Finalizada
+				Finalizar GISE
 			</button>
 		{/if}
 		{#if isAdminGeral && gise.status === 'finalizada' && onEnviarPlanilha}
@@ -252,7 +262,7 @@
 						: 'Envia os dados desta GISE para a aba Base_Equipe da planilha'}
 				>
 					{planilhaBaseEquipeAlimentadaOk
-						? 'Planilha Alimentada (reenviar)'
+						? 'Reenviar para planilha'
 						: 'Enviar para a planilha'}
 				</button>
 			</form>

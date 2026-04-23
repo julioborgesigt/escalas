@@ -451,6 +451,7 @@ export async function atualizarGiseEscala(
 		breve_relatorio_titulo: string | null;
 		breve_relatorio_texto_seccional: string | null;
 		breve_relatorio_texto_supervisao: string | null;
+		planilha_base_equipe_alimentada_em: string | null;
 	}>
 ) {
 	return db.update(giseEscalas).set(data).where(eq(giseEscalas.id, id));
@@ -462,7 +463,10 @@ export async function reabrirGiseEscala(db: Database, giseId: number) {
 		db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId)),
 		db.delete(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, giseId)),
 		db.delete(gisePresencas).where(eq(gisePresencas.gise_id, giseId)),
-		atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' })
+		atualizarGiseEscala(db, giseId, {
+			status: 'em_preenchimento',
+			planilha_base_equipe_alimentada_em: null
+		})
 	]);
 }
 
