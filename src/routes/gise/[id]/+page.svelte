@@ -183,16 +183,8 @@
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 	let pendingCrud = $state(false);
-	/** Após reenvio manual à Base_Equipe com sucesso (por GISE; repõe ao mudar de escala). */
-	let planilhaBaseEquipeAlimentadaOk = $state(false);
-	let ultimoGiseIdFlagPlanilha = $state<number | null>(null);
-	$effect(() => {
-		const id = gise?.id ?? null;
-		if (ultimoGiseIdFlagPlanilha !== id) {
-			ultimoGiseIdFlagPlanilha = id;
-			planilhaBaseEquipeAlimentadaOk = false;
-		}
-	});
+	/** Último envio com sucesso à planilha Base_Equipe (persistido em `gise.planilha_base_equipe_alimentada_em`). */
+	const planilhaBaseEquipeAlimentadaOk = $derived(!!gise?.planilha_base_equipe_alimentada_em);
 
 	// Horários customizados por equipe
 	let editandoHorariosEquipeId = $state<number | null>(null);
@@ -434,14 +426,10 @@
 
 	const handleEnviarPlanilha = makeEnhanceHandler<{ linhas?: number }>({
 		setPending,
-		invalidateKey: false,
 		successTitle: 'Dados enviados para a planilha',
 		successDescription: (d) =>
 			typeof d?.linhas === 'number' ? `${d.linhas} linha(s) na Base_Equipe.` : undefined,
-		errorTitle: 'Falha ao enviar para a planilha',
-		onSuccess: () => {
-			planilhaBaseEquipeAlimentadaOk = true;
-		}
+		errorTitle: 'Falha ao enviar para a planilha'
 	});
 
 	function abrirAssinaturaRelatorioDigital(
@@ -758,6 +746,171 @@
 					<div
 						class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-visible"
 					>
+						{#snippet seccionalRelatoriosDownloads(compact: boolean)}
+							{#if podeDownload}
+								{@const assRel = data.assinaturasRelatorios?.find(
+									(a: GiseAssinaturaRelatorio) =>
+										(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
+										a.tipo === 'extraordinario'
+								)}
+								{@const tiposProd = tiposEquipeNaSeccional(sec)}
+								<div
+									class={compact
+										? 'flex w-full min-w-0 flex-col gap-2'
+										: 'flex w-full min-w-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-start gap-2 sm:gap-2.5 lg:flex-1'}
+								>
+									{#each tiposProd as tipo (tipo)}
+										{@const hrefProd = `/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
+										{@const rótuloProd = tipo === 'seint' ? 'Prod. SEINT' : 'Prod. Op.'}
+										{#if sec.temRespostas}
+											<a
+												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all {compact
+													? 'w-full'
+													: 'w-full min-[400px]:w-auto sm:w-auto'}"
+												href={hrefProd}
+												target="_blank"
+												rel="noopener noreferrer"
+												title="Baixar {rótuloProd === 'Prod. SEINT' ? 'produtividade SEINT' : 'produtividade operacional'}"
+											>
+												<svg
+													class="w-4 h-4 shrink-0"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+													/></svg
+												>
+												<span class="shrink-0">{rótuloProd}</span>
+											</a>
+										{:else}
+											<button
+												type="button"
+												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 max-w-full inline-flex items-center justify-center gap-1.5 select-none border-surface-300/80 bg-surface-100/90 text-surface-600 shadow-sm cursor-not-allowed dark:border-surface-600 dark:bg-surface-800/50 dark:text-surface-400 {compact
+													? 'w-full'
+													: 'w-full min-[400px]:w-auto sm:w-auto'}"
+												disabled
+												title="Aguardando preenchimento do formulário de produtividade desta seccional"
+											>
+												<svg
+													class="w-4 h-4 shrink-0 opacity-90"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+													/></svg
+												>
+												<span class="shrink-0">{rótuloProd}</span>
+												<span class="text-[0.6rem] font-medium italic">(aguardando)</span>
+											</button>
+										{/if}
+									{/each}
+
+									<div
+										class={compact
+											? 'flex w-full flex-col gap-2'
+											: 'flex w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2'}
+									>
+										<a
+											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
+												checkAllSigned(sec) &&
+												(assRel || isAdminGeral || isSeccional || isSupervisor)
+											)
+												? 'pointer-events-none opacity-60 border-primary-500/30'
+												: 'no-underline'} {assRel
+												? 'preset-filled-primary-500 border-primary-600/30 hover:border-primary-600'
+												: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'} {compact
+												? 'w-full'
+												: 'w-full min-[400px]:w-auto'}"
+											href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
+											target="_blank"
+											rel="noopener noreferrer"
+											title={!checkAllSigned(sec)
+												? getFaltandoRubrica(sec)
+												: assRel
+													? `Assinado por ${assRel.assinante_nome}`
+													: 'Aguardando assinatura do supervisor'}
+										>
+											<svg
+												class="w-3.5 h-3.5 shrink-0"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+												/></svg
+											>
+											<span class="whitespace-nowrap">Relat. Extra</span>
+											{#if !assRel}
+												<span
+													class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
+													>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
+												>
+											{/if}
+										</a>
+										{#if isSupervisor && !assRel && checkAllSigned(sec)}
+											<div
+												class={compact
+													? 'flex w-full flex-col gap-2'
+													: 'flex w-full min-[400px]:w-auto flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2'}
+											>
+												{#if isMobile || !data.restringirSmartphone}
+													{@render actionButton(
+														'Ass. tela',
+														undefined,
+														'warning',
+														'filled',
+														() => assinatura.abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario'),
+														undefined,
+														false,
+														false,
+														compact
+															? 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+															: 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+														'button',
+														'xs'
+													)}
+												{/if}
+
+												{#if !isMobile}
+													{@render actionButton(
+														'Ass. token',
+														'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+														'tertiary',
+														'filled',
+														() =>
+															abrirAssinaturaRelatorioDigital(
+																sec.seccional_id,
+																'extraordinario',
+																sec.seccional_nome
+															),
+														undefined,
+														false,
+														false,
+														compact
+															? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+															: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+														'button',
+														'xs'
+													)}
+												{/if}
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/if}
+						{/snippet}
+
 						<!-- Cabeçalho da seccional -->
 						<div
 							class="flex flex-wrap items-start gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
@@ -781,193 +934,113 @@
 							</div>
 
 							{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-								<form
-									method="POST"
-									action="?/removerSeccional"
-									use:enhance={handleRemoverSeccional}
-									class="contents"
-								>
-									<input type="hidden" name="secId" value={sec.id} />
-									<button
-										type="submit"
-										class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap"
-										disabled={pendingCrud}
-										title="Excluir seccional desta escala"
+								<div class="hidden shrink-0 items-start sm:flex">
+									<form
+										method="POST"
+										action="?/removerSeccional"
+										use:enhance={handleRemoverSeccional}
+										class="block"
 									>
-										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-											/></svg
+										<input type="hidden" name="secId" value={sec.id} />
+										<button
+											type="submit"
+											class="btn btn-sm preset-outlined-error-500 flex w-auto items-center justify-center gap-1 whitespace-nowrap"
+											disabled={pendingCrud}
+											title="Excluir seccional desta escala"
 										>
-										Excluir seccional
-									</button>
-								</form>
-							{/if}
-						</div>
-
-						<!-- Ações Seccional & Downloads -->
-						<div
-							class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 pb-3 {getSeccionalColorClass(
-								sec.seccional_id
-							)} border-b border-surface-200 dark:border-surface-700"
-						>
-							{#if podeDownload}
-								{@const assRel = data.assinaturasRelatorios?.find(
-									(a: GiseAssinaturaRelatorio) =>
-										(a.seccional_id === sec.seccional_id || a.seccional_id === sec.id) &&
-										a.tipo === 'extraordinario'
-								)}
-								{@const tiposProd = tiposEquipeNaSeccional(sec)}
-								<div
-									class="w-full min-w-0 sm:flex-1 flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-start gap-2 sm:gap-2.5"
-								>
-									{#each tiposProd as tipo (tipo)}
-										{@const hrefProd = `/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
-										{@const rótuloProd = tipo === 'seint' ? 'Prod. SEINT' : 'Prod. Operacional'}
-										{#if sec.temRespostas}
-											<a
-												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 w-full min-[400px]:w-auto sm:w-auto max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all"
-												href={hrefProd}
-												target="_blank"
-												rel="noopener noreferrer"
-												title="Baixar {rótuloProd === 'Prod. SEINT' ? 'produtividade SEINT' : 'produtividade operacional'}"
-											>
-												<svg
-													class="w-4 h-4 shrink-0"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-													/></svg
-												>
-												<span class="shrink-0">{rótuloProd}</span>
-											</a>
-										{:else}
-											<button
-												type="button"
-												class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 w-full min-[400px]:w-auto sm:w-auto max-w-full inline-flex items-center justify-center gap-1.5 select-none
-													border-surface-300/80 dark:border-surface-600
-													bg-surface-100/90 dark:bg-surface-800/50
-													text-surface-600 dark:text-surface-400
-													shadow-sm cursor-not-allowed"
-												disabled
-												title="Aguardando preenchimento do formulário de produtividade desta seccional"
-											>
-												<svg
-													class="w-4 h-4 shrink-0 opacity-90"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-													/></svg
-												>
-												<span class="shrink-0">{rótuloProd}</span>
-												<span class="text-[0.6rem] font-medium italic">(aguardando)</span>
-											</button>
-										{/if}
-									{/each}
-
-									<div
-										class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2 w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0"
-									>
-										<a
-											class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all w-full min-[400px]:w-auto {!(
-												checkAllSigned(sec) &&
-												(assRel || isAdminGeral || isSeccional || isSupervisor)
-											)
-												? 'pointer-events-none opacity-60 border-primary-500/30'
-												: 'no-underline'} {assRel
-												? 'preset-filled-primary-500 border-primary-600/30 hover:border-primary-600'
-												: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'}"
-											href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
-											target="_blank"
-											rel="noopener noreferrer"
-											title={!checkAllSigned(sec)
-												? getFaltandoRubrica(sec)
-												: assRel
-													? `Assinado por ${assRel.assinante_nome}`
-													: 'Aguardando assinatura do supervisor'}
-										>
-											<svg
-												class="w-3.5 h-3.5 shrink-0"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
 													stroke-linejoin="round"
 													stroke-width="2"
-													d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+													d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 												/></svg
 											>
-											<span class="whitespace-nowrap">Relat. Extraordinário</span>
-											{#if !assRel}
-												<span
-													class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
-													>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
-												>
-											{/if}
-										</a>
-										{#if isSupervisor && !assRel && checkAllSigned(sec)}
-											<div
-												class="flex flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2 w-full min-[400px]:w-auto"
-											>
-												{#if isMobile || !data.restringirSmartphone}
-													{@render actionButton(
-														'Ass. tela',
-														undefined,
-														'warning',
-														'filled',
-														() => assinatura.abrirAssinaturaRelatorio(sec.seccional_id, 'extraordinario'),
-														undefined,
-														false,
-														false,
-														'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
-														'button',
-														'xs'
-													)}
-												{/if}
+											Excluir seccional
+										</button>
+									</form>
+								</div>
+							{/if}
+						</div>
 
-												{#if !isMobile}
-													{@render actionButton(
-														'Ass. token',
-														'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
-														'tertiary',
-														'filled',
-														() =>
-															abrirAssinaturaRelatorioDigital(
-																sec.seccional_id,
-																'extraordinario',
-																sec.seccional_nome
-															),
-														undefined,
-														false,
-														false,
-														'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
-														'button',
-														'xs'
-													)}
-												{/if}
-											</div>
-										{/if}
-									</div>
+						{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
+							<details
+								class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
+									sec.seccional_id
+								)}"
+							>
+								<summary
+									class="flex cursor-pointer list-none items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50 [&::-webkit-details-marker]:hidden"
+								>
+									<span class="inline-flex items-center gap-1.5 font-semibold">
+										Opções da Seccional
+										<svg
+											class="h-4 w-4 shrink-0 text-surface-500"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 9l-7 7-7-7"
+											/>
+										</svg>
+									</span>
+								</summary>
+								<div
+									class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
+								>
+									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+										<form
+											method="POST"
+											action="?/removerSeccional"
+											use:enhance={handleRemoverSeccional}
+											class="block w-full"
+										>
+											<input type="hidden" name="secId" value={sec.id} />
+											<button
+												type="submit"
+												class="btn btn-sm preset-outlined-error-500 flex w-full items-center justify-center gap-1 whitespace-nowrap"
+												disabled={pendingCrud}
+												title="Excluir seccional desta escala"
+											>
+												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+													/></svg
+												>
+												Excluir seccional
+											</button>
+										</form>
+									{/if}
+									{@render seccionalRelatoriosDownloads(true)}
+								</div>
+							</details>
+						{/if}
+
+						<!-- Ações Seccional & Downloads -->
+						<div
+							class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-4 px-4 sm:px-5 pb-3 {getSeccionalColorClass(
+								sec.seccional_id
+							)} border-b border-surface-200 dark:border-surface-700"
+						>
+							{#if podeDownload}
+								<div class="max-sm:hidden w-full min-w-0">
+									{@render seccionalRelatoriosDownloads(false)}
 								</div>
 							{/if}
 
-							<!-- Ações -->
+							<!-- Ações (empilhadas abaixo dos downloads em telas < lg para não competir por largura) -->
 							<div
-								class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto sm:ml-auto"
+								class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full shrink-0 lg:w-auto lg:ml-auto {podeDownload
+									? 'border-t border-surface-200/70 pt-3 dark:border-surface-700 lg:border-t-0 lg:pt-0'
+									: ''}"
 							>
 								{#if isSeccional && sec.seccional_id === minhaSeccionalId && podeEditar}
 									{#if sec.status === 'preenchida' && !modoEdicaoSeccional}
@@ -1027,14 +1100,16 @@
 										{#if modoEdicaoSeccional}
 											<button
 												type="button"
-												class="text-sm btn preset-outlined-surface px-3 py-1.5 rounded-lg w-full sm:w-auto"
+												class="btn btn-sm preset-outlined-surface-500 border-2 border-surface-300/60 text-sm font-semibold px-4 py-2 rounded-lg w-full sm:w-auto hover:bg-surface-50 dark:border-surface-600 dark:hover:bg-surface-900 transition-colors"
 												onclick={() => {
 													modoEdicaoSeccional = false;
 													selecionandoUnidadeSlotId = null;
 													equipeParaAdicionar = null;
 													cargoParaAdicionar = null;
-												}}>Cancelar</button
+												}}
 											>
+												Cancelar edição
+											</button>
 										{/if}
 									{/if}
 								{/if}
@@ -1044,6 +1119,11 @@
 						<div class="p-3 sm:p-4 space-y-3">
 							<!-- ===== Slots de Unidade ===== -->
 							{#each sec.unidades ?? [] as slot (slot.id)}
+								{@const podeEditarCabecalhoUnidade =
+									(isSeccional &&
+										sec.seccional_id === minhaSeccionalId &&
+										(modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
+									(isAdminGeral && podeEditar && modoEdicaoGeral)}
 								<div
 									class="rounded-xl border border-primary-300/50 dark:border-primary-700/40 bg-primary-500/5 overflow-visible"
 								>
@@ -1051,161 +1131,154 @@
 									<div
 										class="flex flex-col gap-2 px-4 py-3 border-b border-primary-300/30 dark:border-primary-700/30"
 									>
-										{#if slot.nome}
-											<div class="flex items-center gap-2 min-w-0">
-												<span
-													class="font-semibold text-sm text-surface-900 dark:text-surface-100 truncate"
-													>{slot.nome}</span
+										{#if podeEditarCabecalhoUnidade && selecionandoUnidadeSlotId === slot.id}
+											<!-- Selecionar ou trocar a unidade deste slot -->
+											<div class="flex flex-col gap-2 w-full min-w-0">
+												<select
+													bind:value={slotUnidadeId}
+													class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 												>
-											</div>
-										{:else if (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) || (isAdminGeral && podeEditar && modoEdicaoGeral)}
-											<!-- Admin Seccional seleciona a unidade para este slot -->
-											{#if selecionandoUnidadeSlotId === slot.id}
-												<div class="flex flex-col gap-2 w-full min-w-0">
-													<select
-														bind:value={slotUnidadeId}
-														class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+													<option value="">{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option>
+													{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
+														<option value={d.id}>{d.nome}</option>
+													{/each}
+												</select>
+												<div class="flex gap-2 w-full">
+													<form
+														method="POST"
+														action="?/selecionarUnidade"
+														use:enhance={handleSelecionarUnidade}
+														class="flex-1 min-w-0"
 													>
-														<option value="">Selecionar unidade...</option>
-														{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
-															<option value={d.id}>{d.nome}</option>
-														{/each}
-													</select>
-													<div class="flex gap-2 w-full">
-														<form
-															method="POST"
-															action="?/selecionarUnidade"
-															use:enhance={handleSelecionarUnidade}
-															class="flex-1 min-w-0"
-														>
-															<input type="hidden" name="slotId" value={slot.id} />
-															<input type="hidden" name="unidadeId" value={slotUnidadeId} />
-															<button
-																type="submit"
-																class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full"
-																disabled={!slotUnidadeId || pendingCrud}
-															>
-																{pendingCrud ? 'Salvando...' : 'Confirmar'}
-															</button>
-														</form>
+														<input type="hidden" name="slotId" value={slot.id} />
+														<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 														<button
-															type="button"
-															class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl flex-1 min-w-0 w-full"
-															onclick={() => {
-																selecionandoUnidadeSlotId = null;
-																slotUnidadeId = '';
-															}}
+															type="submit"
+															class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full"
+															disabled={!slotUnidadeId || pendingCrud}
 														>
-															Cancelar
+															{pendingCrud ? 'Salvando...' : 'Confirmar'}
 														</button>
-													</div>
-													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-														<form
-															method="POST"
-															action="?/removerUnidade"
-															use:enhance={handleRemoverUnidade}
-															class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
-														>
-															<input type="hidden" name="secId" value={sec.id} />
-															<input type="hidden" name="linkId" value={slot.id} />
-															<button
-																type="submit"
-																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-																disabled={pendingCrud}
-															>
-																<svg
-																	class="w-3.5 h-3.5"
-																	fill="none"
-																	stroke="currentColor"
-																	viewBox="0 0 24 24"
-																	><path
-																		stroke-linecap="round"
-																		stroke-linejoin="round"
-																		stroke-width="2"
-																		d="M6 18L18 6M6 6l12 12"
-																	/></svg
-																>
-																Remover DP
-															</button>
-														</form>
-													{/if}
-												</div>
-											{:else}
-												<div
-													class="flex flex-col sm:flex-row sm:justify-end sm:items-stretch gap-2 w-full min-w-0"
-												>
+													</form>
 													<button
 														type="button"
-														class="btn preset-outlined-warning-500 w-full sm:w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
+														class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl flex-1 min-w-0 w-full"
 														onclick={() => {
-															selecionandoUnidadeSlotId = slot.id;
+															selecionandoUnidadeSlotId = null;
 															slotUnidadeId = '';
 														}}
 													>
-														<svg
-															class="w-3.5 h-3.5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-															><path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-															/></svg
-														>
-														Definir DP
+														Cancelar
 													</button>
-													{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-														<form
-															method="POST"
-															action="?/removerUnidade"
-															use:enhance={handleRemoverUnidade}
-															class="w-full sm:w-auto sm:min-w-0"
+												</div>
+												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+													<form
+														method="POST"
+														action="?/removerUnidade"
+														use:enhance={handleRemoverUnidade}
+														class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
+													>
+														<input type="hidden" name="secId" value={sec.id} />
+														<input type="hidden" name="linkId" value={slot.id} />
+														<button
+															type="submit"
+															class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+															disabled={pendingCrud}
 														>
-															<input type="hidden" name="secId" value={sec.id} />
-															<input type="hidden" name="linkId" value={slot.id} />
-															<button
-																type="submit"
-																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-																disabled={pendingCrud}
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M6 18L18 6M6 6l12 12"
+																/></svg
 															>
-																<svg
-																	class="w-3.5 h-3.5"
-																	fill="none"
-																	stroke="currentColor"
-																	viewBox="0 0 24 24"
-																	><path
-																		stroke-linecap="round"
-																		stroke-linejoin="round"
-																		stroke-width="2"
-																		d="M6 18L18 6M6 6l12 12"
-																	/></svg
-																>
-																Remover DP
-															</button>
-														</form>
+															Remover DP
+														</button>
+													</form>
+												{/if}
+											</div>
+										{:else if slot.nome}
+											<div
+												class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+											>
+												<div class="flex min-w-0 items-center gap-2">
+													<span
+														class="min-w-0 truncate font-semibold text-sm text-surface-900 dark:text-surface-100"
+														>{slot.nome}</span
+													>
+													{#if podeEditarCabecalhoUnidade}
+														<button
+															type="button"
+															class="btn btn-xs shrink-0 preset-filled-surface-500 rounded p-1"
+															title="Alterar unidade"
+															aria-label="Alterar unidade"
+															onclick={() => {
+																selecionandoUnidadeSlotId = slot.id;
+																slotUnidadeId = slot.unidade_id ?? '';
+															}}
+														>
+															<svg
+																class="w-3 h-3"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																/></svg
+															>
+														</button>
 													{/if}
 												</div>
-											{/if}
-										{:else}
-											<span class="text-sm text-surface-400 italic">Unidade não definida</span>
-										{/if}
-
-										<!-- Admin Geral: remover slot (quando já há unidade definida) -->
-										{#if slot.nome && isAdminGeral && podeEditar && modoEdicaoGeral}
-											<form
-												method="POST"
-												action="?/removerUnidade"
-												use:enhance={handleRemoverUnidade}
-												class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
+												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+													<form
+														method="POST"
+														action="?/removerUnidade"
+														use:enhance={handleRemoverUnidade}
+														class="w-full shrink-0 sm:w-auto sm:self-start"
+													>
+														<input type="hidden" name="secId" value={sec.id} />
+														<input type="hidden" name="linkId" value={slot.id} />
+														<button
+															type="submit"
+															class="btn btn-sm preset-outlined-error-500 w-full text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap sm:w-auto"
+															disabled={pendingCrud}
+														>
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M6 18L18 6M6 6l12 12"
+																/></svg
+															>
+															Remover DP
+														</button>
+													</form>
+												{/if}
+											</div>
+										{:else if podeEditarCabecalhoUnidade}
+											<div
+												class="flex flex-col sm:flex-row sm:justify-end sm:items-stretch gap-2 w-full min-w-0"
 											>
-												<input type="hidden" name="secId" value={sec.id} />
-												<input type="hidden" name="linkId" value={slot.id} />
 												<button
-													type="submit"
-													class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
-													disabled={pendingCrud}
+													type="button"
+													class="btn preset-outlined-warning-500 w-full sm:w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
+													onclick={() => {
+														selecionandoUnidadeSlotId = slot.id;
+														slotUnidadeId = '';
+													}}
 												>
 													<svg
 														class="w-3.5 h-3.5"
@@ -1216,12 +1289,44 @@
 															stroke-linecap="round"
 															stroke-linejoin="round"
 															stroke-width="2"
-															d="M6 18L18 6M6 6l12 12"
+															d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 														/></svg
 													>
-													Remover DP
+													Definir DP
 												</button>
-											</form>
+												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+													<form
+														method="POST"
+														action="?/removerUnidade"
+														use:enhance={handleRemoverUnidade}
+														class="w-full sm:w-auto sm:min-w-0"
+													>
+														<input type="hidden" name="secId" value={sec.id} />
+														<input type="hidden" name="linkId" value={slot.id} />
+														<button
+															type="submit"
+															class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+															disabled={pendingCrud}
+														>
+															<svg
+																class="w-3.5 h-3.5"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M6 18L18 6M6 6l12 12"
+																/></svg
+															>
+															Remover DP
+														</button>
+													</form>
+												{/if}
+											</div>
+										{:else}
+											<span class="text-sm text-surface-400 italic">Unidade não definida</span>
 										{/if}
 
 									</div>

@@ -210,6 +210,8 @@ export const giseEscalas = sqliteTable(
 		breve_relatorio_texto_seccional: text('breve_relatorio_texto_seccional'),
 		/** Texto do quadro no relatório de extra do quadro de supervisão; null = padrão global. */
 		breve_relatorio_texto_supervisao: text('breve_relatorio_texto_supervisao'),
+		/** ISO 8601: último envio com sucesso dos dados desta GISE para a planilha Base_Equipe. */
+		planilha_base_equipe_alimentada_em: text('planilha_base_equipe_alimentada_em'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)

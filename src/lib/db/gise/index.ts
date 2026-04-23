@@ -60,6 +60,14 @@ export { listarMembrosParaBaseEquipe } from './base-equipe';
 export type { LinhaBaseEquipeMembro } from './base-equipe';
 
 export {
+	montarMapaBaseEquipePorPolicialId,
+	montarLinhasBaseEquipeGise,
+	dadosPlanilhaBaseEquipeParaMembro,
+	BASE_EQUIPE_PLANILHA_HEADERS
+} from './planilha-base-equipe-dados';
+export type { DadosPlanilhaBaseEquipePolicial } from './planilha-base-equipe-dados';
+
+export {
 	buscarVagasPadraoEquipesGise,
 	salvarVagasPadraoEquipesGise,
 	parseVagasEquipesGiseJson,

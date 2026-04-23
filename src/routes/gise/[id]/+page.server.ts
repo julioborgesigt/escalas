@@ -741,6 +741,9 @@ export const actions: Actions = {
 		if (!r.ok) {
 			return fail(502, { error: r.error });
 		}
+		await atualizarGiseEscala(db, giseId, {
+			planilha_base_equipe_alimentada_em: new Date().toISOString()
+		});
 		return { success: true, linhas: r.linhas };
 	},
 

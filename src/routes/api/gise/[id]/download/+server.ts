@@ -17,6 +17,10 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
+import {
+	BASE_EQUIPE_PLANILHA_HEADERS,
+	montarLinhasBaseEquipeGise
+} from '$lib/db/gise/planilha-base-equipe-dados';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -271,7 +275,21 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 	// XLSX
 	const wb = new ExcelJS.Workbook();
-	
+	/** Mesmas linhas enviadas ao POST da planilha Google (aba Base_Equipe). */
+	const linhasBaseEquipePlanilha = await montarLinhasBaseEquipeGise(db, id);
+
+	const headersDetalheEquipe = [
+		'Nome',
+		'Cargo',
+		'Matrícula',
+		'Telefone',
+		'Lotação',
+		'Data Início',
+		'Hora Início',
+		'Data Término',
+		'Hora Término'
+	] as const;
+
 	// Estilos Comuns
 	const styleTitle = (ws: ExcelJS.Worksheet, row: ExcelJS.Row, color: string) => {
 		row.height = 25;
@@ -297,10 +315,28 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		});
 	};
 
+	const nColsBaseEquipe = BASE_EQUIPE_PLANILHA_HEADERS.length;
+	const wsBaseEquipe = wb.addWorksheet('Base_Equipe');
+	wsBaseEquipe.columns = Array.from({ length: nColsBaseEquipe }, () => ({ width: 18 }));
+	const baseHeaderRow = wsBaseEquipe.addRow([...BASE_EQUIPE_PLANILHA_HEADERS]);
+	styleHeader(baseHeaderRow);
+	if (linhasBaseEquipePlanilha && linhasBaseEquipePlanilha.length > 0) {
+		for (const linha of linhasBaseEquipePlanilha) {
+			wsBaseEquipe.addRow(linha);
+		}
+	}
+
 	const wsResumo = wb.addWorksheet('Resumo Geral');
 	wsResumo.columns = [
-		{ width: 25 }, { width: 10 }, { width: 15 }, { width: 18 }, { width: 30 },
-		{ width: 15 }, { width: 12 }, { width: 15 }, { width: 12 }
+		{ width: 25 },
+		{ width: 10 },
+		{ width: 15 },
+		{ width: 18 },
+		{ width: 30 },
+		{ width: 15 },
+		{ width: 12 },
+		{ width: 15 },
+		{ width: 12 }
 	];
 
 	wsResumo.addRow(['ESCALA GISE']).font = { bold: true, size: 16 };
@@ -316,10 +352,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			for (const equipe of unidade.equipes ?? []) {
 				const teamName = `${unidade.nome || sec.seccional_nome} - ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}`;
 				const titleRow = wsResumo.addRow([teamName]);
-				wsResumo.mergeCells(titleRow.number, 1, titleRow.number, 9);
+				wsResumo.mergeCells(titleRow.number, 1, titleRow.number, headersDetalheEquipe.length);
 				styleTitle(wsResumo, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
 
-				const headerRow = wsResumo.addRow(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data Início', 'Hora Início', 'Data Término', 'Hora Término']);
+				const headerRow = wsResumo.addRow([...headersDetalheEquipe]);
 				styleHeader(headerRow);
 
 				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
@@ -351,8 +387,15 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	for (const sec of gise.seccionais ?? []) {
 		const ws = wb.addWorksheet(sec.seccional_nome.slice(0, 31));
 		ws.columns = [
-			{ width: 35 }, { width: 10 }, { width: 15 }, { width: 18 }, { width: 35 },
-			{ width: 15 }, { width: 12 }, { width: 15 }, { width: 12 }
+			{ width: 35 },
+			{ width: 10 },
+			{ width: 15 },
+			{ width: 18 },
+			{ width: 35 },
+			{ width: 15 },
+			{ width: 12 },
+			{ width: 15 },
+			{ width: 12 }
 		];
 
 		ws.addRow([`SECCIONAL: ${sec.seccional_nome}`]).font = { bold: true, size: 14 };
@@ -363,10 +406,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			for (const equipe of unidade.equipes ?? []) {
 				const unitTitle = unidade.nome || sec.seccional_nome;
 				const titleRow = ws.addRow([unitTitle]);
-				ws.mergeCells(titleRow.number, 1, titleRow.number, 9);
+				ws.mergeCells(titleRow.number, 1, titleRow.number, headersDetalheEquipe.length);
 				styleTitle(ws, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
 
-				const headerRow = ws.addRow(['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data Início', 'Hora Início', 'Data Término', 'Hora Término']);
+				const headerRow = ws.addRow([...headersDetalheEquipe]);
 				styleHeader(headerRow);
 
 				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
