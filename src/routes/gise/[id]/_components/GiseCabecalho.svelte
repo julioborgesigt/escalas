@@ -75,12 +75,12 @@
 </script>
 
 <!--
-  Evita sm:flex-row no raiz: com sidebar, ~700–900px ainda espreme título + ações.
-  Abaixo de lg: coluna única — Voltar + título em largura total; ações em faixa com wrap.
-  A partir de lg: título à esquerda, ações à direita (alinhadas ao topo).
+  Sidebar aparece em min-[900px] (240px). Para titular + ações lado a lado sem espreme,
+  só ativamos flex-row em xl (1280px) → ~1040px de conteúdo disponível.
+  Abaixo de xl: coluna única — título em largura total, ações em faixa com wrap abaixo.
 -->
 <div
-	class="flex flex-col gap-4 border-b border-surface-200/70 pb-5 dark:border-surface-700/60 lg:flex-row lg:items-start lg:justify-between lg:gap-6 xl:gap-8"
+	class="flex flex-col gap-4 border-b border-surface-200/70 pb-5 dark:border-surface-700/60 xl:flex-row xl:items-start xl:justify-between xl:gap-6"
 >
 	<div class="min-w-0 flex-1 space-y-3">
 		<button
@@ -105,11 +105,11 @@
 		</button>
 
 		<h1
-			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl lg:text-3xl"
+			class="break-words font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl xl:text-3xl"
 		>
 			<span class="block">Escala GISE #{gise.id}</span>
 			<span
-				class="mt-1 block font-semibold text-surface-700 dark:text-surface-200 text-base sm:text-lg lg:text-xl"
+				class="mt-1 block font-semibold text-surface-700 dark:text-surface-200 text-base sm:text-lg xl:text-xl"
 			>
 				{diaSemana(gise.data_inicio)}, {fmtDate(gise.data_inicio)}
 			</span>
@@ -142,7 +142,7 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap sm:min-w-0 sm:gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
+	<div class="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap sm:min-w-0 sm:gap-2 xl:max-w-[min(100%,40rem)] xl:justify-end xl:shrink-0">
 		{#if isAdminGeral && podeDownload}
 			<a
 				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 no-underline sm:w-auto"
