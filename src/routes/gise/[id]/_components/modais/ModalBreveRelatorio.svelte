@@ -66,8 +66,8 @@
 				Texto "Breve relatório" (PDFs de extra)
 			</h2>
 			<p class="text-sm text-surface-600 dark:text-surface-400 mb-4 shrink-0">
-				Deixe vazio para o que estiver em <strong>Config. GISE</strong> (texto global) ou, se também vazio, o
-				texto padrão do sistema. Abaixo, pode definir o texto <strong>desta</strong> GISE.
+				Aqui você pode personalisar o texto do <strong>Relatório de Extra</strong>
+				desta escala GISE.
 			</p>
 
 			<form
@@ -89,7 +89,7 @@
 				</div>
 				<div>
 					<label class="block text-sm font-medium mb-1" for="br_modal_sec"
-						>Parágrafo — extra por <strong>seccional</strong></label
+						>Parágrafo — extra das <strong>seccional</strong></label
 					>
 					<textarea
 						id="br_modal_sec"
@@ -102,7 +102,7 @@
 				</div>
 				<div>
 					<label class="block text-sm font-medium mb-1" for="br_modal_sup"
-						>Parágrafo — extra de <strong>supervisão</strong></label
+						>Parágrafo — extra de <strong>supervisão/apoio</strong></label
 					>
 					<textarea
 						id="br_modal_sup"
@@ -127,7 +127,7 @@
 						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl"
 						disabled={pendingCrud}
 					>
-						{pendingCrud ? 'Salvando...' : 'Salvar textos do breve relatório'}
+						{pendingCrud ? 'Salvando...' : 'Salvar textos'}
 					</button>
 				</div>
 			</form>

@@ -38,6 +38,8 @@
 		onRevogarPedido: SubmitFunction;
 		/** Reenvio manual para Base_Equipe (GISE finalizada). */
 		onEnviarPlanilha?: SubmitFunction;
+		/** Após um envio manual com sucesso nesta visita à página (por GISE). */
+		planilhaBaseEquipeAlimentadaOk?: boolean;
 		/** Edição dos textos do "Breve relatório" (PDFs de extra) — ex.: ao lado de Baixar XLSX. */
 		onAbrirBreveRelatorio?: () => void;
 	}
@@ -67,6 +69,7 @@
 		onSolicitarAssinatura,
 		onRevogarPedido,
 		onEnviarPlanilha,
+		planilhaBaseEquipeAlimentadaOk = false,
 		onAbrirBreveRelatorio
 	}: Props = $props();
 </script>
@@ -244,9 +247,13 @@
 					type="submit"
 					class="btn btn-sm preset-outlined-primary-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 border-2 border-primary-500/30 hover:border-primary-500 sm:w-auto"
 					disabled={loading.active || pendingCrud}
-					title="Reenvia os dados desta GISE para a aba Base_Equipe da planilha"
+					title={planilhaBaseEquipeAlimentadaOk
+						? 'Planilha Base_Equipe já recebeu estes dados; clique para reenviar.'
+						: 'Envia os dados desta GISE para a aba Base_Equipe da planilha'}
 				>
-					Enviar para a planilha
+					{planilhaBaseEquipeAlimentadaOk
+						? 'Planilha Alimentada (reenviar)'
+						: 'Enviar para a planilha'}
 				</button>
 			</form>
 		{/if}

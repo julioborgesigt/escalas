@@ -140,6 +140,16 @@
 	let adicionandoSeccional = $state(false);
 	let seccionalParaAdicionarIdx = $state<number | ''>('');
 	let pendingCrud = $state(false);
+	/** Após reenvio manual à Base_Equipe com sucesso (por GISE; repõe ao mudar de escala). */
+	let planilhaBaseEquipeAlimentadaOk = $state(false);
+	let ultimoGiseIdFlagPlanilha = $state<number | null>(null);
+	$effect(() => {
+		const id = gise?.id ?? null;
+		if (ultimoGiseIdFlagPlanilha !== id) {
+			ultimoGiseIdFlagPlanilha = id;
+			planilhaBaseEquipeAlimentadaOk = false;
+		}
+	});
 
 	// Horários customizados por equipe
 	let editandoHorariosEquipeId = $state<number | null>(null);
@@ -603,6 +613,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCrud = false;
 			if (result.type === 'success') {
+				planilhaBaseEquipeAlimentadaOk = true;
 				const d =
 					'data' in result ? (result.data as Record<string, unknown> | undefined) : undefined;
 				const n = typeof d?.linhas === 'number' ? d.linhas : undefined;
@@ -1127,6 +1138,7 @@
 			onSolicitarAssinatura={handleSolicitarAssinatura}
 			onRevogarPedido={handleRevogarPedidoAssinatura}
 			onEnviarPlanilha={isAdminGeral ? handleEnviarPlanilha : undefined}
+			planilhaBaseEquipeAlimentadaOk={planilhaBaseEquipeAlimentadaOk}
 			onAbrirBreveRelatorio={
 				isAdminGeral ? () => (showModalBreveRelatorio = true) : undefined
 			}
