@@ -16,8 +16,6 @@
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 
-	/** Só admin vê a lista “por equipe/seccional”; supervisor e escalados usam `minhasEscalas`. */
-	const podeVerListaGeral = $derived(isAdminGeral);
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
 	let dialogRestaurarAberto = $state(false);
@@ -80,33 +78,9 @@
 			</h1>
 			<p class="text-sm text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
 		</div>
-
-		{#if podeVerListaGeral}
-			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner w-full sm:w-auto shrink-0">
-				<button type="button"
-					class="flex-1 md:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
-						? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
-						: 'text-surface-500 hover:text-surface-700'}"
-					onclick={() => (resGise.activeTab = 'relatorios')}
-				>
-					Relatórios
-				</button>
-				{#if isAdminGeral}
-					<button type="button"
-						class="flex-1 md:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab ===
-						'configurador'
-							? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
-							: 'text-surface-500 hover:text-surface-700'}"
-						onclick={() => (resGise.activeTab = 'configurador')}
-					>
-						Configurar Form
-					</button>
-				{/if}
-			</div>
-		{/if}
 	</header>
 
-	{#if isAdminGeral && resGise.activeTab === 'configurador'}
+	{#if isAdminGeral}
 		<section
 			class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500"
 		>
@@ -441,329 +415,6 @@
 				</form>
 			</div>
 		</section>
-	{:else if podeVerListaGeral && resGise.activeTab === 'relatorios'}
-		<div class="grid grid-cols-1 min-[900px]:grid-cols-4 gap-6">
-			<div class="min-[900px]:col-span-1 space-y-4">
-				<div class="flex items-center justify-between px-2">
-					<h2 class="text-sm font-bold uppercase tracking-widest text-surface-500">Escalas GISE</h2>
-					<span class="badge preset-filled-primary-500 text-[0.6rem]">{data.listaAdmin.length}</span
-					>
-				</div>
-
-				<div class="space-y-3 px-2 mb-4">
-					<div class="space-y-1">
-						<label
-							for="f-status"
-							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
-							>Status da Escala</label
-						>
-						<select
-							id="f-status"
-							bind:value={resGise.statusFilterUrl}
-							onchange={() => resGise.changeStatusFilter(resGise.statusFilterUrl)}
-							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
-						>
-							<option value="">-- Selecione Status --</option>
-							<option value="ativas">Escalas Ativas</option>
-							<option value="finalizadas">Escalas Finalizadas</option>
-						</select>
-					</div>
-
-					<div class="space-y-1 {resGise.statusFilterUrl ? '' : 'opacity-50 pointer-events-none'}">
-						<label
-							for="f-sec"
-							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
-							>Seccional</label
-						>
-						<select
-							id="f-sec"
-							bind:value={resGise.seccionalFilter}
-							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
-						>
-							{#each resGise.seccionaisDisponiveis as s}
-								<option value={s}>{s === 'todas' ? 'Todas Seccionais' : s}</option>
-							{/each}
-						</select>
-					</div>
-					<div class="space-y-1">
-						<label
-							for="f-mes"
-							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
-							>Mês/Ano</label
-						>
-						<input
-							id="f-mes"
-							type="month"
-							value={resGise.mesFilterUrl}
-							oninput={(e) => resGise.changeDateFilter('mes', (e.target as HTMLInputElement).value)}
-							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
-						/>
-					</div>
-					<div class="space-y-1">
-						<label
-							for="f-data"
-							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
-							>Data específica</label
-						>
-						<input
-							id="f-data"
-							type="date"
-							value={resGise.dataFilterUrl}
-							oninput={(e) => resGise.changeDateFilter('data', (e.target as HTMLInputElement).value)}
-							class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 text-[0.7rem] font-bold outline-none focus:ring-1 focus:ring-primary-500"
-						/>
-					</div>
-				</div>
-
-				<div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-					{#if !resGise.statusFilterUrl}
-						<div
-							class="p-6 text-center border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-2xl bg-surface-100/50 dark:bg-surface-900/50"
-						>
-							<svg
-								class="w-8 h-8 text-surface-400 mx-auto mb-2"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-								/></svg
-							>
-							<p class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase">
-								Selecione o Status
-							</p>
-							<p class="text-[0.6rem] text-surface-500 mt-1">
-								Busque as escalas primeiro pelo seu status de atividade acima.
-							</p>
-						</div>
-					{:else}
-						{#each resGise.listaFiltrada as escala}
-							<div
-								role="button"
-								tabindex="0"
-								class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer {resGise.escalaSelecionada?.equipe_id ===
-									escala.equipe_id && resGise.escalaSelecionada?.id === escala.id
-									? 'border-primary-500 bg-primary-500/10 ring-1 ring-primary-500'
-									: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-surface-300'}"
-								onclick={() => resGise.selecionarEscala(escala, podeVerListaGeral)}
-								onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, podeVerListaGeral)}
-							>
-								<div class="flex items-start justify-between gap-2">
-									<div class="min-w-0">
-										<p class="text-xs font-bold text-surface-900 dark:text-surface-100 truncate">
-											{escala.seccional_nome}
-										</p>
-										<p class="text-[0.6rem] text-surface-500 mt-0.5">
-											{resGise.fmtDate(escala.data_inicio)}
-										</p>
-									</div>
-									<div class="flex flex-col items-end gap-1">
-										<span
-											class="text-[0.55rem] px-1.5 py-0.5 rounded font-black uppercase {escala.equipe_tipo ===
-											'operacional'
-												? 'bg-primary-500/20 text-primary-700'
-												: 'bg-surface-500/20 text-surface-700'}">{escala.equipe_tipo}</span
-										>
-									</div>
-								</div>
-
-								<div class="mt-2 flex items-center justify-between">
-									<div class="flex items-center gap-1.5">
-										<div
-											class="w-1.5 h-1.5 rounded-full {escala.equipeRespondida
-												? 'bg-success-500'
-												: 'bg-warning-500'}"
-										></div>
-										<p
-											class="text-[0.6rem] font-bold {escala.equipeRespondida
-												? 'text-success-600'
-												: 'text-warning-600'} uppercase"
-										>
-											{escala.equipeRespondida ? 'Relatório Pronto' : 'Pendente'}
-										</p>
-									</div>
-
-									<div class="flex items-center gap-1">
-										{#if escala.equipeRespondida}
-											<button type="button"
-												class="btn-icon btn-icon-sm bg-primary-500/10 text-primary-600 hover:bg-primary-500 hover:text-white transition-all rounded-lg"
-												onclick={(e) => {
-													e.stopPropagation();
-													resGise.baixarRelatorio(escala);
-												}}
-												disabled={loading.active}
-												title="Baixar PDF de Produtividade"
-											>
-												<svg
-														class="w-3.5 h-3.5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2.5"
-															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-														/></svg
-													>
-											</button>
-										{/if}
-										{#if escala.extraAssinado}
-											<button type="button"
-												class="btn-icon btn-icon-sm bg-secondary-500/10 text-secondary-600 hover:bg-secondary-500 hover:text-white transition-all rounded-lg"
-												onclick={(e) => {
-													e.stopPropagation();
-													resGise.baixarRelatorioExtra(escala);
-												}}
-												disabled={loading.active}
-												title="Baixar Relatório Extraordinário (Assinado)"
-											>
-												<svg
-														class="w-3.5 h-3.5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2.5"
-															d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-														/></svg
-													>
-											</button>
-										{/if}
-									</div>
-								</div>
-							</div>
-						{:else}
-							<div
-								class="p-8 text-center border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-3xl"
-							>
-								<p class="text-xs text-surface-500 italic">
-									Nenhum relatório encontrado para este filtro.
-								</p>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			</div>
-
-			<div class="min-[900px]:col-span-3">
-				{#if resGise.escalaSelecionada}
-					<section
-						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
-					>
-						<div
-							class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-4"
-						>
-							<div>
-								<h2
-									class="text-xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tight"
-								>
-									{resGise.escalaSelecionada.seccional_nome}
-								</h2>
-								<div class="flex items-center gap-2 mt-1">
-									<span class="badge preset-filled-primary-500 text-[0.6rem]"
-										>{resGise.escalaSelecionada.equipe_tipo}</span
-									>
-									<span class="text-xs text-surface-500 font-medium"
-										>{resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}</span
-									>
-								</div>
-							</div>
-						</div>
-
-						{#if loading.active}
-							<div class="flex flex-col items-center justify-center py-24 gap-4">
-								<p class="text-sm font-bold text-surface-500 animate-pulse">CARREGANDO DADOS...</p>
-							</div>
-						{:else}
-							<div class="space-y-6">
-								<div
-									class="p-4 bg-primary-500/5 border border-primary-500/10 rounded-2xl flex items-center gap-3"
-								>
-									<div class="bg-primary-500/20 p-2 rounded-lg">
-										<svg
-											class="w-5 h-5 text-primary-600"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-											/></svg
-										>
-									</div>
-									<p
-										class="text-[0.65rem] md:text-xs font-medium text-primary-700 dark:text-primary-400 leading-relaxed"
-									>
-										<strong>Modo Supervisor:</strong> Você está visualizando o formulário de produtividade.
-										Todas as alterações feitas aqui serão refletidas nos relatórios finais da seccional.
-									</p>
-								</div>
-
-								<RelatorioProdutividade modelo={resGise.perguntasForm} bind:respostas={resGise.respostas} />
-
-								<div
-									class="flex justify-end pt-4 border-t border-surface-200 dark:border-surface-800"
-								>
-									<form method="POST" action="?/salvarResposta" use:enhance={resGise.handleSalvarResposta(podeVerListaGeral)} class="contents">
-										<input type="hidden" name="giseId" value={resGise.escalaSelecionada?.id} />
-										{#if resGise.escalaSelecionada?.equipe_id}
-											<input type="hidden" name="equipeId" value={resGise.escalaSelecionada.equipe_id} />
-										{/if}
-										<input type="hidden" name="respostas" value={resGise.respostasJson} />
-										
-										{@render actionButton(
-											loading.active ? 'Salvando...' : 'Salvar Alterações',
-											undefined,
-											'primary',
-											'filled',
-											undefined,
-											loading.active,
-											false,
-											'px-12 py-3 text-lg shadow-xl shadow-primary-500/20',
-											'submit'
-										)}
-									</form>
-								</div>
-							</div>
-						{/if}
-					</section>
-				{:else}
-					<div
-						class="h-[60vh] flex flex-col items-center justify-center text-center p-12 bg-surface-100/30 dark:bg-surface-900/10 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-3xl"
-					>
-						<div class="bg-surface-200 dark:bg-surface-800 p-6 rounded-full mb-6">
-							<svg
-								class="w-12 h-12 text-surface-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/></svg
-							>
-						</div>
-						<h3 class="text-xl font-bold text-surface-900 dark:text-surface-50 mb-2">
-							Selecione um Relatório
-						</h3>
-						<p class="text-sm text-surface-500 max-w-xs">
-							Escolha uma escala e equipe na lista lateral para visualizar ou editar os dados de
-							produtividade.
-						</p>
-					</div>
-				{/if}
-			</div>
-		</div>
 	{:else}
 		<div class="grid grid-cols-1 min-[900px]:grid-cols-3 gap-6">
 			<!-- Lista de Escalas -->
@@ -866,8 +517,8 @@
 							escala.id && resGise.escalaSelecionada?.equipe_id === escala.equipe_id
 							? 'border-primary-500 bg-primary-500/10'
 							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
-						onclick={() => resGise.selecionarEscala(escala, podeVerListaGeral)}
-						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, podeVerListaGeral)}
+						onclick={() => resGise.selecionarEscala(escala, isAdminGeral)}
+						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, isAdminGeral)}
 					>
 						<div class="flex items-center justify-between">
 							<p class="text-sm font-bold text-surface-900 dark:text-surface-100">
@@ -1016,7 +667,7 @@
 							</div>
 						</div>
 
-						{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, podeVerListaGeral)}
+						{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, isAdminGeral)}
 							<div class="p-8 text-center space-y-4">
 								<div
 									class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
@@ -1197,7 +848,7 @@
 															'px-6'
 														)}
 													{/if}
-													<form method="POST" action="?/salvarResposta" use:enhance={resGise.handleSalvarResposta(podeVerListaGeral)} class="contents">
+													<form method="POST" action="?/salvarResposta" use:enhance={resGise.handleSalvarResposta(isAdminGeral)} class="contents">
 														<input type="hidden" name="giseId" value={resGise.escalaSelecionada?.id} />
 														{#if resGise.escalaSelecionada?.equipe_id}
 															<input type="hidden" name="equipeId" value={resGise.escalaSelecionada.equipe_id} />
@@ -1230,7 +881,7 @@
 									<h3 class="font-bold uppercase text-sm tracking-wider">Término do Plantão</h3>
 
 									{#if !resGise.escalaSelecionada.presenca?.saida_timestamp}
-										{#if !resGise.isSaidaLiberada(resGise.escalaSelecionada, podeVerListaGeral)}
+										{#if !resGise.isSaidaLiberada(resGise.escalaSelecionada, isAdminGeral)}
 											<div class="p-8 text-center space-y-4">
 												<div
 													class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
