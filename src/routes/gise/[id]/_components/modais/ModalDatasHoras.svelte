@@ -1,32 +1,55 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { toaster } from '$lib/toast';
+	import { normalizarHora, validarHora } from '$lib/gise/gise-horarios';
+
+	interface GiseInfo {
+		data_inicio: string;
+		hora_entrada: string | null;
+		hora_saida: string | null;
+	}
 
 	interface Props {
 		open: boolean;
 		pendingCrud: boolean;
 		editaBloqueado: boolean;
-		dataInicio: string;
-		horaEntrada: string;
-		horaSaida: string;
+		gise: GiseInfo;
 		onClose: () => void;
 		onSubmit: SubmitFunction;
-		normalizarHora: (v: string) => string | null;
-		validarHora: (v: string) => boolean;
 	}
 
-	let {
-		open,
-		pendingCrud,
-		editaBloqueado,
-		dataInicio = $bindable(),
-		horaEntrada = $bindable(),
-		horaSaida = $bindable(),
-		onClose,
-		onSubmit,
-		normalizarHora,
-		validarHora
-	}: Props = $props();
+	let { open, pendingCrud, editaBloqueado, gise, onClose, onSubmit }: Props = $props();
+
+	let dataInicio = $state('');
+	let horaEntrada = $state('');
+	let horaSaida = $state('');
+
+	$effect(() => {
+		if (open) {
+			dataInicio = gise.data_inicio;
+			horaEntrada = gise.hora_entrada ?? '';
+			horaSaida = gise.hora_saida ?? '';
+		}
+	});
+
+	const onSubmitWrapper: SubmitFunction = (input) => {
+		const horas = [horaEntrada, horaSaida];
+		if (horas.some((h) => !h)) {
+			toaster.error({ title: 'Preencha todos os horários' });
+			input.cancel();
+			return;
+		}
+		if (horas.some((h) => !validarHora(h))) {
+			toaster.error({
+				title: 'Formato inválido',
+				description: 'Use o formato HH:MM, ex: 14:00'
+			});
+			input.cancel();
+			return;
+		}
+		return onSubmit(input);
+	};
 </script>
 
 {#if open}
@@ -94,7 +117,7 @@
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
 					onclick={onClose}>Cancelar</button
 				>
-				<form method="POST" action="?/salvarDatasHorarios" use:enhance={onSubmit} class="contents">
+				<form method="POST" action="?/salvarDatasHorarios" use:enhance={onSubmitWrapper} class="contents">
 					<input type="hidden" name="data_inicio" value={dataInicio} />
 					<input type="hidden" name="hora_entrada" value={normalizarHora(horaEntrada) ?? ''} />
 					<input type="hidden" name="hora_saida" value={normalizarHora(horaSaida) ?? ''} />
