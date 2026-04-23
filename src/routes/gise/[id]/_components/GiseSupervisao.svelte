@@ -568,89 +568,94 @@
 											Assinatura da escala GISE
 										</p>
 										<div
-											class="flex min-h-0 flex-1 flex-col rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4"
+											class="relative flex min-h-0 flex-1 flex-col rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4"
 										>
-										<div class="flex min-w-0 flex-col gap-3">
 											{#if !documentoAssinadoInfo?.existe && !editando}
-												<div class="flex justify-end">
-													<span
-														class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-warning-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-warning-500/20"
-													>
-														<Clock size={12} class="shrink-0" />
-														Ass. Escala Pend.
-													</span>
-												</div>
+												<span
+													class="pointer-events-none absolute right-2 top-2 z-[1] inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-full bg-warning-500 px-2 py-1 text-[0.6rem] font-bold uppercase leading-tight tracking-wider text-white shadow-lg shadow-warning-500/20 sm:right-3 sm:top-3 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-[0.65rem]"
+													aria-hidden="true"
+												>
+													<Clock size={12} class="shrink-0" />
+													<span class="min-w-0 truncate">Ass. Escala Pend.</span>
+												</span>
 											{/if}
-											<div
-												class="flex min-w-0 items-start gap-2 text-xs text-surface-500 dark:text-surface-400"
-											>
+											<div class="flex min-h-0 min-w-0 flex-1 flex-col pt-10 sm:pt-11">
 												<div
-													class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+													class="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pb-2 text-xs text-surface-500 dark:text-surface-400 sm:pb-3 sm:pr-2"
 												>
-													<ShieldCheck size={16} />
-												</div>
-												<div class="min-w-0">
-													<p>Assinatura da escala GISE</p>
-													<p
-														class="mt-0.5 text-[0.7rem] leading-snug text-surface-600 dark:text-surface-400"
-													>
-														O supervisor assinará na tela ou com certificado digital (token)
-														no computador.
-													</p>
-												</div>
-											</div>
-											<div class="flex w-full min-w-0 flex-col gap-2">
-												<a
-													class="btn flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold no-underline transition-all {assinaturaEscalaHabilitada
-														? 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'
-														: 'pointer-events-none border-transparent opacity-60'}"
-													href="/api/gise/{gise.id}/download?format=pdf"
-													target="_blank"
-													title="Baixar PDF da escala para conferência (sem assinatura digital)"
-												>
-													<svg
-														class="h-3.5 w-3.5 shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-														/></svg
-													>
-													<span class="text-center leading-tight">Escala GISE (conferência)</span>
-												</a>
-												{#if mostrarPainelAssinaturaEscala}
-													<div
-														class="flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-stretch"
-													>
-														{#if isMobile || !restringirSmartphone}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-warning-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-warning-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-warning-600 min-[400px]:min-h-0 min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
-																disabled={loading.active || !assinaturaEscalaHabilitada}
-																onclick={() => onAbrirAssinaturaEscalaManual()}
+													<div class="flex min-w-0 flex-1 items-start gap-2">
+														<div
+															class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+														>
+															<ShieldCheck size={16} />
+														</div>
+														<div class="min-w-0 flex-1">
+															<p class="font-medium text-surface-700 dark:text-surface-200">
+																Assinatura da escala GISE
+															</p>
+															<p
+																class="mt-0.5 text-[0.7rem] leading-snug text-surface-600 dark:text-surface-400"
 															>
-																Ass. tela
-															</button>
-														{/if}
-														{#if !isMobile}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-tertiary-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-tertiary-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-tertiary-600 min-[400px]:min-h-0 min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
-																disabled={loading.active || !assinaturaEscalaHabilitada}
-																onclick={() => painelTokenGise?.assinarComSerpro()}
-															>
-																Ass. token
-															</button>
-														{/if}
+																O supervisor assinará na tela ou com certificado digital (token)
+																no computador.
+															</p>
+														</div>
 													</div>
-												{/if}
+												</div>
+												<div class="mt-auto flex shrink-0 flex-col gap-3 pt-4">
+													<div class="flex justify-end">
+														<a
+															class="btn flex min-h-11 w-full min-w-0 max-w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold no-underline transition-all sm:h-auto sm:min-h-0 sm:w-auto sm:min-w-[11rem] sm:py-2.5 {assinaturaEscalaHabilitada
+																? 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'
+																: 'pointer-events-none border-transparent opacity-60'}"
+															href="/api/gise/{gise.id}/download?format=pdf"
+															target="_blank"
+															title="Baixar PDF da escala para conferência (sem assinatura digital)"
+														>
+															<svg
+																class="h-3.5 w-3.5 shrink-0"
+																fill="none"
+																stroke="currentColor"
+																viewBox="0 0 24 24"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																/></svg
+															>
+															<span class="text-center leading-tight">Escala GISE (conferência)</span>
+														</a>
+													</div>
+													{#if mostrarPainelAssinaturaEscala}
+														<div
+															class="flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-stretch min-[400px]:justify-end"
+														>
+															{#if isMobile || !restringirSmartphone}
+																<button
+																	type="button"
+																	class="btn btn-xs preset-filled-warning-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-warning-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-warning-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
+																	disabled={loading.active || !assinaturaEscalaHabilitada}
+																	onclick={() => onAbrirAssinaturaEscalaManual()}
+																>
+																	Ass. tela
+																</button>
+															{/if}
+															{#if !isMobile}
+																<button
+																	type="button"
+																	class="btn btn-xs preset-filled-tertiary-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-tertiary-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-tertiary-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
+																	disabled={loading.active || !assinaturaEscalaHabilitada}
+																	onclick={() => painelTokenGise?.assinarComSerpro()}
+																>
+																	Ass. token
+																</button>
+															{/if}
+														</div>
+													{/if}
+												</div>
 											</div>
 										</div>
-									</div>
 									{#if mostrarPainelAssinaturaEscala}
 										<!-- Montado fora da tela: expõe `assinarComSerpro` para o botão Ass. token. -->
 										<div class="sr-only" aria-hidden="true">
@@ -736,93 +741,110 @@
 													</div>
 												</div>
 											{:else}
-										<div
-											class="flex min-w-0 flex-col gap-3 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center min-[480px]:justify-between min-[480px]:gap-4"
-										>
-											<div
-												class="flex min-w-0 flex-1 items-center gap-2 text-xs text-surface-500 dark:text-surface-400"
-											>
+												{#if !rubSupOk}
+													<span
+														class="pointer-events-none absolute right-2 top-2 z-[1] inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-full bg-warning-500 px-2 py-1 text-[0.6rem] font-bold uppercase leading-tight tracking-wider text-white shadow-lg shadow-warning-500/20 sm:right-3 sm:top-3 sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-[0.65rem]"
+														aria-hidden="true"
+													>
+														<Clock size={12} class="shrink-0" />
+														<span class="min-w-0 truncate">Aguardando rubricas</span>
+													</span>
+												{/if}
 												<div
-													class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+													class="flex min-h-0 min-w-0 flex-1 flex-col {!rubSupOk
+														? 'pt-10 sm:pt-11'
+														: 'pt-4 sm:pt-5'}"
 												>
-													<ShieldCheck size={16} />
-												</div>
-												<div class="min-w-0">
-													<p>Relatório de extra do quadro de supervisão (disponível após rúbricas)</p>
-													<p class="text-surface-600 dark:text-surface-400 text-[0.7rem] leading-snug mt-0.5">
-														{#if !rubSupOk}
-															{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																<span class="font-medium text-error-600 dark:text-error-400"
-																	>Faltando rubrica de:</span
-																>
-																{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
-															{:else}
-																{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}
-															{/if}
-														{:else}
-															Conferência disponível; aguardando assinatura do supervisor.
-														{/if}
-													</p>
-												</div>
-											</div>
-
-											<div
-												class="flex min-w-0 w-full flex-col gap-2 min-[400px]:w-auto min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:justify-end"
-											>
-												<a
-													class="btn flex min-w-0 w-full items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-xs font-bold no-underline transition-all min-[400px]:w-auto min-[400px]:py-2 sm:px-4 sm:py-2 touch-manipulation preset-tonal-primary border-primary-500/30 {!downloadExtraSupHabilitado
-														? 'pointer-events-none cursor-not-allowed opacity-60'
-														: 'hover:border-primary-500'}"
-													href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
-													target="_blank"
-													title={!rubSupOk
-														? faltSup || 'Aguardando rubricas do quadro de supervisão'
-														: 'Baixar PDF para conferência (sem assinatura)'}
-												>
-													<svg
-														class="h-3.5 w-3.5 shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-														/></svg
-													>
-													<span class="text-left leading-tight min-[400px]:whitespace-nowrap"
-														>Relat. Extra (conferência)</span
-													>
-												</a>
-												{#if isSupervisor && extraSupervisaoConfigurado}
 													<div
-														class="flex w-full flex-col gap-2 min-[400px]:w-auto min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center"
+														class="flex min-h-0 min-w-0 flex-1 flex-col gap-2 pb-2 text-xs text-surface-500 dark:text-surface-400 sm:pb-3 sm:pr-2"
 													>
-														{#if isMobile || !restringirSmartphone}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-warning-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-warning-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-warning-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:py-1"
-																disabled={!assinaturaExtraHabilitada}
-																onclick={() => onAssinarExtraSupervisaoManual?.()}
+														<div class="flex min-w-0 flex-1 items-start gap-2">
+															<div
+																class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
 															>
-																Ass. tela
-															</button>
-														{/if}
-														{#if !isMobile}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-tertiary-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-tertiary-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-tertiary-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:py-1"
-																disabled={!assinaturaExtraHabilitada}
-																onclick={() => onAssinarExtraSupervisaoDigital?.()}
+																<ShieldCheck size={16} />
+															</div>
+															<div class="min-w-0 flex-1">
+																<p class="font-medium text-surface-700 dark:text-surface-200">
+																	Relatório de extra do quadro de supervisão (disponível após
+																	rúbricas)
+																</p>
+																<p
+																	class="mt-0.5 text-[0.7rem] leading-snug text-surface-600 dark:text-surface-400"
+																>
+																	{#if !rubSupOk}
+																		{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+																			<span class="font-medium text-error-600 dark:text-error-400"
+																				>Faltando rubrica de:</span
+																			>
+																			{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+																		{:else}
+																			{faltSup ?? 'Aguardando rubricas do quadro de supervisão.'}
+																		{/if}
+																	{:else}
+																		Conferência disponível; aguardando assinatura do supervisor.
+																	{/if}
+																</p>
+															</div>
+														</div>
+													</div>
+													<div class="mt-auto flex shrink-0 flex-col gap-3 pt-4">
+														<div class="flex justify-end">
+															<a
+																class="btn flex min-h-11 w-full min-w-0 max-w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold no-underline transition-all sm:h-auto sm:min-h-0 sm:w-auto sm:min-w-[11rem] sm:py-2.5 preset-tonal-primary border-primary-500/30 {!downloadExtraSupHabilitado
+																	? 'pointer-events-none cursor-not-allowed opacity-60'
+																	: 'hover:border-primary-500'}"
+																href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
+																target="_blank"
+																title={!rubSupOk
+																	? faltSup || 'Aguardando rubricas do quadro de supervisão'
+																	: 'Baixar PDF para conferência (sem assinatura)'}
 															>
-																Ass. token
-															</button>
+																<svg
+																	class="h-3.5 w-3.5 shrink-0"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/></svg
+																>
+																<span class="text-center leading-tight"
+																	>Relat. Extra (conferência)</span
+																>
+															</a>
+														</div>
+														{#if isSupervisor && extraSupervisaoConfigurado}
+															<div
+																class="flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-stretch min-[400px]:justify-end"
+															>
+																{#if isMobile || !restringirSmartphone}
+																	<button
+																		type="button"
+																		class="btn btn-xs preset-filled-warning-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-warning-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-warning-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
+																		disabled={!assinaturaExtraHabilitada}
+																		onclick={() => onAssinarExtraSupervisaoManual?.()}
+																	>
+																		Ass. tela
+																	</button>
+																{/if}
+																{#if !isMobile}
+																	<button
+																		type="button"
+																		class="btn btn-xs preset-filled-tertiary-500 min-h-11 w-full touch-manipulation rounded-xl border-2 border-tertiary-600/30 py-2.5 text-[0.65rem] font-bold uppercase shadow-sm hover:border-tertiary-600 min-[400px]:min-h-0 min-[400px]:w-auto min-[400px]:flex-1 min-[400px]:py-2.5 min-[400px]:text-sm"
+																		disabled={!assinaturaExtraHabilitada}
+																		onclick={() => onAssinarExtraSupervisaoDigital?.()}
+																	>
+																		Ass. token
+																	</button>
+																{/if}
+															</div>
 														{/if}
 													</div>
-												{/if}
-											</div>
-										</div>
+												</div>
 											{/if}
 										{/if}
 									</div>
