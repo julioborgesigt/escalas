@@ -71,18 +71,18 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
 			<h1
-				class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
+				class="text-xl sm:text-2xl md:text-3xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
 			>
 				Relatórios GISE
 			</h1>
-			<p class="text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
+			<p class="text-sm text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
 		</div>
 
 		{#if podeVerListaGeral}
-			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner w-full md:w-auto">
+			<div class="bg-surface-100 dark:bg-surface-800 p-1.5 rounded-2xl flex gap-1 shadow-inner w-full sm:w-auto shrink-0">
 				<button type="button"
 					class="flex-1 md:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-sm font-bold transition-all {resGise.activeTab === 'relatorios'
 						? 'bg-white dark:bg-surface-700 shadow-md text-primary-600'
@@ -108,7 +108,7 @@
 
 	{#if isAdminGeral && resGise.activeTab === 'configurador'}
 		<section
-			class="card p-4 sm:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-8 animate-in fade-in zoom-in-95 duration-500"
+			class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500"
 		>
 			<div
 				class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6"
@@ -442,8 +442,8 @@
 			</div>
 		</section>
 	{:else if podeVerListaGeral && resGise.activeTab === 'relatorios'}
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-			<div class="md:col-span-1 space-y-4">
+		<div class="grid grid-cols-1 min-[900px]:grid-cols-4 gap-6">
+			<div class="min-[900px]:col-span-1 space-y-4">
 				<div class="flex items-center justify-between px-2">
 					<h2 class="text-sm font-bold uppercase tracking-widest text-surface-500">Escalas GISE</h2>
 					<span class="badge preset-filled-primary-500 text-[0.6rem]">{data.listaAdmin.length}</span
@@ -651,10 +651,10 @@
 				</div>
 			</div>
 
-			<div class="md:col-span-3">
+			<div class="min-[900px]:col-span-3">
 				{#if resGise.escalaSelecionada}
 					<section
-						class="card p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
+						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
 					>
 						<div
 							class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-4"
@@ -765,9 +765,9 @@
 			</div>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 min-[900px]:grid-cols-3 gap-6">
 			<!-- Lista de Escalas -->
-			<div class="md:col-span-1 space-y-4">
+			<div class="min-[900px]:col-span-1 space-y-4">
 				<div class="px-2 space-y-3">
 					<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
 
@@ -878,51 +878,53 @@
 								>{escala.equipe_tipo}</span
 							>
 						</div>
-						<div class="flex items-center justify-between mt-1">
+						<div class="mt-1 space-y-1.5">
 							<p
-								class="text-xs uppercase tracking-wider {escala.assinada
+								class="text-xs uppercase tracking-wider leading-tight {escala.assinada
 									? 'text-success-500 font-bold'
 									: 'text-surface-500'}"
 							>
 								{escala.assinada ? 'SUPERVISOR ASSINOU' : 'AGUARDANDO ASSINATURA DO SUPERVISOR'}
 							</p>
 
-							<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
-								{#if escala.equipeRespondida}
-									{@render actionButton(
-										'PRODUTIVIDADE',
-										'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
-										'success',
-										'filled',
-										(e: any) => {
-											e.stopPropagation();
-											resGise.baixarRelatorio(escala);
-										},
-										false,
-										resGise.baixandoProdutividade === escala.id,
-										'text-[0.6rem] px-3 py-2',
-										'button',
-										'sm'
-									)}
-								{/if}
-								{#if escala.extraAssinado}
-									{@render actionButton(
-										'RELAT. EXTRA',
-										'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-										'primary',
-										'filled',
-										(e: any) => {
-											e.stopPropagation();
-											resGise.baixarRelatorioExtra(escala);
-										},
-										false,
-										resGise.baixandoExtra === escala.id,
-										'text-[0.6rem] px-3 py-2',
-										'button',
-										'sm'
-									)}
-								{/if}
-							</div>
+							{#if escala.equipeRespondida || escala.extraAssinado}
+								<div class="flex flex-wrap gap-1.5">
+									{#if escala.equipeRespondida}
+										{@render actionButton(
+											'PRODUTIVIDADE',
+											'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+											'success',
+											'filled',
+											(e: any) => {
+												e.stopPropagation();
+												resGise.baixarRelatorio(escala);
+											},
+											false,
+											resGise.baixandoProdutividade === escala.id,
+											'text-[0.6rem] px-3 py-1.5',
+											'button',
+											'sm'
+										)}
+									{/if}
+									{#if escala.extraAssinado}
+										{@render actionButton(
+											'RELAT. EXTRA',
+											'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+											'primary',
+											'filled',
+											(e: any) => {
+												e.stopPropagation();
+												resGise.baixarRelatorioExtra(escala);
+											},
+											false,
+											resGise.baixandoExtra === escala.id,
+											'text-[0.6rem] px-3 py-1.5',
+											'button',
+											'sm'
+										)}
+									{/if}
+								</div>
+							{/if}
 						</div>
 
 						{#if escala.presenca?.saida_timestamp && !escala.extraAssinado}
@@ -946,7 +948,7 @@
 			</div>
 
 			<!-- Formulário de Resposta -->
-			<div class="md:col-span-2">
+			<div class="min-[900px]:col-span-2">
 				{#if resGise.escalaSelecionada}
 					<section
 						class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
