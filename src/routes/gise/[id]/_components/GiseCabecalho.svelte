@@ -142,7 +142,7 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:min-w-0 sm:gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
+	<div class="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex sm:flex-wrap sm:min-w-0 sm:gap-2 lg:max-w-[min(100%,38rem)] lg:justify-end lg:shrink-0 xl:max-w-[min(100%,40rem)]">
 		{#if isAdminGeral && podeDownload}
 			<a
 				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex w-full items-center justify-center gap-1.5 no-underline sm:w-auto"

@@ -12,8 +12,11 @@
 	<title>Config. GISE | Escalas</title>
 </svelte:head>
 
-<div class="max-w-2xl mx-auto">
-	
+<div class="max-w-2xl mx-auto space-y-6">
+	<div class="flex flex-col gap-1">
+		<h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 sm:text-2xl">Configurações GISE</h1>
+		<p class="text-sm text-surface-500 dark:text-surface-400">Vagas padrão por unidade e textos dos relatórios de extra.</p>
+	</div>
 
 	<form
 		method="POST"

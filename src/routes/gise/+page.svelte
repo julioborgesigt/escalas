@@ -366,7 +366,7 @@
 								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
 							</p>
 							<div
-								class="mt-2 flex flex-col items-start gap-1.5 min-[380px]:flex-row min-[380px]:flex-wrap min-[380px]:items-center min-[380px]:gap-x-2 min-[380px]:gap-y-1"
+								class="mt-2 flex flex-col items-start gap-1.5 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:gap-x-2 min-[400px]:gap-y-1"
 							>
 								<span
 									class="max-w-full text-xs font-semibold leading-snug px-2 py-0.5 rounded-full {statusColor(
@@ -506,7 +506,7 @@
 				{#each historicoPaginado as escala}
 					<div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all">
 						<!-- Linha principal: em mobile muito estreito os botões de download ficam em linha separada -->
-						<div class="flex flex-col gap-2 px-3 py-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-2 sm:px-4">
+						<div class="flex flex-col gap-2 px-3 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-2 sm:px-4">
 							<!-- Área clicável -->
 							<button type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
@@ -525,7 +525,7 @@
 							</button>
 
 							<!-- Botões de download -->
-							<div class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[420px]:border-t-0 min-[420px]:border-l min-[420px]:pt-0 min-[420px]:pl-2 min-[420px]:ml-1 justify-end">
+							<div class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[400px]:border-t-0 min-[400px]:border-l min-[400px]:pt-0 min-[400px]:pl-2 min-[400px]:ml-1 justify-end">
 								<!-- Escala assinada (PDF) -->
 								<a
 									href="/api/gise/{escala.id}/download?format=pdf"
