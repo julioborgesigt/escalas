@@ -44,4 +44,41 @@ export const giseDownloadSchema = z.object({
 	equipeType: z.enum(['operacional', 'seint']).nullable().optional()
 });
 
+/** Query string do export agregado do histórico GISE (admin geral). */
+export const giseHistoricoExportQuerySchema = z
+	.object({
+		format: z.enum(['xlsx', 'pdf']),
+		seccionalId: z.coerce.number().optional(),
+		periodo: z.enum(['mes', 'ciclo']),
+		mesAno: z.string().optional(),
+		ano: z.coerce.number().optional(),
+		ciclo: z.coerce.number().min(1).max(12).optional()
+	})
+	.superRefine((data, ctx) => {
+		if (data.periodo === 'mes') {
+			if (!data.mesAno || !/^\d{4}-\d{2}$/.test(data.mesAno)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'Para período "mes", informe mesAno no formato YYYY-MM',
+					path: ['mesAno']
+				});
+			}
+		} else {
+			if (data.ano === undefined || Number.isNaN(data.ano)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'Para período "ciclo", informe ano',
+					path: ['ano']
+				});
+			}
+			if (data.ciclo === undefined || Number.isNaN(data.ciclo)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'Para período "ciclo", informe ciclo (1–12)',
+					path: ['ciclo']
+				});
+			}
+		}
+	});
+
 export type GiseSignatureInput = z.infer<typeof giseSignatureSchema>;

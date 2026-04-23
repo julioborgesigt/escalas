@@ -14,14 +14,14 @@ function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
 }
 
-/** Admin geral: mesmo padrão do servidor — sem `status` na URL, lista ativas. */
+/** Filtro de escalas na URL (`?status=ativas|finalizadas`); admin não usa mais lista nesta rota. */
 function resolveStatusFilterFromUrl(
 	usuario: { tipo?: string } | null | undefined,
 	url: URL
 ): string {
 	const q = url.searchParams.get('status');
 	if (q === 'ativas' || q === 'finalizadas') return q;
-	if (usuario?.tipo === 'admin') return 'ativas';
+	if (usuario?.tipo === 'admin') return '';
 	return '';
 }
 
@@ -30,7 +30,6 @@ export function useResGise(getData: () => ResGisePageData) {
 	const data = $derived(getData());
 
 	// --- Estados de Interface ---
-	let activeTab = $state('relatorios'); // relatorios | configurador
 	let configTipo = $state<'operacional' | 'seint'>('operacional');
 	let perguntasConfig = $state<GiseModeloPerguntaConfig[]>([]);
 	// --- Estados de Escala / Resposta ---
@@ -43,7 +42,6 @@ export function useResGise(getData: () => ResGisePageData) {
 	let statusFilterUrl = $state(resolveStatusFilterFromUrl(page.data.usuario, page.url));
 	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
 	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
-	let seccionalFilter = $state('todas');
 
 	// --- Efeitos de Sincronização ---
 	$effect(() => {
@@ -66,22 +64,6 @@ export function useResGise(getData: () => ResGisePageData) {
 	// --- Derived ---
 	const configJson = $derived(JSON.stringify(perguntasConfig));
 	const respostasJson = $derived(JSON.stringify(respostas));
-
-	const seccionaisUnicas = $derived(
-		['todas', ...Array.from(new Set(data.listaAdmin?.map((e) => e.seccional_nome) || []))].sort(
-			(a: string, b: string) => {
-				if (a === 'todas') return -1;
-				if (b === 'todas') return 1;
-				return String(a).localeCompare(String(b));
-			}
-		)
-	);
-
-	const listaFiltrada = $derived(
-		(data.listaAdmin || []).filter((e) => {
-			return seccionalFilter === 'todas' || e.seccional_nome === seccionalFilter;
-		})
-	);
 
 	const perguntasForm = $derived.by(() => {
 		if (!escalaSelecionada) return [];
@@ -170,13 +152,13 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	// --- Funções de Escala ---
-	async function selecionarEscala(escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) {
+	async function selecionarEscala(escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) {
 		const isSame =
 			escalaSelecionada?.id === escala.id && escalaSelecionada?.equipe_id === escala.equipe_id;
 		if (isSame) return;
 
 		escalaSelecionada = escala;
-		exibirRelatorio = podeVerListaGeral || !escala.equipeRespondida;
+		exibirRelatorio = isAdminGeral || !escala.equipeRespondida;
 		respostas = {};
 
 		const params = new URLSearchParams(page.url.searchParams);
@@ -187,7 +169,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		await goto(`?${params}`, { keepFocus: true, noScroll: true });
 	}
 
-	function handleSalvarResposta(podeVerListaGeral: boolean) {
+	function handleSalvarResposta(isAdminGeral: boolean) {
 		return ({ cancel }: { cancel: () => void }) => {
 			const sel = escalaSelecionada;
 			if (!sel) {
@@ -201,7 +183,7 @@ export function useResGise(getData: () => ResGisePageData) {
 					toaster.success({ title: 'Relatório salvo com sucesso' });
 					// Atualiza imediatamente sem precisar de reload da página
 					escalaSelecionada = { ...sel, equipeRespondida: true } as ResGiseEscalaSelecionavel;
-					if (!podeVerListaGeral) exibirRelatorio = false;
+					if (!isAdminGeral) exibirRelatorio = false;
 					await invalidateAll();
 					const atualizada = data.minhasEscalas?.find(
 						(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
@@ -263,8 +245,8 @@ export function useResGise(getData: () => ResGisePageData) {
 		return `${d}/${m}/${y}`;
 	};
 
-	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) => {
-		if (podeVerListaGeral) return true;
+	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {
+		if (isAdminGeral) return true;
 		if (!escala?.horarioPrevisto?.inicio) return true;
 		const agora = new Date();
 		const [h, min] = escala.horarioPrevisto.inicio.split(':');
@@ -274,8 +256,8 @@ export function useResGise(getData: () => ResGisePageData) {
 		return agora >= dataInicioPrevista;
 	};
 
-	const isSaidaLiberada = (escala: ResGiseEscalaSelecionavel, podeVerListaGeral: boolean) => {
-		if (podeVerListaGeral) return true;
+	const isSaidaLiberada = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {
+		if (isAdminGeral) return true;
 		if (!escala?.horarioPrevisto?.fim) return true;
 		const agora = new Date();
 		const [h, min] = escala.horarioPrevisto.fim.split(':');
@@ -391,8 +373,6 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	return {
 		// Getters
-		get activeTab() { return activeTab; },
-		set activeTab(v) { activeTab = v; },
 		get configTipo() { return configTipo; },
 		set configTipo(v) { configTipo = v; },
 		get perguntasConfig() { return perguntasConfig; },
@@ -405,16 +385,12 @@ export function useResGise(getData: () => ResGisePageData) {
 		set exibirRelatorio(v) { exibirRelatorio = v; },
 		get capturandoRubrica() { return capturandoRubrica; },
 		set capturandoRubrica(v) { capturandoRubrica = v; },
-		get seccionalFilter() { return seccionalFilter; },
-		set seccionalFilter(v) { seccionalFilter = v; },
 		get baixandoProdutividade() { return loading.active; },
 		get baixandoExtra() { return loading.active; },
 
 		// Derived
 		get configJson() { return configJson; },
 		get respostasJson() { return respostasJson; },
-		get seccionaisDisponiveis() { return seccionaisUnicas; },
-		get listaFiltrada() { return listaFiltrada; },
 		get perguntasForm() { return perguntasForm; },
 		get statusFilterUrl() { return statusFilterUrl; },
 		get mesFilterUrl() { return mesFilterUrl; },

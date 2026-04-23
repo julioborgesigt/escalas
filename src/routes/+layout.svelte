@@ -182,9 +182,9 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
 			</svg>
 		</button>
-		<a href="/" class="ml-3 flex items-center gap-2 no-underline">
+		<div class="ml-3 flex items-center gap-2">
 			<span class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
-		</a>
+		</div>
 	</div>
 
 	<!-- Mobile: overlay backdrop -->
@@ -209,9 +209,9 @@
 	">
 		<!-- Logo -->
 		<div class="h-16 flex items-center px-5 border-b border-surface-200 dark:border-white/5 shrink-0">
-			<a href="/" class="flex items-center gap-2 no-underline group" onclick={() => sidebarOpen = false}>
+			<div class="flex items-center gap-2 group">
 				<span class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
-			</a>
+			</div>
 			<!-- Mobile close button -->
 			<button type="button"
 				class="min-[900px]:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
@@ -268,7 +268,7 @@
 				<hr class="!my-3 border-surface-200 dark:border-white/10" />
 			{/if}
 
-			<!-- Grupo 2: GISE · Rel. GISE · Produtividade -->
+			<!-- Grupo 2: GISE · Produtividade (admin) · Config. GISE · Rel. GISE -->
 			{#if showGrupo2}
 				{#if showGise}
 				<a
@@ -281,6 +281,18 @@
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
 					GISE
 				</a>
+				{#if usuario?.tipo === 'admin'}
+				<a
+					href="/produtividade"
+					data-sveltekit-preload-data="hover"
+					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/produtividade') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => sidebarOpen = false}
+				>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+					Produtividade
+				</a>
+				{/if}
 				{#if usuario?.tipo === 'admin'}
 					<a
 						href="/gise/config"
@@ -305,19 +317,7 @@
 					onclick={() => sidebarOpen = false}
 				>
 					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-					Presença/Rel.
-				</a>
-				{/if}
-				{#if usuario?.tipo === 'admin'}
-				<a
-					href="/produtividade"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/produtividade') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-					Produtividade
+					{usuario?.tipo === 'admin' ? 'Config. Form.' : 'Presença/Rel.'}
 				</a>
 				{/if}
 			{/if} <!-- end showGrupo2 -->
