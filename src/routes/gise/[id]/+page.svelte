@@ -822,7 +822,7 @@
 								)}
 								{@const tiposProd = tiposEquipeNaSeccional(sec)}
 								<div
-									class="w-full min-w-0 sm:flex-1 flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-end gap-2 sm:gap-2.5"
+									class="w-full min-w-0 sm:flex-1 flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-start gap-2 sm:gap-2.5"
 								>
 									{#each tiposProd as tipo (tipo)}
 										{@const hrefProd = `/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
