@@ -74,6 +74,11 @@
 			(!!filtroMesAno || (filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''))
 	);
 
+	const historicoFiltroMesAtivo = $derived(!!filtroMesAno);
+	const historicoFiltroCicloAtivo = $derived(
+		filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''
+	);
+
 	function buildHistoricoExportHref(format: 'xlsx' | 'pdf'): string {
 		const p = new URLSearchParams();
 		p.set('format', format);
@@ -478,51 +483,108 @@
 		<div class="mt-8">
 			<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-3">Histórico</h2>
 
-			<!-- Filtros: fluxo em dois passos -->
-			<div class="mb-4 space-y-4 p-3 sm:p-4 rounded-2xl bg-surface-100 dark:bg-surface-900 border border-surface-200 dark:border-surface-800">
-				<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 lg:items-start">
-					<div class="lg:col-span-4 space-y-1.5">
-						<p class="text-[0.65rem] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">1 · Seccional</p>
-						<label for="filtro-seccional" class="text-xs font-medium text-surface-600 dark:text-surface-400 block">Onde buscar</label>
-						<select
-							id="filtro-seccional"
-							bind:value={filtroSeccional}
-							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-						>
-							<option value="">Todas as seccionais</option>
-							{#each seccionaisList as sec}
-								<option value={sec.id}>{sec.nome}</option>
-							{/each}
-						</select>
+			<!-- Filtros histórico -->
+			<div
+				class="mb-4 overflow-hidden rounded-2xl border border-surface-200/90 dark:border-surface-700/90 bg-gradient-to-b from-white to-surface-50/95 dark:from-surface-900 dark:to-surface-950 shadow-sm shadow-surface-900/[0.04] dark:shadow-black/25"
+			>
+				<div class="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-12 lg:gap-0 lg:items-stretch lg:p-0">
+					<!-- 1 · Seccional -->
+					<div
+						class="lg:col-span-4 flex flex-col gap-3 border-b border-surface-200/80 pb-6 dark:border-surface-800 lg:border-b-0 lg:border-r lg:pb-0 lg:pl-5 lg:pr-5 lg:py-6"
+					>
+						<div class="flex items-start gap-3">
+							<span
+								class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-xs font-black text-white shadow-sm shadow-primary-600/25"
+								aria-hidden="true">1</span>
+							<div class="min-w-0 pt-0.5">
+								<p
+									class="text-[0.68rem] font-black uppercase tracking-[0.14em] text-primary-600 dark:text-primary-400 leading-tight"
+								>
+									Seccional
+								</p>
+								<p class="mt-0.5 text-[0.72rem] leading-snug text-surface-500 dark:text-surface-400">
+									Escolha uma unidade ou todas
+								</p>
+							</div>
+						</div>
+						<div class="space-y-1.5">
+							<label for="filtro-seccional" class="sr-only">Seccional</label>
+							<select
+								id="filtro-seccional"
+								bind:value={filtroSeccional}
+								class="w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-3.5 py-2.5 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/50 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:border-primary-500/40"
+							>
+								<option value="">Todas as seccionais</option>
+								{#each seccionaisList as sec}
+									<option value={sec.id}>{sec.nome}</option>
+								{/each}
+							</select>
+						</div>
 					</div>
 
-					<div class="hidden lg:block lg:col-span-1 self-stretch w-px bg-surface-300/80 dark:bg-surface-600/80 mx-auto" aria-hidden="true"></div>
+					<!-- 2 · Período -->
+					<div class="lg:col-span-8 flex min-w-0 flex-col gap-4 lg:py-6 lg:pr-5 lg:pl-6">
+						<div class="flex items-start gap-3">
+							<span
+								class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-xs font-black text-white shadow-sm shadow-primary-600/25"
+								aria-hidden="true">2</span>
+							<div class="min-w-0 flex-1 pt-0.5">
+								<p
+									class="text-[0.68rem] font-black uppercase tracking-[0.14em] text-primary-600 dark:text-primary-400 leading-tight"
+								>
+									Período
+								</p>
+								<p class="mt-0.5 text-[0.72rem] leading-snug text-surface-500 dark:text-surface-400">
+									Por <span class="font-semibold text-surface-600 dark:text-surface-300">mês/ano</span> ou
+									<span class="font-semibold text-surface-600 dark:text-surface-300">ano/ciclo</span> — um apaga o outro
+								</p>
+							</div>
+						</div>
 
-					<div class="lg:col-span-7 space-y-4 min-w-0">
-						<p class="text-[0.65rem] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">2 · Período</p>
-						<p class="text-xs text-surface-500 dark:text-surface-400">
-							Use <span class="font-medium text-surface-600 dark:text-surface-300">mês/ano</span> ou
-							<span class="font-medium text-surface-600 dark:text-surface-300">ano/ciclo</span>. Ao preencher um, o outro é limpo.
-						</p>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-							<div class="space-y-1 rounded-xl border border-surface-200 dark:border-surface-700 bg-white/60 dark:bg-surface-800/40 p-3">
-								<label for="filtro-mes-ano" class="text-xs font-semibold text-surface-700 dark:text-surface-200 block">Mês / Ano</label>
+						<div class="grid grid-cols-1 gap-4 min-[520px]:grid-cols-[1fr_auto_1fr] min-[520px]:items-stretch">
+							<div
+								class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroMesAtivo
+									? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
+									: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
+							>
+								<label
+									for="filtro-mes-ano"
+									class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+								>Mês / ano</label>
 								<input
 									id="filtro-mes-ano"
 									type="month"
 									value={filtroMesAno}
 									oninput={onMesAnoHistoricoInput}
-									class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+									class="w-full min-h-[2.75rem] cursor-pointer rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 								/>
 							</div>
-							<div class="space-y-1 rounded-xl border border-surface-200 dark:border-surface-700 bg-white/60 dark:bg-surface-800/40 p-3">
-								<span class="text-xs font-semibold text-surface-700 dark:text-surface-200 block">Ano / Ciclo</span>
-								<div class="flex flex-wrap gap-2 min-w-0 items-stretch">
+
+							<div
+								class="hidden min-[520px]:flex flex-col items-center justify-center gap-1 px-1"
+								aria-hidden="true"
+							>
+								<div class="h-px w-full max-w-[2rem] bg-surface-300 dark:bg-surface-600"></div>
+								<span
+									class="rounded-full border border-surface-200 bg-surface-50 px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-500"
+								>ou</span>
+								<div class="h-px w-full max-w-[2rem] bg-surface-300 dark:bg-surface-600"></div>
+							</div>
+
+							<div
+								class="flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroCicloAtivo
+									? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
+									: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
+							>
+								<span
+									class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+								>Ano / ciclo</span>
+								<div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[5.5rem_1fr]">
 									<select
 										id="filtro-ano-ciclo"
 										bind:value={filtroAnoCiclo}
 										onchange={onAnoCicloHistoricoMudou}
-										class="w-[5.5rem] shrink-0 px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+										class="min-h-[2.75rem] w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 sm:w-[5.5rem]"
 									>
 										<option value="">Ano</option>
 										{#each anosDisponiveisHistorico as ano}
@@ -533,7 +595,7 @@
 										bind:value={filtroNumeroCiclo}
 										disabled={filtroAnoCiclo === ''}
 										onchange={onAnoCicloHistoricoMudou}
-										class="flex-1 min-w-[10rem] px-2 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm disabled:opacity-50"
+										class="min-h-[2.75rem] min-w-0 w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-45 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 									>
 										<option value="">Ciclo</option>
 										{#each CICLOS as c}
@@ -543,20 +605,32 @@
 								</div>
 							</div>
 						</div>
+
+						<p class="min-[520px]:hidden text-center text-[0.65rem] font-bold uppercase tracking-widest text-surface-400">ou</p>
 					</div>
 				</div>
 
-				<div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-200 dark:border-surface-700">
-					<span class="text-xs text-surface-500">{historicoFiltrado.length} resultado(s)</span>
-					<div class="flex flex-wrap items-center gap-2">
+				<div
+					class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200/90 bg-surface-100/70 px-4 py-3.5 dark:border-surface-800 dark:bg-surface-950/50 sm:px-5"
+				>
+					<p
+						class="inline-flex items-center gap-2 rounded-lg border border-surface-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-surface-600 shadow-sm dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300"
+					>
+						<span class="font-black tabular-nums text-primary-600 dark:text-primary-400">{historicoFiltrado.length}</span>
+						<span class="text-surface-500 dark:text-surface-400">resultado(s)</span>
+					</p>
+					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
 						{#if isAdminGeral}
 							<div class="relative">
 								<button
 									type="button"
-									class="btn preset-outlined-primary-500 text-xs px-3 py-2 rounded-xl inline-flex items-center gap-1.5 disabled:opacity-45 disabled:pointer-events-none"
+									class="inline-flex items-center gap-1.5 rounded-xl border-2 border-primary-500 bg-primary-500/10 px-3.5 py-2 text-xs font-bold text-primary-700 shadow-sm transition-all hover:bg-primary-500/18 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200 dark:hover:bg-primary-500/25 disabled:cursor-not-allowed disabled:border-surface-300 disabled:bg-surface-100 disabled:text-surface-400 disabled:shadow-none dark:disabled:border-surface-600 dark:disabled:bg-surface-800 dark:disabled:text-surface-500"
 									disabled={!podeExportarHistorico}
 									aria-expanded={baixarHistoricoAberto}
 									aria-haspopup="true"
+									title={podeExportarHistorico
+										? 'Exportar lista filtrada'
+										: 'Selecione mês/ano ou ano e ciclo para habilitar'}
 									onclick={(e) => {
 										e.stopPropagation();
 										if (!podeExportarHistorico) return;
@@ -564,31 +638,38 @@
 									}}
 								>
 									Baixar
-									<svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+									<svg class="h-3.5 w-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
 								</button>
 								{#if baixarHistoricoAberto && podeExportarHistorico}
 									<div
-										class="absolute right-0 bottom-full mb-1 z-30 min-w-[10rem] rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-xl py-1"
+										class="absolute right-0 bottom-full z-30 mb-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
 									>
 										<a
 											href={buildHistoricoExportHref('xlsx')}
 											download
-											class="block px-3 py-2 text-xs text-surface-800 dark:text-surface-100 hover:bg-surface-100 dark:hover:bg-surface-700"
+											class="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
 											onclick={() => { baixarHistoricoAberto = false; }}
-										>XLSX</a>
+										>
+											<span class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400">XLSX</span>
+											Planilha
+										</a>
 										<a
 											href={buildHistoricoExportHref('pdf')}
 											download
-											class="block px-3 py-2 text-xs text-surface-800 dark:text-surface-100 hover:bg-surface-100 dark:hover:bg-surface-700"
+											class="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
 											onclick={() => { baixarHistoricoAberto = false; }}
-										>PDF</a>
+										>
+											<span class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400">PDF</span>
+											Documento
+										</a>
 									</div>
 								{/if}
 							</div>
 						{/if}
 						{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== ''}
-							<button type="button"
-								class="text-xs text-primary-600 dark:text-primary-400 underline"
+							<button
+								type="button"
+								class="text-xs font-semibold text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
 								onclick={limparFiltrosHistorico}
 							>Limpar filtros</button>
 						{/if}
