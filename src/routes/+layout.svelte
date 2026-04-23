@@ -172,7 +172,7 @@
 
 {#if showSidebar && usuario}
 	<!-- Mobile: hamburger top bar -->
-	<div class="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4">
+	<div class="min-[900px]:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4">
 		<button type="button"
 			class="p-2 -ml-2 text-surface-600 dark:text-surface-300 hover:text-primary-500 transition-colors"
 			onclick={() => sidebarOpen = !sidebarOpen}
@@ -190,7 +190,7 @@
 	<!-- Mobile: overlay backdrop -->
 	{#if sidebarOpen}
 		<button type="button"
-			class="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+			class="min-[900px]:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
 			onclick={() => sidebarOpen = false}
 			aria-label="Fechar menu"
 		></button>
@@ -204,7 +204,7 @@
 		shadow-xl shadow-black/5 dark:shadow-black/30
 		flex flex-col
 		transition-transform duration-300 ease-in-out
-		md:translate-x-0
+		min-[900px]:translate-x-0
 		{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
 	">
 		<!-- Logo -->
@@ -214,7 +214,7 @@
 			</a>
 			<!-- Mobile close button -->
 			<button type="button"
-				class="md:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
+				class="min-[900px]:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
 				onclick={() => sidebarOpen = false}
 				aria-label="Fechar menu"
 			>
@@ -411,8 +411,8 @@
 	</aside>
 
 	<!-- Main content with sidebar offset -->
-	<main class="md:ml-60 min-h-screen">
-		<div class="max-w-6xl mx-auto min-w-0 px-4 pt-20 md:pt-8 pb-12">
+	<main class="min-[900px]:ml-60 min-h-screen">
+		<div class="max-w-6xl mx-auto min-w-0 px-4 pt-20 min-[900px]:pt-8 pb-12">
 			{@render children()}
 		</div>
 	</main>
