@@ -332,21 +332,25 @@
 									class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
 									>DPC Supervisão</span
 								>
-								<div class="flex items-center gap-2 flex-wrap">
-									<p class="font-bold text-lg text-surface-900 dark:text-white leading-tight">
+								<div class="flex items-center justify-between gap-2 min-w-0">
+									<p
+										class="font-bold text-lg text-surface-900 dark:text-white leading-tight truncate min-w-0"
+									>
 										{gise.supervisor_nome ?? 'Não definido'}
 									</p>
-									{#if stSupervisor === 'ok'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400 shrink-0"
-											title="Entrada e saída confirmadas">✓</span
-										>
-									{:else if stSupervisor === 'entrada'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400 shrink-0"
-											title="Aguardando confirmação de saída">Entrada</span
-										>
-									{/if}
+									<div class="shrink-0 flex items-center">
+										{#if stSupervisor === 'ok'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
+												title="Entrada e saída confirmadas">✓</span
+											>
+										{:else if stSupervisor === 'entrada'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+												title="Aguardando confirmação de saída">Entrada</span
+											>
+										{/if}
+									</div>
 								</div>
 							</div>
 						</div>
@@ -501,37 +505,45 @@
 							Escala GISE
 						</p>
 						<div
-							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 md:gap-4"
+							class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 p-2.5 sm:p-3 md:p-4"
 						>
-							<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 min-w-0 flex-1">
+							<div
+								class="flex flex-col gap-2.5 min-[480px]:gap-4 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center min-[480px]:justify-between"
+							>
 								<div
-									class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0"
+									class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400 min-w-0 flex-1"
 								>
-									<ShieldCheck size={16} />
+									<div
+										class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center shrink-0"
+									>
+										<ShieldCheck size={16} />
+									</div>
+									<div class="min-w-0">
+										<p>Escala assinada digitalmente por:</p>
+										<p class="font-bold text-surface-900 dark:text-surface-100">
+											{documentoAssinadoInfo.assinante_nome}
+										</p>
+									</div>
 								</div>
-								<div class="min-w-0">
-									<p>Escala assinada digitalmente por:</p>
-									<p class="font-bold text-surface-900 dark:text-surface-100">
-										{documentoAssinadoInfo.assinante_nome}
-									</p>
-								</div>
-							</div>
 
-							<div class="flex flex-wrap items-center justify-end gap-3 shrink-0 w-full sm:w-auto">
-								<span
-									class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success-500 text-white font-bold text-[0.65rem] uppercase tracking-wider shadow-lg shadow-success-500/20 text-center leading-tight whitespace-nowrap"
+								<div
+									class="flex flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:justify-end gap-2 w-full min-[400px]:w-auto min-w-0"
 								>
-									<CheckCircle2 size={12} class="shrink-0" />
-									Escala assinada
-								</span>
-								<a
-									href={`/api/gise/${gise.id}/documento-assinado`}
-									target="_blank"
-									class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95"
-								>
-									<FileDown size={18} />
-									Baixar PDF Assinado
-								</a>
+									<span
+										class="flex w-full min-[400px]:w-auto items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-success-500 text-white font-bold text-[0.65rem] uppercase tracking-wider shadow-lg shadow-success-500/20 text-center leading-tight whitespace-nowrap"
+									>
+										<CheckCircle2 size={12} class="shrink-0" />
+										Escala assinada
+									</span>
+									<a
+										href={`/api/gise/${gise.id}/documento-assinado`}
+										target="_blank"
+										class="flex w-full min-[400px]:w-auto items-center justify-center gap-2 px-4 py-2.5 min-[400px]:py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95 no-underline touch-manipulation"
+									>
+										<FileDown size={18} class="shrink-0" />
+										Baixar PDF Assinado
+									</a>
+								</div>
 							</div>
 						</div>
 					</section>
@@ -701,7 +713,7 @@
 									>
 										{#if assRelSup}
 											<span
-												class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success-500 text-white font-bold text-[0.65rem] uppercase tracking-wider shadow-lg shadow-success-500/20 text-center leading-tight whitespace-nowrap"
+												class="flex w-full min-[400px]:w-auto items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-success-500 text-white font-bold text-[0.65rem] uppercase tracking-wider shadow-lg shadow-success-500/20 text-center leading-tight whitespace-nowrap"
 											>
 												<CheckCircle2 size={12} class="shrink-0" />
 												Rel. extra assinado
@@ -712,7 +724,7 @@
 												href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 												target="_blank"
 												title={`Assinado por ${assRelSup.assinante_nome}`}
-												class="flex items-center justify-center gap-2 px-4 py-2.5 min-[400px]:py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95 no-underline w-full min-[400px]:w-auto touch-manipulation {!downloadExtraSupHabilitado
+												class="flex w-full min-[400px]:w-auto items-center justify-center gap-2 px-4 py-2.5 min-[400px]:py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold transition-all shadow-lg shadow-primary-500/20 active:scale-95 no-underline touch-manipulation {!downloadExtraSupHabilitado
 													? 'pointer-events-none opacity-60'
 													: ''}"
 											>
