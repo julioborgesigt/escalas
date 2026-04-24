@@ -11,7 +11,7 @@
  *   3. Use essa senha (sem espaços) como GMAIL_APP_PASSWORD
  */
 
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { logger } from './logger';
 
 function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
@@ -22,24 +22,42 @@ function getCredenciais(platform: App.Platform | undefined): { user: string; pas
   };
 }
 
+// Pool singleton: nodemailer reusa conexões TCP/TLS entre envios. Recriar o
+// transporter a cada chamada custava ~200ms de handshake por e-mail.
+let cachedTransporter: Transporter | null = null;
+let cachedKey = '';
+
+function getTransporter(user: string, pass: string): Transporter {
+  const key = `${user}\0${pass}`;
+  if (cachedTransporter && cachedKey === key) return cachedTransporter;
+  cachedTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    pool: true,
+    maxConnections: 3,
+    auth: { user, pass }
+  });
+  cachedKey = key;
+  return cachedTransporter;
+}
+
+function ensureCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
+  const { user, pass } = getCredenciais(platform);
+  if (!user || !pass) {
+    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
+  }
+  return { user, pass };
+}
+
 export async function enviarSenhaProvisoria(
   destinatario: string,
   senhaProvisoria: string,
   nomeUsuario: string,
   platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = getCredenciais(platform);
-
-  if (!user || !pass) {
-    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
 
   await transporter.sendMail({
     from: `"Sistema de Escalas - PCCE" <${user}>`,
@@ -96,20 +114,8 @@ export async function enviarCodigo2FA(
   nomeUsuario: string,
   platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = getCredenciais(platform);
-
-  if (!user || !pass) {
-    throw new Error(
-      'E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.'
-    );
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL/TLS desde o início (sem STARTTLS)
-    auth: { user, pass }
-  });
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
 
   try {
     const info = await transporter.sendMail({
@@ -177,18 +183,8 @@ export async function enviarCodigoEmailPessoal(
   nomeUsuario: string,
   platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = getCredenciais(platform);
-
-  if (!user || !pass) {
-    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
 
   try {
     const info = await transporter.sendMail({
@@ -257,18 +253,8 @@ export async function enviarLinkRedefinicaoSenha(
   linkRedefinicao: string,
   platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = getCredenciais(platform);
-
-  if (!user || !pass) {
-    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
 
   try {
     const info = await transporter.sendMail({

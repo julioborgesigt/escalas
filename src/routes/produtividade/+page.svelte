@@ -155,20 +155,16 @@
 		charts.updateCharts(QUESTIONS as Question[], list, filterSeccional);
 	}
 
+	// Único effect: redesenha quando dados, perguntas, filtro ou canvases mudam.
+	// O `tick()` garante que <canvas> estejam montados antes de Chart.js anexar.
 	$effect(() => {
-		const _data = parsedData;
+		const list = parsedData;
+		const _filter = filterSeccional; // dep explícita: redesenha ao trocar seccional
 		const allCanvasesReady =
 			QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
-		if (_data && allCanvasesReady) {
-			tick().then(() => updateChartsFn(_data));
-		}
-	});
-
-	$effect(() => {
-		// Initial chart render on mount — ensures charts are drawn before user scrolls
-		const allReady = QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
-		if (parsedData.length > 0 && allReady) {
-			updateChartsFn(parsedData);
+		if (list && allCanvasesReady) {
+			void _filter;
+			tick().then(() => updateChartsFn(list));
 		}
 	});
 
