@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, listarGiseEscalas } from '$lib/db';
+import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
@@ -9,6 +9,18 @@ import { eq } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import type { GiseDetalhado } from '$lib/db/gise/types';
+import {
+	appendGiseDetalhadoToXlsxWorkbook,
+	createAppendGiseXlsxState,
+	fmtDateGiseXlsx,
+	fmtHoraGiseXlsx,
+	HEADERS_DETALHE_EQUIPE,
+	statusLabelGiseXlsx
+} from '$lib/server/gise-xlsx-workbook-append';
+interface JsPDFWithAutoTable extends jsPDF {
+	lastAutoTable?: { finalY: number };
+}
 
 function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
 	if (ciclo === 1) return { inicio: `${ano - 1}-12-21`, fim: `${ano}-01-20` };
@@ -17,21 +29,115 @@ function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: strin
 	return { inicio: `${ano}-${mI}-21`, fim: `${ano}-${mF}-20` };
 }
 
-const STATUS_LABEL: Record<string, string> = {
-	em_definicao_supervisor: 'Em definição do supervisor',
-	em_preenchimento: 'Preenchendo escalados',
-	aguardando_assinatura: 'Aguardando assinatura do supervisor',
-	em_andamento: 'GISE em operação',
-	aguardando_relatorios: 'Aguardando entradas',
-	aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
-	pronta_para_finalizar: 'Pronta para finalizar',
-	finalizada: 'Concluída'
-};
+async function buildHistoricoPdfBuffer(
+	gises: GiseDetalhado[],
+	seccionalNome: string,
+	periodoLabel: string
+): Promise<ArrayBuffer> {
+	const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+	let y = 14;
 
-function fmtDate(iso: string): string {
-	if (!iso) return '';
-	const [y, m, d] = iso.split('-');
-	return `${d}/${m}/${y}`;
+	doc.setFontSize(14);
+	doc.setFont('helvetica', 'bold');
+	doc.text('GISE — export do histórico', 14, y);
+	y += 8;
+	doc.setFont('helvetica', 'normal');
+	doc.setFontSize(9);
+	doc.text(`Seccional: ${seccionalNome}`, 14, y);
+	y += 5;
+	doc.text(`Período: ${periodoLabel}`, 14, y);
+	y += 5;
+	doc.text(
+		`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
+		14,
+		y
+	);
+	y += 10;
+
+	if (gises.length === 0) {
+		doc.setFontSize(10);
+		doc.text('Nenhuma escala GISE detalhada neste filtro.', 14, y);
+		return doc.output('arraybuffer');
+	}
+
+	const bumpY = (docu: jsPDF, cur: number, minSpace = 36): number => {
+		if (cur > 270 - minSpace) {
+			docu.addPage();
+			return 14;
+		}
+		return cur;
+	};
+
+	for (const gise of gises) {
+		y = bumpY(doc, y, 40);
+		doc.setFontSize(11);
+		doc.setFont('helvetica', 'bold');
+		doc.text(`GISE #${gise.id} — ${fmtDateGiseXlsx(gise.data_inicio)}`, 14, y);
+		y += 6;
+		doc.setFont('helvetica', 'normal');
+		doc.setFontSize(9);
+		const meta = [
+			`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`,
+			`Supervisor(a): ${gise.supervisor_nome ?? '—'}`,
+			`Assessor(a): ${gise.assessor_nome ?? '—'}`,
+			`SEINT OIP 1: ${gise.seint1_nome ?? '—'}`,
+			`SEINT OIP 2: ${gise.seint2_nome ?? '—'}`,
+			`Status da escala: ${statusLabelGiseXlsx(gise.status)}`
+		];
+		if (gise.documento?.assinante_nome) {
+			meta.push(`Assinado por: ${gise.documento.assinante_nome}`);
+		}
+		for (const line of meta) {
+			y = bumpY(doc, y, 8);
+			doc.text(line, 14, y);
+			y += 4;
+		}
+		y += 4;
+
+		for (const sec of gise.seccionais ?? []) {
+			for (const unidade of sec.unidades ?? []) {
+				for (const equipe of unidade.equipes ?? []) {
+					const teamTitle = `${unidade.nome || sec.seccional_nome} — ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}`;
+					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
+					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
+
+					const body: string[][] =
+						equipe.membros?.length ?
+							equipe.membros.map((m) => [
+								m.policial_nome,
+								m.policial_cargo,
+								m.policial_matricula,
+								m.policial_telefone || '—',
+								m.policial_lotacao ?? '—',
+								fmtDateGiseXlsx(gise.data_inicio),
+								fmtHoraGiseXlsx(hEnt),
+								fmtDateGiseXlsx(gise.data_inicio),
+								fmtHoraGiseXlsx(hSai)
+							])
+						:	[['(sem membros alocados)', '', '', '', '', '', '', '', '']];
+
+					y = bumpY(doc, y, 28);
+					doc.setFontSize(8);
+					doc.setFont('helvetica', 'bold');
+					doc.text(teamTitle, 14, y);
+					y += 3;
+					doc.setFont('helvetica', 'normal');
+					autoTable(doc, {
+						startY: y,
+						head: [[...HEADERS_DETALHE_EQUIPE]],
+						body,
+						styles: { fontSize: 7, cellPadding: 1.2 },
+						headStyles: { fillColor: [26, 92, 87] },
+						margin: { left: 14, right: 14 },
+						tableWidth: 'auto'
+					});
+					y = ((doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y) + 8;
+				}
+			}
+		}
+	}
+
+	return doc.output('arraybuffer');
 }
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
@@ -46,7 +152,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		const msg = parsed.error.issues[0]?.message ?? 'Parâmetros inválidos';
 		return json({ error: msg }, { status: 400 });
 	}
-	const { format, seccionalId, periodo, mesAno, ano, ciclo } = parsed.data;
+	const { format, seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica } = parsed.data;
 
 	type EscalaLista = Awaited<ReturnType<typeof listarGiseEscalas>>[number];
 
@@ -63,9 +169,15 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		} else if (periodo === 'ciclo' && ano !== undefined && ciclo !== undefined) {
 			const { inicio, fim } = getCicloRange(ano, ciclo);
 			if (String(e.data_inicio) < inicio || String(e.data_inicio) > fim) return false;
+		} else if (periodo === 'data' && dataEspecifica) {
+			if (String(e.data_inicio) !== dataEspecifica) return false;
 		}
 		return true;
 	});
+
+	if (filtradas.length === 0) {
+		return json({ error: 'Nenhuma escala finalizada encontrada para o filtro informado.' }, { status: 404 });
+	}
 
 	let seccionalNome = 'Todas as seccionais';
 	if (seccionalId !== undefined) {
@@ -83,73 +195,61 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 			? `Mês ${mesAno}`
 			: periodo === 'ciclo' && ano !== undefined && ciclo !== undefined
 				? `Ano ${ano} · Ciclo ${ciclo}`
-				: 'Período';
+				: periodo === 'data' && dataEspecifica
+					? `Data ${dataEspecifica}`
+					: 'Período';
 
-	const rows = filtradas.map((e: EscalaLista) => [
-		e.id,
-		fmtDate(e.data_inicio),
-		`${e.hora_entrada} às ${e.hora_saida}`,
-		STATUS_LABEL[e.status] ?? e.status,
-		(e.seccionais ?? []).map((s) => s.nome).join('; ') || '—'
-	]);
-
-	if (format === 'xlsx') {
-		const wb = new ExcelJS.Workbook();
-		const ws = wb.addWorksheet('Histórico GISE');
-		ws.columns = [{ width: 10 }, { width: 14 }, { width: 18 }, { width: 36 }, { width: 50 }];
-		ws.addRow(['Histórico GISE — escalas finalizadas']).font = { bold: true, size: 14 };
-		ws.addRow([`Seccional: ${seccionalNome}`]);
-		ws.addRow([`Filtro de período: ${periodoLabel}`]);
-		ws.addRow([`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`]);
-		ws.addRow([]);
-		const header = ws.addRow(['ID', 'Data', 'Horário', 'Status', 'Seccionais']);
-		header.font = { bold: true };
-		for (const r of rows) ws.addRow(r);
-
-		const buf = await wb.xlsx.writeBuffer();
-		const safe = periodo === 'mes' && mesAno ? mesAno.replace('-', '') : `c${ciclo}_a${ano}`;
-		const filename = `gise_historico_${safe}.xlsx`;
-		return new Response(buf, {
-			headers: {
-				'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-				'Content-Disposition': contentDisposition(filename),
-				'Cache-Control': 'no-cache'
-			}
-		});
-	}
-
-	// PDF
-	const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-	doc.setFontSize(14);
-	doc.text('Histórico GISE — escalas finalizadas', 14, 16);
-	doc.setFontSize(10);
-	doc.text(`Seccional: ${seccionalNome}`, 14, 24);
-	doc.text(`Período: ${periodoLabel}`, 14, 30);
-	doc.text(
-		`Gerado em: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
-		14,
-		36
-	);
-	autoTable(doc, {
-		startY: 42,
-		head: [['ID', 'Data', 'Horário', 'Status', 'Seccionais']],
-		body: rows.length ? rows : [['—', '—', '—', 'Nenhuma escala neste filtro', '—']],
-		styles: { fontSize: 8, cellPadding: 2 },
-		headStyles: { fillColor: [26, 92, 87] },
-		columnStyles: {
-			0: { cellWidth: 14 },
-			1: { cellWidth: 22 },
-			2: { cellWidth: 28 },
-			3: { cellWidth: 38 },
-			4: { cellWidth: 52 }
-		},
-		margin: { left: 14, right: 14 }
+	const ordenadas = [...filtradas].sort((a, b) => {
+		const d = String(b.data_inicio).localeCompare(String(a.data_inicio));
+		if (d !== 0) return d;
+		return Number(b.id) - Number(a.id);
 	});
 
-	const pdfBytes = doc.output('arraybuffer');
-	const safePdf = periodo === 'mes' && mesAno ? mesAno.replace('-', '') : `c${ciclo}_a${ano}`;
-	const filenamePdf = `gise_historico_${safePdf}.pdf`;
-	return new Response(pdfBytes, {
+	const gisesDetalhadas: GiseDetalhado[] = [];
+	for (const e of ordenadas) {
+		const g = await buscarGiseDetalhado(db, e.id);
+		if (g) gisesDetalhadas.push(g);
+	}
+
+	if (gisesDetalhadas.length === 0) {
+		return json({ error: 'Não foi possível carregar os dados das escalas para exportação.' }, { status: 500 });
+	}
+
+	const safeSlug =
+		periodo === 'mes' && mesAno
+			? mesAno.replace('-', '')
+			: periodo === 'data' && dataEspecifica
+				? `d${dataEspecifica.replace(/-/g, '')}`
+				: periodo === 'ciclo' && ano !== undefined && ciclo !== undefined
+					? `c${ciclo}_a${ano}`
+					: 'export';
+
+	if (format === 'xlsx') {
+		try {
+			const wb = new ExcelJS.Workbook();
+			const state = createAppendGiseXlsxState();
+			for (const gise of gisesDetalhadas) {
+				await appendGiseDetalhadoToXlsxWorkbook(wb, db, gise, state, { multiEscala: true });
+			}
+			const raw = await wb.xlsx.writeBuffer();
+			const buffer = new Uint8Array(raw as ArrayBuffer);
+			const filename = `gise_historico_${safeSlug}.xlsx`;
+			return new Response(buffer, {
+				headers: {
+					'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'Content-Disposition': contentDisposition(filename),
+					'Cache-Control': 'no-cache'
+				}
+			});
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			return json({ error: `Falha ao gerar a planilha: ${msg}` }, { status: 500 });
+		}
+	}
+
+	const pdfBytes = await buildHistoricoPdfBuffer(gisesDetalhadas, seccionalNome, periodoLabel);
+	const filenamePdf = `gise_historico_${safeSlug}.pdf`;
+	return new Response(new Uint8Array(pdfBytes as ArrayBuffer), {
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': contentDisposition(filenamePdf),

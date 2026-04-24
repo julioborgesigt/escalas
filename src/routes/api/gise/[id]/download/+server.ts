@@ -17,10 +17,7 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
-import {
-	BASE_EQUIPE_PLANILHA_HEADERS,
-	montarLinhasBaseEquipeGise
-} from '$lib/db/gise/planilha-base-equipe-dados';
+import { appendGiseDetalhadoToXlsxWorkbook, createAppendGiseXlsxState } from '$lib/server/gise-xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -273,169 +270,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		);
 	}
 
-	// XLSX
+	// XLSX (mesma estrutura que o export agregado do histórico; uma GISE por arquivo)
 	const wb = new ExcelJS.Workbook();
-	/** Mesmas linhas enviadas ao POST da planilha Google (aba Base_Equipe). */
-	const linhasBaseEquipePlanilha = await montarLinhasBaseEquipeGise(db, id);
-
-	const headersDetalheEquipe = [
-		'Nome',
-		'Cargo',
-		'Matrícula',
-		'Telefone',
-		'Lotação',
-		'Data Início',
-		'Hora Início',
-		'Data Término',
-		'Hora Término'
-	] as const;
-
-	// Estilos Comuns
-	const styleTitle = (ws: ExcelJS.Worksheet, row: ExcelJS.Row, color: string) => {
-		row.height = 25;
-		row.eachCell((cell) => {
-			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
-			cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 12 };
-			cell.alignment = { vertical: 'middle', horizontal: 'center' };
-		});
-	};
-
-	const styleHeader = (row: ExcelJS.Row) => {
-		row.height = 20;
-		row.eachCell((cell) => {
-			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-			cell.font = { bold: true, size: 10 };
-			cell.alignment = { vertical: 'middle', horizontal: 'center' };
-			cell.border = {
-				top: { style: 'thin' },
-				left: { style: 'thin' },
-				bottom: { style: 'thin' },
-				right: { style: 'thin' }
-			};
-		});
-	};
-
-	const nColsBaseEquipe = BASE_EQUIPE_PLANILHA_HEADERS.length;
-	const wsBaseEquipe = wb.addWorksheet('Base_Equipe');
-	wsBaseEquipe.columns = Array.from({ length: nColsBaseEquipe }, () => ({ width: 18 }));
-	const baseHeaderRow = wsBaseEquipe.addRow([...BASE_EQUIPE_PLANILHA_HEADERS]);
-	styleHeader(baseHeaderRow);
-	if (linhasBaseEquipePlanilha && linhasBaseEquipePlanilha.length > 0) {
-		for (const linha of linhasBaseEquipePlanilha) {
-			wsBaseEquipe.addRow(linha);
-		}
-	}
-
-	const wsResumo = wb.addWorksheet('Resumo Geral');
-	wsResumo.columns = [
-		{ width: 25 },
-		{ width: 10 },
-		{ width: 15 },
-		{ width: 18 },
-		{ width: 30 },
-		{ width: 15 },
-		{ width: 12 },
-		{ width: 15 },
-		{ width: 12 }
-	];
-
-	wsResumo.addRow(['ESCALA GISE']).font = { bold: true, size: 16 };
-	wsResumo.addRow([`Data: ${fmtDate(gise.data_inicio)}`]);
-	wsResumo.addRow([`Horário: ${gise.hora_entrada} às ${gise.hora_saida}`]);
-	wsResumo.addRow([`Supervisão e apoio: ${gise.supervisor_nome ?? '—'}`]);
-	wsResumo.addRow([`Status: ${statusLabel(gise.status)}`]);
-	if (gise.documento?.assinante_nome) wsResumo.addRow([`Assinado por: ${gise.documento.assinante_nome}`]);
-	wsResumo.addRow([]);
-
-	for (const sec of gise.seccionais ?? []) {
-		for (const unidade of sec.unidades ?? []) {
-			for (const equipe of unidade.equipes ?? []) {
-				const teamName = `${unidade.nome || sec.seccional_nome} - ${equipe.tipo === 'operacional' ? 'Operacional' : 'SEINT'}`;
-				const titleRow = wsResumo.addRow([teamName]);
-				wsResumo.mergeCells(titleRow.number, 1, titleRow.number, headersDetalheEquipe.length);
-				styleTitle(wsResumo, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
-
-				const headerRow = wsResumo.addRow([...headersDetalheEquipe]);
-				styleHeader(headerRow);
-
-				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-
-				if (equipe.membros?.length) {
-					for (const m of equipe.membros) {
-						wsResumo.addRow([
-							m.policial_nome,
-							m.policial_cargo,
-							m.policial_matricula,
-							m.policial_telefone || '—',
-							m.policial_lotacao ?? '—',
-							fmtDate(gise.data_inicio),
-							fmtHoraGise(hEnt),
-							fmtDate(gise.data_inicio),
-							fmtHoraGise(hSai)
-						]);
-					}
-				} else {
-					wsResumo.addRow(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
-				}
-				wsResumo.addRow([]);
-			}
-		}
-	}
-
-	// Abas por Seccional
-	for (const sec of gise.seccionais ?? []) {
-		const ws = wb.addWorksheet(sec.seccional_nome.slice(0, 31));
-		ws.columns = [
-			{ width: 35 },
-			{ width: 10 },
-			{ width: 15 },
-			{ width: 18 },
-			{ width: 35 },
-			{ width: 15 },
-			{ width: 12 },
-			{ width: 15 },
-			{ width: 12 }
-		];
-
-		ws.addRow([`SECCIONAL: ${sec.seccional_nome}`]).font = { bold: true, size: 14 };
-		ws.addRow([`Status: ${sec.status === 'preenchida' ? 'Preenchida' : 'Pendente'}`]);
-		ws.addRow([]);
-
-		for (const unidade of sec.unidades ?? []) {
-			for (const equipe of unidade.equipes ?? []) {
-				const unitTitle = unidade.nome || sec.seccional_nome;
-				const titleRow = ws.addRow([unitTitle]);
-				ws.mergeCells(titleRow.number, 1, titleRow.number, headersDetalheEquipe.length);
-				styleTitle(ws, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
-
-				const headerRow = ws.addRow([...headersDetalheEquipe]);
-				styleHeader(headerRow);
-
-				const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
-				const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
-
-				if (equipe.membros?.length) {
-					for (const m of equipe.membros) {
-						ws.addRow([
-							m.policial_nome,
-							m.policial_cargo,
-							m.policial_matricula,
-							m.policial_telefone || '—',
-							m.policial_lotacao ?? '—',
-							fmtDate(gise.data_inicio),
-							fmtHoraGise(hEnt),
-							fmtDate(gise.data_inicio),
-							fmtHoraGise(hSai)
-						]);
-					}
-				} else {
-					ws.addRow(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
-				}
-				ws.addRow([]);
-			}
-		}
-	}
+	const xlsxState = createAppendGiseXlsxState();
+	await appendGiseDetalhadoToXlsxWorkbook(wb, db, gise, xlsxState, { multiEscala: false });
 
 	const arrayBuffer = await wb.xlsx.writeBuffer();
 	const buffer = new Uint8Array(arrayBuffer as ArrayBuffer);
@@ -450,31 +288,3 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 	});
 };
-
-function fmtDate(iso: string): string {
-	if (!iso) return '';
-	const [y, m, d] = iso.split('-');
-	return `${d}/${m}/${y}`;
-}
-
-function fmtHoraGise(h: any): string {
-	if (!h) return '';
-	if (String(h).includes(':')) return h;
-	const n = parseInt(String(h));
-	if (isNaN(n)) return String(h);
-	return `${String(n).padStart(2, '0')}:00`;
-}
-
-function statusLabel(status: string): string {
-	const m: Record<string, string> = {
-		em_definicao_supervisor: 'Em definição da supervisão',
-		em_preenchimento: 'Preenchendo escalados',
-		aguardando_assinatura: 'Aguardando assinatura da supervisão',
-		em_andamento: 'GISE em operação',
-		aguardando_relatorios: 'Aguardando relatórios',
-		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
-		pronta_para_finalizar: 'Pronta para finalizar',
-		finalizada: 'Concluída'
-	};
-	return m[status] ?? status;
-}

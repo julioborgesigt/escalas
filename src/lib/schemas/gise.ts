@@ -49,10 +49,11 @@ export const giseHistoricoExportQuerySchema = z
 	.object({
 		format: z.enum(['xlsx', 'pdf']),
 		seccionalId: z.coerce.number().optional(),
-		periodo: z.enum(['mes', 'ciclo']),
+		periodo: z.enum(['mes', 'ciclo', 'data']),
 		mesAno: z.string().optional(),
 		ano: z.coerce.number().optional(),
-		ciclo: z.coerce.number().min(1).max(12).optional()
+		ciclo: z.coerce.number().min(1).max(12).optional(),
+		data: z.string().optional()
 	})
 	.superRefine((data, ctx) => {
 		if (data.periodo === 'mes') {
@@ -63,7 +64,7 @@ export const giseHistoricoExportQuerySchema = z
 					path: ['mesAno']
 				});
 			}
-		} else {
+		} else if (data.periodo === 'ciclo') {
 			if (data.ano === undefined || Number.isNaN(data.ano)) {
 				ctx.addIssue({
 					code: 'custom',
@@ -76,6 +77,14 @@ export const giseHistoricoExportQuerySchema = z
 					code: 'custom',
 					message: 'Para período "ciclo", informe ciclo (1–12)',
 					path: ['ciclo']
+				});
+			}
+		} else {
+			if (!data.data || !/^\d{4}-\d{2}-\d{2}$/.test(data.data)) {
+				ctx.addIssue({
+					code: 'custom',
+					message: 'Para período "data", informe data no formato YYYY-MM-DD',
+					path: ['data']
 				});
 			}
 		}
