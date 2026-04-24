@@ -3,7 +3,6 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
-	import { loginSchema } from '$lib/schemas';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading as loadingService } from '$lib/loading.svelte';
 
@@ -39,16 +38,10 @@
 
 	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
 		loginError = null;
-		const parsed = loginSchema.safeParse({
-			matricula: formData.get('matricula'),
-			senha: formData.get('senha'),
-			tipo: formData.get('tipo')
-		});
-		if (!parsed.success) {
-			loginError = parsed.error.issues[0].message;
-			cancel();
-			return;
-		}
+		const mat = String(formData.get('matricula') ?? '').trim();
+		const pw = String(formData.get('senha') ?? '');
+		if (!mat) { loginError = 'Matrícula é obrigatória'; cancel(); return; }
+		if (!pw) { loginError = 'Senha é obrigatória'; cancel(); return; }
 		loadingService.show('Autenticando...');
 		return async ({ result }: { result: any }) => {
 			loadingService.hide();

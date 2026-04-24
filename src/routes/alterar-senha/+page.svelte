@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { alterarSenhaSchema } from '$lib/schemas';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 
@@ -91,12 +90,7 @@
 			return;
 		}
 
-		const parsed = alterarSenhaSchema.safeParse({ nova_senha: novaSenha, senha_atual: senhaAtual || undefined });
-		if (!parsed.success) {
-			error = parsed.error.issues[0].message;
-			cancel();
-			return;
-		}
+		if (!senhaOk) { error = 'A senha não atende aos requisitos mínimos.'; cancel(); return; }
 
 		loading.show('Alterando sua senha...');
 
