@@ -10,7 +10,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
-import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/export';
+import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import {

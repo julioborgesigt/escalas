@@ -10,7 +10,7 @@ import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
-import { toGisePdfData } from '$lib/export';
+import { toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { logger } from '$lib/server/logger';
 import {
@@ -122,7 +122,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			const presencas = await buscarPresencasGise(db, id);
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } = await import(
-				'$lib/export'
+				'$lib/server/export'
 			);
 			const brEnv = await getBreveRelatorioEnvMergido(db);
 			const result = isSupervisaoExtra
@@ -188,7 +188,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 
 		// Fallback: gerar PDF normal
-		const { gerarPdfGise } = await import('$lib/export');
+		const { gerarPdfGise } = await import('$lib/server/export');
 		const r2Logo = getR2(platform);
 		let logoBytes: Uint8Array | undefined;
 		if (r2Logo) {
@@ -222,7 +222,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	if (format === 'produtividade') {
 		if (!seccionalId) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
-		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/export');
+		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export');
 
 		const seccional = gise.seccionais.find(
 			(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
