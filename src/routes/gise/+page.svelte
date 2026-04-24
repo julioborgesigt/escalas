@@ -24,11 +24,12 @@
 	const totalPaginasAtivas = $derived(Math.max(1, Math.ceil(ativas.length / ITEMS_ATIVAS)));
 	const ativasPaginadas = $derived(ativas.slice((paginaAtivas - 1) * ITEMS_ATIVAS, paginaAtivas * ITEMS_ATIVAS));
 
-	// Filtros Histórico — passo 1: seccional; passo 2: mês/ano OU ano/ciclo (campos sempre visíveis; um limpa o outro)
+	// Filtros Histórico — passo 1: seccional; passo 2: mês/ano, ano/ciclo ou data (exclusivos entre si)
 	let filtroSeccional = $state<number | ''>('');
 	let filtroMesAno = $state('');
 	let filtroAnoCiclo = $state<number | ''>('');
 	let filtroNumeroCiclo = $state<number | ''>('');
+	let filtroData = $state('');
 
 	const CICLOS = [
 		{ n: 1,  label: 'Ciclo 1  (21/Dez – 20/Jan)' },
@@ -60,8 +61,10 @@
 	const historicoFiltrado = $derived(
 		historico.filter((e: any) => {
 			if (filtroSeccional !== '' && !(e.seccionais ?? []).some((sec: any) => sec.id === Number(filtroSeccional))) return false;
-			if (filtroMesAno && !e.data_inicio.startsWith(filtroMesAno)) return false;
-			if (!filtroMesAno && filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') {
+			if (filtroData) {
+				if ((e.data_inicio as string) !== filtroData) return false;
+			} else if (filtroMesAno && !e.data_inicio.startsWith(filtroMesAno)) return false;
+			else if (!filtroMesAno && !filtroData && filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') {
 				const { inicio, fim } = getCicloRange(Number(filtroAnoCiclo), Number(filtroNumeroCiclo));
 				if ((e.data_inicio as string) < inicio || (e.data_inicio as string) > fim) return false;
 			}
@@ -71,12 +74,25 @@
 
 	const podeExportarHistorico = $derived(
 		isAdminGeral &&
-			(!!filtroMesAno || (filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''))
+			(!!filtroMesAno ||
+				(filtroAnoCiclo !== '' && filtroNumeroCiclo !== '') ||
+				!!filtroData)
 	);
 
 	const historicoFiltroMesAtivo = $derived(!!filtroMesAno);
 	const historicoFiltroCicloAtivo = $derived(
 		filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''
+	);
+	const historicoFiltroDataAtivo = $derived(!!filtroData);
+
+	const historicoExportSlug = $derived(
+		filtroMesAno
+			? filtroMesAno.replace('-', '')
+			: filtroData
+				? `d${filtroData.replace(/-/g, '')}`
+				: filtroAnoCiclo !== '' && filtroNumeroCiclo !== ''
+					? `c${filtroNumeroCiclo}_a${filtroAnoCiclo}`
+					: 'export'
 	);
 
 	function buildHistoricoExportHref(format: 'xlsx' | 'pdf'): string {
@@ -90,8 +106,66 @@
 			p.set('periodo', 'ciclo');
 			p.set('ano', String(filtroAnoCiclo));
 			p.set('ciclo', String(filtroNumeroCiclo));
+		} else if (filtroData) {
+			p.set('periodo', 'data');
+			p.set('data', filtroData);
 		}
 		return `/api/gise/historico/export?${p.toString()}`;
+	}
+
+	function nomeArquivoContentDisposition(cd: string | null, fallback: string): string {
+		if (!cd) return fallback;
+		const mStar = /filename\*=UTF-8''([^;\s]+)/i.exec(cd);
+		if (mStar) {
+			try {
+				return decodeURIComponent(mStar[1].replace(/\+/g, ' '));
+			} catch {
+				return fallback;
+			}
+		}
+		const m = /filename="([^"]+)"/i.exec(cd);
+		if (m?.[1]) return m[1];
+		return fallback;
+	}
+
+	async function baixarHistoricoArquivo(format: 'xlsx' | 'pdf') {
+		baixarHistoricoAberto = false;
+		const fallbackName = `gise_historico_${historicoExportSlug}.${format}`;
+		const url = buildHistoricoExportHref(format);
+		loading.show('Preparando download…');
+		try {
+			const res = await fetch(url, { credentials: 'same-origin' });
+			const fileName = nomeArquivoContentDisposition(res.headers.get('Content-Disposition'), fallbackName);
+			if (!res.ok) {
+				let msg = `Não foi possível baixar (${res.status})`;
+				try {
+					const j = (await res.json()) as { error?: string };
+					if (j?.error) msg = j.error;
+				} catch {
+					/* corpo não é JSON */
+				}
+				toaster.error({ title: msg });
+				return;
+			}
+			const blob = await res.blob();
+			const href = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = href;
+			a.download = fileName;
+			a.rel = 'noopener';
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(href);
+			toaster.success({ title: 'Download iniciado' });
+		} catch (err) {
+			toaster.error({
+				title: 'Falha no download',
+				description: err instanceof Error ? err.message : String(err)
+			});
+		} finally {
+			loading.hide();
+		}
 	}
 
 	function onMesAnoHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
@@ -99,6 +173,7 @@
 		if (filtroMesAno) {
 			filtroAnoCiclo = '';
 			filtroNumeroCiclo = '';
+			filtroData = '';
 		}
 	}
 
@@ -108,6 +183,16 @@
 			return;
 		}
 		filtroMesAno = '';
+		filtroData = '';
+	}
+
+	function onDataEspecificaHistoricoInput(e: Event & { currentTarget: HTMLInputElement }) {
+		filtroData = e.currentTarget.value;
+		if (filtroData) {
+			filtroMesAno = '';
+			filtroAnoCiclo = '';
+			filtroNumeroCiclo = '';
+		}
 	}
 
 	let baixarHistoricoAberto = $state(false);
@@ -117,6 +202,7 @@
 		filtroMesAno = '';
 		filtroAnoCiclo = '';
 		filtroNumeroCiclo = '';
+		filtroData = '';
 		baixarHistoricoAberto = false;
 	}
 
@@ -131,6 +217,7 @@
 		filtroMesAno;
 		filtroAnoCiclo;
 		filtroNumeroCiclo;
+		filtroData;
 		paginaHistorico = 1;
 	});
 
@@ -490,7 +577,7 @@
 				<div class="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-12 lg:gap-0 lg:items-stretch lg:p-0">
 					<!-- 1 · Seccional -->
 					<div
-						class="lg:col-span-4 flex flex-col gap-3 border-b border-surface-200/80 pb-6 dark:border-surface-800 lg:border-b-0 lg:border-r lg:pb-0 lg:pl-5 lg:pr-5 lg:py-6"
+						class="lg:col-span-3 flex flex-col gap-3 border-b border-surface-200/80 pb-6 dark:border-surface-800 lg:border-b-0 lg:border-r lg:pb-0 lg:pl-5 lg:pr-5 lg:py-6"
 					>
 						<div class="flex items-start gap-3">
 							<span
@@ -523,7 +610,7 @@
 					</div>
 
 					<!-- 2 · Período -->
-					<div class="lg:col-span-8 flex min-w-0 flex-col gap-4 lg:py-6 lg:pr-5 lg:pl-6">
+					<div class="lg:col-span-9 flex min-w-0 flex-col gap-4 lg:py-6 lg:pr-5 lg:pl-6">
 						<div class="flex items-start gap-3">
 							<span
 								class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-xs font-black text-white shadow-sm shadow-primary-600/25"
@@ -535,13 +622,17 @@
 									Período
 								</p>
 								<p class="mt-0.5 text-[0.72rem] leading-snug text-surface-500 dark:text-surface-400">
-									Por <span class="font-semibold text-surface-600 dark:text-surface-300">mês/ano</span> ou
-									<span class="font-semibold text-surface-600 dark:text-surface-300">ano/ciclo</span> — um apaga o outro
+									<span class="font-semibold text-surface-600 dark:text-surface-300">Mês/ano</span>,
+									<span class="font-semibold text-surface-600 dark:text-surface-300">ano/ciclo</span> ou
+									<span class="font-semibold text-surface-600 dark:text-surface-300">data específica</span>
+									— preencher um limpa os outros
 								</p>
 							</div>
 						</div>
 
-						<div class="grid grid-cols-1 gap-4 min-[520px]:grid-cols-[1fr_auto_1fr] min-[520px]:items-stretch">
+						<div
+							class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.28fr)_minmax(0,1fr)]"
+						>
 							<div
 								class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroMesAtivo
 									? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
@@ -558,17 +649,6 @@
 									oninput={onMesAnoHistoricoInput}
 									class="w-full min-h-[2.75rem] cursor-pointer rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 								/>
-							</div>
-
-							<div
-								class="hidden min-[520px]:flex flex-col items-center justify-center gap-1 px-1"
-								aria-hidden="true"
-							>
-								<div class="h-px w-full max-w-[2rem] bg-surface-300 dark:bg-surface-600"></div>
-								<span
-									class="rounded-full border border-surface-200 bg-surface-50 px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-500"
-								>ou</span>
-								<div class="h-px w-full max-w-[2rem] bg-surface-300 dark:bg-surface-600"></div>
 							</div>
 
 							<div
@@ -604,9 +684,25 @@
 									</select>
 								</div>
 							</div>
-						</div>
 
-						<p class="min-[520px]:hidden text-center text-[0.65rem] font-bold uppercase tracking-widest text-surface-400">ou</p>
+							<div
+								class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {historicoFiltroDataAtivo
+									? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
+									: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
+							>
+								<label
+									for="filtro-data-especifica"
+									class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+								>Data específica</label>
+								<input
+									id="filtro-data-especifica"
+									type="date"
+									value={filtroData}
+									oninput={onDataEspecificaHistoricoInput}
+									class="w-full min-h-[2.75rem] cursor-pointer rounded-xl border border-surface-300 bg-white px-3 py-2.5 text-sm font-medium text-surface-800 transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
+								/>
+							</div>
+						</div>
 					</div>
 				</div>
 
@@ -630,7 +726,7 @@
 									aria-haspopup="true"
 									title={podeExportarHistorico
 										? 'Exportar lista filtrada'
-										: 'Selecione mês/ano ou ano e ciclo para habilitar'}
+										: 'Selecione mês/ano, ano/ciclo ou data específica para habilitar'}
 									onclick={(e) => {
 										e.stopPropagation();
 										if (!podeExportarHistorico) return;
@@ -644,29 +740,27 @@
 									<div
 										class="absolute right-0 bottom-full z-30 mb-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
 									>
-										<a
-											href={buildHistoricoExportHref('xlsx')}
-											download
-											class="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => { baixarHistoricoAberto = false; }}
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+											onclick={() => baixarHistoricoArquivo('xlsx')}
 										>
 											<span class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400">XLSX</span>
 											Planilha
-										</a>
-										<a
-											href={buildHistoricoExportHref('pdf')}
-											download
-											class="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => { baixarHistoricoAberto = false; }}
+										</button>
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+											onclick={() => baixarHistoricoArquivo('pdf')}
 										>
 											<span class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400">PDF</span>
 											Documento
-										</a>
+										</button>
 									</div>
 								{/if}
 							</div>
 						{/if}
-						{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== ''}
+						{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
 							<button
 								type="button"
 								class="text-xs font-semibold text-primary-600 underline-offset-2 hover:underline dark:text-primary-400"
