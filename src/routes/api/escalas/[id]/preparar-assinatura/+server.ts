@@ -3,7 +3,7 @@ import type { RequestEvent } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';

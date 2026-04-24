@@ -11,7 +11,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
-import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/export';
+import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
 	prepararPdfParaAssinatura,
