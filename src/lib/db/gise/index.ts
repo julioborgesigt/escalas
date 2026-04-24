@@ -55,10 +55,8 @@ export {
 export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';
 
 export {
-	buscarPresencaGise,
 	salvarEntradaGise,
 	salvarSaidaGise,
-	isDailyGiseSigned,
 	buscarPresencasGise
 } from './presencas';
 
