@@ -1,9 +1,14 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [
+		tailwindcss(),
+		sveltekit(),
+		visualizer({ open: true, filename: 'bundle-stats.html', gzipSize: true, brotliSize: true })
+	],
 	build: {
 		rollupOptions: {
 			output: {
