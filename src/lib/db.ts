@@ -94,6 +94,8 @@ export {
 	clonarGiseParaData,
 	verificarSlotEquipe,
 	verificarConflitoMembroGise,
+	verificarConflitoHorarioPolicial,
+	verificarConflitoHorarioPorGise,
 	buscarRespostasProdutividadeSeccional,
 	salvarGiseDocumento,
 	buscarGiseDocumento,
