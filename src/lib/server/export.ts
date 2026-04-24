@@ -12,8 +12,8 @@ interface JsPDFWithAutoTable extends jsPDF {
 }
 import * as QRCode from 'qrcode';
 import { PDFDocument } from 'pdf-lib';
-import type { Escala, EscalaPolicialComDados } from './types';
-import { formatarData, proximoDia, formatarDataExtenso } from './utils';
+import type { Escala, EscalaPolicialComDados } from '../types';
+import { formatarData, proximoDia, formatarDataExtenso } from '../utils';
 import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
 import {
 	resolveBreveRelatorioConteudoSeccional,

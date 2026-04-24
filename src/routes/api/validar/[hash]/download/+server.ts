@@ -78,7 +78,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 		logger.info('[validar/download] Re-geração dinâmica de relatório GISE', { hash });
 		try {
 			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/export');
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/server/export');
 			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
 			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise-supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');

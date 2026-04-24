@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
-import * as exportLib from '$lib/export';
+import * as exportLib from '$lib/server/export';
 import { contentDisposition } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
 

@@ -5,7 +5,7 @@ import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, regi
 import { assinarSimplesEscalasSchema } from '$lib/schemas';
 import { validateBody } from '$lib/server/api';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
-import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/export';
+import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { PDFDocument } from 'pdf-lib';
