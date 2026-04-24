@@ -52,6 +52,7 @@
 		"@sentry/cloudflare": "^10.47.0",
 		"@signpdf/placeholder-pdf-lib": "^3.3.0",
 		"@signpdf/signpdf": "^3.3.0",
+		"@signpdf/utils": "^3.3.0",
 		"@skeletonlabs/skeleton": "^4.13.0",
 		"@skeletonlabs/skeleton-svelte": "^4.13.0",
 		"@tailwindcss/vite": "^4.2.2",

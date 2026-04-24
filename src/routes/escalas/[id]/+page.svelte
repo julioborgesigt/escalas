@@ -161,8 +161,11 @@
 		else addDatasSelecionadas = [...addDatasSelecionadas, data].sort();
 	}
 
+	const datasCalc = $derived(calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala));
+
 	$effect(() => {
-		addDatasSelecionadas = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala);
+		// Reseta seleção do usuário quando a base muda (data inicial / tipo).
+		addDatasSelecionadas = datasCalc;
 	});
 
 	// ---- Computed for plantão form ----
@@ -540,7 +543,7 @@
 							<label class="label">
 								<span class="label-text">Equipe</span>
 								<select class="select" name="equipe" bind:value={addEquipe}>
-									{#each ['1', '2', '3', '4', '5'] as n}<option value={n}>Equipe {n}</option>{/each}
+									{#each ['1', '2', '3', '4', '5'] as n (n)}<option value={n}>Equipe {n}</option>{/each}
 								</select>
 							</label>
 						{:else}
@@ -570,10 +573,10 @@
 							<span class="label-text text-xs">Hora Entrada</span>
 							<div class="flex gap-1">
 								<select class="select flex-1 h-9 py-0 px-2" name="hora_entrada" bind:value={addHoraEntrada}
-									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1 h-9 py-0 px-2" name="minuto_entrada" bind:value={addMinutoEntrada}
-									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
@@ -581,16 +584,15 @@
 							<span class="label-text text-xs">Hora Saída</span>
 							<div class="flex gap-1">
 								<select class="select flex-1 h-9 py-0 px-2" name="hora_saida" bind:value={addHoraSaida}
-									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1 h-9 py-0 px-2" name="minuto_saida" bind:value={addMinutoSaida}
-									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
 					</div>
 					{#if addPrimeiroPlantao}
-						{@const datasCalc = calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala)}
 						<div class="mb-4">
 							<p class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-2">
 								Datas calculadas ({datasCalc.length} dias):
@@ -654,7 +656,7 @@
 							<span class="label-text">Data</span>
 							{#if isFDS}
 								<select name="data_plantao" class="select h-9 py-0 px-2" bind:value={dataPlantao} required>
-									{#each diasEscala as d}
+									{#each diasEscala as d (d)}
 										<option value={d}>{formatarData(d)}</option>
 									{/each}
 								</select>
@@ -675,10 +677,10 @@
 							<span class="label-text text-xs">Entrada</span>
 							<div class="flex gap-1">
 								<select class="select flex-1 h-9 py-0 px-1" name="hora_entrada" bind:value={addHoraEntrada}
-									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1 h-9 py-0 px-1" name="minuto_entrada" bind:value={addMinutoEntrada}
-									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
@@ -687,10 +689,10 @@
 							<span class="label-text text-xs">Saída</span>
 							<div class="flex gap-1">
 								<select class="select flex-1 h-9 py-0 px-1" name="hora_saida" bind:value={addHoraSaida}
-									>{#each horas as h}<option value={h}>{h}h</option>{/each}</select
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 								>
 								<select class="select flex-1 h-9 py-0 px-1" name="minuto_saida" bind:value={addMinutoSaida}
-									>{#each minutos as m}<option value={m}>{m}m</option>{/each}</select
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 								>
 							</div>
 						</div>
@@ -763,10 +765,10 @@
 															<span class="label-text text-[0.6rem]">Entrada</span>
 															<div class="flex gap-1">
 																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada} aria-label="Hora de Entrada">
-																	{#each horas as h}<option value={h}>{h}</option>{/each}
+																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																</select>
 																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada} aria-label="Minuto de Entrada">
-																	{#each minutos as m}<option value={m}>{m}</option>{/each}
+																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
 																</select>
 															</div>
 														</label>
@@ -776,10 +778,10 @@
 															<span class="label-text text-[0.6rem]">Saída</span>
 															<div class="flex gap-1">
 																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida} aria-label="Hora de Saída">
-																	{#each horas as h}<option value={h}>{h}</option>{/each}
+																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																</select>
 																<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida} aria-label="Minuto de Saída">
-																	{#each minutos as m}<option value={m}>{m}</option>{/each}
+																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
 																</select>
 															</div>
 														</label>

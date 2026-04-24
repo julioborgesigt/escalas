@@ -16,14 +16,11 @@ export { getDB, getR2, hasR2 } from './db/core';
 export type { Database } from './db/core';
 
 export {
-	registrarAudit,
 	registrarAuditComContexto,
 	listarAuditLog
 } from './db/audit';
-export type { AcaoAudit } from './db/audit';
 
 export {
-	buscarConfiguracao,
 	salvarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
@@ -107,10 +104,8 @@ export {
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise,
-	buscarPresencaGise,
 	salvarEntradaGise,
 	salvarSaidaGise,
-	isDailyGiseSigned,
 	buscarPresencasGise,
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
