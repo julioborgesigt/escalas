@@ -29,6 +29,7 @@ vite.config.ts.timestamp-*
 # Gerados automaticamente
 worker-configuration.d.ts
 tsconfig.tsbuildinfo
+bundle-stats.html
 
 # Drizzle migrations (geradas por drizzle-kit)
 /drizzle
