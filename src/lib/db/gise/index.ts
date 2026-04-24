@@ -35,7 +35,13 @@ export {
 
 export { atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe, verificarSlotEquipe } from './equipes';
 
-export { adicionarGiseMembro, removerGiseMembro, verificarConflitoMembroGise } from './membros';
+export {
+	adicionarGiseMembro,
+	removerGiseMembro,
+	verificarConflitoMembroGise,
+	verificarConflitoHorarioPolicial,
+	verificarConflitoHorarioPorGise
+} from './membros';
 
 export {
 	buscarRespostasProdutividadeSeccional,

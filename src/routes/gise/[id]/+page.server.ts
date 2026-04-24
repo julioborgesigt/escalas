@@ -18,6 +18,8 @@ import {
 	criarGiseEquipe,
 	verificarSlotEquipe,
 	verificarConflitoMembroGise,
+	verificarConflitoHorarioPolicial,
+	verificarConflitoHorarioPorGise,
 	revogarAssinaturasSeccional,
 	reabrirGiseEscala,
 	buscarRestringirSmartphone,
@@ -225,6 +227,18 @@ export const actions: Actions = {
 		const errSeint2 = await checkOip(seint2Id, 'SEINT 2');
 		if (errSeint2) return errSeint2;
 
+		const rolesParaVerificar: Array<[number | null, string]> = [
+			[supervisorId, 'Supervisor'],
+			[assessorId, 'Assessor'],
+			[seint1Id, 'SEINT 1'],
+			[seint2Id, 'SEINT 2']
+		];
+		for (const [pid, label] of rolesParaVerificar) {
+			if (pid === null) continue;
+			const horarioCheck = await verificarConflitoHorarioPorGise(db, giseId, pid);
+			if (!horarioCheck.ok) return fail(400, { error: `${label}: ${horarioCheck.motivo}` });
+		}
+
 		const updateData: any = { 
 			supervisor_id: supervisorId,
 			assessor_id: assessorId,
@@ -412,6 +426,9 @@ export const actions: Actions = {
 
 		const conflitoCheck = await verificarConflitoMembroGise(db, giseId, policialId);
 		if (!conflitoCheck.ok) return fail(400, { error: conflitoCheck.motivo });
+
+		const horarioCheck = await verificarConflitoHorarioPolicial(db, equipeId, policialId);
+		if (!horarioCheck.ok) return fail(400, { error: horarioCheck.motivo });
 
 		await adicionarGiseMembro(db, equipeId, policialId);
 
