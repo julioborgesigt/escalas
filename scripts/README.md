@@ -39,12 +39,6 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
   - Local: `npx tsx scripts/clear-passwords-non-admins.ts --yes`
   - Remoto: `npx tsx scripts/clear-passwords-non-admins.ts --remote --yes`
 
-### `reset-admin-password.ts`
-- **Função:** gera hash PBKDF2 para uma nova senha de admin e imprime SQL pronto para execução no D1.
-- **Atalho npm:** não possui.
-- **Comando direto:**
-  - `npx tsx scripts/reset-admin-password.ts "NovaSenha123"`
-
 ## Integração com Google Sheets
 
 ### `GoogleAppsScript_Sync.gs`
