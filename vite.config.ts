@@ -7,7 +7,7 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
-		visualizer({ open: true, filename: 'bundle-stats.html', gzipSize: true, brotliSize: true })
+		visualizer({ open: false, filename: 'bundle-stats.html', gzipSize: true, brotliSize: true })
 	],
 	build: {
 		rollupOptions: {
