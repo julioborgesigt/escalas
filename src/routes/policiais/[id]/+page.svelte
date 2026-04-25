@@ -138,7 +138,7 @@
 			</label>
 			<label class="label sm:col-span-9">
 				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
-					>E-mail (para autenticação de dois fatores)</span
+					>E-mail funcional (para 2FA)</span
 				>
 				<input
 					class="input py-1 px-3 text-sm"

@@ -132,6 +132,7 @@ export async function criarPolicial(
 		papel?: string | null;
 		papel_unidade_id?: number | null;
 		email?: string | null;
+		email_pessoal?: string | null;
 		ativo?: number;
 	}
 ) {
@@ -150,6 +151,8 @@ export async function criarPolicial(
 		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 		papel_unidade_id: data.papel_unidade_id || null,
 		email: data.email || null,
+		email_pessoal: data.email_pessoal || null,
+		email_pessoal_verificado: 0,
 		ativo: data.ativo ?? 1
 	});
 }
@@ -168,6 +171,7 @@ export async function upsertPolicial(
 		papel?: string | null;
 		papel_unidade_id?: number | null;
 		email?: string | null;
+		email_pessoal?: string | null;
 		ativo?: number;
 	}
 ) {
@@ -191,6 +195,8 @@ export async function upsertPolicial(
 			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 			papel_unidade_id: data.papel_unidade_id ?? null,
 			email: data.email || null,
+			email_pessoal: data.email_pessoal || null,
+			email_pessoal_verificado: 0,
 			ativo: data.ativo ?? 1
 		})
 		.onConflictDoUpdate({
@@ -206,6 +212,8 @@ export async function upsertPolicial(
 				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 				papel_unidade_id: data.papel_unidade_id ?? null,
 				email: data.email ? data.email : sql`email`,
+				email_pessoal: data.email_pessoal ? data.email_pessoal : sql`email_pessoal`,
+				email_pessoal_verificado: data.email_pessoal ? 0 : sql`email_pessoal_verificado`,
 				ativo: data.ativo ?? 1,
 				updated_at: sql`datetime('now', '-3 hours')`
 			}
@@ -228,6 +236,8 @@ export async function atualizarPolicial(
 		papel: 'admin_seccional' | 'admin_unidade' | null;
 		papel_unidade_id: number | null;
 		email: string | null;
+		email_pessoal: string | null;
+		email_pessoal_verificado: number;
 	}>
 ) {
 	const updateData: Record<string, unknown> = {};
@@ -244,6 +254,10 @@ export async function atualizarPolicial(
 	if (data.papel !== undefined) updateData.papel = data.papel;
 	if (data.papel_unidade_id !== undefined) updateData.papel_unidade_id = data.papel_unidade_id;
 	if (data.email !== undefined) updateData.email = data.email;
+	if (data.email_pessoal !== undefined) updateData.email_pessoal = data.email_pessoal;
+	if (data.email_pessoal_verificado !== undefined) {
+		updateData.email_pessoal_verificado = data.email_pessoal_verificado;
+	}
 
 	updateData.updated_at = sql`datetime('now', '-3 hours')`;
 

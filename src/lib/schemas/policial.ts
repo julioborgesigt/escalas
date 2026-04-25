@@ -11,7 +11,14 @@ export const policialSchema = z.object({
 	classe: z.string().max(100).default(''),
 	papel: z.enum(['admin_seccional', 'admin_unidade']).nullable().optional(),
 	papel_unidade_id: z.number().nullable().optional(),
-	email: z.string().email('E-mail inválido').or(z.literal('')).nullable().optional().default(null)
+	email: z.string().email('E-mail inválido').or(z.literal('')).nullable().optional().default(null),
+	email_pessoal: z
+		.string()
+		.email('E-mail pessoal inválido')
+		.or(z.literal(''))
+		.nullable()
+		.optional()
+		.default(null)
 });
 
 export const policialUpdateSchema = policialSchema.partial().extend({

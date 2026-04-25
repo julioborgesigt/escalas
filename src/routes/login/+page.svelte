@@ -26,7 +26,10 @@
 	// Estado de recuperação de senha
 	let recuperacao = $state(false);
 	let identificadorRec = $state('');
-	let recuperacaoEnviada = $state(false);
+	let recuperacaoEtapa = $state<'identificador' | 'codigo' | 'concluida'>('identificador');
+	let desafioIdRec = $state('');
+	let codigoRec = $state('');
+	let emailMascaradoRec = $state('');
 
 	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
 	let loginError = $state<string | null>(null);
@@ -110,28 +113,78 @@
 		matriculaPrimeiroAcesso = '';
 	}
 
+	function resetarRecuperacao() {
+		recuperacaoEtapa = 'identificador';
+		identificadorRec = '';
+		desafioIdRec = '';
+		codigoRec = '';
+		emailMascaradoRec = '';
+	}
+
+	function abrirRecuperacao() {
+		recuperacao = true;
+		resetarRecuperacao();
+	}
+
 	function voltarParaRecuperacao() {
 		recuperacao = false;
-		recuperacaoEnviada = false;
-		identificadorRec = '';
+		resetarRecuperacao();
+	}
+
+	function voltarParaIdentificadorRec() {
+		recuperacaoEtapa = 'identificador';
+		desafioIdRec = '';
+		codigoRec = '';
+		emailMascaradoRec = '';
 	}
 
 	async function solicitarRecuperacao() {
 		if (!identificadorRec.trim()) return;
-		loadingService.show('Solicitando recuperação...');
+		loadingService.show('Enviando código de validação...');
 		try {
 			const res = await fetch('/api/auth/solicitar-redefinicao', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({ identificador: identificadorRec.trim(), tipo })
 			});
-			if (res.ok || res.status === 200) {
-				recuperacaoEnviada = true;
+			const data = await res.json().catch(() => ({}));
+			if (res.ok && data?.requerCodigo && data?.desafioId) {
+				desafioIdRec = String(data.desafioId);
+				emailMascaradoRec = String(data.emailMascarado || '');
+				codigoRec = '';
+				recuperacaoEtapa = 'codigo';
 			} else {
-				recuperacaoEnviada = true; // resposta genérica sempre
+				recuperacaoEtapa = 'concluida';
 			}
 		} catch {
-			recuperacaoEnviada = true; // não revelar erros internos
+			recuperacaoEtapa = 'concluida'; // não revelar erros internos
+		} finally {
+			loadingService.hide();
+		}
+	}
+
+	async function confirmarRecuperacao() {
+		if (codigoRec.length !== 6) {
+			toaster.create({ title: 'Informe o código de 6 dígitos', type: 'error' });
+			return;
+		}
+		loadingService.show('Validando código...');
+		try {
+			const res = await fetch('/api/auth/confirmar-redefinicao', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ desafioId: desafioIdRec, codigo: codigoRec })
+			});
+			const data = await res.json().catch(() => ({}));
+			if (res.ok) {
+				recuperacaoEtapa = 'concluida';
+				desafioIdRec = '';
+				codigoRec = '';
+			} else {
+				toaster.create({ title: String(data?.error || 'Código inválido ou expirado.'), type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro ao validar o código. Tente novamente.', type: 'error' });
 		} finally {
 			loadingService.hide();
 		}
@@ -296,7 +349,7 @@
 					<button
 						type="button"
 						class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-						onclick={() => { recuperacao = true; }}
+						onclick={abrirRecuperacao}
 					>
 						Recuperar
 					</button>
@@ -304,12 +357,12 @@
 			</div>
 		{:else if recuperacao}
 			<!-- ===== Recuperação de senha ===== -->
-			{#if !recuperacaoEnviada}
+			{#if recuperacaoEtapa === 'identificador'}
 				<div class="text-center mb-6">
 					<div class="text-5xl mb-3">🔒</div>
 					<p class="font-semibold mb-1">Recuperar senha</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400">
-						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um link de redefinição por e-mail.
+						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação por e-mail.
 					</p>
 				</div>
 
@@ -348,10 +401,48 @@
 						disabled={loadingService.active || !identificadorRec.trim()}
 						onclick={solicitarRecuperacao}
 					>
-						{loadingService.active ? 'Enviando...' : 'Enviar link de redefinição'}
+						{loadingService.active ? 'Enviando...' : 'Enviar código de validação'}
 					</button>
 
 					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaRecuperacao}>
+						← Voltar
+					</button>
+				</div>
+			{:else if recuperacaoEtapa === 'codigo'}
+				<div class="text-center mb-6">
+					<div class="text-5xl mb-3">📧</div>
+					<p class="font-semibold mb-1">Código de validação</p>
+					<p class="text-sm text-surface-600 dark:text-surface-400">
+						Enviamos um código de 6 dígitos para<br />
+						<span class="font-medium text-surface-800 dark:text-surface-200">{emailMascaradoRec}</span>
+					</p>
+				</div>
+
+				<div class="flex flex-col gap-5">
+					<label class="label">
+						<span class="label-text text-center block">Código de validação</span>
+						<input
+							class="input text-center text-3xl font-bold tracking-[0.4em] py-3"
+							type="text"
+							value={codigoRec}
+							oninput={(e) => (codigoRec = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
+							placeholder="000000"
+							maxlength="6"
+							inputmode="numeric"
+							autocomplete="one-time-code"
+						/>
+					</label>
+
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
+						disabled={loadingService.active || codigoRec.length !== 6}
+						onclick={confirmarRecuperacao}
+					>
+						{loadingService.active ? 'Validando...' : 'Confirmar código'}
+					</button>
+
+					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaIdentificadorRec}>
 						← Voltar
 					</button>
 				</div>
