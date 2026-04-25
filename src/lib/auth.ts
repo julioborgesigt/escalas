@@ -22,6 +22,8 @@ export interface UsuarioLogado {
 	email?: string | null;
 }
 
+export type TipoDesafio2FA = 'policial' | 'admin' | 'assinatura' | 'reset_policial' | 'reset_admin';
+
 /** Retorna true se o usuário possui poder de Admin Geral */
 export function isAdminGeral(u: UsuarioLogado | null): boolean {
 	return u?.tipo === 'admin';
@@ -277,7 +279,7 @@ export function gerarCodigo2FA(): string {
 /** Persiste um desafio 2FA no banco e retorna o desafioId (UUID aleatório). */
 export async function criarDesafio2FA(
 	db: Database,
-	tipo: 'policial' | 'admin' | 'assinatura',
+	tipo: TipoDesafio2FA,
 	usuarioId: number,
 	codigo: string
 ): Promise<string> {
@@ -356,7 +358,7 @@ export async function verificarDesafio2FA(
 	db: Database,
 	desafioId: string,
 	codigoInput: string
-): Promise<{ tipo: 'policial' | 'admin' | 'assinatura'; usuarioId: number } | 'expirado' | 'esgotado' | null> {
+): Promise<{ tipo: TipoDesafio2FA; usuarioId: number } | 'expirado' | 'esgotado' | null> {
 	const desafio = await db
 		.select()
 		.from(doisFatoresTokens)
@@ -384,5 +386,5 @@ export async function verificarDesafio2FA(
 		.set({ usado: 1 })
 		.where(eq(doisFatoresTokens.id, desafio.id));
 
-	return { tipo: desafio.tipo as 'policial' | 'admin' | 'assinatura', usuarioId: desafio.usuario_id };
+	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }

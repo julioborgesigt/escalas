@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
 	listarPoliciais,
+	buscarPolicial,
 	criarPolicial,
 	atualizarPolicial,
 	excluirPolicial,
@@ -91,6 +92,7 @@ export const actions: Actions = {
 		const regime = data.get('regime')?.toString() as 'plantao' | 'expediente' | 'ambos';
 		const lotacao = data.get('lotacao')?.toString() || '';
 		const email = data.get('email')?.toString() || null;
+		const emailPessoal = data.get('email_pessoal')?.toString() || null;
 		const papel = data.get('papel')?.toString() || null;
 		const papelUnidadeId = data.get('papel_unidade_id')
 			? Number(data.get('papel_unidade_id'))
@@ -112,19 +114,24 @@ export const actions: Actions = {
 			classe,
 			papel: papel || null,
 			papel_unidade_id: papelUnidadeId || null,
-			email: email || null
+			email: email || null,
+			email_pessoal: emailPessoal || null
 		});
 
 		if (!parsed.success) {
 			return fail(400, {
 				error: parsed.error.issues[0].message,
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
+				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
 			});
 		}
 
 		const db = getDB(platform);
 		try {
-			await criarPolicial(db, { ...parsed.data, email: email || null });
+			await criarPolicial(db, {
+				...parsed.data,
+				email: email || null,
+				email_pessoal: emailPessoal || null
+			});
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_policial',
@@ -137,12 +144,12 @@ export const actions: Actions = {
 			if (message.includes('UNIQUE')) {
 				return fail(409, {
 					error: 'Matrícula já cadastrada',
-					fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
+					fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
 				});
 			}
 			return fail(500, {
 				error: 'Erro interno ao criar policial',
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email }
+				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
 			});
 		}
 	},
@@ -166,6 +173,7 @@ export const actions: Actions = {
 		const regime = data.get('regime')?.toString() as 'plantao' | 'expediente' | 'ambos';
 		const lotacao = data.get('lotacao')?.toString() || '';
 		const email = data.get('email')?.toString() || null;
+		const emailPessoal = data.get('email_pessoal')?.toString() || null;
 		const papel = data.get('papel')?.toString() || null;
 		const papelUnidadeId = data.get('papel_unidade_id')
 			? Number(data.get('papel_unidade_id'))
@@ -182,7 +190,8 @@ export const actions: Actions = {
 			classe,
 			papel: papel || null,
 			papel_unidade_id: papelUnidadeId || null,
-			email: email || null
+			email: email || null,
+			email_pessoal: emailPessoal || null
 		});
 		if (!parsed.success) {
 			return fail(400, {
@@ -192,9 +201,19 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 		try {
+			const policialAtual = await buscarPolicial(db, policialId);
+			if (!policialAtual) return fail(404, { error: 'Policial não encontrado' });
+			const emailPessoalNormalizado = emailPessoal || null;
+			const emailPessoalVerificado =
+				(policialAtual.email_pessoal ?? null) === emailPessoalNormalizado
+					? policialAtual.email_pessoal_verificado
+					: 0;
+
 			await atualizarPolicial(db, policialId, {
 				...parsed.data,
-				email: email || null
+				email: email || null,
+				email_pessoal: emailPessoalNormalizado,
+				email_pessoal_verificado: emailPessoalVerificado
 			});
 			await registrarAuditComContexto(db, {
 				usuario: u,

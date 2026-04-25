@@ -120,6 +120,9 @@ export const actions: Actions = {
 		}
 
 		const { tipo, usuarioId } = resultado;
+		if (tipo !== 'admin' && tipo !== 'policial') {
+			return fail(403, { error: 'Código inválido para login. Faça login novamente.', esgotado: true });
+		}
 
 		let primeiroAcesso = false;
 		if (tipo === 'admin') {

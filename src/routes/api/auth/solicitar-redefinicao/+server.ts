@@ -2,7 +2,7 @@
  * POST /api/auth/solicitar-redefinicao
  *
  * Rota pública. Recebe identificador (matrícula ou login) e tipo de usuário,
- * cria um token de redefinição de senha e envia o link por e-mail.
+ * cria um desafio e envia um código ao e-mail pessoal verificado do usuário.
  *
  * Sempre retorna a mesma mensagem genérica, independente de o usuário existir
  * ou não, para evitar enumeração de usuários.
@@ -10,19 +10,26 @@
 
 import { json } from '@sveltejs/kit';
 import { eq, and, gt, count } from 'drizzle-orm';
-import { getDB, registrarAuditComContexto } from '$lib/db';
-import { criarTokenRedefinicao } from '$lib/auth';
-import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
-import { administradores, policiais, loginAttempts, resetSenhaTokens } from '$lib/server/schema';
+import { getDB } from '$lib/db';
+import { criarDesafio2FA, gerarCodigo2FA } from '$lib/auth';
+import { enviarCodigoRedefinicaoSenha } from '$lib/server/email';
+import {
+	administradores,
+	policiais,
+	loginAttempts,
+	doisFatoresTokens
+} from '$lib/server/schema';
+import { mascararEmail } from '$lib/server/auth-flow';
 import type { RequestHandler } from './$types';
 
-const RESPOSTA_GENERICA = 'Se o identificador estiver cadastrado com e-mail, você receberá um link de redefinição em instantes.';
+const RESPOSTA_GENERICA =
+	'Se o identificador estiver cadastrado com e-mail pessoal verificado, você receberá um código de validação em instantes.';
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
-const MAX_TOKENS_USUARIO = 3;
-const JANELA_USUARIO_MINUTOS = 60;
+const MAX_CODIGOS_USUARIO = 3;
+const JANELA_CODIGOS_USUARIO_MINUTOS = 10;
 
-export const POST: RequestHandler = async ({ request, platform, url, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
 	const body = await request.json().catch(() => null);
 	const identificador: string = String(body?.identificador ?? '').trim();
 	const tipo: string = String(body?.tipo ?? '').trim();
@@ -83,46 +90,42 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 		return json({ message: RESPOSTA_GENERICA });
 	}
 
-	// Rate limit por usuário (máx 3 tokens na última hora)
-	const windowUsuario = new Date(Date.now() - JANELA_USUARIO_MINUTOS * 60 * 1000).toISOString();
-	const [userTokenCount] = await db
-		.select({ n: count() })
-		.from(resetSenhaTokens)
-		.where(
-			and(
-				eq(resetSenhaTokens.tipo_usuario, tipo as 'policial' | 'admin'),
-				eq(resetSenhaTokens.usuario_id, usuario.id),
-				gt(resetSenhaTokens.created_at, windowUsuario)
-			)
-		);
-
-	if ((userTokenCount?.n ?? 0) >= MAX_TOKENS_USUARIO) {
+	if (!usuario.email_pessoal || usuario.email_pessoal_verificado !== 1) {
 		return json({ message: RESPOSTA_GENERICA });
 	}
 
-	// Criar token e link
-	const token = await criarTokenRedefinicao(db, tipo as 'policial' | 'admin', usuario.id);
-	const link = `${url.origin}/redefinir-senha?token=${token}`;
+	const tipoDesafio = tipo === 'policial' ? 'reset_policial' : 'reset_admin';
 
-	// Enviar para ambos os e-mails usando allSettled para não bloquear se um falhar
-	const envios: Promise<void>[] = [];
-	if (usuario.email) {
-		envios.push(enviarLinkRedefinicaoSenha(usuario.email, usuario.nome, link, platform));
+	// Rate limit por usuário (máx 3 códigos nos últimos 10 minutos)
+	const windowUsuario = new Date(Date.now() - JANELA_CODIGOS_USUARIO_MINUTOS * 60 * 1000).toISOString();
+	const [userCodeCount] = await db
+		.select({ n: count() })
+		.from(doisFatoresTokens)
+		.where(
+			and(
+				eq(doisFatoresTokens.tipo, tipoDesafio),
+				eq(doisFatoresTokens.usuario_id, usuario.id),
+				gt(doisFatoresTokens.created_at, windowUsuario)
+			)
+		);
+
+	if ((userCodeCount?.n ?? 0) >= MAX_CODIGOS_USUARIO) {
+		return json({ message: RESPOSTA_GENERICA });
 	}
-	if (usuario.email_pessoal && usuario.email_pessoal_verificado === 1) {
-		envios.push(enviarLinkRedefinicaoSenha(usuario.email_pessoal, usuario.nome, link, platform));
+
+	const codigo = gerarCodigo2FA();
+	const desafioId = await criarDesafio2FA(db, tipoDesafio, usuario.id, codigo);
+
+	try {
+		await enviarCodigoRedefinicaoSenha(usuario.email_pessoal, codigo, usuario.nome, platform);
+	} catch {
+		return json({ message: RESPOSTA_GENERICA });
 	}
 
-	await Promise.allSettled(envios);
-
-	// Auditoria
-	await registrarAuditComContexto(db, {
-		usuario: { id: usuario.id, nome: usuario.nome },
-		acao: 'solicitar_redefinicao_senha',
-		entidade: tipo === 'policial' ? 'policiais' : 'administradores',
-		entidade_id: usuario.id,
-		ip
+	return json({
+		message: 'Enviamos um código de validação para o e-mail pessoal cadastrado.',
+		requerCodigo: true,
+		desafioId,
+		emailMascarado: mascararEmail(usuario.email_pessoal)
 	});
-
-	return json({ message: RESPOSTA_GENERICA });
 };

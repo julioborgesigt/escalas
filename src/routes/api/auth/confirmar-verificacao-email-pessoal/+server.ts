@@ -42,6 +42,9 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	if (!resultado) {
 		return json({ error: 'Código inválido' }, { status: 400 });
 	}
+	if (resultado.tipo !== 'assinatura') {
+		return json({ error: 'Token inválido' }, { status: 403 });
+	}
 
 	// Garante que o token pertence ao usuário logado
 	if (resultado.usuarioId !== u.id) {

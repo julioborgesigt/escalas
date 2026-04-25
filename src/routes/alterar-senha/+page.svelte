@@ -78,11 +78,19 @@
 	const temNumero    = $derived(/[0-9]/.test(novaSenha));
 	const senhaOk      = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
 	const confirmaOk   = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
+	const emailPessoalOk = $derived(!primeiroAcesso || etapaEmailPessoal === 'verificado');
+	const podeAlterarSenha = $derived(senhaOk && confirmaOk && emailPessoalOk);
 
 	import { enhance } from '$app/forms';
 
 	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';
+
+		if (primeiroAcesso && etapaEmailPessoal !== 'verificado') {
+			error = 'Confirme seu e-mail pessoal para continuar o primeiro acesso.';
+			cancel();
+			return;
+		}
 
 		if (novaSenha !== confirmarSenha) {
 			error = 'As senhas não conferem.';
@@ -128,7 +136,7 @@
 				</h1>
 				<p class="text-sm text-surface-500 mt-1">
 					{primeiroAcesso
-						? 'Escolha uma senha segura para continuar.'
+						? 'Confirme seu e-mail pessoal e escolha uma senha segura para continuar.'
 						: 'Preencha os campos abaixo para alterar sua senha.'}
 				</p>
 			</div>
@@ -139,7 +147,7 @@
 					<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
 					</svg>
-					<span>Este é seu <strong>primeiro acesso</strong>. Defina uma senha pessoal para continuar.</span>
+					<span>Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma senha para continuar.</span>
 				</div>
 			{/if}
 
@@ -148,10 +156,10 @@
 				<div class="mb-5 p-4 rounded-2xl bg-surface-100/80 dark:bg-surface-800/50 border border-surface-200 dark:border-white/5 space-y-3">
 					<div>
 						<p class="text-xs font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wider mb-0.5">
-							E-mail pessoal <span class="font-normal text-surface-400 normal-case tracking-normal">(opcional)</span>
+							E-mail pessoal obrigatório
 						</p>
 						<p class="text-xs text-surface-500 leading-relaxed">
-							Canal secundário para recuperação de senha. Recomendado para maior segurança.
+							Você deve confirmar seu e-mail pessoal para recuperar sua senha no futuro e continuar o primeiro acesso.
 						</p>
 					</div>
 
@@ -174,6 +182,7 @@
 							<button
 								type="button"
 								onclick={enviarCodigoEmailPessoal}
+								disabled={loading.active || !emailPessoal.trim()}
 							>
 								{loading.active ? 'Enviando...' : 'Enviar código'}
 							</button>
@@ -215,7 +224,7 @@
 
 					{#if etapaEmailPessoal !== 'verificado'}
 						<p class="text-[0.65rem] text-surface-400 italic">
-							Sem e-mail pessoal, a recuperação de senha usará apenas seu e-mail institucional.
+							A alteração da senha ficará disponível após a confirmação do e-mail pessoal.
 						</p>
 					{/if}
 				</div>
@@ -303,7 +312,7 @@
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
-					disabled={loading.active || !senhaOk || !confirmaOk}
+					disabled={loading.active || !podeAlterarSenha}
 				>
 					{loading.active ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
 				</button>

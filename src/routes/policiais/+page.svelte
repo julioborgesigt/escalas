@@ -104,6 +104,7 @@
 	let regime = $state<'plantao' | 'expediente'>('plantao');
 	let lotacaoInput = $state('');
 	let email = $state('');
+	let emailPessoal = $state('');
 
 	// Papel administrativo no cadastro
 	let papel = $state<string | null>(null);
@@ -148,6 +149,7 @@
 		regime = 'plantao';
 		lotacaoInput = isAdmin ? '' : (data.lotacaoUsuario ?? '');
 		email = '';
+		emailPessoal = '';
 		papel = null;
 		papelUnidadeId = null;
 	}
@@ -168,6 +170,7 @@
 		regime = (policial.regime as 'plantao' | 'expediente') ?? 'plantao';
 		lotacaoInput = policial.lotacao ?? '';
 		email = policial.email ?? '';
+		emailPessoal = policial.email_pessoal ?? '';
 		papel = (policial.papel as string | null) ?? null;
 		papelUnidadeId = policial.papel_unidade_id ?? null;
 		cadastroOpen = true;
@@ -348,9 +351,9 @@
 					</label>
 				</div>
 
-				<!-- Linha 2: CPF (5), E-mail (7) -->
+				<!-- Linha 2: CPF (4), E-mail institucional (4), E-mail pessoal (4) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-5">
+					<label class="label sm:col-span-4">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>CPF (Obrigatório para Token)</span
 						>
@@ -363,9 +366,9 @@
 							maxlength="14"
 						/>
 					</label>
-					<label class="label sm:col-span-7">
+					<label class="label sm:col-span-4">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
-							>E-mail (para autenticação de dois fatores)</span
+							>E-mail funcional(para 2FA)</span
 						>
 						<input
 							class="input py-1 px-3 text-sm"
@@ -374,6 +377,19 @@
 							bind:value={email}
 							placeholder="exemplo@gmail.com"
 						/>
+					</label>
+					<label class="label sm:col-span-4">
+						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
+							>E-mail pessoal (rec. de senha)</span
+						>
+						<input
+							class="input py-1 px-3 text-sm"
+							type="email"
+							name="email_pessoal"
+							bind:value={emailPessoal}
+							placeholder="email pessoal"
+						/>
+						
 					</label>
 				</div>
 
