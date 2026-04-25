@@ -412,7 +412,7 @@
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
 						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 							<option value="" disabled>-</option>
-							{#each classesDisponiveis as c}
+							{#each classesDisponiveis as c (c)}
 								<option value={c}>{c}</option>
 							{/each}
 						</select>
