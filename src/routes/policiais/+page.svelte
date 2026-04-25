@@ -393,7 +393,7 @@
 					</label>
 				</div>
 
-				<!-- Linha 3: Telefone (3), Classe (4), Regime (5) -->
+				<!-- Linha 3: Telefone (3), Classe (2), Regime (3), Lotação (4) -->
 				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
 					<label class="label sm:col-span-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
@@ -408,7 +408,7 @@
 							maxlength="16"
 						/>
 					</label>
-					<label class="label sm:col-span-4">
+					<label class="label sm:col-span-2">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
 						<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 							<option value="" disabled>-</option>
@@ -417,7 +417,7 @@
 							{/each}
 						</select>
 					</label>
-					<label class="label sm:col-span-5">
+					<label class="label sm:col-span-3">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Regime de Trabalho</span
 						>
@@ -426,11 +426,7 @@
 							<option value="expediente">Expediente</option>
 						</select>
 					</label>
-				</div>
-
-				<!-- Linha 4: Lotação (12) -->
-				<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-					<label class="label sm:col-span-12">
+					<label class="label sm:col-span-4">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Lotação</span
 						>
 						{#if isAdmin}
