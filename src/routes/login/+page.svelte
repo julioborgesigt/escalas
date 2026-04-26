@@ -1,10 +1,19 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { browser } from '$app/environment';
+	import { goto, replaceState } from '$app/navigation';
+	import { applyAction, enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
+
+	type ActionData = Record<string, unknown> | undefined;
+	type FormResult = ActionResult<ActionData, ActionData>;
+
+	async function navegarAposLogin(destino: string, invalidateAll = false) {
+		await goto(destino, invalidateAll ? { invalidateAll: true } : undefined);
+	}
 
 	let tipo = $state<'policial' | 'admin'>('policial');
 	let adminModulo = $state<'gise' | 'escalas'>('gise');
@@ -27,6 +36,7 @@
 	let recuperacao = $state(false);
 	let identificadorRec = $state('');
 	let recuperacaoEtapa = $state<'identificador' | 'codigo' | 'concluida'>('identificador');
+	let recuperacaoResultado = $state<'codigo' | 'link'>('codigo');
 	let desafioIdRec = $state('');
 	let codigoRec = $state('');
 	let emailMascaradoRec = $state('');
@@ -34,10 +44,23 @@
 	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
 	let loginError = $state<string | null>(null);
 
-	const mostrarBannerResetado = $derived(page.url.searchParams.get('resetado') === '1');
+	let mostrarBannerResetado = $state(page.url.searchParams.get('resetado') === '1');
+	let resetadoParamConsumido = false;
 
 	// Exibe o erro do último attempt — funciona com JS (loginError) e sem JS (page.form)
 	const loginErrorDisplay = $derived(loginError ?? (page.form as { error?: string } | null)?.error ?? null);
+
+	// Remove `?resetado=1` sem `goto()`: uma navegação cliente extra aqui pode correr com o
+	// `goto` pós-2FA e deixar o layout sem `usuario` (sidebar some, parece sem estilo).
+	$effect(() => {
+		if (!browser || resetadoParamConsumido || page.url.searchParams.get('resetado') !== '1') return;
+
+		resetadoParamConsumido = true;
+
+		const url = new URL(page.url);
+		url.searchParams.delete('resetado');
+		replaceState(url, page.state ?? {});
+	});
 
 	function handleLogin({ formData, cancel }: { formData: FormData; cancel: () => void }) {
 		loginError = null;
@@ -46,24 +69,50 @@
 		if (!mat) { loginError = 'Matrícula é obrigatória'; cancel(); return; }
 		if (!pw) { loginError = 'Senha é obrigatória'; cancel(); return; }
 		loadingService.show('Autenticando...');
-		return async ({ result }: { result: any }) => {
-			loadingService.hide();
-			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				if (d?.pendente2FA) {
-					desafioId = String(d.desafioId || '');
-					tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
-					emailMascarado = String(d.emailMascarado || '');
-					pendente2FA = true;
-					loginError = null;
-					toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
-				} else if (d?.redirect) {
-					goto(String(d.redirect), { invalidateAll: true });
+		return async ({ result }: { result: FormResult }) => {
+			try {
+				if (result.type === 'redirect') {
+					await navegarAposLogin(result.location, true);
+					return;
 				}
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				loginError = String(d?.error || 'Credenciais inválidas');
+
+				if (result.type === 'success') {
+					const d = result.data;
+					if (d?.pendente2FA) {
+						desafioId = String(d.desafioId || '');
+						tipoUsuario2FA = (d.tipoUsuario2FA as 'policial' | 'admin') || tipo;
+						emailMascarado = String(d.emailMascarado || '');
+						pendente2FA = true;
+						loginError = null;
+						toaster.create({ title: 'Código enviado para o seu e-mail!', type: 'success' });
+						return;
+					}
+
+					if (d?.redirect) {
+						await navegarAposLogin(String(d.redirect), true);
+						return;
+					}
+
+					loginError = 'Não foi possível concluir o login. Tente novamente.';
+					toaster.create({ title: loginError, type: 'error' });
+					return;
+				}
+
+				if (result.type === 'failure') {
+					await applyAction(result);
+					const d = result.data;
+					loginError = String(d?.error || 'Credenciais inválidas');
+					toaster.create({ title: loginError, type: 'error' });
+					return;
+				}
+
+				loginError = 'Erro inesperado ao autenticar. Tente novamente.';
 				toaster.create({ title: loginError, type: 'error' });
+			} catch {
+				loginError = 'Não foi possível concluir o login. Tente novamente.';
+				toaster.create({ title: loginError, type: 'error' });
+			} finally {
+				loadingService.hide();
 			}
 		};
 	}
@@ -75,15 +124,37 @@
 			return;
 		}
 		loadingService.show('Verificando código...');
-		return async ({ result }: { result: any }) => {
-			loadingService.hide();
-			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				if (d?.redirect) goto(String(d.redirect), { invalidateAll: true });
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Código inválido'), type: 'error' });
-				if (d?.expirado || d?.esgotado) voltarLogin();
+		return async ({ result }: { result: FormResult }) => {
+			try {
+				if (result.type === 'redirect') {
+					await navegarAposLogin(result.location, true);
+					return;
+				}
+
+				if (result.type === 'success') {
+					const d = result.data;
+					if (d?.redirect) {
+						await navegarAposLogin(String(d.redirect), true);
+						return;
+					}
+
+					toaster.create({ title: 'Não foi possível concluir a verificação. Tente novamente.', type: 'error' });
+					return;
+				}
+
+				if (result.type === 'failure') {
+					await applyAction(result);
+					const d = result.data;
+					toaster.create({ title: String(d?.error || 'Código inválido'), type: 'error' });
+					if (d?.expirado || d?.esgotado) voltarLogin();
+					return;
+				}
+
+				toaster.create({ title: 'Erro inesperado ao verificar o código. Tente novamente.', type: 'error' });
+			} catch {
+				toaster.create({ title: 'Não foi possível concluir a verificação. Tente novamente.', type: 'error' });
+			} finally {
+				loadingService.hide();
 			}
 		};
 	}
@@ -116,19 +187,22 @@
 	function resetarRecuperacao() {
 		recuperacaoEtapa = 'identificador';
 		identificadorRec = '';
+		recuperacaoResultado = 'codigo';
 		desafioIdRec = '';
 		codigoRec = '';
 		emailMascaradoRec = '';
 	}
 
 	function abrirRecuperacao() {
-		recuperacao = true;
 		resetarRecuperacao();
+		mostrarBannerResetado = false;
+		recuperacao = true;
 	}
 
 	function voltarParaRecuperacao() {
 		recuperacao = false;
 		resetarRecuperacao();
+		mostrarBannerResetado = false;
 	}
 
 	function voltarParaIdentificadorRec() {
@@ -154,9 +228,11 @@
 				codigoRec = '';
 				recuperacaoEtapa = 'codigo';
 			} else {
+				recuperacaoResultado = 'codigo';
 				recuperacaoEtapa = 'concluida';
 			}
 		} catch {
+			recuperacaoResultado = 'codigo';
 			recuperacaoEtapa = 'concluida'; // não revelar erros internos
 		} finally {
 			loadingService.hide();
@@ -177,6 +253,7 @@
 			});
 			const data = await res.json().catch(() => ({}));
 			if (res.ok) {
+				recuperacaoResultado = 'link';
 				recuperacaoEtapa = 'concluida';
 				desafioIdRec = '';
 				codigoRec = '';
@@ -192,7 +269,7 @@
 </script>
 
 <svelte:head>
-	<title>Login - Escalas de Plantão</title>
+	<title>Login - Recuperação de senha</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
@@ -200,13 +277,11 @@
 		class="w-full max-w-sm p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
 	>
 		<div class="text-center mb-6">
-			<h1 class="h1 text-xl font-bold mb-1">Escalas de Plantão</h1>
-			<p class="text-surface-600 dark:text-surface-500 text-sm">
-				Faça login para acessar o sistema
-			</p>
+			<h1 class="h1 text-xl font-bold mb-1">Recuperação de senha</h1>
+			
 		</div>
 
-		{#if mostrarBannerResetado}
+		{#if mostrarBannerResetado && !recuperacao}
 			<div class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-success-500/10 border border-success-500/25 text-success-700 dark:text-success-300 text-sm">
 				<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -449,9 +524,13 @@
 			{:else}
 				<div class="text-center">
 					<div class="text-5xl mb-4">📬</div>
-					<p class="font-semibold mb-2">Link enviado!</p>
+					<p class="font-semibold mb-2">{recuperacaoResultado === 'link' ? 'Link enviado!' : 'Código enviado!'}</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
-						Se o identificador estiver cadastrado com e-mail, você receberá um link de redefinição em instantes. Verifique também sua caixa de spam.
+						{#if recuperacaoResultado === 'link'}
+							Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha. Verifique também sua caixa de spam.
+						{:else}
+							Você receberá um código de validação em instantes.
+						{/if}
 					</p>
 					<button
 						type="button"

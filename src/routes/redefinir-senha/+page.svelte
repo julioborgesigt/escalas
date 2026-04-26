@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { loading } from '$lib/loading.svelte';
 	import type { PageData } from './$types';
@@ -29,6 +30,8 @@
 			if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
 				erroForm = String(d?.error || 'Erro ao redefinir a senha.');
+			} else if (result.type === 'redirect') {
+				await goto(result.location, { invalidateAll: true });
 			}
 		};
 	}
@@ -87,7 +90,6 @@
 							type="password"
 							name="nova_senha"
 							bind:value={novaSenha}
-							placeholder="••••••••"
 							required
 						/>
 					</label>
@@ -118,7 +120,6 @@
 								type="password"
 								name="confirmar_senha"
 								bind:value={confirmarSenha}
-								placeholder="••••••••"
 								required
 							/>
 							{#if confirmarSenha.length > 0}

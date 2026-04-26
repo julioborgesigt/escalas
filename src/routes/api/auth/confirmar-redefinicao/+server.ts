@@ -1,8 +1,8 @@
 /**
  * POST /api/auth/confirmar-redefinicao
  *
- * Confirma o código enviado ao e-mail pessoal verificado e, somente então,
- * cria o token de redefinição de senha e envia o link por e-mail.
+ * Confirma o código enviado ao e-mail pessoal e, somente então, valida esse
+ * e-mail, cria o token de redefinição de senha e envia o link por e-mail.
  */
 
 import { json } from '@sveltejs/kit';
@@ -14,7 +14,7 @@ import { administradores, loginAttempts, policiais, resetSenhaTokens } from '$li
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA =
-	'Se o código estiver correto, você receberá um link de redefinição em instantes.';
+	'Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha.';
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
 const MAX_TOKENS_USUARIO = 3;
@@ -100,7 +100,7 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 		if (row) usuario = row;
 	}
 
-	if (!usuario || !usuario.email_pessoal || usuario.email_pessoal_verificado !== 1) {
+	if (!usuario || !usuario.email_pessoal || !usuario.email) {
 		return json({ message: RESPOSTA_GENERICA });
 	}
 
@@ -123,14 +123,21 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	const token = await criarTokenRedefinicao(db, tipo, usuario.id);
 	const link = `${url.origin}/redefinir-senha?token=${token}`;
 
-	const envios: Promise<void>[] = [
-		enviarLinkRedefinicaoSenha(usuario.email_pessoal, usuario.nome, link, platform)
-	];
-	if (usuario.email) {
-		envios.push(enviarLinkRedefinicaoSenha(usuario.email, usuario.nome, link, platform));
+	if (usuario.email_pessoal_verificado !== 1) {
+		if (tipo === 'policial') {
+			await db
+				.update(policiais)
+				.set({ email_pessoal_verificado: 1 })
+				.where(eq(policiais.id, usuario.id));
+		} else {
+			await db
+				.update(administradores)
+				.set({ email_pessoal_verificado: 1 })
+				.where(eq(administradores.id, usuario.id));
+		}
 	}
 
-	await Promise.allSettled(envios);
+	await enviarLinkRedefinicaoSenha(usuario.email, usuario.nome, link, platform);
 
 	await registrarAuditComContexto(db, {
 		usuario: { id: usuario.id, nome: usuario.nome },
