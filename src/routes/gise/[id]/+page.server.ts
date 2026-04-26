@@ -35,6 +35,8 @@ import {
 	type BaseEquipeEnv
 } from '$lib/server/gise-base-equipe-sync';
 import { logger } from '$lib/server/logger';
+import { enviarNotificacaoAssessorGisePreenchimentoSeccional } from '$lib/server/email';
+import { montarTextoNotificacaoAssessorGise } from '$lib/server/gise-assessor-notificacao-text';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { unidades, policiais, giseEscalas, giseDocumentos, gisePresencas, giseAssinaturasRelatorios, giseMembros, giseEquipes, giseSeccionais, giseSeccionalUnidades, giseRespostasFormulario } from '$lib/server/schema';
@@ -97,6 +99,8 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			matricula: string;
 			cargo: 'DPC' | 'OIP';
 			lotacao: string;
+			email: string | null;
+			email_pessoal: string | null;
 		}>> =
 			supportIds.length > 0
 				? db
@@ -105,7 +109,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 							nome: policiais.nome,
 							matricula: policiais.matricula,
 							cargo: policiais.cargo,
-							lotacao: policiais.lotacao
+							lotacao: policiais.lotacao,
+							email: policiais.email,
+							email_pessoal: policiais.email_pessoal
 						})
 						.from(policiais)
 						.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
@@ -114,29 +120,56 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 
 		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter((x): x is number => x != null);
 
+		/** E-mail do assessor já vinculado à GISE (pessoal ou institucional), só para Admin Geral — não depende da lista enxuta nem de `ativo`. */
+		const assessorEmailRowPromise =
+			isGeral && gise.assessor_id
+				? db
+						.select({
+							email_pessoal: policiais.email_pessoal,
+							email: policiais.email
+						})
+						.from(policiais)
+						.where(eq(policiais.id, gise.assessor_id))
+						.get()
+				: Promise.resolve(null as { email_pessoal: string | null; email: string | null } | null);
+
 		// Queries paralelas restantes
-		const [policiaisListResult, todasUnidades, assinaturasRelatorios, restringirSmartphone, presencasGise, supervisaoExtraUnidadeId, respostasSeintSupervisaoRows] =
-			await Promise.all([
-				policiaisPromise,
-				db.select().from(unidades).orderBy(asc(unidades.nome)),
-				buscarAssinaturasRelatoriosGise(db, id),
-				buscarRestringirSmartphone(db),
-				buscarPresencasGise(db, id),
-				buscarUnidadeIdSupervisaoExtra(db),
-				seintIdsParaRelatorio.length
-					? db
-							.select({ policial_id: giseRespostasFormulario.policial_id })
-							.from(giseRespostasFormulario)
-							.where(
-								and(
-									eq(giseRespostasFormulario.gise_id, id),
-									inArray(giseRespostasFormulario.policial_id, seintIdsParaRelatorio),
-									isNull(giseRespostasFormulario.equipe_id)
-								)
+		const [
+			policiaisListResult,
+			todasUnidades,
+			assinaturasRelatorios,
+			restringirSmartphone,
+			presencasGise,
+			supervisaoExtraUnidadeId,
+			respostasSeintSupervisaoRows,
+			assessorEmailRow
+		] = await Promise.all([
+			policiaisPromise,
+			db.select().from(unidades).orderBy(asc(unidades.nome)),
+			buscarAssinaturasRelatoriosGise(db, id),
+			buscarRestringirSmartphone(db),
+			buscarPresencasGise(db, id),
+			buscarUnidadeIdSupervisaoExtra(db),
+			seintIdsParaRelatorio.length
+				? db
+						.select({ policial_id: giseRespostasFormulario.policial_id })
+						.from(giseRespostasFormulario)
+						.where(
+							and(
+								eq(giseRespostasFormulario.gise_id, id),
+								inArray(giseRespostasFormulario.policial_id, seintIdsParaRelatorio),
+								isNull(giseRespostasFormulario.equipe_id)
 							)
-							.all()
-					: Promise.resolve([] as { policial_id: number | null }[])
-			]);
+						)
+						.all()
+				: Promise.resolve([] as { policial_id: number | null }[]),
+			assessorEmailRowPromise
+		]);
+
+		const assessorEmailSugerido =
+			isGeral && assessorEmailRow
+				? assessorEmailRow.email_pessoal?.trim() || assessorEmailRow.email?.trim() || null
+				: null;
 
 		const seintSupervisaoComRelatorio = [
 			...new Set(
@@ -148,6 +181,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			gise,
 			breveRelatorioEnv: await getBreveRelatorioEnvMergido(db),
 			policiais: policiaisListResult,
+			assessorEmailSugerido,
 			todasUnidades,
 			assinaturasRelatorios,
 			presencasGise,
@@ -227,6 +261,27 @@ export const actions: Actions = {
 		const errSeint2 = await checkOip(seint2Id, 'SEINT 2');
 		if (errSeint2) return errSeint2;
 
+		const assessorEmailRaw = ((formData.get('assessor_email_notificacao') as string | null) ?? '').trim();
+		const confirmarRaw = formData.get('confirmar_email_assessor');
+		// HTML: `value="1"` → "1"; alguns clientes enviam "on" para checkbox.
+		const confirmarEmailAssessor = confirmarRaw === '1' || confirmarRaw === 'on';
+		const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assessorEmailRaw);
+
+		if (assessorId !== null) {
+			if (!confirmarEmailAssessor) {
+				return fail(400, {
+					error:
+						'Marque a confirmação do e-mail do assessor (avisos de preenchimento das seccionais) ou remova o assessor.'
+				});
+			}
+			if (!assessorEmailRaw) {
+				return fail(400, { error: 'Informe o e-mail do assessor para receber avisos quando as seccionais enviarem a GISE.' });
+			}
+			if (!emailOk) {
+				return fail(400, { error: 'E-mail do assessor inválido.' });
+			}
+		}
+
 		const rolesParaVerificar: Array<[number | null, string]> = [
 			[supervisorId, 'Supervisor'],
 			[assessorId, 'Assessor'],
@@ -239,15 +294,14 @@ export const actions: Actions = {
 			if (!horarioCheck.ok) return fail(400, { error: `${label}: ${horarioCheck.motivo}` });
 		}
 
-		const updateData: any = { 
+		const updateData = {
 			supervisor_id: supervisorId,
 			assessor_id: assessorId,
 			seint1_id: seint1Id,
-			seint2_id: seint2Id
+			seint2_id: seint2Id,
+			assessor_email_notificacao: assessorId !== null ? assessorEmailRaw : null,
+			...(gise.status === 'em_definicao_supervisor' ? { status: 'em_preenchimento' as const } : {})
 		};
-		if (gise.status === 'em_definicao_supervisor') {
-			updateData.status = 'em_preenchimento';
-		}
 
 		await atualizarGiseEscala(db, giseId, updateData);
 
@@ -542,6 +596,78 @@ export const actions: Actions = {
 		if (todasPreenchidas) {
 			giseStatus = 'aguardando_assinatura';
 			await atualizarGiseEscala(db, giseId, { status: 'aguardando_assinatura' });
+		}
+
+		const giseRow = await db
+			.select({
+				data_inicio: giseEscalas.data_inicio,
+				assessor_id: giseEscalas.assessor_id,
+				assessor_email_notificacao: giseEscalas.assessor_email_notificacao
+			})
+			.from(giseEscalas)
+			.where(eq(giseEscalas.id, giseId))
+			.get();
+
+		const secComNome = await db
+			.select({ nome: unidades.nome })
+			.from(giseSeccionais)
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.where(eq(giseSeccionais.id, secId))
+			.get();
+
+		const todasSecs = await db
+			.select({
+				nome: unidades.nome,
+				status: giseSeccionais.status
+			})
+			.from(giseSeccionais)
+			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
+			.where(eq(giseSeccionais.gise_id, giseId))
+			.orderBy(asc(unidades.nome));
+
+		if (giseRow?.assessor_id && secComNome?.nome) {
+			let destino = (giseRow.assessor_email_notificacao && giseRow.assessor_email_notificacao.trim()) || '';
+			let nomeAssessor = 'Assessor';
+			const polAss = await db
+				.select({
+					email_pessoal: policiais.email_pessoal,
+					email: policiais.email,
+					nome: policiais.nome
+				})
+				.from(policiais)
+				.where(eq(policiais.id, giseRow.assessor_id))
+				.get();
+			nomeAssessor = polAss?.nome ?? nomeAssessor;
+			if (!destino) {
+				destino = (polAss?.email_pessoal?.trim() || polAss?.email?.trim() || '') ?? '';
+			}
+			if (destino) {
+				try {
+					const texto = montarTextoNotificacaoAssessorGise({
+						dataInicioIso: giseRow.data_inicio,
+						giseId,
+						nomeSeccionalQueAcabouDeEnviar: secComNome.nome,
+						seccionais: todasSecs.map((r) => ({ nome: r.nome, status: r.status }))
+					});
+					await enviarNotificacaoAssessorGisePreenchimentoSeccional(
+						destino,
+						nomeAssessor,
+						texto,
+						platform
+					);
+				} catch (e) {
+					logger.warn('[gise/finalizarSeccional] Falha ao notificar assessor (operação segue OK)', {
+						giseId,
+						secId,
+						error: e instanceof Error ? e.message : String(e)
+					});
+				}
+			} else {
+				logger.warn('[gise/finalizarSeccional] Assessor sem e-mail para notificação; e-mail não enviado.', {
+					giseId,
+					assessor_id: giseRow.assessor_id
+				});
+			}
 		}
 
 		return { success: true, gise_status: giseStatus };

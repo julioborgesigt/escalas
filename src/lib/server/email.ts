@@ -12,6 +12,7 @@
  */
 
 import nodemailer, { type Transporter } from 'nodemailer';
+import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
 import { logger } from './logger';
 
 function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
@@ -390,6 +391,41 @@ export async function enviarLinkRedefinicaoSenha(
     });
   } catch (err) {
     logger.error('[email/redefinicao] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
+    throw err;
+  }
+}
+
+/**
+ * Aviso ao assessor quando uma seccional finaliza o envio da GISE (texto copiável).
+ */
+export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
+  destinatario: string,
+  nomeAssessor: string,
+  textoPlano: string,
+  platform: App.Platform | undefined
+): Promise<void> {
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
+  const html = montarHtmlEmailNotificacaoAssessorGise(textoPlano);
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Sistema de Escalas - PCCE" <${user}>`,
+      to: destinatario,
+      subject: 'GISE — seccional enviou a escala (resumo para WhatsApp)',
+      text: textoPlano,
+      html
+    });
+    logger.info('[email/gise-assessor] Notificação enviada', {
+      destinatario,
+      assessor: nomeAssessor,
+      messageId: info.messageId
+    });
+  } catch (err) {
+    logger.error('[email/gise-assessor] Erro ao enviar', {
       destinatario,
       error: err instanceof Error ? err.message : String(err)
     });

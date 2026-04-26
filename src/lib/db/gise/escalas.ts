@@ -448,6 +448,10 @@ export async function atualizarGiseEscala(
 		| 'pronta_para_finalizar'
 		| 'finalizada';
 		supervisor_id: number | null;
+		assessor_id: number | null;
+		seint1_id: number | null;
+		seint2_id: number | null;
+		assessor_email_notificacao: string | null;
 		breve_relatorio_titulo: string | null;
 		breve_relatorio_texto_seccional: string | null;
 		breve_relatorio_texto_supervisao: string | null;

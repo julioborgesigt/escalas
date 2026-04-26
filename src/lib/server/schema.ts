@@ -204,6 +204,8 @@ export const giseEscalas = sqliteTable(
 		assessor_id: integer('assessor_id'),
 		seint1_id: integer('seint1_id'),
 		seint2_id: integer('seint2_id'),
+		/** E-mail pessoal (ou sobrescrito) do assessor para avisos de envio das seccionais na GISE. */
+		assessor_email_notificacao: text('assessor_email_notificacao'),
 		/** Rótulo do bloco "Breve relatório" nos PDFs de extra; null = padrão global. */
 		breve_relatorio_titulo: text('breve_relatorio_titulo'),
 		/** Texto do quadro no relatório de extra por seccional; null = padrão global. */
