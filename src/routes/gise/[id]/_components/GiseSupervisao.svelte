@@ -242,52 +242,72 @@
 			</div>
 		</div>
 
-		{#if editando}
-			<form
-				method="POST"
-				action="?/salvarSupervisores"
-				use:enhance={onSubmit}
-				class="space-y-3 sm:space-y-4"
-			>
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
-				<div>
-					<label
-						for="supId"
-						class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-						>Supervisão e apoio (DPC)</label
-					>
-					<SearchableSelect
-						id="supId"
-						bind:value={supervisorId}
-						loadOptions={buscarDpcs}
-						selectedOption={selectedFromPoliciais(supervisorId)}
-						placeholder="Pesquisar Supervisão..."
-						class="w-full"
-					/>
+	{#if editando}
+		<form
+			method="POST"
+			action="?/salvarSupervisores"
+			use:enhance={onSubmit}
+			class="space-y-4"
+		>
+			<!-- Seção: Comando (DPC + Assessor) -->
+			<div>
+				<p class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-2 px-0.5">
+					Comando
+				</p>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="flex flex-col gap-1.5">
+						<label
+							for="supId"
+							class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
+							>Supervisão e apoio (DPC)</label
+						>
+						<SearchableSelect
+							id="supId"
+							bind:value={supervisorId}
+							loadOptions={buscarDpcs}
+							selectedOption={selectedFromPoliciais(supervisorId)}
+							placeholder="Pesquisar DPC..."
+							class="w-full"
+						/>
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label
+							for="assessorId"
+							class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
+						>
+							Assessor (OIP)
+						</label>
+						<SearchableSelect
+							id="assessorId"
+							bind:value={assessorId}
+							loadOptions={buscarOips}
+							selectedOption={selectedFromPoliciais(assessorId)}
+							placeholder="Pesquisar Assessor..."
+							class="w-full"
+						/>
+					</div>
 				</div>
-				<div>
-					<label
-						for="assessorId"
-						class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-					>
-						Assessor (OIP)
-					</label>
-					<SearchableSelect
-						id="assessorId"
-						bind:value={assessorId}
-						loadOptions={buscarOips}
-						selectedOption={selectedFromPoliciais(assessorId)}
-						placeholder="Pesquisar Assessor..."
-						class="w-full"
-					/>
-					{#if assessorId != null}
-						<div class="mt-2 space-y-2 rounded-xl border border-primary-500/20 bg-primary-500/5 p-3">
-							<p class="text-xs font-semibold text-surface-600 dark:text-surface-300 leading-snug">
-								Avisos de preenchimento: quando uma seccional finalizar o envio da escala, o sistema envia
-								um e-mail com resumo (texto para WhatsApp) para o endereço abaixo. Confira ou edite o
-								e-mail pessoal do assessor.
+			</div>
+
+			<!-- Bloco de e-mail do assessor: largura total, aparece logo abaixo quando há assessor -->
+			{#if assessorId != null}
+				<div class="rounded-xl border border-primary-400/25 bg-primary-500/5 dark:bg-primary-500/10 p-4 space-y-3">
+					<div class="flex items-start gap-2.5">
+						<div class="mt-0.5 shrink-0 w-7 h-7 rounded-lg bg-primary-500/15 flex items-center justify-center text-primary-600 dark:text-primary-400">
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+							</svg>
+						</div>
+						<div class="min-w-0">
+							<p class="text-xs font-bold text-surface-700 dark:text-surface-200 mb-0.5">Avisos de preenchimento</p>
+							<p class="text-xs text-surface-500 dark:text-surface-400 leading-snug">
+								Quando uma seccional finalizar o envio da escala, o sistema envia um e-mail com resumo para o endereço abaixo. Confira ou edite o e-mail pessoal do assessor.
 							</p>
-							<label for="assessorEmailNotif" class="text-xs font-bold text-surface-600 dark:text-surface-400 block"
+						</div>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+						<div class="flex flex-col gap-1.5">
+							<label for="assessorEmailNotif" class="text-xs font-semibold text-surface-600 dark:text-surface-400"
 								>E-mail do assessor (avisos GISE)</label
 							>
 							<input
@@ -296,76 +316,87 @@
 								name="assessor_email_notificacao"
 								autocomplete="email"
 								bind:value={assessorEmailNotificacao}
-								class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+								class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400/30 transition-colors"
 								placeholder="nome@provedor.com"
 							/>
-							<label class="flex items-start gap-2 cursor-pointer text-xs text-surface-700 dark:text-surface-200">
-								<input
-									type="checkbox"
-									name="confirmar_email_assessor"
-									value="1"
-									class="mt-0.5 rounded border-surface-400"
-									required
-								/>
-								<span>Confirmo que este e-mail está correto para receber os avisos das seccionais.</span>
-							</label>
 						</div>
-					{/if}
+						<label class="flex items-start gap-2.5 cursor-pointer sm:pb-0.5">
+							<input
+								type="checkbox"
+								name="confirmar_email_assessor"
+								value="1"
+								class="mt-0.5 shrink-0 rounded border-surface-400"
+								required
+							/>
+							<span class="text-xs text-surface-600 dark:text-surface-300 leading-snug">Confirmo que este e-mail está correto para receber os avisos das seccionais.</span>
+						</label>
+					</div>
 				</div>
-				<div>
-					<label
-						for="seint1Id"
-						class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-					>
-						Inteligência 1 (SEINT - OIP)
-					</label>
-					<SearchableSelect
-						id="seint1Id"
-						bind:value={seint1Id}
-						loadOptions={buscarOips}
-						selectedOption={selectedFromPoliciais(seint1Id)}
-						placeholder="Pesquisar SEINT 1..."
-						class="w-full"
-					/>
-				</div>
-				<div>
-					<label
-						for="seint2Id"
-						class="text-sm font-bold text-surface-600 dark:text-surface-400 block mb-2 px-1"
-					>
-						Inteligência 2 (SEINT - OIP)
-					</label>
-					<SearchableSelect
-						id="seint2Id"
-						bind:value={seint2Id}
-						loadOptions={buscarOips}
-						selectedOption={selectedFromPoliciais(seint2Id)}
-						placeholder="Pesquisar SEINT 2..."
-						class="w-full"
-					/>
+			{/if}
+
+			<!-- Seção: Inteligência (SEINT) -->
+			<div>
+				<p class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-2 px-0.5">
+					Inteligência (SEINT)
+				</p>
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div class="flex flex-col gap-1.5">
+						<label
+							for="seint1Id"
+							class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
+						>
+							SEINT 1 (OIP)
+						</label>
+						<SearchableSelect
+							id="seint1Id"
+							bind:value={seint1Id}
+							loadOptions={buscarOips}
+							selectedOption={selectedFromPoliciais(seint1Id)}
+							placeholder="Pesquisar SEINT 1..."
+							class="w-full"
+						/>
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label
+							for="seint2Id"
+							class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
+						>
+							SEINT 2 (OIP)
+						</label>
+						<SearchableSelect
+							id="seint2Id"
+							bind:value={seint2Id}
+							loadOptions={buscarOips}
+							selectedOption={selectedFromPoliciais(seint2Id)}
+							placeholder="Pesquisar SEINT 2..."
+							class="w-full"
+						/>
+					</div>
 				</div>
 			</div>
-				<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-				<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
-				<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
-				<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
-				<div class="flex gap-2 pt-1">
+
+			<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+			<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
+			<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
+			<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+
+			<div class="flex gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60">
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+					class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold"
 					disabled={pendingCrud}
 				>
 					{pendingCrud ? 'Salvando...' : 'Salvar'}
 				</button>
 				<button
 					type="button"
-					class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-lg"
+					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-lg"
 					onclick={onCancelar}
 				>
 					Cancelar
 				</button>
-				</div>
-			</form>
+			</div>
+		</form>
 		{:else}
 			<div
 				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
