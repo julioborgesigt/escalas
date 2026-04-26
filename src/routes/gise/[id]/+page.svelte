@@ -119,6 +119,9 @@
 	let editandoSupervisores = $state(false);
 	let supervisorId = $state<number | null>(null);
 	let assessorId = $state<number | null>(null);
+	/** E-mail do assessor para avisos quando seccionais enviam a GISE (formulário de supervisão). */
+	let assessorEmailNotificacao = $state('');
+	let prevAssessorParaEmail = $state<number | null>(null);
 	let seint1Id = $state<number | null>(null);
 	let seint2Id = $state<number | null>(null);
 	let equipeParaAdicionar = $state<number | null>(null);
@@ -198,6 +201,57 @@
 			seint1Id = gise.seint1_id ?? null;
 			seint2Id = gise.seint2_id ?? null;
 		}
+	});
+
+	function emailSugeridoAssessor(id: number | null): string {
+		if (id == null) return '';
+		const p = policiais.find((x: Policial) => x.id === id);
+		if (!p) return '';
+		return (p.email_pessoal?.trim() || p.email?.trim() || '') ?? '';
+	}
+
+	/**
+	 * Quem veio da busca (`/api/policiais/search`) não está na lista enxuta do load (sem e-mails).
+	 * Admin geral: busca e-mails via endpoint dedicado.
+	 */
+	async function preencherEmailAssessorSugerido(id: number | null) {
+		if (id == null) {
+			assessorEmailNotificacao = '';
+			return;
+		}
+		const local = emailSugeridoAssessor(id);
+		if (local) {
+			assessorEmailNotificacao = local;
+			return;
+		}
+		/** Vem do load: consulta direta ao assessor da GISE (evita lista só com `ativo=1` e dispensa fetch). */
+		const doLoad =
+			id === gise?.assessor_id ? (data.assessorEmailSugerido?.trim() ?? '') : '';
+		if (doLoad) {
+			assessorEmailNotificacao = doLoad;
+			return;
+		}
+		try {
+			const res = await fetch(`/api/policiais/${id}/email-aviso`);
+			if (!res.ok) return;
+			const d = (await res.json()) as { email_pessoal?: string | null; email?: string | null };
+			if (assessorId !== id) return;
+			assessorEmailNotificacao = (d.email_pessoal?.trim() || d.email?.trim() || '') ?? '';
+		} catch {
+			/* ignora falha de rede */
+		}
+	}
+
+	$effect(() => {
+		if (!editandoSupervisores) {
+			prevAssessorParaEmail = null;
+			return;
+		}
+		const cur = assessorId;
+		if (cur !== prevAssessorParaEmail) {
+			void preencherEmailAssessorSugerido(cur);
+		}
+		prevAssessorParaEmail = cur;
 	});
 
 	/**
@@ -664,10 +718,24 @@
 				seintSupervisaoComRelatorio={data.seintSupervisaoComRelatorio ?? []}
 				bind:supervisorId
 				bind:assessorId
+				bind:assessorEmailNotificacao
 				bind:seint1Id
 				bind:seint2Id
-				onEditar={() => (editandoSupervisores = true)}
-				onCancelar={() => (editandoSupervisores = false)}
+			onEditar={() => {
+				editandoSupervisores = true;
+				prevAssessorParaEmail = assessorId;
+				if (assessorId != null) {
+					const salvo = gise?.assessor_email_notificacao?.trim();
+					if (salvo) assessorEmailNotificacao = salvo;
+					else void preencherEmailAssessorSugerido(assessorId);
+				} else {
+					assessorEmailNotificacao = '';
+				}
+			}}
+				onCancelar={() => {
+					editandoSupervisores = false;
+					prevAssessorParaEmail = null;
+				}}
 				onSubmit={handleSalvarSupervisores}
 				supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 				assinaturasRelatorios={data.assinaturasRelatorios}

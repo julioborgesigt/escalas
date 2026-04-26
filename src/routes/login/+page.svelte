@@ -269,7 +269,7 @@
 </script>
 
 <svelte:head>
-	<title>Login - Recuperação de senha</title>
+	<title>Login - Gerenciamento de senha</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
@@ -277,7 +277,7 @@
 		class="w-full max-w-sm p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
 	>
 		<div class="text-center mb-6">
-			<h1 class="h1 text-xl font-bold mb-1">Recuperação de senha</h1>
+			<h1 class="h1 text-xl font-bold mb-1">Gerenciamento de senha</h1>
 			
 		</div>
 

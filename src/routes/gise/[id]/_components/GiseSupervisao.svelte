@@ -26,6 +26,7 @@
 		supervisor_id: number | null;
 		supervisor_nome: string | null;
 		assessor_id: number | null;
+		assessor_email_notificacao?: string | null;
 		assessor_nome?: string | null;
 		seint1_id: number | null;
 		seint1_nome?: string | null;
@@ -38,6 +39,8 @@
 		nome: string;
 		matricula: string;
 		cargo: string;
+		email?: string | null;
+		email_pessoal?: string | null;
 	}
 
 	interface DocumentoAssinadoInfo {
@@ -67,6 +70,8 @@
 		selectedFromPoliciais: (id: number | null) => SelectedOption;
 		supervisorId: number | null;
 		assessorId: number | null;
+		/** E-mail onde o assessor recebe aviso quando uma seccional envia a GISE (confirmado pelo Admin Geral). */
+		assessorEmailNotificacao?: string;
 		seint1Id: number | null;
 		seint2Id: number | null;
 		/** Presenças da GISE (entrada/saída) para marcadores do quadro. */
@@ -111,6 +116,7 @@
 		selectedFromPoliciais,
 		supervisorId = $bindable(),
 		assessorId = $bindable(),
+		assessorEmailNotificacao = $bindable(''),
 		seint1Id = $bindable(),
 		seint2Id = $bindable(),
 		presencasGise = null,
@@ -237,7 +243,13 @@
 		</div>
 
 		{#if editando}
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 mb-3 sm:mb-4">
+			<form
+				method="POST"
+				action="?/salvarSupervisores"
+				use:enhance={onSubmit}
+				class="space-y-3 sm:space-y-4"
+			>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
 				<div>
 					<label
 						for="supId"
@@ -268,6 +280,37 @@
 						placeholder="Pesquisar Assessor..."
 						class="w-full"
 					/>
+					{#if assessorId != null}
+						<div class="mt-2 space-y-2 rounded-xl border border-primary-500/20 bg-primary-500/5 p-3">
+							<p class="text-xs font-semibold text-surface-600 dark:text-surface-300 leading-snug">
+								Avisos de preenchimento: quando uma seccional finalizar o envio da escala, o sistema envia
+								um e-mail com resumo (texto para WhatsApp) para o endereço abaixo. Confira ou edite o
+								e-mail pessoal do assessor.
+							</p>
+							<label for="assessorEmailNotif" class="text-xs font-bold text-surface-600 dark:text-surface-400 block"
+								>E-mail do assessor (avisos GISE)</label
+							>
+							<input
+								id="assessorEmailNotif"
+								type="email"
+								name="assessor_email_notificacao"
+								autocomplete="email"
+								bind:value={assessorEmailNotificacao}
+								class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+								placeholder="nome@provedor.com"
+							/>
+							<label class="flex items-start gap-2 cursor-pointer text-xs text-surface-700 dark:text-surface-200">
+								<input
+									type="checkbox"
+									name="confirmar_email_assessor"
+									value="1"
+									class="mt-0.5 rounded border-surface-400"
+									required
+								/>
+								<span>Confirmo que este e-mail está correto para receber os avisos das seccionais.</span>
+							</label>
+						</div>
+					{/if}
 				</div>
 				<div>
 					<label
@@ -302,16 +345,11 @@
 					/>
 				</div>
 			</div>
-			<form
-				method="POST"
-				action="?/salvarSupervisores"
-				use:enhance={onSubmit}
-				class="flex gap-2"
-			>
 				<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
 				<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
 				<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 				<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+				<div class="flex gap-2 pt-1">
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
@@ -326,6 +364,7 @@
 				>
 					Cancelar
 				</button>
+				</div>
 			</form>
 		{:else}
 			<div
@@ -386,6 +425,11 @@
 											>
 												{policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
 											</p>
+											{#if gise.assessor_email_notificacao}
+												<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5" title="E-mail para avisos de seccionais">
+													Avisos: {gise.assessor_email_notificacao}
+												</p>
+											{/if}
 										</div>
 									</div>
 									<div class="shrink-0 flex items-center">
