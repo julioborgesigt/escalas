@@ -124,28 +124,30 @@ export async function invalidarPapelGiseMultiplos(
 export async function coletarAfetadosGise(db: Database, giseId: number): Promise<number[]> {
 	const ids = new Set<number>();
 
-	const quadro = await db
-		.select({
-			supervisor_id: giseEscalas.supervisor_id,
-			assessor_id: giseEscalas.assessor_id,
-			seint1_id: giseEscalas.seint1_id,
-			seint2_id: giseEscalas.seint2_id
-		})
-		.from(giseEscalas)
-		.where(eq(giseEscalas.id, giseId))
-		.get();
+	const [quadro, membros] = await Promise.all([
+		db
+			.select({
+				supervisor_id: giseEscalas.supervisor_id,
+				assessor_id: giseEscalas.assessor_id,
+				seint1_id: giseEscalas.seint1_id,
+				seint2_id: giseEscalas.seint2_id
+			})
+			.from(giseEscalas)
+			.where(eq(giseEscalas.id, giseId))
+			.get(),
+		db
+			.select({ id: giseMembros.policial_id })
+			.from(giseMembros)
+			.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+			.where(eq(giseSeccionais.gise_id, giseId))
+			.all()
+	]);
+
 	if (quadro?.supervisor_id != null) ids.add(quadro.supervisor_id);
 	if (quadro?.assessor_id != null) ids.add(quadro.assessor_id);
 	if (quadro?.seint1_id != null) ids.add(quadro.seint1_id);
 	if (quadro?.seint2_id != null) ids.add(quadro.seint2_id);
-
-	const membros = await db
-		.select({ id: giseMembros.policial_id })
-		.from(giseMembros)
-		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		.where(eq(giseSeccionais.gise_id, giseId))
-		.all();
 	for (const m of membros) ids.add(m.id);
 
 	return Array.from(ids);

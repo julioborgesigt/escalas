@@ -1,7 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
-import { getDB, listarGiseEscalas, buscarGiseAtiva, isSupervisorGiseAtiva, isMembroGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
+import { getDB, listarGiseEscalas, buscarGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { eq, asc } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
@@ -17,10 +18,10 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	let isSupervisor = false;
 	let isMembro = false;
 	if (u.tipo === 'policial') {
-		[isSupervisor, isMembro] = await Promise.all([
-			isSupervisorGiseAtiva(db, u.id),
-			isMembroGiseAtiva(db, u.id)
-		]);
+		// Reutiliza o cache edge (TTL 60s) já populado pelo layout — evita 2 queries ao D1
+		const papel = await lerPapelGise(db, u.id);
+		isSupervisor = papel.isSupervisor;
+		isMembro = papel.isMembro;
 	}
 
 	// Servidores sem qualquer vínculo com GISE: redirecionar

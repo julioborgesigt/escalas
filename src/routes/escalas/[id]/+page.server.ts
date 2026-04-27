@@ -6,7 +6,6 @@ import {
 	listarPoliciaisEscala,
 	listarPoliciaisEscalaQuery,
 	buscarDocumentoEscala,
-	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
 	adicionarTodosPoliciais,
 	criarEscala,
@@ -269,6 +268,7 @@ export const actions: Actions = {
 			const policiaisAtuais = await listarPoliciaisEscala(db, escalaId);
 			let adicionados = 0;
 			const naoProcessados: Array<{ nome: string; motivo: string }> = [];
+			const linhasParaInserir: typeof escalaPoliciais.$inferInsert[] = [];
 
 			if (escalaAtual.tipo === 'expediente') {
 				const policialIdsVistos = new Set<number>();
@@ -283,7 +283,14 @@ export const actions: Actions = {
 					const dsSaida = p.hora_saida || hs;
 					const dataSaida = calcularDataSaida(novaDataInicio, dsEntrada, dsSaida);
 
-					await adicionarPolicialEscala(db, novaEscalaId, p.policial_id, novaDataInicio, dataSaida, dsEntrada, dsSaida);
+					linhasParaInserir.push({
+						escala_id: novaEscalaId,
+						policial_id: p.policial_id,
+						data_plantao: novaDataInicio,
+						data_saida: dataSaida,
+						hora_entrada: dsEntrada,
+						hora_saida: dsSaida
+					});
 					adicionados++;
 				}
 			} else {
@@ -308,10 +315,23 @@ export const actions: Actions = {
 					}
 					for (const dia of novosDias) {
 						const dataSaida = calcularDataSaida(dia, he, hs);
-						await adicionarPolicialEscala(db, novaEscalaId, policialId, dia, dataSaida, he, hs, '', equipe);
+						linhasParaInserir.push({
+							escala_id: novaEscalaId,
+							policial_id: policialId,
+							data_plantao: dia,
+							data_saida: dataSaida,
+							hora_entrada: he,
+							hora_saida: hs,
+							equipe
+						});
 					}
 					adicionados++;
 				}
+			}
+
+			// Batch único em vez de N INSERTs sequenciais
+			if (linhasParaInserir.length > 0) {
+				await db.insert(escalaPoliciais).values(linhasParaInserir);
 			}
 
 			await registrarAuditComContexto(db, {
