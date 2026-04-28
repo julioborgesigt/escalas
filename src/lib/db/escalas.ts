@@ -76,26 +76,35 @@ export async function listarEscalas(
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-	// Contagem total (já com filtro de status aplicado)
-	const countResult = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(escalas)
-		.where(whereClause)
-		.get();
-	const total = Number(countResult?.count ?? 0);
-
 	const page = Math.max(1, opts?.page ?? 1);
 	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
-	const totalPages = Math.ceil(total / limit);
 	const offset = (page - 1) * limit;
 
+	// Window function elimina o round-trip separado de COUNT (igual ao listarPoliciais)
 	const results = await db
-		.select()
+		.select({
+			id: escalas.id,
+			titulo: escalas.titulo,
+			cidade: escalas.cidade,
+			data_inicio: escalas.data_inicio,
+			data_fim: escalas.data_fim,
+			horario: escalas.horario,
+			hora_entrada: escalas.hora_entrada,
+			hora_saida: escalas.hora_saida,
+			lotacao: escalas.lotacao,
+			tipo: escalas.tipo,
+			visto_por_admin: escalas.visto_por_admin,
+			created_at: escalas.created_at,
+			total: sql<number>`count(*) OVER()`
+		})
 		.from(escalas)
 		.where(whereClause)
 		.orderBy(desc(escalas.created_at))
 		.limit(limit)
 		.offset(offset);
+
+	const total = results.length > 0 ? Number(results[0].total) : 0;
+	const totalPages = Math.ceil(total / limit);
 
 	if (results.length === 0) {
 		return { escalas: [], total, page, limit, totalPages };
@@ -109,7 +118,7 @@ export async function listarEscalas(
 
 	const assinadas = new Set(docs.map((d) => d.escala_id));
 
-	const mapeadas = results.map((e) => ({ ...e, is_assinada: assinadas.has(e.id) }));
+	const mapeadas = results.map(({ total: _t, ...e }) => ({ ...e, is_assinada: assinadas.has(e.id) }));
 
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
