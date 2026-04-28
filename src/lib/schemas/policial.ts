@@ -4,7 +4,11 @@ export const policialSchema = z.object({
 	nome: z.string().min(1, 'Nome é obrigatório').max(200, 'Nome muito longo (máx. 200)'),
 	matricula: z.string().min(1, 'Matrícula é obrigatória').max(20),
 	cargo: z.enum(['DPC', 'OIP'], { message: 'Cargo deve ser DPC ou OIP' }),
-	cpf: z.string().max(14).optional().nullable(),
+	cpf: z
+		.string()
+		.regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido (use 11 dígitos ou formato ###.###.###-##)')
+		.optional()
+		.nullable(),
 	telefone: z.string().max(20).default(''),
 	lotacao: z.string().max(200).default(''),
 	regime: z.enum(['plantao', 'expediente']).default('plantao'),
