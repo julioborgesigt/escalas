@@ -287,4 +287,12 @@
 			class="underline">Assinador Desktop SERPRO</a
 		>. Certifique-se de que o aplicativo está aberto e o token conectado.
 	</p>
+
+	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
+		<p class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center">
+			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
+			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de
+			validade jurídica desta assinatura (Lei 14.063/20).
+		</p>
+	</div>
 </div>

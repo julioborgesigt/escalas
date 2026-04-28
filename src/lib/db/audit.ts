@@ -71,7 +71,7 @@ export async function registrarAudit(
 			entidade: entry.entidade,
 			entidade_id: entry.entidade_id ?? null,
 			detalhes: entry.detalhes ?? null,
-			ip: entry.ip ?? null,
+			ip: anonimizarIp(entry.ip),
 			user_agent: entry.user_agent ?? null
 		});
 	} catch (err) {
@@ -110,6 +110,33 @@ export async function registrarAuditComContexto(
 		ip: opts.ip,
 		user_agent: opts.user_agent
 	});
+}
+
+/**
+ * Anonimiza endereços IP para conformidade com LGPD.
+ * IPv4: zera o último octeto (ex: 192.168.1.42 → 192.168.1.0)
+ * IPv6: zera os últimos 80 bits / 5 grupos (ex: 2001:db8::1 → 2001:db8::)
+ */
+export function anonimizarIp(ip: string | null | undefined): string | null {
+	if (!ip) return null;
+	if (ip.includes(':')) {
+		// IPv6 — expande e zera últimos 5 grupos (80 bits)
+		try {
+			const parts = ip.split(':');
+			if (parts.length >= 3) {
+				return parts.slice(0, 3).join(':') + '::';
+			}
+		} catch {
+			// fallback
+		}
+		return null;
+	}
+	// IPv4
+	const octets = ip.split('.');
+	if (octets.length === 4) {
+		return `${octets[0]}.${octets[1]}.${octets[2]}.0`;
+	}
+	return null;
 }
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
