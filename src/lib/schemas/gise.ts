@@ -15,7 +15,10 @@ export const giseSignatureSchema = z.object({
 		.transform((v) => v ?? '')
 		.pipe(z.string().min(1, 'Rubrica é obrigatória')),
 	selfieBase64: optionalNullable(
-		z.string().max(5 * 1024 * 1024, 'Imagem muito grande (máx 5 MB)')
+		z
+			.string()
+			.max(5 * 1024 * 1024, 'Imagem muito grande (máx 5 MB)')
+			.regex(/^data:image\/(png|jpe?g|webp);base64,/, 'Selfie deve ser data URL base64')
 	),
 	codigoEmail: optionalNullable(z.string().trim().max(200)),
 	codigoValidação: optionalNullable(z.string().max(32)),
@@ -24,8 +27,8 @@ export const giseSignatureSchema = z.object({
 	hash: optionalNullable(z.string()),
 	signerName: optionalNullable(z.string().max(200)),
 	signerCpf: optionalNullable(z.string().max(20)),
-	latitude: z.number().nullable().optional(),
-	longitude: z.number().nullable().optional()
+	latitude: z.number().min(-90).max(90).nullable().optional(),
+	longitude: z.number().min(-180).max(180).nullable().optional()
 });
 
 /**

@@ -163,6 +163,9 @@ export async function tentarLogin({
 		const envSenha = _env?.ADMIN_GERAL_SENHA ?? '';
 
 		if (envLogin && envSenha && matricula === envLogin) {
+			// AVISO DE SEGURANÇA: credenciais de bootstrap em uso. Remova ADMIN_GERAL_LOGIN e
+			// ADMIN_GERAL_SENHA das variáveis de ambiente após o setup inicial — elas ignoram 2FA.
+			logger.warn('[security] Login via credenciais de bootstrap (ADMIN_GERAL). Remova as variáveis de ambiente após o setup inicial.', { ip });
 			if (!compararSegredoUtf8TimingSafe(senha, envSenha)) {
 				await recordAttempt(db, ip, false);
 				await registrarAuditComContexto(db, {
