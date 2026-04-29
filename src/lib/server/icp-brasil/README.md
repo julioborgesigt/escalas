@@ -24,14 +24,34 @@ o resultado mesmo se o ITI mudar a estrutura do site).
 
 A ITI publica os certificados raiz em PDF assinado em
 <https://www.gov.br/iti/pt-br/assuntos/icp-brasil>. Os arquivos `.crt`/`.cer`
-binários ficam em `https://estrutura.iti.gov.br/` (interface SPA — clicar em
-"Repositório de Certificados das ACs").
+binários ficam em `https://acraiz.icpbrasil.gov.br/`.
 
-### Procedimento
+### Procedimento (recomendado): script automatizado
 
-1. Baixe **manualmente** cada `.crt` em `https://www.gov.br/iti/pt-br/assuntos/icp-brasil/repositorio`.
-2. Verifique o hash SHA-256 do arquivo baixado contra o documento oficial do ITI
-   (publicado em PDF assinado).
+Em qualquer máquina Linux/macOS/WSL com `curl`, `openssl` e `unzip`:
+
+```sh
+cd src/lib/server/icp-brasil
+./update-trust-store.sh
+git diff roots.pem intermediates.pem    # revise as mudanças
+git add roots.pem intermediates.pem
+git commit -m "chore(icp-brasil): atualiza trust store ($(date +%F))"
+```
+
+O script baixa as raízes ativas (v5 e v10), o zip oficial das ACs
+intermediárias da ICP-Brasil, converte tudo para PEM, anota subject /
+validade / SHA-256 antes de cada certificado, e substitui os PEMs
+versionados. Idempotente — pode rodar de novo a qualquer momento.
+
+### Procedimento manual (fallback)
+
+Se o script falhar (mudança de URL no ITI, por exemplo):
+
+1. Baixe **manualmente** cada `.crt` de
+   `https://acraiz.icpbrasil.gov.br/credenciadas/RAIZ/ICP-Brasilv{5,10}.crt`
+   e o zip `https://acraiz.icpbrasil.gov.br/credenciadas/CertificadosAC-ICP-Brasil/ACcompactado.zip`.
+2. Verifique o hash SHA-256 dos arquivos baixados contra o documento oficial
+   do ITI (publicado em PDF assinado).
 3. Converta cada `.crt` (DER binário) para PEM:
    ```sh
    openssl x509 -inform DER -in ACraizv10.crt -outform PEM -out ACraizv10.pem
@@ -56,7 +76,8 @@ binários ficam em `https://estrutura.iti.gov.br/` (interface SPA — clicar em
 ⚠️ Os arquivos `roots.pem` e `intermediates.pem` neste commit estão **vazios**
 (apenas com comentários explicativos). O loader detecta isso e retorna
 `{ disponivel: false }` — a verificação de cadeia exibe "indisponível"
-até que a equipe popule os PEMs seguindo o procedimento acima.
+até que a equipe execute `./update-trust-store.sh` (ou rode o procedimento
+manual) e commite os PEMs populados.
 
 ## Frequência de atualização
 
