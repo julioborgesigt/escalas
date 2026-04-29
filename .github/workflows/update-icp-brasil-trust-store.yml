@@ -1,0 +1,77 @@
+name: Atualiza trust store ICP-Brasil
+
+# Roda mensalmente (todo dia 1 às 06:00 UTC ≈ 03:00 Brasília) e também
+# pode ser disparado manualmente via "Run workflow" na aba Actions.
+#
+# Se a cadeia oficial da ITI mudar (raízes ou intermediárias), abre um PR
+# com o diff dos PEMs para revisão e merge manual. Se nada mudou, sai
+# silencioso.
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependências do script
+        run: sudo apt-get update && sudo apt-get install -y curl openssl unzip
+
+      - name: Rodar update-trust-store.sh
+        working-directory: src/lib/server/icp-brasil
+        run: ./update-trust-store.sh
+
+      - name: Verificar se houve mudança
+        id: diff
+        run: |
+          if git diff --quiet src/lib/server/icp-brasil/roots.pem src/lib/server/icp-brasil/intermediates.pem; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Cadeia ICP-Brasil sem alterações — nada a fazer."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Mudanças detectadas — abrindo PR."
+            git diff --stat src/lib/server/icp-brasil/roots.pem src/lib/server/icp-brasil/intermediates.pem
+          fi
+
+      - name: Abrir PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: |
+            chore(icp-brasil): atualiza trust store
+
+            Atualização automática gerada pelo workflow
+            update-icp-brasil-trust-store.yml a partir das fontes oficiais
+            da ITI (acraiz.icpbrasil.gov.br).
+          title: 'chore(icp-brasil): atualiza trust store'
+          body: |
+            Atualização automática da cadeia ICP-Brasil (raízes + intermediárias).
+
+            **Origem:** `https://acraiz.icpbrasil.gov.br/credenciadas/`
+            **Disparado por:** workflow `update-icp-brasil-trust-store.yml` (cron mensal)
+
+            ### Como revisar
+
+            1. Confira o diff dos arquivos `roots.pem` e `intermediates.pem`.
+            2. Os comentários acima de cada certificado mostram **Subject**,
+               **Validade** e **SHA-256** — verifique se há ACs novas
+               credenciadas pela ITI ou ACs descredenciadas (removidas).
+            3. Se quiser conferir contra a fonte oficial, compare o SHA-256
+               com o publicado pela ITI em
+               <https://www.gov.br/iti/pt-br/assuntos/repositorio>.
+
+            Após merge, o `loadTrustStore()` em runtime passa a reconhecer
+            as ACs novas/atualizadas automaticamente — nenhum redeploy
+            adicional é necessário além do já feito por `deploy.yml`.
+          branch: chore/icp-brasil-trust-store-update
+          delete-branch: true
+          labels: |
+            chore
+            icp-brasil
