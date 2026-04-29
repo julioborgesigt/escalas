@@ -17,7 +17,7 @@ import {
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
-import { determinarTipoCarimbo } from '$lib/server/document-utils';
+import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 import { logger } from '$lib/server/logger';
 import { contentDisposition, validateBody } from '$lib/server/api';
 
@@ -64,7 +64,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		latitude,
 		longitude,
 		rubrica,
-		serproResponse,
 		documentHash: documentHashOriginal,
 		assinanteEmail
 	} = validated.data;
@@ -103,9 +102,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			}
 		}
 
-		// Determinar tipo de carimbo de tempo
-		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
-
 		let signedPdfBytes: Uint8Array;
 		let type: 'webpki' | 'serpro' = 'webpki';
 
@@ -128,6 +124,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				signingTimeISO
 			);
 		}
+
+		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
+		const verif = await verificarECarimbarAssinatura(signedPdfBytes);
+		if (!verif.ok) {
+			return json({ error: verif.error }, { status: verif.status });
+		}
+		const tipoCarimboTempo = verif.tipoCarimboTempo;
 
 		// Calcular Hash do documento assinado (para controle no banco)
 		const hashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
@@ -153,8 +156,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			seccional_id: secIdNum,
 			tipo: 'extraordinario',
 			assinante_id: u.tipo === 'policial' ? u.id : null,
-			assinante_nome: dadosToken?.nome || u.nome,
-			assinante_cpf: dadosToken?.cpf || u.cpf || null,
+			assinante_nome: verif.signerName || dadosToken?.nome || u.nome,
+			assinante_cpf: verif.signerCpf || dadosToken?.cpf || u.cpf || null,
 			tipo_assinatura: type,
 			rubrica: rubrica,
 			verification_hash: verificationHash,
@@ -166,7 +169,15 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			r2_key: r2Key,
 			arquivo_hash: documentHashOriginal || arquivo_hash, // Preferimos o hash do PDF original para auditoria
 			assinante_email: assinanteEmail ?? u.email,
-			tipo_carimbo_tempo: tipoCarimboTempo
+			tipo_carimbo_tempo: tipoCarimboTempo,
+			cert_issuer: verif.metadata.cert_issuer,
+			cert_serial: verif.metadata.cert_serial,
+			cert_valido_de: verif.metadata.cert_valido_de,
+			cert_valido_ate: verif.metadata.cert_valido_ate,
+			cms_sha256: verif.metadata.cms_sha256,
+			ocsp_response_b64: verif.metadata.ocsp_response_b64,
+			ocsp_consultado_em: verif.metadata.ocsp_consultado_em,
+			tst_token_b64: verif.metadata.tst_token_b64
 		});
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);

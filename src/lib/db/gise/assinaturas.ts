@@ -85,6 +85,15 @@ export async function salvarAssinaturaRelatorioGise(
 		r2_key?: string | null;
 		assinante_email?: string | null;
 		tipo_carimbo_tempo?: string;
+		// Metadados CAdES-LT (migração 0012)
+		cert_issuer?: string | null;
+		cert_serial?: string | null;
+		cert_valido_de?: string | null;
+		cert_valido_ate?: string | null;
+		cms_sha256?: string | null;
+		ocsp_response_b64?: string | null;
+		ocsp_consultado_em?: string | null;
+		tst_token_b64?: string | null;
 	}
 ) {
 	return db
@@ -112,6 +121,14 @@ export async function salvarAssinaturaRelatorioGise(
 				r2_key: data.r2_key,
 				assinante_email: data.assinante_email ?? null,
 				tipo_carimbo_tempo: data.tipo_carimbo_tempo || 'servidor',
+				cert_issuer: data.cert_issuer ?? null,
+				cert_serial: data.cert_serial ?? null,
+				cert_valido_de: data.cert_valido_de ?? null,
+				cert_valido_ate: data.cert_valido_ate ?? null,
+				cms_sha256: data.cms_sha256 ?? null,
+				ocsp_response_b64: data.ocsp_response_b64 ?? null,
+				ocsp_consultado_em: data.ocsp_consultado_em ?? null,
+				tst_token_b64: data.tst_token_b64 ?? null,
 				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
