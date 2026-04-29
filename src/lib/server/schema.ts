@@ -173,6 +173,15 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	latitude: real('latitude'),
 	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+	// Metadados CAdES-LT (migração 0012) — nullable para compatibilidade com registros antigos.
+	cert_issuer: text('cert_issuer'),
+	cert_serial: text('cert_serial'),
+	cert_valido_de: text('cert_valido_de'),
+	cert_valido_ate: text('cert_valido_ate'),
+	cms_sha256: text('cms_sha256'),
+	ocsp_response_b64: text('ocsp_response_b64'),
+	ocsp_consultado_em: text('ocsp_consultado_em'),
+	tst_token_b64: text('tst_token_b64'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
@@ -323,6 +332,15 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	latitude: real('latitude'),
 	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+	// Metadados CAdES-LT (migração 0012)
+	cert_issuer: text('cert_issuer'),
+	cert_serial: text('cert_serial'),
+	cert_valido_de: text('cert_valido_de'),
+	cert_valido_ate: text('cert_valido_ate'),
+	cms_sha256: text('cms_sha256'),
+	ocsp_response_b64: text('ocsp_response_b64'),
+	ocsp_consultado_em: text('ocsp_consultado_em'),
+	tst_token_b64: text('tst_token_b64'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_documento').on(table.gise_id)
@@ -407,6 +425,15 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	longitude: real('longitude'),
 	r2_key: text('r2_key'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+	// Metadados CAdES-LT (migração 0012)
+	cert_issuer: text('cert_issuer'),
+	cert_serial: text('cert_serial'),
+	cert_valido_de: text('cert_valido_de'),
+	cert_valido_ate: text('cert_valido_ate'),
+	cms_sha256: text('cms_sha256'),
+	ocsp_response_b64: text('ocsp_response_b64'),
+	ocsp_consultado_em: text('ocsp_consultado_em'),
+	tst_token_b64: text('tst_token_b64'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
