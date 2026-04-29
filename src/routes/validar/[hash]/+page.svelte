@@ -109,6 +109,9 @@
 			: 'border-error-500/20'}">
 
 		{#if data.encontrado}
+			{@const v = data.verificacao}
+			{@const tipoAss = data.documento.tipo_assinatura}
+			{@const ehQualificada = tipoAss === 'webpki' || tipoAss === 'serpro' || (tipoAss === null && v !== null)}
 			<!-- ✅ DOCUMENTO VÁLIDO -->
 			<div class="flex flex-col items-center mb-6 sm:mb-10">
 				<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
@@ -122,6 +125,105 @@
 			</div>
 
 			<div class="space-y-4 sm:space-y-6">
+				<!-- Status criptográfico (CAdES-LT) -->
+				<section class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5">
+					<div class="flex items-center justify-between mb-3 sm:mb-4">
+						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status Criptográfico</h2>
+						{#if ehQualificada}
+							<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 tracking-wider">ICP-Brasil</span>
+						{:else}
+							<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
+						{/if}
+					</div>
+					<div class="space-y-2 text-xs sm:text-sm">
+						<!-- Integridade do arquivo -->
+						<div class="flex items-start gap-2">
+							{#if data.hashConfere === true}
+								<span class="text-success-600 font-black shrink-0">✓</span>
+								<span class="text-surface-700 dark:text-surface-300"><strong>Integridade do arquivo:</strong> hash do PDF confere com o registro original.</span>
+							{:else if data.hashConfere === false}
+								<span class="text-error-600 font-black shrink-0">✕</span>
+								<span class="text-error-700 dark:text-error-400 font-bold">O arquivo armazenado foi alterado após a assinatura.</span>
+							{:else}
+								<span class="text-surface-400 font-black shrink-0">?</span>
+								<span class="text-surface-500 italic">Verificação de integridade indisponível (registro antigo).</span>
+							{/if}
+						</div>
+
+						{#if v}
+							<!-- Cadeia ICP-Brasil -->
+							<div class="flex items-start gap-2">
+								{#if v.checks.cadeiaIcpBrasil === true}
+									<span class="text-success-600 font-black shrink-0">✓</span>
+									<span class="text-surface-700 dark:text-surface-300"><strong>Cadeia ICP-Brasil:</strong> certificado encadeia até uma AC Raiz reconhecida.</span>
+								{:else if v.checks.cadeiaIcpBrasil === 'indisponivel'}
+									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<span class="text-surface-500 italic">Cadeia ICP-Brasil não validada (trust store ainda não populado).</span>
+								{:else}
+									<span class="text-error-600 font-black shrink-0">✕</span>
+									<span class="text-error-700 dark:text-error-400 font-bold">Cadeia ICP-Brasil inválida.</span>
+								{/if}
+							</div>
+							<!-- Assinatura RSA -->
+							<div class="flex items-start gap-2">
+								{#if v.checks.assinaturaRsa}
+									<span class="text-success-600 font-black shrink-0">✓</span>
+									<span class="text-surface-700 dark:text-surface-300"><strong>Assinatura RSA:</strong> SignedAttributes íntegros e assinados pela chave do certificado.</span>
+								{:else}
+									<span class="text-error-600 font-black shrink-0">✕</span>
+									<span class="text-error-700 dark:text-error-400 font-bold">Assinatura RSA inválida.</span>
+								{/if}
+							</div>
+							<!-- Carimbo de tempo -->
+							<div class="flex items-start gap-2">
+								{#if v.checks.timestampQualificado}
+									<span class="text-success-600 font-black shrink-0">✓</span>
+									<span class="text-surface-700 dark:text-surface-300"><strong>Carimbo de tempo qualificado:</strong> ACT/ICP-Brasil (RFC 3161){#if v.timestamp}, em {formatarDataHora(v.timestamp.momento)}{/if}.</span>
+								{:else}
+									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<span class="text-surface-500"><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span>
+								{/if}
+							</div>
+							<!-- Revogação -->
+							<div class="flex items-start gap-2">
+								{#if v.checks.revogacao === 'good'}
+									<span class="text-success-600 font-black shrink-0">✓</span>
+									<span class="text-surface-700 dark:text-surface-300"><strong>Revogação:</strong> certificado válido (snapshot OCSP{#if data.documento.ocsp_consultado_em} de {formatarDataHora(data.documento.ocsp_consultado_em)}{/if}).</span>
+								{:else if v.checks.revogacao === 'revoked'}
+									<span class="text-error-600 font-black shrink-0">✕</span>
+									<span class="text-error-700 dark:text-error-400 font-bold">Certificado REVOGADO pela Autoridade Certificadora.</span>
+								{:else}
+									<span class="text-surface-400 font-black shrink-0">?</span>
+									<span class="text-surface-500 italic">Verificação OCSP indisponível para este documento (assinado antes da migração de auditoria).</span>
+								{/if}
+							</div>
+							{#if v.certificado}
+								<div class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-surface-500">
+									<div><strong>Emissor:</strong> {v.certificado.issuer || '—'}</div>
+									<div><strong>Série:</strong> {v.certificado.serial.slice(0, 16)}{v.certificado.serial.length > 16 ? '…' : ''}</div>
+									<div><strong>Válido de:</strong> {formatarDataHora(v.certificado.validoDe)}</div>
+									<div><strong>Válido até:</strong> {formatarDataHora(v.certificado.validoAte)}</div>
+								</div>
+							{/if}
+							{#if !v.valid && v.erros.length > 0}
+								<div class="mt-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-700/30 rounded text-[11px] text-error-700 dark:text-error-300">
+									<strong>Falhas detectadas:</strong>
+									<ul class="list-disc pl-4 mt-1">
+										{#each v.erros as e}
+											<li>{e}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						{:else if !ehQualificada}
+							<p class="text-[11px] text-surface-500 italic pt-1">
+								Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica
+								conforme Lei 14.063/2020 art. 4º, II.
+							</p>
+						{/if}
+					</div>
+				</section>
+
 				<!-- Informações do Documento -->
 				<section class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5">
 					<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">Informações do Documento</h2>

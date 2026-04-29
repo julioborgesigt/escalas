@@ -5,7 +5,7 @@ import { validateBody } from '$lib/server/api';
 import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
-import { determinarTipoCarimbo } from '$lib/server/document-utils';
+import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -21,7 +21,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		signature,
 		certificate,
 		serproCms,
-		serproResponse,
 		verificationHash,
 		signingTimeISO,
 		messageDigestHex,
@@ -79,6 +78,15 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			cpfAssinante = dados.cpf;
 		}
 
+		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
+		const verif = await verificarECarimbarAssinatura(signedPdf);
+		if (!verif.ok) {
+			return json({ error: verif.error }, { status: verif.status });
+		}
+		// Preferimos os dados extraídos do certificado verificado.
+		nomeAssinante = verif.signerName || nomeAssinante;
+		cpfAssinante = verif.signerCpf || cpfAssinante;
+
 		if (!hasR2(platform)) {
 			return json({ error: 'Storage R2 não configurado' }, { status: 500 });
 		}
@@ -88,8 +96,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		await bucket.put(r2Key, signedPdf, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
-
-		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
 
 		await salvarDocumentoEscala(
 			db,
@@ -105,7 +111,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			undefined, // selfieKey
 			documentHash ?? undefined,
 			assinanteEmail ?? undefined,
-			tipoCarimboTempo
+			verif.tipoCarimboTempo,
+			verif.metadata
 		);
 
 		await registrarAuditComContexto(db, {

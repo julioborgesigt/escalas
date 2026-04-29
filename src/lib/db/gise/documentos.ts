@@ -16,6 +16,10 @@ import {
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 
+/** Reexportado de '../documentos' para uso pelos endpoints. */
+export type { AssinaturaCadesMetadata } from '../documentos';
+import type { AssinaturaCadesMetadata } from '../documentos';
+
 export async function salvarGiseDocumento(
 	db: Database,
 	giseId: number,
@@ -32,8 +36,10 @@ export async function salvarGiseDocumento(
 	selfieKey?: string,
 	arquivoHash?: string,
 	assinanteEmail?: string,
-	tipoCarimboTempo?: string
+	tipoCarimboTempo?: string,
+	cadesMeta?: AssinaturaCadesMetadata
 ) {
+	const meta = cadesMeta ?? {};
 	return db
 		.insert(giseDocumentos)
 		.values({
@@ -51,7 +57,15 @@ export async function salvarGiseDocumento(
 			user_agent: userAgent,
 			latitude,
 			longitude,
-			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor'
+			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
+			cert_issuer: meta.cert_issuer ?? null,
+			cert_serial: meta.cert_serial ?? null,
+			cert_valido_de: meta.cert_valido_de ?? null,
+			cert_valido_ate: meta.cert_valido_ate ?? null,
+			cms_sha256: meta.cms_sha256 ?? null,
+			ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+			ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+			tst_token_b64: meta.tst_token_b64 ?? null
 		})
 		.onConflictDoUpdate({
 			target: [giseDocumentos.gise_id],
@@ -70,6 +84,14 @@ export async function salvarGiseDocumento(
 				latitude,
 				longitude,
 				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
+				cert_issuer: meta.cert_issuer ?? null,
+				cert_serial: meta.cert_serial ?? null,
+				cert_valido_de: meta.cert_valido_de ?? null,
+				cert_valido_ate: meta.cert_valido_ate ?? null,
+				cms_sha256: meta.cms_sha256 ?? null,
+				ocsp_response_b64: meta.ocsp_response_b64 ?? null,
+				ocsp_consultado_em: meta.ocsp_consultado_em ?? null,
+				tst_token_b64: meta.tst_token_b64 ?? null,
 				created_at: sql`datetime('now', '-3 hours')`
 			}
 		});
