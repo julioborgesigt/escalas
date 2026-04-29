@@ -13,7 +13,7 @@ import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } fro
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
-import { determinarTipoCarimbo } from '$lib/server/document-utils';
+import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 import { contentDisposition, validateBody } from '$lib/server/api';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
@@ -34,7 +34,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		preparedPdf,
 		rawSignature,
 		serproCms,
-		serproResponse,
 		certificateBase64,
 		messageDigest,
 		signingTimeISO,
@@ -98,9 +97,6 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			}
 		}
 
-		// Determinar tipo de carimbo de tempo
-		const tipoCarimboTempo = determinarTipoCarimbo(serproResponse);
-
 		let signedPdfBytes: Uint8Array;
 		if (serproCms) {
 			signedPdfBytes = await embedSerproCms(pdfBytesInput, serproCms);
@@ -120,6 +116,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				signingTimeISO
 			);
 		}
+
+		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
+		const verif = await verificarECarimbarAssinatura(signedPdfBytes);
+		if (!verif.ok) {
+			return json({ error: verif.error }, { status: verif.status });
+		}
+		const tipoCarimboTempo = verif.tipoCarimboTempo;
 
 		// Calcular Hash do documento assinado (para controle no banco)
 		const hashBuffer = await crypto.subtle.digest('SHA-256', signedPdfBytes.slice());
@@ -141,8 +144,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		}
 
 		// Registrar no banco com auditoria
-		const finalSignerName = dadosToken?.nome || u.nome;
-		const finalSignerCpf = dadosToken?.cpf || u.cpf || '';
+		const finalSignerName = verif.signerName || dadosToken?.nome || u.nome;
+		const finalSignerCpf = verif.signerCpf || dadosToken?.cpf || u.cpf || '';
 		await salvarGiseDocumento(
 			db,
 			id,
@@ -160,7 +163,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			// Hash do PDF original (recebido do preparar-assinatura)
 			documentHashOriginal || documentHash,
 			assinanteEmail,
-			tipoCarimboTempo
+			tipoCarimboTempo,
+			verif.metadata
 		);
 
 		// Avançar status para andamento

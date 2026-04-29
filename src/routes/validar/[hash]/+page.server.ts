@@ -2,6 +2,9 @@ import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGi
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
+import { getR2 } from '$lib/server/platform';
+import { calcularHashBuffer } from '$lib/server/document-utils';
+import { verificarAssinaturaCompleta, type VerificationResult } from '$lib/server/pdf-verification';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform, setHeaders }) => {
@@ -117,6 +120,44 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		}
 	}
 
+	// Verificação criptográfica do PDF (CAdES-LT). Lê o objeto do R2 e
+	// reconfere hash + assinatura RSA + cadeia + revogação OCSP a partir do
+	// snapshot armazenado no banco. Em qualquer falha de I/O, devolve um
+	// resultado "indisponível" sem quebrar a página.
+	const docAny = documento as Record<string, unknown>;
+	const tipoAssin = (docAny.tipo_assinatura as string | undefined) ?? null;
+	const arquivoHashEsperado = (docAny.arquivo_hash as string | undefined) ?? null;
+	const ocspSnapshotB64 = (docAny.ocsp_response_b64 as string | undefined) ?? null;
+	const ehAvancada = tipoAssin === 'simples' || tipoAssin === null && documento.tipo_doc === 'gise_relatorio';
+
+	let verificacao: VerificationResult | null = null;
+	let hashConfere: boolean | null = null;
+	try {
+		const r2 = getR2(platform);
+		if (r2 && documento.r2_key) {
+			const obj = await r2.get(documento.r2_key);
+			if (obj) {
+				const buf = new Uint8Array(await obj.arrayBuffer());
+				if (arquivoHashEsperado) {
+					const h = await calcularHashBuffer(buf);
+					hashConfere = h === arquivoHashEsperado;
+				}
+				if (!ehAvancada && tipoAssin !== 'simples') {
+					verificacao = await verificarAssinaturaCompleta(buf, {
+						ocspSnapshotB64,
+						tipoCarimboTempoArmazenado:
+							(docAny.tipo_carimbo_tempo as 'servidor' | 'act_icp' | undefined) ?? null
+					});
+				}
+			}
+		}
+	} catch (err) {
+		logger.warn('[validar] Falha na verificação criptográfica', {
+			hash,
+			err: String(err)
+		});
+	}
+
 	// Resultado imutável: dados de assinatura não mudam após a criação.
 	// Cache no edge do Cloudflare por 1h; browser revalida após 60s.
 	setHeaders({
@@ -124,7 +165,6 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 	});
 
 	return {
-		// ... (rest of the return block)
 		encontrado: true as const,
 		documento: {
 			assinante_nome: documento.assinante_nome,
@@ -134,8 +174,14 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			ip_address: documento.ip_address,
 			user_agent: documento.user_agent,
 			latitude: documento.latitude,
-			longitude: documento.longitude
+			longitude: documento.longitude,
+			tipo_assinatura: tipoAssin,
+			cert_issuer: (docAny.cert_issuer as string | undefined) ?? null,
+			cert_valido_ate: (docAny.cert_valido_ate as string | undefined) ?? null,
+			ocsp_consultado_em: (docAny.ocsp_consultado_em as string | undefined) ?? null
 		},
+		verificacao,
+		hashConfere,
 		escala: {
 			titulo,
 			cidade,
