@@ -148,7 +148,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		const r2 = getR2(p);
 		if (r2) {
-			await r2.put(r2Key, signedPdfBytes, { contentType: 'application/pdf' });
+			await r2.put(r2Key, verif.pdfFinal, { contentType: 'application/pdf' });
 		}
 
 		await salvarAssinaturaRelatorioGise(db, {
@@ -183,7 +183,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		await tentarPromoverGiseProntaParaFinalizar(db, id);
 
 		// Retorna o PDF assinado como bytes binários
-		return new Response(signedPdfBytes as unknown as BodyInit, {
+		return new Response(verif.pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename)
