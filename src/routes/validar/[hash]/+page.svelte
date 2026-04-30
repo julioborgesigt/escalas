@@ -127,13 +127,18 @@
 			<div class="space-y-4 sm:space-y-6">
 				<!-- Status criptográfico (CAdES-LT) -->
 				<section class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5">
-					<div class="flex items-center justify-between mb-3 sm:mb-4">
+					<div class="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
 						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status Criptográfico</h2>
-						{#if ehQualificada}
-							<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 tracking-wider">ICP-Brasil</span>
-						{:else}
-							<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
-						{/if}
+						<div class="flex gap-2 flex-wrap">
+							{#if ehQualificada}
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 tracking-wider">ICP-Brasil</span>
+							{:else}
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
+							{/if}
+							{#if v?.padesLt?.presente}
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-success-500/10 text-success-700 dark:text-success-300 tracking-wider" title="DSS Dictionary embarcado: certificados e OCSP dentro do próprio PDF (ETSI EN 319 142-1)">PAdES-LT</span>
+							{/if}
+						</div>
 					</div>
 					<div class="space-y-2 text-xs sm:text-sm">
 						<!-- Integridade do arquivo -->

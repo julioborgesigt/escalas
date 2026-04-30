@@ -130,7 +130,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
 
-		// Salvar no R2
+		// Salvar no R2 — preferindo o PDF com DSS embarcado (PAdES-LT).
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/escala`;
@@ -138,7 +138,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
 		const r2 = getR2(p);
 		if (r2) {
-			await r2.put(documentKey, signedPdfBytes, {
+			await r2.put(documentKey, verif.pdfFinal, {
 				contentType: 'application/pdf'
 			});
 		}
@@ -170,7 +170,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Avançar status para andamento
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
 
-		return new Response(signedPdfBytes as unknown as BodyInit, {
+		return new Response(verif.pdfFinal as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(documentKey)
