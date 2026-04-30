@@ -93,7 +93,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 		const bucket = getR2(platform);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
-		await bucket.put(r2Key, signedPdf, {
+		// Sobe o PDF FINAL (com DSS, se PAdES-LT foi aplicado com sucesso).
+		await bucket.put(r2Key, verif.pdfFinal, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
