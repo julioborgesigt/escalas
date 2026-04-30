@@ -22,6 +22,7 @@ import {
 } from './pdf-verification';
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore } from './icp-brasil/trust-store';
+import { aplicarDss } from './pades-lt';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
 
@@ -39,6 +40,14 @@ export interface CadesFinalizationResult {
 	tipoCarimboTempo: TipoCarimoTempo;
 	signerName: string;
 	signerCpf: string;
+	/**
+	 * Bytes do PDF final a serem persistidos no R2. Quando possível, é o PDF
+	 * com DSS embarcado (PAdES-LT). Em caso de falha no DSS, retorna o PDF
+	 * original (CAdES-LT continua válido por meio do snapshot OCSP no banco).
+	 */
+	pdfFinal: Uint8Array;
+	/** Indica se o DSS foi aplicado com sucesso (PAdES-LT auto-contido). */
+	padesLt: boolean;
 }
 
 export interface CadesFinalizationError {
@@ -145,6 +154,8 @@ export async function verificarECarimbarAssinatura(
 		ocsp_response_b64?: string;
 		ocsp_consultado_em?: string;
 	} = {};
+	let issuerCertParaDss: forge.pki.Certificate | null = null;
+	let ocspDerParaDss: Uint8Array | null = null;
 	try {
 		const ts = loadTrustStore();
 		const issuerCN =
@@ -153,11 +164,23 @@ export async function verificarECarimbarAssinatura(
 			(c) => (c.subject.getField('CN')?.value as string) === issuerCN
 		);
 		if (issuer) {
+			issuerCertParaDss = issuer;
 			const snap = await consultarOcsp(cms.certificate, issuer);
 			ocspMetadata = {
 				ocsp_response_b64: snap.responseDerB64 || undefined,
 				ocsp_consultado_em: snap.consultadoEm
 			};
+			if (snap.responseDerB64) {
+				try {
+					const der = forge.util.decode64(snap.responseDerB64);
+					ocspDerParaDss = new Uint8Array(der.length);
+					for (let i = 0; i < der.length; i++) {
+						ocspDerParaDss[i] = der.charCodeAt(i) & 0xff;
+					}
+				} catch {
+					/* ignore */
+				}
+			}
 			if (snap.status === 'revoked') {
 				return {
 					ok: false,
@@ -208,11 +231,60 @@ export async function verificarECarimbarAssinatura(
 		tst_token_b64: tstTokenB64
 	};
 
+	// 9. PAdES-LT: embarcar DSS (cadeia + OCSP) no PDF.
+	// Falha de DSS NÃO invalida a assinatura — CAdES-LT no banco é fallback.
+	let pdfFinal = signedPdfBytes;
+	let padesLt = false;
+	try {
+		const certsDer: Uint8Array[] = [];
+		// Adiciona o issuer (intermediário da AC) se identificado.
+		if (issuerCertParaDss) {
+			const der = forge.asn1.toDer(forge.pki.certificateToAsn1(issuerCertParaDss)).getBytes();
+			const arr = new Uint8Array(der.length);
+			for (let i = 0; i < der.length; i++) arr[i] = der.charCodeAt(i) & 0xff;
+			certsDer.push(arr);
+		}
+		// Adiciona raiz se trust store disponível e o issuer não é raiz.
+		if (issuerCertParaDss) {
+			const ts = loadTrustStore();
+			const rootMatch = ts.roots.find(
+				(r) =>
+					(r.subject.getField('CN')?.value as string) ===
+					(issuerCertParaDss!.issuer.getField('CN')?.value as string)
+			);
+			if (rootMatch && rootMatch !== issuerCertParaDss) {
+				const der = forge.asn1.toDer(forge.pki.certificateToAsn1(rootMatch)).getBytes();
+				const arr = new Uint8Array(der.length);
+				for (let i = 0; i < der.length; i++) arr[i] = der.charCodeAt(i) & 0xff;
+				certsDer.push(arr);
+			}
+		}
+
+		const ocspsDer = ocspDerParaDss ? [ocspDerParaDss] : [];
+
+		if (certsDer.length > 0 || ocspsDer.length > 0) {
+			pdfFinal = await aplicarDss(signedPdfBytes, {
+				certs: certsDer,
+				ocsps: ocspsDer,
+				crls: []
+			});
+			padesLt = true;
+		}
+	} catch (e) {
+		logger.warn('[CADES] Falha ao aplicar DSS — PDF salvo sem PAdES-LT', {
+			error: e instanceof Error ? e.message : String(e)
+		});
+		pdfFinal = signedPdfBytes;
+		padesLt = false;
+	}
+
 	return {
 		ok: true,
 		metadata,
 		tipoCarimboTempo,
 		signerName: cn.split(':')[0].trim(),
-		signerCpf: cpf
+		signerCpf: cpf,
+		pdfFinal,
+		padesLt
 	};
 }

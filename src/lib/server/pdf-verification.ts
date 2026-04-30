@@ -17,6 +17,7 @@ import { logger } from './logger';
 import { loadTrustStore } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascaraCPF } from './document-utils';
+import { detectarDss } from './pades-lt';
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
@@ -44,6 +45,8 @@ export interface VerificationResult {
 	};
 	certificado?: VerificationCertificado;
 	timestamp?: { tipo: 'act_icp' | 'servidor'; momento: string };
+	/** Sinaliza se o PDF tem DSS Dictionary embarcado (PAdES-LT auto-contido). */
+	padesLt?: { presente: boolean; certCount: number; ocspCount: number; crlCount: number };
 	erros: string[];
 }
 
@@ -524,6 +527,13 @@ export async function verificarAssinaturaCompleta(
 		}
 	} else {
 		result.checks.revogacao = 'unknown';
+	}
+
+	// 6. Detecção de PAdES-LT (DSS Dictionary)
+	try {
+		result.padesLt = await detectarDss(pdfBytes);
+	} catch {
+		/* falha aqui não invalida — apenas não exibe badge PAdES-LT */
 	}
 
 	// Resultado consolidado: válido apenas se TODOS os checks essenciais passaram.
