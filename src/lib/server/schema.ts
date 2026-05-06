@@ -441,6 +441,30 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 ]);
 
 
+// ---- Aceites do Termo de Uso e Política de Privacidade ----
+
+export const aceitesTermos = sqliteTable(
+	'aceites_termos',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		usuario_tipo: text('usuario_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		usuario_id: integer('usuario_id').notNull(),
+		versao_termo: text('versao_termo').notNull(),
+		hash_termo: text('hash_termo').notNull(),
+		aceitou_lgpd: integer('aceitou_lgpd').notNull().default(0),
+		ip: text('ip'),
+		user_agent: text('user_agent'),
+		aceitou_em: text('aceitou_em').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_aceites_termos_usuario').on(
+			table.usuario_tipo,
+			table.usuario_id,
+			table.aceitou_em
+		)
+	]
+);
+
 // ---- Autenticação de Dois Fatores ----
 
 export const doisFatoresTokens = sqliteTable(
@@ -543,6 +567,8 @@ export type GiseDocumento = typeof giseDocumentos.$inferSelect;
 export type GisePresenca = typeof gisePresencas.$inferSelect;
 export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
 export type GiseAssinaturaRelatorio = typeof giseAssinaturasRelatorios.$inferSelect;
+export type AceiteTermo = typeof aceitesTermos.$inferSelect;
+export type NovoAceiteTermo = typeof aceitesTermos.$inferInsert;
 export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NovoAuditLog = typeof auditLog.$inferInsert;

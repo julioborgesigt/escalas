@@ -3,7 +3,8 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
-import { getDB } from '$lib/db';
+import { getDB, temAceiteVigente } from '$lib/db';
+import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
@@ -19,7 +20,8 @@ const ROTAS_PUBLICAS = new Set([
 	'/validar',
 	'/api/validar',
 	'/api/health',
-	'/api/webhook'
+	'/api/webhook',
+	'/termo'
 ]);
 
 function isRotaPublica(pathname: string): boolean {
@@ -129,6 +131,38 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			});
 		}
 		throw redirect(302, '/alterar-senha');
+	}
+
+	// Fluxo de aceite do Termo de Uso vigente.
+	// Roda APÓS primeiro_acesso resolvido (senha definida + e-mail confirmado).
+	// Rotas livres do bloqueio: a própria /aceitar-termo, /termo/[versao] (consulta
+	// pública), /api/auth/logout (permitir sair) e a rota raiz pós-login.
+	const rotasLivresTermo =
+		pathname.startsWith('/aceitar-termo') ||
+		pathname.startsWith('/termo/') ||
+		pathname.startsWith('/api/termos/') ||
+		pathname.startsWith('/api/auth/');
+	if (!rotasLivresTermo) {
+		try {
+			const db = getDB(event.platform);
+			const hash = await calcularHashTermo();
+			const ok = await temAceiteVigente(db, usuario.tipo, usuario.id, TERMO_VERSAO, hash);
+			if (!ok) {
+				if (pathname.startsWith('/api/')) {
+					return new Response(
+						JSON.stringify({ error: 'Aceite o Termo de Uso vigente antes de continuar' }),
+						{ status: 403, headers: { 'Content-Type': 'application/json' } }
+					);
+				}
+				throw redirect(302, '/aceitar-termo');
+			}
+		} catch (err) {
+			// `redirect` é uma exceção de controle de fluxo do SvelteKit — propaga.
+			if (err && typeof err === 'object' && 'status' in err && 'location' in err) throw err;
+			logger.warn('[hooks] verificação de termo falhou — permitindo seguir', {
+				err: String(err)
+			});
+		}
 	}
 
 	event.locals.usuario = usuario;
