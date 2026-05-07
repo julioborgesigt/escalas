@@ -21,6 +21,12 @@ export {
 } from './db/audit';
 
 export {
+	registrarAceite,
+	buscarUltimoAceite,
+	temAceiteVigente
+} from './db/termos';
+
+export {
 	salvarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
