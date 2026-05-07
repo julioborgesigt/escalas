@@ -213,6 +213,12 @@
 <!-- SEÇÃO DE ASSINATURA UNIFICADA (Idêntica à GISE) -->
 {#if !documentoAssinadoInfo?.existe && policiaisCount > 0}
 	<div class="space-y-6">
+		<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
+			Ao escolher um método e confirmar, você atesta que esta assinatura tem valor jurídico
+			equivalente à manuscrita, conforme o
+			<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600">Termo de Uso</a>
+			aceito.
+		</p>
 		<h3
 			class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500"
 		>
