@@ -129,13 +129,17 @@
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
 <Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
-	{#snippet children()}
-		<div class="p-6 max-w-sm">
-			<h3 class="text-lg font-bold mb-2">Revogar assinatura?</h3>
-			<p class="text-sm text-surface-600 dark:text-surface-300 mb-6">
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="h3 font-bold mb-2">Revogar assinatura?</Dialog.Title>
+			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 				Isso excluirá o PDF oficial e permitirá editar a escala novamente. Esta ação não pode ser
 				desfeita.
-			</p>
+			</Dialog.Description>
 			<div class="flex justify-end gap-3">
 				<button type="button"
 					class="btn preset-outlined-surface-500"
@@ -148,7 +152,7 @@
 				</button>
 			</div>
 		</div>
-	{/snippet}
+	</Dialog.Content>
 </Dialog>
 
 <!-- Banner: escala assinada -->
