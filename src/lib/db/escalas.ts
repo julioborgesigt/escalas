@@ -95,6 +95,7 @@ export async function listarEscalas(
 			tipo: escalas.tipo,
 			visto_por_admin: escalas.visto_por_admin,
 			finalizada_em: escalas.finalizada_em,
+			email_envio: escalas.email_envio,
 			created_at: escalas.created_at,
 			total: sql<number>`count(*) OVER()`
 		})
@@ -181,9 +182,9 @@ export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db.update(escalas).set({ visto_por_admin: visto ? 1 : 0 }).where(eq(escalas.id, id));
 }
 
-export async function finalizarEscalaFDS(db: Database, id: number): Promise<void> {
+export async function finalizarEscalaFDS(db: Database, id: number, emailEnvio: string): Promise<void> {
 	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-	await db.update(escalas).set({ finalizada_em: agora }).where(eq(escalas.id, id));
+	await db.update(escalas).set({ finalizada_em: agora, email_envio: emailEnvio }).where(eq(escalas.id, id));
 }
 
 export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {

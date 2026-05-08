@@ -399,6 +399,88 @@ export async function enviarLinkRedefinicaoSenha(
 }
 
 /**
+ * Envia a escala de FDS como anexo DOCX para o e-mail de destino (ex: DPI Sul).
+ */
+export async function enviarEscalaFDSPorEmail(
+  destinatario: string,
+  tituloEscala: string,
+  nomeRemetente: string,
+  docxBuffer: Uint8Array,
+  nomeArquivo: string,
+  platform: App.Platform | undefined
+): Promise<void> {
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Sistema de Escalas - PCCE" <${user}>`,
+      to: destinatario,
+      subject: `Escala de FDS — ${tituloEscala}`,
+      text: `Segue em anexo a Escala de Plantão do Final de Semana.\n\nTítulo: ${tituloEscala}\nEnviado por: ${nomeRemetente}`,
+      html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#1a3a6e;padding:24px 32px;">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
+            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 16px;color:#333;font-size:15px;">
+              Segue em anexo a <strong>Escala de Plantão do Final de Semana</strong>:
+            </p>
+            <div style="background:#eef2ff;border-left:4px solid #1a3a6e;border-radius:6px;padding:16px 20px;margin-bottom:24px;">
+              <p style="margin:0;color:#1a3a6e;font-size:14px;font-weight:bold;">${tituloEscala}</p>
+            </div>
+            <p style="margin:0 0 8px;color:#555;font-size:13px;">
+              Enviado por: <strong>${nomeRemetente}</strong>
+            </p>
+            <p style="margin:0;color:#888;font-size:12px;">
+              O arquivo <em>.docx</em> está disponível em anexo.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+      attachments: [
+        {
+          filename: nomeArquivo,
+          content: Buffer.from(docxBuffer),
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+      ]
+    });
+    logger.info('[email/fds] Escala enviada', {
+      destinatario,
+      titulo: tituloEscala,
+      messageId: info.messageId
+    });
+  } catch (err) {
+    logger.error('[email/fds] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
+    throw err;
+  }
+}
+
+/**
  * Aviso ao assessor quando uma seccional finaliza o envio da GISE (texto copiável).
  */
 export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(

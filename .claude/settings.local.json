@@ -13,7 +13,10 @@
       "Bash(npx svelte-check --tsconfig ./tsconfig.json)",
       "Bash(python3 -c ' *)",
       "Bash(sed -i '838s/{#if !documentoAssinadoInfo?.existe}/{#if !documentoAssinadoInfo?.existe \\\\&\\\\& !finalizadaEm}/' \"src/routes/escalas/[id]/+page.svelte\")",
-      "Bash(sed -n '838p' \"src/routes/escalas/[id]/+page.svelte\")"
+      "Bash(sed -n '838p' \"src/routes/escalas/[id]/+page.svelte\")",
+      "Bash(xargs grep -l \"enviarNotificacaoAssessorGisePreenchimentoSeccional\")",
+      "Bash(npx tsc *)",
+      "Bash(npx wrangler *)"
     ]
   }
 }
