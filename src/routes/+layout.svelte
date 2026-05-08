@@ -328,7 +328,7 @@
 			{/if}
 
 			<!-- Grupo 3: Policiais · Unidades -->
-			{#if showEscalasPoliciais}
+			{#if usuario?.tipo === 'admin'}
 				<a
 					href="/policiais"
 					data-sveltekit-preload-data="hover"
