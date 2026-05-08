@@ -5,6 +5,7 @@
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
@@ -22,13 +23,15 @@
 		isFDS,
 		policiaisCount,
 		usuario,
-		documentoAssinadoInfo = $bindable()
+		documentoAssinadoInfo = $bindable(),
+		finalizadaEm = $bindable(null)
 	}: {
 		escalaId: string;
 		isFDS: boolean;
 		policiaisCount: number;
 		usuario: UsuarioLogado | null;
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
+		finalizadaEm?: string | null;
 	} = $props();
 
 	const mobileState = useMobile();
@@ -125,7 +128,119 @@
 	async function assinarComSerpro() {
 		await assinatura.assinarComSerpro();
 	}
+
+	// FDS: handlers de finalizar/desfinalizar
+	let pendingFinalizar = $state(false);
+	let pendingDesfinalizar = $state(false);
+	let dialogDesfinalizarAberto = $state(false);
+
+	function handleFinalizar() {
+		pendingFinalizar = true;
+		return async ({ result }: { result: any }) => {
+			pendingFinalizar = false;
+			if (result.type === 'success') {
+				finalizadaEm = new Date().toISOString();
+				toaster.create({ title: 'Escala enviada com sucesso!', type: 'success' });
+			} else {
+				toaster.create({ title: result.data?.error || 'Erro ao finalizar', type: 'error' });
+			}
+		};
+	}
+
+	function handleDesfinalizar() {
+		pendingDesfinalizar = true;
+		dialogDesfinalizarAberto = false;
+		return async ({ result }: { result: any }) => {
+			pendingDesfinalizar = false;
+			if (result.type === 'success') {
+				finalizadaEm = null;
+				toaster.create({ title: 'Envio desfeito. A escala pode ser editada.', type: 'info' });
+			} else {
+				toaster.create({ title: result.data?.error || 'Erro ao desfazer envio', type: 'error' });
+			}
+		};
+	}
 </script>
+
+<!-- ===== BLOCO EXCLUSIVO PARA FDS ===== -->
+{#if isFDS}
+	{#if finalizadaEm}
+		<!-- Banner: FDS enviada -->
+		<div class="mb-6 p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+			<div class="flex items-center gap-4">
+				<div class="bg-success-500/20 p-3 rounded-xl">
+					<svg class="w-6 h-6 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+				</div>
+				<div>
+					<h3 class="font-bold text-success-800 dark:text-success-400 text-lg">Escala Enviada</h3>
+					<p class="text-sm text-success-700 dark:text-success-300 mt-0.5">
+						Finalizada em {new Date(finalizadaEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
+					</p>
+				</div>
+			</div>
+			<div class="flex gap-2">
+				{#each ['DOCX', 'XLSX', 'PDF'] as format}
+					<a class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 no-underline rounded-lg"
+						href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
+						target="_blank">{format}</a>
+				{/each}
+				<button type="button"
+					class="btn btn-sm preset-outlined-error-500 font-bold"
+					onclick={() => (dialogDesfinalizarAberto = true)}
+					disabled={pendingDesfinalizar}
+				>
+					Desfazer Envio
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- Painel: FDS não enviada -->
+		<div class="mb-6 p-5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+			<div>
+				<h3 class="font-semibold text-base text-surface-700 dark:text-surface-200">Finalizar Envio da Escala</h3>
+				<p class="text-xs text-surface-500 mt-1">
+					Ao finalizar, a escala ficará registrada como enviada e não poderá ser editada.
+				</p>
+			</div>
+			<form method="POST" action="?/finalizar" use:enhance={handleFinalizar} class="shrink-0">
+				<button
+					type="submit"
+					class="btn preset-filled-primary-500 font-bold px-6"
+					disabled={pendingFinalizar || policiaisCount === 0}
+				>
+					{pendingFinalizar ? 'Enviando...' : 'Finalizar Envio'}
+				</button>
+			</form>
+		</div>
+		{#if policiaisCount === 0}
+			<p class="text-xs text-warning-600 dark:text-warning-400 -mt-4 mb-4 px-1">Adicione ao menos um policial antes de finalizar.</p>
+		{/if}
+	{/if}
+
+	<!-- Diálogo confirmar desfinalizar -->
+	<Dialog open={dialogDesfinalizarAberto} onOpenChange={(e) => (dialogDesfinalizarAberto = e.open)}>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+			<div class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+				<Dialog.Title class="h3 font-bold mb-2">Desfazer Envio?</Dialog.Title>
+				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+					A escala voltará ao estado de rascunho e poderá ser editada novamente.
+				</Dialog.Description>
+				<div class="flex justify-end gap-3">
+					<button type="button" class="btn preset-outlined-surface-500" onclick={() => (dialogDesfinalizarAberto = false)}>
+						Cancelar
+					</button>
+					<form method="POST" action="?/desfinalizar" use:enhance={handleDesfinalizar} class="contents">
+						<button type="submit" class="btn preset-filled-warning-500 font-bold" disabled={pendingDesfinalizar}>
+							{pendingDesfinalizar ? 'Desfazendo...' : 'Desfazer Envio'}
+						</button>
+					</form>
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
+{/if}
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
 <Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
@@ -154,6 +269,9 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
+
+<!-- ===== BLOCO DE ASSINATURA (apenas para plantão/expediente) ===== -->
+{#if !isFDS}
 
 <!-- Banner: escala assinada -->
 {#if documentoAssinadoInfo?.existe}
@@ -372,6 +490,9 @@
 		</div>
 	</div>
 {/if}
+
+{/if}
+<!-- ===== FIM BLOCO ASSINATURA ===== -->
 
 <Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
 	<Dialog.Content

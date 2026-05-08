@@ -59,6 +59,8 @@ export {
 	excluirEscala,
 	verificarEscalaExistente,
 	marcarVisto,
+	finalizarEscalaFDS,
+	desfinalizarEscalaFDS,
 	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
 	atualizarEscalaPolicial,

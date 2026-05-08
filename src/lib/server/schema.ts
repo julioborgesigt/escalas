@@ -56,6 +56,7 @@ export const escalas = sqliteTable(
 		lotacao: text('lotacao').notNull().default(''),
 		tipo: text('tipo', { enum: ['plantao', 'expediente', 'fds'] }),
 		visto_por_admin: integer('visto_por_admin').notNull().default(0),
+		finalizada_em: text('finalizada_em'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
