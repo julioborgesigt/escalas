@@ -23,6 +23,7 @@
 	let escala = $derived(data.escala);
 	let finalizadaEm = $state<string | null>(untrack(() => data.escala?.finalizada_em ?? null));
 	$effect(() => { finalizadaEm = data.escala?.finalizada_em ?? null; });
+	const emailEnvioInicial = $derived(data.escala?.email_envio ?? null);
 	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
@@ -419,6 +420,7 @@
 		usuario={page.data.usuario}
 		bind:documentoAssinadoInfo
 		bind:finalizadaEm
+		{emailEnvioInicial}
 	/>
 
 	<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>

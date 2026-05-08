@@ -14,8 +14,11 @@ import {
 	finalizarEscalaFDS,
 	desfinalizarEscalaFDS
 } from '$lib/db';
+import * as exportLib from '$lib/server/export';
+import { enviarEscalaFDSPorEmail } from '$lib/server/email';
+import { logger } from '$lib/server/logger';
 import { eq } from 'drizzle-orm';
-import { escalaPoliciais } from '$lib/server/schema';
+import { escalaPoliciais, escalas as escalasTable } from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
 	proximoMes,
@@ -414,7 +417,7 @@ export const actions: Actions = {
 		}
 	},
 
-	finalizar: async ({ locals, platform, params }) => {
+	finalizar: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -424,18 +427,72 @@ export const actions: Actions = {
 
 		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
+		const formData = await request.formData();
+		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
+		if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
+			return fail(400, { error: 'E-mail de destino inválido' });
+		}
+
 		try {
-			await finalizarEscalaFDS(db, escalaId);
+			const policiais = await listarPoliciaisEscala(db, escalaId);
+			const docxBuffer = await exportLib.gerarDocx(escala, policiais);
+			const nomeArquivo = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.docx`;
+
+			await finalizarEscalaFDS(db, escalaId, emailDestino);
+
+			try {
+				await enviarEscalaFDSPorEmail(emailDestino, escala.titulo, u.nome, docxBuffer, nomeArquivo, platform);
+			} catch (emailErr) {
+				logger.warn('[escalas/finalizar] Falha ao enviar e-mail (finalização prossegue)', {
+					escalaId,
+					emailDestino,
+					error: emailErr instanceof Error ? emailErr.message : String(emailErr)
+				});
+			}
+
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'finalizar_escala_fds',
 				entidade: 'escala',
 				entidade_id: escalaId,
-				detalhes: `Escala de FDS finalizada: ${escala.titulo}`
+				detalhes: `Escala de FDS finalizada e enviada para ${emailDestino}: ${escala.titulo}`
 			});
-			return { success: true };
+			return { success: true, emailDestino };
 		} catch {
 			return fail(500, { error: 'Erro ao finalizar escala' });
+		}
+	},
+
+	reenviarEmail: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escala, escalaId } = ctx;
+
+		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+
+		const formData = await request.formData();
+		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
+		if (!emailDestino || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDestino)) {
+			return fail(400, { error: 'E-mail de destino inválido' });
+		}
+
+		try {
+			const policiais = await listarPoliciaisEscala(db, escalaId);
+			const docxBuffer = await exportLib.gerarDocx(escala, policiais);
+			const nomeArquivo = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.docx`;
+
+			// Atualiza o e-mail armazenado caso tenha mudado
+			if (emailDestino !== escala.email_envio) {
+				await db.update(escalasTable).set({ email_envio: emailDestino }).where(eq(escalasTable.id, escalaId));
+			}
+
+			await enviarEscalaFDSPorEmail(emailDestino, escala.titulo, u.nome, docxBuffer, nomeArquivo, platform);
+			return { success: true, emailDestino };
+		} catch {
+			return fail(500, { error: 'Erro ao reenviar e-mail' });
 		}
 	},
 

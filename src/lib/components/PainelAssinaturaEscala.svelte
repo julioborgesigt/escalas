@@ -24,7 +24,8 @@
 		policiaisCount,
 		usuario,
 		documentoAssinadoInfo = $bindable(),
-		finalizadaEm = $bindable(null)
+		finalizadaEm = $bindable(null),
+		emailEnvioInicial = null
 	}: {
 		escalaId: string;
 		isFDS: boolean;
@@ -32,6 +33,7 @@
 		usuario: UsuarioLogado | null;
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
 		finalizadaEm?: string | null;
+		emailEnvioInicial?: string | null;
 	} = $props();
 
 	const mobileState = useMobile();
@@ -129,20 +131,66 @@
 		await assinatura.assinarComSerpro();
 	}
 
-	// FDS: handlers de finalizar/desfinalizar
+	// FDS: estado dos modais e pending
+	const EMAIL_PADRAO_FDS = 'dpis@policiacivil.ce.gov.br';
+
 	let pendingFinalizar = $state(false);
+	let pendingReenviar = $state(false);
 	let pendingDesfinalizar = $state(false);
+
+	let dialogEnvioAberto = $state(false);
+	let dialogReenvioAberto = $state(false);
 	let dialogDesfinalizarAberto = $state(false);
+
+	// E-mail editável no modal (inicializa com o salvo ou padrão)
+	let emailModal = $state(EMAIL_PADRAO_FDS);
+
+	// E-mail salvo no banco (inicializado pelo prop e atualizado após envio/reenvio)
+	let emailEnvioSalvo = $state<string | null>(emailEnvioInicial);
+
+	function abrirModalFinalizar() {
+		emailModal = emailEnvioSalvo || EMAIL_PADRAO_FDS;
+		dialogEnvioAberto = true;
+	}
+
+	function abrirModalReenviar() {
+		emailModal = emailEnvioSalvo || EMAIL_PADRAO_FDS;
+		dialogReenvioAberto = true;
+	}
 
 	function handleFinalizar() {
 		pendingFinalizar = true;
+		dialogEnvioAberto = false;
 		return async ({ result }: { result: any }) => {
 			pendingFinalizar = false;
 			if (result.type === 'success') {
 				finalizadaEm = new Date().toISOString();
-				toaster.create({ title: 'Escala enviada com sucesso!', type: 'success' });
+				emailEnvioSalvo = result.data?.emailDestino ?? emailModal;
+				toaster.create({
+					title: 'Escala enviada com sucesso!',
+					description: `E-mail enviado para ${result.data?.emailDestino ?? emailModal}`,
+					type: 'success'
+				});
 			} else {
 				toaster.create({ title: result.data?.error || 'Erro ao finalizar', type: 'error' });
+			}
+		};
+	}
+
+	function handleReenviar() {
+		pendingReenviar = true;
+		dialogReenvioAberto = false;
+		return async ({ result }: { result: any }) => {
+			pendingReenviar = false;
+			if (result.type === 'success') {
+				emailEnvioSalvo = result.data?.emailDestino ?? emailModal;
+				toaster.create({
+					title: 'E-mail reenviado com sucesso!',
+					description: `Escala enviada para ${result.data?.emailDestino ?? emailModal}`,
+					type: 'success'
+				});
+			} else {
+				toaster.create({ title: result.data?.error || 'Erro ao reenviar', type: 'error' });
 			}
 		};
 	}
@@ -177,15 +225,23 @@
 					<h3 class="font-bold text-success-800 dark:text-success-400 text-lg">Escala Enviada</h3>
 					<p class="text-sm text-success-700 dark:text-success-300 mt-0.5">
 						Finalizada em {new Date(finalizadaEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.
+						{#if emailEnvioSalvo}<span class="opacity-70">· {emailEnvioSalvo}</span>{/if}
 					</p>
 				</div>
 			</div>
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2 justify-end">
 				{#each ['DOCX', 'XLSX', 'PDF'] as format}
 					<a class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 no-underline rounded-lg"
 						href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 						target="_blank">{format}</a>
 				{/each}
+				<button type="button"
+					class="btn btn-sm preset-outlined-primary-500 font-bold"
+					onclick={abrirModalReenviar}
+					disabled={pendingReenviar}
+				>
+					{pendingReenviar ? 'Enviando...' : 'Reenviar E-mail'}
+				</button>
 				<button type="button"
 					class="btn btn-sm preset-outlined-error-500 font-bold"
 					onclick={() => (dialogDesfinalizarAberto = true)}
@@ -201,23 +257,88 @@
 			<div>
 				<h3 class="font-semibold text-base text-surface-700 dark:text-surface-200">Finalizar Envio da Escala</h3>
 				<p class="text-xs text-surface-500 mt-1">
-					Ao finalizar, a escala ficará registrada como enviada e não poderá ser editada.
+					Confirme o e-mail de destino e envie a escala em formato Word.
 				</p>
 			</div>
-			<form method="POST" action="?/finalizar" use:enhance={handleFinalizar} class="shrink-0">
-				<button
-					type="submit"
-					class="btn preset-filled-primary-500 font-bold px-6"
-					disabled={pendingFinalizar || policiaisCount === 0}
-				>
-					{pendingFinalizar ? 'Enviando...' : 'Finalizar Envio'}
-				</button>
-			</form>
+			<button
+				type="button"
+				class="btn preset-filled-primary-500 font-bold px-6 shrink-0"
+				onclick={abrirModalFinalizar}
+				disabled={pendingFinalizar || policiaisCount === 0}
+			>
+				{pendingFinalizar ? 'Enviando...' : 'Finalizar Envio'}
+			</button>
 		</div>
 		{#if policiaisCount === 0}
 			<p class="text-xs text-warning-600 dark:text-warning-400 -mt-4 mb-4 px-1">Adicione ao menos um policial antes de finalizar.</p>
 		{/if}
 	{/if}
+
+	<!-- Modal: confirmar e-mail para finalizar envio -->
+	<Dialog open={dialogEnvioAberto} onOpenChange={(e) => (dialogEnvioAberto = e.open)}>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+			<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+				<Dialog.Title class="h3 font-bold mb-1">Confirmar Envio</Dialog.Title>
+				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
+					A escala será enviada como arquivo <strong>.docx</strong> para o e-mail abaixo. Verifique antes de confirmar.
+				</Dialog.Description>
+				<form method="POST" action="?/finalizar" use:enhance={handleFinalizar} class="space-y-4">
+					<label class="label">
+						<span class="label-text font-semibold">E-mail de destino</span>
+						<input
+							type="email"
+							name="email_destino"
+							class="input"
+							bind:value={emailModal}
+							required
+							placeholder="destinatario@policiacivil.ce.gov.br"
+						/>
+					</label>
+					<div class="flex justify-end gap-3 pt-2">
+						<button type="button" class="btn preset-outlined-surface-500" onclick={() => (dialogEnvioAberto = false)}>
+							Cancelar
+						</button>
+						<button type="submit" class="btn preset-filled-primary-500 font-bold" disabled={pendingFinalizar}>
+							{pendingFinalizar ? 'Enviando...' : 'Confirmar e Enviar'}
+						</button>
+					</div>
+				</form>
+			</div>
+		</Dialog.Content>
+	</Dialog>
+
+	<!-- Modal: reenviar e-mail -->
+	<Dialog open={dialogReenvioAberto} onOpenChange={(e) => (dialogReenvioAberto = e.open)}>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm">
+			<div class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+				<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
+				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
+					A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail de destino.
+				</Dialog.Description>
+				<form method="POST" action="?/reenviarEmail" use:enhance={handleReenviar} class="space-y-4">
+					<label class="label">
+						<span class="label-text font-semibold">E-mail de destino</span>
+						<input
+							type="email"
+							name="email_destino"
+							class="input"
+							bind:value={emailModal}
+							required
+							placeholder="destinatario@policiacivil.ce.gov.br"
+						/>
+					</label>
+					<div class="flex justify-end gap-3 pt-2">
+						<button type="button" class="btn preset-outlined-surface-500" onclick={() => (dialogReenvioAberto = false)}>
+							Cancelar
+						</button>
+						<button type="submit" class="btn preset-filled-primary-500 font-bold" disabled={pendingReenviar}>
+							{pendingReenviar ? 'Reenviando...' : 'Reenviar'}
+						</button>
+					</div>
+				</form>
+			</div>
+		</Dialog.Content>
+	</Dialog>
 
 	<!-- Diálogo confirmar desfinalizar -->
 	<Dialog open={dialogDesfinalizarAberto} onOpenChange={(e) => (dialogDesfinalizarAberto = e.open)}>
