@@ -1,4 +1,5 @@
 import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
+import { verificarConflitoEscalasNaoGise } from '../../server/escala-conflict';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -77,6 +78,12 @@ export async function verificarConflitoHorarioPolicial(
 
 	const novaEntrada = target.eq_hora_entrada ?? target.sec_hora_entrada ?? target.gise_hora_entrada;
 	const novaSaida = target.eq_hora_saida ?? target.sec_hora_saida ?? target.gise_hora_saida;
+
+	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
+	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
+		db, policialId, target.data_inicio, novaEntrada, novaSaida
+	);
+	if (!naoGiseCheck.ok) return naoGiseCheck;
 
 	const [membrosExistentes, supervisorGises] = await Promise.all([
 		db
@@ -166,6 +173,12 @@ export async function verificarConflitoHorarioPorGise(
 		.get();
 
 	if (!gise) return { ok: false, motivo: 'GISE não encontrada' };
+
+	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
+	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
+		db, policialId, gise.data_inicio, gise.hora_entrada, gise.hora_saida
+	);
+	if (!naoGiseCheck.ok) return naoGiseCheck;
 
 	const [membrosExistentes, supervisorGises] = await Promise.all([
 		db

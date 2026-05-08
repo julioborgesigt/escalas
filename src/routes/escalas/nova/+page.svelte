@@ -690,7 +690,7 @@
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label class="text-[0.65rem] text-surface-500 block mb-0.5">Hora entrada</label>
+						<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora entrada</span>
 						<div class="flex gap-1">
 							<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
 								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
@@ -701,7 +701,7 @@
 						</div>
 					</div>
 					<div>
-						<label class="text-[0.65rem] text-surface-500 block mb-0.5">Hora saída</label>
+						<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora saída</span>
 						<div class="flex gap-1">
 							<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
 								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}

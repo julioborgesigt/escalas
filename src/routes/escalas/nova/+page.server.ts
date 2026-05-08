@@ -86,7 +86,8 @@ export const actions: Actions = {
 				db,
 				validated.lotacao,
 				validated.tipo as 'plantao' | 'expediente' | 'fds',
-				validated.data_inicio
+				validated.data_inicio,
+				validated.data_fim
 			);
 			if (existente) {
 				const periodo = validated.tipo === 'fds' ? 'nesta semana' : 'neste mês';

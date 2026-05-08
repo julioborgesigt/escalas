@@ -150,13 +150,23 @@ export async function verificarEscalaExistente(
 	db: Database,
 	lotacao: string,
 	tipo: 'plantao' | 'expediente' | 'fds',
-	dataInicio: string
+	dataInicio: string,
+	dataFim?: string
 ): Promise<schema.Escala | undefined> {
 	if (tipo === 'fds') {
+		const fim = dataFim ?? dataInicio;
+		// Overlap: existente.inicio <= novoFim AND existente.fim >= novoInicio
 		return db
 			.select()
 			.from(escalas)
-			.where(and(eq(escalas.lotacao, lotacao), eq(escalas.tipo, tipo), eq(escalas.data_inicio, dataInicio)))
+			.where(
+				and(
+					eq(escalas.lotacao, lotacao),
+					eq(escalas.tipo, tipo),
+					sql`${escalas.data_inicio} <= ${fim}`,
+					sql`${escalas.data_fim} >= ${dataInicio}`
+				)
+			)
 			.get();
 	}
 	// Range query em vez de substr() para aproveitar índices em data_inicio

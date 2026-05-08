@@ -57,6 +57,20 @@ function formatarDataPlantao(p: EscalaPolicialComDados, escala: Escala): string 
 	return dataEntrada;
 }
 
+function ordenarPoliciais(lista: EscalaPolicialComDados[]): EscalaPolicialComDados[] {
+	return [...lista].sort((a, b) => {
+		if (a.cargo !== b.cargo) return a.cargo === 'DPC' ? -1 : 1;
+		return a.nome.localeCompare(b.nome);
+	});
+}
+
+function sepDatas(inicio: string, fim: string): string {
+	const d1 = new Date(inicio + 'T00:00:00');
+	const d2 = new Date(fim + 'T00:00:00');
+	const dias = Math.round((d2.getTime() - d1.getTime()) / 86_400_000) + 1;
+	return dias <= 2 ? 'E' : 'A';
+}
+
 function agruparPorData(policiais: EscalaPolicialComDados[]): DiaPlantao[] {
 	const map = new Map<string, EscalaPolicialComDados[]>();
 	for (const p of policiais) {
@@ -66,7 +80,7 @@ function agruparPorData(policiais: EscalaPolicialComDados[]): DiaPlantao[] {
 	}
 	return Array.from(map.entries())
 		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([data, policiais]) => ({ data, policiais }));
+		.map(([data, lista]) => ({ data, policiais: ordenarPoliciais(lista) }));
 }
 
 function formatarMatricula(matricula: string): string {
@@ -79,7 +93,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 
 	const titulo = new Paragraph({
 		children: [new TextRun({
-			text: `ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
+			text: `ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`,
 			bold: true,
 			size: 24,
 			font: 'Arial'
@@ -169,7 +183,7 @@ export async function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDado
 	ws.columns = [
 		{ width: 35 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 35 }, { width: 22 }, { width: 12 }
 	];
-	ws.addRow([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`]);
+	ws.addRow([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`]);
 	ws.addRow([]);
 
 	for (const dia of dias) {
@@ -204,7 +218,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 
 	doc.setFontSize(14);
 	doc.text(
-		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} E ${formatarData(escala.data_fim)}`,
+		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`,
 		148, 15, { align: 'center' }
 	);
 
