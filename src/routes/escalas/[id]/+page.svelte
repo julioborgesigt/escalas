@@ -21,6 +21,8 @@
 
 	// Dados do server
 	let escala = $derived(data.escala);
+	let finalizadaEm = $state<string | null>(untrack(() => data.escala?.finalizada_em ?? null));
+	$effect(() => { finalizadaEm = data.escala?.finalizada_em ?? null; });
 	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
@@ -416,6 +418,7 @@
 		policiaisCount={policiaisEscalaLocal.length}
 		usuario={page.data.usuario}
 		bind:documentoAssinadoInfo
+		bind:finalizadaEm
 	/>
 
 	<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
@@ -503,7 +506,7 @@
 		</div>
 	{/if}
 
-	{#if !documentoAssinadoInfo?.existe}
+	{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
 		<div
 			class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 		>
@@ -832,7 +835,7 @@
 											</td>
 											<td class="!py-4 !px-4 text-right align-middle">
 												<div class="flex items-center justify-end gap-1">
-													{#if !documentoAssinadoInfo?.existe}
+													{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
 														<button type="button" title="Editar" class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10" onclick={() => startEdit(p)}>
 															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />

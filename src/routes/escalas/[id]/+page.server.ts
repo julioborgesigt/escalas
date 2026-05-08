@@ -10,7 +10,9 @@ import {
 	adicionarTodosPoliciais,
 	criarEscala,
 	verificarEscalaExistente,
-	registrarAuditComContexto
+	registrarAuditComContexto,
+	finalizarEscalaFDS,
+	desfinalizarEscalaFDS
 } from '$lib/db';
 import { eq } from 'drizzle-orm';
 import { escalaPoliciais } from '$lib/server/schema';
@@ -409,6 +411,49 @@ export const actions: Actions = {
 			return { success: true, policiais };
 		} catch {
 			return fail(500, { error: 'Erro ao remover policial' });
+		}
+	},
+
+	finalizar: async ({ locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escala, escalaId } = ctx;
+
+		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+
+		try {
+			await finalizarEscalaFDS(db, escalaId);
+			await registrarAuditComContexto(db, {
+				usuario: u,
+				acao: 'finalizar_escala_fds',
+				entidade: 'escala',
+				entidade_id: escalaId,
+				detalhes: `Escala de FDS finalizada: ${escala.titulo}`
+			});
+			return { success: true };
+		} catch {
+			return fail(500, { error: 'Erro ao finalizar escala' });
+		}
+	},
+
+	desfinalizar: async ({ locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escala, escalaId } = ctx;
+
+		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+
+		try {
+			await desfinalizarEscalaFDS(db, escalaId);
+			return { success: true };
+		} catch {
+			return fail(500, { error: 'Erro ao desfazer envio' });
 		}
 	}
 };

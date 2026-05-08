@@ -94,6 +94,7 @@ export async function listarEscalas(
 			lotacao: escalas.lotacao,
 			tipo: escalas.tipo,
 			visto_por_admin: escalas.visto_por_admin,
+			finalizada_em: escalas.finalizada_em,
 			created_at: escalas.created_at,
 			total: sql<number>`count(*) OVER()`
 		})
@@ -118,7 +119,10 @@ export async function listarEscalas(
 
 	const assinadas = new Set(docs.map((d) => d.escala_id));
 
-	const mapeadas = results.map(({ total: _t, ...e }) => ({ ...e, is_assinada: assinadas.has(e.id) }));
+	const mapeadas = results.map(({ total: _t, ...e }) => ({
+		...e,
+		is_assinada: assinadas.has(e.id)
+	}));
 
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
@@ -175,6 +179,15 @@ export async function verificarEscalaExistente(
 
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db.update(escalas).set({ visto_por_admin: visto ? 1 : 0 }).where(eq(escalas.id, id));
+}
+
+export async function finalizarEscalaFDS(db: Database, id: number): Promise<void> {
+	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+	await db.update(escalas).set({ finalizada_em: agora }).where(eq(escalas.id, id));
+}
+
+export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {
+	await db.update(escalas).set({ finalizada_em: null }).where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----

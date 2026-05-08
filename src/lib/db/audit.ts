@@ -30,6 +30,7 @@ export type AcaoAudit =
 	| 'remover_policial_escala'
 	| 'assinar_escala'
 	| 'revogar_assinatura'
+	| 'finalizar_escala_fds'
 	| 'mudar_papel'
 	| 'criar_unidade'
 	| 'editar_unidade'
