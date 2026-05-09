@@ -372,8 +372,15 @@
 	function calMesAnteriorNE() { if (calMes === 0) { calMes = 11; calAno--; } else calMes--; }
 	function calMesProximoNE() { if (calMes === 11) { calMes = 0; calAno++; } else calMes++; }
 
-	let visao = $state<'home' | 'lista'>('home');
+	let visao = $state<'home' | 'lista' | 'assinaturas'>('home');
 	let abriuDoHome = $state(false);
+
+	const podeAssinar = $derived(data.podeAssinar as boolean);
+	const escalasParaAssinar = $derived((data.escalasParaAssinar ?? []) as Array<{
+		id: number; titulo: string; cidade: string;
+		data_inicio: string; data_fim: string;
+		tipo: string; lotacao: string;
+	}>);
 
 	function abrirNovaEscala() {
 		novaEscalaTipo = null;
@@ -447,7 +454,7 @@
 {#if visao === 'home'}
 	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-6">
 		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-xl">
+		<div class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0 ? 'sm:grid-cols-3 max-w-4xl' : 'sm:grid-cols-2 max-w-xl'}">
 			<button
 				type="button"
 				onclick={() => { abriuDoHome = true; visao = 'lista'; abrirNovaEscala(); }}
@@ -466,9 +473,23 @@
 				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Escalas criadas</span>
 				<span class="text-sm text-surface-500 text-center">Consultar e gerenciar as escalas já cadastradas</span>
 			</button>
+			{#if podeAssinar && escalasParaAssinar.length > 0}
+				<button
+					type="button"
+					onclick={() => (visao = 'assinaturas')}
+					class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+				>
+					<div class="relative">
+						<span class="text-4xl">✍️</span>
+						<span class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow">{escalasParaAssinar.length}</span>
+					</div>
+					<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors">Assinaturas Pendentes</span>
+					<span class="text-sm text-surface-500 text-center">Escalas prontas para assinar com sua assinatura digital</span>
+				</button>
+			{/if}
 		</div>
 	</div>
-{:else}
+{:else if visao === 'lista'}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 	<div class="flex items-center gap-3">
 		<button type="button" class="btn btn-sm preset-outlined-surface" onclick={() => (visao = 'home')}>← Voltar</button>
@@ -1195,6 +1216,54 @@
 			labelPlural="escala(s)"
 			onPageChange={irParaPaginaListagem}
 		/>
+	{/if}
+</div>
+{:else if visao === 'assinaturas'}
+<div class="flex flex-col gap-6">
+	<div class="flex items-center gap-3 mb-2">
+		<button type="button" class="btn btn-sm preset-outlined-surface" onclick={() => (visao = 'home')}>← Voltar</button>
+		<h1 class="h1 text-xl font-bold">Assinaturas Pendentes</h1>
+		<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2">{escalasParaAssinar.length}</span>
+	</div>
+
+	{#if escalasParaAssinar.length === 0}
+		<div class="text-center py-12 text-surface-500">
+			<p>Nenhuma escala pendente de assinatura.</p>
+		</div>
+	{:else}
+		<div class="space-y-3">
+			{#each escalasParaAssinar as esc (esc.id)}
+				<div class="p-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm hover:border-tertiary-500/30 transition-colors">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div class="min-w-0">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="badge {esc.tipo === 'plantao' ? 'preset-tonal-primary' : 'preset-tonal-secondary'} text-xs font-bold px-2 py-0.5">
+									{esc.tipo === 'plantao' ? 'Plantão' : 'Expediente'}
+								</span>
+								<span class="text-xs text-surface-400">{esc.lotacao}</span>
+							</div>
+							<h3 class="font-semibold text-sm text-surface-800 dark:text-surface-100 leading-snug line-clamp-1">{esc.titulo}</h3>
+							<p class="text-xs text-surface-500 mt-0.5">{esc.cidade} · {formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</p>
+						</div>
+						<div class="flex gap-2 shrink-0">
+							<a
+								href="/escalas/{esc.id}"
+								target="_blank"
+								class="btn btn-sm preset-outlined-surface-500 no-underline"
+							>
+								Ver Escala
+							</a>
+							<a
+								href="/escalas/{esc.id}"
+								class="btn btn-sm preset-filled-tertiary-500 font-bold no-underline"
+							>
+								Assinar
+							</a>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
 	{/if}
 </div>
 {/if}

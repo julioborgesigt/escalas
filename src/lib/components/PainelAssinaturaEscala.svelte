@@ -47,19 +47,8 @@
 		}
 	});
 
-	// Aliases para compatibilidade com template
 	let assinando = $derived(assinatura.assinando);
-	let etapaAssinatura = $derived(assinatura.etapaAssinatura);
-	let assinandoSimples = $derived(assinatura.assinandoSimples);
 	let dialogSignOpen = $derived(assinatura.dialogSignOpen);
-	function setCertSelecionado(v: string) {
-		assinatura.onCertSelecionado(v);
-	}
-	let certificados = $derived(assinatura.certificados);
-	let lendoCertificados = $derived(assinatura.lendoCertificados);
-	let tentouLerCertificados = $derived(assinatura.tentouLerCertificados);
-	let serproSignerName = $derived(assinatura.serproSignerName);
-	let serproSignerCpf = $derived(assinatura.serproSignerCpf);
 
 	let dialogRevogacaoAberto = $state(false);
 
@@ -121,14 +110,7 @@
 		);
 	}
 
-	// WebPKI helpers (still needed in component for template bindings)
-	async function carregarCertificadosLocais() {
-		await assinatura.loadCertificados();
-	}
-
-	async function assinarComSerpro() {
-		await assinatura.assinarComSerpro();
-	}
+	let painelTokenControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 
 	// FDS: estado dos modais e pending
 	const EMAIL_PADRAO_FDS = 'dpis@policiacivil.ce.gov.br';
@@ -578,40 +560,28 @@
 		</div>
 	{/if}
 
-	<!-- SEÇÃO DE ASSINATURA UNIFICADA (Idêntica à GISE) -->
-	{#if !documentoAssinadoInfo?.existe && policiaisCount > 0}
-		<div class="space-y-6">
+	<!-- SEÇÃO DE ASSINATURA (padrão visual idêntico ao da escala GISE) -->
+	{@const podeAssinar = usuario?.tipo === 'admin' || ((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') && usuario?.cargo === 'DPC')}
+	{#if podeAssinar && !documentoAssinadoInfo?.existe && policiaisCount > 0}
+		<div class="space-y-4 mb-6">
 			<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
-				Ao escolher um método e confirmar, você atesta que esta assinatura tem valor jurídico
-				equivalente à manuscrita, conforme o
+				Ao confirmar, você atesta que esta assinatura tem valor jurídico equivalente à manuscrita,
+				conforme o
 				<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600"
 					>Termo de Uso</a
 				>
 				aceito.
 			</p>
-			<h3
-				class="flex items-center gap-2 text-lg font-bold uppercase tracking-widest text-primary-500"
-			>
-				<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-					/>
-				</svg>
-				Assinar Escala GISE
-			</h3>
 
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<!-- CARD 1: ASSINATURA NA TELA (MANUAL) -->
+				<!-- CARD 1: ASSINATURA NA TELA (MANUAL) — padrão warning, igual GISE -->
 				<div
-					class="card p-5 bg-surface-100/50 dark:bg-surface-800/40 border border-surface-200 dark:border-white/5 rounded-2xl shadow-sm space-y-3 transition-all"
+					class="card p-5 bg-warning-500/5 border border-warning-500/20 rounded-2xl shadow-sm space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<svg
-								class="w-5 h-5 text-surface-400"
+								class="w-5 h-5 text-warning-600 dark:text-warning-400"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke="currentColor"
@@ -624,7 +594,7 @@
 								/>
 							</svg>
 							<h4 class="font-bold text-sm text-surface-700 dark:text-surface-200">
-								Assinar na Tela (Manual)
+								Assinar na Tela
 							</h4>
 						</div>
 						{#if !isMobile}
@@ -636,15 +606,14 @@
 					</div>
 
 					<p class="text-xs text-surface-500 leading-relaxed italic">
-						Gera o PDF com sua rubrica desenhada diretamente na tela do seu dispositivo. <strong
-							>Ideal para tablets e smartphones.</strong
-						>
+						Gera o PDF com sua rubrica desenhada diretamente na tela do dispositivo.
+						<strong>Ideal para tablets e smartphones.</strong>
 					</p>
 
 					{#if isMobile}
 						<button
 							type="button"
-							class="btn preset-filled-primary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full"
+							class="btn preset-filled-warning-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full"
 							disabled={loading.active}
 							onclick={abrirModalAssinatura}
 						>
@@ -654,23 +623,21 @@
 						<div
 							class="p-3 py-4 rounded-xl bg-error-500/5 border border-error-500/10 flex items-center justify-center"
 						>
-							<p
-								class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center"
-							>
+							<p class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center">
 								RESTRITO A DISPOSITIVOS MÓVEIS. UTILIZE O TOKEN A3 NO COMPUTADOR.
 							</p>
 						</div>
 					{/if}
 				</div>
 
-				<!-- CARD 2: ASSINATURA DIGITAL (TOKEN A3) -->
+				<!-- CARD 2: ASSINATURA DIGITAL (TOKEN A3) — padrão tertiary, igual GISE -->
 				<div
-					class="card p-5 bg-success-500/5 dark:bg-success-900/5 border border-success-500/30 rounded-2xl shadow-sm space-y-3"
+					class="card p-5 bg-tertiary-500/5 border border-tertiary-500/20 rounded-2xl shadow-sm space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<svg
-								class="w-5 h-5 text-success-600 dark:text-success-400"
+								class="w-5 h-5 text-tertiary-600 dark:text-tertiary-400"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke="currentColor"
@@ -688,35 +655,79 @@
 						</div>
 						{#if !isMobile}
 							<span
-								class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-success-500 text-white tracking-tighter"
+								class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-tertiary-500 text-white tracking-tighter"
 								>RECOMENDADO</span
 							>
 						{/if}
 					</div>
 
 					<p class="text-xs text-surface-500 leading-relaxed italic">
-						Assinatura <strong>Qualificada (ICP-Brasil)</strong> rápida e segura via Token A3.
+						Assinatura <strong>Qualificada (ICP-Brasil)</strong> rápida e segura via Token A3
+						(SERPRO).
 					</p>
 
 					{#if !isMobile}
-						<PainelAssinaturaToken
-							signerName={usuario?.nome ?? undefined}
-							signerCpf={usuario?.cpf ?? undefined}
-							prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
-							finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
-							nomeArquivo="escala_assinada.pdf"
-							disabled={assinando}
-							onSuccess={async () => {
-								await invalidateAll();
-							}}
-						/>
+						<!-- Dados do assinante (compacto, igual ao GiseSupervisao) -->
+						{#if usuario?.nome || usuario?.cpf}
+							<div
+								class="p-3 bg-surface-100/60 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-white/5 flex gap-3 items-center"
+							>
+								<div class="bg-tertiary-500/10 p-2 rounded-lg shrink-0">
+									<svg
+										class="w-4 h-4 text-tertiary-600 dark:text-tertiary-400"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+										/>
+									</svg>
+								</div>
+								<div class="min-w-0 flex-1">
+									<p class="font-bold text-xs text-surface-800 dark:text-surface-100 uppercase truncate">
+										{usuario?.nome || 'Não informado'}
+									</p>
+									<p class="text-[0.6rem] text-surface-400 font-mono">
+										{usuario?.cpf
+											? usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+											: 'CPF não cadastrado'}
+									</p>
+								</div>
+							</div>
+						{/if}
+						<button
+							type="button"
+							class="btn preset-filled-tertiary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full flex items-center justify-center gap-2"
+							disabled={loading.active}
+							onclick={() => painelTokenControl?.assinarComSerpro()}
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+								/>
+							</svg>
+							{loading.active ? 'Assinando...' : 'Assinar com Token A3 (SERPRO)'}
+						</button>
+						<p class="text-[0.6rem] text-surface-400 italic leading-tight">
+							Requer o <a
+								href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
+								target="_blank"
+								rel="noopener"
+								class="underline">Assinador Desktop SERPRO</a
+							> instalado e aberto.
+						</p>
 					{:else}
 						<div
 							class="p-3 py-4 rounded-xl bg-surface-500/10 border border-surface-500/20 flex items-center justify-center"
 						>
-							<p
-								class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center"
-							>
+							<p class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center">
 								RECURSO DISPONÍVEL APENAS EM NAVEGADORES DESKTOP.
 							</p>
 						</div>
@@ -739,6 +750,22 @@
 					{/each}
 				</div>
 			</div>
+		</div>
+
+		<!-- PainelAssinaturaToken montado fora da tela (padrão GISE): expõe `assinarComSerpro` para o botão do card 2 -->
+		<div class="sr-only" aria-hidden="true">
+			<PainelAssinaturaToken
+				bind:control={painelTokenControl}
+				signerName={usuario?.nome ?? undefined}
+				signerCpf={usuario?.cpf ?? undefined}
+				prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
+				finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
+				nomeArquivo="escala_assinada.pdf"
+				disabled={assinando}
+				onSuccess={async () => {
+					await invalidateAll();
+				}}
+			/>
 		</div>
 	{/if}
 {/if}
