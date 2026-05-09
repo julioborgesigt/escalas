@@ -128,6 +128,8 @@ export const actions: Actions = {
 		const hora_saida = data.get('hora_saida')?.toString() || '08';
 		const minuto_saida = data.get('minuto_saida')?.toString() || '00';
 		const equipe = data.get('equipe')?.toString() || '';
+		const observacoes = data.get('observacoes')?.toString() || '';
+		const dataSaidaOverride = data.get('data_saida_override')?.toString() || '';
 
 		if (isNaN(policial_id) || !data_plantao) {
 			return fail(400, { error: 'Dados inválidos' });
@@ -135,7 +137,7 @@ export const actions: Actions = {
 
 		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
 		const horaSai = `${hora_saida}:${minuto_saida}`;
-		const dataSaida = calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
+		const dataSaida = dataSaidaOverride || calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
 
 		// -1 = sem exclusão: verifica TODAS as escalas, inclusive a atual (impede duplicatas)
 		const conflito = await verificarConflitoGlobal(db, policial_id, data_plantao, horaEnt, horaSai, -1);
@@ -151,7 +153,7 @@ export const actions: Actions = {
 					data_saida: dataSaida,
 					hora_entrada: horaEnt,
 					hora_saida: horaSai,
-					observacoes: '',
+					observacoes,
 					equipe
 				}),
 				listarPoliciaisEscalaQuery(db, escalaId)
@@ -229,7 +231,9 @@ export const actions: Actions = {
 
 		const he = escala.hora_entrada || '08:00';
 		const hs = escala.hora_saida || '08:00';
-		const ds = calcularDataSaidaInicial(escala.data_inicio, he, hs);
+		const ds = escala.tipo === 'expediente'
+			? escala.data_fim
+			: calcularDataSaidaInicial(escala.data_inicio, he, hs);
 
 		try {
 			const quantidade = await adicionarTodosPoliciais(
@@ -238,7 +242,14 @@ export const actions: Actions = {
 			);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
 			return { success: true, quantidade, policiais };
-		} catch {
+		} catch (err) {
+			logger.error('[escalas/adicionarTodos] Erro ao adicionar servidores', {
+				escalaId,
+				lotacao: escala.lotacao,
+				tipo: escala.tipo,
+				error: err instanceof Error ? err.message : String(err),
+				stack: err instanceof Error ? err.stack : undefined
+			});
 			return fail(500, { error: 'Erro ao adicionar servidores' });
 		}
 	},
@@ -473,18 +484,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
 
-		const jaAdicionados = await db
-			.select({ data_plantao: escalaPoliciais.data_plantao })
-			.from(escalaPoliciais)
-			.where(eq(escalaPoliciais.escala_id, escalaId));
-
-		const jaSet = new Set(
-			jaAdicionados
-				.filter((r) => r.data_plantao !== null)
-				.map((r) => `${policial_id}|${r.data_plantao}`)
-		);
-
-		// Recarrega para obter o policial_id correto por item
 		const todos = await db
 			.select({ policial_id: escalaPoliciais.policial_id, data_plantao: escalaPoliciais.data_plantao })
 			.from(escalaPoliciais)
@@ -720,6 +719,56 @@ export const actions: Actions = {
 			return { success: true };
 		} catch {
 			return fail(500, { error: 'Erro ao reabrir escala' });
+		}
+	},
+
+	removerTodos: async ({ locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
+		try {
+			await db.delete(escalaPoliciais).where(eq(escalaPoliciais.escala_id, escalaId));
+			return { success: true, policiais: [] };
+		} catch {
+			return fail(500, { error: 'Erro ao remover todos os servidores' });
+		}
+	},
+
+	removerSelecionados: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
+		const data = await request.formData();
+		const idsJson = data.get('ids')?.toString() || '[]';
+		let ids: number[];
+		try {
+			ids = JSON.parse(idsJson);
+			if (!Array.isArray(ids) || ids.length === 0) throw new Error('empty');
+		} catch {
+			return fail(400, { error: 'IDs inválidos' });
+		}
+
+		try {
+			const [, policiais] = await db.batch([
+				db.delete(escalaPoliciais).where(
+					and(
+						eq(escalaPoliciais.escala_id, escalaId),
+						inArray(escalaPoliciais.id, ids)
+					)
+				),
+				listarPoliciaisEscalaQuery(db, escalaId)
+			]);
+			return { success: true, policiais, removidos: ids.length };
+		} catch {
+			return fail(500, { error: 'Erro ao remover servidores selecionados' });
 		}
 	}
 };

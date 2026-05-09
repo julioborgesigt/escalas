@@ -372,6 +372,9 @@
 	function calMesAnteriorNE() { if (calMes === 0) { calMes = 11; calAno--; } else calMes--; }
 	function calMesProximoNE() { if (calMes === 11) { calMes = 0; calAno++; } else calMes++; }
 
+	let visao = $state<'home' | 'lista'>('home');
+	let abriuDoHome = $state(false);
+
 	function abrirNovaEscala() {
 		novaEscalaTipo = null;
 		fdsDiasSelecionados = [];
@@ -388,6 +391,7 @@
 		neTitulo = ''; neDataInicio = ''; neDataFim = ''; neCidade = '';
 		nePickerAno = new Date().getFullYear();
 		if (!isAdmin) neLotacao = '';
+		if (abriuDoHome) { visao = 'home'; abriuDoHome = false; }
 	}
 
 	function handleCriar({ cancel }: any) {
@@ -440,8 +444,36 @@
 	<title>Arquivo de Escalas - Portal de Escalas</title>
 </svelte:head>
 
+{#if visao === 'home'}
+	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-xl">
+			<button
+				type="button"
+				onclick={() => { abriuDoHome = true; visao = 'lista'; abrirNovaEscala(); }}
+				class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+			>
+				<span class="text-4xl">📋</span>
+				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Nova Escala</span>
+				<span class="text-sm text-surface-500 text-center">Criar uma nova escala de plantão, expediente ou final de semana</span>
+			</button>
+			<button
+				type="button"
+				onclick={() => (visao = 'lista')}
+				class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+			>
+				<span class="text-4xl">🗂️</span>
+				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Escalas criadas</span>
+				<span class="text-sm text-surface-500 text-center">Consultar e gerenciar as escalas já cadastradas</span>
+			</button>
+		</div>
+	</div>
+{:else}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-	<h1 class="h1 text-xl font-bold">Arquivo</h1>
+	<div class="flex items-center gap-3">
+		<button type="button" class="btn btn-sm preset-outlined-surface" onclick={() => (visao = 'home')}>← Voltar</button>
+		<h1 class="h1 text-xl font-bold">Arquivo</h1>
+	</div>
 	<div class="flex items-center gap-2">
 		<button type="button"
 			class="btn btn-sm {temFiltros
@@ -1165,3 +1197,4 @@
 		/>
 	{/if}
 </div>
+{/if}
