@@ -125,6 +125,9 @@
 	}
 
 	const isFDS = $derived(escala?.tipo === 'fds');
+	const isExpediente = $derived(escala?.tipo === 'expediente');
+
+	let addObservacoes = $state('');
 
 	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
 		if (!primeiroPlantao || !escala) return [];
@@ -191,6 +194,7 @@
 				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 				cargoBusca = '';
 				policialId = '';
+				addObservacoes = '';
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
@@ -627,6 +631,28 @@
 	let repeticaoDatas = $state<string[]>([]);
 	let pendingRepetir = $state(false);
 
+	let modoSelecao = $state(false);
+	let selecionados = $state(new Set<number>());
+	let pendingRemoverTodos = $state(false);
+	let pendingRemoverSelecionados = $state(false);
+	let confirmRemoverTodosOpen = $state(false);
+	let confirmRemoverSelecionadosOpen = $state(false);
+
+	const selecionadosJson = $derived(JSON.stringify(Array.from(selecionados)));
+	const totalSelecionados = $derived(selecionados.size);
+
+	function toggleSelecionar(id: number) {
+		const novo = new Set(selecionados);
+		if (novo.has(id)) novo.delete(id);
+		else novo.add(id);
+		selecionados = novo;
+	}
+
+	function cancelarSelecao() {
+		modoSelecao = false;
+		selecionados = new Set();
+	}
+
 	function openRepetir(p: EscalaPolicialComDados) {
 		if (repetindoId === p.id) {
 			repetindoId = null;
@@ -688,6 +714,43 @@
 			}
 		};
 	}
+
+	function handleRemoverTodos() {
+		pendingRemoverTodos = true;
+		return async ({ result }: any) => {
+			pendingRemoverTodos = false;
+			confirmRemoverTodosOpen = false;
+			if (result.type === 'success') {
+				policiaisEscalaLocal = [];
+				toaster.create({ title: 'Todos os servidores removidos da escala', type: 'success' });
+			} else if (result.type === 'error') {
+				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+			}
+		};
+	}
+
+	function handleRemoverSelecionados() {
+		pendingRemoverSelecionados = true;
+		return async ({ result }: any) => {
+			pendingRemoverSelecionados = false;
+			confirmRemoverSelecionadosOpen = false;
+			if (result.type === 'success') {
+				policiaisEscalaLocal = result.data.policiais;
+				selecionados = new Set();
+				modoSelecao = false;
+				const removidos = result.data.removidos ?? 0;
+				toaster.create({ title: `${removidos} servidor(es) removido(s) da escala`, type: 'success' });
+			} else if (result.type === 'error') {
+				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
+			} else {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
+			}
+		};
+	}
 </script>
 
 {#if !escala}
@@ -731,6 +794,53 @@
 					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
 						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
 						<button type="submit" class="btn preset-filled-error-500">Remover</button>
+					</form>
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
+
+	<Dialog open={confirmRemoverTodosOpen} onOpenChange={(e) => (confirmRemoverTodosOpen = e.open)}>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		>
+			<div
+				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			>
+				<Dialog.Title class="h3 font-bold mb-2">Remover Todos?</Dialog.Title>
+				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+					Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong> desta escala? Esta ação não pode ser desfeita.
+				</Dialog.Description>
+				<div class="flex justify-end gap-3">
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<form method="POST" action="?/removerTodos" use:enhance={handleRemoverTodos} class="contents">
+						<button type="submit" class="btn preset-filled-error-500" disabled={pendingRemoverTodos}>
+							{pendingRemoverTodos ? 'Removendo...' : 'Remover Todos'}
+						</button>
+					</form>
+				</div>
+			</div>
+		</Dialog.Content>
+	</Dialog>
+
+	<Dialog open={confirmRemoverSelecionadosOpen} onOpenChange={(e) => (confirmRemoverSelecionadosOpen = e.open)}>
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		>
+			<div
+				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			>
+				<Dialog.Title class="h3 font-bold mb-2">Remover Selecionados?</Dialog.Title>
+				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
+					Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong> desta escala?
+				</Dialog.Description>
+				<div class="flex justify-end gap-3">
+					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<form method="POST" action="?/removerSelecionados" use:enhance={handleRemoverSelecionados} class="contents">
+						<input type="hidden" name="ids" value={selecionadosJson} />
+						<button type="submit" class="btn preset-filled-error-500" disabled={pendingRemoverSelecionados}>
+							{pendingRemoverSelecionados ? 'Removendo...' : `Remover (${totalSelecionados})`}
+						</button>
 					</form>
 				</div>
 			</div>
@@ -902,24 +1012,29 @@
 						{pendingPlantao ? 'Adicionando...' : 'Adicionar à Escala'}
 					</button>
 				</form>
-			{:else}
+			{:else if isExpediente}
+				<!-- Formulário expediente: sem data/hora, com observações -->
 				<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
-					<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end mb-4">
+					<input type="hidden" name="data_plantao" value={escala.data_inicio} />
+					<input type="hidden" name="data_saida_override" value={escala.data_fim} />
+					<input type="hidden" name="hora_entrada" value="00" />
+					<input type="hidden" name="minuto_entrada" value="00" />
+					<input type="hidden" name="hora_saida" value="23" />
+					<input type="hidden" name="minuto_saida" value="59" />
+					<input type="hidden" name="equipe" value="1" />
+					<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
 						<label class="label sm:col-span-1">
 							<span class="label-text">Cargo</span>
 							<select
 								class="select h-9 py-0 px-2"
 								bind:value={cargoBusca}
-								onchange={() => {
-									policialId = '';
-								}}
+								onchange={() => { policialId = ''; }}
 							>
 								<option value="">...</option>
 								<option value="DPC">DPC</option>
 								<option value="OIP">OIP</option>
 							</select>
 						</label>
-
 						<label class="label sm:col-span-4 self-center">
 							<span class="label-text">Servidor</span>
 							{#key cargoBusca}
@@ -928,82 +1043,89 @@
 									bind:value={policialId}
 									disabled={!cargoBusca}
 									loadOptions={buscarPoliciaisAsync}
-									placeholder={cargoBusca
-										? 'Digite para buscar servidor...'
-										: 'Selecione o cargo primeiro'}
+									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
 									class="w-full h-9"
 								/>
 							{/key}
 						</label>
-
+						<label class="label sm:col-span-6">
+							<span class="label-text">Observações</span>
+							<input
+								type="text"
+								name="observacoes"
+								class="input h-9"
+								bind:value={addObservacoes}
+								maxlength="500"
+								placeholder="Informações complementares (opcional)"
+							/>
+						</label>
+						<div class="sm:col-span-1">
+							<button
+								type="submit"
+								class="btn preset-filled-primary-500 w-full"
+								disabled={pendingAdd || !policialId}
+							>
+								{pendingAdd ? '...' : '＋'}
+							</button>
+						</div>
+					</div>
+				</form>
+			{:else}
+				<!-- Formulário FDS -->
+				<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
+					<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end mb-4">
+						<label class="label sm:col-span-1">
+							<span class="label-text">Cargo</span>
+							<select
+								class="select h-9 py-0 px-2"
+								bind:value={cargoBusca}
+								onchange={() => { policialId = ''; }}
+							>
+								<option value="">...</option>
+								<option value="DPC">DPC</option>
+								<option value="OIP">OIP</option>
+							</select>
+						</label>
+						<label class="label sm:col-span-4 self-center">
+							<span class="label-text">Servidor</span>
+							{#key cargoBusca}
+								<SearchableSelect
+									name="policial_id"
+									bind:value={policialId}
+									disabled={!cargoBusca}
+									loadOptions={buscarPoliciaisAsync}
+									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+									class="w-full h-9"
+								/>
+							{/key}
+						</label>
 						<label class="label sm:col-span-2">
 							<span class="label-text">Data</span>
-							{#if isFDS}
-								<select
-									name="data_plantao"
-									class="select h-9 py-0 px-2"
-									bind:value={dataPlantao}
-									required
-								>
-									{#each diasEscalaLocal as d (d)}
-										<option value={d}>{formatarData(d)}</option>
-									{/each}
-								</select>
-							{:else}
-								<input
-									type="date"
-									name="data_plantao"
-									class="input h-9"
-									bind:value={dataPlantao}
-									min={escala.data_inicio}
-									max={escala.data_fim}
-									required
-								/>
-							{/if}
+							<select name="data_plantao" class="select h-9 py-0 px-2" bind:value={dataPlantao} required>
+								{#each diasEscalaLocal as d (d)}
+									<option value={d}>{formatarData(d)}</option>
+								{/each}
+							</select>
 						</label>
-
 						<div class="sm:col-span-2">
 							<span class="label-text text-xs">Entrada</span>
 							<div class="flex gap-1">
-								<select
-									class="select flex-1 h-9 py-0 px-1"
-									name="hora_entrada"
-									bind:value={addHoraEntrada}
-									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-								>
-								<select
-									class="select flex-1 h-9 py-0 px-1"
-									name="minuto_entrada"
-									bind:value={addMinutoEntrada}
-									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-								>
+								<select class="select flex-1 h-9 py-0 px-1" name="hora_entrada" bind:value={addHoraEntrada}
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+								<select class="select flex-1 h-9 py-0 px-1" name="minuto_entrada" bind:value={addMinutoEntrada}
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
 							</div>
 						</div>
-
 						<div class="sm:col-span-2">
 							<span class="label-text text-xs">Saída</span>
 							<div class="flex gap-1">
-								<select
-									class="select flex-1 h-9 py-0 px-1"
-									name="hora_saida"
-									bind:value={addHoraSaida}
-									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-								>
-								<select
-									class="select flex-1 h-9 py-0 px-1"
-									name="minuto_saida"
-									bind:value={addMinutoSaida}
-									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-								>
+								<select class="select flex-1 h-9 py-0 px-1" name="hora_saida" bind:value={addHoraSaida}
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+								<select class="select flex-1 h-9 py-0 px-1" name="minuto_saida" bind:value={addMinutoSaida}
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
 							</div>
 						</div>
-
-						{#if !isFDS}
-							<input type="hidden" name="equipe" value="1" />
-						{:else}
-							<input type="hidden" name="equipe" value="1" />
-						{/if}
-
+						<input type="hidden" name="equipe" value="1" />
 						<div class="sm:col-span-1">
 							<button
 								type="submit"
@@ -1015,6 +1137,60 @@
 						</div>
 					</div>
 				</form>
+			{/if}
+		</div>
+	{/if}
+
+	{#if policiaisEscalaLocal.length > 0 && !documentoAssinadoInfo?.existe && !finalizadaEm}
+		<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+			{#if modoSelecao}
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+						{totalSelecionados} selecionado(s)
+					</span>
+					<button
+						type="button"
+						class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+						onclick={() => { selecionados = new Set(policiaisEscalaLocal.map((p) => p.id)); }}
+					>
+						Selecionar Todos
+					</button>
+				</div>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors disabled:opacity-40"
+						disabled={totalSelecionados === 0 || pendingRemoverSelecionados}
+						onclick={() => (confirmRemoverSelecionadosOpen = true)}
+					>
+						Remover ({totalSelecionados})
+					</button>
+					<button
+						type="button"
+						class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+						onclick={cancelarSelecao}
+					>
+						Cancelar
+					</button>
+				</div>
+			{:else}
+				<div></div>
+				<div class="flex gap-2">
+					<button
+						type="button"
+						class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+						onclick={() => (modoSelecao = true)}
+					>
+						Selecionar
+					</button>
+					<button
+						type="button"
+						class="btn text-xs font-semibold px-3 py-1.5 rounded-xl border border-error-500/40 bg-error-500/10 text-error-700 dark:text-error-400 hover:bg-error-500/20 transition-colors"
+						onclick={() => (confirmRemoverTodosOpen = true)}
+					>
+						Remover Todos
+					</button>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -1227,8 +1403,23 @@
 								{:else}
 									<!-- Card do servidor (responsivo mobile) -->
 									<div
-										class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors"
+										class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? 'bg-error-500/5 dark:bg-error-500/8' : ''}"
+										role={modoSelecao ? 'button' : undefined}
+										tabindex={modoSelecao ? 0 : undefined}
+										onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
+										onkeydown={modoSelecao ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelecionar(p.id); } } : undefined}
 									>
+										{#if modoSelecao}
+											<div class="flex items-center shrink-0 pt-0.5">
+												<input
+													type="checkbox"
+													class="checkbox"
+													checked={selecionados.has(p.id)}
+													onclick={(e) => e.stopPropagation()}
+													onchange={() => toggleSelecionar(p.id)}
+												/>
+											</div>
+										{/if}
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center flex-wrap gap-1.5 mb-0.5">
 												<span
@@ -1616,6 +1807,25 @@
 						<table class="table w-full text-[0.7rem] sm:text-xs !bg-transparent">
 							<thead>
 								<tr class="!bg-transparent border-b border-surface-100 dark:border-white/5">
+									{#if modoSelecao}
+										{@const todosChecked = policiaisEscalaLocal.length > 0 && policiaisEscalaLocal.every((p) => selecionados.has(p.id))}
+										{@const algumChecked = totalSelecionados > 0 && !todosChecked}
+										<th class="!py-4 !px-4 text-surface-500 font-medium">
+											<input
+												type="checkbox"
+												class="checkbox"
+												checked={todosChecked}
+												indeterminate={algumChecked}
+												onchange={(e) => {
+													if ((e.target as HTMLInputElement).checked) {
+														selecionados = new Set(policiaisEscalaLocal.map((p) => p.id));
+													} else {
+														selecionados = new Set();
+													}
+												}}
+											/>
+										</th>
+									{/if}
 									<th class="!py-4 !px-4 text-surface-500 font-medium uppercase tracking-tight"
 										>Nome</th
 									>
@@ -1640,19 +1850,21 @@
 									>
 									<th
 										class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
-										>Horário</th
+										>{isExpediente ? 'Observações' : 'Horário'}</th
 									>
-									<th
-										class="!py-4 !px-4 text-right text-surface-500 font-medium uppercase tracking-tight"
-										>Ações</th
-									>
+									{#if !modoSelecao}
+										<th
+											class="!py-4 !px-4 text-right text-surface-500 font-medium uppercase tracking-tight"
+											>Ações</th
+										>
+									{/if}
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-surface-100 dark:divide-white/5">
 								{#each items as p (p.id)}
 									{#if editingId === p.id}
 										<tr class="!bg-primary-500/5">
-											<td colspan="8" class="!py-4 !px-4">
+											<td colspan={modoSelecao ? 9 : 8} class="!py-4 !px-4">
 												<form
 													method="POST"
 													action="?/editar"
@@ -1660,102 +1872,109 @@
 													class="flex flex-wrap items-end gap-3"
 												>
 													<input type="hidden" name="item_id" value={editingId} />
-													<div class="flex-1 min-w-[120px]">
-														<label class="label mb-1">
-															<span class="label-text text-[0.6rem]">Data Início</span>
-															<input
-																type="date"
-																class="input text-xs h-8 px-2 rounded-lg"
-																bind:value={editDataEntrada}
-															/>
-														</label>
-													</div>
-													<div class="flex-1 min-w-[120px]">
-														<label class="label mb-1">
-															<span class="label-text text-[0.6rem]">Data Saída</span>
-															<input
-																type="date"
-																class="input text-xs h-8 px-2 rounded-lg"
-																bind:value={editDataSaida}
-															/>
-														</label>
-													</div>
-													<div class="w-28">
-														<label class="label mb-1">
-															<span class="label-text text-[0.6rem]">Entrada</span>
-															<div class="flex gap-1">
-																<select
-																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editHoraEntrada}
-																	aria-label="Hora de Entrada"
-																>
-																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
-																</select>
-																<select
-																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editMinutoEntrada}
-																	aria-label="Minuto de Entrada"
-																>
-																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
-																</select>
-															</div>
-														</label>
-													</div>
-													<div class="w-28">
-														<label class="label mb-1">
-															<span class="label-text text-[0.6rem]">Saída</span>
-															<div class="flex gap-1">
-																<select
-																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editHoraSaida}
-																	aria-label="Hora de Saída"
-																>
-																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
-																</select>
-																<select
-																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editMinutoSaida}
-																	aria-label="Minuto de Saída"
-																>
-																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
-																</select>
-															</div>
-														</label>
-													</div>
-													<div class="flex gap-1">
-														<button
-															type="submit"
-															class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
-															disabled={pendingEditar}
-														>
+													{#if isExpediente}
+														<!-- Expediente: editar datas e observações (sem horário) -->
+														<input type="hidden" name="hora_entrada" value="00:00" />
+														<input type="hidden" name="hora_saida" value="23:59" />
+														<input type="hidden" name="data_plantao" value={editDataEntrada} />
+														<input type="hidden" name="data_saida" value={editDataSaida} />
+														<div class="min-w-[120px]">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Data Início</span>
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+															</label>
+														</div>
+														<div class="min-w-[120px]">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Data Fim</span>
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+															</label>
+														</div>
+														<div class="flex-1 min-w-[200px]">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Observações</span>
+																<input
+																	type="text"
+																	name="observacoes"
+																	class="input text-xs h-8 px-2 rounded-lg"
+																	bind:value={editObservacoes}
+																	maxlength="500"
+																	placeholder="Informações complementares"
+																/>
+															</label>
+														</div>
+													{:else}
+														<!-- Plantão: editar datas, horas e observações -->
+														<div class="flex-1 min-w-[120px]">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Data Início</span>
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+															</label>
+														</div>
+														<div class="flex-1 min-w-[120px]">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Data Saída</span>
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+															</label>
+														</div>
+														<div class="w-28">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Entrada</span>
+																<div class="flex gap-1">
+																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada} aria-label="Hora de Entrada">
+																		{#each horas as h (h)}<option value={h}>{h}</option>{/each}
+																	</select>
+																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada} aria-label="Minuto de Entrada">
+																		{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
+																	</select>
+																</div>
+															</label>
+														</div>
+														<div class="w-28">
+															<label class="label mb-1">
+																<span class="label-text text-[0.6rem]">Saída</span>
+																<div class="flex gap-1">
+																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida} aria-label="Hora de Saída">
+																		{#each horas as h (h)}<option value={h}>{h}</option>{/each}
+																	</select>
+																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida} aria-label="Minuto de Saída">
+																		{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
+																	</select>
+																</div>
+															</label>
+														</div>
+														<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
+														<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+														<input type="hidden" name="data_plantao" value={editDataEntrada} />
+														<input type="hidden" name="data_saida" value={editDataSaida} />
+														<input type="hidden" name="observacoes" value={editObservacoes} />
+													{/if}
+													<div class="flex gap-1 mt-1">
+														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={pendingEditar}>
 															{pendingEditar ? 'Salvando...' : 'Salvar'}
 														</button>
-														<button
-															type="button"
-															class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
-															onclick={() => (editingId = null)}>×</button
-														>
+														<button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold" onclick={() => (editingId = null)}>×</button>
 													</div>
-													<input
-														type="hidden"
-														name="hora_entrada"
-														value="{editHoraEntrada}:{editMinutoEntrada}"
-													/>
-													<input
-														type="hidden"
-														name="hora_saida"
-														value="{editHoraSaida}:{editMinutoSaida}"
-													/>
-													<input type="hidden" name="data_plantao" value={editDataEntrada} />
-													<input type="hidden" name="data_saida" value={editDataSaida} />
-													<input type="hidden" name="observacoes" value={editObservacoes} />
 												</form>
 											</td>
 										</tr>
 									{:else}
 										<tr
-											class="!bg-transparent hover:!bg-surface-100/50 dark:hover:!bg-surface-800/20 transition-colors"
+											class="!bg-transparent hover:!bg-surface-100/50 dark:hover:!bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? '!bg-error-500/5 dark:!bg-error-500/8' : ''}"
+											role={modoSelecao ? 'button' : undefined}
+											onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
 										>
+											{#if modoSelecao}
+												<td class="!py-4 !px-4 align-middle">
+													<input
+														type="checkbox"
+														class="checkbox"
+														checked={selecionados.has(p.id)}
+														onclick={(e) => e.stopPropagation()}
+														onchange={() => toggleSelecionar(p.id)}
+													/>
+												</td>
+											{/if}
 											<td class="!py-4 !px-4 align-middle">
 												<span
 													class="font-bold text-surface-900 dark:text-surface-100 uppercase block leading-tight"
@@ -1794,46 +2013,54 @@
 													{formatarDataPlantao(p)}
 												</div>
 											</td>
-											<td class="!py-4 text-center align-middle">
-												<div
-													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] font-bold uppercase whitespace-nowrap"
-												>
-													{formatarHorario(p)}
-												</div>
+											<td class="!py-4 text-center align-middle max-w-[200px]">
+												{#if isExpediente}
+													<span class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic">
+														{p.observacoes || '—'}
+													</span>
+												{:else}
+													<div
+														class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] font-bold uppercase whitespace-nowrap"
+													>
+														{formatarHorario(p)}
+													</div>
+												{/if}
 											</td>
-											<td class="!py-4 !px-4 text-right align-middle">
-												<div class="flex items-center justify-end gap-1">
-													{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
-														<button
-															type="button"
-															title="Editar"
-															class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
-															onclick={() => startEdit(p)}
-														>
-															<svg
-																class="w-3.5 h-3.5"
-																fill="none"
-																viewBox="0 0 24 24"
-																stroke="currentColor"
+											{#if !modoSelecao}
+												<td class="!py-4 !px-4 text-right align-middle">
+													<div class="flex items-center justify-end gap-1">
+														{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
+															<button
+																type="button"
+																title="Editar"
+																class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
+																onclick={() => startEdit(p)}
 															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																/>
-															</svg>
-														</button>
-														<button
-															type="button"
-															class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5"
-															onclick={() => solicitarRemocao(p.id, p.nome)}
-														>
-															Remover
-														</button>
-													{/if}
-												</div>
-											</td>
+																<svg
+																	class="w-3.5 h-3.5"
+																	fill="none"
+																	viewBox="0 0 24 24"
+																	stroke="currentColor"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+															<button
+																type="button"
+																class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5"
+																onclick={() => solicitarRemocao(p.id, p.nome)}
+															>
+																Remover
+															</button>
+														{/if}
+													</div>
+												</td>
+											{/if}
 										</tr>
 									{/if}
 								{/each}

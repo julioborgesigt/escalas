@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray, like, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -287,7 +287,6 @@ export async function adicionarTodosPoliciais(
 	horaEntrada: string,
 	horaSaida: string
 ): Promise<number> {
-	// Filtrar no banco em vez de carregar tudo para o JS
 	const candidatos = await db
 		.select({ id: policiais.id })
 		.from(policiais)
@@ -295,10 +294,7 @@ export async function adicionarTodosPoliciais(
 			and(
 				eq(policiais.ativo, 1),
 				eq(policiais.lotacao, lotacao),
-				or(
-					eq(policiais.regime, regime),
-					isNull(policiais.regime)
-				)
+				eq(policiais.regime, regime)
 			)
 		);
 
@@ -314,19 +310,21 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	// Batch insert único dentro de transação para atomicidade
-	await db.transaction(async (tx) => {
-		await tx.insert(escalaPoliciais).values(
-			novos.map((p) => ({
+	// D1 limita ~100 parâmetros por statement; cada linha tem 9 campos,
+	// então um INSERT multi-linha com >11 policiais estouraria o limite.
+	// db.batch() executa N statements em um único round-trip de forma atômica.
+	await db.batch(
+		novos.map((p) =>
+			db.insert(escalaPoliciais).values({
 				escala_id: escalaId,
 				policial_id: p.id,
 				data_plantao: dataPlantao,
 				data_saida: dataSaida,
 				hora_entrada: horaEntrada,
 				hora_saida: horaSaida
-			}))
-		);
-	});
+			})
+		) as any
+	);
 
 	return novos.length;
 }
