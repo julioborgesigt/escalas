@@ -67,7 +67,11 @@ export {
 	removerPolicialEscala,
 	adicionarTodosPoliciais,
 	listarPoliciaisEscala,
-	listarPoliciaisEscalaQuery
+	listarPoliciaisEscalaQuery,
+	criarSolicitacaoAssinatura,
+	buscarSolicitacaoAssinatura,
+	excluirSolicitacaoAssinatura,
+	listarSolicitacoesEscalas
 } from './db/escalas';
 
 export {

@@ -7,13 +7,14 @@ import {
 	criarEscala,
 	excluirEscala,
 	listarUnidades,
-	verificarEscalaExistente
+	verificarEscalaExistente,
+	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc } from 'drizzle-orm';
-import { unidades as unidadesTable, escalas as escalasTable, escalaPoliciais, escalaDocumentos } from '$lib/server/schema';
+import { unidades as unidadesTable, escalas as escalasTable, escalaPoliciais, escalaDocumentos, escalaSolicitacoesAssinatura } from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
 	primeiroDiaDoMes,
@@ -84,37 +85,83 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const podeAssinar = u.tipo === 'admin' ||
 		((u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC');
 
+	// OIP admin pode solicitar assinatura (mas não assinar diretamente)
+	const podeOIPSolicitar =
+		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
+
 	let escalasParaAssinarQuery: ReturnType<typeof db.select> | Promise<never[]> = Promise.resolve([]);
 	if (podeAssinar) {
 		const subqDocs = db.select({ escala_id: escalaDocumentos.escala_id }).from(escalaDocumentos);
-		let pendingWhere = and(
+		const baseWhere = and(
 			or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
 			sql`${escalasTable.id} NOT IN (${subqDocs})` as any
 		);
-		if (!isAdmin) {
+
+		if (isAdmin) {
+			// Admin geral vê todas as escalas não assinadas (sem exigir solicitação)
+			escalasParaAssinarQuery = db
+				.select({
+					id: escalasTable.id,
+					titulo: escalasTable.titulo,
+					cidade: escalasTable.cidade,
+					data_inicio: escalasTable.data_inicio,
+					data_fim: escalasTable.data_fim,
+					tipo: escalasTable.tipo,
+					lotacao: escalasTable.lotacao
+				})
+				.from(escalasTable)
+				.where(baseWhere)
+				.orderBy(desc(escalasTable.created_at))
+				.limit(50) as any;
+		} else {
+			// DPC admin só vê escalas que têm uma solicitação direcionada a eles
+			let scopeCondition;
 			if (u.papel === 'admin_unidade' && u.lotacao) {
-				pendingWhere = and(pendingWhere!, eq(escalasTable.lotacao, u.lotacao));
+				scopeCondition = or(
+					and(
+						eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
+						eq(escalasTable.lotacao, u.lotacao)
+					),
+					and(
+						eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
+						eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
+					)
+				);
 			} else if (u.papel === 'admin_seccional' && lotacoesPermitidas && lotacoesPermitidas.length > 0) {
-				pendingWhere = and(pendingWhere!, inArray(escalasTable.lotacao, lotacoesPermitidas));
+				scopeCondition = or(
+					and(
+						eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
+						inArray(escalasTable.lotacao, lotacoesPermitidas)
+					),
+					and(
+						eq(escalaSolicitacoesAssinatura.tipo, 'respondencia'),
+						eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
+					)
+				);
 			}
+
+			escalasParaAssinarQuery = db
+				.select({
+					id: escalasTable.id,
+					titulo: escalasTable.titulo,
+					cidade: escalasTable.cidade,
+					data_inicio: escalasTable.data_inicio,
+					data_fim: escalasTable.data_fim,
+					tipo: escalasTable.tipo,
+					lotacao: escalasTable.lotacao
+				})
+				.from(escalasTable)
+				.innerJoin(
+					escalaSolicitacoesAssinatura,
+					eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
+				)
+				.where(scopeCondition ? and(baseWhere!, scopeCondition!) : baseWhere)
+				.orderBy(desc(escalasTable.created_at))
+				.limit(50) as any;
 		}
-		escalasParaAssinarQuery = db
-			.select({
-				id: escalasTable.id,
-				titulo: escalasTable.titulo,
-				cidade: escalasTable.cidade,
-				data_inicio: escalasTable.data_inicio,
-				data_fim: escalasTable.data_fim,
-				tipo: escalasTable.tipo,
-				lotacao: escalasTable.lotacao
-			})
-			.from(escalasTable)
-			.where(pendingWhere)
-			.orderBy(desc(escalasTable.created_at))
-			.limit(50) as any;
 	}
 
-	const [resultado, unidades, escalasExistentes, escalasParaAssinar] = await Promise.all([
+	const [resultado, unidades, escalasExistentes, escalasParaAssinarRaw] = await Promise.all([
 		skipLoad
 			? { escalas: [], total: 0, page: 1, limit: 20, totalPages: 1 }
 			: listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
@@ -132,6 +179,26 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		}).from(escalasTable).where(scopeEscalas),
 		escalasParaAssinarQuery
 	]);
+
+	const escalasParaAssinar = escalasParaAssinarRaw;
+
+	// Para OIP admins: carrega quais escalas da página atual já têm solicitação pendente
+	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number };
+	let solicitacoesMap: Record<number, SolicitacaoInfo> = {};
+	if (podeOIPSolicitar && resultado.escalas.length > 0) {
+		const escalasNaoAssinadas = resultado.escalas
+			.filter((e) => (e.tipo === 'plantao' || e.tipo === 'expediente') && !(e as any).is_assinada)
+			.map((e) => e.id);
+		if (escalasNaoAssinadas.length > 0) {
+			const mapa = await listarSolicitacoesEscalas(db, escalasNaoAssinadas);
+			for (const [k, v] of mapa) {
+				solicitacoesMap[k] = v;
+			}
+		}
+	}
+
+	const v = url.searchParams.get('v');
+	const initialView = v === 'assinaturas' ? 'assinaturas' : url.searchParams.toString() ? 'lista' : 'home';
 
 	return {
 		escalas: resultado.escalas,
@@ -153,7 +220,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		skipLoad,
 		papelUnidadeId: u.papel_unidade_id ?? null,
 		escalasExistentes,
+		initialView,
 		podeAssinar,
+		podeOIPSolicitar,
+		solicitacoesMap,
 		escalasParaAssinar: escalasParaAssinar as Array<{
 			id: number; titulo: string; cidade: string;
 			data_inicio: string; data_fim: string;

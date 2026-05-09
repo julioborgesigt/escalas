@@ -208,6 +208,7 @@ export async function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDado
 export interface PdfExportResult {
 	pdf: Uint8Array;
 	finalY: number;
+	pageHeightMm?: number;
 }
 
 // ---- PDF ----
@@ -306,56 +307,93 @@ function rowExpediente(p: EscalaPolicialComDados): string[] {
 // ---- DOCX Expediente ----
 export async function gerarDocxExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
 	const sorted = sortExpediente(policiais);
+	const NCOLS = COLS_EXPEDIENTE.length;
+	const border = { style: BorderStyle.SINGLE, size: 4, color: '888888' };
+	const borders = { top: border, bottom: border, left: border, right: border };
 
-	const titulo = new Paragraph({
-		children: [new TextRun({ text: escala.titulo.toUpperCase(), bold: true, size: 24, font: 'Arial' })],
-		alignment: AlignmentType.CENTER,
-		spacing: { after: 150 }
-	});
+	function tealCell(text: string, opts: { span?: number; size?: number; center?: boolean } = {}) {
+		return new TableCell({
+			columnSpan: opts.span ?? 1,
+			children: [new Paragraph({
+				children: [new TextRun({ text, bold: true, size: opts.size ?? 18, font: 'Arial', color: 'FFFFFF' })],
+				alignment: opts.center !== false ? AlignmentType.CENTER : AlignmentType.LEFT
+			})],
+			shading: { fill: '1a5c57' },
+			borders
+		});
+	}
 
-	const periodo = new Paragraph({
-		children: [new TextRun({ text: `Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`, size: 20, font: 'Arial' })],
-		alignment: AlignmentType.CENTER,
-		spacing: { after: 300 }
-	});
+	function metaCell(text: string) {
+		return new TableCell({
+			columnSpan: NCOLS,
+			children: [new Paragraph({
+				children: [new TextRun({ text, bold: true, size: 18, font: 'Arial' })],
+				alignment: AlignmentType.LEFT
+			})],
+			borders
+		});
+	}
 
-	const borderStyle = { style: BorderStyle.SINGLE, size: 1 };
-	const borders = { top: borderStyle, bottom: borderStyle, left: borderStyle, right: borderStyle };
+	const obsText = 'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
 
-	const headerRow = new TableRow({
-		children: COLS_EXPEDIENTE.map(text =>
-			new TableCell({
-				children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 16, font: 'Arial', color: 'FFFFFF' })], alignment: AlignmentType.CENTER })],
-				shading: { fill: '1a5c57' },
-				borders
-			})
-		)
-	});
-
-	const dataRows = sorted.map(p =>
-		new TableRow({
+	const rows: TableRow[] = [
+		// Título
+		new TableRow({ children: [tealCell('ESCALA DE EXPEDIENTE', { span: NCOLS, size: 22 })] }),
+		// Delegacia
+		new TableRow({ children: [metaCell(`DELEGACIA: ${escala.lotacao.toUpperCase()}`)] }),
+		// Mês/Ano
+		new TableRow({ children: [metaCell(`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`)] }),
+		// Cabeçalho colunas
+		new TableRow({ children: COLS_EXPEDIENTE.map(c => tealCell(c, { size: 16 })) }),
+		// Dados
+		...sorted.map(p => new TableRow({
 			children: rowExpediente(p).map((text, i) =>
 				new TableCell({
-					children: [new Paragraph({ children: [new TextRun({ text, size: 18, font: 'Arial' })], alignment: i >= 1 && i <= 4 ? AlignmentType.CENTER : AlignmentType.LEFT })],
+					children: [new Paragraph({
+						children: [new TextRun({ text, size: 18, font: 'Arial' })],
+						alignment: (i >= 1 && i <= 4) ? AlignmentType.CENTER : AlignmentType.LEFT
+					})],
 					borders
 				})
 			)
+		})),
+		// Observações
+		new TableRow({
+			children: [new TableCell({
+				columnSpan: NCOLS,
+				children: [new Paragraph({ children: [new TextRun({ text: obsText, bold: true, size: 16, font: 'Arial' })] })],
+				shading: { fill: 'F5F5F5' },
+				borders
+			})]
 		})
-	);
+	];
+
+	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const dataExtenso = formatarDataExtenso(new Date());
+	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
 
 	const doc = new Document({
 		sections: [{
 			properties: {
 				page: {
-					size: {
-						width: 11906,
-						height: 16838,
-						orientation: PageOrientation.LANDSCAPE
-					},
+					size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE },
 					margin: { top: 720, bottom: 720, left: 720, right: 720 }
 				}
 			},
-			children: [titulo, periodo, new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } })]
+			children: [
+				// Cabeçalho
+				new Paragraph({ children: [new TextRun({ text: 'POLÍCIA CIVIL DO CEARÁ', bold: true, size: 20, font: 'Arial' })], alignment: AlignmentType.CENTER }),
+				new Paragraph({ children: [new TextRun({ text: 'DELEGACIA GERAL DA POLÍCIA CIVIL', size: 18, font: 'Arial' })], alignment: AlignmentType.CENTER }),
+				new Paragraph({ children: [new TextRun({ text: 'DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', size: 18, font: 'Arial' })], alignment: AlignmentType.CENTER, spacing: { after: 200 } }),
+				// Tabela
+				new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }),
+				// Rodapé
+				new Paragraph({ children: [], spacing: { before: 200 } }),
+				new Paragraph({ children: [new TextRun({ text: textoData, bold: true, size: 18, font: 'Arial' })] }),
+				new Paragraph({ children: [], spacing: { before: 400 } }),
+				new Paragraph({ children: [new TextRun({ text: '_______________________________________________', size: 18, font: 'Arial' })] }),
+				new Paragraph({ children: [new TextRun({ text: 'Delegado(a) de Polícia / assinado digitalmente', size: 16, font: 'Arial' })] })
+			]
 		}]
 	});
 
@@ -367,94 +405,236 @@ export async function gerarDocxExpediente(escala: Escala, policiais: EscalaPolic
 export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
 	const sorted = sortExpediente(policiais);
 	const wb = new ExcelJS.Workbook();
-	const ws = wb.addWorksheet('Escala');
-	ws.columns = [{ width: 40 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 15 }, { width: 35 }, { width: 12 }, { width: 35 }];
-	ws.addRow([escala.titulo.toUpperCase()]);
-	ws.addRow([`Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`]);
+	const ws = wb.addWorksheet('Escala', { pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+	const NCOLS = COLS_EXPEDIENTE.length;
+	const lastCol = String.fromCharCode(64 + NCOLS); // 'H' for 8 cols
+
+	ws.columns = [
+		{ width: 40 }, { width: 18 }, { width: 10 }, { width: 22 },
+		{ width: 12 }, { width: 28 }, { width: 16 }, { width: 35 }
+	];
+
+	const tealFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a5c57' } };
+	const lightFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } };
+	const thinBorder: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FF888888' } };
+	const cellBorder = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+	function applyTeal(row: ExcelJS.Row, bold = true) {
+		row.eachCell({ includeEmpty: true }, cell => {
+			cell.fill = tealFill;
+			cell.font = { bold, color: { argb: 'FFFFFFFF' }, name: 'Arial', size: 10 };
+			cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+			cell.border = cellBorder;
+		});
+	}
+
+	function applyMeta(row: ExcelJS.Row) {
+		row.eachCell({ includeEmpty: true }, cell => {
+			cell.font = { bold: true, name: 'Arial', size: 10 };
+			cell.alignment = { horizontal: 'left', vertical: 'middle' };
+			cell.border = cellBorder;
+		});
+	}
+
+	// ── Cabeçalho ──
+	const r1 = ws.addRow(['POLÍCIA CIVIL DO CEARÁ']);
+	ws.mergeCells(`A${r1.number}:${lastCol}${r1.number}`);
+	r1.getCell(1).font = { bold: true, name: 'Arial', size: 12 };
+	r1.getCell(1).alignment = { horizontal: 'center' };
+
+	const r2 = ws.addRow(['DELEGACIA GERAL DA POLÍCIA CIVIL']);
+	ws.mergeCells(`A${r2.number}:${lastCol}${r2.number}`);
+	r2.getCell(1).font = { name: 'Arial', size: 10 };
+	r2.getCell(1).alignment = { horizontal: 'center' };
+
+	const r3 = ws.addRow(['DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL']);
+	ws.mergeCells(`A${r3.number}:${lastCol}${r3.number}`);
+	r3.getCell(1).font = { name: 'Arial', size: 10 };
+	r3.getCell(1).alignment = { horizontal: 'center' };
+
+	// ── Título tabela ──
+	const rTit = ws.addRow(['ESCALA DE EXPEDIENTE']);
+	ws.mergeCells(`A${rTit.number}:${lastCol}${rTit.number}`);
+	applyTeal(rTit);
+	rTit.height = 20;
+
+	// ── Delegacia / Mês ──
+	const rDel = ws.addRow([`DELEGACIA: ${escala.lotacao.toUpperCase()}`]);
+	ws.mergeCells(`A${rDel.number}:${lastCol}${rDel.number}`);
+	applyMeta(rDel);
+
+	const rMes = ws.addRow([`MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`]);
+	ws.mergeCells(`A${rMes.number}:${lastCol}${rMes.number}`);
+	applyMeta(rMes);
+
+	// ── Colunas ──
+	const rCols = ws.addRow([...COLS_EXPEDIENTE]);
+	applyTeal(rCols);
+	rCols.height = 18;
+
+	// ── Dados ──
+	for (const p of sorted) {
+		const rData = ws.addRow(rowExpediente(p));
+		rData.eachCell({ includeEmpty: true }, (cell, col) => {
+			cell.font = { name: 'Arial', size: 9 };
+			cell.alignment = { horizontal: (col >= 2 && col <= 5) ? 'center' : 'left', vertical: 'middle', wrapText: true };
+			cell.border = cellBorder;
+		});
+	}
+
+	// ── Observações ──
+	const obsText = 'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
+	const rObs = ws.addRow([obsText]);
+	ws.mergeCells(`A${rObs.number}:${lastCol}${rObs.number}`);
+	rObs.getCell(1).fill = lightFill;
+	rObs.getCell(1).font = { bold: true, name: 'Arial', size: 9 };
+	rObs.getCell(1).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+	rObs.getCell(1).border = cellBorder;
+	rObs.height = 30;
+
+	// ── Rodapé ──
 	ws.addRow([]);
-	ws.addRow([...COLS_EXPEDIENTE]);
-	for (const p of sorted) ws.addRow(rowExpediente(p));
+	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const dataExtenso = formatarDataExtenso(new Date());
+	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
+	const rData2 = ws.addRow([textoData]);
+	rData2.getCell(1).font = { bold: true, name: 'Arial', size: 10 };
+
 	const out = await wb.xlsx.writeBuffer();
 	return new Uint8Array(out as ArrayBuffer);
 }
 
 // ---- PDF Expediente ----
-export function gerarPdfExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
-
-	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-	const pageWidth = 297;
+export async function gerarPdfExpediente(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[],
+	logoPoliciaBytes?: Uint8Array,
+	logoCearaBytes?: Uint8Array
+): Promise<PdfExportResult> {
+	const PAGE_H = 210; // paisagem A4
+	const PAGE_W = 297;
 	const margin = 10;
-
+	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const sorted = sortExpediente(policiais);
 
-	// Header
-	let y = 14;
-	doc.setFontSize(10);
+	// ── Cabeçalho ──────────────────────────────────────────────────────────────
+	let y = 10;
 	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO', pageWidth / 2, y, { align: 'center' });
-	y += 6;
 	doc.setFontSize(9);
-	doc.text(escala.cidade.toUpperCase(), pageWidth / 2, y, { align: 'center' });
-	y += 6;
-	doc.setFontSize(11);
-	doc.text(escala.titulo.toUpperCase(), pageWidth / 2, y, { align: 'center' });
-	y += 6;
-	doc.setFontSize(9);
+	doc.text('POLÍCIA CIVIL DO CEARÁ', PAGE_W / 2, y, { align: 'center' });
+	y += 4.5;
 	doc.setFont('helvetica', 'normal');
-	doc.text(`Período: ${formatarData(escala.data_inicio)} a ${formatarData(escala.data_fim)}`, pageWidth / 2, y, { align: 'center' });
-	y += 8;
+	doc.setFontSize(8);
+	doc.text('DELEGACIA GERAL DA POLÍCIA CIVIL', PAGE_W / 2, y, { align: 'center' });
+	y += 4;
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL', PAGE_W / 2, y, { align: 'center' });
+	y += 7;
+
+	// ── Tabela ─────────────────────────────────────────────────────────────────
+	const TEAL: [number, number, number] = [26, 92, 87];
+	const WHITE: [number, number, number] = [255, 255, 255];
+	const BLACK: [number, number, number] = [0, 0, 0];
+	const LIGHT: [number, number, number] = [245, 245, 245];
+	const NCOLS = 8;
+
+	const headTeal = { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold' as const, halign: 'center' as const };
+	const headMeta = { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold' as const, halign: 'left' as const, lineColor: [200, 200, 200] as [number, number, number], lineWidth: 0.2 };
+
+	const obsText = 'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
 
 	autoTable(doc, {
-		head: [[...COLS_EXPEDIENTE]],
-		body: sorted.map(p => rowExpediente(p)),
+		head: [
+			[{ content: 'ESCALA DE EXPEDIENTE', colSpan: NCOLS, styles: { ...headTeal, fontSize: 9, cellPadding: 2.5 } }],
+			[{ content: `DELEGACIA: ${escala.lotacao.toUpperCase()}`, colSpan: NCOLS, styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 } }],
+			[{ content: `MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, colSpan: NCOLS, styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 } }],
+			COLS_EXPEDIENTE.map(c => ({ content: c, styles: { ...headTeal, fontSize: 7, cellPadding: 1.5 } }))
+		],
+		body: [
+			...sorted.map(p => rowExpediente(p)),
+			[{ content: obsText, colSpan: NCOLS, styles: { fontStyle: 'bold' as const, fontSize: 7, fillColor: LIGHT, textColor: BLACK, cellPadding: 2 } }]
+		],
 		startY: y,
 		theme: 'grid',
-		headStyles: {
-			fillColor: [26, 92, 87],
-			textColor: 255,
-			fontSize: 7,
-			fontStyle: 'bold',
-			halign: 'center'
-		},
-		bodyStyles: { fontSize: 7 },
+		headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+		bodyStyles: { fontSize: 7, valign: 'middle', halign: 'left' },
 		columnStyles: {
-			0: { cellWidth: 55 },
-			1: { cellWidth: 28, halign: 'center' },
+			0: { cellWidth: 60 },
+			1: { cellWidth: 24, halign: 'center' },
 			2: { cellWidth: 14, halign: 'center' },
 			3: { cellWidth: 28, halign: 'center' },
-			4: { cellWidth: 22, halign: 'center' },
-			5: { cellWidth: 38 },
+			4: { cellWidth: 16, halign: 'center' },
+			5: { cellWidth: 30 },
 			6: { cellWidth: 22, halign: 'center' },
 			7: { cellWidth: 'auto' }
 		},
 		margin: { left: margin, right: margin }
 	});
 
+	// ── Rodapé / Assinatura ────────────────────────────────────────────────────
 	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
-	// Footer e assinatura logo após a tabela - aumentado offset para evitar sobreposição
-	let sigY = lastY + 45;
-	if (sigY > 185) {
-		doc.addPage();
-		sigY = 35;
-	}
-
-	const marginLine = 10;
-	doc.setFontSize(9);
-	doc.setFont('helvetica', 'normal');
+	let sigY = lastY + 12;
+	if (sigY > 183) { doc.addPage(); sigY = 35; }
 
 	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
-	doc.text(textoData, marginLine, sigY);
 
-	// Assinatura alinhada à direita e na mesma altura da data
-	const sigCenterX = pageWidth * 0.75;
-	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
+	doc.setFontSize(9);
+	doc.setFont('helvetica', 'bold');
+	doc.text(textoData, margin, sigY);
+
+	sigY += 22;
+	doc.line(margin, sigY, margin + 80, sigY);
 	doc.setFontSize(8);
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
+	doc.setFont('helvetica', 'normal');
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', margin + 40, sigY + 4, { align: 'center' });
 
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
+	const hasLogos = (logoPoliciaBytes && logoPoliciaBytes.length > 0) || (logoCearaBytes && logoCearaBytes.length > 0);
+	if (!hasLogos) return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
 
+	// ── Inserir logos via pdf-lib (como GISE) ──────────────────────────────────
+	try {
+		const pdfDoc = await PDFDocument.load(pdfBytes);
+		const mmToPt = 2.83465;
+		const logoH = 14;
+		const logoW = 42;
+		const logoTopMm = 3;
+
+		let imgPolicia: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
+		let imgCeara: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
+		if (logoPoliciaBytes && logoPoliciaBytes.length > 0) {
+			try { imgPolicia = await pdfDoc.embedJpg(logoPoliciaBytes); } catch { /* logo indisponível */ }
+		}
+		if (logoCearaBytes && logoCearaBytes.length > 0) {
+			try { imgCeara = await pdfDoc.embedJpg(logoCearaBytes); } catch { /* logo indisponível */ }
+		}
+
+		for (const page of pdfDoc.getPages()) {
+			const { height } = page.getSize();
+			if (imgPolicia) {
+				page.drawImage(imgPolicia, {
+					x: margin * mmToPt,
+					y: height - (logoTopMm + logoH) * mmToPt,
+					width: logoW * mmToPt,
+					height: logoH * mmToPt
+				});
+			}
+			if (imgCeara) {
+				page.drawImage(imgCeara, {
+					x: (PAGE_W - margin - logoW) * mmToPt,
+					y: height - (logoTopMm + logoH) * mmToPt,
+					width: logoW * mmToPt,
+					height: logoH * mmToPt
+				});
+			}
+		}
+
+		return { pdf: await pdfDoc.save(), finalY: sigY, pageHeightMm: PAGE_H };
+	} catch (e: any) {
+		console.error('[export] Erro ao inserir logos (expediente):', e.message || e);
+		return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
+	}
 }
 
 

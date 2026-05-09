@@ -187,6 +187,31 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
+// ---- Solicitações de Assinatura de Escalas ----
+
+export const escalaSolicitacoesAssinatura = sqliteTable(
+	'escala_solicitacoes_assinatura',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		escala_id: integer('escala_id')
+			.notNull()
+			.unique()
+			.references(() => escalas.id, { onDelete: 'cascade' }),
+		solicitante_id: integer('solicitante_id')
+			.notNull()
+			.references(() => policiais.id),
+		tipo: text('tipo', { enum: ['unidade', 'respondencia'] }).notNull(),
+		destinatario_id: integer('destinatario_id').references(() => policiais.id),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_esa_escala_id').on(table.escala_id),
+		index('idx_esa_destinatario_id').on(table.destinatario_id)
+	]
+);
+
 // ---- GISE ----
 
 export const giseEscalas = sqliteTable(

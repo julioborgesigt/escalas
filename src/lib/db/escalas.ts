@@ -1,9 +1,10 @@
-import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like, isNull } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
 	escalaDocumentos,
-	policiais
+	policiais,
+	escalaSolicitacoesAssinatura
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
@@ -367,4 +368,72 @@ export async function listarPoliciaisEscala(
 ): Promise<EscalaPolicialComDados[]> {
 	const result = await listarPoliciaisEscalaQuery(db, escalaId);
 	return result as EscalaPolicialComDados[];
+}
+
+// ---- Solicitações de Assinatura ----
+
+export async function criarSolicitacaoAssinatura(
+	db: Database,
+	escalaId: number,
+	solicitanteId: number,
+	tipo: 'unidade' | 'respondencia',
+	destinatarioId?: number
+) {
+	await db
+		.delete(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId));
+	await db.insert(escalaSolicitacoesAssinatura).values({
+		escala_id: escalaId,
+		solicitante_id: solicitanteId,
+		tipo,
+		destinatario_id: destinatarioId ?? null
+	});
+}
+
+export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number) {
+	return db
+		.select()
+		.from(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
+		.get();
+}
+
+export async function excluirSolicitacaoAssinatura(db: Database, escalaId: number) {
+	await db
+		.delete(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId));
+}
+
+export async function listarSolicitacoesEscalas(
+	db: Database,
+	escalaIds: number[]
+): Promise<Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>> {
+	if (escalaIds.length === 0) return new Map();
+
+	// Alias para o join com policiais (destinatário)
+	const dest = {
+		id: policiais.id,
+		nome: policiais.nome
+	};
+
+	const rows = await db
+		.select({
+			escala_id: escalaSolicitacoesAssinatura.escala_id,
+			tipo: escalaSolicitacoesAssinatura.tipo,
+			destinatario_id: escalaSolicitacoesAssinatura.destinatario_id,
+			destinatario_nome: policiais.nome
+		})
+		.from(escalaSolicitacoesAssinatura)
+		.leftJoin(policiais, eq(policiais.id, escalaSolicitacoesAssinatura.destinatario_id))
+		.where(inArray(escalaSolicitacoesAssinatura.escala_id, escalaIds));
+
+	const map = new Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>();
+	for (const row of rows) {
+		map.set(row.escala_id, {
+			tipo: row.tipo as 'unidade' | 'respondencia',
+			destinatario_id: row.destinatario_id ?? undefined,
+			destinatario_nome: row.destinatario_nome ?? undefined
+		});
+	}
+	return map;
 }

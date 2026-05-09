@@ -156,7 +156,11 @@
 			});
 			const json = await res.json();
 			if (json.type === 'success') {
-				toaster.create({ title: 'E-mail reenviado com sucesso!', description: `Enviado para ${email}`, type: 'success' });
+				toaster.create({
+					title: 'E-mail reenviado com sucesso!',
+					description: `Enviado para ${email}`,
+					type: 'success'
+				});
 			} else {
 				throw new Error(json.data?.error ?? 'Falha');
 			}
@@ -172,15 +176,22 @@
 	}
 
 	function handleFinalizar() {
-		if (timerDemora) { clearTimeout(timerDemora); timerDemora = null; }
+		if (timerDemora) {
+			clearTimeout(timerDemora);
+			timerDemora = null;
+		}
 		pendingFinalizar = true;
 		dialogEnvioAberto = false;
 		mensagemDemora = '';
 		timerDemora = setTimeout(() => {
-			if (pendingFinalizar) mensagemDemora = 'Isto está demorando mais que o esperado, aguarde o envio do e-mail...';
+			if (pendingFinalizar)
+				mensagemDemora = 'Isto está demorando mais que o esperado, aguarde o envio do e-mail...';
 		}, 5000);
 		return async ({ result }: { result: any }) => {
-			if (timerDemora) { clearTimeout(timerDemora); timerDemora = null; }
+			if (timerDemora) {
+				clearTimeout(timerDemora);
+				timerDemora = null;
+			}
 			mensagemDemora = '';
 			pendingFinalizar = false;
 			if (result.type === 'success') {
@@ -188,10 +199,18 @@
 				const email = result.data?.emailDestino ?? emailModal;
 				emailEnvioSalvo = email;
 				if (result.data?.emailEnviado === false) {
-					toaster.create({ title: 'Escala finalizada', description: 'Falha no envio do e-mail. Tentando reenviar automaticamente...', type: 'warning' });
+					toaster.create({
+						title: 'Escala finalizada',
+						description: 'Falha no envio do e-mail. Tentando reenviar automaticamente...',
+						type: 'warning'
+					});
 					await tentarReenvioAutomatico(email);
 				} else {
-					toaster.create({ title: 'Escala enviada com sucesso!', description: `E-mail enviado para ${email}`, type: 'success' });
+					toaster.create({
+						title: 'Escala enviada com sucesso!',
+						description: `E-mail enviado para ${email}`,
+						type: 'success'
+					});
 				}
 			} else {
 				toaster.create({ title: result.data?.error || 'Erro ao finalizar', type: 'error' });
@@ -291,7 +310,11 @@
 					onclick={abrirModalReenviar}
 					disabled={pendingReenviar || pendingReenvioAuto}
 				>
-					{pendingReenvioAuto ? 'Reenviando...' : pendingReenviar ? 'Enviando...' : 'Reenviar E-mail'}
+					{pendingReenvioAuto
+						? 'Reenviando...'
+						: pendingReenviar
+							? 'Enviando...'
+							: 'Reenviar E-mail'}
 				</button>
 				<button
 					type="button"
@@ -312,7 +335,11 @@
 				<h3 class="font-semibold text-base text-surface-700 dark:text-surface-200">
 					Finalizar Envio da Escala
 				</h3>
-				<p class="text-xs mt-1 transition-colors {mensagemDemora ? 'text-warning-600 dark:text-warning-400' : 'text-surface-500'}">
+				<p
+					class="text-xs mt-1 transition-colors {mensagemDemora
+						? 'text-warning-600 dark:text-warning-400'
+						: 'text-surface-500'}"
+				>
 					{mensagemDemora || 'Confirme o e-mail de destino e envie a escala em formato Word.'}
 				</p>
 			</div>
@@ -561,7 +588,10 @@
 	{/if}
 
 	<!-- SEÇÃO DE ASSINATURA (padrão visual idêntico ao da escala GISE) -->
-	{@const podeAssinar = usuario?.tipo === 'admin' || ((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') && usuario?.cargo === 'DPC')}
+	{@const podeAssinar =
+		usuario?.tipo === 'admin' ||
+		((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') &&
+			usuario?.cargo === 'DPC')}
 	{#if podeAssinar && !documentoAssinadoInfo?.existe && policiaisCount > 0}
 		<div class="space-y-4 mb-6">
 			<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
@@ -623,7 +653,9 @@
 						<div
 							class="p-3 py-4 rounded-xl bg-error-500/5 border border-error-500/10 flex items-center justify-center"
 						>
-							<p class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center">
+							<p
+								class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center"
+							>
 								RESTRITO A DISPOSITIVOS MÓVEIS. UTILIZE O TOKEN A3 NO COMPUTADOR.
 							</p>
 						</div>
@@ -662,8 +694,7 @@
 					</div>
 
 					<p class="text-xs text-surface-500 leading-relaxed italic">
-						Assinatura <strong>Qualificada (ICP-Brasil)</strong> rápida e segura via Token A3
-						(SERPRO).
+						Assinatura <strong>Qualificada (ICP-Brasil)</strong> rápida e segura via Token A3 (SERPRO).
 					</p>
 
 					{#if !isMobile}
@@ -688,7 +719,9 @@
 									</svg>
 								</div>
 								<div class="min-w-0 flex-1">
-									<p class="font-bold text-xs text-surface-800 dark:text-surface-100 uppercase truncate">
+									<p
+										class="font-bold text-xs text-surface-800 dark:text-surface-100 uppercase truncate"
+									>
 										{usuario?.nome || 'Não informado'}
 									</p>
 									<p class="text-[0.6rem] text-surface-400 font-mono">
@@ -727,27 +760,13 @@
 						<div
 							class="p-3 py-4 rounded-xl bg-surface-500/10 border border-surface-500/20 flex items-center justify-center"
 						>
-							<p class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center">
+							<p
+								class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center"
+							>
 								RECURSO DISPONÍVEL APENAS EM NAVEGADORES DESKTOP.
 							</p>
 						</div>
 					{/if}
-				</div>
-			</div>
-
-			<!-- Exportações auxiliares -->
-			<div class="py-4 border-t border-surface-200 dark:border-white/5">
-				<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-3 block"
-					>OUTROS FORMATOS (CONFERÊNCIA)</span
-				>
-				<div class="flex gap-2 flex-wrap">
-					{#each ['DOCX', 'XLSX', 'PDF'] as format}
-						<a
-							class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
-							href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
-							target="_blank">{format}</a
-						>
-					{/each}
 				</div>
 			</div>
 		</div>
@@ -768,6 +787,22 @@
 			/>
 		</div>
 	{/if}
+
+	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
+	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
+		<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
+			>Você pode conferir a escala antes de assinar</span
+		>
+		<div class="flex gap-2 flex-wrap">
+			{#each ['DOCX', 'XLSX', 'PDF'] as format}
+				<a
+					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
+					target="_blank">{format}</a
+				>
+			{/each}
+		</div>
+	</div>
 {/if}
 <!-- ===== FIM BLOCO ASSINATURA ===== -->
 

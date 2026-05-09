@@ -38,11 +38,12 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	let result;
 	if (escala.tipo === 'plantao') result = gerarPdfPlantao(escala, policiais);
-	else if (escala.tipo === 'expediente') result = gerarPdfExpediente(escala, policiais);
+	else if (escala.tipo === 'expediente') result = await gerarPdfExpediente(escala, policiais);
 	else result = gerarPdf(escala, policiais);
 
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
+	const pageHeightMm = result.pageHeightMm ?? 210;
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
@@ -86,7 +87,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
+	const boxY_pts = (pageHeightMm - sigY) * 2.8346 + 1.5;
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,

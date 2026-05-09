@@ -20,7 +20,7 @@
  * verificável.
  */
 
-import { PDFDocument, PDFName, PDFRef, PDFArray, type PDFDict, type PDFObject } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFArray, type PDFRef, type PDFDict, type PDFObject } from 'pdf-lib';
 import { logger } from './logger';
 
 export interface DssData {

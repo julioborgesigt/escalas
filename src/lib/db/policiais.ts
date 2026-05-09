@@ -18,6 +18,7 @@ export async function listarPoliciais(
 		busca?: string;
 		cargo?: string;
 		seccionalId?: number;
+		somentePapel?: boolean;
 		page?: number;
 		limit?: number;
 	}
@@ -60,6 +61,11 @@ export async function listarPoliciais(
 	// Filtro por cargo
 	if (opts?.cargo) {
 		baseConditions.push(eq(policiais.cargo, opts.cargo as 'DPC' | 'OIP'));
+	}
+
+	// Somente policiais com papel administrativo (admin_seccional ou admin_unidade)
+	if (opts?.somentePapel) {
+		baseConditions.push(sql`${policiais.papel} IS NOT NULL`);
 	}
 
 	// Paginação com valores padrão
