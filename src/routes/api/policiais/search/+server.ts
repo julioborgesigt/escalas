@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	if (!parsed.success) {
 		return json({ error: parsed.error.issues[0].message }, { status: 400 });
 	}
-	const { q, cargo, page, limit } = parsed.data;
+	const { q, cargo, page, limit, somente_admins } = parsed.data;
 	let { lotacao, seccional_id } = parsed.data;
 
 	const db = getDB(platform);
@@ -50,6 +50,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		busca: q,
 		cargo,
 		seccionalId: seccional_id,
+		somentePapel: somente_admins,
 		page,
 		limit
 	});

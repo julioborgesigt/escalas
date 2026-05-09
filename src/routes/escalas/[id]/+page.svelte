@@ -631,6 +631,18 @@
 	let repeticaoDatas = $state<string[]>([]);
 	let pendingRepetir = $state(false);
 
+	const SERV_POR_PAG = 50;
+	let paginaServidor = $state(1);
+	const policiaisEscalaPaginados = $derived(
+		policiaisEscalaLocal.slice((paginaServidor - 1) * SERV_POR_PAG, paginaServidor * SERV_POR_PAG)
+	);
+	const totalPaginasServ = $derived(Math.ceil(policiaisEscalaLocal.length / SERV_POR_PAG));
+	$effect(() => {
+		// Reset page when list changes (add/remove)
+		void policiaisEscalaLocal;
+		paginaServidor = 1;
+	});
+
 	let modoSelecao = $state(false);
 	let selecionados = $state(new Set<number>());
 	let pendingRemoverTodos = $state(false);
@@ -1402,6 +1414,7 @@
 									</div>
 								{:else}
 									<!-- Card do servidor (responsivo mobile) -->
+									<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 									<div
 										class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? 'bg-error-500/5 dark:bg-error-500/8' : ''}"
 										role={modoSelecao ? 'button' : undefined}
@@ -1799,7 +1812,7 @@
 	{:else}
 		<!-- Agrupado por data (plantao/expediente) -->
 		<div class="space-y-12">
-			{#each agruparPorData(policiaisEscalaLocal) as [dataGrupo, items]}
+			{#each agruparPorData(policiaisEscalaPaginados) as [dataGrupo, items]}
 				<div
 					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-visible"
 				>
@@ -2070,5 +2083,27 @@
 				</div>
 			{/each}
 		</div>
+		{#if totalPaginasServ > 1}
+			<div class="flex items-center justify-between gap-3 mt-5 px-1">
+				<span class="text-xs text-surface-500">
+					Exibindo {(paginaServidor - 1) * SERV_POR_PAG + 1}–{Math.min(paginaServidor * SERV_POR_PAG, policiaisEscalaLocal.length)} de {policiaisEscalaLocal.length} servidores
+				</span>
+				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-surface-500"
+						onclick={() => paginaServidor--}
+						disabled={paginaServidor <= 1}
+					>← Anterior</button>
+					<span class="text-xs text-surface-500">{paginaServidor} / {totalPaginasServ}</span>
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-surface-500"
+						onclick={() => paginaServidor++}
+						disabled={paginaServidor >= totalPaginasServ}
+					>Próximo →</button>
+				</div>
+			</div>
+		{/if}
 	{/if}
 {/if}

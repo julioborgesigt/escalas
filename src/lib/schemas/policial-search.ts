@@ -19,6 +19,10 @@ export const policialSearchQuerySchema = z.object({
 	cargo: z.enum(['DPC', 'OIP']).optional(),
 	lotacao: z.string().trim().max(120).optional(),
 	seccional_id: z.coerce.number().int().positive().optional(),
+	somente_admins: z
+		.string()
+		.optional()
+		.transform((v) => v === 'true' || v === '1'),
 	limit: z.coerce.number().int().min(1).max(50).default(20),
 	page: z.coerce.number().int().min(1).max(10000).default(1)
 });
