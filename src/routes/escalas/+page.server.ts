@@ -12,8 +12,8 @@ import {
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto } from '$lib/db';
 import { logger } from '$lib/server/logger';
-import { eq, or, and, inArray, sql } from 'drizzle-orm';
-import { unidades as unidadesTable, escalas as escalasTable, escalaPoliciais } from '$lib/server/schema';
+import { eq, or, and, inArray, sql, desc } from 'drizzle-orm';
+import { unidades as unidadesTable, escalas as escalasTable, escalaPoliciais, escalaDocumentos } from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
 	primeiroDiaDoMes,
@@ -81,7 +81,40 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 				? and(escalasExistentesBase!, inArray(escalasTable.lotacao, lotacoesPermitidas))
 				: escalasExistentesBase;
 
-	const [resultado, unidades, escalasExistentes] = await Promise.all([
+	const podeAssinar = u.tipo === 'admin' ||
+		((u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC');
+
+	let escalasParaAssinarQuery: ReturnType<typeof db.select> | Promise<never[]> = Promise.resolve([]);
+	if (podeAssinar) {
+		const subqDocs = db.select({ escala_id: escalaDocumentos.escala_id }).from(escalaDocumentos);
+		let pendingWhere = and(
+			or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
+			sql`${escalasTable.id} NOT IN (${subqDocs})` as any
+		);
+		if (!isAdmin) {
+			if (u.papel === 'admin_unidade' && u.lotacao) {
+				pendingWhere = and(pendingWhere!, eq(escalasTable.lotacao, u.lotacao));
+			} else if (u.papel === 'admin_seccional' && lotacoesPermitidas && lotacoesPermitidas.length > 0) {
+				pendingWhere = and(pendingWhere!, inArray(escalasTable.lotacao, lotacoesPermitidas));
+			}
+		}
+		escalasParaAssinarQuery = db
+			.select({
+				id: escalasTable.id,
+				titulo: escalasTable.titulo,
+				cidade: escalasTable.cidade,
+				data_inicio: escalasTable.data_inicio,
+				data_fim: escalasTable.data_fim,
+				tipo: escalasTable.tipo,
+				lotacao: escalasTable.lotacao
+			})
+			.from(escalasTable)
+			.where(pendingWhere)
+			.orderBy(desc(escalasTable.created_at))
+			.limit(50) as any;
+	}
+
+	const [resultado, unidades, escalasExistentes, escalasParaAssinar] = await Promise.all([
 		skipLoad
 			? { escalas: [], total: 0, page: 1, limit: 20, totalPages: 1 }
 			: listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
@@ -96,7 +129,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			tipo: escalasTable.tipo,
 			ano: sql<number>`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer)`,
 			mes: sql<number>`cast(strftime('%m', ${escalasTable.data_inicio}) as integer)`
-		}).from(escalasTable).where(scopeEscalas)
+		}).from(escalasTable).where(scopeEscalas),
+		escalasParaAssinarQuery
 	]);
 
 	return {
@@ -118,7 +152,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		isAdmin,
 		skipLoad,
 		papelUnidadeId: u.papel_unidade_id ?? null,
-		escalasExistentes
+		escalasExistentes,
+		podeAssinar,
+		escalasParaAssinar: escalasParaAssinar as Array<{
+			id: number; titulo: string; cidade: string;
+			data_inicio: string; data_fim: string;
+			tipo: string; lotacao: string;
+		}>
 	};
 };
 
