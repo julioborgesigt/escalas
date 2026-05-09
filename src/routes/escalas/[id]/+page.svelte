@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { untrack, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -10,7 +10,7 @@
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { useConfirmationDialog } from '$lib/composables';
-	import { loading } from '$lib/loading.svelte';
+
 
 	let { data } = $props();
 
@@ -251,47 +251,6 @@
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
-			}
-		};
-	}
-
-	function handleGerarProximoMes() {
-		loading.show('Gerando escala do próximo mês...');
-		return async ({ result }: any) => {
-			loading.hide();
-			const d = result.data as Record<string, unknown> | undefined;
-			if (result.type === 'success') {
-				const tipo = escala?.tipo === 'plantao' ? 'Plantão' : 'Expediente';
-				const naoProcessados = (d?.nao_processados as any[]) || [];
-				if (naoProcessados.length > 0) {
-					const nomes = naoProcessados.map((p: any) => p.nome).join(', ');
-					toaster.create({
-						title: `Escala gerada! ${d?.adicionados} servidor(es).`,
-						description: `Não processados: ${nomes}`,
-						type: 'warning'
-					});
-				} else {
-					toaster.create({
-						title: `Escala de ${tipo} do próximo mês criada!`,
-						description: `${d?.adicionados} servidor(es).`,
-						type: 'success'
-					});
-				}
-				goto(`/escalas/${d?.escala_id}`);
-			} else if (result.type === 'failure' && d?.escala_id) {
-				toaster.create({
-					title: String(d.error),
-					description: 'Redirecionando...',
-					type: 'warning'
-				});
-				goto(`/escalas/${d.escala_id}`);
-			} else if (result.type === 'error') {
-				toaster.create({
-					title: 'Erro de conexão ao gerar próximo mês. Tente novamente.',
-					type: 'error'
-				});
-			} else {
-				toaster.create({ title: String(d?.error || 'Erro ao gerar próximo mês'), type: 'error' });
 			}
 		};
 	}
@@ -810,45 +769,6 @@
 		</div>
 	{/if}
 
-	{#if escala.tipo === 'plantao' || escala.tipo === 'expediente'}
-		<div
-			class="p-4 sm:p-5 mb-4 rounded-3xl bg-surface-100/80 dark:bg-surface-800/60 backdrop-blur-md border border-surface-200 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20"
-		>
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-				<div>
-					<h3 class="font-semibold text-sm text-surface-700 dark:text-surface-300">
-						Gerar Escala do Próximo Mês
-					</h3>
-					<p class="text-xs text-surface-500 mt-1 max-w-lg">
-						{#if escala.tipo === 'plantao'}
-							Cria a escala de plantão do próximo mês calculando automaticamente os dias de cada
-							servidor pela rotação detectada (1x3 ou 2x6).
-						{:else}
-							Cria a escala de expediente do próximo mês com os mesmos servidores desta escala.
-						{/if}
-					</p>
-				</div>
-				<form
-					method="POST"
-					action="?/gerarProximoMes"
-					use:enhance={handleGerarProximoMes}
-					class="contents"
-				>
-					<button
-						type="submit"
-						class="btn preset-outlined-primary-500 shrink-0 font-semibold flex items-center gap-2"
-						disabled={loading.active}
-					>
-						{#if loading.active}
-							<span class="animate-spin inline-block mr-1">⟳</span>Gerando...
-						{:else}
-							Gerar Próximo Mês →
-						{/if}
-					</button>
-				</form>
-			</div>
-		</div>
-	{/if}
 
 	{#if !isFDS && !documentoAssinadoInfo?.existe && !finalizadaEm}
 		<div
