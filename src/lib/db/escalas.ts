@@ -27,6 +27,7 @@ export async function listarEscalas(
 		busca?: string;
 		page?: number;
 		limit?: number;
+		lotacoes?: string[];
 	}
 ): Promise<{
 	escalas: EscalaListagem[];
@@ -37,7 +38,11 @@ export async function listarEscalas(
 }> {
 	const conditions: ReturnType<typeof eq>[] = [];
 
-	if (lotacao) conditions.push(eq(escalas.lotacao, lotacao));
+	if (lotacao) {
+		conditions.push(eq(escalas.lotacao, lotacao));
+	} else if (opts?.lotacoes && opts.lotacoes.length > 0) {
+		conditions.push(inArray(escalas.lotacao, opts.lotacoes));
+	}
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
 		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}` as any);
