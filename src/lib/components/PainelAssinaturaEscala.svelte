@@ -26,7 +26,9 @@
 		usuario,
 		documentoAssinadoInfo = $bindable(),
 		finalizadaEm = $bindable(null),
-		emailEnvioInicial = null
+		emailEnvioInicial = null,
+		podeOIPSolicitar = false,
+		solicitacaoAtual = null
 	}: {
 		escalaId: string;
 		isFDS: boolean;
@@ -35,7 +37,88 @@
 		documentoAssinadoInfo: DocumentoAssinadoInfo | null;
 		finalizadaEm?: string | null;
 		emailEnvioInicial?: string | null;
+		podeOIPSolicitar?: boolean;
+		solicitacaoAtual?: { tipo: string; destinatario_id?: number } | null;
 	} = $props();
+
+	// --- Solicitar Assinatura (OIP) ---
+	let solicitacaoLocal = $state(untrack(() => solicitacaoAtual));
+	let dialogSolicitarAberto = $state(false);
+	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
+	let buscaDestinatario = $state('');
+	let destinatarioSelecionado = $state<{ id: number; nome: string; lotacao: string } | null>(null);
+	let resultadosBuscaDestinatario = $state<Array<{ id: number; nome: string; lotacao: string }>>([]);
+	let buscandoDestinatario = $state(false);
+	let enviandoSolicitacao = $state(false);
+	let erroBuscaDestinatario = $state('');
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function buscarDestinatarios(q: string) {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		if (q.length < 2) { resultadosBuscaDestinatario = []; return; }
+		debounceTimer = setTimeout(async () => {
+			buscandoDestinatario = true;
+			erroBuscaDestinatario = '';
+			try {
+				const res = await fetch(`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q)}&limit=8`);
+				if (!res.ok) throw new Error('Erro na busca');
+				const data = await res.json();
+				resultadosBuscaDestinatario = data.policiais ?? [];
+				if (resultadosBuscaDestinatario.length === 0) erroBuscaDestinatario = 'Nenhum delegado encontrado.';
+			} catch {
+				erroBuscaDestinatario = 'Erro ao buscar delegados.';
+			} finally {
+				buscandoDestinatario = false;
+			}
+		}, 300);
+	}
+
+	async function confirmarSolicitacao() {
+		if (enviandoSolicitacao) return;
+		if (opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado) return;
+		enviandoSolicitacao = true;
+		try {
+			const body: Record<string, unknown> = { tipo: opcaoSolicitacao };
+			if (opcaoSolicitacao === 'respondencia' && destinatarioSelecionado) {
+				body.destinatario_id = destinatarioSelecionado.id;
+			}
+			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify(body)
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				toaster.create({ title: err.error || 'Erro ao solicitar', type: 'error' });
+				return;
+			}
+			solicitacaoLocal = { tipo: opcaoSolicitacao, destinatario_id: destinatarioSelecionado?.id };
+			dialogSolicitarAberto = false;
+			toaster.create({ title: 'Solicitação enviada!', type: 'success' });
+		} catch {
+			toaster.create({ title: 'Erro ao solicitar assinatura', type: 'error' });
+		} finally {
+			enviandoSolicitacao = false;
+		}
+	}
+
+	async function cancelarSolicitacao() {
+		try {
+			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				toaster.create({ title: err.error || 'Erro ao cancelar', type: 'error' });
+				return;
+			}
+			solicitacaoLocal = null;
+			toaster.create({ title: 'Solicitação cancelada', type: 'info' });
+		} catch {
+			toaster.create({ title: 'Erro ao cancelar solicitação', type: 'error' });
+		}
+	}
 
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
@@ -788,10 +871,49 @@
 		</div>
 	{/if}
 
+	<!-- OIP: painel de solicitação de assinatura -->
+	{#if podeOIPSolicitar && !documentoAssinadoInfo?.existe}
+		{#if solicitacaoLocal}
+			<div class="mb-6 p-4 bg-warning-500/10 border border-warning-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+				<div class="flex items-center gap-3">
+					<svg class="w-5 h-5 text-warning-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+					</svg>
+					<div>
+						<p class="font-semibold text-sm text-warning-800 dark:text-warning-300">Assinatura Solicitada</p>
+						<p class="text-xs text-warning-600 dark:text-warning-400 mt-0.5">
+							{solicitacaoLocal.tipo === 'respondencia' ? 'Aguardando delegado em respondência' : 'Aguardando admin da unidade'}
+						</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-error-500 shrink-0 font-semibold"
+					onclick={cancelarSolicitacao}
+				>Cancelar Ass.</button>
+			</div>
+		{:else}
+			<div class="mb-6 p-4 bg-white/80 dark:bg-surface-900/60 border border-surface-200 dark:border-white/5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+				<div>
+					<p class="font-semibold text-sm text-surface-700 dark:text-surface-200">Solicitar Assinatura</p>
+					<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado responsável para assinar esta escala.</p>
+				</div>
+				<button
+					type="button"
+					class="btn btn-sm preset-filled-success-500 font-bold shrink-0 w-full sm:w-auto"
+					onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; dialogSolicitarAberto = true; }}
+				>
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+					Solicitar Assinatura
+				</button>
+			</div>
+		{/if}
+	{/if}
+
 	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
 	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
 		<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
-			>Você pode conferir a escala antes de assinar</span
+			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
 		>
 		<div class="flex gap-2 flex-wrap">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format}
@@ -805,6 +927,112 @@
 	</div>
 {/if}
 <!-- ===== FIM BLOCO ASSINATURA ===== -->
+
+<!-- Dialog Solicitar Assinatura (OIP) -->
+<Dialog open={dialogSolicitarAberto} onOpenChange={(e) => { if (!e.open) dialogSolicitarAberto = false; }}>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="h3 font-bold mb-1">Solicitar Assinatura</Dialog.Title>
+			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
+				Quem deve assinar esta escala?
+			</Dialog.Description>
+
+			<div class="space-y-3 mb-5">
+				<button
+					type="button"
+					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao === 'unidade'
+						? 'border-primary-500 bg-primary-500/10'
+						: 'border-surface-300 dark:border-white/10 hover:border-primary-400/60'}"
+					onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; }}
+				>
+					<div class="flex items-start gap-3">
+						<div class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao === 'unidade' ? 'border-primary-500' : 'border-surface-400'}">
+							{#if opcaoSolicitacao === 'unidade'}<div class="w-2.5 h-2.5 rounded-full bg-primary-500"></div>{/if}
+						</div>
+						<div>
+							<div class="font-semibold text-sm">Admin da Unidade</div>
+							<div class="text-xs text-surface-500 mt-0.5">O delegado titular da unidade assina o documento</div>
+						</div>
+					</div>
+				</button>
+
+				<button
+					type="button"
+					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao === 'respondencia'
+						? 'border-tertiary-500 bg-tertiary-500/10'
+						: 'border-surface-300 dark:border-white/10 hover:border-tertiary-400/60'}"
+					onclick={() => { opcaoSolicitacao = 'respondencia'; }}
+				>
+					<div class="flex items-start gap-3">
+						<div class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao === 'respondencia' ? 'border-tertiary-500' : 'border-surface-400'}">
+							{#if opcaoSolicitacao === 'respondencia'}<div class="w-2.5 h-2.5 rounded-full bg-tertiary-500"></div>{/if}
+						</div>
+						<div>
+							<div class="font-semibold text-sm">Admin em Respondência</div>
+							<div class="text-xs text-surface-500 mt-0.5">Escolha um delegado de outra unidade para assinar</div>
+						</div>
+					</div>
+				</button>
+
+				{#if opcaoSolicitacao === 'respondencia'}
+					<div class="pl-4 space-y-2 pt-1">
+						{#if destinatarioSelecionado}
+							<div class="flex items-center gap-3 p-3 rounded-xl bg-tertiary-500/10 border border-tertiary-500/30">
+								<div class="flex-1 min-w-0">
+									<div class="text-sm font-semibold truncate">{destinatarioSelecionado.nome}</div>
+									<div class="text-xs text-surface-500 truncate">{destinatarioSelecionado.lotacao}</div>
+								</div>
+								<button type="button" class="btn btn-sm preset-outlined-surface-500 shrink-0"
+									onclick={() => { destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; }}>Trocar</button>
+							</div>
+						{:else}
+							<div class="relative">
+								<input
+									type="text"
+									class="input w-full text-sm pr-8"
+									placeholder="Buscar delegado (DPC) por nome ou matrícula…"
+									bind:value={buscaDestinatario}
+									oninput={(e) => buscarDestinatarios(e.currentTarget.value)}
+								/>
+								{#if buscandoDestinatario}
+									<div class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-tertiary-500 border-t-transparent rounded-full animate-spin"></div>
+								{/if}
+							</div>
+							{#if resultadosBuscaDestinatario.length > 0}
+								<div class="card rounded-xl border border-surface-200 dark:border-white/10 overflow-hidden max-h-44 overflow-y-auto shadow-md">
+									{#each resultadosBuscaDestinatario as p (p.id)}
+										<button type="button"
+											class="w-full text-left px-3 py-2.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors border-b border-surface-100 dark:border-white/5 last:border-0"
+											onclick={() => { destinatarioSelecionado = p; resultadosBuscaDestinatario = []; buscaDestinatario = ''; }}>
+											<div class="text-sm font-medium">{p.nome}</div>
+											<div class="text-xs text-surface-500">{p.lotacao}</div>
+										</button>
+									{/each}
+								</div>
+							{:else if erroBuscaDestinatario && !buscandoDestinatario}
+								<p class="text-xs text-surface-400 px-1">{erroBuscaDestinatario}</p>
+							{/if}
+						{/if}
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex gap-3 justify-end">
+				<button type="button" class="btn preset-outlined-surface-500" onclick={() => (dialogSolicitarAberto = false)}>Cancelar</button>
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+					disabled={enviandoSolicitacao || (opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado)}
+					onclick={confirmarSolicitacao}
+				>{enviandoSolicitacao ? 'Enviando…' : 'Confirmar'}</button>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog>
 
 <Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
 	<Dialog.Content

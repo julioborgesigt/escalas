@@ -787,6 +787,8 @@
 		bind:documentoAssinadoInfo
 		bind:finalizadaEm
 		{emailEnvioInicial}
+		podeOIPSolicitar={data.podeOIPSolicitar}
+		solicitacaoAtual={data.solicitacaoAtual}
 	/>
 
 	<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
@@ -961,7 +963,7 @@
 								required
 							/>
 						</label>
-						<div class="flex flex-col gap-1 w-32">
+						<div class="flex flex-col gap-1">
 							<span class="label-text text-xs">Hora Entrada</span>
 							<div class="flex gap-1">
 								<select
@@ -978,7 +980,7 @@
 								>
 							</div>
 						</div>
-						<div class="flex flex-col gap-1 w-32">
+						<div class="flex flex-col gap-1">
 							<span class="label-text text-xs">Hora Saída</span>
 							<div class="flex gap-1">
 								<select
@@ -1816,7 +1818,122 @@
 				<div
 					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-visible"
 				>
-					<div class="table-container p-2">
+					<!-- Cabeçalho do grupo de data -->
+					<div class="px-4 py-3 flex items-center gap-3 border-b border-surface-100 dark:border-white/5 bg-surface-50/50 dark:bg-surface-800/30 rounded-t-2xl">
+						<span class="font-bold text-sm text-surface-800 dark:text-surface-100">
+							{isExpediente ? 'Expediente do Mês' : `${diaSemanaLabel(dataGrupo)}, ${formatarData(dataGrupo)}`}
+						</span>
+						<span class="text-xs text-surface-400">{items.length} servidor{items.length !== 1 ? 'es' : ''}</span>
+					</div>
+
+					<!-- Cards mobile (ocultos em sm+) -->
+					<div class="sm:hidden divide-y divide-surface-100 dark:divide-white/5">
+						{#each items as p (p.id)}
+							{#if editingId === p.id}
+								<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
+									<p class="text-[0.6rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide">Editando: {p.nome}</p>
+									<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex flex-wrap items-end gap-2">
+										<input type="hidden" name="item_id" value={editingId} />
+										{#if isExpediente}
+											<input type="hidden" name="hora_entrada" value="00:00" />
+											<input type="hidden" name="hora_saida" value="23:59" />
+											<input type="hidden" name="data_plantao" value={editDataEntrada} />
+											<input type="hidden" name="data_saida" value={editDataSaida} />
+											<div class="flex-1 min-w-[130px]">
+												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
+												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+											</div>
+											<div class="flex-1 min-w-[130px]">
+												<span class="label-text text-[0.6rem] block mb-0.5">Data Fim</span>
+												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+											</div>
+											<div class="w-full">
+												<span class="label-text text-[0.6rem] block mb-0.5">Observações</span>
+												<input type="text" name="observacoes" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editObservacoes} maxlength="500" placeholder="Informações complementares" />
+											</div>
+										{:else}
+											<div class="flex-1 min-w-[130px]">
+												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
+												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+											</div>
+											<div class="flex-1 min-w-[130px]">
+												<span class="label-text text-[0.6rem] block mb-0.5">Data Saída</span>
+												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+											</div>
+											<div class="flex gap-2 w-full">
+												<div class="flex-1">
+													<span class="label-text text-[0.6rem] block mb-0.5">Entrada</span>
+													<div class="flex gap-1">
+														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada}>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada}>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+													</div>
+												</div>
+												<div class="flex-1">
+													<span class="label-text text-[0.6rem] block mb-0.5">Saída</span>
+													<div class="flex gap-1">
+														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida}>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
+														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida}>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+													</div>
+												</div>
+											</div>
+											<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
+											<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+											<input type="hidden" name="data_plantao" value={editDataEntrada} />
+											<input type="hidden" name="data_saida" value={editDataSaida} />
+											<input type="hidden" name="observacoes" value={editObservacoes} />
+										{/if}
+										<div class="flex gap-2 w-full mt-1">
+											<button type="submit" class="btn btn-sm h-9 preset-filled-primary-500 rounded-lg px-4 font-bold flex-1" disabled={pendingEditar}>{pendingEditar ? 'Salvando...' : 'Salvar'}</button>
+											<button type="button" class="h-9 px-4 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold" onclick={() => (editingId = null)}>Cancelar</button>
+										</div>
+									</form>
+								</div>
+							{:else}
+								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+								<div
+									class="flex items-start gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? 'bg-error-500/5 dark:bg-error-500/8' : ''}"
+									role={modoSelecao ? 'button' : undefined}
+									tabindex={modoSelecao ? 0 : undefined}
+									onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
+									onkeydown={modoSelecao ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelecionar(p.id); } } : undefined}
+								>
+									{#if modoSelecao}
+										<div class="flex items-center shrink-0 pt-0.5">
+											<input type="checkbox" class="checkbox" checked={selecionados.has(p.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelecionar(p.id)} />
+										</div>
+									{/if}
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center gap-2 flex-wrap mb-1">
+											<span class="font-bold text-sm text-surface-900 dark:text-surface-100 uppercase leading-tight">{p.nome}</span>
+											<span class="badge px-1.5 py-0.5 rounded font-bold text-[0.55rem] uppercase {p.cargo === 'DPC' ? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}">{p.cargo}</span>
+											{#if p.equipe && !isExpediente}
+												<span class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold uppercase">Eq.{p.equipe}</span>
+											{/if}
+										</div>
+										<div class="text-xs text-surface-500 space-y-0.5">
+											<div>{p.matricula}{p.lotacao ? ' · ' + p.lotacao : ''}</div>
+											<div class="flex gap-2 flex-wrap">
+												{#if !isExpediente}<span>{formatarDataPlantao(p)}</span>{/if}
+												{#if !isExpediente}<span class="font-medium text-surface-600 dark:text-surface-400">{formatarHorario(p)}</span>{/if}
+												{#if isExpediente && p.observacoes}<span class="italic">{p.observacoes}</span>{/if}
+											</div>
+										</div>
+									</div>
+									{#if !documentoAssinadoInfo?.existe && !finalizadaEm && !modoSelecao}
+										<div class="flex items-center gap-1 shrink-0 mt-0.5">
+											<button type="button" title="Editar" class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10" onclick={() => startEdit(p)}>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+											</button>
+											<button type="button" class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5" onclick={() => solicitarRemocao(p.id, p.nome)}>Rem.</button>
+										</div>
+									{/if}
+								</div>
+							{/if}
+						{/each}
+					</div>
+
+					<!-- Tabela desktop (oculta em mobile) -->
+					<div class="table-container p-2 hidden sm:block">
 						<table class="table w-full text-[0.7rem] sm:text-xs !bg-transparent">
 							<thead>
 								<tr class="!bg-transparent border-b border-surface-100 dark:border-white/5">

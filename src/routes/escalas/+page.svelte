@@ -139,10 +139,16 @@
 		dialogOpen = true;
 	}
 
+	let escalaAbrirComSolicitacao = $state<number | null>(null);
+	let dialogRevogarSolicitacaoOpen = $state(false);
+
 	function solicitarEdicao(esc: EscalaListagem) {
 		if (esc.is_assinada) {
 			escalaParaRevogar = { id: esc.id, titulo: esc.titulo };
 			dialogRevogarOpen = true;
+		} else if (podeOIPSolicitar && solicitacoesMap[esc.id]) {
+			escalaAbrirComSolicitacao = esc.id;
+			dialogRevogarSolicitacaoOpen = true;
 		} else {
 			goto(`/escalas/${esc.id}`);
 		}
@@ -515,7 +521,7 @@
 		try {
 			const res = await fetch(`/api/escalas/${escalaSolicitandoId}/solicitar-assinatura`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 				body: JSON.stringify({
 					tipo: opcaoSolicitacao,
 					destinatario_id: destinatarioSelecionado?.id
@@ -532,7 +538,10 @@
 	}
 
 	async function cancelarSolicitacao(escalaId: number) {
-		await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, { method: 'DELETE' });
+		await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+			method: 'DELETE',
+			headers: csrfHeaders()
+		});
 		await invalidateAll();
 	}
 
@@ -1408,7 +1417,7 @@
 											>
 											Enviada
 										</span>
-									{:else}
+									{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
 										<span
 											class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
 										>
@@ -1420,7 +1429,21 @@
 													d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 												/></svg
 											>
-											{esc.tipo === 'fds' ? 'Pendente' : 'Ass. Pendente'}
+											Ass. Pendente
+										</span>
+									{:else}
+										<span
+											class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+										>
+											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+												><path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+												/></svg
+											>
+											{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
 										</span>
 									{/if}
 								</td>
@@ -1492,17 +1515,10 @@
 										</Popover>
 										{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
 											{#if solicitacoesMap[esc.id]}
-												{@const sol = solicitacoesMap[esc.id]}
-												<span class="badge preset-tonal-warning text-xs px-2 py-1 whitespace-nowrap">
-													{sol.tipo === 'respondencia' && sol.destinatario_nome
-														? `Aguard. ${sol.destinatario_nome.split(' ')[0]}`
-														: 'Aguardando DPC'}
-												</span>
 												<button
 													type="button"
 													class="btn btn-sm preset-outlined-error-500"
-													title="Cancelar solicitação"
-													onclick={() => cancelarSolicitacao(esc.id)}>✕</button
+													onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
 												>
 											{:else}
 												<button
@@ -1565,7 +1581,7 @@
 									>
 									Enviada
 								</span>
-							{:else}
+							{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
 								<span
 									class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
 								>
@@ -1577,7 +1593,21 @@
 											d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 										/></svg
 									>
-									Pendente
+									Ass. Pendente
+								</span>
+							{:else}
+								<span
+									class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
+								>
+									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+										/></svg
+									>
+									{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
 								</span>
 							{/if}
 						</div>
@@ -1667,20 +1697,11 @@
 						</div>
 						{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
 							{#if solicitacoesMap[esc.id]}
-								{@const sol = solicitacoesMap[esc.id]}
-								<div class="flex items-center gap-2 mt-2 pt-2 border-t border-white/10">
-									<div class="flex-1 flex items-center gap-1.5">
-										<svg class="w-3.5 h-3.5 text-warning-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-										<span class="text-xs text-warning-600 dark:text-warning-400 font-medium">
-											{sol.tipo === 'respondencia' && sol.destinatario_nome
-												? `Aguardando ${sol.destinatario_nome.split(' ').slice(0, 2).join(' ')}`
-												: 'Aguardando assinatura DPC'}
-										</span>
-									</div>
+								<div class="flex gap-2 mt-2 pt-2 border-t border-white/10">
 									<button
 										type="button"
-										class="btn btn-sm preset-outlined-error-500 text-xs"
-										onclick={() => cancelarSolicitacao(esc.id)}>Cancelar</button
+										class="btn btn-sm preset-outlined-error-500 text-xs flex-1"
+										onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
 									>
 								</div>
 							{:else}
@@ -1808,6 +1829,40 @@
 		}}
 	/>
 </div>
+
+<!-- Dialog de aviso: abrir escala com solicitação pendente (cancela a solicitação) -->
+<Dialog open={dialogRevogarSolicitacaoOpen} onOpenChange={(e) => { if (!e.open) { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; } }}>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+	>
+		<div
+			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
+			<Dialog.Title class="h3 font-bold mb-2">Cancelar solicitação?</Dialog.Title>
+			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
+				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a solicitação será cancelada automaticamente.
+			</Dialog.Description>
+			<div class="flex gap-3 justify-end">
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500"
+					onclick={() => { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; }}>Voltar</button
+				>
+				<button
+					type="button"
+					class="btn preset-filled-warning-500 font-bold"
+					onclick={async () => {
+						const id = escalaAbrirComSolicitacao!;
+						dialogRevogarSolicitacaoOpen = false;
+						escalaAbrirComSolicitacao = null;
+						await cancelarSolicitacao(id);
+						goto(`/escalas/${id}`);
+					}}>Cancelar e Abrir</button
+				>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog>
 
 <!-- Dialog Solicitar Assinatura (OIP admins) -->
 <Dialog open={dialogSolicitar} onOpenChange={(e) => { if (!e.open) dialogSolicitar = false; }}>

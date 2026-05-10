@@ -182,10 +182,12 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	const escalasParaAssinar = escalasParaAssinarRaw;
 
-	// Para OIP admins: carrega quais escalas da página atual já têm solicitação pendente
+	// Carrega solicitações pendentes para OIP e DPC admins — necessário para status correto na lista
 	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number };
 	let solicitacoesMap: Record<number, SolicitacaoInfo> = {};
-	if (podeOIPSolicitar && resultado.escalas.length > 0) {
+	const deveCarregarSolicitacoes =
+		!isAdmin && (u.papel === 'admin_seccional' || u.papel === 'admin_unidade');
+	if (deveCarregarSolicitacoes && resultado.escalas.length > 0) {
 		const escalasNaoAssinadas = resultado.escalas
 			.filter((e) => (e.tipo === 'plantao' || e.tipo === 'expediente') && !(e as any).is_assinada)
 			.map((e) => e.id);
