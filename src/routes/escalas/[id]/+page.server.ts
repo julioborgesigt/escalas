@@ -12,7 +12,8 @@ import {
 	verificarEscalaExistente,
 	registrarAuditComContexto,
 	finalizarEscalaFDS,
-	desfinalizarEscalaFDS
+	desfinalizarEscalaFDS,
+	buscarSolicitacaoAssinatura
 } from '$lib/db';
 import * as exportLib from '$lib/server/export';
 import { enviarEscalaFDSPorEmail } from '$lib/server/email';
@@ -73,6 +74,12 @@ function calcularDataSaidaInicial(
 	return dataEntrada;
 }
 
+function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
+	if (!u) return false;
+	if (u.tipo === 'admin') return true;
+	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
+}
+
 export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
@@ -99,6 +106,13 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		throw redirect(302, '/escalas');
 	}
 
+	const oipPodeSolicitar = podeOIPSolicitar(u);
+	const jaAssinada = docInfo.existe;
+	const solicitacaoAtual =
+		oipPodeSolicitar && (escala.tipo === 'plantao' || escala.tipo === 'expediente') && !jaAssinada
+			? await buscarSolicitacaoAssinatura(db, escalaId)
+			: null;
+
 	// A lista completa de policiais NÃO é mais carregada no load (era até 10 000
 	// linhas em todo acesso). O `<SearchableSelect>` agora consulta
 	// `/api/policiais/search` sob demanda com debounce, paginado.
@@ -107,7 +121,11 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		escala,
 		policiaisEscala,
 		documentoAssinadoInfo: docInfo,
-		escalaId
+		escalaId,
+		podeOIPSolicitar: oipPodeSolicitar,
+		solicitacaoAtual: solicitacaoAtual
+			? { tipo: solicitacaoAtual.tipo, destinatario_id: solicitacaoAtual.destinatario_id ?? undefined }
+			: null
 	};
 };
 
