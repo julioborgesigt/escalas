@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { useAutorizacao, useMobile } from '$lib/composables';
+	import { useAutorizacao, useMobile, useScrollLock } from '$lib/composables';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
@@ -19,6 +19,7 @@
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
 	let dialogRestaurarAberto = $state(false);
+	useScrollLock(() => dialogRestaurarAberto || resGise.capturandoRubrica);
 
 	function solicitarRestaurarPadrao() {
 		dialogRestaurarAberto = true;
@@ -1013,9 +1014,11 @@
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
 {#if resGise.capturandoRubrica && resGise.escalaSelecionada}
 	{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp ? 'entrada' : 'saida'}
-	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl p-4 sm:p-8 space-y-6 border border-white/10"
+			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-8 space-y-6 border border-white/10"
+			role="dialog"
+			aria-modal="true"
 		>
 			<div class="text-center space-y-2">
 				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
@@ -1058,17 +1061,17 @@
 <!-- Diálogo de confirmação para restaurar modelo padrão -->
 <Dialog open={dialogRestaurarAberto} onOpenChange={(e) => (dialogRestaurarAberto = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
 				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão.
 				Essa ação não pode ser desfeita.
 			</Dialog.Description>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">
 					Cancelar
 				</Dialog.CloseTrigger>

@@ -7,7 +7,7 @@
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
 
 	let { data, form } = $props();
 
@@ -148,6 +148,7 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
+	useScrollLock(() => cadastroOpen || dialogOpen);
 
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
@@ -313,17 +314,17 @@
 
 <Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Unidade?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 				Tem certeza que deseja excluir a unidade "{unidadeParaExcluir?.nome}"? Esta ação não afeta
 				os policiais já lotados nela.
 			</Dialog.Description>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
@@ -354,10 +355,10 @@
 	}}
 >
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
 			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
@@ -501,7 +502,7 @@
 						>
 					</div>
 				</div>
-				<div class="flex justify-end gap-3 pt-1">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-1">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<button
 						type="submit"
@@ -609,7 +610,7 @@
 
 											<div class="relative ml-2">
 												<input
-													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]"
+													class="input text-xs py-1 h-8 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[200px]"
 													type="text"
 													list="cidades-ce-edicao"
 													bind:value={editCidade}

@@ -8,7 +8,7 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
-	import { useAutorizacao, getSavedFilters, useAssinaturaEscala, useMobile } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useAssinaturaEscala, useMobile, useScrollLock } from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
@@ -555,6 +555,15 @@
 	let escalaAssinandoId = $state<number | null>(null);
 	let dialogAssinaturaTela = $state(false);
 
+	useScrollLock(() =>
+		dialogOpen ||
+		dialogRevogarOpen ||
+		dialogRevogarSolicitacaoOpen ||
+		dialogNovaEscalaAberto ||
+		dialogSolicitar ||
+		dialogAssinaturaTela
+	);
+
 	const assinaturaRapida = useAssinaturaEscala({
 		getParams: () => ({
 			escalaId: String(escalaAssinandoId ?? ''),
@@ -754,17 +763,17 @@
 
 	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode
 					ser desfeita.
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}
 						>Cancelar</Dialog.CloseTrigger
 					>
@@ -785,10 +794,10 @@
 
 	<Dialog open={dialogRevogarOpen} onOpenChange={(e) => (dialogRevogarOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Editar Escala Assinada?</Dialog.Title>
 				<Dialog.Description class="space-y-4 mb-6">
@@ -803,7 +812,7 @@
 						> ou clique no título da escala.
 					</p>
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
 					<button
 						type="button"
@@ -825,10 +834,10 @@
 		}}
 	>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-6 w-full max-w-lg bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10 overflow-y-auto max-h-[90vh]"
+				class="card p-4 sm:p-6 w-full max-w-lg bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10 overflow-y-auto max-h-[calc(100dvh-2rem)]"
 			>
 				<Dialog.Title class="h3 font-bold mb-4">Nova Escala</Dialog.Title>
 
@@ -1470,7 +1479,7 @@
 											<Portal>
 												<Popover.Positioner class="z-50">
 													<Popover.Content
-														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
+														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
 													>
 														{#if esc.is_assinada}
 															<a
@@ -1650,7 +1659,7 @@
 								<Portal>
 									<Popover.Positioner class="z-50">
 										<Popover.Content
-											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
+											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
 										>
 											{#if esc.is_assinada}
 												<a
@@ -1833,16 +1842,16 @@
 <!-- Dialog de aviso: abrir escala com solicitação pendente (cancela a solicitação) -->
 <Dialog open={dialogRevogarSolicitacaoOpen} onOpenChange={(e) => { if (!e.open) { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; } }}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Cancelar solicitação?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
 				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a solicitação será cancelada automaticamente.
 			</Dialog.Description>
-			<div class="flex gap-3 justify-end">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
@@ -1867,10 +1876,10 @@
 <!-- Dialog Solicitar Assinatura (OIP admins) -->
 <Dialog open={dialogSolicitar} onOpenChange={(e) => { if (!e.open) dialogSolicitar = false; }}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Solicitar Assinatura</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -1993,7 +2002,7 @@
 				{/if}
 			</div>
 
-			<div class="flex gap-3 justify-end">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
@@ -2016,10 +2025,10 @@
 <!-- Dialog de assinatura na tela (assinatura rápida) -->
 <Dialog open={dialogAssinaturaTela} onOpenChange={(e) => { if (!e.open) dialogAssinaturaTela = false; }}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-6 max-w-lg w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">

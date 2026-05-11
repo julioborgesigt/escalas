@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
+	import { useScrollLock } from '$lib/composables';
 
 	let { data } = $props();
 
@@ -235,6 +236,7 @@
 
 	// Modal de criação (Admin Geral)
 	let showCriarModal = $state(false);
+	useScrollLock(() => showCriarModal);
 	/** dias selecionados: chave YYYY-MM-DD → feriado */
 	let diasModal = $state<Record<string, { f: boolean }>>({});
 	let calAno = $state(2026);
@@ -425,7 +427,10 @@
 <svelte:head>
 	<title>Escalas GISE - Portal de Escalas</title>
 </svelte:head>
-<svelte:window onclick={() => { baixarHistoricoAberto = false; dropdownAberto = null; }} />
+<svelte:window
+	onclick={() => { baixarHistoricoAberto = false; dropdownAberto = null; }}
+	onkeydown={(e) => { if (e.key === 'Escape' && showCriarModal && !loading.active) showCriarModal = false; }}
+/>
 
 <div class="min-w-0 space-y-6">
 	<!-- Cabeçalho: coluna no mobile (título + botão largura total); linha a partir de sm -->
@@ -893,9 +898,15 @@
 
 <!-- Modal Criar GISE -->
 {#if showCriarModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+		role="presentation"
+		onclick={(e) => e.target === e.currentTarget && !loading.active && (showCriarModal = false)}
+	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
+			role="dialog"
+			aria-modal="true"
 		>
 			<h2 class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">Nova Escala GISE</h2>
 			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
@@ -1031,7 +1042,7 @@
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
 				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">Tipo de Escala</p>
-				<div class="grid grid-cols-3 gap-1.5 sm:gap-2">
+				<div class="grid grid-cols-3 gap-1 sm:gap-2">
 					<button type="button"
 						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
 						'completa'

@@ -10,6 +10,7 @@
 		resolveBreveRelatorioConteudoSeccional,
 		resolveBreveRelatorioConteudoSupervisao
 	} from '$lib/gise/breve-relatorio';
+	import { useScrollLock } from '$lib/composables';
 
 	interface GiseBreve {
 		breve_relatorio_titulo: string | null;
@@ -29,6 +30,8 @@
 
 	let { open, gise, global, pendingCrud, onClose, onSubmit }: Props = $props();
 
+	useScrollLock(() => open);
+
 	let titulo = $state('');
 	let textoSeccional = $state('');
 	let textoSupervisao = $state('');
@@ -46,14 +49,16 @@
 	});
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape' && !pendingCrud) onClose(); }} />
+
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
 		role="presentation"
 		onclick={(e) => e.target === e.currentTarget && onClose()}
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(calc(100vh-1.5rem),720px)] flex flex-col p-4 sm:p-6"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(calc(100dvh-1.5rem),720px)] flex flex-col p-4 sm:p-6"
 			role="dialog"
 			aria-labelledby="br-modal-title"
 			aria-modal="true"
@@ -113,7 +118,7 @@
 						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO}
 					></textarea>
 				</div>
-				<div class="flex justify-end gap-3 pt-2 border-t border-surface-200 dark:border-surface-700 shrink-0">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-surface-700 shrink-0">
 					<button
 						type="button"
 						class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"

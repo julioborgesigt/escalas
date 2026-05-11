@@ -8,7 +8,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
-	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useConfirmationDialog, useScrollLock } from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
@@ -95,6 +95,7 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
+	useScrollLock(() => cadastroOpen || confirmDialog.isOpen);
 	let nome = $state('');
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');
@@ -304,10 +305,10 @@
 	}}
 >
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="cadastro-policial-modal card p-5 max-w-2xl w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="cadastro-policial-modal card p-4 sm:p-5 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
 
@@ -508,17 +509,17 @@
 
 <Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Policial?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 				Tem certeza que deseja excluir o policial "{confirmDialog.currentItem?.nome}" do sistema de
 				cadastro?
 			</Dialog.Description>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
@@ -579,7 +580,7 @@
 			</select>
 		</label>
 
-		<label class="label flex-1 min-w-[200px]">
+		<label class="label flex-1 min-w-0 sm:min-w-[200px]">
 			<span class="label-text font-semibold mb-1">Buscar por Nome ou Matrícula</span>
 			<div class="relative flex gap-2">
 				<div class="relative flex-1">
