@@ -144,9 +144,10 @@
 {/if}
 
 <!-- Global Loading Overlay -->
-<LoadingOverlay 
-	active={loading.active || (!!navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname))} 
-	message={navigating?.to ? loadingText : loading.message} 
+<LoadingOverlay
+	active={loading.active || (!!navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname))}
+	message={navigating?.to ? loadingText : loading.message}
+	offsetSidebar={showSidebar && !!usuario}
 />
 
 <!-- Global Toast Provider -->

@@ -4,6 +4,8 @@
 	import { useAutorizacao, useMobile, useScrollLock } from '$lib/composables';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
+	import { fade, fly } from 'svelte/transition';
+	import { expoOut } from 'svelte/easing';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { useResGise } from './useResGise.svelte';
@@ -18,8 +20,21 @@
 
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
+	/** Acompanha o breakpoint do layout (≥ 900px = duas colunas). Em telas menores
+	 * o formulário sobe como bottom-sheet ao invés de renderizar inline. */
+	let isDesktopView = $state(true);
+	$effect(() => {
+		const mql = window.matchMedia('(min-width: 900px)');
+		isDesktopView = mql.matches;
+		const handler = (e: MediaQueryListEvent) => (isDesktopView = e.matches);
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
+	});
+
+	const mostrarFormularioMobile = $derived(!!escalaSelecionada && !isDesktopView);
+
 	let dialogRestaurarAberto = $state(false);
-	useScrollLock(() => dialogRestaurarAberto || resGise.capturandoRubrica);
+	useScrollLock(() => resGise.capturandoRubrica || mostrarFormularioMobile);
 
 	function solicitarRestaurarPadrao() {
 		dialogRestaurarAberto = true;
@@ -599,18 +614,15 @@
 				{/each}
 			</div>
 
-			<!-- Formulário de Resposta -->
-			<div class="min-[900px]:col-span-2">
+			{#snippet formularioServico()}
 				{#if resGise.escalaSelecionada}
-					<section
-						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
-					>
-						<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
-							<h2 class="text-xl font-bold">Relatório de Serviço</h2>
-							<p class="text-xs text-primary-500 font-medium">
-								Data: {resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}
-							</p>
-						</div>
+				<div class="space-y-6">
+					<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
+						<h2 class="text-xl font-bold">Relatório de Serviço</h2>
+						<p class="text-xs text-primary-500 font-medium">
+							Data: {resGise.fmtDate(resGise.escalaSelecionada.data_inicio)}
+						</p>
+					</div>
 
 						<!-- Stepper Visual -->
 						<div class="flex items-center justify-between px-2 sm:px-4 mb-4">
@@ -715,7 +727,7 @@
 										() => (resGise.capturandoRubrica = true),
 										false,
 										false,
-										'px-12 py-4 text-lg shadow-xl shadow-primary-500/20'
+										'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
 									)}
 								{:else}
 									<div class="flex flex-col gap-4 max-w-sm mx-auto">
@@ -920,17 +932,17 @@
 													do serviço) antes de confirmar a saída.
 												</p>
 											</div>
-											{@render actionButton('Confirmar Saída', undefined, 'surface', 'tonal', undefined, true, false, 'w-full py-4 text-lg opacity-50 cursor-not-allowed')}
+											{@render actionButton('Confirmar Saída', undefined, 'surface', 'outlined', undefined, true, false, 'w-full py-4 text-lg bg-surface-200 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border-2 border-surface-300 dark:border-surface-700 cursor-not-allowed')}
 										{:else if isMobile || !data.restringirSmartphone}
 											{@render actionButton(
 												'Confirmar Saída',
 												undefined,
 												'primary',
-												'outlined',
+												'filled',
 												() => (resGise.capturandoRubrica = true),
 												false,
 												false,
-												'w-full py-4 text-lg'
+												'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
 											)}
 										{:else}
 											<div class="flex flex-col gap-3">
@@ -981,6 +993,17 @@
 								</div>
 							</div>
 						{/if}
+				</div>
+				{/if}
+			{/snippet}
+
+			<!-- Desktop: formulário inline na coluna da direita -->
+			<div class="hidden min-[900px]:block min-[900px]:col-span-2">
+				{#if resGise.escalaSelecionada}
+					<section
+						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
+					>
+						{@render formularioServico()}
 					</section>
 				{:else}
 					<div
@@ -1007,9 +1030,51 @@
 					</div>
 				{/if}
 			</div>
+
+			<!-- Mobile: bottom-sheet modal com formulário de serviço -->
+			{#if mostrarFormularioMobile}
+			<div
+				class="min-[900px]:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md"
+				role="presentation"
+				onclick={(e) => { if (e.target === e.currentTarget) resGise.escalaSelecionada = null; }}
+				transition:fade={{ duration: 200 }}
+			>
+				<div
+					class="relative bg-surface-50 dark:bg-surface-900 rounded-t-3xl shadow-2xl w-full max-w-2xl max-h-[92dvh] overflow-y-auto border-t border-x border-surface-200 dark:border-white/10"
+					role="dialog"
+					aria-modal="true"
+					aria-label="Relatório de Serviço"
+					transition:fly={{ y: 600, duration: 400, easing: expoOut, opacity: 1 }}
+				>
+					<!-- Drag handle (estilo bottom-sheet iOS/Material) -->
+					<div class="sticky top-0 z-10 pt-2.5 pb-2 bg-surface-50 dark:bg-surface-900 flex justify-center">
+						<div class="w-10 h-1.5 rounded-full bg-surface-300 dark:bg-surface-700"></div>
+					</div>
+
+					<!-- Botão fechar flutuante -->
+					<button
+						type="button"
+						class="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-surface-200/80 dark:bg-surface-800/80 backdrop-blur text-surface-600 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors"
+						onclick={() => (resGise.escalaSelecionada = null)}
+						aria-label="Fechar"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+
+					<!-- Conteúdo do formulário -->
+					<div class="px-4 sm:px-6 pb-8 pt-2">
+						{@render formularioServico()}
+					</div>
+				</div>
+			</div>
+			{/if}
 		</div>
 	{/if}
 </div>
+
+<svelte:window onkeydown={(e) => { if (mostrarFormularioMobile && e.key === 'Escape' && !resGise.capturandoRubrica) resGise.escalaSelecionada = null; }} />
 
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
 {#if resGise.capturandoRubrica && resGise.escalaSelecionada}

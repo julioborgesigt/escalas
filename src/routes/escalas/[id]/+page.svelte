@@ -9,7 +9,7 @@
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { useConfirmationDialog, useScrollLock } from '$lib/composables';
+	import { useConfirmationDialog } from '$lib/composables';
 
 
 	let { data } = $props();
@@ -649,13 +649,6 @@
 	let pendingRemoverSelecionados = $state(false);
 	let confirmRemoverTodosOpen = $state(false);
 	let confirmRemoverSelecionadosOpen = $state(false);
-
-	useScrollLock(() =>
-		confirmDialog.isOpen ||
-		confirmRemoverTodosOpen ||
-		confirmRemoverSelecionadosOpen ||
-		showEditarDiasModal
-	);
 
 	const selecionadosJson = $derived(JSON.stringify(Array.from(selecionados)));
 	const totalSelecionados = $derived(selecionados.size);

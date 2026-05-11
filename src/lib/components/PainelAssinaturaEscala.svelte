@@ -7,10 +7,11 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import type { ActionResult } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
-	import { useAssinaturaEscala, useMobile, useScrollLock } from '$lib/composables';
+	import { useAssinaturaEscala, useMobile } from '$lib/composables';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -209,15 +210,6 @@
 	let dialogReenvioAberto = $state(false);
 	let dialogDesfinalizarAberto = $state(false);
 
-	useScrollLock(() =>
-		dialogEnvioAberto ||
-		dialogReenvioAberto ||
-		dialogDesfinalizarAberto ||
-		dialogRevogacaoAberto ||
-		dialogSolicitarAberto ||
-		dialogSignOpen
-	);
-
 	// E-mail editável no modal (inicializa com o salvo ou padrão)
 	let emailModal = $state(EMAIL_PADRAO_FDS);
 
@@ -279,7 +271,7 @@
 			if (pendingFinalizar)
 				mensagemDemora = 'Isto está demorando mais que o esperado, aguarde o envio do e-mail...';
 		}, 5000);
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (timerDemora) {
 				clearTimeout(timerDemora);
 				timerDemora = null;
@@ -305,7 +297,8 @@
 					});
 				}
 			} else {
-				toaster.create({ title: result.data?.error || 'Erro ao finalizar', type: 'error' });
+				const msg = result.type === 'failure' ? result.data?.error : undefined;
+				toaster.create({ title: msg || 'Erro ao finalizar', type: 'error' });
 			}
 		};
 	}
@@ -313,7 +306,7 @@
 	function handleReenviar() {
 		pendingReenviar = true;
 		dialogReenvioAberto = false;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingReenviar = false;
 			if (result.type === 'success') {
 				emailEnvioSalvo = result.data?.emailDestino ?? emailModal;
@@ -323,7 +316,8 @@
 					type: 'success'
 				});
 			} else {
-				toaster.create({ title: result.data?.error || 'Erro ao reenviar', type: 'error' });
+				const msg = result.type === 'failure' ? result.data?.error : undefined;
+				toaster.create({ title: msg || 'Erro ao reenviar', type: 'error' });
 			}
 		};
 	}
@@ -331,14 +325,15 @@
 	function handleDesfinalizar() {
 		pendingDesfinalizar = true;
 		dialogDesfinalizarAberto = false;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingDesfinalizar = false;
 			if (result.type === 'success') {
 				finalizadaEm = null;
 				toaster.create({ title: 'Envio desfeito. A escala pode ser editada.', type: 'info' });
 			} else {
+				const msg = result.type === 'failure' ? result.data?.error : undefined;
 				toaster.create({
-					title: result.data?.error || 'Erro ao reabrir para edição',
+					title: msg || 'Erro ao reabrir para edição',
 					type: 'error'
 				});
 			}

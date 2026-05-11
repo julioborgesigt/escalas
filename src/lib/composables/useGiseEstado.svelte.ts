@@ -3,8 +3,14 @@
  * Centraliza permissões, formatação e detecção de dispositivo.
  */
 
+interface Seccional {
+	seccional_id: number;
+	status: string;
+	[key: string]: unknown;
+}
+
 export interface GiseEstadoParams {
-	getData: () => Record<string, any>;
+	getData: () => Record<string, unknown>;
 }
 
 export function useGiseEstado({ getData }: GiseEstadoParams) {
@@ -20,13 +26,13 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const isSupervisor = $derived(getData().isSupervisor || gise?.supervisor_id === getData().usuarioAtual?.id);
 
 	const minhaSeccional = $derived(
-		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
+		isSeccional ? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId) : null
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
 		gise?.seccionais?.length > 0 &&
 		gise.seccionais.every(
-			(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+			(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
 		)
 	);
 
