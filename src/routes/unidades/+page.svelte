@@ -7,7 +7,7 @@
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
-	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 
 	let { data, form } = $props();
 
@@ -148,7 +148,6 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
-	useScrollLock(() => cadastroOpen || dialogOpen);
 
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
@@ -202,7 +201,10 @@
 			pendingExcluir = false;
 			if (result.type === 'success') {
 				await invalidateAll();
-				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
+				toaster.create({
+					title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`,
+					type: 'success'
+				});
 				dialogOpen = false;
 				unidadeParaExcluir = null;
 			} else {
@@ -250,7 +252,8 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button type="button"
+		<button
+			type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -260,7 +263,11 @@
 			Limpar filtros
 		</button>
 		{#if isAdmin}
-			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={() => (cadastroOpen = true)}>
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-primary-500"
+				onclick={() => (cadastroOpen = true)}
+			>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 					><path
 						stroke-linecap="round"
@@ -325,10 +332,16 @@
 				os policiais já lotados nela.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}
+					>Cancelar</Dialog.CloseTrigger
+				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={pendingExcluir}>
+					<button
+						type="submit"
+						class="btn preset-filled-error-500 flex items-center gap-2"
+						disabled={pendingExcluir}
+					>
 						{pendingExcluir ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
@@ -492,7 +505,7 @@
 						>
 						<label class="flex items-center space-x-2"
 							><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span
-								>Expediente</span
+								>Exped.</span
 							></label
 						>
 						<label class="flex items-center space-x-2"
@@ -670,13 +683,22 @@
 							{#if isAdmin}
 								<td>
 									{#if editandoId === u.id}
-										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
+										<form
+											method="POST"
+											action="?/editar"
+											use:enhance={handleEditar}
+											class="flex gap-2"
+										>
 											<input type="hidden" name="id" value={editandoId} />
 											<input type="hidden" name="nome" value={editNome} />
 											<input type="hidden" name="tipo" value={editTipo} />
 											<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
 											<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
-											<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+											<input
+												type="hidden"
+												name="tem_expediente"
+												value={editTemExpediente ? 'on' : ''}
+											/>
 											<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
 											<input type="hidden" name="cidade" value={editCidade} />
 											<button
@@ -686,17 +708,21 @@
 											>
 												{pendingEditar ? 'Salvando...' : 'Salvar'}
 											</button>
-											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
-												>Cancelar</button
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-surface"
+												onclick={cancelarEdicao}>Cancelar</button
 											>
 										</form>
 									{:else}
 										<div class="flex gap-2">
-											<button type="button"
+											<button
+												type="button"
 												class="btn btn-sm preset-outlined-primary-500"
 												onclick={() => iniciarEdicao(u)}>Editar</button
 											>
-											<button type="button"
+											<button
+												type="button"
 												class="btn btn-sm preset-filled-error-500"
 												onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 											>
@@ -775,8 +801,10 @@
 								>
 									{pendingEditar ? 'Salvando...' : 'Salvar'}
 								</button>
-								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
-									>Cancelar</button
+								<button
+									type="button"
+									class="btn btn-sm preset-outlined-surface flex-1"
+									onclick={cancelarEdicao}>Cancelar</button
 								>
 							</form>
 						</div>
@@ -795,7 +823,8 @@
 								</p>
 								{#if u.seccional_id}
 									<p class="text-[0.65rem] text-surface-500 mt-0.5 truncate">
-										Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ?? u.seccional_id}
+										Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ??
+											u.seccional_id}
 									</p>
 								{/if}
 								<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
@@ -820,11 +849,13 @@
 							</div>
 							{#if isAdmin}
 								<div class="flex gap-2 shrink-0">
-									<button type="button"
+									<button
+										type="button"
 										class="btn btn-sm preset-outlined-primary-500"
 										onclick={() => iniciarEdicao(u)}>Editar</button
 									>
-									<button type="button"
+									<button
+										type="button"
 										class="btn btn-sm preset-filled-error-500"
 										onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 									>

@@ -6,7 +6,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
-	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { Unidade } from '$lib/types';
 
@@ -171,7 +171,6 @@
 
 	// Exclusão de escala (para "não assinada")
 	let escalaExcluirOpen = $state(false);
-	useScrollLock(() => escalaExcluirOpen);
 	let itemParaExcluir = $state<ItemCompliance | null>(null);
 
 	async function carregar() {

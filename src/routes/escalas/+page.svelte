@@ -8,7 +8,7 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
-	import { useAutorizacao, getSavedFilters, useAssinaturaEscala, useMobile, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useAssinaturaEscala, useMobile } from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
@@ -554,15 +554,6 @@
 
 	let escalaAssinandoId = $state<number | null>(null);
 	let dialogAssinaturaTela = $state(false);
-
-	useScrollLock(() =>
-		dialogOpen ||
-		dialogRevogarOpen ||
-		dialogRevogarSolicitacaoOpen ||
-		dialogNovaEscalaAberto ||
-		dialogSolicitar ||
-		dialogAssinaturaTela
-	);
 
 	const assinaturaRapida = useAssinaturaEscala({
 		getParams: () => ({

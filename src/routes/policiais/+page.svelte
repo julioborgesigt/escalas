@@ -8,7 +8,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
-	import { useAutorizacao, getSavedFilters, useConfirmationDialog, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
@@ -95,7 +95,6 @@
 
 	// Cadastro
 	let cadastroOpen = $state(false);
-	useScrollLock(() => cadastroOpen || confirmDialog.isOpen);
 	let nome = $state('');
 	let matricula = $state('');
 	let cargo = $state<'DPC' | 'OIP'>('OIP');

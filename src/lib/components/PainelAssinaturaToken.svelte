@@ -145,8 +145,8 @@
 
 			toaster.success({ title: 'PDF assinado com sucesso!' });
 			await onSuccess();
-		} catch (err: any) {
-			toaster.error({ title: 'Erro na assinatura', description: err.message });
+		} catch (err: unknown) {
+			toaster.error({ title: 'Erro na assinatura', description: err instanceof Error ? err.message : 'Erro desconhecido' });
 		} finally {
 			loading.hide();
 		}
@@ -165,8 +165,8 @@
 				const result = await client.sign(messageDigestBase64);
 				return { serproCms: result.rawSignature, serproResponse: result };
 			});
-		} catch (err: any) {
-			toaster.error({ title: 'Erro no Assinador SERPRO', description: err.message });
+		} catch (err: unknown) {
+			toaster.error({ title: 'Erro no Assinador SERPRO', description: err instanceof Error ? err.message : 'Erro desconhecido' });
 			serproClient?.disconnect();
 			serproClient = null;
 			loading.hide();

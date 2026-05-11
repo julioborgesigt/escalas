@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import { useScrollLock } from '$lib/composables';
 
 	interface Props {
 		open: boolean;
@@ -9,8 +8,6 @@
 	}
 
 	let { open, onOpenChange, onConfirm }: Props = $props();
-
-	useScrollLock(() => open);
 </script>
 
 <Dialog {open} onOpenChange={(e) => onOpenChange(e.open)}>

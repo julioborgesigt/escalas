@@ -30,14 +30,14 @@
 	// Face Liveness states
 	let faceDetected = $state(false);
 	let isFaceModelLoaded = $state(false);
-	let faceDetectionInterval: any = null;
+	let faceDetectionInterval: ReturnType<typeof setInterval> | null = null;
 	let faceStatusMessage = $state('Inicializando IA...');
 	let faceLoadError = $state<string | null>(null);
 
 	// Novos estados para estabilidade e contagem
 	let countdown = $state(0);
 	let isMoving = $state(false);
-	let lastBox = $state<any>(null);
+	let lastBox = $state<{ x: number; y: number } | null>(null);
 	let isFlashActive = $state(false);
 	let stableFrames = $state(0); // Contador para evitar flickering
 	let lastErrorCode = $state<string | null>(null); // Erros de captura final
@@ -109,7 +109,7 @@
 				isFaceModelLoaded = true;
 			}
 			startDetectionLoop();
-		} catch (e: any) {
+		} catch (e: unknown) {
 			console.error('Erro ao carregar face-api:', e);
 			faceLoadError = 'Falha ao baixar modelo facial. Verifique internet.';
 		}
@@ -396,12 +396,13 @@
 			emailMascarado = data.emailMascarado;
 			desafioId = data.desafioId;
 			return true;
-		} catch (e: any) {
-			codigoError = e.message;
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+			codigoError = msg;
 			// Se o erro for de login/sessão, avisar de forma mais incisiva (toast
 			// de erro no canto — bloqueia menos que alert() e respeita o tema).
-			if (e.message.includes('Sessão inválida')) {
-				toaster.create({ title: 'Sessão expirada', description: e.message, type: 'error' });
+			if (msg.includes('Sessão inválida')) {
+				toaster.create({ title: 'Sessão expirada', description: msg, type: 'error' });
 			}
 			return false;
 		} finally {

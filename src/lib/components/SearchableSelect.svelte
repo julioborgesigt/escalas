@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Portal } from '@skeletonlabs/skeleton-svelte';
 
-	type Option = { value: any; label: string };
+	type Option = { value: unknown; label: string };
 
 	let {
 		options = [],
@@ -21,7 +21,7 @@
 		selectedOption?: Option | null;
 		debounceMs?: number;
 		minSearchChars?: number;
-		value: any;
+		value: unknown;
 		placeholder?: string;
 		id?: string;
 		name?: string;
@@ -63,7 +63,7 @@
 		window.addEventListener('scroll', onScroll, { capture: true, passive: true });
 		window.addEventListener('resize', onResize);
 		return () => {
-			window.removeEventListener('scroll', onScroll, { capture: true } as any);
+			window.removeEventListener('scroll', onScroll, { capture: true });
 			window.removeEventListener('resize', onResize);
 		};
 	});

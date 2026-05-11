@@ -7,7 +7,7 @@
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 
 	let { data } = $props();
@@ -132,7 +132,6 @@
 	}
 
 	let dialogOpen = $state(false);
-	useScrollLock(() => dialogOpen);
 	let escalaParaExcluir = $state<{ id: number; lotacao: string } | null>(null);
 
 	function solicitarExclusao(id: number, lotacao: string) {
