@@ -3,6 +3,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { normalizarHora, validarHora } from '$lib/gise/gise-horarios';
+	import { useScrollLock } from '$lib/composables';
 
 	interface GiseInfo {
 		data_inicio: string;
@@ -20,6 +21,8 @@
 	}
 
 	let { open, pendingCrud, editaBloqueado, gise, onClose, onSubmit }: Props = $props();
+
+	useScrollLock(() => open);
 
 	let dataInicio = $state('');
 	let horaEntrada = $state('');
@@ -52,10 +55,18 @@
 	};
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape' && !pendingCrud) onClose(); }} />
+
 {#if open}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+		role="presentation"
+		onclick={(e) => e.target === e.currentTarget && !pendingCrud && onClose()}
+	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 space-y-4 max-h-[calc(100vh-1.5rem)] overflow-y-auto"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 space-y-4 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
+			role="dialog"
+			aria-modal="true"
 		>
 			<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">
 				Editar Data e Horários
@@ -111,7 +122,7 @@
 				</div>
 				<p class="text-xs text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
 			</div>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"

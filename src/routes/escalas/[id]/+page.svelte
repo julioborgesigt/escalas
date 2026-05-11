@@ -9,7 +9,7 @@
 	import { formatarData, proximoDia } from '$lib/utils';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { useConfirmationDialog } from '$lib/composables';
+	import { useConfirmationDialog, useScrollLock } from '$lib/composables';
 
 
 	let { data } = $props();
@@ -650,6 +650,13 @@
 	let confirmRemoverTodosOpen = $state(false);
 	let confirmRemoverSelecionadosOpen = $state(false);
 
+	useScrollLock(() =>
+		confirmDialog.isOpen ||
+		confirmRemoverTodosOpen ||
+		confirmRemoverSelecionadosOpen ||
+		showEditarDiasModal
+	);
+
 	const selecionadosJson = $derived(JSON.stringify(Array.from(selecionados)));
 	const totalSelecionados = $derived(selecionados.size);
 
@@ -793,17 +800,17 @@
 
 	<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Policial?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 					Tem certeza que deseja remover o policial "{confirmDialog.currentItem?.nome}" desta
 					escala?
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
 						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
@@ -816,16 +823,16 @@
 
 	<Dialog open={confirmRemoverTodosOpen} onOpenChange={(e) => (confirmRemoverTodosOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Todos?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 					Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong> desta escala? Esta ação não pode ser desfeita.
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/removerTodos" use:enhance={handleRemoverTodos} class="contents">
 						<button type="submit" class="btn preset-filled-error-500" disabled={pendingRemoverTodos}>
@@ -839,16 +846,16 @@
 
 	<Dialog open={confirmRemoverSelecionadosOpen} onOpenChange={(e) => (confirmRemoverSelecionadosOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Selecionados?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 					Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong> desta escala?
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/removerSelecionados" use:enhance={handleRemoverSelecionados} class="contents">
 						<input type="hidden" name="ids" value={selecionadosJson} />
@@ -1610,7 +1617,7 @@
 								<input type="hidden" name="data_plantao" value={dia} />
 								<input type="hidden" name="equipe" value="1" />
 								<div class="flex flex-wrap items-end gap-2">
-									<div class="flex-1 min-w-[200px] max-w-sm">
+									<div class="flex-1 min-w-0 sm:min-w-[200px] max-w-sm basis-full sm:basis-auto">
 										{#key (fdsAddingDia ?? '') + (fdsAddingCargo ?? '')}
 											<SearchableSelect
 												name="policial_id"
@@ -1687,10 +1694,10 @@
 		<!-- Modal: Editar dias da escala -->
 		<Dialog open={showEditarDiasModal} onOpenChange={(e) => (showEditarDiasModal = e.open)}>
 			<Dialog.Content
-				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 			>
 				<div
-					class="card w-full max-w-sm bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-warning-500/20 p-5 space-y-4"
+					class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-warning-500/20 p-4 sm:p-5 space-y-4"
 				>
 					<div>
 						<Dialog.Title class="font-bold text-base">Editar Qtd. dias da escala</Dialog.Title>
@@ -1839,11 +1846,11 @@
 											<input type="hidden" name="hora_saida" value="23:59" />
 											<input type="hidden" name="data_plantao" value={editDataEntrada} />
 											<input type="hidden" name="data_saida" value={editDataSaida} />
-											<div class="flex-1 min-w-[130px]">
+											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
 												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
 											</div>
-											<div class="flex-1 min-w-[130px]">
+											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Fim</span>
 												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
 											</div>
@@ -1852,11 +1859,11 @@
 												<input type="text" name="observacoes" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editObservacoes} maxlength="500" placeholder="Informações complementares" />
 											</div>
 										{:else}
-											<div class="flex-1 min-w-[130px]">
+											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
 												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
 											</div>
-											<div class="flex-1 min-w-[130px]">
+											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Saída</span>
 												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
 											</div>
@@ -2008,25 +2015,25 @@
 														<input type="hidden" name="hora_saida" value="23:59" />
 														<input type="hidden" name="data_plantao" value={editDataEntrada} />
 														<input type="hidden" name="data_saida" value={editDataSaida} />
-														<div class="min-w-[120px]">
+														<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Início</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
 															</label>
 														</div>
-														<div class="min-w-[120px]">
+														<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Fim</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
 															</label>
 														</div>
-														<div class="flex-1 min-w-[200px]">
+														<div class="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Observações</span>
 																<input
 																	type="text"
 																	name="observacoes"
-																	class="input text-xs h-8 px-2 rounded-lg"
+																	class="input text-xs h-8 px-2 rounded-lg w-full"
 																	bind:value={editObservacoes}
 																	maxlength="500"
 																	placeholder="Informações complementares"
@@ -2035,16 +2042,16 @@
 														</div>
 													{:else}
 														<!-- Plantão: editar datas, horas e observações -->
-														<div class="flex-1 min-w-[120px]">
+														<div class="flex-1 min-w-0 sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Início</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataEntrada} />
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
 															</label>
 														</div>
-														<div class="flex-1 min-w-[120px]">
+														<div class="flex-1 min-w-0 sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Saída</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg" bind:value={editDataSaida} />
+																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
 															</label>
 														</div>
 														<div class="w-28">

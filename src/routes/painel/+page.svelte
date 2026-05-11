@@ -6,7 +6,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { Unidade } from '$lib/types';
 
@@ -171,6 +171,7 @@
 
 	// Exclusão de escala (para "não assinada")
 	let escalaExcluirOpen = $state(false);
+	useScrollLock(() => escalaExcluirOpen);
 	let itemParaExcluir = $state<ItemCompliance | null>(null);
 
 	async function carregar() {
@@ -442,10 +443,10 @@
 
 	<Dialog open={escalaExcluirOpen} onOpenChange={(e) => (escalaExcluirOpen = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -453,7 +454,7 @@
 						>{itemParaExcluir?.unidade_nome}</strong
 					>? O status voltará a ser "Não Criada".
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
 						>Cancelar</Dialog.CloseTrigger
 					>

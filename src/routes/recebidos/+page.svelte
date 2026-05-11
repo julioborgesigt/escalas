@@ -7,7 +7,7 @@
 	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import { useAutorizacao, getSavedFilters, useScrollLock } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
 
 	let { data } = $props();
@@ -132,6 +132,7 @@
 	}
 
 	let dialogOpen = $state(false);
+	useScrollLock(() => dialogOpen);
 	let escalaParaExcluir = $state<{ id: number; lotacao: string } | null>(null);
 
 	function solicitarExclusao(id: number, lotacao: string) {
@@ -415,7 +416,7 @@
 											<Portal>
 												<Popover.Positioner class="z-50">
 													<Popover.Content
-														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px]"
+														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
 													>
 														<a
 															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
@@ -533,7 +534,7 @@
 								<Portal>
 									<Popover.Positioner class="z-50">
 										<Popover.Content
-											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[200px]"
+											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[200px] max-w-[calc(100vw-1rem)]"
 										>
 											<a
 												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
@@ -579,17 +580,17 @@
 
 <Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 				Tem certeza que deseja excluir esta escala de <strong>{escalaParaExcluir?.lotacao}</strong>?
 				Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
 			</Dialog.Description>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
 					>Cancelar</Dialog.CloseTrigger
 				>

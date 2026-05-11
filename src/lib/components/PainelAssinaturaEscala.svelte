@@ -10,7 +10,7 @@
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
-	import { useAssinaturaEscala, useMobile } from '$lib/composables';
+	import { useAssinaturaEscala, useMobile, useScrollLock } from '$lib/composables';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -208,6 +208,15 @@
 	let dialogEnvioAberto = $state(false);
 	let dialogReenvioAberto = $state(false);
 	let dialogDesfinalizarAberto = $state(false);
+
+	useScrollLock(() =>
+		dialogEnvioAberto ||
+		dialogReenvioAberto ||
+		dialogDesfinalizarAberto ||
+		dialogRevogacaoAberto ||
+		dialogSolicitarAberto ||
+		dialogSignOpen
+	);
 
 	// E-mail editável no modal (inicializa com o salvo ou padrão)
 	let emailModal = $state(EMAIL_PADRAO_FDS);
@@ -445,10 +454,10 @@
 	<!-- Modal: confirmar e-mail para finalizar envio -->
 	<Dialog open={dialogEnvioAberto} onOpenChange={(e) => (dialogEnvioAberto = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-1">Confirmar Envio</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -467,7 +476,7 @@
 							placeholder="destinatario@policiacivil.ce.gov.br"
 						/>
 					</label>
-					<div class="flex justify-end gap-3 pt-2">
+					<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
 						<button
 							type="button"
 							class="btn preset-outlined-surface-500"
@@ -491,10 +500,10 @@
 	<!-- Modal: reenviar e-mail -->
 	<Dialog open={dialogReenvioAberto} onOpenChange={(e) => (dialogReenvioAberto = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -513,7 +522,7 @@
 							placeholder="destinatario@policiacivil.ce.gov.br"
 						/>
 					</label>
-					<div class="flex justify-end gap-3 pt-2">
+					<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
 						<button
 							type="button"
 							class="btn preset-outlined-surface-500"
@@ -537,16 +546,16 @@
 	<!-- Diálogo confirmar desfinalizar -->
 	<Dialog open={dialogDesfinalizarAberto} onOpenChange={(e) => (dialogDesfinalizarAberto = e.open)}>
 		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Reabrir para edição?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 					A escala voltará ao estado de rascunho e poderá ser editada novamente.
 				</Dialog.Description>
-				<div class="flex justify-end gap-3">
+				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<button
 						type="button"
 						class="btn preset-outlined-surface-500"
@@ -577,17 +586,17 @@
 <!-- Diálogo de confirmação de revogação de assinatura -->
 <Dialog open={dialogRevogacaoAberto} onOpenChange={(e) => (dialogRevogacaoAberto = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Revogar assinatura?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
 				Isso excluirá o PDF oficial e permitirá editar a escala novamente. Esta ação não pode ser
 				desfeita.
 			</Dialog.Description>
-			<div class="flex justify-end gap-3">
+			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
@@ -931,10 +940,10 @@
 <!-- Dialog Solicitar Assinatura (OIP) -->
 <Dialog open={dialogSolicitarAberto} onOpenChange={(e) => { if (!e.open) dialogSolicitarAberto = false; }}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Solicitar Assinatura</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -1036,10 +1045,10 @@
 
 <Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
 	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-6 max-w-lg w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">

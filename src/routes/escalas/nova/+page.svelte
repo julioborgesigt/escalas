@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
+	import { useScrollLock } from '$lib/composables';
 
 	interface UnidadeRegime {
 		nome: string;
@@ -199,6 +200,7 @@
 	// === Modal de criação FDS ===
 	// ============================
 	let showFdsModal = $state(false);
+	useScrollLock(() => showFdsModal);
 	let fdsDiasSelecionados = $state<string[]>([]);
 	let calAno = $state(new Date().getFullYear());
 	let calMes = $state(new Date().getMonth());
@@ -560,10 +562,14 @@
 <!-- =========== MODAL FDS =========== -->
 {#if showFdsModal}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+		role="presentation"
+		onclick={(e) => e.target === e.currentTarget && !loading.active && (showFdsModal = false)}
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
+			role="dialog"
+			aria-modal="true"
 		>
 			<div>
 				<h2

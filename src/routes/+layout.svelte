@@ -7,6 +7,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+	import { useScrollLock } from '$lib/composables';
 
 	let { children } = $props();
 
@@ -58,6 +59,8 @@
 
 	let sidebarOpen = $state(false);
 	let isDark = $state(true);
+
+	useScrollLock(() => sidebarOpen);
 
 	$effect(() => {
 		isDark = document.documentElement.classList.contains('dark');
@@ -149,7 +152,7 @@
 <!-- Global Toast Provider -->
 <Toast.Group {toaster} class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3">
 	{#snippet children(toast)}
-		<Toast {toast} class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 min-w-[300px]">
+		<Toast {toast} class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-full sm:w-auto sm:min-w-[300px] max-w-[calc(100vw-2rem)]">
 			<div class="flex items-center gap-3">
 				{#if toast.type === 'success'}
 					<svg class="w-6 h-6 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>

@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { useScrollLock } from '$lib/composables';
 
-	let { 
-		active = false, 
+	let {
+		active = false,
 		message = 'Carregando...',
-		zIndex = 10000 
-	}: { 
-		active: boolean; 
+		zIndex = 10000
+	}: {
+		active: boolean;
 		message?: string;
 		zIndex?: number;
 	} = $props();
+
+	useScrollLock(() => active);
 </script>
 
 {#if active}
