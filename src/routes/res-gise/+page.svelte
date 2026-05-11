@@ -382,7 +382,7 @@
 			</div>
 
 			<div
-				class="flex justify-end p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
+				class="flex justify-end p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
 			>
 				<form
 					method="POST"
@@ -602,7 +602,7 @@
 			<div class="min-[900px]:col-span-2">
 				{#if resGise.escalaSelecionada}
 					<section
-						class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
+						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-6"
 					>
 						<div class="border-b border-surface-200 dark:border-surface-800 pb-4">
 							<h2 class="text-xl font-bold">Relatório de Serviço</h2>
@@ -668,7 +668,7 @@
 						</div>
 
 						{#if !resGise.isHorarioLiberado(resGise.escalaSelecionada, isAdminGeral)}
-							<div class="p-8 text-center space-y-4">
+							<div class="p-4 sm:p-6 text-center space-y-4">
 								<div
 									class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
 								>
@@ -795,7 +795,7 @@
 										<div class="space-y-5">
 											{#if resGise.escalaSelecionada.equipeRespondida && !resGise.exibirRelatorio}
 												<div
-													class="p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500"
+													class="p-4 sm:p-6 bg-success-500/5 border border-success-500/20 rounded-3xl text-center space-y-4 animate-in fade-in zoom-in-95 duration-500"
 												>
 													<div
 														class="bg-success-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto"
@@ -882,7 +882,7 @@
 
 									{#if !resGise.escalaSelecionada.presenca?.saida_timestamp}
 										{#if !resGise.isSaidaLiberada(resGise.escalaSelecionada, isAdminGeral)}
-											<div class="p-8 text-center space-y-4">
+											<div class="p-4 sm:p-6 text-center space-y-4">
 												<div
 													class="bg-primary-500/10 p-4 rounded-full w-16 h-16 mx-auto flex items-center justify-center"
 												>
@@ -1061,7 +1061,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">

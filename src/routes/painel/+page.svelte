@@ -317,7 +317,7 @@
 
 	<!-- Filtros -->
 	<div
-		class="p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-5"
+		class="p-4 sm:p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-4 sm:gap-5"
 	>
 		<!-- Regime Row -->
 		<div class="flex flex-wrap items-center gap-2">
@@ -337,7 +337,7 @@
 		</div>
 
 		<!-- Main Filters Row -->
-		<div class="flex flex-wrap items-end gap-6">
+		<div class="flex flex-wrap items-end gap-4 sm:gap-6">
 			<label class="flex flex-col gap-1.5 w-full sm:w-60">
 				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Seccional</span>
 				<select
@@ -445,7 +445,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">

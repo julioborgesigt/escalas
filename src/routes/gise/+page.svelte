@@ -458,7 +458,7 @@
 	<!-- Card informativo para membros comuns -->
 	{#if isMembro}
 		<div
-			class="rounded-2xl border border-primary-500/20 bg-primary-500/5 dark:bg-primary-500/10 p-6 text-center space-y-2"
+			class="rounded-2xl border border-primary-500/20 bg-primary-500/5 dark:bg-primary-500/10 p-4 sm:p-6 text-center space-y-2"
 		>
 			<p class="text-base font-semibold text-surface-900 dark:text-surface-100">
 				Você está escalado na GISE
@@ -559,7 +559,7 @@
 		</div>
 	{:else if !isMembro}
 		<div
-			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-8 text-center"
+			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
 		>
 			<p class="text-surface-500 dark:text-surface-400">Nenhuma escala GISE ativa no momento.</p>
 		</div>

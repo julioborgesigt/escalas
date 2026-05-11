@@ -39,7 +39,7 @@
 		}}
 	>
 		<div
-			class="card p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
+			class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
 		>
 			<h2 class="text-lg font-semibold text-surface-900 dark:text-surface-50">Vagas padrão por unidade</h2>
 			
@@ -110,7 +110,7 @@
 		</div>
 
 		<div
-			class="card p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
+			class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
 		>
 			<h2 class="text-lg font-semibold text-surface-900 dark:text-surface-50">Texto "Breve relatório"</h2>
 			

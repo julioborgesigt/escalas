@@ -796,7 +796,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Policial?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -819,7 +819,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Todos?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -842,7 +842,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Remover Selecionados?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">

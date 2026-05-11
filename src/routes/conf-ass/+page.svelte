@@ -63,7 +63,7 @@
 	</p>
 
 	<div
-		class="card p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-6"
+		class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4 sm:space-y-6"
 	>
 		<!-- Exigir foto -->
 		<div class="flex items-start justify-between gap-4">
@@ -180,7 +180,7 @@
 		</div>
 
 		<div
-			class="p-5 border-t border-surface-200 dark:border-white/10 bg-surface-100/30 dark:bg-surface-800/20 rounded-b-2xl space-y-4"
+			class="p-4 sm:p-5 border-t border-surface-200 dark:border-white/10 bg-surface-100/30 dark:bg-surface-800/20 rounded-b-2xl space-y-4"
 		>
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex items-center gap-2">
