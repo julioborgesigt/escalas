@@ -21,7 +21,7 @@
 	class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-center p-4"
 >
 	<div
-		class="card w-full max-w-lg bg-white dark:bg-surface-800 shadow-2xl border border-surface-200 dark:border-white/10 rounded-3xl overflow-hidden p-8 sm:p-12 transition-all hover:shadow-primary-500/5"
+		class="card w-full max-w-lg bg-white dark:bg-surface-800 shadow-2xl border border-surface-200 dark:border-white/10 rounded-3xl overflow-hidden p-6 sm:p-12 transition-all hover:shadow-primary-500/5"
 	>
 		<!-- Header / Identity -->
 		<div class="flex flex-col items-center mb-10">

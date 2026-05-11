@@ -275,7 +275,7 @@
 </div>
 
 <div
-	class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6"
+	class="p-4 sm:p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6"
 >
 	<div class="flex flex-col sm:flex-row gap-4">
 		<label class="label flex-1">
@@ -316,7 +316,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Unidade?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -357,7 +357,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
 			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
@@ -519,7 +519,7 @@
 </Dialog>
 
 <div
-	class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
+	class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
 >
 	{#if data.unidades.length === 0}
 		<div class="text-center py-20">

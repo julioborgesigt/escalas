@@ -412,7 +412,7 @@
 
 	<!-- Main content with sidebar offset -->
 	<main class="min-[900px]:ml-60 min-h-screen">
-		<div class="max-w-6xl mx-auto min-w-0 px-4 pt-20 min-[900px]:pt-8 pb-12">
+		<div class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12">
 			{@render children()}
 		</div>
 	</main>

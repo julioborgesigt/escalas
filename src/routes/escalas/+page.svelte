@@ -665,7 +665,7 @@
 </svelte:head>
 
 {#if visao === 'home'}
-	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-4 sm:gap-6">
 		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
 		<div
 			class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
@@ -679,7 +679,7 @@
 					visao = 'lista';
 					abrirNovaEscala();
 				}}
-				class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 			>
 				<span class="text-4xl">📋</span>
 				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
@@ -692,7 +692,7 @@
 			<button
 				type="button"
 				onclick={() => { visao = 'lista'; goto(`?${buildQueryParamsComFiltros(1)}`, { replaceState: true, noScroll: true, keepFocus: true }); }}
-				class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 			>
 				<span class="text-4xl">🗂️</span>
 				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
@@ -706,7 +706,7 @@
 				<button
 					type="button"
 					onclick={() => { visao = 'assinaturas'; goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true }); }}
-					class="card p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<div class="relative">
 						<span class="text-4xl">✍️</span>
@@ -757,7 +757,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -788,7 +788,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Editar Escala Assinada?</Dialog.Title>
 				<Dialog.Description class="space-y-4 mb-6">

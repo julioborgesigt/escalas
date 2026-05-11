@@ -342,7 +342,7 @@
 	{#if finalizadaEm}
 		<!-- Banner: FDS enviada -->
 		<div
-			class="mb-6 p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+			class="mb-6 p-4 sm:p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
 		>
 			<div class="flex items-center gap-4">
 				<div class="bg-success-500/20 p-3 rounded-xl">
@@ -412,7 +412,7 @@
 	{:else}
 		<!-- Painel: FDS não enviada -->
 		<div
-			class="mb-6 p-5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col sm:flex-row items-center justify-between gap-4"
+			class="mb-6 p-4 sm:p-5 bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col sm:flex-row items-center justify-between gap-4"
 		>
 			<div>
 				<h3 class="font-semibold text-base text-surface-700 dark:text-surface-200">
@@ -448,7 +448,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-1">Confirmar Envio</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -494,7 +494,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -540,7 +540,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 		>
 			<div
-				class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 			>
 				<Dialog.Title class="h3 font-bold mb-2">Reabrir para edição?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -580,7 +580,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Revogar assinatura?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -613,7 +613,7 @@
 	<!-- Banner: escala assinada -->
 	{#if documentoAssinadoInfo?.existe}
 		<div
-			class="mb-6 p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+			class="mb-6 p-4 sm:p-5 bg-success-500/10 border border-success-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
 		>
 			<div class="flex items-center gap-4">
 				<div class="bg-success-500/20 p-3 rounded-xl">
@@ -689,7 +689,7 @@
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<!-- CARD 1: ASSINATURA NA TELA (MANUAL) — padrão warning, igual GISE -->
 				<div
-					class="card p-5 bg-warning-500/5 border border-warning-500/20 rounded-2xl shadow-sm space-y-3"
+					class="card p-4 sm:p-5 bg-warning-500/5 border border-warning-500/20 rounded-2xl shadow-sm space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
@@ -747,7 +747,7 @@
 
 				<!-- CARD 2: ASSINATURA DIGITAL (TOKEN A3) — padrão tertiary, igual GISE -->
 				<div
-					class="card p-5 bg-tertiary-500/5 border border-tertiary-500/20 rounded-2xl shadow-sm space-y-3"
+					class="card p-4 sm:p-5 bg-tertiary-500/5 border border-tertiary-500/20 rounded-2xl shadow-sm space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">

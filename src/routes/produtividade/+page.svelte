@@ -268,7 +268,7 @@
 	labelUnit: string
 )}
 	<div
-		class="card relative p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selectedCharts.includes(
+		class="card relative p-4 sm:p-6 bg-white dark:bg-surface-950 text-surface-900 dark:text-white border-2 transition-all {selectedCharts.includes(
 			id
 		)
 			? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
@@ -355,7 +355,7 @@
 	unit: string
 )}
 	<div
-		class="card relative p-6 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
+		class="card relative p-4 sm:p-6 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
 			id
 		)
 			? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
@@ -472,7 +472,7 @@
 {/snippet}
 
 <div class="space-y-8 pb-12 {selectedCharts.length > 0 ? 'has-selections' : ''}">
-	<header class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
 			<h1
 				class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
@@ -545,9 +545,9 @@
 	</header>
 
 	<section
-		class="card p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
+		class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
 	>
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+		<div class="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
 			<div class="space-y-1.5">
 				<label
 					for="f-tipo"
@@ -612,7 +612,7 @@
 	{#if filterTipo === 'operacional'}
 		<div class="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
 			<!-- ROW 1: PRISONS -->
-			<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{@render subRanking(
 					'rank-prisoes',
 					'Ranking de Prisões (P7)',
@@ -643,7 +643,7 @@
 			</section>
 
 			<!-- ROW 2: DRUGS -->
-			<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{@render subRanking(
 					'rank-drogas',
 					'Ranking de Drogas (P10)',
@@ -665,7 +665,7 @@
 			</section>
 
 			<!-- ROW 3: WEAPONS -->
-			<section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 				{@render subRanking(
 					'rank-armas',
 					'Ranking de Armas (P11)',
@@ -692,7 +692,7 @@
 	<section class="space-y-8">
 		{#each QUESTIONS as q (q.id)}
 			<div
-				class="card relative p-8 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
+				class="card relative p-4 sm:p-6 lg:p-8 bg-white dark:bg-surface-900 border-2 transition-all {selectedCharts.includes(
 					q.id
 				)
 					? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'

@@ -50,7 +50,7 @@
 
 	{#if assinandoLote}
 		<div
-			class="flex flex-col items-center gap-1 bg-white/50 dark:bg-surface-800/50 p-6 rounded-3xl border border-warning-500/20 shadow-xl"
+			class="flex flex-col items-center gap-1 bg-white/50 dark:bg-surface-800/50 p-4 sm:p-6 rounded-3xl border border-warning-500/20 shadow-xl"
 		>
 			<div class="text-xs font-bold text-warning-700 uppercase tracking-widest mb-2">
 				{etapaAssinatura}

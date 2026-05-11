@@ -340,7 +340,7 @@
 <!-- =========== SELETOR DE REGIME =========== -->
 {#if selecionando}
 	<div
-		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+		class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
 		{#if unidadesComRegime.length === 0}
 			<div
@@ -476,7 +476,7 @@
 	</div>
 
 	<div
-		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+		class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 	>
 		<form method="POST" action="?/criar" use:enhance={handleForm} class="space-y-4">
 			<input type="hidden" name="data_inicio" value={dataInicio} />
