@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
@@ -777,7 +778,11 @@
 			</div>
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-				{#if historicoPaginado.length === 0}
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 6 } as _}
+						<SkeletonCard lines={2} hasFooter={false} />
+					{/each}
+				{:else if historicoPaginado.length === 0}
 					<p class="text-sm text-surface-400 text-center py-6">Nenhum resultado para os filtros aplicados.</p>
 				{:else}
 				{#each historicoPaginado as escala}
@@ -1116,7 +1121,7 @@
 					{/if}
 					<button
 						type="submit"
-						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all"
+						class="btn preset-filled-tertiary-500 border-2 border-tertiary-600/30 hover:border-tertiary-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all active:scale-95 transition-all"
 						disabled={loading.active || diasModalOrdenados.length === 0 || (modoCriacao === 'clonada' && !clonarDeId)}
 					>
 						{loading.active ? 'Criando...' : 'Criar Escala'}

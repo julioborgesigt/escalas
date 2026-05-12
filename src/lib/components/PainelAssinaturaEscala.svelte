@@ -29,7 +29,8 @@
 		finalizadaEm = $bindable(null),
 		emailEnvioInicial = null,
 		podeOIPSolicitar = false,
-		solicitacaoAtual = null
+		solicitacaoAtual = null,
+		onSolicitacaoEnviada
 	}: {
 		escalaId: string;
 		isFDS: boolean;
@@ -40,10 +41,12 @@
 		emailEnvioInicial?: string | null;
 		podeOIPSolicitar?: boolean;
 		solicitacaoAtual?: { tipo: string; destinatario_id?: number } | null;
+		onSolicitacaoEnviada?: () => void;
 	} = $props();
 
 	// --- Solicitar Assinatura (OIP) ---
 	let solicitacaoLocal = $state(untrack(() => solicitacaoAtual));
+	$effect(() => { solicitacaoLocal = solicitacaoAtual ?? null; });
 	let dialogSolicitarAberto = $state(false);
 	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
 	let buscaDestinatario = $state('');
@@ -96,6 +99,7 @@
 			solicitacaoLocal = { tipo: opcaoSolicitacao, destinatario_id: destinatarioSelecionado?.id };
 			dialogSolicitarAberto = false;
 			toaster.create({ title: 'Solicitação enviada!', type: 'success' });
+			onSolicitacaoEnviada?.();
 		} catch {
 			toaster.create({ title: 'Erro ao solicitar assinatura', type: 'error' });
 		} finally {
@@ -116,6 +120,7 @@
 			}
 			solicitacaoLocal = null;
 			toaster.create({ title: 'Solicitação cancelada', type: 'info' });
+			invalidateAll();
 		} catch {
 			toaster.create({ title: 'Erro ao cancelar solicitação', type: 'error' });
 		}
@@ -875,41 +880,49 @@
 		</div>
 	{/if}
 
-	<!-- OIP: painel de solicitação de assinatura -->
-	{#if podeOIPSolicitar && !documentoAssinadoInfo?.existe}
+	<!-- OIP: painel de solicitação de assinatura (oculto para DPC — eles assinam diretamente) -->
+	{#if podeOIPSolicitar && !documentoAssinadoInfo?.existe && usuario?.cargo !== 'DPC'}
 		{#if solicitacaoLocal}
-			<div class="mb-6 p-4 bg-warning-500/10 border border-warning-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+			<div class="mb-6 p-3 bg-warning-500/10 border border-warning-500/25 rounded-2xl shadow-sm">
 				<div class="flex items-center gap-3">
-					<svg class="w-5 h-5 text-warning-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-					</svg>
-					<div>
-						<p class="font-semibold text-sm text-warning-800 dark:text-warning-300">Assinatura Solicitada</p>
-						<p class="text-xs text-warning-600 dark:text-warning-400 mt-0.5">
+					<div class="w-9 h-9 rounded-xl bg-warning-500/20 flex items-center justify-center shrink-0">
+						<svg class="w-4 h-4 text-warning-600 dark:text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+					</div>
+					<div class="flex-1 min-w-0">
+						<p class="font-bold text-sm text-warning-800 dark:text-warning-300 leading-tight">Aguardando Assinatura</p>
+						<p class="text-xs text-warning-600 dark:text-warning-400 mt-0.5 truncate">
 							{solicitacaoLocal.tipo === 'respondencia' ? 'Aguardando delegado em respondência' : 'Aguardando admin da unidade'}
 						</p>
 					</div>
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-error-500 shrink-0 font-semibold text-xs px-3"
+						onclick={cancelarSolicitacao}
+					>Cancelar</button>
 				</div>
-				<button
-					type="button"
-					class="btn btn-sm preset-outlined-error-500 shrink-0 font-semibold"
-					onclick={cancelarSolicitacao}
-				>Cancelar Ass.</button>
 			</div>
 		{:else}
-			<div class="mb-6 p-4 bg-white/80 dark:bg-surface-900/60 border border-surface-200 dark:border-white/5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
-				<div>
-					<p class="font-semibold text-sm text-surface-700 dark:text-surface-200">Solicitar Assinatura</p>
-					<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado responsável para assinar esta escala.</p>
+			<div class="mb-6 p-3 bg-surface-100/80 dark:bg-surface-800/60 border border-surface-200 dark:border-white/10 rounded-2xl shadow-sm">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 rounded-xl bg-success-500/15 flex items-center justify-center shrink-0">
+						<svg class="w-4 h-4 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+					</div>
+					<div class="flex-1 min-w-0">
+						<p class="font-bold text-sm text-surface-700 dark:text-surface-200 leading-tight">Solicitar Assinatura</p>
+						<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado para assinar.</p>
+					</div>
+					<button
+						type="button"
+						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 active:scale-95 transition-all"
+						onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; dialogSolicitarAberto = true; }}
+					>
+						Solicitar
+					</button>
 				</div>
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-success-500 font-bold shrink-0 w-full sm:w-auto"
-					onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; dialogSolicitarAberto = true; }}
-				>
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-					Solicitar Assinatura
-				</button>
 			</div>
 		{/if}
 	{/if}

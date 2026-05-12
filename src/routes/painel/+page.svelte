@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { browser } from '$app/environment';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
@@ -459,7 +461,7 @@
 					>
 					<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
 						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
-						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loadingService.active}>
+						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={loadingService.active}>
 							{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
 						</button>
 					</form>
@@ -504,6 +506,17 @@
 						</tr>
 					</thead>
 					<tbody>
+						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+							{#each { length: 8 } as _}
+								<tr class="animate-pulse">
+									<td class="px-4 py-3"><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+									<td class="px-4 py-3"><div class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
+									<td class="px-4 py-3"><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+									<td class="px-4 py-3"><div class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
+									<td class="px-4 py-3"><div class="h-8 w-24 rounded-lg bg-surface-200 dark:bg-surface-700"></div></td>
+								</tr>
+							{/each}
+						{:else}
 						{#each dadosAgrupados as grupo}
 							{#if grupo.titulo}
 								<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
@@ -536,7 +549,7 @@
 											>
 										{/if}
 									</td>
-									<td class="text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap"
+									<td class="text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap font-mono tabular-nums"
 										>{item.periodo}</td
 									>
 									<td>
@@ -595,12 +608,18 @@
 								</tr>
 							{/each}
 						{/each}
+						{/if}
 					</tbody>
 				</table>
 			</div>
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-2">
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 5 } as _}
+						<SkeletonCard lines={3} hasFooter={false} />
+					{/each}
+				{:else}
 				{#each dadosAgrupados as grupo}
 					{#if grupo.titulo}
 						<div
@@ -640,7 +659,7 @@
 												>FDS</span
 											>
 										{/if}
-										<span class="text-xs text-surface-500 font-medium">{item.periodo}</span>
+										<span class="text-xs text-surface-500 font-medium font-mono tabular-nums">{item.periodo}</span>
 									</div>
 									<div class="mt-2">
 										{#if item.status === 'ok'}
@@ -717,7 +736,9 @@
 						{/each}
 					</div>
 				{/each}
+				{/if}
 			</div>
 		{/if}
 	</div>
 {/if}
+<FloatingRefresh />
