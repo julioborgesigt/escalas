@@ -8,11 +8,19 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
 	import { csrfHeaders } from '$lib/csrf';
-	import { useAutorizacao, getSavedFilters, useAssinaturaEscala, useMobile } from '$lib/composables';
+	import {
+		useAutorizacao,
+		getSavedFilters,
+		useAssinaturaEscala,
+		useMobile
+	} from '$lib/composables';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
+	import ModalNovaEscala from './_components/ModalNovaEscala.svelte';
 
 	let { data, form } = $props();
 
@@ -102,6 +110,7 @@
 		{ value: 12, label: 'Dezembro' }
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
+	const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 	function buildQueryParamsComFiltros(page: number) {
 		const params = new URLSearchParams();
@@ -209,239 +218,7 @@
 		};
 	}
 
-	// ========== Modal Nova Escala ==========
-	const MESES_PT_NE = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM_NE = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 	let dialogNovaEscalaAberto = $state(false);
-	let novaEscalaTipo = $state<'plantao' | 'expediente' | 'fds' | null>(null);
-	let pendingCriar = $state(false);
-	let pendingComBase = $state(false);
-	let neTitulo = $state('');
-	let neCidade = $state('');
-	let neDataInicio = $state('');
-	let neDataFim = $state('');
-	let neHoraEntrada = $state('00');
-	let neMinutoEntrada = $state('00');
-	let neHoraSaida = $state('23');
-	let neMinutoSaida = $state('59');
-	let neLotacao = $state('');
-
-	let nePickerAno = $state(new Date().getFullYear());
-
-	let fdsDiasSelecionados = $state<string[]>([]);
-	let calAno = $state(new Date().getFullYear());
-	let calMes = $state(new Date().getMonth());
-	let fdsHoraEntrada = $state('08');
-	let fdsMinutoEntrada = $state('00');
-	let fdsHoraSaida = $state('08');
-	let fdsMinutoSaida = $state('00');
-
-	const delegaciasNE = $derived(unidades.filter((u: Unidade) => u.tipo === 'delegacia'));
-	const unidadeNovaEscala = $derived(
-		isAdmin
-			? (delegaciasNE.find((u: Unidade) => u.nome === neLotacao) ?? null)
-			: (unidades.find((u: Unidade) => u.nome === lotacaoUsuario) ?? null)
-	);
-	const fdsDiasOrdenadosNE = $derived([...fdsDiasSelecionados].sort());
-	const fdsDataInicioNE = $derived(fdsDiasOrdenadosNE[0] ?? '');
-	const fdsDataFimNE = $derived(fdsDiasOrdenadosNE.at(-1) ?? '');
-	const fdsLotacaoNE = $derived(isAdmin ? neLotacao : (lotacaoUsuario ?? ''));
-	const fdsCidadeNE = $derived(unidadeNovaEscala?.cidade ?? '');
-	const fdsTituloAutoNE = $derived.by(() => {
-		if (!fdsLotacaoNE || fdsDiasOrdenadosNE.length === 0) return '';
-		const inicio = new Date(fdsDiasOrdenadosNE[0] + 'T00:00:00');
-		const fim = new Date(fdsDiasOrdenadosNE.at(-1)! + 'T00:00:00');
-		const dS = String(inicio.getDate()).padStart(2, '0');
-		const mS = String(inicio.getMonth() + 1).padStart(2, '0');
-		const dF = String(fim.getDate()).padStart(2, '0');
-		const mF = String(fim.getMonth() + 1).padStart(2, '0');
-		return `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${fdsLotacaoNE.toUpperCase()} - ${dS}/${mS} a ${dF}/${mF}`;
-	});
-	const gradeCalendarioNE = $derived.by(() => {
-		const first = new Date(calAno, calMes, 1).getDay();
-		const n = new Date(calAno, calMes + 1, 0).getDate();
-		const cells: ({ day: number } | null)[] = [];
-		for (let i = 0; i < first; i++) cells.push(null);
-		for (let d = 1; d <= n; d++) cells.push({ day: d });
-		while (cells.length % 7 !== 0) cells.push(null);
-		while (cells.length < 42) cells.push(null);
-		return cells;
-	});
-
-	// Mês selecionado no picker mensal
-	const neMesSelecionado = $derived.by(() => {
-		if (!neDataInicio || !novaEscalaTipo || novaEscalaTipo === 'fds') return null;
-		const parts = neDataInicio.split('-').map(Number);
-		return { mes: parts[1], ano: parts[0] };
-	});
-
-	// Informações sobre o mês anterior (para opção "com base no mês passado")
-	const mesAnteriorInfo = $derived.by(() => {
-		if (!neMesSelecionado || !neLotacao || !novaEscalaTipo || novaEscalaTipo === 'fds') return null;
-		const { mes, ano } = neMesSelecionado;
-		const mesPrev = mes === 1 ? 12 : mes - 1;
-		const anoPrev = mes === 1 ? ano - 1 : ano;
-		const existe = (data.escalasExistentes as any[]).some(
-			(e) =>
-				e.lotacao === neLotacao &&
-				e.tipo === novaEscalaTipo &&
-				e.mes === mesPrev &&
-				e.ano === anoPrev
-		);
-		return { mes: mesPrev, ano: anoPrev, existe };
-	});
-
-	function mesOcupado(mes: number, ano: number): boolean {
-		if (!neLotacao || !novaEscalaTipo || novaEscalaTipo === 'fds') return false;
-		return (data.escalasExistentes as any[]).some(
-			(e) => e.lotacao === neLotacao && e.tipo === novaEscalaTipo && e.mes === mes && e.ano === ano
-		);
-	}
-
-	function selecionarMesNE(mes: number) {
-		const unid = unidadeNovaEscala;
-		if (unid && novaEscalaTipo && novaEscalaTipo !== 'fds') {
-			preencherMensalNE(novaEscalaTipo, unid, mes, nePickerAno);
-		}
-	}
-
-	function sabadoDaSemanaLocal(): Date {
-		const hoje = new Date();
-		const dow = hoje.getDay();
-		const offset = dow === 0 ? -1 : 6 - dow;
-		const sab = new Date(hoje);
-		sab.setDate(hoje.getDate() + offset);
-		return sab;
-	}
-	function toISONE(y: number, m: number, d: number): string {
-		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-	function diasNoMesNE(y: number, m: number): number {
-		return new Date(y, m, 0).getDate();
-	}
-	function nextMesNE(): number {
-		const m = new Date().getMonth() + 1;
-		return m === 12 ? 1 : m + 1;
-	}
-	function nextAnoNE(): number {
-		const h = new Date();
-		return h.getMonth() + 1 === 12 ? h.getFullYear() + 1 : h.getFullYear();
-	}
-	function isoDiaLocalNE(year: number, month: number, day: number): string {
-		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-	}
-	function fmtDiaNE(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
-	}
-
-	function tiposDisponiveisNE(u: Unidade) {
-		const sab = sabadoDaSemanaLocal();
-		const dS = String(sab.getDate()).padStart(2, '0');
-		const mS = String(sab.getMonth() + 1).padStart(2, '0');
-		const tipos: Array<{
-			tipo: 'plantao' | 'expediente' | 'fds';
-			label: string;
-			desc: string;
-			icon: string;
-		}> = [];
-		if (u.tem_plantao)
-			tipos.push({
-				tipo: 'plantao',
-				label: 'Plantão Mensal',
-				desc: `${MESES_PT_NE[nextMesNE() - 1]} ${nextAnoNE()}`,
-				icon: '🌙'
-			});
-		if (u.tem_expediente)
-			tipos.push({
-				tipo: 'expediente',
-				label: 'Expediente Mensal',
-				desc: `${MESES_PT_NE[nextMesNE() - 1]} ${nextAnoNE()}`,
-				icon: '☀️'
-			});
-		if (u.tem_fds)
-			tipos.push({ tipo: 'fds', label: 'Final de Semana', desc: `FDS ${dS}/${mS}`, icon: '📅' });
-		return tipos;
-	}
-
-	function preencherMensalNE(tipo: 'plantao' | 'expediente', u: Unidade, mes: number, ano: number) {
-		neDataInicio = toISONE(ano, mes, 1);
-		neDataFim = toISONE(ano, mes, diasNoMesNE(ano, mes));
-		neHoraEntrada = '00';
-		neMinutoEntrada = '00';
-		neHoraSaida = '23';
-		neMinutoSaida = '59';
-		const tipoLabel = tipo === 'plantao' ? 'PLANTÃO' : 'EXPEDIENTE';
-		neTitulo = `ESCALA DE ${tipoLabel} DA ${u.nome.toUpperCase()} – ${MESES_PT_NE[mes - 1].toUpperCase()} ${ano}`;
-		neCidade = u.cidade || '';
-		neLotacao = u.nome;
-	}
-
-	function escolherTipoNE(tipo: 'plantao' | 'expediente' | 'fds') {
-		if (tipo === 'fds') {
-			const sab = sabadoDaSemanaLocal();
-			const dom = new Date(sab);
-			dom.setDate(sab.getDate() + 1);
-			const fmt = (d: Date) =>
-				`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-			fdsDiasSelecionados = [fmt(sab), fmt(dom)];
-			calAno = sab.getFullYear();
-			calMes = sab.getMonth();
-			fdsHoraEntrada = '08';
-			fdsMinutoEntrada = '00';
-			fdsHoraSaida = '08';
-			fdsMinutoSaida = '00';
-		} else {
-			neDataInicio = '';
-			neDataFim = '';
-			neTitulo = '';
-			nePickerAno = new Date().getFullYear();
-		}
-		novaEscalaTipo = tipo;
-	}
-
-	const horasNE = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutosNE = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
-	const fdsHorarioLabelNE = $derived(
-		`${fdsHoraEntrada}:${fdsMinutoEntrada}H A ${fdsHoraSaida}:${fdsMinutoSaida}H`
-	);
-
-	function calToggleDiaNE(iso: string) {
-		if (fdsDiasSelecionados.includes(iso)) {
-			fdsDiasSelecionados = fdsDiasSelecionados.filter((d) => d !== iso);
-		} else {
-			fdsDiasSelecionados = [...fdsDiasSelecionados, iso];
-		}
-	}
-	function calRemoverDiaNE(iso: string) {
-		fdsDiasSelecionados = fdsDiasSelecionados.filter((d) => d !== iso);
-	}
-	function calMesAnteriorNE() {
-		if (calMes === 0) {
-			calMes = 11;
-			calAno--;
-		} else calMes--;
-	}
-	function calMesProximoNE() {
-		if (calMes === 11) {
-			calMes = 0;
-			calAno++;
-		} else calMes++;
-	}
 
 	let visao = $state<'home' | 'lista' | 'assinaturas'>(
 		untrack(() => {
@@ -449,6 +226,15 @@
 			return iv === 'lista' || iv === 'assinaturas' ? (iv as 'lista' | 'assinaturas') : 'home';
 		})
 	);
+
+	// Sincroniza visao quando a URL muda para /escalas sem params (ex: clique na aba de navegação)
+	$effect(() => {
+		const iv = (data as any).initialView as string;
+		if (iv === 'home' || iv === 'assinaturas') {
+			visao = iv;
+		}
+	});
+
 	let abriuDoHome = $state(false);
 
 	const podeAssinar = $derived(data.podeAssinar as boolean);
@@ -465,8 +251,12 @@
 	);
 
 	// ========== Solicitação de Assinatura (OIP Admins) ==========
-	const podeOIPSolicitar = $derived(data.podeOIPSolicitar as boolean ?? false);
-	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number };
+	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
+	type SolicitacaoInfo = {
+		tipo: 'unidade' | 'respondencia';
+		destinatario_nome?: string;
+		destinatario_id?: number;
+	};
 	const solicitacoesMap = $derived((data.solicitacoesMap ?? {}) as Record<number, SolicitacaoInfo>);
 
 	let dialogSolicitar = $state(false);
@@ -474,7 +264,9 @@
 	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
 	let buscaDestinatario = $state('');
 	let destinatarioSelecionado = $state<{ id: number; nome: string; lotacao: string } | null>(null);
-	let resultadosBuscaDestinatario = $state<Array<{ id: number; nome: string; cargo: string; lotacao: string }>>([]);
+	let resultadosBuscaDestinatario = $state<
+		Array<{ id: number; nome: string; cargo: string; lotacao: string }>
+	>([]);
 	let buscandoDestinatario = $state(false);
 	let enviandoSolicitacao = $state(false);
 	let erroBuscaDestinatario = $state('');
@@ -549,7 +341,7 @@
 	const usuarioLogado = $derived(page.data.usuario ?? null);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
-	const restringirSmartphone = $derived(page.data.restringirSmartphone as boolean ?? false);
+	const restringirSmartphone = $derived((page.data.restringirSmartphone as boolean) ?? false);
 	const assinaturaTelaBloqueada = $derived(restringirSmartphone && !isMobile);
 
 	let escalaAssinandoId = $state<number | null>(null);
@@ -582,82 +374,6 @@
 		await painelTokenRapidoControl?.assinarComSerpro();
 	}
 
-	function abrirNovaEscala() {
-		novaEscalaTipo = null;
-		fdsDiasSelecionados = [];
-		neTitulo = '';
-		neDataInicio = '';
-		neDataFim = '';
-		neCidade = '';
-		nePickerAno = new Date().getFullYear();
-		if (!isAdmin) neLotacao = '';
-		dialogNovaEscalaAberto = true;
-	}
-
-	function fecharNovaEscala() {
-		dialogNovaEscalaAberto = false;
-		novaEscalaTipo = null;
-		fdsDiasSelecionados = [];
-		neTitulo = '';
-		neDataInicio = '';
-		neDataFim = '';
-		neCidade = '';
-		nePickerAno = new Date().getFullYear();
-		if (!isAdmin) neLotacao = '';
-		if (abriuDoHome) {
-			abriuDoHome = false;
-			visao = 'home';
-			goto('/escalas', { replaceState: true, noScroll: true });
-		}
-	}
-
-	function handleCriar({ cancel }: any) {
-		if (novaEscalaTipo === 'fds' && fdsDiasOrdenadosNE.length === 0) {
-			toaster.create({ title: 'Selecione pelo menos um dia', type: 'error' });
-			cancel();
-			return;
-		}
-		pendingCriar = true;
-		return async ({ result }: { result: any }) => {
-			pendingCriar = false;
-			const d = result.data as Record<string, unknown> | undefined;
-			if (result.type === 'success' && d?.id) {
-				fecharNovaEscala();
-				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
-				goto(`/escalas/${d.id}`);
-			} else if (result.type === 'failure' || result.type === 'error') {
-				toaster.create({ title: String(d?.error || 'Erro ao criar escala'), type: 'error' });
-			}
-		};
-	}
-
-	function handleCriarComBase() {
-		pendingComBase = true;
-		return async ({ result }: { result: any }) => {
-			pendingComBase = false;
-			const d = result.data as Record<string, unknown> | undefined;
-			if (result.type === 'success' && d?.id) {
-				const adicionados = (d.adicionados as number) ?? 0;
-				const naoProcessados = (d.nao_processados as Array<{ nome: string }>) ?? [];
-				fecharNovaEscala();
-				if (naoProcessados.length > 0) {
-					toaster.create({
-						title: `Escala criada com ${adicionados} servidor(es)`,
-						description: `${naoProcessados.length} servidor(es) não processados (rotação não identificada).`,
-						type: 'success'
-					});
-				} else {
-					toaster.create({
-						title: `Escala criada com ${adicionados} servidor(es)`,
-						type: 'success'
-					});
-				}
-				goto(`/escalas/${d.id}`);
-			} else if (result.type === 'failure' || result.type === 'error') {
-				toaster.create({ title: String(d?.error || 'Erro ao criar escala'), type: 'error' });
-			}
-		};
-	}
 </script>
 
 <svelte:head>
@@ -677,7 +393,7 @@
 				onclick={() => {
 					abriuDoHome = true;
 					visao = 'lista';
-					abrirNovaEscala();
+					dialogNovaEscalaAberto = true;
 				}}
 				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 			>
@@ -691,7 +407,14 @@
 			</button>
 			<button
 				type="button"
-				onclick={() => { visao = 'lista'; goto(`?${buildQueryParamsComFiltros(1)}`, { replaceState: true, noScroll: true, keepFocus: true }); }}
+				onclick={() => {
+					visao = 'lista';
+					goto(`?${buildQueryParamsComFiltros(1)}`, {
+						replaceState: true,
+						noScroll: true,
+						keepFocus: true
+					});
+				}}
 				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 			>
 				<span class="text-4xl">🗂️</span>
@@ -705,7 +428,10 @@
 			{#if podeAssinar && escalasParaAssinar.length > 0}
 				<button
 					type="button"
-					onclick={() => { visao = 'assinaturas'; goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true }); }}
+					onclick={() => {
+						visao = 'assinaturas';
+						goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+					}}
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<div class="relative">
@@ -726,30 +452,16 @@
 		</div>
 	</div>
 {:else if visao === 'lista'}
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-		<div class="flex items-center gap-3">
-			<button
-				type="button"
-				class="btn btn-sm preset-outlined-surface"
-				onclick={() => { visao = 'home'; goto('/escalas', { replaceState: true, noScroll: true }); }}>← Voltar</button
-			>
-			<h1 class="h1 text-xl font-bold">Arquivo</h1>
-		</div>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn btn-sm {temFiltros
-					? 'preset-filled-warning-500'
-					: 'preset-outlined-primary-500 opacity-40'}"
-				onclick={limparFiltros}
-				disabled={!temFiltros}
-			>
-				Limpar filtros
-			</button>
-			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={abrirNovaEscala}
-				>Nova Escala</button
-			>
-		</div>
+	<div class="flex items-center gap-3 mb-6">
+		<button
+			type="button"
+			class="btn btn-sm preset-outlined-surface"
+			onclick={() => {
+				visao = 'home';
+				goto('/escalas', { replaceState: true, noScroll: true });
+			}}>← Voltar</button
+		>
+		<h1 class="h1 text-xl font-bold">Arquivo</h1>
 	</div>
 
 	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
@@ -772,7 +484,7 @@
 						<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
 						<button
 							type="submit"
-							class="btn preset-filled-error-500 flex items-center gap-2"
+							class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
 							disabled={pendingExcluir}
 						>
 							{pendingExcluir ? 'Excluindo...' : 'Excluir'}
@@ -807,7 +519,7 @@
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
 					<button
 						type="button"
-						class="btn preset-filled-error-500 flex items-center gap-2"
+						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
 						onclick={confirmarRevogacao}
 						disabled={pendingRevogar}
 					>
@@ -818,442 +530,24 @@
 		</Dialog.Content>
 	</Dialog>
 
-	<Dialog
-		open={dialogNovaEscalaAberto}
-		onOpenChange={(e) => {
-			if (!e.open) fecharNovaEscala();
+	<ModalNovaEscala
+		bind:open={dialogNovaEscalaAberto}
+		{isAdmin}
+		{lotacaoUsuario}
+		{unidades}
+		escalasExistentes={data.escalasExistentes}
+		oncriado={(id) => {
+			if (abriuDoHome) abriuDoHome = false;
+			goto(`/escalas/${id}`);
 		}}
-	>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 w-full max-w-lg bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10 overflow-y-auto max-h-[calc(100dvh-2rem)]"
-			>
-				<Dialog.Title class="h3 font-bold mb-4">Nova Escala</Dialog.Title>
-
-				{#if novaEscalaTipo === null}
-					<!-- Passo 1: escolha de tipo (e unidade para admin global) -->
-					{#if isAdmin}
-						<label class="label mb-4">
-							<span class="label-text font-semibold">Unidade</span>
-							<select class="select" bind:value={neLotacao}>
-								<option value="" disabled>Selecione uma unidade...</option>
-								{#each delegaciasNE as del (del.id)}
-									<option value={del.nome}>{del.nome}</option>
-								{/each}
-							</select>
-						</label>
-					{/if}
-
-					{#if unidadeNovaEscala}
-						{#if !isAdmin}
-							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400 mb-3">
-								{unidadeNovaEscala.nome}
-							</p>
-						{/if}
-						<p class="text-sm text-surface-500 mb-3">Qual tipo de escala?</p>
-						<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-							{#each tiposDisponiveisNE(unidadeNovaEscala) as t}
-								<button
-									type="button"
-									class="p-4 rounded-2xl border-2 border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500 hover:bg-primary-500/10 transition-all text-center group"
-									onclick={() => escolherTipoNE(t.tipo)}
-								>
-									<p class="text-2xl mb-1">{t.icon}</p>
-									<p class="font-bold text-sm group-hover:text-primary-500 transition-colors">
-										{t.label}
-									</p>
-									<p class="text-xs text-surface-500 mt-0.5">{t.desc}</p>
-								</button>
-							{/each}
-						</div>
-					{:else if !isAdmin}
-						<p class="text-sm text-surface-500 py-4 text-center">
-							Nenhum tipo de escala configurado para sua unidade.
-						</p>
-					{/if}
-
-					<div class="flex justify-end mt-6">
-						<button type="button" class="btn preset-outlined-surface" onclick={fecharNovaEscala}
-							>Cancelar</button
-						>
-					</div>
-				{:else if novaEscalaTipo === 'fds'}
-					<!-- Calendário FDS -->
-					<div class="space-y-2.5">
-						<div>
-							<h2 class="text-base font-bold text-surface-900 dark:text-surface-50 leading-tight">
-								Nova Escala — Final de Semana
-							</h2>
-							{#if unidadeNovaEscala}
-								<p class="text-xs text-surface-500 mt-0.5">{unidadeNovaEscala.nome}</p>
-							{/if}
-						</div>
-
-						<div
-							class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40"
-						>
-							<div class="flex items-center justify-between gap-1.5">
-								<button
-									type="button"
-									class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
-									aria-label="Mês anterior"
-									onclick={calMesAnteriorNE}
-								>
-									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15 19l-7-7 7-7"
-										/></svg
-									>
-								</button>
-								<p
-									class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center min-w-0 flex-1"
-								>
-									{MESES_PT_NE[calMes]} de {calAno}
-								</p>
-								<button
-									type="button"
-									class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
-									aria-label="Próximo mês"
-									onclick={calMesProximoNE}
-								>
-									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 5l7 7-7 7"
-										/></svg
-									>
-								</button>
-							</div>
-							<div
-								class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
-							>
-								{#each DIAS_SEM_NE as ds}<span>{ds}</span>{/each}
-							</div>
-							<div class="grid grid-cols-7 gap-0.5">
-								{#each gradeCalendarioNE as cell}
-									{#if cell}
-										{@const iso = isoDiaLocalNE(calAno, calMes, cell.day)}
-										{@const sel = fdsDiasSelecionados.includes(iso)}
-										<button
-											type="button"
-											onclick={() => calToggleDiaNE(iso)}
-											class="h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center touch-manipulation
-											{sel
-												? 'border-warning-500 bg-warning-500/15 text-warning-900 dark:text-warning-100'
-												: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}"
-											aria-pressed={sel}
-											aria-label="Dia {cell.day} de {MESES_PT_NE[calMes]}">{cell.day}</button
-										>
-									{:else}
-										<div class="h-9"></div>
-									{/if}
-								{/each}
-							</div>
-						</div>
-
-						{#if fdsDiasOrdenadosNE.length > 0}
-							<div class="min-w-0 space-y-0.5">
-								<span class="text-[0.65rem] font-semibold text-surface-500"
-									>Dias selecionados ({fdsDiasOrdenadosNE.length})</span
-								>
-								<div
-									class="flex flex-nowrap items-stretch gap-1.5 overflow-x-auto max-w-full pb-0.5 [scrollbar-width:thin]"
-								>
-									{#each fdsDiasOrdenadosNE as iso}
-										<span
-											class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
-										>
-											{fmtDiaNE(iso)}
-											<button
-												type="button"
-												class="p-0.5 rounded text-surface-400 hover:text-error-600 dark:hover:text-error-400 shrink-0"
-												aria-label="Remover {fmtDiaNE(iso)}"
-												onclick={() => calRemoverDiaNE(iso)}
-											>
-												<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M6 18L18 6M6 6l12 12"
-													/></svg
-												>
-											</button>
-										</span>
-									{/each}
-								</div>
-							</div>
-						{/if}
-
-						<div
-							class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5"
-						>
-							<p
-								class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400"
-							>
-								Horário
-							</p>
-							<div class="grid grid-cols-2 gap-2">
-								<div>
-									<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora entrada</span>
-									<div class="flex gap-1">
-										<select class="select text-xs flex-1" bind:value={fdsHoraEntrada}>
-											{#each horasNE as h (h)}<option value={h}>{h}h</option>{/each}
-										</select>
-										<select class="select text-xs flex-1" bind:value={fdsMinutoEntrada}>
-											{#each minutosNE as m (m)}<option value={m}>{m}m</option>{/each}
-										</select>
-									</div>
-								</div>
-								<div>
-									<span class="text-[0.65rem] text-surface-500 block mb-0.5">Hora saída</span>
-									<div class="flex gap-1">
-										<select class="select text-xs flex-1" bind:value={fdsHoraSaida}>
-											{#each horasNE as h (h)}<option value={h}>{h}h</option>{/each}
-										</select>
-										<select class="select text-xs flex-1" bind:value={fdsMinutoSaida}>
-											{#each minutosNE as m (m)}<option value={m}>{m}m</option>{/each}
-										</select>
-									</div>
-								</div>
-							</div>
-							<p class="text-[0.65rem] text-primary-600 dark:text-primary-400 font-medium">
-								{fdsHorarioLabelNE}
-							</p>
-						</div>
-
-						{#if fdsTituloAutoNE}
-							<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-								<p class="text-[0.6rem] text-surface-400 mb-0.5">Título gerado</p>
-								<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
-									{fdsTituloAutoNE}
-								</p>
-							</div>
-						{/if}
-
-						<div class="flex justify-end gap-2 pt-1">
-							<button
-								type="button"
-								class="btn preset-outlined-surface text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl"
-								onclick={() => (novaEscalaTipo = null)}
-							>
-								← Voltar
-							</button>
-							<form method="POST" action="?/criar" use:enhance={handleCriar} class="contents">
-								<input type="hidden" name="tipo" value="fds" />
-								<input type="hidden" name="data_inicio" value={fdsDataInicioNE} />
-								<input type="hidden" name="data_fim" value={fdsDataFimNE} />
-								<input
-									type="hidden"
-									name="hora_entrada"
-									value={`${fdsHoraEntrada}:${fdsMinutoEntrada}`}
-								/>
-								<input
-									type="hidden"
-									name="hora_saida"
-									value={`${fdsHoraSaida}:${fdsMinutoSaida}`}
-								/>
-								<input type="hidden" name="cidade" value={fdsCidadeNE} />
-								<input type="hidden" name="lotacao" value={fdsLotacaoNE} />
-								<input type="hidden" name="titulo" value={fdsTituloAutoNE} />
-								<button
-									type="submit"
-									class="btn preset-filled-warning-500 border-2 border-warning-600/30 hover:border-warning-600 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all"
-									disabled={pendingCriar || fdsDiasOrdenadosNE.length === 0}
-								>
-									{pendingCriar ? 'Criando...' : 'Criar Escala'}
-								</button>
-							</form>
-						</div>
-					</div>
-				{:else}
-					<!-- Plantão / Expediente — Picker de mês -->
-					<div class="space-y-4">
-						<div>
-							<h2 class="text-base font-bold text-surface-900 dark:text-surface-50 leading-tight">
-								Nova Escala — {novaEscalaTipo === 'plantao'
-									? 'Plantão Mensal'
-									: 'Expediente Mensal'}
-							</h2>
-							{#if unidadeNovaEscala}
-								<p class="text-xs text-surface-500 mt-0.5">{unidadeNovaEscala.nome}</p>
-							{/if}
-						</div>
-
-						<!-- Navegação de ano -->
-						<div class="flex items-center justify-between gap-2">
-							<button
-								type="button"
-								class="btn preset-outlined-surface-500 p-1.5 rounded-lg"
-								aria-label="Ano anterior"
-								onclick={() => nePickerAno--}
-							>
-								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15 19l-7-7 7-7"
-									/></svg
-								>
-							</button>
-							<span class="font-bold text-lg text-surface-900 dark:text-surface-50"
-								>{nePickerAno}</span
-							>
-							<button
-								type="button"
-								class="btn preset-outlined-surface-500 p-1.5 rounded-lg"
-								aria-label="Próximo ano"
-								onclick={() => nePickerAno++}
-							>
-								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 5l7 7-7 7"
-									/></svg
-								>
-							</button>
-						</div>
-
-						<!-- Grade de meses -->
-						<div class="grid grid-cols-4 gap-2">
-							{#each MESES_PT_NE as nomeMes, i}
-								{@const mesNum = i + 1}
-								{@const ocupado = mesOcupado(mesNum, nePickerAno)}
-								{@const selecionado =
-									neMesSelecionado?.mes === mesNum && neMesSelecionado?.ano === nePickerAno}
-								<button
-									type="button"
-									disabled={ocupado}
-									onclick={() => selecionarMesNE(mesNum)}
-									class="py-2.5 px-1 rounded-xl border-2 text-sm font-medium transition-all relative
-									{ocupado
-										? 'opacity-40 cursor-not-allowed border-surface-200 dark:border-white/10 text-surface-400 dark:text-surface-500 bg-surface-100 dark:bg-surface-800/30'
-										: selecionado
-											? 'border-primary-500 bg-primary-500/15 text-primary-700 dark:text-primary-400'
-											: 'border-surface-200 dark:border-white/10 hover:border-primary-400 hover:bg-primary-500/10 text-surface-700 dark:text-surface-300 bg-white dark:bg-surface-800/30'}"
-									title={ocupado ? 'Escala já criada para este mês' : nomeMes}
-								>
-									{nomeMes.substring(0, 3)}
-									{#if ocupado}
-										<span
-											class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-surface-400 dark:bg-surface-500"
-										></span>
-									{/if}
-								</button>
-							{/each}
-						</div>
-
-						{#if neTitulo}
-							<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-								<p class="text-[0.6rem] text-surface-400 mb-0.5">Título gerado</p>
-								<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
-									{neTitulo}
-								</p>
-							</div>
-
-							<p class="text-xs font-semibold text-surface-500">Como deseja criar esta escala?</p>
-
-							<div class="grid grid-cols-2 gap-2">
-								<!-- Opção 1: Com base no mês anterior -->
-								<form
-									method="POST"
-									action="?/criarComBase"
-									use:enhance={handleCriarComBase}
-									class="contents"
-								>
-									<input type="hidden" name="lotacao" value={neLotacao} />
-									<input type="hidden" name="tipo" value={novaEscalaTipo} />
-									<input type="hidden" name="mes" value={neMesSelecionado?.mes} />
-									<input type="hidden" name="ano" value={neMesSelecionado?.ano} />
-									<button
-										type="submit"
-										disabled={pendingComBase || !mesAnteriorInfo?.existe}
-										title={mesAnteriorInfo?.existe ? '' : 'Sem escala no mês anterior para copiar'}
-										class="p-3 rounded-xl border-2 text-left transition-all h-full
-										{mesAnteriorInfo?.existe
-											? 'border-surface-300 dark:border-white/15 hover:border-primary-500 hover:bg-primary-500/10 cursor-pointer'
-											: 'opacity-40 cursor-not-allowed border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-800/20'}"
-									>
-										<p
-											class="font-semibold text-sm text-surface-800 dark:text-surface-100 leading-tight"
-										>
-											Com base em {MESES_PT_NE[
-												(mesAnteriorInfo?.mes ?? 1) - 1
-											]}/{mesAnteriorInfo?.ano}
-										</p>
-										<p class="text-xs text-surface-500 mt-1 leading-snug">
-											{novaEscalaTipo === 'plantao'
-												? 'Copia os servidores e recalcula os dias pela rotação'
-												: 'Copia os servidores do mês anterior'}
-										</p>
-										{#if pendingComBase}<p class="text-xs text-primary-500 mt-1">Gerando...</p>{/if}
-									</button>
-								</form>
-
-								<!-- Opção 2: Escala limpa -->
-								<form method="POST" action="?/criar" use:enhance={handleCriar} class="contents">
-									<input type="hidden" name="titulo" value={neTitulo} />
-									<input type="hidden" name="data_inicio" value={neDataInicio} />
-									<input type="hidden" name="data_fim" value={neDataFim} />
-									<input
-										type="hidden"
-										name="hora_entrada"
-										value={`${neHoraEntrada}:${neMinutoEntrada}`}
-									/>
-									<input
-										type="hidden"
-										name="hora_saida"
-										value={`${neHoraSaida}:${neMinutoSaida}`}
-									/>
-									<input type="hidden" name="tipo" value={novaEscalaTipo} />
-									<input type="hidden" name="cidade" value={neCidade} />
-									<input type="hidden" name="lotacao" value={neLotacao} />
-									<button
-										type="submit"
-										disabled={pendingCriar}
-										class="p-3 rounded-xl border-2 text-left transition-all h-full border-surface-300 dark:border-white/15 hover:border-success-500 hover:bg-success-500/10 cursor-pointer"
-									>
-										<p
-											class="font-semibold text-sm text-surface-800 dark:text-surface-100 leading-tight"
-										>
-											Escala limpa
-										</p>
-										<p class="text-xs text-surface-500 mt-1 leading-snug">
-											Começa do zero, sem servidores
-										</p>
-										{#if pendingCriar}<p class="text-xs text-success-500 mt-1">Criando...</p>{/if}
-									</button>
-								</form>
-							</div>
-						{/if}
-
-						<div class="flex justify-start pt-1">
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-surface"
-								onclick={() => {
-									novaEscalaTipo = null;
-									neDataInicio = '';
-									neDataFim = '';
-									neTitulo = '';
-								}}>← Voltar</button
-							>
-						</div>
-					</div>
-				{/if}
-			</div>
-		</Dialog.Content>
-	</Dialog>
+		onfechar={() => {
+			if (abriuDoHome) {
+				abriuDoHome = false;
+				visao = 'home';
+				goto('/escalas', { replaceState: true, noScroll: true });
+			}
+		}}
+	/>
 
 	<div
 		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6"
@@ -1262,7 +556,7 @@
 			class="grid grid-cols-12 gap-3 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5"
 		>
 			{#if isAdmin}
-				<label class="label col-span-12 sm:col-span-3">
+				<label class="label col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Seccional</span>
 					<select
 						class="select"
@@ -1279,7 +573,7 @@
 					</select>
 				</label>
 
-				<label class="label col-span-12 sm:col-span-5">
+				<label class="label col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 						<option value="">Selecione uma unidade...</option>
@@ -1290,7 +584,7 @@
 					</select>
 				</label>
 			{:else if isAdminSeccional}
-				<label class="label col-span-12 sm:col-span-8">
+				<label class="label col-span-12 lg:col-span-6">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 						<option value="">Todas as unidades</option>
@@ -1302,7 +596,7 @@
 			{/if}
 
 			<label
-				class="label col-span-12 {isAdmin || isAdminSeccional ? 'sm:col-span-2' : 'sm:col-span-6'}"
+				class="label col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-5'}"
 			>
 				<span class="label-text font-semibold mb-1">Tipo</span>
 				<select class="select" bind:value={filtroTipo} onchange={navegarComFiltros}>
@@ -1314,7 +608,7 @@
 			</label>
 
 			<label
-				class="label col-span-6 {isAdmin || isAdminSeccional ? 'sm:col-span-1' : 'sm:col-span-3'}"
+				class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-3'}"
 			>
 				<span class="label-text font-semibold mb-1">Mês</span>
 				<select class="select" bind:value={filtroMes} onchange={navegarComFiltros}>
@@ -1325,7 +619,7 @@
 			</label>
 
 			<label
-				class="label col-span-6 {isAdmin || isAdminSeccional ? 'sm:col-span-1' : 'sm:col-span-3'}"
+				class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-2'}"
 			>
 				<span class="label-text font-semibold mb-1">Ano</span>
 				<select class="select" bind:value={filtroAno} onchange={navegarComFiltros}>
@@ -1334,6 +628,19 @@
 					{/each}
 				</select>
 			</label>
+
+			<div class="col-span-12 lg:col-span-2 flex items-end">
+				<button
+					type="button"
+					class="btn btn-sm w-full {temFiltros
+						? 'preset-filled-warning-500'
+						: 'preset-outlined-surface opacity-40'}"
+					onclick={limparFiltros}
+					disabled={!temFiltros}
+				>
+					Limpar filtros
+				</button>
+			</div>
 		</div>
 
 		{#if data.skipLoad}
@@ -1361,362 +668,466 @@
 		{:else if escalas.length === 0}
 			<div class="text-center py-12 text-surface-500">
 				<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
-				<button type="button" class="btn preset-filled-primary-500" onclick={abrirNovaEscala}
-					>Criar Escala</button
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 active:scale-95 transition-all"
+					onclick={() => (dialogNovaEscalaAberto = true)}>Criar Escala</button
 				>
 			</div>
 		{:else}
 			<!-- Desktop: tabela -->
-			<div class="hidden md:block table-wrap">
+			<div class="hidden lg:block table-wrap">
 				<table class="table">
 					<thead>
 						<tr>
 							<th>Título</th>
 							<th>Cidade</th>
 							<th>Período</th>
-							<th>Horário</th>
 							<th>Status</th>
 							<th>Ações</th>
 						</tr>
 					</thead>
 					<tbody>
-						{#each escalas as esc (esc.id)}
-							<tr>
-								<td><a href="/escalas/{esc.id}" class="anchor">{esc.titulo}</a></td>
-								<td>{esc.cidade}</td>
-								<td class="whitespace-nowrap"
-									>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</td
-								>
-								<td>{esc.horario}</td>
-								<td>
-									{#if esc.is_assinada}
-										<span
-											class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M5 13l4 4L19 7"
-												/></svg
-											>
-											Assinada
-										</span>
-									{:else if esc.tipo === 'fds' && esc.finalizada_em}
-										<span
-											class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M5 13l4 4L19 7"
-												/></svg
-											>
-											Enviada
-										</span>
-									{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-										<span
-											class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-												/></svg
-											>
-											Ass. Pendente
-										</span>
-									{:else}
-										<span
-											class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-												/></svg
-											>
-											{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-										</span>
-									{/if}
-								</td>
-								<td>
-									<div class="flex gap-2 justify-end">
-										<button
-											type="button"
-											class="btn btn-sm {esc.is_assinada
-												? 'preset-filled-warning-500'
-												: 'preset-outlined-primary-500'}"
-											onclick={() => solicitarEdicao(esc)}
-										>
-											{esc.is_assinada ? 'Editar' : 'Abrir'}
-										</button>
-										<Popover
-											positioning={{
-												placement: 'bottom-end',
-												offset: { mainAxis: 4 }
-											}}
-										>
-											<Popover.Trigger class="btn btn-sm preset-outlined-primary-500"
-												>Exportar ▾</Popover.Trigger
-											>
-											<Portal>
-												<Popover.Positioner class="z-50">
-													<Popover.Content
-														class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
-													>
-														{#if esc.is_assinada}
-															<a
-																class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
-																href={`/api/escalas/${esc.id}/documento-assinado`}
-																target="_blank"
-															>
-																<svg
-																	class="w-4 h-4"
-																	fill="none"
-																	viewBox="0 0 24 24"
-																	stroke="currentColor"
-																	><path
-																		stroke-linecap="round"
-																		stroke-linejoin="round"
-																		stroke-width="2"
-																		d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-																	/></svg
-																>
-																PDF Oficial
-															</a>
-															<hr class="opacity-10 my-1" />
-														{/if}
-														<a
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-															href={`/api/escalas/${esc.id}/download?format=docx`}
-															target="_blank">Word (.docx)</a
-														>
-														<a
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-															href={`/api/escalas/${esc.id}/download?format=excel`}
-															target="_blank">Excel (.xlsx)</a
-														>
-														<a
-															class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-															href={`/api/escalas/${esc.id}/download?format=pdf`}
-															target="_blank">PDF (.pdf)</a
-														>
-													</Popover.Content>
-												</Popover.Positioner>
-											</Portal>
-										</Popover>
-										{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-											{#if solicitacoesMap[esc.id]}
-												<button
-													type="button"
-													class="btn btn-sm preset-outlined-error-500"
-													onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
+						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+							{#each { length: 8 } as _}
+								<tr class="animate-pulse">
+									<td class="px-4 py-3"
+										><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td
+									>
+									<td class="px-4 py-3"
+										><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
+									>
+									<td class="px-4 py-3"
+										><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
+									>
+									<td class="px-4 py-3"
+										><div
+											class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"
+										></div></td
+									>
+									<td class="px-4 py-3"
+										><div class="flex gap-2">
+											<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+											<div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+										</div></td
+									>
+								</tr>
+							{/each}
+						{:else}
+							{#each escalas as esc (esc.id)}
+								{@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
+								<tr>
+									<td>
+										<div class="flex flex-col gap-0.5">
+											{#if esc.tipo === 'expediente'}
+												<span
+													class="badge preset-outlined-secondary-500 font-bold text-xs px-2 py-0.5 w-fit"
+													>Expediente</span
+												>
+											{:else if esc.tipo === 'fds'}
+												<span
+													class="badge preset-outlined-tertiary-500 font-bold text-xs px-2 py-0.5 w-fit"
+													>FDS</span
 												>
 											{:else}
-												<button
-													type="button"
-													class="btn btn-sm preset-filled-success-500"
-													onclick={() => abrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
+												<span
+													class="badge preset-outlined-primary-500 font-bold text-xs px-2 py-0.5 w-fit"
+													>Plantão</span
 												>
 											{/if}
+											<a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
+												{esc.tipo !== 'fds'
+													? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
+													: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+											</a>
+											<span class="text-xs text-surface-500 truncate">{esc.lotacao}</span>
+										</div>
+									</td>
+									<td>{esc.cidade}</td>
+									<td class="font-mono tabular-nums text-sm">
+										<div class="flex flex-col leading-snug">
+											<span>{formatarData(esc.data_inicio)}</span>
+											<span class="text-surface-400 dark:text-surface-500 text-xs">a</span>
+											<span>{formatarData(esc.data_fim)}</span>
+										</div>
+									</td>
+									<td>
+										{#if esc.is_assinada}
+											<span
+												class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+											>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M5 13l4 4L19 7"
+													/></svg
+												>
+												Assinada
+											</span>
+										{:else if esc.tipo === 'fds' && esc.finalizada_em}
+											<span
+												class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+											>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M5 13l4 4L19 7"
+													/></svg
+												>
+												Enviada
+											</span>
+										{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
+											<span
+												class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+											>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+													/></svg
+												>
+												Ass. Pendente
+											</span>
+										{:else}
+											<span
+												class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+											>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+													/></svg
+												>
+												{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
+											</span>
 										{/if}
-										<button
-											type="button"
-											class="btn btn-sm preset-filled-error-500 flex-1"
-											onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
-										>
-									</div>
-								</td>
-							</tr>
-						{/each}
+									</td>
+									<td>
+										<div class="flex gap-2 justify-end">
+											<button
+												type="button"
+												class="btn btn-sm {esc.is_assinada
+													? 'preset-filled-warning-500'
+													: 'preset-outlined-primary-500'}"
+												onclick={() => solicitarEdicao(esc)}
+											>
+												{esc.is_assinada ? 'Editar' : 'Abrir'}
+											</button>
+											<Popover
+												positioning={{
+													placement: 'bottom-end',
+													offset: { mainAxis: 4 }
+												}}
+											>
+												<Popover.Trigger class="btn btn-sm preset-outlined-primary-500"
+													>Exportar ▾</Popover.Trigger
+												>
+												<Portal>
+													<Popover.Positioner class="z-50">
+														<Popover.Content
+															class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
+														>
+															{#if esc.is_assinada}
+																<a
+																	class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
+																	href={`/api/escalas/${esc.id}/documento-assinado`}
+																	target="_blank"
+																>
+																	<svg
+																		class="w-4 h-4"
+																		fill="none"
+																		viewBox="0 0 24 24"
+																		stroke="currentColor"
+																		><path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+																		/></svg
+																	>
+																	PDF Oficial
+																</a>
+																<hr class="opacity-10 my-1" />
+															{/if}
+															<a
+																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+																href={`/api/escalas/${esc.id}/download?format=docx`}
+																target="_blank">Word (.docx)</a
+															>
+															<a
+																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+																href={`/api/escalas/${esc.id}/download?format=excel`}
+																target="_blank">Excel (.xlsx)</a
+															>
+															<a
+																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+																href={`/api/escalas/${esc.id}/download?format=pdf`}
+																target="_blank">PDF (.pdf)</a
+															>
+														</Popover.Content>
+													</Popover.Positioner>
+												</Portal>
+											</Popover>
+											{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
+												{#if solicitacoesMap[esc.id]}
+													<button
+														type="button"
+														class="btn btn-sm preset-outlined-error-500"
+														onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
+													>
+												{:else}
+													<button
+														type="button"
+														class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all"
+														onclick={() => abrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
+													>
+												{/if}
+											{/if}
+											<button
+												type="button"
+												class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
+												onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
+											>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
 				</table>
 			</div>
 
 			<!-- Mobile: cards -->
-			<div class="md:hidden space-y-3">
-				{#each escalas as esc (esc.id)}
-					<div
-						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
-					>
-						<div class="flex justify-between items-start mb-3 gap-2">
-							<a
-								href="/escalas/{esc.id}"
-								class="anchor font-semibold text-sm block text-primary-600 dark:text-primary-400 no-underline hover:text-primary-500 dark:hover:text-primary-300"
-								>{esc.titulo}</a
-							>
-							{#if esc.is_assinada}
-								<span
-									class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
-								>
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/></svg
-									>
-									Assinada
-								</span>
-							{:else if esc.tipo === 'fds' && esc.finalizada_em}
-								<span
-									class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
-								>
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M5 13l4 4L19 7"
-										/></svg
-									>
-									Enviada
-								</span>
-							{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-								<span
-									class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
-								>
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-										/></svg
-									>
-									Ass. Pendente
-								</span>
-							{:else}
-								<span
-									class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded flex items-center gap-1 shadow-sm"
-								>
-									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-										/></svg
-									>
-									{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-								</span>
-							{/if}
-						</div>
-						<div class="space-y-1 mb-3 text-sm">
-							<div class="flex justify-between">
-								<span class="text-surface-500 font-medium">Cidade</span>
-								<span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-surface-500 font-medium">Período</span>
-								<span class="text-surface-900 dark:text-surface-100"
-									>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-surface-500 font-medium">Horário</span>
-								<span class="text-surface-900 dark:text-surface-100">{esc.horario}</span>
-							</div>
-						</div>
-						<div class="flex gap-2 pt-3 border-t border-white/5">
-							<button
-								type="button"
-								class="btn btn-sm {esc.is_assinada
-									? 'preset-filled-warning-500'
-									: 'preset-outlined-primary-500'} flex-1"
-								onclick={() => solicitarEdicao(esc)}
-							>
-								{esc.is_assinada ? 'Editar' : 'Abrir'}
-							</button>
-							<Popover
-								positioning={{
-									placement: 'bottom-end',
-									offset: { mainAxis: 4 }
-								}}
-							>
-								<Popover.Trigger
-									class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10"
-									>Exportar ▾</Popover.Trigger
-								>
-								<Portal>
-									<Popover.Positioner class="z-50">
-										<Popover.Content
-											class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
+			<div class="lg:hidden space-y-3">
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 5 } as _}
+						<SkeletonCard />
+					{/each}
+				{:else}
+					{#each escalas as esc (esc.id)}
+						{@const d = new Date(esc.data_inicio + 'T00:00:00')}
+						<div
+							class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
+						>
+							<div class="flex justify-between items-start mb-3 gap-2">
+								<div class="min-w-0 flex-1">
+									{#if esc.tipo === 'expediente'}
+										<span
+											class="badge preset-outlined-secondary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+											>Expediente</span
 										>
-											{#if esc.is_assinada}
-												<a
-													class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
-													href={`/api/escalas/${esc.id}/documento-assinado`}
-													target="_blank"
-												>
-													<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-														><path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-														/></svg
-													>
-													PDF Oficial
-												</a>
-												<hr class="opacity-10 my-1" />
-											{/if}
-											<a
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-												href={`/api/escalas/${esc.id}/download?format=docx`}
-												target="_blank">Word (.docx)</a
-											>
-											<a
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-												href={`/api/escalas/${esc.id}/download?format=excel`}
-												target="_blank">Excel (.xlsx)</a
-											>
-											<a
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-												href={`/api/escalas/${esc.id}/download?format=pdf`}
-												target="_blank">PDF (.pdf)</a
-											>
-										</Popover.Content>
-									</Popover.Positioner>
-								</Portal>
-							</Popover>
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-error-500 flex-1"
-								onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
-							>
-						</div>
-						{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-							{#if solicitacoesMap[esc.id]}
-								<div class="flex gap-2 mt-2 pt-2 border-t border-white/10">
-									<button
-										type="button"
-										class="btn btn-sm preset-outlined-error-500 text-xs flex-1"
-										onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
+									{:else if esc.tipo === 'fds'}
+										<span
+											class="badge preset-outlined-tertiary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+											>FDS</span
+										>
+									{:else}
+										<span
+											class="badge preset-outlined-primary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+											>Plantão</span
+										>
+									{/if}
+									<a
+										href="/escalas/{esc.id}"
+										class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block"
+									>
+										{esc.tipo !== 'fds'
+											? `${MESES_PT[d.getMonth()]} ${d.getFullYear()}`
+											: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+									</a>
+									<p class="text-xs text-surface-500 dark:text-surface-400 truncate">
+										{esc.lotacao}
+									</p>
+								</div>
+								{#if esc.is_assinada}
+									<span
+										class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+									>
+										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/></svg
+										>
+										Assinada
+									</span>
+								{:else if esc.tipo === 'fds' && esc.finalizada_em}
+									<span
+										class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+									>
+										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/></svg
+										>
+										Enviada
+									</span>
+								{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
+									<span
+										class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+									>
+										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+											/></svg
+										>
+										Ass. Pendente
+									</span>
+								{:else}
+									<span
+										class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+									>
+										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+											/></svg
+										>
+										{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
+									</span>
+								{/if}
+							</div>
+							<div class="space-y-1 mb-3 text-sm">
+								<div class="flex justify-between">
+									<span class="text-surface-500 font-medium">Cidade</span>
+									<span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-surface-500 font-medium">Período</span>
+									<span
+										class="text-surface-900 dark:text-surface-100 font-mono tabular-nums text-xs"
+										>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span
 									>
 								</div>
-							{:else}
+								{#if esc.tipo === 'fds'}
+									<div class="flex justify-between">
+										<span class="text-surface-500 font-medium">Horário</span>
+										<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+											>{esc.horario}</span
+										>
+									</div>
+								{/if}
+							</div>
+							<div class="flex gap-2 pt-3 border-t border-white/5">
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-success-500 w-full mt-2"
-									onclick={() => abrirDialogSolicitar(esc.id)}
+									class="btn btn-sm {esc.is_assinada
+										? 'preset-filled-warning-500'
+										: 'preset-outlined-primary-500'} flex-1"
+									onclick={() => solicitarEdicao(esc)}
 								>
-									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-									Solicitar Assinatura
+									{esc.is_assinada ? 'Editar' : 'Abrir'}
 								</button>
+								<Popover
+									positioning={{
+										placement: 'bottom-end',
+										offset: { mainAxis: 4 }
+									}}
+								>
+									<Popover.Trigger
+										class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10"
+										>Exportar ▾</Popover.Trigger
+									>
+									<Portal>
+										<Popover.Positioner class="z-50">
+											<Popover.Content
+												class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
+											>
+												{#if esc.is_assinada}
+													<a
+														class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
+														href={`/api/escalas/${esc.id}/documento-assinado`}
+														target="_blank"
+													>
+														<svg
+															class="w-4 h-4"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+															><path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+															/></svg
+														>
+														PDF Oficial
+													</a>
+													<hr class="opacity-10 my-1" />
+												{/if}
+												<a
+													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+													href={`/api/escalas/${esc.id}/download?format=docx`}
+													target="_blank">Word (.docx)</a
+												>
+												<a
+													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+													href={`/api/escalas/${esc.id}/download?format=excel`}
+													target="_blank">Excel (.xlsx)</a
+												>
+												<a
+													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+													href={`/api/escalas/${esc.id}/download?format=pdf`}
+													target="_blank">PDF (.pdf)</a
+												>
+											</Popover.Content>
+										</Popover.Positioner>
+									</Portal>
+								</Popover>
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
+									onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
+								>
+							</div>
+							{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
+								{#if solicitacoesMap[esc.id]}
+									<div class="flex gap-2 mt-2 pt-2 border-t border-white/10">
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-error-500 text-xs flex-1"
+											onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
+										>
+									</div>
+								{:else}
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-success-500 w-full mt-2 active:scale-95 transition-all"
+										onclick={() => abrirDialogSolicitar(esc.id)}
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+											/></svg
+										>
+										Solicitar Assinatura
+									</button>
+								{/if}
 							{/if}
-						{/if}
-					</div>
-				{/each}
+						</div>
+					{/each}
+				{/if}
 			</div>
 			<PaginationControls
 				{paginaAtual}
@@ -1735,7 +1146,10 @@
 			<button
 				type="button"
 				class="btn btn-sm preset-outlined-surface"
-				onclick={() => { visao = 'home'; goto('/escalas', { replaceState: true, noScroll: true }); }}>← Voltar</button
+				onclick={() => {
+					visao = 'home';
+					goto('/escalas', { replaceState: true, noScroll: true });
+				}}>← Voltar</button
 			>
 			<h1 class="h1 text-xl font-bold">Assinaturas Pendentes</h1>
 			<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2"
@@ -1750,57 +1164,79 @@
 		{:else}
 			<div class="space-y-3">
 				{#each escalasParaAssinar as esc (esc.id)}
+					{@const dAss = new Date(esc.data_inicio + 'T00:00:00')}
 					<div
 						class="p-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm hover:border-tertiary-500/30 transition-colors"
 					>
 						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 							<div class="min-w-0">
-								<div class="flex items-center gap-2 mb-1">
+								{#if esc.tipo === 'expediente'}
 									<span
-										class="badge {esc.tipo === 'plantao'
-											? 'preset-tonal-primary'
-											: 'preset-tonal-secondary'} text-xs font-bold px-2 py-0.5"
+										class="badge preset-outlined-secondary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
+										>Expediente</span
 									>
-										{esc.tipo === 'plantao' ? 'Plantão' : 'Expediente'}
-									</span>
-									<span class="text-xs text-surface-400">{esc.lotacao}</span>
-								</div>
-								<h3
-									class="font-semibold text-sm text-surface-800 dark:text-surface-100 leading-snug line-clamp-1"
-								>
-									{esc.titulo}
-								</h3>
-								<p class="text-xs text-surface-500 mt-0.5">
-									{esc.cidade} · {formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}
+								{:else if esc.tipo === 'fds'}
+									<span
+										class="badge preset-outlined-tertiary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
+										>FDS</span
+									>
+								{:else}
+									<span
+										class="badge preset-outlined-primary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
+										>Plantão</span
+									>
+								{/if}
+								<p class="font-bold text-sm text-surface-800 dark:text-surface-100 leading-tight">
+									{esc.tipo !== 'fds'
+										? `${MESES_PT[dAss.getMonth()]} ${dAss.getFullYear()}`
+										: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+								</p>
+								<p class="text-xs text-surface-500 mt-0.5 truncate">
+									{esc.lotacao} · {esc.cidade}
 								</p>
 							</div>
-							<div class="flex gap-2 shrink-0 flex-wrap justify-end">
-								<a
-									href="/escalas/{esc.id}"
-									target="_blank"
-									class="btn btn-sm preset-outlined-surface-500 no-underline"
-								>
-									Ver Escala
-								</a>
-								<a
-									href="/api/escalas/{esc.id}/download?format=pdf"
-									target="_blank"
-									class="btn btn-sm preset-outlined-surface-500 no-underline"
-								>
-									PDF
-								</a>
+							<div class="flex gap-2 shrink-0 flex-nowrap items-center justify-end">
+								<Popover positioning={{ placement: 'bottom-end', offset: { mainAxis: 4 } }}>
+									<Popover.Trigger class="btn btn-sm preset-outlined-surface-500">
+										Opções ▾
+									</Popover.Trigger>
+									<Portal>
+										<Popover.Positioner class="z-50">
+											<Popover.Content
+												class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
+											>
+												<button
+													type="button"
+													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+													onclick={() => solicitarEdicao(esc as EscalaListagem)}
+												>
+													Editar escala
+												</button>
+												<a
+													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+													href="/api/escalas/{esc.id}/download?format=pdf"
+													target="_blank"
+												>
+													Ver em PDF
+												</a>
+											</Popover.Content>
+										</Popover.Positioner>
+									</Portal>
+								</Popover>
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-warning-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+									class="btn btn-sm preset-filled-warning-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
 									disabled={assinaturaTelaBloqueada}
-									title={assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined}
+									title={assinaturaTelaBloqueada
+										? 'Restrito a dispositivos móveis pelo administrador'
+										: undefined}
 									onclick={() => iniciarAssinaturaTela(esc.id)}
 								>
 									Assinar (Tela)
 								</button>
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-tertiary-500 font-bold"
+									class="btn btn-sm preset-filled-tertiary-500 font-bold active:scale-95 transition-all"
 									onclick={() => iniciarAssinaturaToken(esc.id)}
 								>
 									Assinar (Token)
@@ -1831,7 +1267,15 @@
 </div>
 
 <!-- Dialog de aviso: abrir escala com solicitação pendente (cancela a solicitação) -->
-<Dialog open={dialogRevogarSolicitacaoOpen} onOpenChange={(e) => { if (!e.open) { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; } }}>
+<Dialog
+	open={dialogRevogarSolicitacaoOpen}
+	onOpenChange={(e) => {
+		if (!e.open) {
+			dialogRevogarSolicitacaoOpen = false;
+			escalaAbrirComSolicitacao = null;
+		}
+	}}
+>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
@@ -1840,17 +1284,21 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Cancelar solicitação?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a solicitação será cancelada automaticamente.
+				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a
+				solicitação será cancelada automaticamente.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
-					onclick={() => { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; }}>Voltar</button
+					onclick={() => {
+						dialogRevogarSolicitacaoOpen = false;
+						escalaAbrirComSolicitacao = null;
+					}}>Voltar</button
 				>
 				<button
 					type="button"
-					class="btn preset-filled-warning-500 font-bold"
+					class="btn preset-filled-warning-500 font-bold active:scale-95 transition-all"
 					onclick={async () => {
 						const id = escalaAbrirComSolicitacao!;
 						dialogRevogarSolicitacaoOpen = false;
@@ -1865,7 +1313,12 @@
 </Dialog>
 
 <!-- Dialog Solicitar Assinatura (OIP admins) -->
-<Dialog open={dialogSolicitar} onOpenChange={(e) => { if (!e.open) dialogSolicitar = false; }}>
+<Dialog
+	open={dialogSolicitar}
+	onOpenChange={(e) => {
+		if (!e.open) dialogSolicitar = false;
+	}}
+>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
@@ -1881,14 +1334,19 @@
 				<!-- Opção 1: Admin da Unidade -->
 				<button
 					type="button"
-					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao === 'unidade'
+					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao ===
+					'unidade'
 						? 'border-primary-500 bg-primary-500/10'
 						: 'border-surface-300 dark:border-white/10 hover:border-primary-400/60'}"
-					onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; }}
+					onclick={() => {
+						opcaoSolicitacao = 'unidade';
+						destinatarioSelecionado = null;
+					}}
 				>
 					<div class="flex items-start gap-3">
 						<div
-							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao === 'unidade'
+							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao ===
+							'unidade'
 								? 'border-primary-500'
 								: 'border-surface-400'}"
 						>
@@ -1908,14 +1366,18 @@
 				<!-- Opção 2: Admin em Respondência -->
 				<button
 					type="button"
-					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao === 'respondencia'
+					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao ===
+					'respondencia'
 						? 'border-tertiary-500 bg-tertiary-500/10'
 						: 'border-surface-300 dark:border-white/10 hover:border-tertiary-400/60'}"
-					onclick={() => { opcaoSolicitacao = 'respondencia'; }}
+					onclick={() => {
+						opcaoSolicitacao = 'respondencia';
+					}}
 				>
 					<div class="flex items-start gap-3">
 						<div
-							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao === 'respondencia'
+							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao ===
+							'respondencia'
 								? 'border-tertiary-500'
 								: 'border-surface-400'}"
 						>
@@ -1941,12 +1403,18 @@
 							>
 								<div class="flex-1 min-w-0">
 									<div class="text-sm font-semibold truncate">{destinatarioSelecionado.nome}</div>
-									<div class="text-xs text-surface-500 truncate">{destinatarioSelecionado.lotacao}</div>
+									<div class="text-xs text-surface-500 truncate">
+										{destinatarioSelecionado.lotacao}
+									</div>
 								</div>
 								<button
 									type="button"
 									class="btn btn-sm preset-outlined-surface-500 shrink-0"
-									onclick={() => { destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; }}
+									onclick={() => {
+										destinatarioSelecionado = null;
+										buscaDestinatario = '';
+										resultadosBuscaDestinatario = [];
+									}}
 								>
 									Trocar
 								</button>
@@ -2001,7 +1469,7 @@
 				>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
 					disabled={enviandoSolicitacao ||
 						(opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado)}
 					onclick={confirmarSolicitacao}
@@ -2014,7 +1482,12 @@
 </Dialog>
 
 <!-- Dialog de assinatura na tela (assinatura rápida) -->
-<Dialog open={dialogAssinaturaTela} onOpenChange={(e) => { if (!e.open) dialogAssinaturaTela = false; }}>
+<Dialog
+	open={dialogAssinaturaTela}
+	onOpenChange={(e) => {
+		if (!e.open) dialogAssinaturaTela = false;
+	}}
+>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
@@ -2027,7 +1500,14 @@
 			</Dialog.Description>
 			<SignaturePad
 				message="Rubrica do Organizador"
-				onConfirm={async (rubrica: string, lat?: number, lng?: number, selfie?: string | null, codigo?: string, desafioId?: string) => {
+				onConfirm={async (
+					rubrica: string,
+					lat?: number,
+					lng?: number,
+					selfie?: string | null,
+					codigo?: string,
+					desafioId?: string
+				) => {
 					await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
 				}}
 				onCancel={() => (dialogAssinaturaTela = false)}
@@ -2038,3 +1518,4 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
+<FloatingRefresh />

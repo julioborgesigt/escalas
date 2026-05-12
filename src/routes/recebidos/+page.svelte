@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -322,6 +324,18 @@
 						</tr>
 					</thead>
 					<tbody>
+						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+							{#each { length: 8 } as _}
+								<tr class="animate-pulse">
+									<td class="px-4 py-3"><div class="h-4 w-6 rounded bg-surface-200 dark:bg-surface-700 mx-auto"></div></td>
+									<td class="px-4 py-3"><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700 mx-auto"></div></td>
+									<td class="px-4 py-3"><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700 mx-auto"></div></td>
+									<td class="px-4 py-3"><div class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700 mx-auto"></div></td>
+									<td class="px-4 py-3"><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700 mx-auto"></div></td>
+									<td class="px-4 py-3"><div class="flex gap-2 justify-center"><div class="h-8 w-16 rounded-lg bg-surface-200 dark:bg-surface-700"></div></div></td>
+								</tr>
+							{/each}
+						{:else}
 						{#each escalasRecebidasPaginadas as escala (escala.id)}
 							<tr
 								class={escala.visto_por_admin ? 'opacity-60 grayscale-[0.5]' : 'bg-primary-500/5'}
@@ -360,7 +374,7 @@
 										>
 									{/if}
 								</td>
-								<td class="text-xs text-surface-500 whitespace-nowrap text-center">
+								<td class="text-xs text-surface-500 whitespace-nowrap text-center font-mono tabular-nums">
 									{formatRelativeTime(escala.created_at)}
 								</td>
 								<td>
@@ -388,7 +402,7 @@
 										{#if escala.is_assinada}
 											<a
 												href="/api/escalas/{escala.id}/documento-assinado"
-												class="btn btn-sm preset-filled-success-500 text-xs font-bold"
+												class="btn btn-sm preset-filled-success-500 text-xs font-bold active:scale-95 transition-all"
 												target="_blank"
 											>
 												<svg
@@ -438,7 +452,7 @@
 										</Popover>
 
 										<button type="button"
-											class="btn btn-sm preset-filled-error-500 text-xs"
+											class="btn btn-sm preset-filled-error-500 text-xs active:scale-95 transition-all"
 											title="Excluir"
 											onclick={() => solicitarExclusao(escala.id, escala.lotacao)}
 										>
@@ -455,12 +469,18 @@
 								</td>
 							</tr>
 						{/each}
+						{/if}
 					</tbody>
 				</table>
 			</div>
 
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3">
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 5 } as _}
+						<SkeletonCard />
+					{/each}
+				{:else}
 				{#each escalasRecebidasPaginadas as escala (escala.id)}
 					<div
 						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {escala.visto_por_admin
@@ -520,7 +540,7 @@
 							{#if escala.is_assinada}
 								<a
 									href="/api/escalas/{escala.id}/documento-assinado"
-									class="btn btn-sm preset-filled-success-500 flex-1 text-xs"
+									class="btn btn-sm preset-filled-success-500 flex-1 text-xs active:scale-95 transition-all"
 									target="_blank">Baixar</a
 								>
 							{/if}
@@ -556,12 +576,13 @@
 							</Popover>
 
 							<button type="button"
-								class="btn btn-sm preset-filled-error-500 flex-1 text-xs font-bold"
+								class="btn btn-sm preset-filled-error-500 flex-1 text-xs font-bold active:scale-95 transition-all"
 								onclick={() => solicitarExclusao(escala.id, escala.lotacao)}>Excluir</button
 							>
 						</div>
 					</div>
 				{/each}
+				{/if}
 			</div>
 
 			<PaginationControls
@@ -595,7 +616,7 @@
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={loadingService.active}>
+					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={loadingService.active}>
 						{loadingService.active ? 'Excluindo...' : 'Excluir'}
 					</button>
 				</form>
@@ -603,3 +624,4 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
+<FloatingRefresh />

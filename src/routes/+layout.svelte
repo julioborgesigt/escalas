@@ -112,20 +112,6 @@
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
 
-	const loadingText = $derived.by(() => {
-		if (!navigating?.to) return 'Carregando...';
-		const path = navigating.to.url.pathname;
-		if (path.startsWith('/res-gise')) return 'Carregando Relatórios GISE...';
-		if (path.startsWith('/gise')) return 'Carregando GISE...';
-		if (path.startsWith('/escalas')) return 'Carregando Escalas...';
-		if (path.startsWith('/policiais')) return 'Carregando Policiais...';
-		if (path.startsWith('/unidades')) return 'Carregando Unidades...';
-		if (path.startsWith('/painel')) return 'Carregando Painel...';
-		if (path.startsWith('/recebidos')) return 'Carregando Caixa de Entrada...';
-		if (path.startsWith('/produtividade')) return 'Carregando Produtividade...';
-		if (path.startsWith('/conf-ass')) return 'Carregando Configurações...';
-		return 'Carregando...';
-	});
 </script>
 
 <svelte:head>
@@ -143,10 +129,10 @@
 	</div>
 {/if}
 
-<!-- Global Loading Overlay -->
+<!-- Global Loading Overlay — only for API operations (signing, saving). Page navigation uses the top progress bar + inline skeletons. -->
 <LoadingOverlay
-	active={loading.active || (!!navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname))}
-	message={navigating?.to ? loadingText : loading.message}
+	active={loading.active}
+	message={loading.message}
 	offsetSidebar={showSidebar && !!usuario}
 />
 
@@ -416,7 +402,7 @@
 
 	<!-- Main content with sidebar offset -->
 	<main class="min-[900px]:ml-60 min-h-screen">
-		<div class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12">
+		<div class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to && navigating.to.url.pathname !== page.url.pathname ? 'opacity-40 pointer-events-none' : ''}">
 			{@render children()}
 		</div>
 	</main>

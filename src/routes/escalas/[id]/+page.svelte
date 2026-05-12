@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	import { untrack, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
-	import type { Policial, EscalaPolicialComDados, Escala } from '$lib/types';
+	import type { EscalaPolicialComDados } from '$lib/types';
 	import { formatarData, proximoDia } from '$lib/utils';
+	import { csrfHeaders } from '$lib/csrf';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { useConfirmationDialog } from '$lib/composables';
-
+	import ModalConfirmar from './_components/ModalConfirmar.svelte';
+	import ModalEditarDias from './_components/ModalEditarDias.svelte';
 
 	let { data } = $props();
 
@@ -26,6 +27,12 @@
 		finalizadaEm = data.escala?.finalizada_em ?? null;
 	});
 	const emailEnvioInicial = $derived(data.escala?.email_envio ?? null);
+	let solicitacaoAtual = $state<{ tipo: string; destinatario_id?: number } | null>(
+		untrack(() => data.solicitacaoAtual ?? null)
+	);
+	$effect(() => {
+		solicitacaoAtual = data.solicitacaoAtual ?? null;
+	});
 	let documentoAssinadoInfo = $derived(
 		data.documentoAssinadoInfo
 			? {
@@ -126,6 +133,37 @@
 
 	const isFDS = $derived(escala?.tipo === 'fds');
 	const isExpediente = $derived(escala?.tipo === 'expediente');
+
+	// Visibilidade das seções de adição (ocultas por padrão para admins)
+	let modoEdicao = $state(false);
+	const podeEditar = $derived(
+		data.podeOIPSolicitar ||
+			((page.data.usuario?.papel === 'admin_seccional' ||
+				page.data.usuario?.papel === 'admin_unidade') &&
+				page.data.usuario?.cargo === 'DPC')
+	);
+
+	async function editarEscala() {
+		if (solicitacaoAtual) {
+			try {
+				const res = await fetch(`/api/escalas/${data.escalaId}/solicitar-assinatura`, {
+					method: 'DELETE',
+					headers: csrfHeaders()
+				});
+				if (!res.ok) {
+					const err = await res.json().catch(() => ({}));
+					toaster.create({ title: err.error || 'Erro ao cancelar solicitação', type: 'error' });
+					return;
+				}
+				toaster.create({ title: 'Solicitação cancelada', type: 'info' });
+				await invalidateAll();
+			} catch {
+				toaster.create({ title: 'Erro ao cancelar solicitação', type: 'error' });
+				return;
+			}
+		}
+		modoEdicao = true;
+	}
 
 	let addObservacoes = $state('');
 
@@ -494,112 +532,7 @@
 		localDataInicio && localDataFim ? getDaysInRange(localDataInicio, localDataFim) : diasEscala
 	);
 
-	// === Modal de edição de dias (calendário) ===
-	const MESES_CAL_ED = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM_ED = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 	let showEditarDiasModal = $state(false);
-	let editDiasSelecionados = $state<string[]>([]);
-	let editCalAno = $state(new Date().getFullYear());
-	let editCalMes = $state(new Date().getMonth());
-	let pendingEditarDias = $state(false);
-
-	const editCalGrade = $derived.by(() => {
-		const first = new Date(editCalAno, editCalMes, 1).getDay();
-		const n = new Date(editCalAno, editCalMes + 1, 0).getDate();
-		const cells: ({ day: number } | null)[] = [];
-		for (let i = 0; i < first; i++) cells.push(null);
-		for (let d = 1; d <= n; d++) cells.push({ day: d });
-		while (cells.length % 7 !== 0) cells.push(null);
-		while (cells.length < 42) cells.push(null);
-		return cells;
-	});
-
-	const editDiasOrdenados = $derived([...editDiasSelecionados].sort());
-	const editDiasJson = $derived(JSON.stringify(editDiasOrdenados));
-
-	function editIsoLocal(y: number, m: number, d: number): string {
-		return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-
-	function editFmtDia(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
-	}
-
-	function editCalToggle(iso: string) {
-		const set = new Set(editDiasSelecionados);
-		if (set.has(iso)) set.delete(iso);
-		else set.add(iso);
-		if (set.size > 1) {
-			const sorted = [...set].sort();
-			// Preenchimento automático: a escala usa um intervalo contínuo
-			editDiasSelecionados = getDaysInRange(sorted[0], sorted[sorted.length - 1]);
-		} else {
-			editDiasSelecionados = [...set];
-		}
-	}
-
-	function editCalMesAnterior() {
-		if (editCalMes === 0) {
-			editCalMes = 11;
-			editCalAno--;
-		} else editCalMes--;
-	}
-	function editCalMesProximo() {
-		if (editCalMes === 11) {
-			editCalMes = 0;
-			editCalAno++;
-		} else editCalMes++;
-	}
-
-	function abrirEditarDiasModal() {
-		editDiasSelecionados = [...diasEscalaLocal];
-		if (diasEscalaLocal.length > 0) {
-			const [y, m] = diasEscalaLocal[0].split('-').map(Number);
-			editCalAno = y;
-			editCalMes = m - 1;
-		}
-		showEditarDiasModal = true;
-	}
-
-	function handleEditarDias({ cancel }: { cancel: () => void }) {
-		if (editDiasOrdenados.length === 0) {
-			toaster.create({ title: 'Selecione pelo menos um dia', type: 'error' });
-			cancel();
-			return;
-		}
-		pendingEditarDias = true;
-		return async ({ result }: any) => {
-			pendingEditarDias = false;
-			if (result.type === 'success') {
-				localDataInicio = result.data.data_inicio;
-				localDataFim = result.data.data_fim;
-				policiaisEscalaLocal = result.data.policiais;
-				showEditarDiasModal = false;
-				toaster.create({ title: 'Dias da escala atualizados!', type: 'success' });
-				await invalidateAll();
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
-			} else {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao atualizar dias'), type: 'error' });
-			}
-		};
-	}
 
 	// === Copiar para WhatsApp ===
 	function copiarParaWhatsApp() {
@@ -754,7 +687,10 @@
 				selecionados = new Set();
 				modoSelecao = false;
 				const removidos = result.data.removidos ?? 0;
-				toaster.create({ title: `${removidos} servidor(es) removido(s) da escala`, type: 'success' });
+				toaster.create({
+					title: `${removidos} servidor(es) removido(s) da escala`,
+					type: 'success'
+				});
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
@@ -770,13 +706,54 @@
 {:else}
 	<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
 		<div>
-			<h1 class="h1 text-lg sm:text-xl font-bold">{escala.titulo}</h1>
-			<p class="text-surface-500 text-sm mt-1">
-				{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)} &bull; {escala.hora_entrada ||
-					'08:00'}H a {escala.hora_saida || '08:00'}H
+			<div class="flex items-center gap-2 mb-1 flex-wrap">
+				{#if isExpediente}
+					<span class="badge preset-outlined-secondary-500 font-bold text-sm px-3 py-1"
+						>Expediente</span
+					>
+				{:else if isFDS}
+					<span class="badge preset-outlined-tertiary-500 font-bold text-sm px-3 py-1">FDS</span>
+				{:else}
+					<span class="badge preset-outlined-primary-500 font-bold text-sm px-3 py-1">Plantão</span>
+				{/if}
+				{#if !isFDS}
+					<span class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
+						{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' })}
+						{new Date(escala.data_inicio + 'T00:00:00').getFullYear()}
+					</span>
+				{/if}
+			</div>
+			<p class="text-surface-600 dark:text-surface-300 text-sm font-medium">{escala.lotacao}</p>
+			<p class="text-surface-400 dark:text-surface-500 text-xs mt-0.5">
+				{formatarData(escala.data_inicio)} a {formatarData(escala.data_fim)}{isFDS
+					? ` · ${escala.hora_entrada || '08:00'}H a ${escala.hora_saida || '08:00'}H`
+					: ''}
 			</p>
 		</div>
-		<a href="/escalas" class="btn preset-outlined-primary-500 shrink-0">Voltar</a>
+		<div class="flex items-center gap-2 shrink-0">
+			{#if podeEditar && !documentoAssinadoInfo?.existe && !finalizadaEm && !solicitacaoAtual && !modoEdicao}
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 active:scale-95 transition-all"
+					onclick={() => {
+						modoEdicao = true;
+					}}
+				>
+					Editar escala
+				</button>
+			{/if}
+			<button
+				type="button"
+				class="btn preset-outlined-surface-500 text-sm"
+				onclick={() => {
+					if (window.history.length > 1) {
+						window.history.back();
+					} else {
+						goto('/escalas?page=1');
+					}
+				}}>Voltar</button
+			>
+		</div>
 	</div>
 
 	<PainelAssinaturaEscala
@@ -788,80 +765,79 @@
 		bind:finalizadaEm
 		{emailEnvioInicial}
 		podeOIPSolicitar={data.podeOIPSolicitar}
-		solicitacaoAtual={data.solicitacaoAtual}
+		{solicitacaoAtual}
+		onSolicitacaoEnviada={() => {
+			solicitacaoAtual = { tipo: 'unidade' };
+			modoEdicao = false;
+		}}
 	/>
 
-	<Dialog open={confirmDialog.isOpen} onOpenChange={(e) => (confirmDialog.isOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-			>
-				<Dialog.Title class="h3 font-bold mb-2">Remover Policial?</Dialog.Title>
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja remover o policial "{confirmDialog.currentItem?.nome}" desta
-					escala?
-				</Dialog.Description>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
-						<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
-						<button type="submit" class="btn preset-filled-error-500">Remover</button>
-					</form>
-				</div>
-			</div>
-		</Dialog.Content>
-	</Dialog>
+	<ModalConfirmar
+		bind:open={confirmDialog.isOpen}
+		title="Remover Policial?"
+	>
+		{#snippet description()}
+			Tem certeza que deseja remover o policial "{confirmDialog.currentItem?.nome}" desta escala?
+		{/snippet}
+		{#snippet actions()}
+			<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
+				<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
+				<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
+					Remover
+				</button>
+			</form>
+		{/snippet}
+	</ModalConfirmar>
 
-	<Dialog open={confirmRemoverTodosOpen} onOpenChange={(e) => (confirmRemoverTodosOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-			>
-				<Dialog.Title class="h3 font-bold mb-2">Remover Todos?</Dialog.Title>
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong> desta escala? Esta ação não pode ser desfeita.
-				</Dialog.Description>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<form method="POST" action="?/removerTodos" use:enhance={handleRemoverTodos} class="contents">
-						<button type="submit" class="btn preset-filled-error-500" disabled={pendingRemoverTodos}>
-							{pendingRemoverTodos ? 'Removendo...' : 'Remover Todos'}
-						</button>
-					</form>
-				</div>
-			</div>
-		</Dialog.Content>
-	</Dialog>
+	<ModalConfirmar
+		bind:open={confirmRemoverTodosOpen}
+		title="Remover Todos?"
+	>
+		{#snippet description()}
+			Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong
+			> desta escala? Esta ação não pode ser desfeita.
+		{/snippet}
+		{#snippet actions()}
+			<form method="POST" action="?/removerTodos" use:enhance={handleRemoverTodos} class="contents">
+				<button
+					type="submit"
+					class="btn preset-filled-error-500 active:scale-95 transition-all"
+					disabled={pendingRemoverTodos}
+				>
+					{pendingRemoverTodos ? 'Removendo...' : 'Remover Todos'}
+				</button>
+			</form>
+		{/snippet}
+	</ModalConfirmar>
 
-	<Dialog open={confirmRemoverSelecionadosOpen} onOpenChange={(e) => (confirmRemoverSelecionadosOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+	<ModalConfirmar
+		bind:open={confirmRemoverSelecionadosOpen}
+		title="Remover Selecionados?"
+	>
+		{#snippet description()}
+			Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong
+			> desta escala?
+		{/snippet}
+		{#snippet actions()}
+			<form
+				method="POST"
+				action="?/removerSelecionados"
+				use:enhance={handleRemoverSelecionados}
+				class="contents"
 			>
-				<Dialog.Title class="h3 font-bold mb-2">Remover Selecionados?</Dialog.Title>
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong> desta escala?
-				</Dialog.Description>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<form method="POST" action="?/removerSelecionados" use:enhance={handleRemoverSelecionados} class="contents">
-						<input type="hidden" name="ids" value={selecionadosJson} />
-						<button type="submit" class="btn preset-filled-error-500" disabled={pendingRemoverSelecionados}>
-							{pendingRemoverSelecionados ? 'Removendo...' : `Remover (${totalSelecionados})`}
-						</button>
-					</form>
-				</div>
-			</div>
-		</Dialog.Content>
-	</Dialog>
+				<input type="hidden" name="ids" value={selecionadosJson} />
+				<button
+					type="submit"
+					class="btn preset-filled-error-500 active:scale-95 transition-all"
+					disabled={pendingRemoverSelecionados}
+				>
+					{pendingRemoverSelecionados ? 'Removendo...' : `Remover (${totalSelecionados})`}
+				</button>
+			</form>
+		{/snippet}
+	</ModalConfirmar>
 
-	{#if escala.tipo === 'expediente'}
+	{#if modoEdicao && escala.tipo === 'expediente' && !documentoAssinadoInfo?.existe && !finalizadaEm && !solicitacaoAtual}
 		<div
 			class="p-4 sm:p-5 mb-4 rounded-3xl bg-primary-500/8 border border-primary-500/25 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20"
 		>
@@ -883,7 +859,7 @@
 				>
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2"
+						class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2 active:scale-95 transition-all"
 						disabled={pendingAdicionarTodos}
 					>
 						{pendingAdicionarTodos ? 'Adicionando...' : '+ Adicionar Todos'}
@@ -893,8 +869,7 @@
 		</div>
 	{/if}
 
-
-	{#if !isFDS && !documentoAssinadoInfo?.existe && !finalizadaEm}
+	{#if modoEdicao && !isFDS && !documentoAssinadoInfo?.existe && !finalizadaEm && !solicitacaoAtual}
 		<div
 			class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
 		>
@@ -1020,7 +995,7 @@
 					{/if}
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 w-full sm:w-auto"
+						class="btn preset-filled-primary-500 w-full sm:w-auto active:scale-95 transition-all"
 						disabled={pendingPlantao || !policialId || addDatasSelecionadas.length === 0}
 					>
 						{pendingPlantao ? 'Adicionando...' : 'Adicionar à Escala'}
@@ -1042,7 +1017,9 @@
 							<select
 								class="select h-9 py-0 px-2"
 								bind:value={cargoBusca}
-								onchange={() => { policialId = ''; }}
+								onchange={() => {
+									policialId = '';
+								}}
 							>
 								<option value="">...</option>
 								<option value="DPC">DPC</option>
@@ -1057,12 +1034,14 @@
 									bind:value={policialId}
 									disabled={!cargoBusca}
 									loadOptions={buscarPoliciaisAsync}
-									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+									placeholder={cargoBusca
+										? 'Digite para buscar servidor...'
+										: 'Selecione o cargo primeiro'}
 									class="w-full h-9"
 								/>
 							{/key}
 						</label>
-						<label class="label sm:col-span-6">
+						<label class="label sm:col-span-5">
 							<span class="label-text">Observações</span>
 							<input
 								type="text"
@@ -1073,13 +1052,13 @@
 								placeholder="Informações complementares (opcional)"
 							/>
 						</label>
-						<div class="sm:col-span-1">
+						<div class="sm:col-span-2">
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 w-full"
+								class="btn preset-filled-primary-500 w-full active:scale-95 transition-all"
 								disabled={pendingAdd || !policialId}
 							>
-								{pendingAdd ? '...' : '＋'}
+								{pendingAdd ? 'Adicionando...' : '+ Adicionar'}
 							</button>
 						</div>
 					</div>
@@ -1093,14 +1072,16 @@
 							<select
 								class="select h-9 py-0 px-2"
 								bind:value={cargoBusca}
-								onchange={() => { policialId = ''; }}
+								onchange={() => {
+									policialId = '';
+								}}
 							>
 								<option value="">...</option>
 								<option value="DPC">DPC</option>
 								<option value="OIP">OIP</option>
 							</select>
 						</label>
-						<label class="label sm:col-span-4 self-center">
+						<label class="label sm:col-span-3 self-center">
 							<span class="label-text">Servidor</span>
 							{#key cargoBusca}
 								<SearchableSelect
@@ -1108,14 +1089,21 @@
 									bind:value={policialId}
 									disabled={!cargoBusca}
 									loadOptions={buscarPoliciaisAsync}
-									placeholder={cargoBusca ? 'Digite para buscar servidor...' : 'Selecione o cargo primeiro'}
+									placeholder={cargoBusca
+										? 'Digite para buscar servidor...'
+										: 'Selecione o cargo primeiro'}
 									class="w-full h-9"
 								/>
 							{/key}
 						</label>
 						<label class="label sm:col-span-2">
 							<span class="label-text">Data</span>
-							<select name="data_plantao" class="select h-9 py-0 px-2" bind:value={dataPlantao} required>
+							<select
+								name="data_plantao"
+								class="select h-9 py-0 px-2"
+								bind:value={dataPlantao}
+								required
+							>
 								{#each diasEscalaLocal as d (d)}
 									<option value={d}>{formatarData(d)}</option>
 								{/each}
@@ -1124,29 +1112,45 @@
 						<div class="sm:col-span-2">
 							<span class="label-text text-xs">Entrada</span>
 							<div class="flex gap-1">
-								<select class="select flex-1 h-9 py-0 px-1" name="hora_entrada" bind:value={addHoraEntrada}
-									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
-								<select class="select flex-1 h-9 py-0 px-1" name="minuto_entrada" bind:value={addMinutoEntrada}
-									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+								<select
+									class="select flex-1 h-9 py-0 px-1"
+									name="hora_entrada"
+									bind:value={addHoraEntrada}
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
+								>
+								<select
+									class="select flex-1 h-9 py-0 px-1"
+									name="minuto_entrada"
+									bind:value={addMinutoEntrada}
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
+								>
 							</div>
 						</div>
 						<div class="sm:col-span-2">
 							<span class="label-text text-xs">Saída</span>
 							<div class="flex gap-1">
-								<select class="select flex-1 h-9 py-0 px-1" name="hora_saida" bind:value={addHoraSaida}
-									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
-								<select class="select flex-1 h-9 py-0 px-1" name="minuto_saida" bind:value={addMinutoSaida}
-									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+								<select
+									class="select flex-1 h-9 py-0 px-1"
+									name="hora_saida"
+									bind:value={addHoraSaida}
+									>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
+								>
+								<select
+									class="select flex-1 h-9 py-0 px-1"
+									name="minuto_saida"
+									bind:value={addMinutoSaida}
+									>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
+								>
 							</div>
 						</div>
 						<input type="hidden" name="equipe" value="1" />
-						<div class="sm:col-span-1">
+						<div class="sm:col-span-2">
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 w-full"
+								class="btn preset-filled-primary-500 w-full active:scale-95 transition-all"
 								disabled={pendingAdd || !policialId || !dataPlantao}
 							>
-								{pendingAdd ? '...' : '＋'}
+								{pendingAdd ? 'Adicionando...' : '+ Adicionar'}
 							</button>
 						</div>
 					</div>
@@ -1154,6 +1158,15 @@
 			{/if}
 		</div>
 	{/if}
+
+	<div class="flex items-center gap-3 my-6">
+		<hr class="flex-1 border-surface-200 dark:border-white/10" />
+		<span
+			class="text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider"
+			>Servidores na Escala</span
+		>
+		<hr class="flex-1 border-surface-200 dark:border-white/10" />
+	</div>
 
 	{#if policiaisEscalaLocal.length > 0 && !documentoAssinadoInfo?.existe && !finalizadaEm}
 		<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1165,7 +1178,9 @@
 					<button
 						type="button"
 						class="btn text-xs px-3 py-1.5 rounded-xl border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-						onclick={() => { selecionados = new Set(policiaisEscalaLocal.map((p) => p.id)); }}
+						onclick={() => {
+							selecionados = new Set(policiaisEscalaLocal.map((p) => p.id));
+						}}
 					>
 						Selecionar Todos
 					</button>
@@ -1225,13 +1240,13 @@
 						d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.123 1.535 5.849L.057 23.571a.75.75 0 00.921.921l5.783-1.478A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.663-.524-5.18-1.435l-.37-.221-3.836.981.998-3.748-.242-.386A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"
 					/>
 				</svg>
-				Copiar para WhatsApp
+				Copiar Escala
 			</button>
 
 			{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
 				<button
 					type="button"
-					onclick={abrirEditarDiasModal}
+					onclick={() => (showEditarDiasModal = true)}
 					class="btn text-xs font-semibold px-3 py-2 rounded-xl border border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-400 hover:bg-warning-500/20 transition-colors flex items-center gap-2"
 				>
 					<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1242,7 +1257,7 @@
 							d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
 						/>
 					</svg>
-					Editar Qtd. dias ({diasEscalaLocal.length})
+					Editar Datas ({diasEscalaLocal.length})
 				</button>
 			{/if}
 		</div>
@@ -1290,7 +1305,7 @@
 								</div>
 							{/if}
 						</div>
-						{#if !documentoAssinadoInfo?.existe && !finalizadaEm}
+						{#if modoEdicao && !documentoAssinadoInfo?.existe && !finalizadaEm && !solicitacaoAtual}
 							<div class="flex gap-1.5 shrink-0">
 								<button
 									type="button"
@@ -1418,11 +1433,21 @@
 									<!-- Card do servidor (responsivo mobile) -->
 									<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 									<div
-										class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? 'bg-error-500/5 dark:bg-error-500/8' : ''}"
+										class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao &&
+										selecionados.has(p.id)
+											? 'bg-error-500/5 dark:bg-error-500/8'
+											: ''}"
 										role={modoSelecao ? 'button' : undefined}
 										tabindex={modoSelecao ? 0 : undefined}
 										onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
-										onkeydown={modoSelecao ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelecionar(p.id); } } : undefined}
+										onkeydown={modoSelecao
+											? (e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														toggleSelecionar(p.id);
+													}
+												}
+											: undefined}
 									>
 										{#if modoSelecao}
 											<div class="flex items-center shrink-0 pt-0.5">
@@ -1515,7 +1540,7 @@
 												</button>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5"
+													class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
 													onclick={() => solicitarRemocao(p.id, p.nome)}
 												>
 													Rem.
@@ -1684,131 +1709,15 @@
 			{/each}
 		</div>
 
-		<!-- Modal: Editar dias da escala -->
-		<Dialog open={showEditarDiasModal} onOpenChange={(e) => (showEditarDiasModal = e.open)}>
-			<Dialog.Content
-				class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-			>
-				<div
-					class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-warning-500/20 p-4 sm:p-5 space-y-4"
-				>
-					<div>
-						<Dialog.Title class="font-bold text-base">Editar Qtd. dias da escala</Dialog.Title>
-						<Dialog.Description class="text-xs text-surface-500 mt-0.5">
-							Selecione os dias. Dias com policiais escalados não podem ser removidos.
-						</Dialog.Description>
-					</div>
-
-					<!-- Calendário -->
-					<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-						<div class="flex items-center justify-between">
-							<button
-								type="button"
-								onclick={editCalMesAnterior}
-								class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors text-sm font-bold"
-								>‹</button
-							>
-							<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">
-								{MESES_CAL_ED[editCalMes]}
-								{editCalAno}
-							</span>
-							<button
-								type="button"
-								onclick={editCalMesProximo}
-								class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors text-sm font-bold"
-								>›</button
-							>
-						</div>
-						<div
-							class="grid grid-cols-7 gap-px text-center text-[0.55rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
-						>
-							{#each DIAS_SEM_ED as ds}<span>{ds}</span>{/each}
-						</div>
-						<div class="grid grid-cols-7 gap-0.5">
-							{#each editCalGrade as cell}
-								{#if cell}
-									{@const iso = editIsoLocal(editCalAno, editCalMes, cell.day)}
-									{@const sel = editDiasSelecionados.includes(iso)}
-									<button
-										type="button"
-										onclick={() => editCalToggle(iso)}
-										class="h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center touch-manipulation
-											{sel
-											? 'border-warning-500 bg-warning-500/15 text-warning-900 dark:text-warning-100'
-											: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}"
-										aria-pressed={sel}
-									>
-										{cell.day}
-									</button>
-								{:else}
-									<div class="h-9"></div>
-								{/if}
-							{/each}
-						</div>
-					</div>
-
-					<!-- Dias selecionados -->
-					{#if editDiasOrdenados.length > 0}
-						<div class="space-y-0.5">
-							<span class="text-[0.65rem] font-semibold text-surface-500">
-								Dias selecionados ({editDiasOrdenados.length}) — todos os dias entre o primeiro e o
-								último são incluídos
-							</span>
-							<div class="flex flex-wrap gap-1.5">
-								{#each editDiasOrdenados as iso}
-									<span
-										class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
-									>
-										{editFmtDia(iso)}
-										<button
-											type="button"
-											aria-label="Remover dia {editFmtDia(iso)}"
-											class="p-0.5 rounded text-surface-400 hover:text-error-600 dark:hover:text-error-400"
-											onclick={() => editCalToggle(iso)}
-										>
-											<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M6 18L18 6M6 6l12 12"
-												/>
-											</svg>
-										</button>
-									</span>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Ações -->
-					<div class="flex justify-end gap-2 pt-1">
-						<button
-							type="button"
-							class="btn text-xs px-3 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-							onclick={() => (showEditarDiasModal = false)}
-						>
-							Cancelar
-						</button>
-						<form
-							method="POST"
-							action="?/editarDiasEscala"
-							use:enhance={handleEditarDias}
-							class="contents"
-						>
-							<input type="hidden" name="datas" value={editDiasJson} />
-							<button
-								type="submit"
-								class="btn text-xs font-bold px-4 py-1.5 rounded-lg preset-filled-warning-500"
-								disabled={pendingEditarDias || editDiasOrdenados.length === 0}
-							>
-								{pendingEditarDias ? 'Salvando...' : 'Salvar dias'}
-							</button>
-						</form>
-					</div>
-				</div>
-			</Dialog.Content>
-		</Dialog>
+		<ModalEditarDias
+			bind:open={showEditarDiasModal}
+			diasIniciais={diasEscalaLocal}
+			onsalvo={(r) => {
+				localDataInicio = r.data_inicio;
+				localDataFim = r.data_fim;
+				policiaisEscalaLocal = r.policiais;
+			}}
+		/>
 	{:else if policiaisEscalaLocal.length === 0}
 		<div class="text-center py-12 text-surface-500"><p>Nenhum policial nesta escala ainda.</p></div>
 	{:else}
@@ -1819,11 +1728,17 @@
 					class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-visible"
 				>
 					<!-- Cabeçalho do grupo de data -->
-					<div class="px-4 py-3 flex items-center gap-3 border-b border-surface-100 dark:border-white/5 bg-surface-50/50 dark:bg-surface-800/30 rounded-t-2xl">
+					<div
+						class="px-4 py-3 flex items-center gap-3 border-b border-surface-100 dark:border-white/5 bg-surface-50/50 dark:bg-surface-800/30 rounded-t-2xl"
+					>
 						<span class="font-bold text-sm text-surface-800 dark:text-surface-100">
-							{isExpediente ? 'Expediente do Mês' : `${diaSemanaLabel(dataGrupo)}, ${formatarData(dataGrupo)}`}
+							{isExpediente
+								? 'Expediente do Mês'
+								: `${diaSemanaLabel(dataGrupo)}, ${formatarData(dataGrupo)}`}
 						</span>
-						<span class="text-xs text-surface-400">{items.length} servidor{items.length !== 1 ? 'es' : ''}</span>
+						<span class="text-xs text-surface-400"
+							>{items.length} servidor{items.length !== 1 ? 'es' : ''}</span
+						>
 					</div>
 
 					<!-- Cards mobile (ocultos em sm+) -->
@@ -1831,8 +1746,17 @@
 						{#each items as p (p.id)}
 							{#if editingId === p.id}
 								<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
-									<p class="text-[0.6rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide">Editando: {p.nome}</p>
-									<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex flex-wrap items-end gap-2">
+									<p
+										class="text-[0.6rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
+									>
+										Editando: {p.nome}
+									</p>
+									<form
+										method="POST"
+										action="?/editar"
+										use:enhance={handleEditar}
+										class="flex flex-wrap items-end gap-2"
+									>
 										<input type="hidden" name="item_id" value={editingId} />
 										{#if isExpediente}
 											<input type="hidden" name="hora_entrada" value="00:00" />
@@ -1841,90 +1765,198 @@
 											<input type="hidden" name="data_saida" value={editDataSaida} />
 											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
-												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+												<input
+													type="date"
+													class="input text-xs h-8 px-2 rounded-lg w-full"
+													bind:value={editDataEntrada}
+												/>
 											</div>
 											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Fim</span>
-												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+												<input
+													type="date"
+													class="input text-xs h-8 px-2 rounded-lg w-full"
+													bind:value={editDataSaida}
+												/>
 											</div>
 											<div class="w-full">
 												<span class="label-text text-[0.6rem] block mb-0.5">Observações</span>
-												<input type="text" name="observacoes" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editObservacoes} maxlength="500" placeholder="Informações complementares" />
+												<input
+													type="text"
+													name="observacoes"
+													class="input text-xs h-8 px-2 rounded-lg w-full"
+													bind:value={editObservacoes}
+													maxlength="500"
+													placeholder="Informações complementares"
+												/>
 											</div>
 										{:else}
 											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Início</span>
-												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+												<input
+													type="date"
+													class="input text-xs h-8 px-2 rounded-lg w-full"
+													bind:value={editDataEntrada}
+												/>
 											</div>
 											<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
 												<span class="label-text text-[0.6rem] block mb-0.5">Data Saída</span>
-												<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+												<input
+													type="date"
+													class="input text-xs h-8 px-2 rounded-lg w-full"
+													bind:value={editDataSaida}
+												/>
 											</div>
 											<div class="flex gap-2 w-full">
 												<div class="flex-1">
 													<span class="label-text text-[0.6rem] block mb-0.5">Entrada</span>
 													<div class="flex gap-1">
-														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada}>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
-														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada}>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+														<select
+															class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+															bind:value={editHoraEntrada}
+															>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
+														>
+														<select
+															class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+															bind:value={editMinutoEntrada}
+															>{#each minutos as m (m)}<option value={m}>{m}m</option
+																>{/each}</select
+														>
 													</div>
 												</div>
 												<div class="flex-1">
 													<span class="label-text text-[0.6rem] block mb-0.5">Saída</span>
 													<div class="flex gap-1">
-														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida}>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select>
-														<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida}>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select>
+														<select
+															class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+															bind:value={editHoraSaida}
+															>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
+														>
+														<select
+															class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+															bind:value={editMinutoSaida}
+															>{#each minutos as m (m)}<option value={m}>{m}m</option
+																>{/each}</select
+														>
 													</div>
 												</div>
 											</div>
-											<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
-											<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+											<input
+												type="hidden"
+												name="hora_entrada"
+												value="{editHoraEntrada}:{editMinutoEntrada}"
+											/>
+											<input
+												type="hidden"
+												name="hora_saida"
+												value="{editHoraSaida}:{editMinutoSaida}"
+											/>
 											<input type="hidden" name="data_plantao" value={editDataEntrada} />
 											<input type="hidden" name="data_saida" value={editDataSaida} />
 											<input type="hidden" name="observacoes" value={editObservacoes} />
 										{/if}
 										<div class="flex gap-2 w-full mt-1">
-											<button type="submit" class="btn btn-sm h-9 preset-filled-primary-500 rounded-lg px-4 font-bold flex-1" disabled={pendingEditar}>{pendingEditar ? 'Salvando...' : 'Salvar'}</button>
-											<button type="button" class="h-9 px-4 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold" onclick={() => (editingId = null)}>Cancelar</button>
+											<button
+												type="submit"
+												class="btn btn-sm h-9 preset-filled-primary-500 rounded-lg px-4 font-bold flex-1"
+												disabled={pendingEditar}>{pendingEditar ? 'Salvando...' : 'Salvar'}</button
+											>
+											<button
+												type="button"
+												class="h-9 px-4 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
+												onclick={() => (editingId = null)}>Cancelar</button
+											>
 										</div>
 									</form>
 								</div>
 							{:else}
 								<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 								<div
-									class="flex items-start gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? 'bg-error-500/5 dark:bg-error-500/8' : ''}"
+									class="flex items-start gap-3 px-4 py-3 hover:bg-surface-50/50 dark:hover:bg-surface-800/20 transition-colors {modoSelecao &&
+									selecionados.has(p.id)
+										? 'bg-error-500/5 dark:bg-error-500/8'
+										: ''}"
 									role={modoSelecao ? 'button' : undefined}
 									tabindex={modoSelecao ? 0 : undefined}
 									onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
-									onkeydown={modoSelecao ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSelecionar(p.id); } } : undefined}
+									onkeydown={modoSelecao
+										? (e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													toggleSelecionar(p.id);
+												}
+											}
+										: undefined}
 								>
 									{#if modoSelecao}
 										<div class="flex items-center shrink-0 pt-0.5">
-											<input type="checkbox" class="checkbox" checked={selecionados.has(p.id)} onclick={(e) => e.stopPropagation()} onchange={() => toggleSelecionar(p.id)} />
+											<input
+												type="checkbox"
+												class="checkbox"
+												checked={selecionados.has(p.id)}
+												onclick={(e) => e.stopPropagation()}
+												onchange={() => toggleSelecionar(p.id)}
+											/>
 										</div>
 									{/if}
 									<div class="flex-1 min-w-0">
 										<div class="flex items-center gap-2 flex-wrap mb-1">
-											<span class="font-bold text-sm text-surface-900 dark:text-surface-100 uppercase leading-tight">{p.nome}</span>
-											<span class="badge px-1.5 py-0.5 rounded font-bold text-[0.55rem] uppercase {p.cargo === 'DPC' ? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}">{p.cargo}</span>
+											<span
+												class="font-bold text-sm text-surface-900 dark:text-surface-100 uppercase leading-tight"
+												>{p.nome}</span
+											>
+											<span
+												class="badge px-1.5 py-0.5 rounded font-bold text-[0.55rem] uppercase {p.cargo ===
+												'DPC'
+													? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+													: 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}"
+												>{p.cargo}</span
+											>
 											{#if p.equipe && !isExpediente}
-												<span class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold uppercase">Eq.{p.equipe}</span>
+												<span
+													class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold uppercase"
+													>Eq.{p.equipe}</span
+												>
 											{/if}
 										</div>
 										<div class="text-xs text-surface-500 space-y-0.5">
-											<div>{p.matricula}{p.lotacao ? ' · ' + p.lotacao : ''}</div>
+											<div class="font-mono tabular-nums">
+												{p.matricula}{p.lotacao ? ' · ' + p.lotacao : ''}
+											</div>
 											<div class="flex gap-2 flex-wrap">
 												{#if !isExpediente}<span>{formatarDataPlantao(p)}</span>{/if}
-												{#if !isExpediente}<span class="font-medium text-surface-600 dark:text-surface-400">{formatarHorario(p)}</span>{/if}
-												{#if isExpediente && p.observacoes}<span class="italic">{p.observacoes}</span>{/if}
+												{#if !isExpediente}<span
+														class="font-medium text-surface-600 dark:text-surface-400"
+														>{formatarHorario(p)}</span
+													>{/if}
+												{#if isExpediente && p.observacoes}<span class="italic"
+														>{p.observacoes}</span
+													>{/if}
 											</div>
 										</div>
 									</div>
 									{#if !documentoAssinadoInfo?.existe && !finalizadaEm && !modoSelecao}
 										<div class="flex items-center gap-1 shrink-0 mt-0.5">
-											<button type="button" title="Editar" class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10" onclick={() => startEdit(p)}>
-												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+											<button
+												type="button"
+												title="Editar"
+												class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
+												onclick={() => startEdit(p)}
+											>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+													/></svg
+												>
 											</button>
-											<button type="button" class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5" onclick={() => solicitarRemocao(p.id, p.nome)}>Rem.</button>
+											<button
+												type="button"
+												class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
+												onclick={() => solicitarRemocao(p.id, p.nome)}>Rem.</button
+											>
 										</div>
 									{/if}
 								</div>
@@ -1938,7 +1970,9 @@
 							<thead>
 								<tr class="!bg-transparent border-b border-surface-100 dark:border-white/5">
 									{#if modoSelecao}
-										{@const todosChecked = policiaisEscalaLocal.length > 0 && policiaisEscalaLocal.every((p) => selecionados.has(p.id))}
+										{@const todosChecked =
+											policiaisEscalaLocal.length > 0 &&
+											policiaisEscalaLocal.every((p) => selecionados.has(p.id))}
 										{@const algumChecked = totalSelecionados > 0 && !todosChecked}
 										<th class="!py-4 !px-4 text-surface-500 font-medium">
 											<input
@@ -2011,13 +2045,21 @@
 														<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Início</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+																<input
+																	type="date"
+																	class="input text-xs h-8 px-2 rounded-lg w-full"
+																	bind:value={editDataEntrada}
+																/>
 															</label>
 														</div>
 														<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Fim</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+																<input
+																	type="date"
+																	class="input text-xs h-8 px-2 rounded-lg w-full"
+																	bind:value={editDataSaida}
+																/>
 															</label>
 														</div>
 														<div class="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
@@ -2038,23 +2080,39 @@
 														<div class="flex-1 min-w-0 sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Início</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataEntrada} />
+																<input
+																	type="date"
+																	class="input text-xs h-8 px-2 rounded-lg w-full"
+																	bind:value={editDataEntrada}
+																/>
 															</label>
 														</div>
 														<div class="flex-1 min-w-0 sm:min-w-[120px]">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Data Saída</span>
-																<input type="date" class="input text-xs h-8 px-2 rounded-lg w-full" bind:value={editDataSaida} />
+																<input
+																	type="date"
+																	class="input text-xs h-8 px-2 rounded-lg w-full"
+																	bind:value={editDataSaida}
+																/>
 															</label>
 														</div>
 														<div class="w-28">
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Entrada</span>
 																<div class="flex gap-1">
-																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraEntrada} aria-label="Hora de Entrada">
+																	<select
+																		class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+																		bind:value={editHoraEntrada}
+																		aria-label="Hora de Entrada"
+																	>
 																		{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																	</select>
-																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoEntrada} aria-label="Minuto de Entrada">
+																	<select
+																		class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+																		bind:value={editMinutoEntrada}
+																		aria-label="Minuto de Entrada"
+																	>
 																		{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
 																	</select>
 																</div>
@@ -2064,33 +2122,60 @@
 															<label class="label mb-1">
 																<span class="label-text text-[0.6rem]">Saída</span>
 																<div class="flex gap-1">
-																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editHoraSaida} aria-label="Hora de Saída">
+																	<select
+																		class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+																		bind:value={editHoraSaida}
+																		aria-label="Hora de Saída"
+																	>
 																		{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																	</select>
-																	<select class="select text-xs h-8 py-0 rounded-lg flex-1 px-1" bind:value={editMinutoSaida} aria-label="Minuto de Saída">
+																	<select
+																		class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
+																		bind:value={editMinutoSaida}
+																		aria-label="Minuto de Saída"
+																	>
 																		{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
 																	</select>
 																</div>
 															</label>
 														</div>
-														<input type="hidden" name="hora_entrada" value="{editHoraEntrada}:{editMinutoEntrada}" />
-														<input type="hidden" name="hora_saida" value="{editHoraSaida}:{editMinutoSaida}" />
+														<input
+															type="hidden"
+															name="hora_entrada"
+															value="{editHoraEntrada}:{editMinutoEntrada}"
+														/>
+														<input
+															type="hidden"
+															name="hora_saida"
+															value="{editHoraSaida}:{editMinutoSaida}"
+														/>
 														<input type="hidden" name="data_plantao" value={editDataEntrada} />
 														<input type="hidden" name="data_saida" value={editDataSaida} />
 														<input type="hidden" name="observacoes" value={editObservacoes} />
 													{/if}
 													<div class="flex gap-1 mt-1">
-														<button type="submit" class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold" disabled={pendingEditar}>
+														<button
+															type="submit"
+															class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
+															disabled={pendingEditar}
+														>
 															{pendingEditar ? 'Salvando...' : 'Salvar'}
 														</button>
-														<button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold" onclick={() => (editingId = null)}>×</button>
+														<button
+															type="button"
+															class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
+															onclick={() => (editingId = null)}>×</button
+														>
 													</div>
 												</form>
 											</td>
 										</tr>
 									{:else}
 										<tr
-											class="!bg-transparent hover:!bg-surface-100/50 dark:hover:!bg-surface-800/20 transition-colors {modoSelecao && selecionados.has(p.id) ? '!bg-error-500/5 dark:!bg-error-500/8' : ''}"
+											class="!bg-transparent hover:!bg-surface-100/50 dark:hover:!bg-surface-800/20 transition-colors {modoSelecao &&
+											selecionados.has(p.id)
+												? '!bg-error-500/5 dark:!bg-error-500/8'
+												: ''}"
 											role={modoSelecao ? 'button' : undefined}
 											onclick={modoSelecao ? () => toggleSelecionar(p.id) : undefined}
 										>
@@ -2111,7 +2196,7 @@
 												>
 													{p.nome}
 												</span>
-												{#if p.equipe && !isFDS}
+												{#if p.equipe && !isFDS && !isExpediente}
 													<span
 														class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold uppercase"
 													>
@@ -2119,7 +2204,9 @@
 													</span>
 												{/if}
 											</td>
-											<td class="!py-4 text-center align-middle opacity-80">{p.matricula}</td>
+											<td class="!py-4 text-center align-middle opacity-80 font-mono tabular-nums"
+												>{p.matricula}</td
+											>
 											<td class="!py-4 text-center align-middle">
 												<span
 													class="badge px-1.5 py-0.5 rounded font-bold text-[0.55rem] uppercase {p.cargo ===
@@ -2138,19 +2225,21 @@
 											>
 											<td class="!py-4 text-center align-middle">
 												<div
-													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] whitespace-nowrap"
+													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] whitespace-nowrap font-mono tabular-nums"
 												>
 													{formatarDataPlantao(p)}
 												</div>
 											</td>
 											<td class="!py-4 text-center align-middle max-w-[200px]">
 												{#if isExpediente}
-													<span class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic">
+													<span
+														class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic"
+													>
 														{p.observacoes || '—'}
 													</span>
 												{:else}
 													<div
-														class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] font-bold uppercase whitespace-nowrap"
+														class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.6rem] font-bold uppercase whitespace-nowrap font-mono tabular-nums"
 													>
 														{formatarHorario(p)}
 													</div>
@@ -2182,7 +2271,7 @@
 															</button>
 															<button
 																type="button"
-																class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5"
+																class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
 																onclick={() => solicitarRemocao(p.id, p.nome)}
 															>
 																Remover
@@ -2203,22 +2292,25 @@
 		{#if totalPaginasServ > 1}
 			<div class="flex items-center justify-between gap-3 mt-5 px-1">
 				<span class="text-xs text-surface-500">
-					Exibindo {(paginaServidor - 1) * SERV_POR_PAG + 1}–{Math.min(paginaServidor * SERV_POR_PAG, policiaisEscalaLocal.length)} de {policiaisEscalaLocal.length} servidores
+					Exibindo {(paginaServidor - 1) * SERV_POR_PAG + 1}–{Math.min(
+						paginaServidor * SERV_POR_PAG,
+						policiaisEscalaLocal.length
+					)} de {policiaisEscalaLocal.length} servidores
 				</span>
 				<div class="flex items-center gap-2">
 					<button
 						type="button"
 						class="btn btn-sm preset-outlined-surface-500"
 						onclick={() => paginaServidor--}
-						disabled={paginaServidor <= 1}
-					>← Anterior</button>
+						disabled={paginaServidor <= 1}>← Anterior</button
+					>
 					<span class="text-xs text-surface-500">{paginaServidor} / {totalPaginasServ}</span>
 					<button
 						type="button"
 						class="btn btn-sm preset-outlined-surface-500"
 						onclick={() => paginaServidor++}
-						disabled={paginaServidor >= totalPaginasServ}
-					>Próximo →</button>
+						disabled={paginaServidor >= totalPaginasServ}>Próximo →</button
+					>
 				</div>
 			</div>
 		{/if}

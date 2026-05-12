@@ -784,6 +784,12 @@
 			/>
 		{/if}
 
+		<div class="flex items-center gap-3 my-6">
+			<hr class="flex-1 border-surface-200 dark:border-white/10" />
+			<span class="text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider">Seccionais Participantes</span>
+			<hr class="flex-1 border-surface-200 dark:border-white/10" />
+		</div>
+
 		<!-- Seccionais -->
 		<div>
 			{#if !isSeccional}
@@ -797,7 +803,7 @@
 						{#if supervisorSomente}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm"
+								class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm active:scale-95 transition-all"
 								onclick={() =>
 									(supervisorExpandiuQuadroSeccionais = !supervisorExpandiuQuadroSeccionais)}
 							>
@@ -1222,7 +1228,7 @@
 														<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 														<button
 															type="submit"
-															class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full"
+															class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full active:scale-95 transition-all"
 															disabled={!slotUnidadeId || pendingCrud}
 														>
 															{pendingCrud ? 'Salvando...' : 'Confirmar'}
@@ -1483,7 +1489,7 @@
 																	<input type="hidden" name="slots_oip" value={editSlotsOip} />
 																	<button
 																		type="submit"
-																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
+																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
 																		disabled={pendingCrud}
 																		aria-label="Salvar vagas"
 																		title="Confirmar"
@@ -1569,7 +1575,7 @@
 																	/>
 																	<button
 																		type="submit"
-																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded"
+																		class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
 																		>✓</button
 																	>
 																</form>
@@ -1723,7 +1729,7 @@
 																<div class="w-full sm:w-auto flex gap-2">
 																	<button
 																		type="submit"
-																		class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none"
+																		class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none active:scale-95 transition-all"
 																		disabled={!policialParaAdicionar || pendingCrud}>Adicionar</button
 																	>
 																	<button
@@ -1867,7 +1873,7 @@
 														<input type="hidden" name="slots_oip" value={novaEquipeOip} />
 														<button
 															type="submit"
-															class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg"
+															class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg active:scale-95 transition-all"
 															disabled={pendingCrud}
 															>{pendingCrud ? 'Adicionando...' : 'Adicionar'}</button
 														>
@@ -1946,7 +1952,7 @@
 											<input type="hidden" name="unidadeId" value={novoSlotUnidadeId} />
 											<button
 												type="submit"
-												class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl"
+												class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl active:scale-95 transition-all"
 												disabled={pendingCrud}
 												>{pendingCrud ? 'Adicionando...' : 'Confirmar'}</button
 											>
@@ -2018,7 +2024,7 @@
 							<input type="hidden" name="seccionalId" value={seccionalParaAdicionarIdx} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none active:scale-95 transition-all"
 								disabled={!seccionalParaAdicionarIdx || pendingCrud}
 							>
 								{pendingCrud ? 'Adicionando...' : 'Confirmar'}

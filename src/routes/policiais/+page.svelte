@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -290,7 +292,7 @@
 			>
 		{/if}
 		<button type="button"
-			class="btn btn-sm preset-filled-primary-500"
+			class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
 			onclick={openCreateModal}>Novo Policial</button
 		>
 	</div>
@@ -524,7 +526,7 @@
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
 						<button
 							type="submit"
-							class="btn btn-sm preset-filled-error-500 flex items-center gap-2"
+							class="btn btn-sm preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
 							disabled={excluindo}
 						>
 							{excluindo ? 'Excluindo...' : 'Remover Policial'}
@@ -603,7 +605,7 @@
 				</div>
 				<button
 					type="button"
-					class="btn btn-sm preset-filled-primary-500 shrink-0 self-end"
+					class="btn btn-sm preset-filled-primary-500 shrink-0 self-end active:scale-95 transition-all"
 					onclick={navegarComFiltros}
 				>
 					Buscar
@@ -627,7 +629,7 @@
 			{#if !filtroCargo}
 				<a
 					href="/policiais"
-					class="btn preset-filled-primary-500"
+					class="btn preset-filled-primary-500 active:scale-95 transition-all"
 					onclick={(e) => {
 						e.preventDefault();
 						resetForm();
@@ -651,10 +653,22 @@
 					</tr>
 				</thead>
 				<tbody>
+					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+						{#each { length: 8 } as _}
+							<tr class="animate-pulse">
+								<td class="px-4 py-3"><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-6 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="flex gap-2"><div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div><div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div></div></td>
+							</tr>
+						{/each}
+					{:else}
 					{#each policiais as p (p.id)}
 						<tr>
 							<td>{p.nome}</td>
-							<td>{p.matricula}</td>
+							<td class="font-mono tabular-nums">{p.matricula}</td>
 							<td>
 								<span
 									class="badge text-xs {p.cargo === 'DPC'
@@ -662,7 +676,7 @@
 										: 'preset-filled-warning-500'}">{p.cargo}</span
 								>
 							</td>
-							<td>{p.telefone}</td>
+							<td class="font-mono tabular-nums">{p.telefone}</td>
 							<td>{p.lotacao}</td>
 							<td>
 								<div class="flex gap-2">
@@ -674,19 +688,25 @@
 										Editar
 									</button>
 									<button type="button"
-										class="btn btn-sm preset-filled-error-500"
+										class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
 										onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 									>
 								</div>
 							</td>
 						</tr>
 					{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
+			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+				{#each { length: 5 } as _}
+					<SkeletonCard />
+				{/each}
+			{:else}
 			{#each policiais as p (p.id)}
 				<div
 					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
@@ -702,11 +722,11 @@
 					<div class="space-y-1 text-sm mb-3">
 						<div class="flex justify-between">
 							<span class="text-surface-500">Matrícula</span>
-							<span class="text-surface-900 dark:text-surface-100">{p.matricula}</span>
+							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums">{p.matricula}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Telefone</span>
-							<span class="text-surface-900 dark:text-surface-100">{p.telefone}</span>
+							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums">{p.telefone}</span>
 						</div>
 						<div class="flex justify-between">
 							<span class="text-surface-500">Lotação</span>
@@ -722,12 +742,13 @@
 							Editar
 						</button>
 						<button type="button"
-							class="btn btn-sm preset-filled-error-500 transition-all flex-1"
+							class="btn btn-sm preset-filled-error-500 transition-all flex-1 active:scale-95 transition-all"
 							onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
 						>
 					</div>
 				</div>
 			{/each}
+			{/if}
 		</div>
 
 		<PaginationControls
@@ -762,3 +783,4 @@
 		background-color: #1f2937;
 	}
 </style>
+<FloatingRefresh />

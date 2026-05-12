@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { useAutorizacao, useMobile, useScrollLock } from '$lib/composables';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
@@ -525,6 +526,11 @@
 						</div>
 					{/if}
 				</div>
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 5 } as _}
+						<SkeletonCard lines={3} hasFooter={false} />
+					{/each}
+				{:else}
 				{#each data.minhasEscalas as escala}
 					<div
 						role="button"
@@ -612,6 +618,7 @@
 						Nenhuma escala gise encontrada para o seu perfil ou você já enviou o relatório.
 					</p>
 				{/each}
+				{/if}
 			</div>
 
 			{#snippet formularioServico()}
