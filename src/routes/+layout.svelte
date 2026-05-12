@@ -401,7 +401,18 @@
 	</aside>
 
 	<!-- Main content with sidebar offset -->
-	<main class="min-[900px]:ml-60 min-h-screen">
+	<main class="min-[900px]:ml-60 min-h-screen relative">
+		<!-- Centralized bouncing dots animation during page navigation -->
+		{#if navigating?.to && navigating.to.url.pathname !== page.url.pathname}
+			<div class="fixed inset-0 z-40 pointer-events-none flex items-center justify-center min-[900px]:pl-60">
+				<div class="flex items-center gap-2.5 p-4 rounded-full bg-surface-50/90 dark:bg-surface-900/90 backdrop-blur-md shadow-2xl border border-surface-200/50 dark:border-surface-700/50">
+					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]"></div>
+					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]"></div>
+					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce"></div>
+				</div>
+			</div>
+		{/if}
+
 		<div class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to && navigating.to.url.pathname !== page.url.pathname ? 'opacity-40 pointer-events-none' : ''}">
 			{@render children()}
 		</div>
