@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { getDB, listarGiseEscalas, buscarGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { eq, asc } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
@@ -37,16 +37,16 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all()
 	]);
 
-	let papelGise: 'admin_geral' | 'admin_seccional' | 'supervisor' | 'membro';
-	if (isGeral) papelGise = 'admin_geral';
-	else if (isSeccional) papelGise = 'admin_seccional';
-	else if (isSupervisor) papelGise = 'supervisor';
-	else papelGise = 'membro';
+	const isUnidade = isAdminUnidade(u);
 
 	return {
 		escalas,
 		ativa,
-		papelGise,
+		isGeral,
+		isSeccional,
+		isUnidade,
+		isSupervisor,
+		isMembro,
 		seccionaisList
 	};
 };

@@ -7,7 +7,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { useScrollLock } from '$lib/composables';
 	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-	import { slide } from 'svelte/transition';
+	import { slide, fly } from 'svelte/transition';
 	import { csrfHeaders } from '$lib/csrf';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
@@ -18,11 +18,14 @@
 	const escalas = $derived(data.escalas ?? []);
 	const ativas = $derived(escalas.filter((e: any) => e.status !== 'finalizada'));
 	const historico = $derived(escalas.filter((e: any) => e.status === 'finalizada'));
-	const papelGise = $derived(data.papelGise);
-	const isAdminGeral = $derived(papelGise === 'admin_geral');
-	const isSeccional = $derived(papelGise === 'admin_seccional');
-	const isSupervisor = $derived(papelGise === 'supervisor');
-	const isMembro = $derived(papelGise === 'membro');
+	const isAdminGeral = $derived(!!data.isGeral);
+	const isSeccional = $derived(!!data.isSeccional);
+	const isUnidade = $derived(!!data.isUnidade);
+	const isSupervisor = $derived(!!data.isSupervisor);
+	const isMembro = $derived(!!data.isMembro);
+
+	// Usuário tem privilégios de controle/preenchimento (vê os cards)
+	const temControleGise = $derived(isAdminGeral || isSeccional || isUnidade || isSupervisor);
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 
 	const restringirSmartphone = $derived(page.data.restringirSmartphone ?? false);
@@ -55,14 +58,10 @@
 	let painelTokenGiseControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
 
 	const tokenPrepararUrl = $derived(
-		giseParaAssinar?.tipo === 'escala'
-			? `/api/gise/${giseParaAssinar.id}/preparar-assinatura`
-			: ''
+		giseParaAssinar?.tipo === 'escala' ? `/api/gise/${giseParaAssinar.id}/preparar-assinatura` : ''
 	);
 	const tokenFinalizarUrl = $derived(
-		giseParaAssinar?.tipo === 'escala'
-			? `/api/gise/${giseParaAssinar.id}/finalizar-assinatura`
-			: ''
+		giseParaAssinar?.tipo === 'escala' ? `/api/gise/${giseParaAssinar.id}/finalizar-assinatura` : ''
 	);
 	const tokenNomeArquivo = $derived(
 		giseParaAssinar?.dataInicio
@@ -120,13 +119,29 @@
 		}
 		let linhas: string[] = [];
 		if (ativa.status === 'em_definicao_supervisor') {
-			linhas = ['O supervisor ainda não foi definido para esta escala.', 'Aguarde a definição para liberar a assinatura.'];
+			linhas = [
+				'O supervisor ainda não foi definido para esta escala.',
+				'Aguarde a definição para liberar a assinatura.'
+			];
 		} else if (ativa.status === 'em_preenchimento') {
 			const faltam = ativa.totalSeccionais - ativa.seccionaisEnviadas;
-			linhas = [`Faltam ${faltam} de ${ativa.totalSeccionais} seccional(is) enviarem seus relatórios.`, 'A assinatura será liberada quando todas as seccionais concluírem o envio.'];
+			linhas = [
+				`Faltam ${faltam} de ${ativa.totalSeccionais} seccional(is) enviarem seus relatórios.`,
+				'A assinatura será liberada quando todas as seccionais concluírem o envio.'
+			];
 		} else if (ativa.status === 'em_andamento') {
-			linhas = ['A escala está em andamento.', 'Aguarde o encerramento das atividades para assinar.'];
-		} else if (['aguardando_relatorios', 'aguardando_assinatura_relat', 'pronta_para_finalizar', 'finalizada'].includes(ativa.status)) {
+			linhas = [
+				'A escala está em andamento.',
+				'Aguarde o encerramento das atividades para assinar.'
+			];
+		} else if (
+			[
+				'aguardando_relatorios',
+				'aguardando_assinatura_relat',
+				'pronta_para_finalizar',
+				'finalizada'
+			].includes(ativa.status)
+		) {
 			linhas = ['A escala já foi assinada.'];
 		} else {
 			linhas = ['A assinatura da escala não está disponível no momento.'];
@@ -144,12 +159,20 @@
 			const linhas: string[] = [
 				`Serão assinados ${prontos} relatório(s) de extra que já estão prontos.`,
 				...(ainda > 0 ? [`Ainda faltam ${ainda} relatório(s) com saída não confirmada.`] : []),
-				...(jaAssinados > 0 ? [`${jaAssinados} relatório(s) já foram assinados anteriormente.`] : []),
+				...(jaAssinados > 0
+					? [`${jaAssinados} relatório(s) já foram assinados anteriormente.`]
+					: [])
 			];
 			dialogInfo = {
 				titulo: `Ass. Extra (${prontos}/${totalExtras})`,
 				linhas,
-				acao: { label: `Assinar ${prontos} relatório(s)`, fn: () => { dialogInfo = null; iniciarAssinaturaExtra(ativa); } }
+				acao: {
+					label: `Assinar ${prontos} relatório(s)`,
+					fn: () => {
+						dialogInfo = null;
+						iniciarAssinaturaExtra(ativa);
+					}
+				}
 			};
 			return;
 		}
@@ -160,10 +183,16 @@
 		if (jaAssinados >= totalExtras) {
 			linhas = ['Todos os relatórios de extra já foram assinados.'];
 		} else if (!ativa.temSaidaConfirmada) {
-			linhas = ['Nenhuma saída foi confirmada ainda.', 'Os relatórios de extra só ficam disponíveis após a confirmação de saída de cada policial.'];
+			linhas = [
+				'Nenhuma saída foi confirmada ainda.',
+				'Os relatórios de extra só ficam disponíveis após a confirmação de saída de cada policial.'
+			];
 		} else {
 			const pendSaida = totalExtras - jaAssinados;
-			linhas = [`${pendSaida} relatório(s) ainda aguardam confirmação de saída dos policiais.`, 'Acompanhe o andamento na página de detalhes da escala.'];
+			linhas = [
+				`${pendSaida} relatório(s) ainda aguardam confirmação de saída dos policiais.`,
+				'Acompanhe o andamento na página de detalhes da escala.'
+			];
 		}
 		dialogInfo = { titulo: `Ass. Extra (0/${totalExtras})`, linhas };
 	}
@@ -185,7 +214,14 @@
 				const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-					body: JSON.stringify({ rubrica, latitude: lat, longitude: lng, selfieBase64: selfie, codigoValidação: codigo, desafioId })
+					body: JSON.stringify({
+						rubrica,
+						latitude: lat,
+						longitude: lng,
+						selfieBase64: selfie,
+						codigoValidação: codigo,
+						desafioId
+					})
 				});
 				if (r.ok) {
 					const blob = await r.blob();
@@ -204,15 +240,28 @@
 					const r = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-						body: JSON.stringify({ tipo: 'extraordinario', rubrica, latitude: lat, longitude: lng, selfieBase64: selfie, codigoValidação: codigo, desafioId })
+						body: JSON.stringify({
+							tipo: 'extraordinario',
+							rubrica,
+							latitude: lat,
+							longitude: lng,
+							selfieBase64: selfie,
+							codigoValidação: codigo,
+							desafioId
+						})
 					});
-					if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? 'Erro');
+					if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error ?? 'Erro');
 				}
-				toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)` });
+				toaster.success({
+					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
+				});
 				await invalidateAll();
 			}
 		} catch (e: unknown) {
-			toaster.error({ title: 'Erro ao assinar', description: e instanceof Error ? e.message : String(e) });
+			toaster.error({
+				title: 'Erro ao assinar',
+				description: e instanceof Error ? e.message : String(e)
+			});
 		} finally {
 			loading.hide();
 			giseParaAssinar = null;
@@ -231,28 +280,63 @@
 			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
 				const seccionalId = gise.pendentesExtraIds[i];
 				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const prepResp = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-					body: JSON.stringify({ signerName, signerCpf, rubrica: null })
-				});
-				if (!prepResp.ok) throw new Error((await prepResp.json() as { error?: string }).error ?? 'Erro na preparação');
-				const prepData = await prepResp.json() as { preparedPdf: string; messageDigest: string; signingTimeISO: string; verificationHash: string };
+				const prepResp = await fetch(
+					`/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+						body: JSON.stringify({ signerName, signerCpf, rubrica: null })
+					}
+				);
+				if (!prepResp.ok)
+					throw new Error(
+						((await prepResp.json()) as { error?: string }).error ?? 'Erro na preparação'
+					);
+				const prepData = (await prepResp.json()) as {
+					preparedPdf: string;
+					messageDigest: string;
+					signingTimeISO: string;
+					verificationHash: string;
+				};
 				loading.show(`Assinando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g)!.map((h) => String.fromCharCode(parseInt(h, 16))).join(''));
+				const messageDigestBase64 = btoa(
+					prepData.messageDigest
+						.match(/.{2}/g)!
+						.map((h) => String.fromCharCode(parseInt(h, 16)))
+						.join('')
+				);
 				const serproRes = await client.sign(messageDigestBase64);
 				loading.show(`Finalizando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
-				const finResp = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-					body: JSON.stringify({ preparedPdf: prepData.preparedPdf, serproCms: serproRes.rawSignature, messageDigest: prepData.messageDigest, signingTimeISO: prepData.signingTimeISO, signerName, signerCpf, verificationHash: prepData.verificationHash })
-				});
-				if (!finResp.ok) throw new Error((await finResp.json() as { error?: string }).error ?? 'Erro na finalização');
+				const finResp = await fetch(
+					`/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+						body: JSON.stringify({
+							preparedPdf: prepData.preparedPdf,
+							serproCms: serproRes.rawSignature,
+							messageDigest: prepData.messageDigest,
+							signingTimeISO: prepData.signingTimeISO,
+							signerName,
+							signerCpf,
+							verificationHash: prepData.verificationHash
+						})
+					}
+				);
+				if (!finResp.ok)
+					throw new Error(
+						((await finResp.json()) as { error?: string }).error ?? 'Erro na finalização'
+					);
 			}
-			toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token` });
+			toaster.success({
+				title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token`
+			});
 			await invalidateAll();
 		} catch (e: unknown) {
-			toaster.error({ title: 'Erro ao assinar com token', description: e instanceof Error ? e.message : String(e) });
+			toaster.error({
+				title: 'Erro ao assinar com token',
+				description: e instanceof Error ? e.message : String(e)
+			});
 		} finally {
 			loading.hide();
 			giseParaAssinar = null;
@@ -709,17 +793,38 @@
 			<h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 sm:text-2xl">
 				Escala GISE
 			</h1>
-			<p class="mt-0.5 text-sm text-surface-500 dark:text-surface-400">
+			<div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
 				{#if isAdminGeral}
-					Gerenciamento completo das escalas GISE
-				{:else if isSeccional}
-					Preenchimento da sua seccional
-				{:else if isSupervisor}
-					Assinatura digital da escala
-				{:else}
-					Formulários de produtividade
+					<span
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-400"
+						>Admin Geral</span
+					>
 				{/if}
-			</p>
+				{#if isSeccional}
+					<span
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary-500/10 text-secondary-700 dark:text-secondary-400"
+						>Adm Seccional</span
+					>
+				{/if}
+				{#if isUnidade}
+					<span
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-info-500/10 text-info-700 dark:text-info-400"
+						>Adm Unidade</span
+					>
+				{/if}
+				{#if isSupervisor}
+					<span
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-warning-500/10 text-warning-700 dark:text-warning-400"
+						>Supervisor</span
+					>
+				{/if}
+				{#if isMembro && !isSupervisor}
+					<span
+						class="text-xs font-bold px-2 py-0.5 rounded-full bg-success-500/10 text-success-700 dark:text-success-400"
+						>Membro</span
+					>
+				{/if}
+			</div>
 		</div>
 
 		{#if isAdminGeral}
@@ -733,8 +838,8 @@
 		{/if}
 	</div>
 
-	<!-- Card informativo para membros comuns -->
-	{#if isMembro}
+	<!-- Card informativo para membros comuns (sem papéis de gestão) -->
+	{#if isMembro && !isAdminGeral && !isSeccional && !isUnidade && !isSupervisor}
 		<div
 			class="rounded-2xl border border-primary-500/20 bg-primary-500/5 dark:bg-primary-500/10 p-4 sm:p-6 text-center space-y-2"
 		>
@@ -759,44 +864,73 @@
 		</div>
 	{/if}
 
-	<!-- Escala Ativa -->
-	{#if ativas.length > 0 && !isMembro}
+	<!-- Escalas Ativas (Para gestores ou se não for apenas membro) -->
+	{#if ativas.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor || !isMembro)}
 		<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300 mb-2">
 			Escalas Ativas
 		</h2>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			{#each ativasPaginadas as ativa}
 				{@const statusStrip =
-					ativa.status === 'aguardando_assinatura' ? 'bg-primary-500' :
-					ativa.status === 'em_preenchimento' ? 'bg-warning-500' :
-					ativa.status === 'em_andamento' ? 'bg-success-500' :
-					ativa.status === 'aguardando_relatorios' ? 'bg-info-500' :
-					ativa.status === 'aguardando_assinatura_relat' ? 'bg-secondary-500' :
-					ativa.status === 'pronta_para_finalizar' ? 'bg-success-600' :
-					'bg-surface-400'}
+					ativa.status === 'aguardando_assinatura'
+						? 'bg-primary-500'
+						: ativa.status === 'em_preenchimento'
+							? 'bg-warning-500'
+							: ativa.status === 'em_andamento'
+								? 'bg-success-500'
+								: ativa.status === 'aguardando_relatorios'
+									? 'bg-info-500'
+									: ativa.status === 'aguardando_assinatura_relat'
+										? 'bg-secondary-500'
+										: ativa.status === 'pronta_para_finalizar'
+											? 'bg-success-600'
+											: 'bg-surface-400'}
 				{@const totalExtras = ativa.totalSeccionais + 1}
-				{@const escalaConcluida = ['em_andamento','aguardando_relatorios','aguardando_assinatura_relat','pronta_para_finalizar','finalizada'].includes(ativa.status)}
+				{@const escalaConcluida = [
+					'em_andamento',
+					'aguardando_relatorios',
+					'aguardando_assinatura_relat',
+					'pronta_para_finalizar',
+					'finalizada'
+				].includes(ativa.status)}
 				{@const jaAssinados = ativa.assinaturasRelatorioExtra ?? 0}
 				{@const extraConcluido = jaAssinados >= totalExtras}
 				{@const extraParcial = jaAssinados > 0 && jaAssinados < totalExtras}
-				<div class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group">
+				<div
+					class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group"
+				>
 					<!-- Status color strip -->
 					<div class="h-1 {statusStrip}"></div>
 
 					<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
 						<!-- Badges -->
 						<div class="flex items-center gap-2 flex-wrap">
-							<span class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-400">
+							<span
+								class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-400"
+							>
 								Ativa #{ativa.id}
 							</span>
-							<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(ativa.status)}">
+							<span
+								class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(
+									ativa.status
+								)}"
+							>
 								{statusLabel(ativa.status)}
 							</span>
+							{#if ativa.supervisor_id === data.usuario?.id}
+								<span
+									class="inline-flex items-center rounded-full bg-warning-500/15 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400 border border-warning-500/20"
+								>
+									Sou Supervisor
+								</span>
+							{/if}
 						</div>
 
 						<!-- Date + time -->
 						<div class="flex-1">
-							<p class="text-base sm:text-lg font-bold text-surface-800 dark:text-surface-100 leading-tight group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors">
+							<p
+								class="text-base sm:text-lg font-bold text-surface-800 dark:text-surface-100 leading-tight group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors"
+							>
 								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
 							</p>
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300 mt-1">
@@ -805,77 +939,122 @@
 						</div>
 
 						<!-- Actions -->
-						<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-							<button
-								type="button"
-								class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto"
-								onclick={() => (menuExpandidoId = menuExpandidoId === ativa.id ? null : ativa.id)}
+						<div
+							class="flex flex-col gap-3 pt-3 border-t border-surface-100 dark:border-surface-700/50"
+						>
+							<div
+								class="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3"
 							>
-								Opções {menuExpandidoId === ativa.id ? '▴' : '▾'}
-							</button>
-
-							{#if isSupervisor && ativa.supervisor_id === data.usuario?.id}
-								<div class="flex gap-2">
+								<!-- Lado Esquerdo: Botão Opções + Menu Lateral -->
+								<div class="flex items-center gap-2 min-w-0">
 									<button
 										type="button"
-										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status === 'aguardando_assinatura' ? 'preset-filled-warning-500 text-warning-950' : escalaConcluida ? 'preset-filled-success-500 text-white' : 'preset-tonal-surface opacity-70'}"
-										onclick={() => clicarAssEscala(ativa)}
-										title={ativa.status === 'aguardando_assinatura' ? (isDesktop ? 'Assinar via Token' : 'Assinar em Tela') : escalaConcluida ? 'Escala já assinada' : 'Ver o que falta para assinar'}
+										class="btn btn-sm shrink-0 {menuExpandidoId === ativa.id
+											? 'preset-filled-surface-500 text-white'
+											: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
+										onclick={() =>
+											(menuExpandidoId = menuExpandidoId === ativa.id ? null : ativa.id)}
 									>
-										{#if escalaConcluida}
-											<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-											</svg>
-										{/if}
-										Ass. Escala
+										{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
 									</button>
+								</div>
 
+								<!-- Lado Direito: Assinaturas -->
+								{#if isSupervisor && ativa.supervisor_id === data.usuario?.id}
+									<div class="flex gap-2 shrink-0">
+										<button
+											type="button"
+											class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status ===
+											'aguardando_assinatura'
+												? 'preset-filled-warning-500 text-warning-950'
+												: escalaConcluida
+													? 'preset-filled-success-500 text-white'
+													: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+											onclick={() => clicarAssEscala(ativa)}
+											title={ativa.status === 'aguardando_assinatura'
+												? isDesktop
+													? 'Assinar via Token'
+													: 'Assinar em Tela'
+												: escalaConcluida
+													? 'Escala já assinada'
+													: 'Ver o que falta para assinar'}
+										>
+											{#if escalaConcluida}
+												<svg
+													class="w-3 h-3 shrink-0"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+													stroke-width="3"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+												</svg>
+											{/if}
+											Ass. Escala
+										</button>
+
+										<button
+											type="button"
+											class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido
+												? 'preset-filled-success-500 text-white'
+												: extraParcial
+													? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600'
+													: ativa.extrasPendentes > 0
+														? 'preset-filled-warning-500 text-warning-950'
+														: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+											onclick={() => clicarAssExtra(ativa)}
+											title={ativa.extrasPendentes > 0
+												? isDesktop
+													? 'Assinar extras via Token'
+													: 'Assinar extras em Tela'
+												: extraConcluido
+													? 'Todos os extras assinados'
+													: 'Ver status dos extras'}
+										>
+											{#if extraConcluido}
+												<svg
+													class="w-3 h-3 shrink-0"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+													stroke-width="3"
+												>
+													<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+												</svg>
+											{/if}
+											Ass. Extra ({jaAssinados}/{totalExtras})
+										</button>
+									</div>
+								{/if}
+							</div>
+
+							<!-- Revelação Unificada (Sempre abaixo) -->
+							{#if menuExpandidoId === ativa.id}
+								<div class="flex flex-row gap-2 mt-1 w-full" transition:slide={{ duration: 200 }}>
 									<button
 										type="button"
-										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido ? 'preset-filled-success-500 text-white' : extraParcial ? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600' : ativa.extrasPendentes > 0 ? 'preset-filled-warning-500 text-warning-950' : 'preset-tonal-surface opacity-70'}"
-										onclick={() => clicarAssExtra(ativa)}
-										title={ativa.extrasPendentes > 0 ? (isDesktop ? 'Assinar extras via Token' : 'Assinar extras em Tela') : extraConcluido ? 'Todos os extras assinados' : 'Ver status dos extras'}
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										onclick={() => goto(`/gise/${ativa.id}`)}
 									>
-										{#if extraConcluido}
-											<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-												<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-											</svg>
-										{/if}
-										Ass. Extra ({jaAssinados}/{totalExtras})
+										Editar GISE
 									</button>
+									<a
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										href="/api/gise/{ativa.id}/download?format=pdf"
+										target="_blank"
+									>
+										Escala PDF
+									</a>
+									<a
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										href="/api/gise/{ativa.id}/download?format=extraordinario"
+										target="_blank"
+									>
+										Extra PDF
+									</a>
 								</div>
 							{/if}
 						</div>
-
-						<!-- Opções expandidas (Cortina) -->
-						{#if menuExpandidoId === ativa.id}
-							<div
-								transition:slide={{ duration: 200 }}
-								class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 mt-1"
-							>
-								<button
-									type="button"
-									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all"
-									onclick={() => goto(`/gise/${ativa.id}`)}
-								>
-									Editar GISE
-								</button>
-								<a
-									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-surface-200 dark:hover:preset-filled-surface-700 transition-all no-underline"
-									href="/api/gise/{ativa.id}/download?format=pdf"
-									target="_blank"
-								>
-									Escala PDF
-								</a>
-								<a
-									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-surface-200 dark:hover:preset-filled-surface-700 transition-all no-underline"
-									href="/api/gise/{ativa.id}/download?format=extraordinario"
-									target="_blank"
-								>
-									Relat. Extra PDF
-								</a>
-							</div>
-						{/if}
 					</div>
 				</div>
 			{/each}
@@ -897,7 +1076,7 @@
 				onclick={() => paginaAtivas++}>Próxima →</button
 			>
 		</div>
-	{:else if !isMembro}
+	{:else if isAdminGeral || isSeccional || isUnidade || isSupervisor}
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
 		>
@@ -906,7 +1085,7 @@
 	{/if}
 
 	<!-- Histórico -->
-	{#if historico.length > 0 && !isMembro && !isSupervisor}
+	{#if historico.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor)}
 		<div class="mt-8">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300">Histórico</h2>
@@ -1613,78 +1792,78 @@
 
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
-					<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
-						Tipo de Escala
-					</p>
-					<div class="grid grid-cols-3 gap-1 sm:gap-2">
-						<button
-							type="button"
-							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-							'completa'
-								? 'border-primary-500 bg-primary-500/10 text-primary-600'
-								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-							onclick={() => (modoCriacao = 'completa')}
+				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+					Tipo de Escala
+				</p>
+				<div class="grid grid-cols-3 gap-1 sm:gap-2">
+					<button
+						type="button"
+						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						'completa'
+							? 'border-primary-500 bg-primary-500/10 text-primary-600'
+							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'completa')}
+					>
+						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
+							>Completa</span
 						>
-							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-								>Completa</span
-							>
-							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-								>Seccionais</span
-							>
-						</button>
-						<button
-							type="button"
-							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-							'branco'
-								? 'border-primary-500 bg-primary-500/10 text-primary-600'
-								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-							onclick={() => (modoCriacao = 'branco')}
+						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+							>Seccionais</span
 						>
-							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-								>Em branco</span
-							>
-							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-								>Sem equipes</span
-							>
-						</button>
-						<button
-							type="button"
-							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-							'clonada'
-								? 'border-primary-500 bg-primary-500/10 text-primary-600'
-								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-							onclick={() => (modoCriacao = 'clonada')}
-							disabled={escalas.length === 0}
+					</button>
+					<button
+						type="button"
+						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						'branco'
+							? 'border-primary-500 bg-primary-500/10 text-primary-600'
+							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'branco')}
+					>
+						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
+							>Em branco</span
 						>
-							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
-							>
-							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-								>De outra</span
-							>
-						</button>
-					</div>
+						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+							>Sem equipes</span
+						>
+					</button>
+					<button
+						type="button"
+						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+						'clonada'
+							? 'border-primary-500 bg-primary-500/10 text-primary-600'
+							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+						onclick={() => (modoCriacao = 'clonada')}
+						disabled={escalas.length === 0}
+					>
+						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
+						>
+						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+							>De outra</span
+						>
+					</button>
+				</div>
 
-					{#if modoCriacao === 'clonada'}
-						<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
-							<label
-								for="clonarDe"
-								class="text-[0.6rem] font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
-								>Escolha a escala de origem</label
-							>
-							<select
-								id="clonarDe"
-								bind:value={clonarDeId}
-								class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
-							>
-								{#each escalas.slice(0, 10) as esc}
-									<option value={esc.id}>
-										GISE — {diaSemana(esc.data_inicio)}
-										{fmtDate(esc.data_inicio)} ({esc.status})
-									</option>
-								{/each}
-							</select>
-						</div>
-					{/if}
+				{#if modoCriacao === 'clonada'}
+					<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+						<label
+							for="clonarDe"
+							class="text-[0.6rem] font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
+							>Escolha a escala de origem</label
+						>
+						<select
+							id="clonarDe"
+							bind:value={clonarDeId}
+							class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
+						>
+							{#each escalas.slice(0, 10) as esc}
+								<option value={esc.id}>
+									GISE — {diaSemana(esc.data_inicio)}
+									{fmtDate(esc.data_inicio)} ({esc.status})
+								</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 			</div>
 			<div class="flex justify-end gap-2 pt-1">
 				<button
@@ -1736,7 +1915,10 @@
 		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
 		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
 		bind:control={painelTokenGiseControl}
-		onSuccess={async () => { giseParaAssinar = null; await invalidateAll(); }}
+		onSuccess={async () => {
+			giseParaAssinar = null;
+			await invalidateAll();
+		}}
 	/>
 </div>
 
@@ -1748,21 +1930,49 @@
 		role="presentation"
 		onclick={(e) => e.target === e.currentTarget && (dialogInfo = null)}
 	>
-		<div class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4">
+		<div
+			class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4"
+		>
 			<div class="flex items-start gap-3">
-				<div class="mt-0.5 shrink-0 rounded-lg p-2 {dialogInfo.acao ? 'bg-tertiary-500/10' : 'bg-warning-500/10'}">
+				<div
+					class="mt-0.5 shrink-0 rounded-lg p-2 {dialogInfo.acao
+						? 'bg-tertiary-500/10'
+						: 'bg-warning-500/10'}"
+				>
 					{#if dialogInfo.acao}
-						<svg class="w-5 h-5 text-tertiary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+						<svg
+							class="w-5 h-5 text-tertiary-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+							/>
 						</svg>
 					{:else}
-						<svg class="w-5 h-5 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						<svg
+							class="w-5 h-5 text-warning-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
 						</svg>
 					{/if}
 				</div>
 				<div class="min-w-0 flex-1">
-					<h2 class="text-base font-bold text-surface-900 dark:text-surface-50">{dialogInfo.titulo}</h2>
+					<h2 class="text-base font-bold text-surface-900 dark:text-surface-50">
+						{dialogInfo.titulo}
+					</h2>
 				</div>
 			</div>
 
@@ -1804,7 +2014,9 @@
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-900/60 p-4 backdrop-blur-sm"
 		in:slide
 	>
-		<div class="w-full max-w-md rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4">
+		<div
+			class="w-full max-w-md rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4"
+		>
 			<div>
 				<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">
 					Assinar Rel. Extra — Escala #{giseParaAssinar.id}
@@ -1815,16 +2027,36 @@
 			</div>
 
 			<!-- Dados do assinante -->
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100/50 dark:bg-surface-800/40 p-4 flex gap-3 items-center">
+			<div
+				class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100/50 dark:bg-surface-800/40 p-4 flex gap-3 items-center"
+			>
 				<div class="bg-primary-500/10 p-2.5 rounded-lg shrink-0">
-					<svg class="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+					<svg
+						class="w-5 h-5 text-primary-500"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+						/>
 					</svg>
 				</div>
 				<div class="min-w-0">
-					<p class="text-[0.6rem] font-black uppercase tracking-wider text-surface-400">Assinante</p>
-					<p class="text-sm font-bold text-surface-800 dark:text-surface-100 truncate uppercase">{usuarioAssinante?.nome || 'Não informado'}</p>
-					<p class="text-xs text-surface-500 dark:text-surface-400">{usuarioAssinante?.cpf ? usuarioAssinante.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'CPF não cadastrado'}</p>
+					<p class="text-[0.6rem] font-black uppercase tracking-wider text-surface-400">
+						Assinante
+					</p>
+					<p class="text-sm font-bold text-surface-800 dark:text-surface-100 truncate uppercase">
+						{usuarioAssinante?.nome || 'Não informado'}
+					</p>
+					<p class="text-xs text-surface-500 dark:text-surface-400">
+						{usuarioAssinante?.cpf
+							? usuarioAssinante.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+							: 'CPF não cadastrado'}
+					</p>
 				</div>
 			</div>
 
@@ -1846,7 +2078,12 @@
 					onclick={assinarExtrasComSerpro}
 				>
 					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+						/>
 					</svg>
 					Assinar com Token A3
 				</button>
@@ -1854,4 +2091,3 @@
 		</div>
 	</div>
 {/if}
-

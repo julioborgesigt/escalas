@@ -27,7 +27,7 @@ import {
 	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade
 } from '$lib/db';
-import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { invalidarPapelGise, invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
 import {
 	agendarSyncBaseEquipeAposFinalizar,
@@ -196,8 +196,10 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 						: 'policial',
 			isGeral,
 			isSeccional,
+			isUnidade: isAdminUnidade(u),
 			isSupervisor,
-			minhaSeccionalId: isSeccional ? u.papel_unidade_id : null,
+			isMembro: u.tipo === 'policial' ? (parentData.isMembroGise ?? false) : false,
+			minhaSeccionalId: (isSeccional || isAdminUnidade(u)) ? u.papel_unidade_id : null,
 			usuarioAtual: u,
 			restringirSmartphone,
 			exigirFotoAssinatura: parentData.exigirFotoAssinatura,

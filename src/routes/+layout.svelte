@@ -7,6 +7,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+	import { fade, scale } from 'svelte/transition';
 	import { useScrollLock } from '$lib/composables';
 
 	let { children } = $props();
@@ -15,31 +16,24 @@
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
-	const adminModulo = $derived(
-		(page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas'
-	);
+	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 
 	// Mostra abas Escalas e Policiais para: admin, admin_seccional, admin_unidade
 	const showEscalasPoliciais = $derived(
 		usuario?.tipo === 'admin' ||
-		usuario?.papel === 'admin_seccional' ||
-		usuario?.papel === 'admin_unidade'
+			usuario?.papel === 'admin_seccional' ||
+			usuario?.papel === 'admin_unidade'
 	);
 
 	// Mostra aba GISE para: admin, admin_seccional ou supervisor ativo
 	// (admin_unidade só vê se também for supervisor, coberto por isSupervisorGise)
 	const showGise = $derived(
-		usuario?.tipo === 'admin' ||
-		usuario?.papel === 'admin_seccional' ||
-		isSupervisorGise
+		usuario?.tipo === 'admin' || usuario?.papel === 'admin_seccional' || isSupervisorGise
 	);
 
 	// Rel. Gise: escalados (membro), quadro de supervisão (assessor/SEINT) e supervisor DPC ativo
 	const showResGise = $derived(
-		usuario?.tipo === 'admin' ||
-		isMembroGise ||
-		isSupervisaoGise ||
-		isSupervisorGise
+		usuario?.tipo === 'admin' || isMembroGise || isSupervisaoGise || isSupervisorGise
 	);
 
 	// For admins: control menu group visibility based on chosen module
@@ -49,9 +43,7 @@
 	const showGrupo2 = $derived(
 		usuario?.tipo !== 'admin' || adminModulo === 'ambas' || adminModulo === 'gise'
 	);
-	const showGrupo2Separator = $derived(
-		usuario?.tipo === 'admin' && showGrupo1 && showGrupo2
-	);
+	const showGrupo2Separator = $derived(usuario?.tipo === 'admin' && showGrupo1 && showGrupo2);
 
 	const showSidebar = $derived(
 		page.url.pathname !== '/login' && page.url.pathname !== '/alterar-senha'
@@ -59,6 +51,7 @@
 
 	let sidebarOpen = $state(false);
 	let isDark = $state(true);
+	let showLogoutConfirm = $state(false);
 
 	useScrollLock(() => sidebarOpen);
 
@@ -78,9 +71,12 @@
 	}
 
 	async function logout() {
+		showLogoutConfirm = false;
 		try {
 			await fetch('/api/auth/logout', { method: 'POST', headers: csrfHeaders() });
-		} catch { /* ignora erros de rede — o redirecionamento ocorre de qualquer forma */ }
+		} catch {
+			/* ignora erros de rede — o redirecionamento ocorre de qualquer forma */
+		}
 
 		// Limpa filtros salvos no localStorage ao deslogar
 		if (typeof localStorage !== 'undefined') {
@@ -91,15 +87,12 @@
 					keysToRemove.push(key);
 				}
 			}
-			keysToRemove.forEach(k => localStorage.removeItem(k));
+			keysToRemove.forEach((k) => localStorage.removeItem(k));
 		}
 
 		await invalidateAll();
 		goto('/login');
 	}
-
-
-
 
 	function isActive(path: string): boolean {
 		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
@@ -111,14 +104,19 @@
 		rotaPath === '/gise' || (rotaPath.startsWith('/gise/') && !rotaPath.startsWith('/gise/config'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
-
 </script>
 
 <svelte:head>
 	<title>Escalas de Plantão Policial</title>
-	<meta name="description" content="Portal de Gestão de Escalas e Relatórios GISE - Polícia Civil." />
+	<meta
+		name="description"
+		content="Portal de Gestão de Escalas e Relatórios GISE - Polícia Civil."
+	/>
 	<meta property="og:title" content="Escalas PC-CE" />
-	<meta property="og:description" content="Acompanhe escalas de plantão e documente relatórios de inteligência na plataforma unificada da Polícia Civil." />
+	<meta
+		property="og:description"
+		content="Acompanhe escalas de plantão e documente relatórios de inteligência na plataforma unificada da Polícia Civil."
+	/>
 	<meta property="og:type" content="website" />
 </svelte:head>
 
@@ -137,14 +135,38 @@
 />
 
 <!-- Global Toast Provider -->
-<Toast.Group {toaster} class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3">
+<Toast.Group
+	{toaster}
+	class="fixed z-[9999] inset-0 pointer-events-none p-4 flex flex-col items-end justify-end gap-3"
+>
 	{#snippet children(toast)}
-		<Toast {toast} class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-full sm:w-auto sm:min-w-[300px] max-w-[calc(100vw-2rem)]">
+		<Toast
+			{toast}
+			class="bg-surface-900 dark:bg-surface-100 text-surface-50 dark:text-surface-900 px-6 py-4 rounded-xl shadow-2xl pointer-events-auto border border-surface-700 dark:border-surface-300 w-full sm:w-auto sm:min-w-[300px] max-w-[calc(100vw-2rem)]"
+		>
 			<div class="flex items-center gap-3">
 				{#if toast.type === 'success'}
-					<svg class="w-6 h-6 text-success-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<svg
+						class="w-6 h-6 text-success-500"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+						/></svg
+					>
 				{:else if toast.type === 'error'}
-					<svg class="w-6 h-6 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<svg class="w-6 h-6 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						/></svg
+					>
 				{/if}
 				<div class="flex-1">
 					<Toast.Title class="font-bold text-sm">{toast.title}</Toast.Title>
@@ -152,8 +174,15 @@
 						<Toast.Description class="text-xs opacity-75">{toast.description}</Toast.Description>
 					{/if}
 				</div>
-				<Toast.CloseTrigger class="btn-icon btn-sm opacity-50 hover:opacity-100 transition-opacity">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+				<Toast.CloseTrigger class="btn-icon btn-sm opacity-50 hover:opacity-100 transition-opacity" aria-label="Fechar notificação">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/></svg
+					>
 				</Toast.CloseTrigger>
 			</div>
 		</Toast>
@@ -162,96 +191,151 @@
 
 {#if showSidebar && usuario}
 	<!-- Mobile: hamburger top bar -->
-	<div class="min-[900px]:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4">
-		<button type="button"
+	<div
+		class="min-[900px]:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-surface-50/90 dark:bg-surface-950/90 backdrop-blur-lg border-b border-surface-200 dark:border-white/10 flex items-center px-4"
+	>
+		<button
+			type="button"
 			class="p-2 -ml-2 text-surface-600 dark:text-surface-300 hover:text-primary-500 transition-colors"
-			onclick={() => sidebarOpen = !sidebarOpen}
+			onclick={() => (sidebarOpen = !sidebarOpen)}
 			aria-label="Menu"
 		>
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M4 6h16M4 12h16M4 18h16"
+				/>
 			</svg>
 		</button>
 		<div class="ml-3 flex items-center gap-2">
-			<span class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
+			<span
+				class="font-extrabold text-lg bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300"
+				>DPI SUL</span
+			>
 		</div>
 	</div>
 
 	<!-- Mobile: overlay backdrop -->
 	{#if sidebarOpen}
-		<button type="button"
+		<button
+			type="button"
 			class="min-[900px]:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-			onclick={() => sidebarOpen = false}
+			onclick={() => (sidebarOpen = false)}
 			aria-label="Fechar menu"
 		></button>
 	{/if}
 
 	<!-- Sidebar -->
-	<aside class="
-		fixed top-0 left-0 z-50 h-full w-60
-		bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-xl
-		border-r border-surface-200 dark:border-white/10
-		shadow-xl shadow-black/5 dark:shadow-black/30
-		flex flex-col
-		transition-transform duration-300 ease-in-out
-		min-[900px]:translate-x-0
-		{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-	">
+	<aside
+		class="
+			fixed top-0 left-0 z-50 h-full
+			bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-xl
+			border-r border-surface-200 dark:border-white/10
+			shadow-xl shadow-black/5 dark:shadow-black/30
+			flex flex-col
+			transition-transform duration-300 ease-in-out
+			min-[900px]:translate-x-0
+			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+		"
+		style="width: var(--sidebar-width, 240px);"
+	>
 		<!-- Logo -->
-		<div class="h-16 flex items-center px-5 border-b border-surface-200 dark:border-white/5 shrink-0">
+		<div
+			class="h-16 flex items-center px-5 border-b border-surface-200 dark:border-white/5 shrink-0"
+		>
 			<div class="flex items-center gap-2 group">
-				<span class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300">DPI SUL</span>
+				<span
+					class="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-surface-900 to-surface-500 dark:from-surface-50 dark:to-surface-300"
+					>DPI SUL</span
+				>
 			</div>
 			<!-- Mobile close button -->
-			<button type="button"
+			<button
+				type="button"
 				class="min-[900px]:hidden ml-auto p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 transition-colors"
-				onclick={() => sidebarOpen = false}
+				onclick={() => (sidebarOpen = false)}
 				aria-label="Fechar menu"
 			>
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M6 18L18 6M6 6l12 12"
+					/></svg
+				>
 			</button>
 		</div>
 
 		<!-- Navigation -->
 		<nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-
 			<!-- Grupo 1: Painel · Cx. de Entrada · Arquivo/Escalas -->
 			{#if showGrupo1}
 				{#if usuario?.tipo === 'admin'}
-				<a
-					href="/painel"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/painel') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-					Painel
-				</a>
-				<a
-					href="/recebidos"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/recebidos') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2m16 0h-2M4 13H6m0 0v4a2 2 0 002 2h8a2 2 0 002-2v-4m-2 0h2m-2 0H6" /></svg>
-					Cx. de Entrada
-				</a>
+					<a
+						href="/painel"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/painel')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+							/></svg
+						>
+						Painel
+					</a>
+					<a
+						href="/recebidos"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/recebidos')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2m16 0h-2M4 13H6m0 0v4a2 2 0 002 2h8a2 2 0 002-2v-4m-2 0h2m-2 0H6"
+							/></svg
+						>
+						Cx. de Entrada
+					</a>
 				{/if}
 				{#if showEscalasPoliciais}
-				<a
-					href="/escalas"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/escalas') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-					{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
-				</a>
+					<a
+						href="/escalas"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/escalas')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+							/></svg
+						>
+						{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
+					</a>
 				{/if}
-			{/if} <!-- end showGrupo1 -->
+			{/if}
+			<!-- end showGrupo1 -->
 
 			<!-- Separador 1 (só admin geral, entre grupos que ambos existem) -->
 			{#if showGrupo2Separator}
@@ -261,56 +345,96 @@
 			<!-- Grupo 2: GISE · Produtividade (admin) · Config. GISE · Rel. GISE -->
 			{#if showGrupo2}
 				{#if showGise}
-				<a
-					href="/gise"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{giseListaOuEscalaPath ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-					GISE
-				</a>
-				{#if usuario?.tipo === 'admin'}
-				<a
-					href="/produtividade"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/produtividade') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-					Produtividade
-				</a>
-				{/if}
-				{#if usuario?.tipo === 'admin'}
 					<a
-						href="/gise/config"
+						href="/gise"
 						data-sveltekit-preload-data="hover"
 						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-							{giseConfigPathAtivo ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						{giseListaOuEscalaPath
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 						onclick={() => (sidebarOpen = false)}
 					>
 						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+							/></svg
 						>
-						Config. GISE
+						GISE
 					</a>
-				{/if}
+					{#if usuario?.tipo === 'admin'}
+						<a
+							href="/produtividade"
+							data-sveltekit-preload-data="hover"
+							class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/produtividade')
+								? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+								: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+							onclick={() => (sidebarOpen = false)}
+						>
+							<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+									d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+								/></svg
+							>
+							Produtividade
+						</a>
+					{/if}
+					{#if usuario?.tipo === 'admin'}
+						<a
+							href="/gise/config"
+							data-sveltekit-preload-data="hover"
+							class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+							{giseConfigPathAtivo
+								? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+								: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+							onclick={() => (sidebarOpen = false)}
+						>
+							<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+									d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+								/><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+									d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+								/></svg
+							>
+							Conf. GISE
+						</a>
+					{/if}
 				{/if}
 				{#if showResGise}
-				<a
-					href="/res-gise"
-					data-sveltekit-preload-data="hover"
-					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/res-gise') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
-				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-					{usuario?.tipo === 'admin' ? 'Config. Form.' : 'Presença/Rel.'}
-				</a>
+					<a
+						href="/res-gise"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/res-gise')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							/></svg
+						>
+						{usuario?.tipo === 'admin' ? 'Conf. Form.' : 'Presença/Rel.'}
+					</a>
 				{/if}
-			{/if} <!-- end showGrupo2 -->
+			{/if}
+			<!-- end showGrupo2 -->
 
 			<!-- Separador 2 (só admin geral) -->
 			{#if usuario?.tipo === 'admin'}
@@ -323,10 +447,19 @@
 					href="/policiais"
 					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/policiais') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
+						{isActive('/policiais')
+						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => (sidebarOpen = false)}
 				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+						/></svg
+					>
 					Policiais
 				</a>
 			{/if}
@@ -335,85 +468,235 @@
 					href="/unidades"
 					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/unidades') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
+						{isActive('/unidades')
+						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => (sidebarOpen = false)}
 				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+						/></svg
+					>
 					Unidades
 				</a>
 				<a
 					href="/conf-ass"
 					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/conf-ass') ? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20' : 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-					onclick={() => sidebarOpen = false}
+						{isActive('/conf-ass')
+						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+					onclick={() => (sidebarOpen = false)}
 				>
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+						/><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.5"
+							d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+						/></svg
+					>
 					Conf. ass.
 				</a>
 			{/if}
-
 		</nav>
 
 		<!-- Bottom section: theme, user, logout -->
 		<div class="px-3 pb-4 space-y-3 border-t border-surface-200 dark:border-white/5 pt-4 shrink-0">
 			<!-- Theme toggle -->
-			<button type="button"
+			<button
+				type="button"
 				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 transition-colors"
 				onclick={toggleTheme}
 			>
 				{#if isDark}
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+						/></svg
+					>
 					<span>Tema claro</span>
 				{:else}
-					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+					<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+						/></svg
+					>
 					<span>Tema escuro</span>
 				{/if}
 			</button>
 
 			<!-- User info -->
-			<div class="px-3 py-2">
-				{#if usuario?.tipo === 'admin'}
-					<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate">{usuario.nome}</p>
-					<span class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider mt-1">
-						ADMIN {adminModulo === 'gise' ? 'GISE' : adminModulo === 'escalas' ? 'ESCALAS' : 'GERAL'}
-					</span>
-				{:else if usuario.papel === 'admin_seccional'}
-					<span class="badge preset-filled-warning-500 text-[0.6rem] font-semibold tracking-wider mt-1">ADM SECCIONAL</span>
-				{:else if usuario.papel === 'admin_unidade'}
-					<span class="badge preset-filled-tertiary-500 text-[0.6rem] font-semibold tracking-wider mt-1">ADM UNIDADE</span>
-				{:else if isSupervisorGise}
-					<span class="badge preset-filled-success-500 text-[0.6rem] font-semibold tracking-wider mt-1">SUPERVISOR</span>
-				{:else if usuario.lotacao}
-					<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 mt-0.5 truncate">{usuario.lotacao}</p>
+			<div class="px-3 py-2 space-y-1.5">
+				{#if usuario?.nome}
+					<p
+						class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight"
+					>
+						{usuario.nome}
+					</p>
+				{/if}
+				<div class="flex flex-wrap gap-1 mt-0.5">
+					{#if usuario?.tipo === 'admin'}
+						<span
+							class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+						>
+							ADMIN {adminModulo === 'gise'
+								? 'GISE'
+								: adminModulo === 'escalas'
+									? 'ESCALAS'
+									: 'GERAL'}
+						</span>
+					{/if}
+					{#if usuario?.papel === 'admin_seccional'}
+						<span
+							class="badge preset-filled-warning-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							>ADM SECCIONAL</span
+						>
+					{/if}
+					{#if usuario?.papel === 'admin_unidade'}
+						<span
+							class="badge preset-filled-tertiary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							>ADM UNIDADE</span
+						>
+					{/if}
+					{#if isSupervisorGise}
+						<span
+							class="badge preset-filled-success-500 text-[0.6rem] font-semibold tracking-wider uppercase"
+							>SUPERVISOR GISE</span
+						>
+					{/if}
+				</div>
+				{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
+					<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate">
+						{usuario.lotacao}
+					</p>
 				{/if}
 			</div>
 
 			<!-- Logout -->
-			<button type="button"
+			<button
+				type="button"
 				class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-500 dark:text-surface-400 hover:bg-error-500/10 hover:text-error-600 dark:hover:text-error-400 transition-colors"
-				onclick={logout}
+				onclick={() => (showLogoutConfirm = true)}
 			>
-				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+					><path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+					/></svg
+				>
 				Sair
 			</button>
 		</div>
 	</aside>
 
+	<!-- Modal de Confirmação de Logout -->
+	{#if showLogoutConfirm}
+		<div
+			class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+			transition:fade={{ duration: 200 }}
+		>
+			<!-- Backdrop -->
+			<button
+				type="button"
+				class="absolute inset-0 bg-surface-950/40 backdrop-blur-sm"
+				onclick={() => (showLogoutConfirm = false)}
+				aria-label="Fechar"
+			></button>
+
+			<!-- Modal -->
+			<div
+				class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6"
+				transition:scale={{ duration: 200, start: 0.95 }}
+			>
+				<div class="flex flex-col items-center text-center space-y-4">
+					<div
+						class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center text-error-600 dark:text-error-400"
+					>
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+							/>
+						</svg>
+					</div>
+					<div class="space-y-2">
+						<h3 class="text-xl font-bold text-surface-900 dark:text-surface-50">Sair do Sistema</h3>
+						<p class="text-sm text-surface-500 dark:text-surface-400">
+							Deseja realmente encerrar sua sessão?
+						</p>
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-2">
+					<button
+						type="button"
+						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95"
+						onclick={logout}
+					>
+						Sim, Sair
+					</button>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95"
+						onclick={() => (showLogoutConfirm = false)}
+					>
+						Cancelar
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Main content with sidebar offset -->
-	<main class="min-[900px]:ml-60 min-h-screen relative">
+	<main
+		class="min-h-screen relative transition-[margin] duration-300"
+		style="margin-left: {usuario ? 'var(--desktop-sidebar-offset)' : '0'};"
+	>
 		<!-- Centralized bouncing dots animation during page navigation -->
 		{#if navigating?.to && navigating.to.url.pathname !== page.url.pathname}
-			<div class="fixed inset-0 z-40 pointer-events-none flex items-center justify-center min-[900px]:pl-60">
-				<div class="flex items-center gap-2.5 p-4 rounded-full bg-surface-50/90 dark:bg-surface-900/90 backdrop-blur-md shadow-2xl border border-surface-200/50 dark:border-surface-700/50">
-					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]"></div>
-					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]"></div>
+			<div
+				class="fixed inset-0 z-40 pointer-events-none flex items-center justify-center min-[900px]:pl-60"
+			>
+				<div
+					class="flex items-center gap-2.5 p-4 rounded-full bg-surface-50/90 dark:bg-surface-900/90 backdrop-blur-md shadow-2xl border border-surface-200/50 dark:border-surface-700/50"
+				>
+					<div
+						class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]"
+					></div>
+					<div
+						class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]"
+					></div>
 					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce"></div>
 				</div>
 			</div>
 		{/if}
 
-		<div class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to && navigating.to.url.pathname !== page.url.pathname ? 'opacity-40 pointer-events-none' : ''}">
+		<div
+			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to &&
+			navigating.to.url.pathname !== page.url.pathname
+				? 'opacity-40 pointer-events-none'
+				: ''}"
+		>
 			{@render children()}
 		</div>
 	</main>
@@ -425,6 +708,20 @@
 {/if}
 
 <style>
+	:root {
+		/* No mobile (overlay), usamos largura fixa para legibilidade */
+		--sidebar-width: 240px;
+		--desktop-sidebar-offset: 0px;
+	}
+
+	@media (min-width: 900px) {
+		:root {
+			/* No desktop, a largura é fluida: min 168px (70% de 240), ideal 18vw, max 240px */
+			--sidebar-width: clamp(168px, 18vw, 240px);
+			--desktop-sidebar-offset: var(--sidebar-width);
+		}
+	}
+
 	.nav-progress-wrap {
 		position: fixed;
 		top: 0;
@@ -444,7 +741,11 @@
 		animation: nav-progress 1.2s ease-in-out infinite;
 	}
 	@keyframes nav-progress {
-		0%   { transform: translateX(-110%); }
-		100% { transform: translateX(320%); }
+		0% {
+			transform: translateX(-110%);
+		}
+		100% {
+			transform: translateX(320%);
+		}
 	}
 </style>
