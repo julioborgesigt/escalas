@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidate } from '$app/navigation';
+	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { enhance } from '$app/forms';
@@ -194,7 +194,7 @@
 					a.download = tokenNomeArquivo;
 					a.click();
 					toaster.success({ title: 'Escala GISE assinada com sucesso' });
-					await invalidate(page.url.pathname);
+					await invalidateAll();
 				} else {
 					const j = await r.json().catch(() => ({}));
 					toaster.error({ title: (j as { error?: string }).error || 'Erro ao assinar' });
@@ -209,7 +209,7 @@
 					if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? 'Erro');
 				}
 				toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)` });
-				await invalidate(page.url.pathname);
+				await invalidateAll();
 			}
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro ao assinar', description: e instanceof Error ? e.message : String(e) });
@@ -250,7 +250,7 @@
 				if (!finResp.ok) throw new Error((await finResp.json() as { error?: string }).error ?? 'Erro na finalização');
 			}
 			toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token` });
-			await invalidate(page.url.pathname);
+			await invalidateAll();
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro ao assinar com token', description: e instanceof Error ? e.message : String(e) });
 		} finally {
@@ -631,10 +631,16 @@
 				const d = result.data as Record<string, unknown>;
 				const count = (d.count as number) ?? 1;
 				const primeiroId = (d.ids as number[])?.[0] ?? (d.id as number);
-				toaster.success({ title: `${count} escala(s) GISE criada(s)` });
+				toaster.success({
+					title: `${count} escala(s) GISE criada(s)`,
+					description: count > 1 ? 'As escalas foram adicionadas à lista de escalas ativas.' : ''
+				});
 				showCriarModal = false;
-				await invalidate(page.url.pathname);
-				if (primeiroId) goto(`/gise/${primeiroId}?edit=true`);
+				await invalidateAll();
+				// Só redireciona se for uma única escala; se forem várias, deixa na lista para o usuário ver todas
+				if (count === 1 && primeiroId) {
+					goto(`/gise/${primeiroId}?edit=true`);
+				}
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao criar GISE' });
@@ -1607,80 +1613,79 @@
 
 			<!-- Tipo de Criação -->
 			<div class="space-y-2">
-				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
-					Tipo de Escala
-				</p>
-				<div class="grid grid-cols-3 gap-1 sm:gap-2">
-					<button
-						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-						'completa'
-							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-						onclick={() => (modoCriacao = 'completa')}
-					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-							>Completa</span
+					<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+						Tipo de Escala
+					</p>
+					<div class="grid grid-cols-3 gap-1 sm:gap-2">
+						<button
+							type="button"
+							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+							'completa'
+								? 'border-primary-500 bg-primary-500/10 text-primary-600'
+								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							onclick={() => (modoCriacao = 'completa')}
 						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-							>Seccionais</span
+							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
+								>Completa</span
+							>
+							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+								>Seccionais</span
+							>
+						</button>
+						<button
+							type="button"
+							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+							'branco'
+								? 'border-primary-500 bg-primary-500/10 text-primary-600'
+								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							onclick={() => (modoCriacao = 'branco')}
 						>
-					</button>
-					<button
-						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-						'branco'
-							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-						onclick={() => (modoCriacao = 'branco')}
-					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
-							>Em branco</span
+							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
+								>Em branco</span
+							>
+							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+								>Sem equipes</span
+							>
+						</button>
+						<button
+							type="button"
+							class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
+							'clonada'
+								? 'border-primary-500 bg-primary-500/10 text-primary-600'
+								: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
+							onclick={() => (modoCriacao = 'clonada')}
+							disabled={escalas.length === 0}
 						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-							>Sem equipes</span
-						>
-					</button>
-					<button
-						type="button"
-						class="btn py-2 rounded-lg flex flex-col items-center gap-0.5 border transition-all min-h-0 {modoCriacao ===
-						'clonada'
-							? 'border-primary-500 bg-primary-500/10 text-primary-600'
-							: 'border-surface-200 dark:border-surface-700 text-surface-500'}"
-						onclick={() => (modoCriacao = 'clonada')}
-						disabled={escalas.length === 0}
-					>
-						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
-						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
-							>De outra</span
-						>
-					</button>
-				</div>
-
-				{#if modoCriacao === 'clonada'}
-					<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
-						<label
-							for="clonarDe"
-							class="text-[0.6rem] font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
-							>Escolha a escala de origem</label
-						>
-						<select
-							id="clonarDe"
-							bind:value={clonarDeId}
-							class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
-						>
-							{#each escalas.slice(0, 10) as esc}
-								<option value={esc.id}>
-									GISE — {diaSemana(esc.data_inicio)}
-									{fmtDate(esc.data_inicio)} ({esc.status})
-								</option>
-							{/each}
-						</select>
+							<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
+							>
+							<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+								>De outra</span
+							>
+						</button>
 					</div>
-				{/if}
-			</div>
 
+					{#if modoCriacao === 'clonada'}
+						<div class="mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+							<label
+								for="clonarDe"
+								class="text-[0.6rem] font-medium text-surface-500 dark:text-surface-400 block mb-0.5"
+								>Escolha a escala de origem</label
+							>
+							<select
+								id="clonarDe"
+								bind:value={clonarDeId}
+								class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
+							>
+								{#each escalas.slice(0, 10) as esc}
+									<option value={esc.id}>
+										GISE — {diaSemana(esc.data_inicio)}
+										{fmtDate(esc.data_inicio)} ({esc.status})
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+			</div>
 			<div class="flex justify-end gap-2 pt-1">
 				<button
 					type="button"
@@ -1731,7 +1736,7 @@
 		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
 		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
 		bind:control={painelTokenGiseControl}
-		onSuccess={async () => { giseParaAssinar = null; await invalidate(page.url.pathname); }}
+		onSuccess={async () => { giseParaAssinar = null; await invalidateAll(); }}
 	/>
 </div>
 
