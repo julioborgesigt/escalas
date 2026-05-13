@@ -43,6 +43,9 @@
 		)
 	);
 
+	/** Verdadeiro quando não há nada pendente NEM nada concluído — escala sem equipes escaladas ainda. */
+	const semAtividade = $derived(quantidadePendentes === 0 && concluidosExtra.length === 0);
+
 	function nomeSeccional(seccionalId: number): string {
 		const s = seccionais?.find((x: any) => x.seccional_id === seccionalId);
 		return s?.seccional_nome?.trim() || `Seccional #${seccionalId}`;
@@ -71,12 +74,16 @@
 			<div
 				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {quantidadePendentes > 0
 					? 'bg-warning-100 dark:bg-warning-900/30'
-					: 'bg-success-100 dark:bg-success-900/30'}"
+					: semAtividade
+						? 'bg-surface-100 dark:bg-surface-800'
+						: 'bg-success-100 dark:bg-success-900/30'}"
 			>
 				<svg
 					class="w-3.5 h-3.5 {quantidadePendentes > 0
 						? 'text-warning-600 dark:text-warning-400'
-						: 'text-success-600 dark:text-success-400'}"
+						: semAtividade
+							? 'text-surface-400 dark:text-surface-500'
+							: 'text-success-600 dark:text-success-400'}"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -87,6 +94,13 @@
 							stroke-linejoin="round"
 							stroke-width="2"
 							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+						/>
+					{:else if semAtividade}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
 						/>
 					{:else}
 						<path
@@ -104,6 +118,12 @@
 						class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
 					>
 						{quantidadePendentes} pendente{quantidadePendentes !== 1 ? 's' : ''}
+					</span>
+				{:else if semAtividade}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-500 dark:text-surface-400"
+					>
+						Aguardando escalas
 					</span>
 				{:else}
 					<span
@@ -144,6 +164,10 @@
 				{#if quantidadePendentes > 0}
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 						Assine todos os relatórios extraordinários pendentes de uma só vez.
+					</p>
+				{:else if semAtividade}
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						Nenhuma equipe foi escalada ainda. Os relatórios aparecerão aqui quando as seccionais enviarem suas escalas.
 					</p>
 				{:else}
 					<p class="text-[0.68rem] leading-snug text-success-600 dark:text-success-400 font-medium">

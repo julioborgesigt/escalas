@@ -600,7 +600,7 @@
 					</div>
 				</div>
 
-				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao}
+				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection}
 					{@const mostrarColEscala =
 						!!documentoAssinadoInfo?.existe ||
 						mostrarPainelAssinaturaEscala ||
