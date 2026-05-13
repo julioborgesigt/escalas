@@ -762,7 +762,22 @@
 					assinatura.rubricaCapturada = null;
 					await invalidate('gise:detail');
 				}}
-			/>
+			>
+				{#snippet loteSection()}
+					{#if pendentesExtra.length > 0}
+						<GiseLoteAssinaturas
+							quantidadePendentes={pendentesExtra.length}
+							assinandoLote={assinatura.assinandoLote}
+							etapaAssinatura={assinatura.etapaAssinatura}
+							progressoLote={assinatura.progressoLote}
+							{isMobile}
+							restringirSmartphone={data.restringirSmartphone}
+							onAssinarManualLote={assinatura.abrirAssinaturaLote}
+							onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
+						/>
+					{/if}
+				{/snippet}
+			</GiseSupervisao>
 		{/if}
 
 		<GiseBannersAssinaturas
@@ -770,19 +785,6 @@
 			supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 			seccionais={gise.seccionais}
 		/>
-
-		{#if pendentesExtra.length > 0}
-			<GiseLoteAssinaturas
-				quantidadePendentes={pendentesExtra.length}
-				assinandoLote={assinatura.assinandoLote}
-				etapaAssinatura={assinatura.etapaAssinatura}
-				progressoLote={assinatura.progressoLote}
-				{isMobile}
-				restringirSmartphone={data.restringirSmartphone}
-				onAssinarManualLote={assinatura.abrirAssinaturaLote}
-				onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
-			/>
-		{/if}
 
 		<div class="flex items-center gap-3 my-6">
 			<hr class="flex-1 border-surface-200 dark:border-white/10" />

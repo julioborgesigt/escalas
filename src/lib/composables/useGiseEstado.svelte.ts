@@ -90,16 +90,16 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 	}
 
-	// Detecção de mobile
-	let isMobile = $state(true);
+	// Detecção de mobile via matchMedia (confiável e reativa a resize)
+	let isMobile = $state(
+		typeof window !== 'undefined' ? !window.matchMedia('(min-width: 768px)').matches : true
+	);
 	$effect(() => {
-		if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-			isMobile =
-				/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-					navigator.userAgent
-				) ||
-				(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
-		}
+		const mql = window.matchMedia('(min-width: 768px)');
+		isMobile = !mql.matches;
+		const handler = (e: MediaQueryListEvent) => (isMobile = !e.matches);
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
 	});
 
 	return {

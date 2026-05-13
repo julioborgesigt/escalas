@@ -52,7 +52,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const escalaIds = escalas.map(e => e.id);
 
 	// Batch all related data in parallel instead of N+1 per escala
-	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows, extrasPendentesRows, seccionaisEnviadasRows] = await Promise.all([
+	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows, extrasPendIdsRows, seccionaisEnviadasRows] = await Promise.all([
 		db
 			.select({ gise_id: gisePresencas.gise_id })
 			.from(gisePresencas)
@@ -100,9 +100,9 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(inArray(giseSeccionais.gise_id, escalaIds))
 			.all(),
-		// Seccionais com saída confirmada mas extra ainda não assinado (extras prontos para assinar)
+		// IDs das seccionais com saída confirmada mas extra ainda não assinado
 		db
-			.select({ gise_id: giseSeccionais.gise_id, count: sql<number>`count(distinct ${giseSeccionais.seccional_id})` })
+			.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
 			.from(giseSeccionais)
 			.innerJoin(giseEquipes, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.innerJoin(giseMembros, eq(giseMembros.equipe_id, giseEquipes.id))
@@ -125,7 +125,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 					)`
 				)
 			)
-			.groupBy(giseSeccionais.gise_id)
+			.groupBy(giseSeccionais.gise_id, giseSeccionais.seccional_id)
 			.all(),
 		// Seccionais que já finalizaram o envio de sua escala (status != 'pendente')
 		db
@@ -141,7 +141,11 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const secCountMap = new Map(secCountRows.map(r => [r.gise_id, r.count]));
 	const assExtraMap = new Map(assExtraRows.map(r => [r.gise_id, r.count]));
 	const membroSecMap = new Map((membroSecRows as Array<{ gise_id: number; seccional_id: number }>).map(r => [r.gise_id, r.seccional_id]));
-	const extrasPendMap = new Map(extrasPendentesRows.map(r => [r.gise_id, r.count]));
+	const extrasPendIdsMap = new Map<number, number[]>();
+	for (const r of extrasPendIdsRows) {
+		if (!extrasPendIdsMap.has(r.gise_id)) extrasPendIdsMap.set(r.gise_id, []);
+		extrasPendIdsMap.get(r.gise_id)!.push(r.seccional_id);
+	}
 	const secEnvMap = new Map(seccionaisEnviadasRows.map(r => [r.gise_id, r.count]));
 	const equipeTypesMap = new Map<string, Set<string>>();
 	for (const row of equipeTypesRows as Array<{ gise_id: number; seccional_id: number; tipo: string }>) {
@@ -164,7 +168,8 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		assinaturasRelatorioExtra: assExtraMap.get(e.id) ?? 0,
 		policialSeccionalId: membroSecMap.get(e.id) ?? null,
 		seccionais: seccionaisMap.get(e.id) ?? [],
-		extrasPendentes: extrasPendMap.get(e.id) ?? 0,
+		extrasPendentesIds: extrasPendIdsMap.get(e.id) ?? [],
+		extrasPendentes: (extrasPendIdsMap.get(e.id) ?? []).length,
 		seccionaisEnviadas: secEnvMap.get(e.id) ?? 0
 	}));
 }
