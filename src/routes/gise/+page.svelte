@@ -481,6 +481,7 @@
 
 	// Dropdowns de download do histórico
 	let dropdownAberto = $state<{ escalaId: number; tipo: 'prod' | 'extra' } | null>(null);
+	let menuExpandidoId = $state<number | null>(null);
 
 	function toggleDropdown(escalaId: number, tipo: 'prod' | 'extra', ev: MouseEvent) {
 		ev.stopPropagation();
@@ -769,7 +770,9 @@
 					'bg-surface-400'}
 				{@const totalExtras = ativa.totalSeccionais + 1}
 				{@const escalaConcluida = ['em_andamento','aguardando_relatorios','aguardando_assinatura_relat','pronta_para_finalizar','finalizada'].includes(ativa.status)}
-				{@const extraConcluido = (ativa.assinaturasRelatorioExtra ?? 0) >= totalExtras}
+				{@const jaAssinados = ativa.assinaturasRelatorioExtra ?? 0}
+				{@const extraConcluido = jaAssinados >= totalExtras}
+				{@const extraParcial = jaAssinados > 0 && jaAssinados < totalExtras}
 				<div class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group">
 					<!-- Status color strip -->
 					<div class="h-1 {statusStrip}"></div>
@@ -797,44 +800,19 @@
 
 						<!-- Actions -->
 						<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-							<Popover positioning={{ placement: 'bottom-start', offset: { mainAxis: 4 } }}>
-								<Popover.Trigger class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto">
-									Opções ▾
-								</Popover.Trigger>
-								<Portal>
-									<Popover.Positioner class="z-50">
-										<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]">
-											<button
-												type="button"
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-												onclick={() => goto(`/gise/${ativa.id}`)}
-											>
-												Editar
-											</button>
-											<a
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-												href="/api/gise/{ativa.id}/download?format=pdf"
-												target="_blank"
-											>
-												Escala PDF
-											</a>
-											<a
-												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-												href="/api/gise/{ativa.id}/download?format=extraordinario"
-												target="_blank"
-											>
-												Relat. Extra PDF
-											</a>
-										</Popover.Content>
-									</Popover.Positioner>
-								</Portal>
-							</Popover>
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto"
+								onclick={() => (menuExpandidoId = menuExpandidoId === ativa.id ? null : ativa.id)}
+							>
+								Opções {menuExpandidoId === ativa.id ? '▴' : '▾'}
+							</button>
 
 							{#if isSupervisor && ativa.supervisor_id === data.usuario?.id}
 								<div class="flex gap-2">
 									<button
 										type="button"
-										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status === 'aguardando_assinatura' ? 'preset-filled-success-500' : escalaConcluida ? 'preset-tonal-success opacity-80' : 'preset-tonal-surface opacity-70'}"
+										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status === 'aguardando_assinatura' ? 'preset-filled-warning-500 text-warning-950' : escalaConcluida ? 'preset-filled-success-500 text-white' : 'preset-tonal-surface opacity-70'}"
 										onclick={() => clicarAssEscala(ativa)}
 										title={ativa.status === 'aguardando_assinatura' ? (isDesktop ? 'Assinar via Token' : 'Assinar em Tela') : escalaConcluida ? 'Escala já assinada' : 'Ver o que falta para assinar'}
 									>
@@ -848,7 +826,7 @@
 
 									<button
 										type="button"
-										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.extrasPendentes > 0 ? 'preset-filled-warning-500' : extraConcluido ? 'preset-tonal-warning opacity-80' : 'preset-tonal-surface opacity-70'}"
+										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido ? 'preset-filled-success-500 text-white' : extraParcial ? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600' : ativa.extrasPendentes > 0 ? 'preset-filled-warning-500 text-warning-950' : 'preset-tonal-surface opacity-70'}"
 										onclick={() => clicarAssExtra(ativa)}
 										title={ativa.extrasPendentes > 0 ? (isDesktop ? 'Assinar extras via Token' : 'Assinar extras em Tela') : extraConcluido ? 'Todos os extras assinados' : 'Ver status dos extras'}
 									>
@@ -857,11 +835,41 @@
 												<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 											</svg>
 										{/if}
-										Ass. Extra ({ativa.extrasPendentes}/{totalExtras})
+										Ass. Extra ({jaAssinados}/{totalExtras})
 									</button>
 								</div>
 							{/if}
 						</div>
+
+						<!-- Opções expandidas (Cortina) -->
+						{#if menuExpandidoId === ativa.id}
+							<div
+								transition:slide={{ duration: 200 }}
+								class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 mt-1"
+							>
+								<button
+									type="button"
+									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all"
+									onclick={() => goto(`/gise/${ativa.id}`)}
+								>
+									Editar GISE
+								</button>
+								<a
+									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-surface-200 dark:hover:preset-filled-surface-700 transition-all no-underline"
+									href="/api/gise/{ativa.id}/download?format=pdf"
+									target="_blank"
+								>
+									Escala PDF
+								</a>
+								<a
+									class="btn w-full justify-start preset-filled-surface-100 dark:preset-filled-surface-800 text-sm py-2 px-3 border border-surface-200 dark:border-surface-700 hover:preset-filled-surface-200 dark:hover:preset-filled-surface-700 transition-all no-underline"
+									href="/api/gise/{ativa.id}/download?format=extraordinario"
+									target="_blank"
+								>
+									Relat. Extra PDF
+								</a>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/each}
