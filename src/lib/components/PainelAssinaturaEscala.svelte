@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
 	import SignaturePad from './SignaturePad.svelte';
@@ -140,6 +141,7 @@
 	let dialogSignOpen = $derived(assinatura.dialogSignOpen);
 
 	let dialogRevogacaoAberto = $state(false);
+	let painelAberto = $state(false);
 
 	function revogarAssinatura() {
 		dialogRevogacaoAberto = true;
@@ -679,269 +681,172 @@
 		</div>
 	{/if}
 
-	<!-- SEÇÃO DE ASSINATURA (padrão visual idêntico ao da escala GISE) -->
+	<!-- SEÇÃO DE ASSINATURA -->
 	{@const podeAssinar =
 		usuario?.tipo === 'admin' ||
 		((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') &&
 			usuario?.cargo === 'DPC')}
 	{#if podeAssinar && !documentoAssinadoInfo?.existe && policiaisCount > 0}
-		<div class="space-y-4 mb-6">
-			<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
-				Ao confirmar, você atesta que esta assinatura tem valor jurídico equivalente à manuscrita,
-				conforme o
-				<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600"
-					>Termo de Uso</a
+		<div class="mb-6">
+			<!-- Botão toggle -->
+			<button
+				type="button"
+				class="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 {painelAberto
+					? 'bg-surface-200/80 dark:bg-surface-800/80 border-surface-300 dark:border-surface-600'
+					: 'bg-surface-100/60 dark:bg-surface-900/60 border-surface-200 dark:border-white/8 hover:border-primary-400/40'}"
+				onclick={() => (painelAberto = !painelAberto)}
+			>
+				<span class="flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-200">
+					<svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+					</svg>
+					Opções de Assinatura
+				</span>
+				<svg
+					class="w-4 h-4 text-surface-400 transition-transform duration-200 {painelAberto ? 'rotate-180' : ''}"
+					fill="none" viewBox="0 0 24 24" stroke="currentColor"
 				>
-				aceito.
-			</p>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</button>
 
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<!-- CARD 1: ASSINATURA NA TELA (MANUAL) — padrão warning, igual GISE -->
-				<div
-					class="card p-4 sm:p-5 bg-warning-500/5 border border-warning-500/20 rounded-2xl shadow-sm space-y-3"
-				>
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<svg
-								class="w-5 h-5 text-warning-600 dark:text-warning-400"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-								/>
-							</svg>
-							<h4 class="font-bold text-sm text-surface-700 dark:text-surface-200">
-								Assinar na Tela
-							</h4>
-						</div>
-						{#if !isMobile}
-							<span
-								class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-surface-200 dark:bg-surface-700 text-surface-500 tracking-tighter"
-								>Mobile Only</span
-							>
-						{/if}
-					</div>
-
-					<p class="text-xs text-surface-500 leading-relaxed italic">
-						Gera o PDF com sua rubrica desenhada diretamente na tela do dispositivo.
-						<strong>Ideal para tablets e smartphones.</strong>
+			{#if painelAberto}
+				<div transition:slide={{ duration: 220 }} class="mt-3 space-y-3">
+					<p class="text-[10px] text-surface-400 dark:text-surface-500 italic px-1">
+						Ao confirmar, você atesta valor jurídico equivalente à assinatura manuscrita, conforme o
+						<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-500">Termo de Uso</a> aceito.
 					</p>
 
-					{#if isMobile}
-						<button
-							type="button"
-							class="btn preset-filled-warning-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full"
-							disabled={loading.active}
-							onclick={abrirModalAssinatura}
-						>
-							Abrir Painel de Rubrica
-						</button>
-					{:else}
-						<div
-							class="p-3 py-4 rounded-xl bg-error-500/5 border border-error-500/10 flex items-center justify-center"
-						>
-							<p
-								class="text-[0.6rem] text-error-600 font-bold uppercase tracking-tight text-center"
-							>
-								RESTRITO A DISPOSITIVOS MÓVEIS. UTILIZE O TOKEN A3 NO COMPUTADOR.
-							</p>
-						</div>
-					{/if}
-				</div>
-
-				<!-- CARD 2: ASSINATURA DIGITAL (TOKEN A3) — padrão tertiary, igual GISE -->
-				<div
-					class="card p-4 sm:p-5 bg-tertiary-500/5 border border-tertiary-500/20 rounded-2xl shadow-sm space-y-3"
-				>
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-2">
-							<svg
-								class="w-5 h-5 text-tertiary-600 dark:text-tertiary-400"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-								/>
-							</svg>
-							<h4 class="font-bold text-sm text-surface-700 dark:text-surface-200 tracking-tight">
-								Assinatura Digital (Token A3)
-							</h4>
-						</div>
-						{#if !isMobile}
-							<span
-								class="text-[0.6rem] font-black uppercase px-2 py-0.5 rounded bg-tertiary-500 text-white tracking-tighter"
-								>RECOMENDADO</span
-							>
-						{/if}
-					</div>
-
-					<p class="text-xs text-surface-500 leading-relaxed italic">
-						Assinatura <strong>Qualificada (ICP-Brasil)</strong> rápida e segura via Token A3 (SERPRO).
-					</p>
-
-					{#if !isMobile}
-						<!-- Dados do assinante (compacto, igual ao GiseSupervisao) -->
-						{#if usuario?.nome || usuario?.cpf}
-							<div
-								class="p-3 bg-surface-100/60 dark:bg-surface-800/40 rounded-xl border border-surface-200 dark:border-white/5 flex gap-3 items-center"
-							>
-								<div class="bg-tertiary-500/10 p-2 rounded-lg shrink-0">
-									<svg
-										class="w-4 h-4 text-tertiary-600 dark:text-tertiary-400"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-										/>
-									</svg>
-								</div>
-								<div class="min-w-0 flex-1">
-									<p
-										class="font-bold text-xs text-surface-800 dark:text-surface-100 uppercase truncate"
-									>
-										{usuario?.nome || 'Não informado'}
-									</p>
-									<p class="text-[0.6rem] text-surface-400 font-mono">
-										{usuario?.cpf
-											? usuario.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-											: 'CPF não cadastrado'}
-									</p>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<!-- Card 1: Assinar na Tela -->
+						<div class="flex items-center justify-between px-4 py-3 rounded-xl border bg-warning-500/5 border-warning-500/20">
+							<div class="flex items-center gap-2 min-w-0">
+								<svg class="w-4 h-4 text-warning-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+								</svg>
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none">Rubrica na Tela</p>
+									<p class="text-[10px] text-surface-400 mt-0.5">Ideal para tablets e smartphones</p>
 								</div>
 							</div>
-						{/if}
-						<button
-							type="button"
-							class="btn preset-filled-tertiary-500 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 w-full flex items-center justify-center gap-2"
-							disabled={loading.active}
-							onclick={() => painelTokenControl?.assinarComSerpro()}
-						>
-							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-								/>
+							{#if isMobile}
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+									disabled={loading.active}
+									onclick={abrirModalAssinatura}
+								>Assinar</button>
+							{:else}
+								<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0">Mobile only</span>
+							{/if}
+						</div>
+
+						<!-- Card 2: Token A3 -->
+						<div class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20">
+							<div class="flex items-center gap-2 min-w-0">
+								<svg class="w-4 h-4 text-tertiary-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+								</svg>
+								<div class="min-w-0">
+									<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none">Token A3 <span class="text-[9px] font-black text-tertiary-500 uppercase">ICP-Brasil</span></p>
+									<p class="text-[10px] text-surface-400 mt-0.5">Via Assinador SERPRO (desktop)</p>
+								</div>
+							</div>
+							{#if !isMobile}
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+									disabled={loading.active}
+									onclick={() => painelTokenControl?.assinarComSerpro()}
+								>Assinar</button>
+							{:else}
+								<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0">Desktop only</span>
+							{/if}
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- PainelAssinaturaToken oculto -->
+			<div class="sr-only" aria-hidden="true">
+				<PainelAssinaturaToken
+					bind:control={painelTokenControl}
+					signerName={usuario?.nome ?? undefined}
+					signerCpf={usuario?.cpf ?? undefined}
+					prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
+					finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
+					nomeArquivo="escala_assinada.pdf"
+					disabled={assinando}
+					onSuccess={async () => {
+						await invalidateAll();
+					}}
+				/>
+			</div>
+		</div>
+
+		<!-- OIP: painel de solicitação de assinatura (oculto para DPC — eles assinam diretamente) -->
+		{#if podeOIPSolicitar && !documentoAssinadoInfo?.existe && usuario?.cargo !== 'DPC'}
+			{#if solicitacaoLocal}
+				<div class="mb-6 p-3 bg-warning-500/10 border border-warning-500/25 rounded-2xl shadow-sm">
+					<div class="flex items-center gap-3">
+						<div class="w-9 h-9 rounded-xl bg-warning-500/20 flex items-center justify-center shrink-0">
+							<svg class="w-4 h-4 text-warning-600 dark:text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
 							</svg>
-							{loading.active ? 'Assinando...' : 'Assinar com Token A3 (SERPRO)'}
-						</button>
-						<p class="text-[0.6rem] text-surface-400 italic leading-tight">
-							Requer o <a
-								href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
-								target="_blank"
-								rel="noopener"
-								class="underline">Assinador Desktop SERPRO</a
-							> instalado e aberto.
-						</p>
-					{:else}
-						<div
-							class="p-3 py-4 rounded-xl bg-surface-500/10 border border-surface-500/20 flex items-center justify-center"
-						>
-							<p
-								class="text-[0.6rem] text-surface-500 font-bold uppercase tracking-tight text-center"
-							>
-								RECURSO DISPONÍVEL APENAS EM NAVEGADORES DESKTOP.
+						</div>
+						<div class="flex-1 min-w-0">
+							<p class="font-bold text-sm text-warning-800 dark:text-warning-300 leading-tight">Aguardando Assinatura</p>
+							<p class="text-xs text-warning-600 dark:text-warning-400 mt-0.5 truncate">
+								{solicitacaoLocal.tipo === 'respondencia' ? 'Aguardando delegado em respondência' : 'Aguardando admin da unidade'}
 							</p>
 						</div>
-					{/if}
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-error-500 shrink-0 font-semibold text-xs px-3"
+							onclick={cancelarSolicitacao}
+						>Cancelar</button>
+					</div>
 				</div>
-			</div>
-		</div>
-
-		<!-- PainelAssinaturaToken montado fora da tela (padrão GISE): expõe `assinarComSerpro` para o botão do card 2 -->
-		<div class="sr-only" aria-hidden="true">
-			<PainelAssinaturaToken
-				bind:control={painelTokenControl}
-				signerName={usuario?.nome ?? undefined}
-				signerCpf={usuario?.cpf ?? undefined}
-				prepararUrl="/api/escalas/{escalaId}/preparar-assinatura"
-				finalizarUrl="/api/escalas/{escalaId}/finalizar-assinatura"
-				nomeArquivo="escala_assinada.pdf"
-				disabled={assinando}
-				onSuccess={async () => {
-					await invalidateAll();
-				}}
-			/>
-		</div>
-	{/if}
-
-	<!-- OIP: painel de solicitação de assinatura (oculto para DPC — eles assinam diretamente) -->
-	{#if podeOIPSolicitar && !documentoAssinadoInfo?.existe && usuario?.cargo !== 'DPC'}
-		{#if solicitacaoLocal}
-			<div class="mb-6 p-3 bg-warning-500/10 border border-warning-500/25 rounded-2xl shadow-sm">
-				<div class="flex items-center gap-3">
-					<div class="w-9 h-9 rounded-xl bg-warning-500/20 flex items-center justify-center shrink-0">
-						<svg class="w-4 h-4 text-warning-600 dark:text-warning-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-						</svg>
+			{:else}
+				<div class="mb-6 p-3 bg-surface-100/80 dark:bg-surface-800/60 border border-surface-200 dark:border-white/10 rounded-2xl shadow-sm">
+					<div class="flex items-center gap-3">
+						<div class="w-9 h-9 rounded-xl bg-success-500/15 flex items-center justify-center shrink-0">
+							<svg class="w-4 h-4 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+							</svg>
+						</div>
+						<div class="flex-1 min-w-0">
+							<p class="font-bold text-sm text-surface-700 dark:text-surface-200 leading-tight">Solicitar Assinatura</p>
+							<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado para assinar.</p>
+						</div>
+						<button
+							type="button"
+							class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 active:scale-95 transition-all"
+							onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; dialogSolicitarAberto = true; }}
+						>
+							Solicitar
+						</button>
 					</div>
-					<div class="flex-1 min-w-0">
-						<p class="font-bold text-sm text-warning-800 dark:text-warning-300 leading-tight">Aguardando Assinatura</p>
-						<p class="text-xs text-warning-600 dark:text-warning-400 mt-0.5 truncate">
-							{solicitacaoLocal.tipo === 'respondencia' ? 'Aguardando delegado em respondência' : 'Aguardando admin da unidade'}
-						</p>
-					</div>
-					<button
-						type="button"
-						class="btn btn-sm preset-outlined-error-500 shrink-0 font-semibold text-xs px-3"
-						onclick={cancelarSolicitacao}
-					>Cancelar</button>
 				</div>
-			</div>
-		{:else}
-			<div class="mb-6 p-3 bg-surface-100/80 dark:bg-surface-800/60 border border-surface-200 dark:border-white/10 rounded-2xl shadow-sm">
-				<div class="flex items-center gap-3">
-					<div class="w-9 h-9 rounded-xl bg-success-500/15 flex items-center justify-center shrink-0">
-						<svg class="w-4 h-4 text-success-600 dark:text-success-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-						</svg>
-					</div>
-					<div class="flex-1 min-w-0">
-						<p class="font-bold text-sm text-surface-700 dark:text-surface-200 leading-tight">Solicitar Assinatura</p>
-						<p class="text-xs text-surface-500 mt-0.5">Notifique o delegado para assinar.</p>
-					</div>
-					<button
-						type="button"
-						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 active:scale-95 transition-all"
-						onclick={() => { opcaoSolicitacao = 'unidade'; destinatarioSelecionado = null; buscaDestinatario = ''; resultadosBuscaDestinatario = []; dialogSolicitarAberto = true; }}
-					>
-						Solicitar
-					</button>
-				</div>
-			</div>
+			{/if}
 		{/if}
-	{/if}
 
-	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
-	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
-		<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
-			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
-		>
-		<div class="flex gap-2 flex-wrap">
-			{#each ['DOCX', 'XLSX', 'PDF'] as format}
-				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
-					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
-					target="_blank">{format}</a
-				>
-			{/each}
+		<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
+		<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
+			<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
+				>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
+			>
+			<div class="flex gap-2 flex-wrap">
+				{#each ['DOCX', 'XLSX', 'PDF'] as format}
+					<a
+						class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+						href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
+						target="_blank">{format}</a
+					>
+				{/each}
+			</div>
 		</div>
-	</div>
+	{/if}
 {/if}
 <!-- ===== FIM BLOCO ASSINATURA ===== -->
 
@@ -957,7 +862,6 @@
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
 				Quem deve assinar esta escala?
 			</Dialog.Description>
-
 			<div class="space-y-3 mb-5">
 				<button
 					type="button"
@@ -976,7 +880,6 @@
 						</div>
 					</div>
 				</button>
-
 				<button
 					type="button"
 					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao === 'respondencia'
@@ -994,7 +897,6 @@
 						</div>
 					</div>
 				</button>
-
 				{#if opcaoSolicitacao === 'respondencia'}
 					<div class="pl-4 space-y-2 pt-1">
 						{#if destinatarioSelecionado}
@@ -1037,7 +939,6 @@
 					</div>
 				{/if}
 			</div>
-
 			<div class="flex gap-3 justify-end">
 				<button type="button" class="btn preset-outlined-surface-500" onclick={() => (dialogSolicitarAberto = false)}>Cancelar</button>
 				<button
@@ -1063,7 +964,6 @@
 				Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade
 				jurídica (nos moldes da assinatura eletrônica).
 			</Dialog.Description>
-
 			<SignaturePad
 				message="Rubrica do Organizador"
 				onConfirm={assinarSimples}

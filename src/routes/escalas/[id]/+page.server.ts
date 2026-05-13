@@ -32,11 +32,12 @@ import {
 	calcularDataSaida,
 	MESES_PT
 } from '$lib/rotacao';
+import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 /**
- * Garante que o usuário tem permissão para mutar a escala alvo.
- * Sem isto, qualquer usuário autenticado poderia chamar form actions diretamente
- * (POST para `/escalas/<id>/?/adicionar` etc.) e modificar escalas de outras lotações.
+ * Garante que o usuário tem permissão para mutar a escala alvo (adicionar/remover policiais etc.).
+ * DPC admins com solicitação de assinatura podem VISUALIZAR e ASSINAR, mas não mutam
+ * diretamente a escala — portanto essa função mantém a restrição por lotação para mutations.
  * Devolve a `escala` carregada para reaproveitamento; ou um `fail()` pronto para retornar.
  */
 async function carregarEscalaComPermissao(
@@ -101,9 +102,15 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 	if (!escala) throw redirect(302, '/escalas');
 
-	// Verificar acesso do policial após carregar os dados (evita query duplicada)
+	// Policial: s\u00f3 v\u00ea sua pr\u00f3pria lota\u00e7\u00e3o
 	if (u.tipo === 'policial' && escala.lotacao !== u.lotacao) {
 		throw redirect(302, '/escalas');
+	}
+
+	// Admin seccional/unidade fora da lota\u00e7\u00e3o: verifica solicita\u00e7\u00e3o de assinatura
+	if (u.tipo !== 'admin' && u.tipo !== 'policial' && u.lotacao !== escala.lotacao) {
+		const perm = await verificarPermissaoEscala(getDB(platform), escalaId, escala.lotacao, u);
+		if (!perm.permitido) throw redirect(302, '/escalas');
 	}
 
 	const oipPodeSolicitar = podeOIPSolicitar(u);

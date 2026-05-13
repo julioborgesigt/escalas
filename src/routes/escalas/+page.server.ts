@@ -107,10 +107,15 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 					data_inicio: escalasTable.data_inicio,
 					data_fim: escalasTable.data_fim,
 					tipo: escalasTable.tipo,
-					lotacao: escalasTable.lotacao
+					lotacao: escalasTable.lotacao,
+					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 				})
 				.from(escalasTable)
-				.where(baseWhere)
+				.where(and(
+					or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
+					// Admin geral vê apenas as não assinadas nas pendências, para não poluir
+					sql`${escalasTable.id} NOT IN (${subqDocs})` as any
+				))
 				.orderBy(desc(escalasTable.created_at))
 				.limit(50) as any;
 		} else {
@@ -148,14 +153,18 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 					data_inicio: escalasTable.data_inicio,
 					data_fim: escalasTable.data_fim,
 					tipo: escalasTable.tipo,
-					lotacao: escalasTable.lotacao
+					lotacao: escalasTable.lotacao,
+					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 				})
 				.from(escalasTable)
 				.innerJoin(
 					escalaSolicitacoesAssinatura,
 					eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
 				)
-				.where(scopeCondition ? and(baseWhere!, scopeCondition!) : baseWhere)
+				.where(scopeCondition 
+					? and(or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!, scopeCondition!) 
+					: or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!
+				)
 				.orderBy(desc(escalasTable.created_at))
 				.limit(50) as any;
 		}
@@ -230,6 +239,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			id: number; titulo: string; cidade: string;
 			data_inicio: string; data_fim: string;
 			tipo: string; lotacao: string;
+			is_assinada: boolean;
 		}>
 	};
 };

@@ -4,6 +4,7 @@ import { getDB, getR2, hasR2, buscarDocumentoEscala, excluirDocumentoEscala, bus
 import { registrarAuditComContexto } from '$lib/db';
 import { contentDisposition } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
+import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	const u = locals.usuario;
@@ -47,8 +48,9 @@ export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
 	const escala = await buscarEscala(db, id);
 	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
-	// Somente admin ou o dono da lotação pode revogar
-	if (u.tipo !== 'admin' && u.lotacao !== escala.lotacao) {
+	// Somente admin, dono da lotação ou DPC admin com solicitação pode revogar
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) {
 		return json({ error: 'Apenas administradores podem revogar assinaturas' }, { status: 403 });
 	}
 
