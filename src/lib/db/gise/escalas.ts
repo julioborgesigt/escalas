@@ -52,7 +52,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const escalaIds = escalas.map(e => e.id);
 
 	// Batch all related data in parallel instead of N+1 per escala
-	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows, extrasPendIdsRows, seccionaisEnviadasRows] = await Promise.all([
+	const parallelResults = await Promise.all([
 		db
 			.select({ gise_id: gisePresencas.gise_id })
 			.from(gisePresencas)
@@ -136,7 +136,17 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.all()
 	]);
 
-	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows, extrasPendIdsRows, seccionaisEnviadasRows, supUid] = parallelResults;
+	const [
+		saidasRows,
+		secCountRows,
+		assExtraRows,
+		supUid,
+		membroSecRows,
+		seccionalIdsRows,
+		equipeTypesRows,
+		extrasPendIdsRows,
+		seccionaisEnviadasRows
+	] = parallelResults as [any, any, any, number | null, any, any, any, any, any];
 
 	// Coleta presenças da supervisão para todas as escalas
 	const todosSupIds = new Set<number>();
@@ -153,8 +163,8 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	}
 
 	// Build lookup maps for O(1) access
-	const saidasSet = new Set(saidasRows.map(r => r.gise_id));
-	const secCountMap = new Map(secCountRows.map(r => [r.gise_id, r.count]));
+	const saidasSet = new Set((saidasRows as Array<{ gise_id: number }>).map(r => r.gise_id));
+	const secCountMap = new Map((secCountRows as Array<{ gise_id: number; count: number }>).map(r => [r.gise_id, r.count]));
 	const assExtraMap = new Map<number, Set<number>>();
 	for (const r of assExtraRows as Array<{ gise_id: number; seccional_id: number }>) {
 		if (!assExtraMap.has(r.gise_id)) assExtraMap.set(r.gise_id, new Set());
@@ -166,7 +176,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		if (!extrasPendIdsMap.has(r.gise_id)) extrasPendIdsMap.set(r.gise_id, []);
 		extrasPendIdsMap.get(r.gise_id)!.push(r.seccional_id);
 	}
-	const secEnvMap = new Map(seccionaisEnviadasRows.map(r => [r.gise_id, r.count]));
+	const secEnvMap = new Map((seccionaisEnviadasRows as Array<{ gise_id: number; count: number }>).map(r => [r.gise_id, r.count]));
 	const equipeTypesMap = new Map<string, Set<string>>();
 	for (const row of equipeTypesRows as Array<{ gise_id: number; seccional_id: number; tipo: string }>) {
 		const key = `${row.gise_id}_${row.seccional_id}`;

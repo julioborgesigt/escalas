@@ -45,9 +45,9 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	try {
 		let result;
-		if (escala.tipo === 'plantao') result = gerarPdfPlantao(escala, policiais);
-		else if (escala.tipo === 'expediente') result = gerarPdfExpediente(escala, policiais);
-		else result = gerarPdf(escala, policiais);
+		if (escala.tipo === 'plantao') result = await Promise.resolve(gerarPdfPlantao(escala, policiais));
+		else if (escala.tipo === 'expediente') result = await Promise.resolve(gerarPdfExpediente(escala, policiais));
+		else result = await Promise.resolve(gerarPdf(escala, policiais));
 
 		const pdfBytes = result.pdf;
 		const sigY = result.finalY;

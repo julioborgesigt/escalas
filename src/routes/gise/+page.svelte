@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
@@ -13,16 +14,17 @@
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 
-	let { data } = $props();
+	let { data }: { data: PageData } = $props();
 
-	const escalas = $derived(data.escalas ?? []);
-	const ativas = $derived(escalas.filter((e: any) => e.status !== 'finalizada'));
-	const historico = $derived(escalas.filter((e: any) => e.status === 'finalizada'));
+	const escalas = $derived((data.escalas as any) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);
 	const isSeccional = $derived(!!data.isSeccional);
 	const isUnidade = $derived(!!data.isUnidade);
 	const isSupervisor = $derived(!!data.isSupervisor);
 	const isMembro = $derived(!!data.isMembro);
+
+	const ativas = $derived(escalas.filter((e: any) => e.status !== 'finalizada'));
+	const historico = $derived(isAdminGeral ? escalas.filter((e: any) => e.status === 'finalizada') : []);
 
 	// Usuário tem privilégios de controle/preenchimento (vê os cards)
 	const temControleGise = $derived(isAdminGeral || isSeccional || isUnidade || isSupervisor);
@@ -379,7 +381,7 @@
 	];
 
 	const anosDisponiveisHistorico = $derived(
-		[...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))].sort(
+		([...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))] as number[]).sort(
 			(a, b) => b - a
 		)
 	);
@@ -1087,7 +1089,7 @@
 	{/if}
 
 	<!-- Histórico -->
-	{#if historico.length > 0 && (isAdminGeral || isSeccional || isUnidade || isSupervisor)}
+	{#if isAdminGeral && historico.length > 0}
 		<div class="mt-8">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="text-base font-semibold text-surface-700 dark:text-surface-300">Histórico</h2>
@@ -1483,7 +1485,7 @@
 												/></svg
 											>
 										</button>
-										{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'prod'}
+										{#if dropdownAberto !== null && dropdownAberto.escalaId === escala.id && dropdownAberto.tipo === 'prod'}
 											<div
 												class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
@@ -1540,7 +1542,7 @@
 												/></svg
 											>
 										</button>
-										{#if dropdownAberto?.escalaId === escala.id && dropdownAberto.tipo === 'extra'}
+										{#if dropdownAberto !== null && dropdownAberto.escalaId === escala.id && dropdownAberto.tipo === 'extra'}
 											<div
 												class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
