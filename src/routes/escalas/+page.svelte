@@ -1142,7 +1142,7 @@
 	</div>
 {:else if visao === 'assinaturas'}
 	<div class="flex flex-col gap-6">
-		<div class="flex items-center gap-3 mb-2">
+		<div class="flex items-center gap-3">
 			<button
 				type="button"
 				class="btn btn-sm preset-outlined-surface"
@@ -1158,46 +1158,64 @@
 		</div>
 
 		{#if escalasParaAssinar.length === 0}
-			<div class="text-center py-12 text-surface-500">
-				<p>Nenhuma escala pendente de assinatura.</p>
+			<div class="text-center py-16 text-surface-500">
+				<svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+				</svg>
+				<p class="font-semibold">Nenhuma escala pendente de assinatura.</p>
 			</div>
 		{:else}
-			<div class="space-y-3">
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				{#each escalasParaAssinar as esc (esc.id)}
 					{@const dAss = new Date(esc.data_inicio + 'T00:00:00')}
-					<div
-						class="p-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm hover:border-tertiary-500/30 transition-colors"
-					>
-						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-							<div class="min-w-0">
-								{#if esc.tipo === 'expediente'}
-									<span
-										class="badge preset-outlined-secondary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
-										>Expediente</span
-									>
-								{:else if esc.tipo === 'fds'}
-									<span
-										class="badge preset-outlined-tertiary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
-										>FDS</span
-									>
-								{:else}
-									<span
-										class="badge preset-outlined-primary-500 text-xs font-bold px-2 py-0.5 mb-0.5 inline-block"
-										>Plantão</span
-									>
-								{/if}
-								<p class="font-bold text-sm text-surface-800 dark:text-surface-100 leading-tight">
-									{esc.tipo !== 'fds'
-										? `${MESES_PT[dAss.getMonth()]} ${dAss.getFullYear()}`
-										: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+					{@const isPlantao = esc.tipo === 'plantao'}
+					{@const isExp = esc.tipo === 'expediente'}
+					{@const accentBar = isPlantao ? 'bg-primary-500' : isExp ? 'bg-secondary-500' : 'bg-tertiary-500'}
+					{@const tipoBadgeClass = isPlantao
+						? 'bg-primary-500/10 text-primary-700 dark:text-primary-400'
+						: isExp
+							? 'bg-secondary-500/10 text-secondary-700 dark:text-secondary-400'
+							: 'bg-tertiary-500/10 text-tertiary-700 dark:text-tertiary-400'}
+					{@const tipoLabel = isPlantao ? 'Plantão' : isExp ? 'Expediente' : 'FDS'}
+					{@const tituloPeriodo = esc.tipo !== 'fds'
+						? `${MESES_PT[dAss.getMonth()]} ${dAss.getFullYear()}`
+						: `${formatarData(esc.data_inicio)} – ${formatarData(esc.data_fim)}`}
+
+					<div class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-tertiary-500/40 dark:hover:border-tertiary-400/20 transition-all duration-200 group">
+						<!-- Color accent strip -->
+						<div class="h-1 {accentBar}"></div>
+
+						<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
+							<!-- Badges -->
+							<div class="flex items-center gap-2 flex-wrap">
+								<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {tipoBadgeClass}">
+									{tipoLabel}
+								</span>
+								<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400">
+									<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+									</svg>
+									Aguardando assinatura
+								</span>
+							</div>
+
+							<!-- Title + meta -->
+							<div class="flex-1">
+								<p class="text-base sm:text-lg font-bold text-surface-800 dark:text-surface-100 leading-tight group-hover:text-tertiary-600 dark:group-hover:text-tertiary-300 transition-colors">
+									{tituloPeriodo}
 								</p>
-								<p class="text-xs text-surface-500 mt-0.5 truncate">
-									{esc.lotacao} · {esc.cidade}
+								<p class="text-sm font-medium text-surface-600 dark:text-surface-300 mt-1 truncate">
+									{esc.lotacao}
+								</p>
+								<p class="text-xs text-surface-400 dark:text-surface-500 mt-0.5">
+									{esc.cidade} · {formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}
 								</p>
 							</div>
-							<div class="flex gap-2 shrink-0 flex-nowrap items-center justify-end">
-								<Popover positioning={{ placement: 'bottom-end', offset: { mainAxis: 4 } }}>
-									<Popover.Trigger class="btn btn-sm preset-outlined-surface-500">
+
+							<!-- Actions -->
+							<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+								<Popover positioning={{ placement: 'bottom-start', offset: { mainAxis: 4 } }}>
+									<Popover.Trigger class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto">
 										Opções ▾
 									</Popover.Trigger>
 									<Portal>
@@ -1223,24 +1241,25 @@
 										</Popover.Positioner>
 									</Portal>
 								</Popover>
-								<button
-									type="button"
-									class="btn btn-sm preset-filled-warning-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-									disabled={assinaturaTelaBloqueada}
-									title={assinaturaTelaBloqueada
-										? 'Restrito a dispositivos móveis pelo administrador'
-										: undefined}
-									onclick={() => iniciarAssinaturaTela(esc.id)}
-								>
-									Assinar (Tela)
-								</button>
-								<button
-									type="button"
-									class="btn btn-sm preset-filled-tertiary-500 font-bold active:scale-95 transition-all"
-									onclick={() => iniciarAssinaturaToken(esc.id)}
-								>
-									Assinar (Token)
-								</button>
+
+								<div class="flex gap-2">
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+										disabled={assinaturaTelaBloqueada}
+										title={assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined}
+										onclick={() => iniciarAssinaturaTela(esc.id)}
+									>
+										Assinar (Tela)
+									</button>
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none active:scale-95 transition-all"
+										onclick={() => iniciarAssinaturaToken(esc.id)}
+									>
+										Assinar (Token)
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>

@@ -6,7 +6,12 @@
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { useScrollLock } from '$lib/composables';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { slide } from 'svelte/transition';
+	import { csrfHeaders } from '$lib/csrf';
+	import { conectarSerpro } from '$lib/serpro';
+	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
+	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 
 	let { data } = $props();
 
@@ -36,20 +41,222 @@
 	const ITEMS_POR_PAGINA = 5;
 	let paginaAtivas = $state(1);
 
-	let giseIdParaAssinar = $state<number | null>(null);
-	let tipoAssinatura = $state<'tela' | 'token' | null>(null);
+	// --- Assinatura rápida inline ---
+	type GiseParaAssinar = {
+		id: number;
+		dataInicio: string;
+		tipo: 'escala' | 'extra';
+		pendentesExtraIds: number[];
+	};
 
-	function confirmarAssinaturaRapida(id: number, tipo: 'tela' | 'token') {
-		giseIdParaAssinar = id;
-		tipoAssinatura = tipo;
+	let giseParaAssinar = $state<GiseParaAssinar | null>(null);
+	let mostrarRubricaGise = $state(false);
+	let mostrarModalTokenExtra = $state(false);
+	let painelTokenGiseControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
+
+	const tokenPrepararUrl = $derived(
+		giseParaAssinar?.tipo === 'escala'
+			? `/api/gise/${giseParaAssinar.id}/preparar-assinatura`
+			: ''
+	);
+	const tokenFinalizarUrl = $derived(
+		giseParaAssinar?.tipo === 'escala'
+			? `/api/gise/${giseParaAssinar.id}/finalizar-assinatura`
+			: ''
+	);
+	const tokenNomeArquivo = $derived(
+		giseParaAssinar?.dataInicio
+			? `gise_${giseParaAssinar.dataInicio}_confirmada.pdf`
+			: 'gise_confirmada.pdf'
+	);
+
+	function iniciarAssinaturaEscala(ativa: (typeof ativas)[0]) {
+		giseParaAssinar = {
+			id: ativa.id,
+			dataInicio: ativa.data_inicio,
+			tipo: 'escala',
+			pendentesExtraIds: []
+		};
+		if (isDesktop) {
+			// Aguarda o Svelte atualizar as URLs derivadas antes de acionar o token
+			setTimeout(() => painelTokenGiseControl?.assinarComSerpro(), 0);
+		} else {
+			mostrarRubricaGise = true;
+		}
 	}
 
-	function prosseguirAssinatura() {
-		if (giseIdParaAssinar && tipoAssinatura) {
-			goto(`/gise/${giseIdParaAssinar}?assinatura=${tipoAssinatura}`);
+	function iniciarAssinaturaExtra(ativa: (typeof ativas)[0]) {
+		giseParaAssinar = {
+			id: ativa.id,
+			dataInicio: ativa.data_inicio,
+			tipo: 'extra',
+			pendentesExtraIds: ativa.extrasPendentesIds
+		};
+		if (isDesktop) {
+			mostrarModalTokenExtra = true;
+		} else {
+			mostrarRubricaGise = true;
 		}
-		giseIdParaAssinar = null;
-		tipoAssinatura = null;
+	}
+
+	function cancelarAssinatura() {
+		mostrarRubricaGise = false;
+		mostrarModalTokenExtra = false;
+		giseParaAssinar = null;
+	}
+
+	// --- Dialog informativo para botões sempre visíveis ---
+	type DialogInfo = {
+		titulo: string;
+		linhas: string[];
+		acao?: { label: string; fn: () => void };
+	};
+	let dialogInfo = $state<DialogInfo | null>(null);
+
+	function clicarAssEscala(ativa: (typeof ativas)[0]) {
+		if (ativa.status === 'aguardando_assinatura') {
+			iniciarAssinaturaEscala(ativa);
+			return;
+		}
+		let linhas: string[] = [];
+		if (ativa.status === 'em_definicao_supervisor') {
+			linhas = ['O supervisor ainda não foi definido para esta escala.', 'Aguarde a definição para liberar a assinatura.'];
+		} else if (ativa.status === 'em_preenchimento') {
+			const faltam = ativa.totalSeccionais - ativa.seccionaisEnviadas;
+			linhas = [`Faltam ${faltam} de ${ativa.totalSeccionais} seccional(is) enviarem seus relatórios.`, 'A assinatura será liberada quando todas as seccionais concluírem o envio.'];
+		} else if (ativa.status === 'em_andamento') {
+			linhas = ['A escala está em andamento.', 'Aguarde o encerramento das atividades para assinar.'];
+		} else if (['aguardando_relatorios', 'aguardando_assinatura_relat', 'pronta_para_finalizar', 'finalizada'].includes(ativa.status)) {
+			linhas = ['A escala já foi assinada.'];
+		} else {
+			linhas = ['A assinatura da escala não está disponível no momento.'];
+		}
+		dialogInfo = { titulo: 'Ass. Escala — Indisponível', linhas };
+	}
+
+	function clicarAssExtra(ativa: (typeof ativas)[0]) {
+		const totalExtras = ativa.totalSeccionais + 1;
+		const prontos = ativa.extrasPendentes;
+
+		if (prontos > 0) {
+			const jaAssinados = ativa.assinaturasRelatorioExtra ?? 0;
+			const ainda = totalExtras - prontos - jaAssinados;
+			const linhas: string[] = [
+				`Serão assinados ${prontos} relatório(s) de extra que já estão prontos.`,
+				...(ainda > 0 ? [`Ainda faltam ${ainda} relatório(s) com saída não confirmada.`] : []),
+				...(jaAssinados > 0 ? [`${jaAssinados} relatório(s) já foram assinados anteriormente.`] : []),
+			];
+			dialogInfo = {
+				titulo: `Ass. Extra (${prontos}/${totalExtras})`,
+				linhas,
+				acao: { label: `Assinar ${prontos} relatório(s)`, fn: () => { dialogInfo = null; iniciarAssinaturaExtra(ativa); } }
+			};
+			return;
+		}
+
+		// Nenhum pronto
+		let linhas: string[] = [];
+		const jaAssinados = ativa.assinaturasRelatorioExtra ?? 0;
+		if (jaAssinados >= totalExtras) {
+			linhas = ['Todos os relatórios de extra já foram assinados.'];
+		} else if (!ativa.temSaidaConfirmada) {
+			linhas = ['Nenhuma saída foi confirmada ainda.', 'Os relatórios de extra só ficam disponíveis após a confirmação de saída de cada policial.'];
+		} else {
+			const pendSaida = totalExtras - jaAssinados;
+			linhas = [`${pendSaida} relatório(s) ainda aguardam confirmação de saída dos policiais.`, 'Acompanhe o andamento na página de detalhes da escala.'];
+		}
+		dialogInfo = { titulo: `Ass. Extra (0/${totalExtras})`, linhas };
+	}
+
+	async function confirmarRubricaGise(
+		rubrica: string,
+		lat?: number,
+		lng?: number,
+		selfie?: string | null,
+		codigo?: string,
+		desafioId?: string
+	) {
+		const gise = giseParaAssinar;
+		if (!gise) return;
+		mostrarRubricaGise = false;
+		loading.show('Assinando...');
+		try {
+			if (gise.tipo === 'escala') {
+				const r = await fetch(`/api/gise/${gise.id}/assinar-simples`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+					body: JSON.stringify({ rubrica, latitude: lat, longitude: lng, selfieBase64: selfie, codigoValidação: codigo, desafioId })
+				});
+				if (r.ok) {
+					const blob = await r.blob();
+					const a = document.createElement('a');
+					a.href = URL.createObjectURL(blob);
+					a.download = tokenNomeArquivo;
+					a.click();
+					toaster.success({ title: 'Escala GISE assinada com sucesso' });
+					await invalidate(page.url.pathname);
+				} else {
+					const j = await r.json().catch(() => ({}));
+					toaster.error({ title: (j as { error?: string }).error || 'Erro ao assinar' });
+				}
+			} else {
+				for (const seccionalId of gise.pendentesExtraIds) {
+					const r = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/assinar`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+						body: JSON.stringify({ tipo: 'extraordinario', rubrica, latitude: lat, longitude: lng, selfieBase64: selfie, codigoValidação: codigo, desafioId })
+					});
+					if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? 'Erro');
+				}
+				toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)` });
+				await invalidate(page.url.pathname);
+			}
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro ao assinar', description: e instanceof Error ? e.message : String(e) });
+		} finally {
+			loading.hide();
+			giseParaAssinar = null;
+		}
+	}
+
+	async function assinarExtrasComSerpro() {
+		const gise = giseParaAssinar;
+		if (!gise || gise.pendentesExtraIds.length === 0) return;
+		mostrarModalTokenExtra = false;
+		loading.show('Conectando ao Assinador SERPRO...');
+		try {
+			const client = await conectarSerpro();
+			const signerName = (data as { usuario?: { nome?: string } }).usuario?.nome ?? '';
+			const signerCpf = (data as { usuario?: { cpf?: string } }).usuario?.cpf ?? '';
+			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
+				const seccionalId = gise.pendentesExtraIds[i];
+				loading.show(`Preparando PDF ${i + 1} de ${gise.pendentesExtraIds.length}...`);
+				const prepResp = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/preparar-assinatura`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+					body: JSON.stringify({ signerName, signerCpf, rubrica: null })
+				});
+				if (!prepResp.ok) throw new Error((await prepResp.json() as { error?: string }).error ?? 'Erro na preparação');
+				const prepData = await prepResp.json() as { preparedPdf: string; messageDigest: string; signingTimeISO: string; verificationHash: string };
+				loading.show(`Assinando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
+				const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g)!.map((h) => String.fromCharCode(parseInt(h, 16))).join(''));
+				const serproRes = await client.sign(messageDigestBase64);
+				loading.show(`Finalizando ${i + 1} de ${gise.pendentesExtraIds.length}...`);
+				const finResp = await fetch(`/api/gise/${gise.id}/relatorios/${seccionalId}/finalizar-assinatura`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+					body: JSON.stringify({ preparedPdf: prepData.preparedPdf, serproCms: serproRes.rawSignature, messageDigest: prepData.messageDigest, signingTimeISO: prepData.signingTimeISO, signerName, signerCpf, verificationHash: prepData.verificationHash })
+				});
+				if (!finResp.ok) throw new Error((await finResp.json() as { error?: string }).error ?? 'Erro na finalização');
+			}
+			toaster.success({ title: `${gise.pendentesExtraIds.length} relatório(s) assinado(s) com token` });
+			await invalidate(page.url.pathname);
+		} catch (e: unknown) {
+			toaster.error({ title: 'Erro ao assinar com token', description: e instanceof Error ? e.message : String(e) });
+		} finally {
+			loading.hide();
+			giseParaAssinar = null;
+		}
 	}
 
 	const totalPaginasAtivas = $derived(Math.max(1, Math.ceil(ativas.length / ITEMS_ATIVAS)));
@@ -552,82 +759,107 @@
 		</h2>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 			{#each ativasPaginadas as ativa}
-				<div
-					class="rounded-2xl border border-primary-500/30 bg-primary-500/5 dark:bg-primary-500/10 p-4 sm:p-5"
-				>
-					<!-- 70% info | 30% botões -->
-					<div class="flex min-w-0 gap-3">
-						<!-- Informações (70%) -->
-						<div class="min-w-0 flex-[7] space-y-1">
-							<div class="flex items-center gap-2">
-								<span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary-500"></span>
-								<span class="text-sm font-semibold text-primary-700 dark:text-primary-400"
-									>Escala Ativa #{ativa.id}</span
-								>
-							</div>
-							<p class="text-lg font-bold text-surface-900 dark:text-surface-50 sm:text-xl leading-tight">
-								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
-							</p>
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400 mt-0.5">
-								{ativa.hora_entrada} às {ativa.hora_saida}
-							</p>
-							<div class="mt-2 flex flex-wrap items-center gap-2">
-								<span
-									class="max-w-full text-xs font-semibold leading-snug px-2 py-0.5 rounded-full {statusColor(ativa.status)}"
-								>
-									{statusLabel(ativa.status)}
-								</span>
-							</div>
+				{@const statusStrip =
+					ativa.status === 'aguardando_assinatura' ? 'bg-primary-500' :
+					ativa.status === 'em_preenchimento' ? 'bg-warning-500' :
+					ativa.status === 'em_andamento' ? 'bg-success-500' :
+					ativa.status === 'aguardando_relatorios' ? 'bg-info-500' :
+					ativa.status === 'aguardando_assinatura_relat' ? 'bg-secondary-500' :
+					ativa.status === 'pronta_para_finalizar' ? 'bg-success-600' :
+					'bg-surface-400'}
+				{@const totalExtras = ativa.totalSeccionais + 1}
+				{@const escalaConcluida = ['em_andamento','aguardando_relatorios','aguardando_assinatura_relat','pronta_para_finalizar','finalizada'].includes(ativa.status)}
+				{@const extraConcluido = (ativa.assinaturasRelatorioExtra ?? 0) >= totalExtras}
+				<div class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-primary-500/40 dark:hover:border-primary-400/20 transition-all duration-200 group">
+					<!-- Status color strip -->
+					<div class="h-1 {statusStrip}"></div>
+
+					<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
+						<!-- Badges -->
+						<div class="flex items-center gap-2 flex-wrap">
+							<span class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-400">
+								Ativa #{ativa.id}
+							</span>
+							<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(ativa.status)}">
+								{statusLabel(ativa.status)}
+							</span>
 						</div>
 
-						<!-- Botões (30%) -->
-						<div class="flex-[3] flex flex-col items-stretch gap-1.5 min-w-0">
-							<button
-								type="button"
-								class="btn w-full preset-filled-primary-500 border border-primary-600/30 hover:border-primary-600 px-2 py-1.5 text-[0.65rem] font-bold transition-all rounded-lg"
-								onclick={() => goto(`/gise/${ativa.id}`)}
-							>
-								Acessar
-							</button>
+						<!-- Date + time -->
+						<div class="flex-1">
+							<p class="text-base sm:text-lg font-bold text-surface-800 dark:text-surface-100 leading-tight group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors">
+								{diaSemana(ativa.data_inicio)}, {fmtDate(ativa.data_inicio)}
+							</p>
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-300 mt-1">
+								{ativa.hora_entrada} às {ativa.hora_saida}
+							</p>
+						</div>
+
+						<!-- Actions -->
+						<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+							<Popover positioning={{ placement: 'bottom-start', offset: { mainAxis: 4 } }}>
+								<Popover.Trigger class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto">
+									Opções ▾
+								</Popover.Trigger>
+								<Portal>
+									<Popover.Positioner class="z-50">
+										<Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]">
+											<button
+												type="button"
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+												onclick={() => goto(`/gise/${ativa.id}`)}
+											>
+												Editar
+											</button>
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href="/api/gise/{ativa.id}/download?format=pdf"
+												target="_blank"
+											>
+												Escala PDF
+											</a>
+											<a
+												class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+												href="/api/gise/{ativa.id}/download?format=extraordinario"
+												target="_blank"
+											>
+												Relat. Extra PDF
+											</a>
+										</Popover.Content>
+									</Popover.Positioner>
+								</Portal>
+							</Popover>
 
 							{#if isSupervisor && ativa.supervisor_id === data.usuario?.id}
-								{#if ativa.status === 'aguardando_assinatura'}
+								<div class="flex gap-2">
 									<button
 										type="button"
-										class="btn w-full preset-filled-success-500 border border-success-600/30 hover:border-success-600 px-2 py-1.5 text-[0.65rem] font-bold transition-all rounded-lg"
-										onclick={() => confirmarAssinaturaRapida(ativa.id, isDesktop ? 'token' : 'tela')}
-										title={isDesktop ? 'Assinar via Token' : 'Assinar em Tela'}
+										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status === 'aguardando_assinatura' ? 'preset-filled-success-500' : escalaConcluida ? 'preset-tonal-success opacity-80' : 'preset-tonal-surface opacity-70'}"
+										onclick={() => clicarAssEscala(ativa)}
+										title={ativa.status === 'aguardando_assinatura' ? (isDesktop ? 'Assinar via Token' : 'Assinar em Tela') : escalaConcluida ? 'Escala já assinada' : 'Ver o que falta para assinar'}
 									>
+										{#if escalaConcluida}
+											<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+											</svg>
+										{/if}
 										Ass. Escala
 									</button>
-								{/if}
 
-								{#if ativa.extrasPendentes > 0}
-									{@const totalExtras = ativa.totalSeccionais + 1}
 									<button
 										type="button"
-										class="btn w-full preset-filled-tertiary-500 border border-tertiary-600/30 hover:border-tertiary-600 px-2 py-1.5 text-[0.65rem] font-bold transition-all rounded-lg"
-										onclick={() => goto(`/gise/${ativa.id}`)}
-										title="Relatórios de extra prontos para assinar"
+										class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.extrasPendentes > 0 ? 'preset-filled-warning-500' : extraConcluido ? 'preset-tonal-warning opacity-80' : 'preset-tonal-surface opacity-70'}"
+										onclick={() => clicarAssExtra(ativa)}
+										title={ativa.extrasPendentes > 0 ? (isDesktop ? 'Assinar extras via Token' : 'Assinar extras em Tela') : extraConcluido ? 'Todos os extras assinados' : 'Ver status dos extras'}
 									>
+										{#if extraConcluido}
+											<svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+											</svg>
+										{/if}
 										Ass. Extra ({ativa.extrasPendentes}/{totalExtras})
 									</button>
-								{/if}
-
-								<!-- Info: o que falta para liberar as ações -->
-								{#if ativa.status === 'em_preenchimento' && ativa.totalSeccionais > 0}
-									<p class="text-[0.6rem] text-warning-600 dark:text-warning-400 font-medium text-center leading-tight">
-										Faltam {ativa.totalSeccionais - ativa.seccionaisEnviadas}/{ativa.totalSeccionais} seccionais
-									</p>
-								{:else if ativa.status === 'em_definicao_supervisor'}
-									<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 font-medium text-center leading-tight">
-										Aguardando supervisor
-									</p>
-								{:else if ativa.temSaidaConfirmada && ativa.extrasPendentes === 0 && ativa.assinaturasRelatorioExtra < ativa.totalSeccionais + 1}
-									<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 font-medium text-center leading-tight">
-										Extra: aguardando saídas
-									</p>
-								{/if}
+								</div>
 							{/if}
 						</div>
 					</div>
@@ -1472,34 +1704,138 @@
 	</div>
 {/if}
 
-{#if giseIdParaAssinar}
+<!-- ModalRubrica: assinatura em tela (mobile/tablet) -->
+<ModalRubrica
+	open={mostrarRubricaGise}
+	exigirFoto={page.data.exigirFotoAssinatura ?? true}
+	exigirGps={page.data.exigirGpsAssinatura ?? true}
+	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+	onConfirm={confirmarRubricaGise}
+	onCancel={cancelarAssinatura}
+/>
+
+<!-- PainelAssinaturaToken: sempre montado (sr-only), URLs atualizam reativamente para "Ass. Escala" no desktop -->
+<div class="sr-only" aria-hidden="true">
+	<PainelAssinaturaToken
+		prepararUrl={tokenPrepararUrl}
+		finalizarUrl={tokenFinalizarUrl}
+		nomeArquivo={tokenNomeArquivo}
+		signerName={(data as { usuario?: { nome?: string } }).usuario?.nome ?? ''}
+		signerCpf={(data as { usuario?: { cpf?: string } }).usuario?.cpf ?? ''}
+		bind:control={painelTokenGiseControl}
+		onSuccess={async () => { giseParaAssinar = null; await invalidate(page.url.pathname); }}
+	/>
+</div>
+
+<!-- Modal confirmação token para "Ass. Extra" no desktop -->
+<!-- Dialog informativo para botões sempre visíveis (Ass. Escala / Ass. Extra) -->
+{#if dialogInfo}
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-900/60 p-4 backdrop-blur-sm"
+		role="presentation"
+		onclick={(e) => e.target === e.currentTarget && (dialogInfo = null)}
+	>
+		<div class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4">
+			<div class="flex items-start gap-3">
+				<div class="mt-0.5 shrink-0 rounded-lg p-2 {dialogInfo.acao ? 'bg-tertiary-500/10' : 'bg-warning-500/10'}">
+					{#if dialogInfo.acao}
+						<svg class="w-5 h-5 text-tertiary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+						</svg>
+					{:else}
+						<svg class="w-5 h-5 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					{/if}
+				</div>
+				<div class="min-w-0 flex-1">
+					<h2 class="text-base font-bold text-surface-900 dark:text-surface-50">{dialogInfo.titulo}</h2>
+				</div>
+			</div>
+
+			<ul class="space-y-1.5 pl-1">
+				{#each dialogInfo.linhas as linha}
+					<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-300">
+						<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-400"></span>
+						{linha}
+					</li>
+				{/each}
+			</ul>
+
+			<div class="flex justify-end gap-3 pt-1">
+				<button
+					type="button"
+					class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold"
+					onclick={() => (dialogInfo = null)}
+				>
+					{dialogInfo.acao ? 'Cancelar' : 'Entendi'}
+				</button>
+				{#if dialogInfo.acao}
+					{@const acao = dialogInfo.acao}
+					<button
+						type="button"
+						class="btn preset-filled-tertiary-500 rounded-xl px-4 py-2 text-sm font-bold"
+						onclick={acao.fn}
+					>
+						{acao.label}
+					</button>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
+
+{#if mostrarModalTokenExtra && giseParaAssinar}
+	{@const usuarioAssinante = (data as { usuario?: { nome?: string; cpf?: string } }).usuario}
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-900/60 p-4 backdrop-blur-sm"
 		in:slide
 	>
-		<div
-			class="w-full max-w-md rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl"
-		>
-			<h2 class="mb-3 text-lg font-bold text-surface-900 dark:text-surface-50">
-				Confirmação de Assinatura Rápida
-			</h2>
-			<p class="mb-6 text-sm text-surface-600 dark:text-surface-400">
-				Confirmo que li e averiguei o conteúdo da escala e desejo prosseguir com a assinatura {tipoAssinatura === 'tela' ? 'em tela' : 'por token'}.
+		<div class="w-full max-w-md rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4">
+			<div>
+				<h2 class="text-lg font-bold text-surface-900 dark:text-surface-50">
+					Assinar Rel. Extra — Escala #{giseParaAssinar.id}
+				</h2>
+				<p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+					{giseParaAssinar.pendentesExtraIds.length} relatório(s) prontos para assinar via Token A3 (SERPRO).
+				</p>
+			</div>
+
+			<!-- Dados do assinante -->
+			<div class="rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100/50 dark:bg-surface-800/40 p-4 flex gap-3 items-center">
+				<div class="bg-primary-500/10 p-2.5 rounded-lg shrink-0">
+					<svg class="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+					</svg>
+				</div>
+				<div class="min-w-0">
+					<p class="text-[0.6rem] font-black uppercase tracking-wider text-surface-400">Assinante</p>
+					<p class="text-sm font-bold text-surface-800 dark:text-surface-100 truncate uppercase">{usuarioAssinante?.nome || 'Não informado'}</p>
+					<p class="text-xs text-surface-500 dark:text-surface-400">{usuarioAssinante?.cpf ? usuarioAssinante.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'CPF não cadastrado'}</p>
+				</div>
+			</div>
+
+			<p class="text-xs text-surface-500 dark:text-surface-400 italic">
+				Certifique-se de que o Assinador Desktop SERPRO está aberto e o token conectado.
 			</p>
+
 			<div class="flex justify-end gap-3">
 				<button
 					type="button"
 					class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold"
-					onclick={() => { giseIdParaAssinar = null; tipoAssinatura = null; }}
+					onclick={cancelarAssinatura}
 				>
 					Cancelar
 				</button>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 rounded-xl px-4 py-2 text-sm font-semibold"
-					onclick={prosseguirAssinatura}
+					class="btn preset-filled-tertiary-500 rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-2"
+					onclick={assinarExtrasComSerpro}
 				>
-					Prosseguir
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+					</svg>
+					Assinar com Token A3
 				</button>
 			</div>
 		</div>

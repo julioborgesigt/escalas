@@ -1,12 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { useAutorizacao, useMobile, useScrollLock } from '$lib/composables';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
-	import { fade, fly } from 'svelte/transition';
-	import { expoOut } from 'svelte/easing';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { useResGise } from './useResGise.svelte';
@@ -21,21 +20,33 @@
 
 	let escalaSelecionada = $derived(resGise.escalaSelecionada);
 
-	/** Acompanha o breakpoint do layout (≥ 900px = duas colunas). Em telas menores
-	 * o formulário sobe como bottom-sheet ao invés de renderizar inline. */
-	let isDesktopView = $state(true);
+	let dialogRestaurarAberto = $state(false);
+	useScrollLock(() => resGise.capturandoRubrica);
+
+	function voltarParaLista() {
+		resGise.escalaSelecionada = null;
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('giseId');
+		params.delete('equipeId');
+		const qs = params.toString();
+		goto(qs ? `?${qs}` : page.url.pathname, { keepFocus: true, noScroll: true });
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	$effect(() => {
-		const mql = window.matchMedia('(min-width: 900px)');
-		isDesktopView = mql.matches;
-		const handler = (e: MediaQueryListEvent) => (isDesktopView = e.matches);
-		mql.addEventListener('change', handler);
-		return () => mql.removeEventListener('change', handler);
+		if (resGise.escalaSelecionada) window.scrollTo({ top: 0, behavior: 'smooth' });
 	});
 
-	const mostrarFormularioMobile = $derived(!!escalaSelecionada && !isDesktopView);
-
-	let dialogRestaurarAberto = $state(false);
-	useScrollLock(() => resGise.capturandoRubrica || mostrarFormularioMobile);
+	const navegandoParaEscala = $derived(
+		navigating?.to != null &&
+		navigating.to.url.pathname === page.url.pathname &&
+		navigating.to.url.searchParams.get('giseId') !== (page.url.searchParams.get('giseId') ?? null)
+	);
+	const navegandoFiltros = $derived(
+		navigating?.to != null &&
+		navigating.to.url.pathname === page.url.pathname &&
+		!navegandoParaEscala
+	);
 
 	function solicitarRestaurarPadrao() {
 		dialogRestaurarAberto = true;
@@ -433,112 +444,90 @@
 			</div>
 		</section>
 	{:else}
-		<div class="grid grid-cols-1 min-[900px]:grid-cols-3 gap-6">
-			<!-- Lista de Escalas -->
-			<div class="min-[900px]:col-span-1 space-y-4">
+		<!-- Slide lateral: container oculta o painel fora de tela -->
+		<div class="overflow-hidden">
+		<div
+			class="flex transition-transform duration-300 ease-in-out"
+			style="transform: translateX({resGise.escalaSelecionada ? '-50%' : '0%'}); width: 200%;"
+		>
+			<!-- Panel 1: Lista de Escalas -->
+			<div class="min-w-0 space-y-4" style="width: 50%;">
 				<div class="px-2 space-y-3">
-					<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
-
-					<!-- Filtro de Status para Policiais -->
-					<div
-						class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700"
-					>
-						<button type="button"
-							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {(resGise.statusFilterUrl || 'ativas') === 'ativas'
-								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
-								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-							onclick={() => resGise.changeStatusFilter('ativas')}
-						>
-							Ativas
-						</button>
-						<button type="button"
-							class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all {resGise.statusFilterUrl === 'finalizadas'
-								? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
-								: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-							onclick={() => resGise.changeStatusFilter('finalizadas')}
-						>
-							Histórico
-						</button>
+					<!-- Título + abas alinhadas à direita -->
+					<div class="flex items-center justify-between gap-4">
+						<h2 class="text-lg font-bold shrink-0">Minhas Escalas GISE</h2>
+						<div class="flex p-0.5 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 w-fit shrink-0">
+							<button type="button"
+								class="px-3 py-1 text-xs font-bold rounded-md transition-all {(resGise.statusFilterUrl || 'ativas') === 'ativas'
+									? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
+									: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+								onclick={() => resGise.changeStatusFilter('ativas')}
+							>Ativas</button>
+							<button type="button"
+								class="px-3 py-1 text-xs font-bold rounded-md transition-all {resGise.statusFilterUrl === 'finalizadas'
+									? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
+									: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
+								onclick={() => resGise.changeStatusFilter('finalizadas')}
+							>Histórico</button>
+						</div>
 					</div>
 
 					<!-- Busca Detalhada (Apenas no Histórico) -->
 					{#if resGise.statusFilterUrl === 'finalizadas'}
-						<div
-							class="space-y-4 pt-4 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
-						>
+						<div class="space-y-2 pt-3 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300">
 							<div class="flex items-center justify-between">
-								<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
-									>Busca Detalhada</span
-								>
+								<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest">Busca Detalhada</span>
 								{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
 									<button type="button"
-										class="text-[0.65rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
+										class="text-[0.6rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
 										onclick={resGise.limparFiltros}
-									>
-										Limpar Filtros
-									</button>
+									>Limpar</button>
 								{/if}
 							</div>
-
-							<div
-								class="flex flex-col gap-4 bg-surface-100/50 dark:bg-surface-800/30 p-4 rounded-2xl border border-surface-200 dark:border-surface-800"
-							>
-								<div class="space-y-1.5">
-									<label
-										class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider ml-1"
-										for="mesMember">Por Mês/Ano</label
-									>
+							<!-- Filtros lado a lado -->
+							<div class="grid grid-cols-2 gap-2 bg-surface-100/50 dark:bg-surface-800/30 p-3 rounded-xl border border-surface-200 dark:border-surface-800">
+								<div class="space-y-1">
+									<label class="text-[0.58rem] font-black text-surface-500 uppercase tracking-wider ml-0.5" for="mesMember">Mês/Ano</label>
 									<input
 										id="mesMember"
 										type="month"
-										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
+										class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
 										value={resGise.mesFilterUrl}
 										onchange={(e) => resGise.changeDateFilter('mes', e.currentTarget.value)}
 									/>
 								</div>
-
-								<div class="flex items-center gap-3 px-2">
-									<div class="h-px flex-1 bg-surface-300 dark:bg-surface-700"></div>
-									<span class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
-										>OU</span
-									>
-									<div class="h-px flex-1 bg-surface-300 dark:bg-surface-700"></div>
-								</div>
-
-								<div class="space-y-1.5">
-									<label
-										class="text-[0.6rem] font-black text-surface-500 uppercase tracking-wider ml-1"
-										for="dataMember">Por Data Específica</label
-									>
+								<div class="space-y-1">
+									<label class="text-[0.58rem] font-black text-surface-500 uppercase tracking-wider ml-0.5" for="dataMember">Data Específica</label>
 									<input
 										id="dataMember"
 										type="date"
-										class="block w-full px-4 py-2.5 text-[0.8rem] rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
+										class="block w-full px-3 py-2 text-xs rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-900 focus:ring-2 focus:ring-primary-500 transition-all font-bold shadow-sm"
 										value={resGise.dataFilterUrl}
 										onchange={(e) => resGise.changeDateFilter('data', e.currentTarget.value)}
 									/>
 								</div>
 							</div>
-
-							<p class="text-[0.6rem] text-surface-500 italic text-center px-4 leading-tight">
-								Selecione apenas um dos campos acima para refinar sua busca no histórico de escalas.
-							</p>
 						</div>
 					{/if}
 				</div>
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _}
-						<SkeletonCard lines={3} hasFooter={false} />
-					{/each}
+				{#if navegandoFiltros}
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 px-2">
+						{#each { length: 6 } as _}
+							<SkeletonCard lines={3} hasFooter={false} />
+						{/each}
+					</div>
 				{:else}
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 px-2">
 				{#each data.minhasEscalas as escala}
+					{@const estaCarregando = !!navegandoParaEscala &&
+						navigating?.to?.url.searchParams.get('giseId') === String(escala.id)}
 					<div
 						role="button"
 						tabindex="0"
 						class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer {resGise.escalaSelecionada?.id ===
 							escala.id && resGise.escalaSelecionada?.equipe_id === escala.equipe_id
 							? 'border-primary-500 bg-primary-500/10'
-							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'}"
+							: 'border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/50'} {estaCarregando ? 'opacity-60' : ''}"
 						onclick={() => resGise.selecionarEscala(escala, isAdminGeral)}
 						onkeydown={(e) => e.key === 'Enter' && resGise.selecionarEscala(escala, isAdminGeral)}
 					>
@@ -547,9 +536,17 @@
 								{resGise.fmtDate(escala.data_inicio)}
 								<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 							</p>
-							<span class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-bold"
-								>{escala.equipe_tipo}</span
-							>
+							{#if estaCarregando}
+								<div class="flex items-center gap-1 pr-0.5">
+									<div class="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]"></div>
+									<div class="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]"></div>
+									<div class="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce"></div>
+								</div>
+							{:else}
+								<span class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-bold"
+									>{escala.equipe_tipo}</span
+								>
+							{/if}
 						</div>
 						<div class="mt-1 space-y-1.5">
 							<p
@@ -583,7 +580,7 @@
 										{@render actionButton(
 											'RELAT. EXTRA',
 											'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-											'primary',
+											'warning',
 											'filled',
 											(e: any) => {
 												e.stopPropagation();
@@ -614,10 +611,11 @@
 						{/if}
 					</div>
 				{:else}
-					<p class="text-sm text-surface-500 italic px-2">
+					<p class="text-sm text-surface-500 italic col-span-full px-2">
 						Nenhuma escala gise encontrada para o seu perfil ou você já enviou o relatório.
 					</p>
 				{/each}
+				</div>
 				{/if}
 			</div>
 
@@ -993,7 +991,7 @@
 								<div class="pt-6">
 									<button type="button"
 										class="btn btn-sm text-surface-500 hover:text-primary-500 transition-colors w-full"
-										onclick={() => (resGise.escalaSelecionada = null)}
+										onclick={voltarParaLista}
 									>
 										← Voltar para lista de escalas
 									</button>
@@ -1004,84 +1002,34 @@
 				{/if}
 			{/snippet}
 
-			<!-- Desktop: formulário inline na coluna da direita -->
-			<div class="hidden min-[900px]:block min-[900px]:col-span-2">
-				{#if resGise.escalaSelecionada}
-					<section
-						class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
-					>
-						{@render formularioServico()}
-					</section>
-				{:else}
-					<div
-						class="h-full flex flex-col items-center justify-center text-center p-12 bg-surface-100/30 dark:bg-surface-900/10 border-2 border-dashed border-surface-200 dark:border-surface-800 rounded-3xl"
-					>
-						<div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-full mb-4">
-							<svg
-								class="w-8 h-8 text-surface-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/></svg
-							>
-						</div>
-						<p class="text-surface-500">
-							Selecione uma escala à esquerda para preencher o formulário de resultados. Só irá
-							aparecer alguma opção, caso o envio esteja pendente.
-						</p>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Mobile: bottom-sheet modal com formulário de serviço -->
-			{#if mostrarFormularioMobile}
-			<div
-				class="min-[900px]:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md"
-				role="presentation"
-				onclick={(e) => { if (e.target === e.currentTarget) resGise.escalaSelecionada = null; }}
-				transition:fade={{ duration: 200 }}
-			>
-				<div
-					class="relative bg-surface-50 dark:bg-surface-900 rounded-t-3xl shadow-2xl w-full max-w-2xl max-h-[92dvh] overflow-y-auto border-t border-x border-surface-200 dark:border-white/10"
-					role="dialog"
-					aria-modal="true"
-					aria-label="Relatório de Serviço"
-					transition:fly={{ y: 600, duration: 400, easing: expoOut, opacity: 1 }}
-				>
-					<!-- Drag handle (estilo bottom-sheet iOS/Material) -->
-					<div class="sticky top-0 z-10 pt-2.5 pb-2 bg-surface-50 dark:bg-surface-900 flex justify-center">
-						<div class="w-10 h-1.5 rounded-full bg-surface-300 dark:bg-surface-700"></div>
-					</div>
-
-					<!-- Botão fechar flutuante -->
+			<!-- Panel 2: Formulário de Serviço -->
+			<div class="min-w-0 px-2 sm:px-4" style="width: 50%;">
+				<div class="max-w-2xl mx-auto space-y-4">
 					<button
 						type="button"
-						class="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-surface-200/80 dark:bg-surface-800/80 backdrop-blur text-surface-600 dark:text-surface-300 hover:bg-surface-300 dark:hover:bg-surface-700 transition-colors"
-						onclick={() => (resGise.escalaSelecionada = null)}
-						aria-label="Fechar"
+						class="btn btn-sm preset-outlined-surface flex items-center gap-1.5"
+						onclick={voltarParaLista}
 					>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 						</svg>
+						Voltar
 					</button>
-
-					<!-- Conteúdo do formulário -->
-					<div class="px-4 sm:px-6 pb-8 pt-2">
-						{@render formularioServico()}
-					</div>
+					{#if resGise.escalaSelecionada}
+						<section
+							class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
+						>
+							{@render formularioServico()}
+						</section>
+					{/if}
 				</div>
 			</div>
-			{/if}
+		</div>
 		</div>
 	{/if}
 </div>
 
-<svelte:window onkeydown={(e) => { if (mostrarFormularioMobile && e.key === 'Escape' && !resGise.capturandoRubrica) resGise.escalaSelecionada = null; }} />
+<svelte:window onkeydown={(e) => { if (resGise.escalaSelecionada && e.key === 'Escape' && !resGise.capturandoRubrica) voltarParaLista(); }} />
 
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
 {#if resGise.capturandoRubrica && resGise.escalaSelecionada}

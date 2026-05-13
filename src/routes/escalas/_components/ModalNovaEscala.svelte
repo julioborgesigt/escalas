@@ -144,9 +144,10 @@
 		return sab;
 	}
 	function mesOcupado(mes: number, ano: number): boolean {
-		if (!lotacao || !tipo || tipo === 'fds') return false;
+		const loc = isAdmin ? lotacao : (lotacaoUsuario ?? '');
+		if (!loc || !tipo || tipo === 'fds') return false;
 		return (escalasExistentes as any[]).some(
-			(e) => e.lotacao === lotacao && e.tipo === tipo && e.mes === mes && e.ano === ano
+			(e) => e.lotacao === loc && e.tipo === tipo && e.mes === mes && e.ano === ano
 		);
 	}
 	function preencherMensal(t: 'plantao' | 'expediente', u: Unidade, mes: number, ano: number) {
@@ -311,7 +312,7 @@
 				{/if}
 
 				<div class="flex justify-end mt-6">
-					<button type="button" class="btn preset-outlined-surface" onclick={() => (open = false)}>
+					<button type="button" class="btn preset-outlined-surface" onclick={() => { open = false; onfechar(); }}>
 						Cancelar
 					</button>
 				</div>
