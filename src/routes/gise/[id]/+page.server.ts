@@ -926,6 +926,7 @@ export const actions: Actions = {
 		const dataInicio = formData.get('data_inicio') as string;
 		const horaEntrada = formData.get('hora_entrada') as string;
 		const horaSaida = formData.get('hora_saida') as string;
+		const feriado = formData.get('feriado') === 'true';
 
 		if (!dataInicio || !horaEntrada || !horaSaida) {
 			return fail(400, { error: 'Preencha todos os campos' });
@@ -938,7 +939,8 @@ export const actions: Actions = {
 		const updateData: any = {
 			data_inicio: dataInicio,
 			hora_entrada: horaEntrada,
-			hora_saida: horaSaida
+			hora_saida: horaSaida,
+			feriado: feriado
 		};
 
 		let deveResetarStatus = false;

@@ -128,7 +128,7 @@ export const actions: Actions = {
 				}
 			}
 
-			return { success: true, count: ids.length, ids };
+			return { success: true, count: ids.length, ids, datas: parsed.dias.map(d => d.data) };
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
 			return fail(500, { error: msg });
