@@ -150,7 +150,8 @@
 	}
 
 	function clicarAssExtra(ativa: (typeof ativas)[0]) {
-		const totalExtras = ativa.totalSeccionais + 1;
+		const temSupervisao = !!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id);
+		const totalExtras = ativa.totalSeccionais + (temSupervisao ? 1 : 0);
 		const prontos = ativa.extrasPendentes;
 
 		if (prontos > 0) {
@@ -885,7 +886,8 @@
 										: ativa.status === 'pronta_para_finalizar'
 											? 'bg-success-600'
 											: 'bg-surface-400'}
-				{@const totalExtras = ativa.totalSeccionais + 1}
+				{@const temSupervisao = !!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id)}
+				{@const totalExtras = ativa.totalSeccionais + (temSupervisao ? 1 : 0)}
 				{@const escalaConcluida = [
 					'em_andamento',
 					'aguardando_relatorios',

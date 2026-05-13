@@ -65,7 +65,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.groupBy(giseSeccionais.gise_id)
 			.all(),
 		db
-			.select({ gise_id: giseAssinaturasRelatorios.gise_id, count: sql<number>`count(*)` })
+			.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
 			.from(giseAssinaturasRelatorios)
 			.where(
 				and(
@@ -73,8 +73,8 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 					eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
 				)
 			)
-			.groupBy(giseAssinaturasRelatorios.gise_id)
 			.all(),
+		buscarUnidadeIdSupervisaoExtra(db),
 		policialId
 			? db
 				.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
@@ -136,10 +136,30 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.all()
 	]);
 
+	const [saidasRows, secCountRows, assExtraRows, membroSecRows, seccionalIdsRows, equipeTypesRows, extrasPendIdsRows, seccionaisEnviadasRows, supUid] = parallelResults;
+
+	// Coleta presenças da supervisão para todas as escalas
+	const todosSupIds = new Set<number>();
+	for (const e of escalas) {
+		if (e.supervisor_id) todosSupIds.add(e.supervisor_id);
+		if (e.assessor_id) todosSupIds.add(e.assessor_id);
+		if (e.seint1_id) todosSupIds.add(e.seint1_id);
+		if (e.seint2_id) todosSupIds.add(e.seint2_id);
+	}
+	const supPresRows = todosSupIds.size > 0 ? await db.select().from(gisePresencas).where(and(inArray(gisePresencas.gise_id, escalaIds), inArray(gisePresencas.policial_id, [...todosSupIds]))).all() : [];
+	const supPresMap = new Map<string, { entrada: any, saida: any }>();
+	for (const p of supPresRows) {
+		supPresMap.set(`${p.gise_id}_${p.policial_id}`, { entrada: p.entrada_timestamp, saida: p.saida_timestamp });
+	}
+
 	// Build lookup maps for O(1) access
 	const saidasSet = new Set(saidasRows.map(r => r.gise_id));
 	const secCountMap = new Map(secCountRows.map(r => [r.gise_id, r.count]));
-	const assExtraMap = new Map(assExtraRows.map(r => [r.gise_id, r.count]));
+	const assExtraMap = new Map<number, Set<number>>();
+	for (const r of assExtraRows as Array<{ gise_id: number; seccional_id: number }>) {
+		if (!assExtraMap.has(r.gise_id)) assExtraMap.set(r.gise_id, new Set());
+		assExtraMap.get(r.gise_id)!.add(r.seccional_id);
+	}
 	const membroSecMap = new Map((membroSecRows as Array<{ gise_id: number; seccional_id: number }>).map(r => [r.gise_id, r.seccional_id]));
 	const extrasPendIdsMap = new Map<number, number[]>();
 	for (const r of extrasPendIdsRows) {
@@ -161,17 +181,36 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		seccionaisMap.get(row.gise_id)!.push({ id: row.seccional_id, nome: row.nome, tipos });
 	}
 
-	return escalas.map(e => ({
-		...e,
-		temSaidaConfirmada: saidasSet.has(e.id),
-		totalSeccionais: secCountMap.get(e.id) ?? 0,
-		assinaturasRelatorioExtra: assExtraMap.get(e.id) ?? 0,
-		policialSeccionalId: membroSecMap.get(e.id) ?? null,
-		seccionais: seccionaisMap.get(e.id) ?? [],
-		extrasPendentesIds: extrasPendIdsMap.get(e.id) ?? [],
-		extrasPendentes: (extrasPendIdsMap.get(e.id) ?? []).length,
-		seccionaisEnviadas: secEnvMap.get(e.id) ?? 0
-	}));
+	return escalas.map(e => {
+		const signedSecs = assExtraMap.get(e.id) ?? new Set<number>();
+		const pendentes = extrasPendIdsMap.get(e.id) ?? [];
+
+		// Se tem quadro de supervisão e todos os definidos saíram, e ainda não assinou o relatório extra da supervisão, inclui como pendente
+		if (supUid != null) {
+			const supIds = [...new Set([e.supervisor_id, e.assessor_id, e.seint1_id, e.seint2_id].filter((id): id is number => id != null))];
+			if (supIds.length > 0) {
+				const todosSairam = supIds.every(id => {
+					const p = supPresMap.get(`${e.id}_${id}`);
+					return p?.entrada && p?.saida;
+				});
+				if (todosSairam && !signedSecs.has(supUid)) {
+					pendentes.push(supUid);
+				}
+			}
+		}
+
+		return {
+			...e,
+			temSaidaConfirmada: saidasSet.has(e.id),
+			totalSeccionais: secCountMap.get(e.id) ?? 0,
+			assinaturasRelatorioExtra: signedSecs.size,
+			policialSeccionalId: membroSecMap.get(e.id) ?? null,
+			seccionais: seccionaisMap.get(e.id) ?? [],
+			extrasPendentesIds: pendentes,
+			extrasPendentes: pendentes.length,
+			seccionaisEnviadas: secEnvMap.get(e.id) ?? 0
+		};
+	});
 }
 
 export async function buscarGiseEscala(
