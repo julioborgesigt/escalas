@@ -24,7 +24,9 @@
 	const isMembro = $derived(!!data.isMembro);
 
 	const ativas = $derived(escalas.filter((e: any) => e.status !== 'finalizada'));
-	const historico = $derived(isAdminGeral ? escalas.filter((e: any) => e.status === 'finalizada') : []);
+	const historico = $derived(
+		isAdminGeral ? escalas.filter((e: any) => e.status === 'finalizada') : []
+	);
 
 	// Usuário tem privilégios de controle/preenchimento (vê os cards)
 	const temControleGise = $derived(isAdminGeral || isSeccional || isUnidade || isSupervisor);
@@ -152,7 +154,12 @@
 	}
 
 	function clicarAssExtra(ativa: (typeof ativas)[0]) {
-		const temSupervisao = !!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id);
+		const temSupervisao = !!(
+			ativa.supervisor_id ||
+			ativa.assessor_id ||
+			ativa.seint1_id ||
+			ativa.seint2_id
+		);
 		const totalExtras = ativa.totalSeccionais + (temSupervisao ? 1 : 0);
 		const prontos = ativa.extrasPendentes;
 
@@ -381,9 +388,11 @@
 	];
 
 	const anosDisponiveisHistorico = $derived(
-		([...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))] as number[]).sort(
-			(a, b) => b - a
-		)
+		(
+			[
+				...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))
+			] as number[]
+		).sort((a, b) => b - a)
 	);
 
 	function getCicloRange(ano: number, ciclo: number): { inicio: string; fim: string } {
@@ -888,7 +897,12 @@
 										: ativa.status === 'pronta_para_finalizar'
 											? 'bg-success-600'
 											: 'bg-surface-400'}
-				{@const temSupervisao = !!(ativa.supervisor_id || ativa.assessor_id || ativa.seint1_id || ativa.seint2_id)}
+				{@const temSupervisao = !!(
+					ativa.supervisor_id ||
+					ativa.assessor_id ||
+					ativa.seint1_id ||
+					ativa.seint2_id
+				)}
 				{@const totalExtras = ativa.totalSeccionais + (temSupervisao ? 1 : 0)}
 				{@const escalaConcluida = [
 					'em_andamento',
@@ -1040,7 +1054,7 @@
 										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 										onclick={() => goto(`/gise/${ativa.id}`)}
 									>
-										Editar GISE
+										Acessar GISE
 									</button>
 									<a
 										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"

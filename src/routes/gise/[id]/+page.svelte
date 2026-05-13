@@ -766,7 +766,7 @@
 				}}
 			>
 				{#snippet loteSection()}
-					{#if pendentesExtra.length > 0}
+					{#if isSupervisor || isAdminGeral}
 						<GiseLoteAssinaturas
 							quantidadePendentes={pendentesExtra.length}
 							assinandoLote={assinatura.assinandoLote}
@@ -776,17 +776,15 @@
 							restringirSmartphone={data.restringirSmartphone}
 							onAssinarManualLote={assinatura.abrirAssinaturaLote}
 							onAssinarDigitalLote={assinatura.executarAssinarRelatorioLoteSERPRO}
+							assinaturasRelatorios={data.assinaturasRelatorios}
+							seccionais={gise.seccionais}
+							supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+							podeAssinar={isSupervisor}
 						/>
 					{/if}
 				{/snippet}
 			</GiseSupervisao>
 		{/if}
-
-		<GiseBannersAssinaturas
-			assinaturasRelatorios={data.assinaturasRelatorios}
-			supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
-			seccionais={gise.seccionais}
-		/>
 
 		<div class="flex items-center gap-3 my-6">
 			<hr class="flex-1 border-surface-200 dark:border-white/10" />
@@ -838,7 +836,7 @@
 									<div
 										class={compact
 											? 'flex w-full min-w-0 flex-col gap-2'
-											: 'flex w-full min-w-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap items-stretch min-[400px]:items-center min-[400px]:justify-start gap-2 sm:gap-2.5 lg:flex-1'}
+											: 'flex w-full min-w-0 flex-row flex-wrap items-center justify-start gap-2 sm:gap-2.5 lg:flex-1'}
 									>
 										{#each tiposProd as tipo (tipo)}
 											{@const hrefProd = `/api/gise/${gise.id}/download?format=produtividade&seccionalId=${sec.seccional_id}&equipeType=${tipo}`}
@@ -847,7 +845,7 @@
 												<a
 													class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 border-success-500/35 hover:border-success-500 preset-outlined-success-500 max-w-full justify-center no-underline inline-flex items-center gap-1.5 transition-all {compact
 														? 'w-full'
-														: 'w-full min-[400px]:w-auto sm:w-auto'}"
+														: 'w-auto'}"
 													href={hrefProd}
 													target="_blank"
 													rel="noopener noreferrer"
@@ -1087,7 +1085,39 @@
 									<div
 										class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
 									>
-										{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+										{@render seccionalRelatoriosDownloads(true)}
+									</div>
+								</details>
+
+								{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+									<details
+										class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
+											sec.seccional_id
+										)}"
+									>
+										<summary
+											class="flex cursor-pointer list-none items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50 [&::-webkit-details-marker]:hidden"
+										>
+											<span class="inline-flex items-center gap-1.5 font-semibold">
+												Opções da Seccional
+												<svg
+													class="h-4 w-4 shrink-0 text-surface-500"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M19 9l-7 7-7-7"
+													/>
+												</svg>
+											</span>
+										</summary>
+										<div
+											class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
+										>
 											<form
 												method="POST"
 												action="?/removerSeccional"
@@ -1099,7 +1129,6 @@
 													type="submit"
 													class="btn btn-sm preset-outlined-error-500 flex w-full items-center justify-center gap-1 whitespace-nowrap"
 													disabled={pendingCrud}
-													title="Excluir seccional desta escala"
 												>
 													<svg
 														class="w-3.5 h-3.5"
@@ -1116,10 +1145,28 @@
 													Excluir seccional
 												</button>
 											</form>
-										{/if}
-										{@render seccionalRelatoriosDownloads(true)}
-									</div>
-								</details>
+
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1 whitespace-nowrap"
+												onclick={() => {
+													adicionandoSlotSecId = sec.id;
+													novoSlotUnidadeId = '';
+												}}
+											>
+												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+													/></svg
+												>
+												+ Adicionar + DP(s) nesta Seccional
+											</button>
+										</div>
+									</details>
+								{/if}
 							{/if}
 
 							<!-- Ações Seccional & Downloads -->
@@ -1311,7 +1358,7 @@
 												</div>
 											{:else if slot.nome}
 												<div
-													class="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+													class="flex w-full min-w-0 flex-row items-center justify-between gap-3"
 												>
 													<div class="flex min-w-0 items-center gap-2">
 														<span
@@ -1349,13 +1396,13 @@
 															method="POST"
 															action="?/removerUnidade"
 															use:enhance={handleRemoverUnidade}
-															class="w-full shrink-0 sm:w-auto sm:self-start"
+															class="w-auto shrink-0 sm:self-start"
 														>
 															<input type="hidden" name="secId" value={sec.id} />
 															<input type="hidden" name="linkId" value={slot.id} />
 															<button
 																type="submit"
-																class="btn btn-sm preset-outlined-error-500 w-full text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap sm:w-auto"
+																class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 																disabled={pendingCrud}
 															>
 																<svg
@@ -1377,11 +1424,11 @@
 												</div>
 											{:else if podeEditarCabecalhoUnidade}
 												<div
-													class="flex flex-col sm:flex-row sm:justify-end sm:items-stretch gap-2 w-full min-w-0"
+													class="flex flex-row items-center justify-between gap-2 w-full min-w-0"
 												>
 													<button
 														type="button"
-														class="btn preset-outlined-warning-500 w-full sm:w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
+														class="btn preset-outlined-warning-500 w-auto shrink-0 text-sm px-3 py-1.5 rounded-xl flex items-center justify-center gap-1.5"
 														onclick={() => {
 															selecionandoUnidadeSlotId = slot.id;
 															slotUnidadeId = '';
@@ -1406,13 +1453,13 @@
 															method="POST"
 															action="?/removerUnidade"
 															use:enhance={handleRemoverUnidade}
-															class="w-full sm:w-auto sm:min-w-0"
+															class="w-auto sm:min-w-0"
 														>
 															<input type="hidden" name="secId" value={sec.id} />
 															<input type="hidden" name="linkId" value={slot.id} />
 															<button
 																type="submit"
-																class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
+																class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 																disabled={pendingCrud}
 															>
 																<svg
@@ -1935,7 +1982,7 @@
 												{:else}
 													<button
 														type="button"
-														class="btn btn-sm preset-outlined-success-500 w-full sm:w-auto flex items-center justify-center gap-1 whitespace-nowrap mt-1"
+														class="btn btn-sm preset-outlined-success-500 w-auto flex items-center justify-center gap-1 whitespace-nowrap mt-1 self-start"
 														onclick={() => {
 															adicionandoEquipeSec = sec.id;
 															adicionandoEquipeSlotId = slot.id;
@@ -1956,7 +2003,7 @@
 																d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
 															/></svg
 														>
-														+ Adicionar equipe
+														+ Adicionar + equipe(s)
 													</button>
 												{/if}
 											{/if}
@@ -2014,7 +2061,7 @@
 									{:else}
 										<button
 											type="button"
-											class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2"
+											class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl border-dashed flex items-center gap-2 max-sm:hidden"
 											onclick={() => {
 												adicionandoSlotSecId = sec.id;
 												novoSlotUnidadeId = '';
@@ -2028,7 +2075,7 @@
 													d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 												/></svg
 											>
-											+ Adicionar outra DP
+											+ Adicionar + DP(s) nesta Seccional
 										</button>
 									{/if}
 								{/if}

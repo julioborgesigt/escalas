@@ -7,6 +7,7 @@
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { formatarData } from '$lib/utils';
+	import { slide } from 'svelte/transition';
 	import { csrfHeaders } from '$lib/csrf';
 	import {
 		useAutorizacao,
@@ -29,6 +30,13 @@
 	const isAdminSeccional = $derived(auth.isAdminSeccional);
 	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const papelUnidadeId = $derived(data.papelUnidadeId as number | null);
+
+	// Admin seccional ou admin unidade com cargo DPC: só vê Assinaturas Pendentes
+	const isAdminDPC = $derived(
+		!isAdmin &&
+		(auth.isAdminSeccional || auth.isAdminUnidade) &&
+		page.data.usuario?.cargo === 'DPC'
+	);
 	const savedFilters = getSavedFilters('filtros_escalas', {
 		lotacao: '',
 		mes: new Date().getMonth() + 1,
@@ -247,6 +255,7 @@
 			data_fim: string;
 			tipo: string;
 			lotacao: string;
+			is_assinada: boolean;
 		}>
 	);
 
@@ -374,6 +383,9 @@
 		await painelTokenRapidoControl?.assinarComSerpro();
 	}
 
+	// Controle do menu expansível nos cards (padrão GISE)
+	let menuExpandidoId = $state<number | null>(null);
+
 </script>
 
 <svelte:head>
@@ -383,73 +395,111 @@
 {#if visao === 'home'}
 	<div class="flex flex-col items-center justify-center min-h-[60vh] gap-4 sm:gap-6">
 		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
-		<div
-			class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
-				? 'sm:grid-cols-3 max-w-4xl'
-				: 'sm:grid-cols-2 max-w-xl'}"
-		>
-			<button
-				type="button"
-				onclick={() => {
-					abriuDoHome = true;
-					visao = 'lista';
-					dialogNovaEscalaAberto = true;
-				}}
-				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+
+		{#if isAdminDPC}
+			<!-- Admin DPC (seccional ou unidade): apenas Assinaturas Pendentes -->
+			<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
+				{#if podeAssinar && escalasParaAssinar.length > 0}
+					<button
+						type="button"
+						onclick={() => {
+							visao = 'assinaturas';
+							goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+						}}
+						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+					>
+						<div class="relative">
+							<span class="text-4xl">✍️</span>
+							<span
+								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+								>{escalasParaAssinar.length}</span
+							>
+						</div>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+							>Assinaturas Pendentes</span
+						>
+						<span class="text-sm text-surface-500 text-center"
+							>Escalas prontas para assinar com sua assinatura digital</span
+						>
+					</button>
+				{:else}
+					<div class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center">
+						<span class="text-4xl">✅</span>
+						<span class="text-xl font-bold">Nenhuma pendência</span>
+						<span class="text-sm text-surface-500">Não há escalas aguardando sua assinatura no momento.</span>
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<!-- Outros perfis: Nova Escala + Escalas/Arquivo + Assinaturas Pendentes (se houver) -->
+			<div
+				class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
+					? 'sm:grid-cols-3 max-w-4xl'
+					: 'sm:grid-cols-2 max-w-xl'}"
 			>
-				<span class="text-4xl">📋</span>
-				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-					>Nova Escala</span
-				>
-				<span class="text-sm text-surface-500 text-center"
-					>Criar uma nova escala de plantão, expediente ou final de semana</span
-				>
-			</button>
-			<button
-				type="button"
-				onclick={() => {
-					visao = 'lista';
-					goto(`?${buildQueryParamsComFiltros(1)}`, {
-						replaceState: true,
-						noScroll: true,
-						keepFocus: true
-					});
-				}}
-				class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
-			>
-				<span class="text-4xl">🗂️</span>
-				<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-					>Escalas criadas/Arquivo</span
-				>
-				<span class="text-sm text-surface-500 text-center"
-					>Consultar e gerenciar as escalas já cadastradas</span
-				>
-			</button>
-			{#if podeAssinar && escalasParaAssinar.length > 0}
 				<button
 					type="button"
 					onclick={() => {
-						visao = 'assinaturas';
-						goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+						abriuDoHome = true;
+						visao = 'lista';
+						dialogNovaEscalaAberto = true;
 					}}
-					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
-					<div class="relative">
-						<span class="text-4xl">✍️</span>
-						<span
-							class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
-							>{escalasParaAssinar.length}</span
-						>
-					</div>
-					<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-						>Assinaturas Pendentes</span
+					<span class="text-4xl">📋</span>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+						>Nova Escala</span
 					>
 					<span class="text-sm text-surface-500 text-center"
-						>Escalas prontas para assinar com sua assinatura digital</span
+						>Criar uma nova escala de plantão, expediente ou final de semana</span
 					>
 				</button>
-			{/if}
-		</div>
+				<button
+					type="button"
+					onclick={() => {
+						visao = 'lista';
+						goto(`?${buildQueryParamsComFiltros(1)}`, {
+							replaceState: true,
+							noScroll: true,
+							keepFocus: true
+						});
+					}}
+					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+				>
+					<span class="text-4xl">🗂️</span>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+						>Escalas criadas/Arquivo</span
+					>
+					<span class="text-sm text-surface-500 text-center"
+						>Consultar e gerenciar as escalas já cadastradas</span
+					>
+				</button>
+				{#if podeAssinar && escalasParaAssinar.length > 0}
+					<button
+						type="button"
+						onclick={() => {
+							visao = 'assinaturas';
+							goto('/escalas?v=assinaturas', { replaceState: true, noScroll: true });
+						}}
+						class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-tertiary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
+					>
+						<div class="relative">
+							<span class="text-4xl">✍️</span>
+							<span
+								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+								>{escalasParaAssinar.length}</span
+							>
+						</div>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+							>Assinaturas Pendentes</span
+						>
+						<span class="text-sm text-surface-500 text-center"
+							>Escalas prontas para assinar com sua assinatura digital</span
+						>
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 {:else if visao === 'lista'}
 	<div class="flex items-center gap-3 mb-6">
@@ -1026,105 +1076,80 @@
 									</div>
 								{/if}
 							</div>
-							<div class="flex gap-2 pt-3 border-t border-white/5">
-								<button
-									type="button"
-									class="btn btn-sm {esc.is_assinada
-										? 'preset-filled-warning-500'
-										: 'preset-outlined-primary-500'} flex-1"
-									onclick={() => solicitarEdicao(esc)}
-								>
-									{esc.is_assinada ? 'Editar' : 'Abrir'}
-								</button>
-								<Popover
-									positioning={{
-										placement: 'bottom-end',
-										offset: { mainAxis: 4 }
-									}}
-								>
-									<Popover.Trigger
-										class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10"
-										>Exportar ▾</Popover.Trigger
-									>
-									<Portal>
-										<Popover.Positioner class="z-50">
-											<Popover.Content
-												class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
-											>
-												{#if esc.is_assinada}
-													<a
-														class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
-														href={`/api/escalas/${esc.id}/documento-assinado`}
-														target="_blank"
-													>
-														<svg
-															class="w-4 h-4"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															><path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-															/></svg
-														>
-														PDF Oficial
-													</a>
-													<hr class="opacity-10 my-1" />
-												{/if}
-												<a
-													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-													href={`/api/escalas/${esc.id}/download?format=docx`}
-													target="_blank">Word (.docx)</a
-												>
-												<a
-													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-													href={`/api/escalas/${esc.id}/download?format=excel`}
-													target="_blank">Excel (.xlsx)</a
-												>
-												<a
-													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-													href={`/api/escalas/${esc.id}/download?format=pdf`}
-													target="_blank">PDF (.pdf)</a
-												>
-											</Popover.Content>
-										</Popover.Positioner>
-									</Portal>
-								</Popover>
-								<button
-									type="button"
-									class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
-									onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
-								>
-							</div>
-							{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-								{#if solicitacoesMap[esc.id]}
-									<div class="flex gap-2 mt-2 pt-2 border-t border-white/10">
-										<button
-											type="button"
-											class="btn btn-sm preset-outlined-error-500 text-xs flex-1"
-											onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
-										>
-									</div>
-								{:else}
+							<!-- Barra de ações: padrão GISE -->
+							<div class="pt-3 border-t border-surface-200/60 dark:border-surface-700/50 space-y-2">
+								<!-- Linha 1: Abrir + Opções -->
+								<div class="flex items-center gap-2">
 									<button
 										type="button"
-										class="btn btn-sm preset-filled-success-500 w-full mt-2 active:scale-95 transition-all"
-										onclick={() => abrirDialogSolicitar(esc.id)}
+										class="btn btn-sm flex-1 {esc.is_assinada
+											? 'preset-filled-warning-500'
+											: 'preset-outlined-primary-500'} font-bold"
+										onclick={() => solicitarEdicao(esc)}
 									>
-										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-											/></svg
-										>
-										Solicitar Assinatura
+										{esc.is_assinada ? 'Editar' : 'Abrir'}
 									</button>
+									<button
+										type="button"
+										class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
+											? 'preset-filled-surface-500 text-white'
+											: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
+										onclick={() =>
+											(menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
+									>
+										{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
+									</button>
+								</div>
+
+								<!-- Linha 2: revelação com slide (padrão GISE) -->
+								{#if menuExpandidoId === esc.id}
+									<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
+										{#if esc.is_assinada}
+											<a
+												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												href={`/api/escalas/${esc.id}/documento-assinado`}
+												target="_blank"
+											>PDF Oficial</a>
+										{/if}
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href={`/api/escalas/${esc.id}/download?format=pdf`}
+											target="_blank"
+										>PDF</a>
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href={`/api/escalas/${esc.id}/download?format=docx`}
+											target="_blank"
+										>Word</a>
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href={`/api/escalas/${esc.id}/download?format=excel`}
+											target="_blank"
+										>Excel</a>
+										<button
+											type="button"
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
+											onclick={() => { menuExpandidoId = null; solicitarExclusao(esc.id, esc.titulo); }}
+										>Excluir</button>
+									</div>
 								{/if}
-							{/if}
+
+								<!-- Solicitar/Cancelar Assinatura (OIP) -->
+								{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
+									{#if solicitacoesMap[esc.id]}
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-error-500 text-xs w-full"
+											onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Solicitação</button>
+									{:else}
+										<button
+											type="button"
+											class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all"
+											onclick={() => abrirDialogSolicitar(esc.id)}
+										>Solicitar Assinatura</button>
+									{/if}
+								{/if}
+							</div>
 						</div>
 					{/each}
 				{/if}
@@ -1212,54 +1237,69 @@
 								</p>
 							</div>
 
-							<!-- Actions -->
-							<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
-								<Popover positioning={{ placement: 'bottom-start', offset: { mainAxis: 4 } }}>
-									<Popover.Trigger class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 w-full min-[420px]:w-auto">
-										Opções ▾
-									</Popover.Trigger>
-									<Portal>
-										<Popover.Positioner class="z-50">
-											<Popover.Content
-												class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
-											>
-												<button
-													type="button"
-													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-													onclick={() => solicitarEdicao(esc as EscalaListagem)}
-												>
-													Editar escala
-												</button>
-												<a
-													class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-													href="/api/escalas/{esc.id}/download?format=pdf"
-													target="_blank"
-												>
-													Ver em PDF
-												</a>
-											</Popover.Content>
-										</Popover.Positioner>
-									</Portal>
-								</Popover>
+							<!-- Actions: padrão GISE -->
+							<div class="pt-3 border-t border-surface-100 dark:border-surface-700/50 space-y-2">
+								<!-- Linha 1: botão Opções (toggle) + botões de assinatura -->
+								<div class="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-2">
+									<!-- Lado esquerdo: Opções -->
+									<button
+										type="button"
+										class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
+											? 'preset-filled-surface-500 text-white'
+											: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold w-full min-[420px]:w-auto"
+										onclick={() =>
+											(menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
+									>
+										{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
+									</button>
 
-								<div class="flex gap-2">
-									<button
-										type="button"
-										class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-										disabled={assinaturaTelaBloqueada}
-										title={assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined}
-										onclick={() => iniciarAssinaturaTela(esc.id)}
-									>
-										Assinar (Tela)
-									</button>
-									<button
-										type="button"
-										class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none active:scale-95 transition-all"
-										onclick={() => iniciarAssinaturaToken(esc.id)}
-									>
-										Assinar (Token)
-									</button>
+									<!-- Lado direito: botões de assinatura (sempre visíveis) -->
+									<div class="flex gap-2 shrink-0">
+										<button
+											type="button"
+											class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-warning-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1"
+											disabled={assinaturaTelaBloqueada || esc.is_assinada}
+											title={esc.is_assinada ? 'Já assinado' : (assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined)}
+											onclick={() => iniciarAssinaturaTela(esc.id)}
+										>
+											{#if esc.is_assinada}
+												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+												</svg>
+											{/if}
+											{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
+										</button>
+										<button
+											type="button"
+											class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none active:scale-95 transition-all flex items-center justify-center gap-1"
+											disabled={esc.is_assinada}
+											onclick={() => iniciarAssinaturaToken(esc.id)}
+										>
+											{#if esc.is_assinada}
+												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+												</svg>
+											{/if}
+											{esc.is_assinada ? 'Assinado' : 'Assinar (Token)'}
+										</button>
+									</div>
 								</div>
+
+								<!-- Linha 2: revelação com slide (padrão GISE) -->
+								{#if menuExpandidoId === esc.id}
+									<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href="/api/escalas/{esc.id}/download?format=pdf"
+											target="_blank"
+										>PDF (conferência)</a>
+										<a
+											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm {!esc.is_assinada ? 'opacity-50 pointer-events-none' : ''}"
+											href="/api/escalas/{esc.id}/documento-assinado"
+											target="_blank"
+										>PDF assinado</a>
+									</div>
+								{/if}
 							</div>
 						</div>
 					</div>

@@ -5,6 +5,7 @@ import * as exportLib from '$lib/server/export';
 import { contentDisposition } from '$lib/server/api';
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
+import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 async function carregarLogoR2(platform: App.Platform | undefined, key: string): Promise<Uint8Array | undefined> {
 	try {
@@ -29,8 +30,9 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 	const escala = await buscarEscala(db, id);
 	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
-	if (u.tipo !== 'admin' && u.lotacao !== escala.lotacao) {
-		return json({ error: 'Sem permissão para baixar esta escala' }, { status: 403 });
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) {
+		return json({ error: perm.motivo ?? 'Sem permissão para baixar esta escala' }, { status: 403 });
 	}
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';

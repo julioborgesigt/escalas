@@ -71,7 +71,8 @@ export {
 	criarSolicitacaoAssinatura,
 	buscarSolicitacaoAssinatura,
 	excluirSolicitacaoAssinatura,
-	listarSolicitacoesEscalas
+	listarSolicitacoesEscalas,
+	temSolicitacaoParaDpcAdmin
 } from './db/escalas';
 
 export {
