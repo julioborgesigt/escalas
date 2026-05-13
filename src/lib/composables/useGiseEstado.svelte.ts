@@ -10,7 +10,7 @@ interface Seccional {
 }
 
 export interface GiseEstadoParams {
-	getData: () => Record<string, unknown>;
+	getData: () => any;
 }
 
 export function useGiseEstado({ getData }: GiseEstadoParams) {
@@ -21,9 +21,11 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const minhaSeccionalId = $derived(getData().minhaSeccionalId);
 
 	// Permissões
-	const isAdminGeral = $derived(getData().isGeral ?? papelGise === 'admin_geral');
-	const isSeccional = $derived(getData().isSeccional ?? papelGise === 'admin_seccional');
-	const isSupervisor = $derived(getData().isSupervisor || gise?.supervisor_id === getData().usuarioAtual?.id);
+	const isAdminGeral = $derived(getData().isGeral === true);
+	const isSeccional = $derived(getData().isSeccional === true);
+	const isUnidade = $derived(getData().isUnidade === true);
+	const isSupervisor = $derived(getData().isSupervisor === true || gise?.supervisor_id === getData().usuarioAtual?.id);
+	const isMembro = $derived(getData().isMembro === true);
 
 	const minhaSeccional = $derived(
 		isSeccional ? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId) : null
@@ -108,7 +110,9 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		get todasUnidades() { return todasUnidades; },
 		get isAdminGeral() { return isAdminGeral; },
 		get isSeccional() { return isSeccional; },
+		get isUnidade() { return isUnidade; },
 		get isSupervisor() { return isSupervisor; },
+		get isMembro() { return isMembro; },
 		get minhaSeccional() { return minhaSeccional; },
 		get minhaSeccionalId() { return minhaSeccionalId; },
 		get todasSeccionaisPreenchidas() { return todasSeccionaisPreenchidas; },

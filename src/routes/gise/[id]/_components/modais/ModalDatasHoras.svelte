@@ -130,7 +130,7 @@
 				<h2 class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50">
 					Editar Data e Horários
 				</h2>
-				<button type="button" class="btn btn-sm p-1 opacity-50 hover:opacity-100" onclick={onClose}>
+				<button type="button" class="btn btn-sm p-1 opacity-50 hover:opacity-100" onclick={onClose} aria-label="Fechar">
 					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
 				</button>
 			</div>
@@ -148,11 +148,11 @@
 			<!-- Calendário (Mesma interface da criação) -->
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40">
 				<div class="flex items-center justify-between gap-1.5">
-					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesAnterior}>
+					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesAnterior} aria-label="Mês anterior">
 						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
 					</button>
 					<p class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center flex-1">{calTitulo}</p>
-					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesProximo}>
+					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesProximo} aria-label="Próximo mês">
 						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
 					</button>
 				</div>
