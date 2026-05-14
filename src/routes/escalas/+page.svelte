@@ -3,11 +3,9 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { Dialog, Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
-	import { formatarData } from '$lib/utils';
-	import { slide } from 'svelte/transition';
 	import { csrfHeaders } from '$lib/csrf';
 	import {
 		useAutorizacao,
@@ -15,13 +13,14 @@
 		useAssinaturaEscala,
 		useMobile
 	} from '$lib/composables';
-	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
-	import { page, navigating } from '$app/state';
-	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import { page } from '$app/state';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import ModalNovaEscala from './_components/ModalNovaEscala.svelte';
+	import TabelaEscalas from './_components/TabelaEscalas.svelte';
+	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
+	import DialogSolicitarAssinatura from './_components/DialogSolicitarAssinatura.svelte';
 
 	let { data, form } = $props();
 
@@ -31,7 +30,6 @@
 	const lotacaoUsuario = $derived(auth.lotacaoUsuario);
 	const papelUnidadeId = $derived(data.papelUnidadeId as number | null);
 
-	// Admin seccional ou admin unidade com cargo DPC: só vê Assinaturas Pendentes
 	const isAdminDPC = $derived(
 		!isAdmin &&
 		(auth.isAdminSeccional || auth.isAdminUnidade) &&
@@ -47,11 +45,8 @@
 	});
 
 	const unidades = $derived(data.unidades as Unidade[]);
-
-	/** Página atual vem só do servidor — mudanças de página atualizam a URL (`goto`). */
 	const paginaAtual = $derived(data.pagination.page);
 
-	// Filtros — inicializa com valores do server ou localStorage
 	let filtroLotacao = $state(untrack(() => data.filtros.lotacao || savedFilters.lotacao));
 	let filtroMes = $state(untrack(() => data.filtros.mes || savedFilters.mes));
 	let filtroAno = $state(untrack(() => data.filtros.ano || savedFilters.ano));
@@ -61,7 +56,6 @@
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
-	// Salvar filtros no localStorage a cada mudança
 	$effect(() => {
 		if (browser) {
 			localStorage.setItem(
@@ -86,7 +80,6 @@
 					(u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === filtroSeccional
 				)
 	);
-	// Unidades visíveis para admin_seccional (somente delegacias da sua seccional)
 	const delegaciasDaSeccional = $derived(
 		unidades.filter((u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === papelUnidadeId)
 	);
@@ -118,18 +111,15 @@
 		{ value: 12, label: 'Dezembro' }
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
-	const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-	function buildQueryParamsComFiltros(page: number) {
+	function buildQueryParamsComFiltros(p: number) {
 		const params = new URLSearchParams();
-		if (filtroLotacao && filtroLotacao !== 'todas') {
-			params.set('lotacao', filtroLotacao);
-		}
+		if (filtroLotacao && filtroLotacao !== 'todas') params.set('lotacao', filtroLotacao);
 		if (filtroMes) params.set('mes', String(filtroMes));
 		if (filtroAno) params.set('ano', String(filtroAno));
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
-		params.set('page', String(page));
+		params.set('page', String(p));
 		return params.toString();
 	}
 
@@ -176,25 +166,17 @@
 		pendingRevogar = true;
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
-
 		const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
 			method: 'DELETE',
 			headers: csrfHeaders()
 		});
 		pendingRevogar = false;
 		if (res.ok) {
-			toaster.create({
-				title: 'Assinatura revogada',
-				description: 'A escala agora pode ser editada.',
-				type: 'info'
-			});
+			toaster.create({ title: 'Assinatura revogada', description: 'A escala agora pode ser editada.', type: 'info' });
 			goto(`/escalas/${id}`);
 		} else {
 			const err = await res.json().catch(() => ({}));
-			toaster.create({
-				title: err.error || 'Erro ao revogar assinatura',
-				type: 'error'
-			});
+			toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
 		}
 		escalaParaRevogar = null;
 	}
@@ -212,10 +194,7 @@
 		return async ({ result }: { result: any }) => {
 			pendingExcluir = false;
 			if (result.type === 'success') {
-				toaster.create({
-					title: `Escala de ${escalaParaExcluir!.titulo} removida`,
-					type: 'success'
-				});
+				toaster.create({ title: `Escala de ${escalaParaExcluir!.titulo} removida`, type: 'success' });
 				dialogOpen = false;
 				escalaParaExcluir = null;
 				await invalidateAll();
@@ -235,7 +214,6 @@
 		})
 	);
 
-	// Sincroniza visao quando a URL muda para /escalas sem params (ex: clique na aba de navegação)
 	$effect(() => {
 		const iv = (data as any).initialView as string;
 		if (iv === 'home' || iv === 'assinaturas') {
@@ -259,83 +237,16 @@
 		}>
 	);
 
-	// ========== Solicitação de Assinatura (OIP Admins) ==========
 	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
-	type SolicitacaoInfo = {
-		tipo: 'unidade' | 'respondencia';
-		destinatario_nome?: string;
-		destinatario_id?: number;
-	};
+	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number; };
 	const solicitacoesMap = $derived((data.solicitacoesMap ?? {}) as Record<number, SolicitacaoInfo>);
 
 	let dialogSolicitar = $state(false);
 	let escalaSolicitandoId = $state<number | null>(null);
-	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
-	let buscaDestinatario = $state('');
-	let destinatarioSelecionado = $state<{ id: number; nome: string; lotacao: string } | null>(null);
-	let resultadosBuscaDestinatario = $state<
-		Array<{ id: number; nome: string; cargo: string; lotacao: string }>
-	>([]);
-	let buscandoDestinatario = $state(false);
-	let enviandoSolicitacao = $state(false);
-	let erroBuscaDestinatario = $state('');
 
 	function abrirDialogSolicitar(escalaId: number) {
 		escalaSolicitandoId = escalaId;
-		opcaoSolicitacao = 'unidade';
-		buscaDestinatario = '';
-		destinatarioSelecionado = null;
-		resultadosBuscaDestinatario = [];
-		erroBuscaDestinatario = '';
 		dialogSolicitar = true;
-	}
-
-	let buscaTimer: ReturnType<typeof setTimeout> | null = null;
-	async function buscarDestinatarios(q: string) {
-		if (buscaTimer) clearTimeout(buscaTimer);
-		resultadosBuscaDestinatario = [];
-		erroBuscaDestinatario = '';
-		if (q.trim().length < 2) return;
-		buscaTimer = setTimeout(async () => {
-			buscandoDestinatario = true;
-			try {
-				const res = await fetch(
-					`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q.trim())}&limit=8`
-				);
-				if (res.ok) {
-					const json = await res.json();
-					resultadosBuscaDestinatario = json.policiais ?? [];
-					if (resultadosBuscaDestinatario.length === 0) {
-						erroBuscaDestinatario = 'Nenhum delegado (DPC) administrador encontrado.';
-					}
-				}
-			} finally {
-				buscandoDestinatario = false;
-			}
-		}, 300);
-	}
-
-	async function confirmarSolicitacao() {
-		if (!escalaSolicitandoId) return;
-		if (opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado) return;
-		enviandoSolicitacao = true;
-		try {
-			const res = await fetch(`/api/escalas/${escalaSolicitandoId}/solicitar-assinatura`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-				body: JSON.stringify({
-					tipo: opcaoSolicitacao,
-					destinatario_id: destinatarioSelecionado?.id
-				})
-			});
-			if (res.ok) {
-				dialogSolicitar = false;
-				escalaSolicitandoId = null;
-				await invalidateAll();
-			}
-		} finally {
-			enviandoSolicitacao = false;
-		}
 	}
 
 	async function cancelarSolicitacao(escalaId: number) {
@@ -346,7 +257,6 @@
 		await invalidateAll();
 	}
 
-	// ========== Assinatura Rápida (Assinaturas Pendentes) ==========
 	const usuarioLogado = $derived(page.data.usuario ?? null);
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
@@ -379,13 +289,9 @@
 
 	async function iniciarAssinaturaToken(id: number) {
 		escalaAssinandoId = id;
-		await Promise.resolve(); // deixa reatividade propagar as URLs
+		await Promise.resolve();
 		await painelTokenRapidoControl?.assinarComSerpro();
 	}
-
-	// Controle do menu expansível nos cards (padrão GISE)
-	let menuExpandidoId = $state<number | null>(null);
-
 </script>
 
 <svelte:head>
@@ -397,7 +303,6 @@
 		<h1 class="h1 text-2xl font-bold text-center">Escalas</h1>
 
 		{#if isAdminDPC}
-			<!-- Admin DPC (seccional ou unidade): apenas Assinaturas Pendentes -->
 			<div class="grid grid-cols-1 gap-6 w-full max-w-xs">
 				{#if podeAssinar && escalasParaAssinar.length > 0}
 					<button
@@ -410,17 +315,12 @@
 					>
 						<div class="relative">
 							<span class="text-4xl">✍️</span>
-							<span
-								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+							<span class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
 								>{escalasParaAssinar.length}</span
 							>
 						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-							>Assinaturas Pendentes</span
-						>
-						<span class="text-sm text-surface-500 text-center"
-							>Escalas prontas para assinar com sua assinatura digital</span
-						>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors">Assinaturas Pendentes</span>
+						<span class="text-sm text-surface-500 text-center">Escalas prontas para assinar com sua assinatura digital</span>
 					</button>
 				{:else}
 					<div class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center">
@@ -431,7 +331,6 @@
 				{/if}
 			</div>
 		{:else}
-			<!-- Outros perfis: Nova Escala + Escalas/Arquivo + Assinaturas Pendentes (se houver) -->
 			<div
 				class="grid grid-cols-1 gap-6 w-full {podeAssinar && escalasParaAssinar.length > 0
 					? 'sm:grid-cols-3 max-w-4xl'
@@ -447,32 +346,20 @@
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<span class="text-4xl">📋</span>
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-						>Nova Escala</span
-					>
-					<span class="text-sm text-surface-500 text-center"
-						>Criar uma nova escala de plantão, expediente ou final de semana</span
-					>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Nova Escala</span>
+					<span class="text-sm text-surface-500 text-center">Criar uma nova escala de plantão, expediente ou final de semana</span>
 				</button>
 				<button
 					type="button"
 					onclick={() => {
 						visao = 'lista';
-						goto(`?${buildQueryParamsComFiltros(1)}`, {
-							replaceState: true,
-							noScroll: true,
-							keepFocus: true
-						});
+						goto(`?${buildQueryParamsComFiltros(1)}`, { replaceState: true, noScroll: true, keepFocus: true });
 					}}
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<span class="text-4xl">🗂️</span>
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
-						>Escalas criadas/Arquivo</span
-					>
-					<span class="text-sm text-surface-500 text-center"
-						>Consultar e gerenciar as escalas já cadastradas</span
-					>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Escalas criadas/Arquivo</span>
+					<span class="text-sm text-surface-500 text-center">Consultar e gerenciar as escalas já cadastradas</span>
 				</button>
 				{#if podeAssinar && escalasParaAssinar.length > 0}
 					<button
@@ -485,17 +372,12 @@
 					>
 						<div class="relative">
 							<span class="text-4xl">✍️</span>
-							<span
-								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+							<span class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
 								>{escalasParaAssinar.length}</span
 							>
 						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
-							>Assinaturas Pendentes</span
-						>
-						<span class="text-sm text-surface-500 text-center"
-							>Escalas prontas para assinar com sua assinatura digital</span
-						>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors">Assinaturas Pendentes</span>
+						<span class="text-sm text-surface-500 text-center">Escalas prontas para assinar com sua assinatura digital</span>
 					</button>
 				{/if}
 			</div>
@@ -515,28 +397,17 @@
 	</div>
 
 	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-			>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
+			<div class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode
-					ser desfeita.
+					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode ser desfeita.
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}
-						>Cancelar</Dialog.CloseTrigger
-					>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 						<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-						<button
-							type="submit"
-							class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
-							disabled={pendingExcluir}
-						>
+						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={pendingExcluir}>
 							{pendingExcluir ? 'Excluindo...' : 'Excluir'}
 						</button>
 					</form>
@@ -546,33 +417,21 @@
 	</Dialog>
 
 	<Dialog open={dialogRevogarOpen} onOpenChange={(e) => (dialogRevogarOpen = e.open)}>
-		<Dialog.Content
-			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-		>
-			<div
-				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-			>
+		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
+			<div class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 				<Dialog.Title class="h3 font-bold mb-2">Editar Escala Assinada?</Dialog.Title>
 				<Dialog.Description class="space-y-4 mb-6">
 					<p class="text-surface-600 dark:text-surface-400">
-						Esta escala já possui uma <strong>assinatura digital</strong>
-						válida. Ao editá-la, a assinatura atual será
+						Esta escala já possui uma <strong>assinatura digital</strong> válida. Ao editá-la, a assinatura atual será
 						<span class="text-error-500 font-bold underline">revogada</span> (removida).
 					</p>
 					<p class="text-surface-500 text-sm">
-						Se você deseja apenas visualizar a escala oficial, utilize a opção <strong
-							>Exportar</strong
-						> ou clique no título da escala.
+						Se você deseja apenas visualizar a escala oficial, utilize a opção <strong>Exportar</strong> ou clique no título da escala.
 					</p>
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
-					<button
-						type="button"
-						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
-						onclick={confirmarRevogacao}
-						disabled={pendingRevogar}
-					>
+					<button type="button" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" onclick={confirmarRevogacao} disabled={pendingRevogar}>
 						{pendingRevogar ? 'Revogando...' : 'Revogar e Editar'}
 					</button>
 				</div>
@@ -599,30 +458,18 @@
 		}}
 	/>
 
-	<div
-		class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6"
-	>
-		<div
-			class="grid grid-cols-12 gap-3 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5"
-		>
+	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
+		<div class="grid grid-cols-12 gap-3 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
 			{#if isAdmin}
 				<label class="label col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Seccional</span>
-					<select
-						class="select"
-						bind:value={filtroSeccional}
-						onchange={() => {
-							filtroLotacao = '';
-							navegarComFiltros();
-						}}
-					>
+					<select class="select" bind:value={filtroSeccional} onchange={() => { filtroLotacao = ''; navegarComFiltros(); }}>
 						<option value="todas">Todas as Seccionais</option>
 						{#each seccionais as sec (sec.id)}
 							<option value={sec.id}>{sec.nome}</option>
 						{/each}
 					</select>
 				</label>
-
 				<label class="label col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
@@ -645,9 +492,7 @@
 				</label>
 			{/if}
 
-			<label
-				class="label col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-5'}"
-			>
+			<label class="label col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-5'}">
 				<span class="label-text font-semibold mb-1">Tipo</span>
 				<select class="select" bind:value={filtroTipo} onchange={navegarComFiltros}>
 					<option value="todos">Todos</option>
@@ -657,9 +502,7 @@
 				</select>
 			</label>
 
-			<label
-				class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-3'}"
-			>
+			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-3'}">
 				<span class="label-text font-semibold mb-1">Mês</span>
 				<select class="select" bind:value={filtroMes} onchange={navegarComFiltros}>
 					{#each meses as mes}
@@ -668,9 +511,7 @@
 				</select>
 			</label>
 
-			<label
-				class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-2'}"
-			>
+			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-2'}">
 				<span class="label-text font-semibold mb-1">Ano</span>
 				<select class="select" bind:value={filtroAno} onchange={navegarComFiltros}>
 					{#each anos as ano}
@@ -682,9 +523,7 @@
 			<div class="col-span-12 lg:col-span-2 flex items-end">
 				<button
 					type="button"
-					class="btn btn-sm w-full {temFiltros
-						? 'preset-filled-warning-500'
-						: 'preset-outlined-surface opacity-40'}"
+					class="btn btn-sm w-full {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-surface opacity-40'}"
 					onclick={limparFiltros}
 					disabled={!temFiltros}
 				>
@@ -693,623 +532,34 @@
 			</div>
 		</div>
 
-		{#if data.skipLoad}
-			<div class="text-center py-20">
-				<div
-					class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
-				>
-					<svg
-						class="w-8 h-8 text-surface-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-						/></svg
-					>
-				</div>
-				<p class="text-surface-600 dark:text-surface-400 text-lg">
-					Escolha uma unidade para exibir os dados.
-				</p>
-			</div>
-		{:else if escalas.length === 0}
-			<div class="text-center py-12 text-surface-500">
-				<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
-				<button
-					type="button"
-					class="btn preset-filled-primary-500 active:scale-95 transition-all"
-					onclick={() => (dialogNovaEscalaAberto = true)}>Criar Escala</button
-				>
-			</div>
-		{:else}
-			<!-- Desktop: tabela -->
-			<div class="hidden lg:block table-wrap">
-				<table class="table">
-					<thead>
-						<tr>
-							<th>Título</th>
-							<th>Cidade</th>
-							<th>Período</th>
-							<th>Status</th>
-							<th>Ações</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _}
-								<tr class="animate-pulse">
-									<td class="px-4 py-3"
-										><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
-									>
-									<td class="px-4 py-3"
-										><div
-											class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"
-										></div></td
-									>
-									<td class="px-4 py-3"
-										><div class="flex gap-2">
-											<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-											<div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
-										</div></td
-									>
-								</tr>
-							{/each}
-						{:else}
-							{#each escalas as esc (esc.id)}
-								{@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
-								<tr>
-									<td>
-										<div class="flex flex-col gap-0.5">
-											{#if esc.tipo === 'expediente'}
-												<span
-													class="badge preset-outlined-secondary-500 font-bold text-xs px-2 py-0.5 w-fit"
-													>Expediente</span
-												>
-											{:else if esc.tipo === 'fds'}
-												<span
-													class="badge preset-outlined-tertiary-500 font-bold text-xs px-2 py-0.5 w-fit"
-													>FDS</span
-												>
-											{:else}
-												<span
-													class="badge preset-outlined-primary-500 font-bold text-xs px-2 py-0.5 w-fit"
-													>Plantão</span
-												>
-											{/if}
-											<a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
-												{esc.tipo !== 'fds'
-													? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
-													: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
-											</a>
-											<span class="text-xs text-surface-500 truncate">{esc.lotacao}</span>
-										</div>
-									</td>
-									<td>{esc.cidade}</td>
-									<td class="font-mono tabular-nums text-sm">
-										<div class="flex flex-col leading-snug">
-											<span>{formatarData(esc.data_inicio)}</span>
-											<span class="text-surface-400 dark:text-surface-500 text-xs">a</span>
-											<span>{formatarData(esc.data_fim)}</span>
-										</div>
-									</td>
-									<td>
-										{#if esc.is_assinada}
-											<span
-												class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-											>
-												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
-												Assinada
-											</span>
-										{:else if esc.tipo === 'fds' && esc.finalizada_em}
-											<span
-												class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-											>
-												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
-												Enviada
-											</span>
-										{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-											<span
-												class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-											>
-												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-													/></svg
-												>
-												Ass. Pendente
-											</span>
-										{:else}
-											<span
-												class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
-											>
-												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-													/></svg
-												>
-												{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-											</span>
-										{/if}
-									</td>
-									<td>
-										<div class="flex gap-2 justify-end">
-											<button
-												type="button"
-												class="btn btn-sm {esc.is_assinada
-													? 'preset-filled-warning-500'
-													: 'preset-outlined-primary-500'}"
-												onclick={() => solicitarEdicao(esc)}
-											>
-												{esc.is_assinada ? 'Editar' : 'Abrir'}
-											</button>
-											<Popover
-												positioning={{
-													placement: 'bottom-end',
-													offset: { mainAxis: 4 }
-												}}
-											>
-												<Popover.Trigger class="btn btn-sm preset-outlined-primary-500"
-													>Exportar ▾</Popover.Trigger
-												>
-												<Portal>
-													<Popover.Positioner class="z-50">
-														<Popover.Content
-															class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
-														>
-															{#if esc.is_assinada}
-																<a
-																	class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
-																	href={`/api/escalas/${esc.id}/documento-assinado`}
-																	target="_blank"
-																>
-																	<svg
-																		class="w-4 h-4"
-																		fill="none"
-																		viewBox="0 0 24 24"
-																		stroke="currentColor"
-																		><path
-																			stroke-linecap="round"
-																			stroke-linejoin="round"
-																			stroke-width="2"
-																			d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-																		/></svg
-																	>
-																	PDF Oficial
-																</a>
-																<hr class="opacity-10 my-1" />
-															{/if}
-															<a
-																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-																href={`/api/escalas/${esc.id}/download?format=docx`}
-																target="_blank">Word (.docx)</a
-															>
-															<a
-																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-																href={`/api/escalas/${esc.id}/download?format=excel`}
-																target="_blank">Excel (.xlsx)</a
-															>
-															<a
-																class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
-																href={`/api/escalas/${esc.id}/download?format=pdf`}
-																target="_blank">PDF (.pdf)</a
-															>
-														</Popover.Content>
-													</Popover.Positioner>
-												</Portal>
-											</Popover>
-											{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-												{#if solicitacoesMap[esc.id]}
-													<button
-														type="button"
-														class="btn btn-sm preset-outlined-error-500"
-														onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Ass.</button
-													>
-												{:else}
-													<button
-														type="button"
-														class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all"
-														onclick={() => abrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
-													>
-												{/if}
-											{/if}
-											<button
-												type="button"
-												class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
-												onclick={() => solicitarExclusao(esc.id, esc.titulo)}>Excluir</button
-											>
-										</div>
-									</td>
-								</tr>
-							{/each}
-						{/if}
-					</tbody>
-				</table>
-			</div>
-
-			<!-- Mobile: cards -->
-			<div class="lg:hidden space-y-3">
-				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _}
-						<SkeletonCard />
-					{/each}
-				{:else}
-					{#each escalas as esc (esc.id)}
-						{@const d = new Date(esc.data_inicio + 'T00:00:00')}
-						<div
-							class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
-						>
-							<div class="flex justify-between items-start mb-3 gap-2">
-								<div class="min-w-0 flex-1">
-									{#if esc.tipo === 'expediente'}
-										<span
-											class="badge preset-outlined-secondary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
-											>Expediente</span
-										>
-									{:else if esc.tipo === 'fds'}
-										<span
-											class="badge preset-outlined-tertiary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
-											>FDS</span
-										>
-									{:else}
-										<span
-											class="badge preset-outlined-primary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
-											>Plantão</span
-										>
-									{/if}
-									<a
-										href="/escalas/{esc.id}"
-										class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block"
-									>
-										{esc.tipo !== 'fds'
-											? `${MESES_PT[d.getMonth()]} ${d.getFullYear()}`
-											: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
-									</a>
-									<p class="text-xs text-surface-500 dark:text-surface-400 truncate">
-										{esc.lotacao}
-									</p>
-								</div>
-								{#if esc.is_assinada}
-									<span
-										class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
-									>
-										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/></svg
-										>
-										Assinada
-									</span>
-								{:else if esc.tipo === 'fds' && esc.finalizada_em}
-									<span
-										class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
-									>
-										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/></svg
-										>
-										Enviada
-									</span>
-								{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-									<span
-										class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
-									>
-										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-											/></svg
-										>
-										Ass. Pendente
-									</span>
-								{:else}
-									<span
-										class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
-									>
-										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-											><path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-											/></svg
-										>
-										{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-									</span>
-								{/if}
-							</div>
-							<div class="space-y-1 mb-3 text-sm">
-								<div class="flex justify-between">
-									<span class="text-surface-500 font-medium">Cidade</span>
-									<span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
-								</div>
-								<div class="flex justify-between">
-									<span class="text-surface-500 font-medium">Período</span>
-									<span
-										class="text-surface-900 dark:text-surface-100 font-mono tabular-nums text-xs"
-										>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span
-									>
-								</div>
-								{#if esc.tipo === 'fds'}
-									<div class="flex justify-between">
-										<span class="text-surface-500 font-medium">Horário</span>
-										<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
-											>{esc.horario}</span
-										>
-									</div>
-								{/if}
-							</div>
-							<!-- Barra de ações: padrão GISE -->
-							<div class="pt-3 border-t border-surface-200/60 dark:border-surface-700/50 space-y-2">
-								<!-- Linha 1: Abrir + Opções -->
-								<div class="flex items-center gap-2">
-									<button
-										type="button"
-										class="btn btn-sm flex-1 {esc.is_assinada
-											? 'preset-filled-warning-500'
-											: 'preset-outlined-primary-500'} font-bold"
-										onclick={() => solicitarEdicao(esc)}
-									>
-										{esc.is_assinada ? 'Editar' : 'Abrir'}
-									</button>
-									<button
-										type="button"
-										class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
-											? 'preset-filled-surface-500 text-white'
-											: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
-										onclick={() =>
-											(menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
-									>
-										{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
-									</button>
-								</div>
-
-								<!-- Linha 2: revelação com slide (padrão GISE) -->
-								{#if menuExpandidoId === esc.id}
-									<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
-										{#if esc.is_assinada}
-											<a
-												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-												href={`/api/escalas/${esc.id}/documento-assinado`}
-												target="_blank"
-											>PDF Oficial</a>
-										{/if}
-										<a
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-											href={`/api/escalas/${esc.id}/download?format=pdf`}
-											target="_blank"
-										>PDF</a>
-										<a
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-											href={`/api/escalas/${esc.id}/download?format=docx`}
-											target="_blank"
-										>Word</a>
-										<a
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-											href={`/api/escalas/${esc.id}/download?format=excel`}
-											target="_blank"
-										>Excel</a>
-										<button
-											type="button"
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
-											onclick={() => { menuExpandidoId = null; solicitarExclusao(esc.id, esc.titulo); }}
-										>Excluir</button>
-									</div>
-								{/if}
-
-								<!-- Solicitar/Cancelar Assinatura (OIP) -->
-								{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-									{#if solicitacoesMap[esc.id]}
-										<button
-											type="button"
-											class="btn btn-sm preset-outlined-error-500 text-xs w-full"
-											onclick={() => cancelarSolicitacao(esc.id)}>Cancelar Solicitação</button>
-									{:else}
-										<button
-											type="button"
-											class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all"
-											onclick={() => abrirDialogSolicitar(esc.id)}
-										>Solicitar Assinatura</button>
-									{/if}
-								{/if}
-							</div>
-						</div>
-					{/each}
-				{/if}
-			</div>
-			<PaginationControls
-				{paginaAtual}
-				{totalPaginas}
-				totalItens={escalas.length}
-				itensPorPagina={ITEMS_POR_PAGINA}
-				labelSingular="escala"
-				labelPlural="escala(s)"
-				onPageChange={irParaPaginaListagem}
-			/>
-		{/if}
+		<TabelaEscalas
+			{escalas}
+			{podeOIPSolicitar}
+			{solicitacoesMap}
+			skipLoad={data.skipLoad}
+			{paginaAtual}
+			{totalPaginas}
+			onSolicitarEdicao={solicitarEdicao}
+			onSolicitarExclusao={solicitarExclusao}
+			onAbrirDialogSolicitar={abrirDialogSolicitar}
+			onCancelarSolicitacao={cancelarSolicitacao}
+			onNovaEscala={() => (dialogNovaEscalaAberto = true)}
+			onPageChange={irParaPaginaListagem}
+		/>
 	</div>
 {:else if visao === 'assinaturas'}
-	<div class="flex flex-col gap-6">
-		<div class="flex items-center gap-3">
-			<button
-				type="button"
-				class="btn btn-sm preset-outlined-surface"
-				onclick={() => {
-					visao = 'home';
-					goto('/escalas', { replaceState: true, noScroll: true });
-				}}>← Voltar</button
-			>
-			<h1 class="h1 text-xl font-bold">Assinaturas Pendentes</h1>
-			<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2"
-				>{escalasParaAssinar.length}</span
-			>
-		</div>
-
-		{#if escalasParaAssinar.length === 0}
-			<div class="text-center py-16 text-surface-500">
-				<svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-				</svg>
-				<p class="font-semibold">Nenhuma escala pendente de assinatura.</p>
-			</div>
-		{:else}
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				{#each escalasParaAssinar as esc (esc.id)}
-					{@const dAss = new Date(esc.data_inicio + 'T00:00:00')}
-					{@const isPlantao = esc.tipo === 'plantao'}
-					{@const isExp = esc.tipo === 'expediente'}
-					{@const accentBar = isPlantao ? 'bg-primary-500' : isExp ? 'bg-secondary-500' : 'bg-tertiary-500'}
-					{@const tipoBadgeClass = isPlantao
-						? 'bg-primary-500/10 text-primary-700 dark:text-primary-400'
-						: isExp
-							? 'bg-secondary-500/10 text-secondary-700 dark:text-secondary-400'
-							: 'bg-tertiary-500/10 text-tertiary-700 dark:text-tertiary-400'}
-					{@const tipoLabel = isPlantao ? 'Plantão' : isExp ? 'Expediente' : 'FDS'}
-					{@const tituloPeriodo = esc.tipo !== 'fds'
-						? `${MESES_PT[dAss.getMonth()]} ${dAss.getFullYear()}`
-						: `${formatarData(esc.data_inicio)} – ${formatarData(esc.data_fim)}`}
-
-					<div class="flex flex-col rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-sm overflow-hidden hover:shadow-md hover:border-tertiary-500/40 dark:hover:border-tertiary-400/20 transition-all duration-200 group">
-						<!-- Color accent strip -->
-						<div class="h-1 {accentBar}"></div>
-
-						<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
-							<!-- Badges -->
-							<div class="flex items-center gap-2 flex-wrap">
-								<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {tipoBadgeClass}">
-									{tipoLabel}
-								</span>
-								<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400">
-									<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-									</svg>
-									Aguardando assinatura
-								</span>
-							</div>
-
-							<!-- Title + meta -->
-							<div class="flex-1">
-								<p class="text-base sm:text-lg font-bold text-surface-800 dark:text-surface-100 leading-tight group-hover:text-tertiary-600 dark:group-hover:text-tertiary-300 transition-colors">
-									{tituloPeriodo}
-								</p>
-								<p class="text-sm font-medium text-surface-600 dark:text-surface-300 mt-1 truncate">
-									{esc.lotacao}
-								</p>
-								<p class="text-xs text-surface-400 dark:text-surface-500 mt-0.5">
-									{esc.cidade} · {formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}
-								</p>
-							</div>
-
-							<!-- Actions: padrão GISE -->
-							<div class="pt-3 border-t border-surface-100 dark:border-surface-700/50 space-y-2">
-								<!-- Linha 1: botão Opções (toggle) + botões de assinatura -->
-								<div class="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-2">
-									<!-- Lado esquerdo: Opções -->
-									<button
-										type="button"
-										class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
-											? 'preset-filled-surface-500 text-white'
-											: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold w-full min-[420px]:w-auto"
-										onclick={() =>
-											(menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
-									>
-										{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
-									</button>
-
-									<!-- Lado direito: botões de assinatura (sempre visíveis) -->
-									<div class="flex gap-2 shrink-0">
-										<button
-											type="button"
-											class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-warning-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1"
-											disabled={assinaturaTelaBloqueada || esc.is_assinada}
-											title={esc.is_assinada ? 'Já assinado' : (assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined)}
-											onclick={() => iniciarAssinaturaTela(esc.id)}
-										>
-											{#if esc.is_assinada}
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-												</svg>
-											{/if}
-											{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
-										</button>
-										<button
-											type="button"
-											class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none active:scale-95 transition-all flex items-center justify-center gap-1"
-											disabled={esc.is_assinada}
-											onclick={() => iniciarAssinaturaToken(esc.id)}
-										>
-											{#if esc.is_assinada}
-												<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-												</svg>
-											{/if}
-											{esc.is_assinada ? 'Assinado' : 'Assinar (Token)'}
-										</button>
-									</div>
-								</div>
-
-								<!-- Linha 2: revelação com slide (padrão GISE) -->
-								{#if menuExpandidoId === esc.id}
-									<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
-										<a
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-											href="/api/escalas/{esc.id}/download?format=pdf"
-											target="_blank"
-										>PDF (conferência)</a>
-										<a
-											class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm {!esc.is_assinada ? 'opacity-50 pointer-events-none' : ''}"
-											href="/api/escalas/{esc.id}/documento-assinado"
-											target="_blank"
-										>PDF assinado</a>
-									</div>
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
+	<SecaoAssinaturas
+		{escalasParaAssinar}
+		{assinaturaTelaBloqueada}
+		onIniciarAssinaturaTela={iniciarAssinaturaTela}
+		onIniciarAssinaturaToken={iniciarAssinaturaToken}
+		onVoltar={() => {
+			visao = 'home';
+			goto('/escalas', { replaceState: true, noScroll: true });
+		}}
+	/>
 {/if}
 
-<!-- PainelAssinaturaToken para assinatura rápida (montado fora da árvore de visão) -->
 <div class="sr-only" aria-hidden="true">
 	<PainelAssinaturaToken
 		bind:control={painelTokenRapidoControl}
@@ -1325,35 +575,21 @@
 	/>
 </div>
 
-<!-- Dialog de aviso: abrir escala com solicitação pendente (cancela a solicitação) -->
 <Dialog
 	open={dialogRevogarSolicitacaoOpen}
-	onOpenChange={(e) => {
-		if (!e.open) {
-			dialogRevogarSolicitacaoOpen = false;
-			escalaAbrirComSolicitacao = null;
-		}
-	}}
+	onOpenChange={(e) => { if (!e.open) { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; } }}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
+		<div class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 			<Dialog.Title class="h3 font-bold mb-2">Cancelar solicitação?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a
-				solicitação será cancelada automaticamente.
+				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a solicitação será cancelada automaticamente.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
-					onclick={() => {
-						dialogRevogarSolicitacaoOpen = false;
-						escalaAbrirComSolicitacao = null;
-					}}>Voltar</button
+					onclick={() => { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; }}>Voltar</button
 				>
 				<button
 					type="button"
@@ -1371,202 +607,25 @@
 	</Dialog.Content>
 </Dialog>
 
-<!-- Dialog Solicitar Assinatura (OIP admins) -->
-<Dialog
-	open={dialogSolicitar}
-	onOpenChange={(e) => {
-		if (!e.open) dialogSolicitar = false;
-	}}
->
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
-			<Dialog.Title class="h3 font-bold mb-1">Solicitar Assinatura</Dialog.Title>
-			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				Quem deve assinar esta escala?
-			</Dialog.Description>
+<DialogSolicitarAssinatura
+	bind:open={dialogSolicitar}
+	escalaId={escalaSolicitandoId}
+	onConfirmado={() => { escalaSolicitandoId = null; }}
+/>
 
-			<div class="space-y-3 mb-5">
-				<!-- Opção 1: Admin da Unidade -->
-				<button
-					type="button"
-					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao ===
-					'unidade'
-						? 'border-primary-500 bg-primary-500/10'
-						: 'border-surface-300 dark:border-white/10 hover:border-primary-400/60'}"
-					onclick={() => {
-						opcaoSolicitacao = 'unidade';
-						destinatarioSelecionado = null;
-					}}
-				>
-					<div class="flex items-start gap-3">
-						<div
-							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao ===
-							'unidade'
-								? 'border-primary-500'
-								: 'border-surface-400'}"
-						>
-							{#if opcaoSolicitacao === 'unidade'}
-								<div class="w-2.5 h-2.5 rounded-full bg-primary-500"></div>
-							{/if}
-						</div>
-						<div>
-							<div class="font-semibold text-sm">Admin da Unidade</div>
-							<div class="text-xs text-surface-500 mt-0.5">
-								O delegado titular da unidade assina o documento
-							</div>
-						</div>
-					</div>
-				</button>
-
-				<!-- Opção 2: Admin em Respondência -->
-				<button
-					type="button"
-					class="w-full p-4 rounded-xl border-2 text-left transition-all {opcaoSolicitacao ===
-					'respondencia'
-						? 'border-tertiary-500 bg-tertiary-500/10'
-						: 'border-surface-300 dark:border-white/10 hover:border-tertiary-400/60'}"
-					onclick={() => {
-						opcaoSolicitacao = 'respondencia';
-					}}
-				>
-					<div class="flex items-start gap-3">
-						<div
-							class="mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors {opcaoSolicitacao ===
-							'respondencia'
-								? 'border-tertiary-500'
-								: 'border-surface-400'}"
-						>
-							{#if opcaoSolicitacao === 'respondencia'}
-								<div class="w-2.5 h-2.5 rounded-full bg-tertiary-500"></div>
-							{/if}
-						</div>
-						<div>
-							<div class="font-semibold text-sm">Admin em Respondência</div>
-							<div class="text-xs text-surface-500 mt-0.5">
-								Escolha um delegado de outra unidade para assinar
-							</div>
-						</div>
-					</div>
-				</button>
-
-				<!-- Busca de destinatário (somente quando respondência selecionada) -->
-				{#if opcaoSolicitacao === 'respondencia'}
-					<div class="pl-4 space-y-2 pt-1 animate-fade-in">
-						{#if destinatarioSelecionado}
-							<div
-								class="flex items-center gap-3 p-3 rounded-xl bg-tertiary-500/10 border border-tertiary-500/30"
-							>
-								<div class="flex-1 min-w-0">
-									<div class="text-sm font-semibold truncate">{destinatarioSelecionado.nome}</div>
-									<div class="text-xs text-surface-500 truncate">
-										{destinatarioSelecionado.lotacao}
-									</div>
-								</div>
-								<button
-									type="button"
-									class="btn btn-sm preset-outlined-surface-500 shrink-0"
-									onclick={() => {
-										destinatarioSelecionado = null;
-										buscaDestinatario = '';
-										resultadosBuscaDestinatario = [];
-									}}
-								>
-									Trocar
-								</button>
-							</div>
-						{:else}
-							<div class="relative">
-								<input
-									type="text"
-									class="input w-full text-sm pr-8"
-									placeholder="Buscar delegado (DPC) por nome ou matrícula…"
-									bind:value={buscaDestinatario}
-									oninput={(e) => buscarDestinatarios(e.currentTarget.value)}
-								/>
-								{#if buscandoDestinatario}
-									<div
-										class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-tertiary-500 border-t-transparent rounded-full animate-spin"
-									></div>
-								{/if}
-							</div>
-							{#if resultadosBuscaDestinatario.length > 0}
-								<div
-									class="card rounded-xl border border-surface-200 dark:border-white/10 overflow-hidden max-h-44 overflow-y-auto shadow-md"
-								>
-									{#each resultadosBuscaDestinatario as p (p.id)}
-										<button
-											type="button"
-											class="w-full text-left px-3 py-2.5 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors border-b border-surface-100 dark:border-white/5 last:border-0"
-											onclick={() => {
-												destinatarioSelecionado = p;
-												resultadosBuscaDestinatario = [];
-												buscaDestinatario = '';
-											}}
-										>
-											<div class="text-sm font-medium">{p.nome}</div>
-											<div class="text-xs text-surface-500">{p.lotacao}</div>
-										</button>
-									{/each}
-								</div>
-							{:else if erroBuscaDestinatario && !buscandoDestinatario}
-								<p class="text-xs text-surface-400 px-1">{erroBuscaDestinatario}</p>
-							{/if}
-						{/if}
-					</div>
-				{/if}
-			</div>
-
-			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<button
-					type="button"
-					class="btn preset-outlined-surface-500"
-					onclick={() => (dialogSolicitar = false)}>Cancelar</button
-				>
-				<button
-					type="button"
-					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
-					disabled={enviandoSolicitacao ||
-						(opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado)}
-					onclick={confirmarSolicitacao}
-				>
-					{enviandoSolicitacao ? 'Enviando…' : 'Confirmar'}
-				</button>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
-
-<!-- Dialog de assinatura na tela (assinatura rápida) -->
 <Dialog
 	open={dialogAssinaturaTela}
-	onOpenChange={(e) => {
-		if (!e.open) dialogAssinaturaTela = false;
-	}}
+	onOpenChange={(e) => { if (!e.open) dialogAssinaturaTela = false; }}
 >
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
-	>
-		<div
-			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
+	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
+		<div class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
 			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
 				Desenhe sua rubrica no quadro abaixo para assinar este documento.
 			</Dialog.Description>
 			<SignaturePad
 				message="Rubrica do Organizador"
-				onConfirm={async (
-					rubrica: string,
-					lat?: number,
-					lng?: number,
-					selfie?: string | null,
-					codigo?: string,
-					desafioId?: string
-				) => {
+				onConfirm={async (rubrica, lat, lng, selfie, codigo, desafioId) => {
 					await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
 				}}
 				onCancel={() => (dialogAssinaturaTela = false)}
@@ -1577,4 +636,5 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
+
 <FloatingRefresh />
