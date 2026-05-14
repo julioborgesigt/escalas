@@ -196,6 +196,12 @@
 	}
 
 	let painelTokenControl = $state<{ assinarComSerpro: () => Promise<void> } | null>(null);
+
+	const podeAssinar = $derived(
+		usuario?.tipo === 'admin' ||
+		((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') &&
+			usuario?.cargo === 'DPC')
+	);
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
@@ -293,10 +299,6 @@
 {/if}
 
 <!-- SEÇÃO DE ASSINATURA -->
-{@const podeAssinar =
-	usuario?.tipo === 'admin' ||
-	((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') &&
-		usuario?.cargo === 'DPC')}
 {#if podeAssinar && !documentoAssinadoInfo?.existe && policiaisCount > 0}
 	<div class="mb-6">
 		<!-- Botão toggle -->
