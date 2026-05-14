@@ -7,8 +7,7 @@
  * this proves the request originated from our own frontend.
  */
 
-export const CSRF_COOKIE_NAME = '__csrf';
-export const CSRF_HEADER_NAME = 'x-csrf-token';
+export { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '../csrf';
 
 /** Generate a cryptographically random CSRF token (hex string). */
 export function generateCsrfToken(): string {

@@ -5,7 +5,7 @@ import {
 import type { Escala, EscalaPolicialComDados } from '../types';
 import { formatarData, formatarDataExtenso } from '../utils';
 import {
-	sepDatas, agruparPorData, formatarMatricula, formatarDataPlantao, formatarHorario,
+	sepDatas, agruparPorData, formatarDataPlantao, formatarHorario,
 	sortExpediente, COLS_EXPEDIENTE, rowExpediente,
 	agruparPlantao, COLS_PLANTAO, rowPlantao,
 	formatarMesAno
@@ -49,7 +49,7 @@ export async function gerarDocx(escala: Escala, policiais: EscalaPolicialComDado
 			new TableRow({
 				children: [
 					p.nome,
-					formatarMatricula(p.matricula),
+					p.matricula,
 					p.cargo,
 					p.telefone || '',
 					p.lotacao,

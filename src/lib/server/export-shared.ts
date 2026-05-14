@@ -72,10 +72,6 @@ export function agruparPorData(policiais: EscalaPolicialComDados[]): DiaPlantao[
 		.map(([data, lista]) => ({ data, policiais: ordenarPoliciais(lista) }));
 }
 
-export function formatarMatricula(matricula: string): string {
-	return matricula;
-}
-
 export function sortExpediente(policiais: EscalaPolicialComDados[]): EscalaPolicialComDados[] {
 	return [...policiais].sort((a, b) => {
 		if (a.cargo !== b.cargo) return a.cargo === 'DPC' ? -1 : 1;
