@@ -33,6 +33,8 @@
 	const seccionaisList = $derived(data.seccionaisList ?? []);
 
 	const restringirSmartphone = $derived(page.data.restringirSmartphone ?? false);
+	const minhaSeccionalId = $derived(data.minhaSeccionalId ?? null);
+	const supervisaoExtraUnidadeId = $derived(data.supervisaoExtraUnidadeId ?? null);
 	let isDesktop = $state(true); // default true
 
 	$effect(() => {
@@ -205,6 +207,42 @@
 			];
 		}
 		dialogInfo = { titulo: `Ass. Extra (0/${totalExtras})`, linhas };
+	}
+
+	/**
+	 * Abre o relatório de extra para download conforme o papel do usuário:
+	 * - Admin Seccional: baixa o relatório da sua própria seccional.
+	 * - Supervisor: baixa o relatório do quadro de supervisão.
+	 * - Admin Geral: exibe dialog informativo orientando a entrar na escala.
+	 */
+	function handleExtraPdf(giseId: number) {
+		if (isAdminGeral && !isSupervisor && !isSeccional) {
+			dialogInfo = {
+				titulo: 'Extra PDF — Admin Geral',
+				linhas: [
+					'Para baixar um relatório de extra específico, entre na escala e escolha qual relatório deseja baixar.',
+					'Na página da escala, cada seccional e o quadro de supervisão têm seus próprios links de download.'
+				],
+				acao: {
+					label: 'Ir para a escala',
+					fn: () => { dialogInfo = null; goto(`/gise/${giseId}`); }
+				}
+			};
+			return;
+		}
+		if (isSupervisor && supervisaoExtraUnidadeId) {
+			window.open(`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`, '_blank');
+			return;
+		}
+		if (isSeccional && minhaSeccionalId) {
+			window.open(`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`, '_blank');
+			return;
+		}
+		// Fallback: sem seccional configurada
+		dialogInfo = {
+			titulo: 'Extra PDF — Indisponível',
+			linhas: ['Não foi possível determinar qual relatório baixar. Entre na escala para acessar os relatórios.']
+		};
 	}
 
 	async function confirmarRubricaGise(
@@ -1063,13 +1101,14 @@
 									>
 										Escala PDF
 									</a>
-									<a
-										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-										href="/api/gise/{ativa.id}/download?format=extraordinario"
-										target="_blank"
+									<button
+										type="button"
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										onclick={() => handleExtraPdf(ativa.id)}
+										title={isSeccional ? 'Baixar relatório de extra da sua seccional' : isSupervisor ? 'Baixar relatório de extra da supervisão' : 'Entrar na escala para escolher o relatório'}
 									>
 										Extra PDF
-									</a>
+									</button>
 								</div>
 							{/if}
 						</div>

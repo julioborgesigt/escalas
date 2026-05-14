@@ -3,6 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import { getDB, listarGiseEscalas, buscarGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
+import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { eq, asc } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 
@@ -31,13 +32,15 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	const supervisorId = (!isGeral && !isSeccional && isSupervisor && !isMembro) ? u.id : undefined;
 	const policialId = (!isGeral && !isSeccional) ? u.id : undefined;
-	const [escalas, ativa, seccionaisList] = await Promise.all([
+	const [escalas, ativa, seccionaisList, supervisaoExtraUnidadeId] = await Promise.all([
 		listarGiseEscalas(db, supervisorId, policialId),
 		buscarGiseAtiva(db),
-		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all()
+		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all(),
+		buscarUnidadeIdSupervisaoExtra(db)
 	]);
 
 	const isUnidade = isAdminUnidade(u);
+	const minhaSeccionalId = (isSeccional || isAdminUnidade(u)) ? u.papel_unidade_id : null;
 
 	return {
 		escalas,
@@ -47,7 +50,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		isUnidade,
 		isSupervisor,
 		isMembro,
-		seccionaisList
+		seccionaisList,
+		minhaSeccionalId,
+		supervisaoExtraUnidadeId
 	};
 };
 
