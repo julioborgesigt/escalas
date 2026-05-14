@@ -197,7 +197,7 @@
 						disabled={loading.active || modoEdicaoGeral || pendingCrud}
 						type="submit"
 					>
-						Solicitar Nova Assinatura
+						{pendingCrud ? 'Enviando...' : 'Solicitar Nova Assinatura'}
 					</button>
 				</form>
 			{/if}
@@ -213,7 +213,7 @@
 						disabled={loading.active || pendingCrud}
 						type="submit"
 					>
-						Revogar solicitação de ass.
+						{pendingCrud ? 'Revogando...' : 'Revogar solicitação de ass.'}
 					</button>
 				</form>
 			{/if}
@@ -261,9 +261,11 @@
 						? 'Planilha Base_Equipe já recebeu estes dados; clique para reenviar.'
 						: 'Envia os dados desta GISE para a aba Base_Equipe da planilha'}
 				>
-					{planilhaBaseEquipeAlimentadaOk
-						? 'Reenviar para planilha'
-						: 'Enviar para a planilha'}
+					{pendingCrud
+						? 'Enviando...'
+						: planilhaBaseEquipeAlimentadaOk
+							? 'Reenviar para planilha'
+							: 'Enviar para a planilha'}
 				</button>
 			</form>
 		{/if}
