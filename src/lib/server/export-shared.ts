@@ -1,5 +1,5 @@
 import type { Escala, EscalaPolicialComDados } from '../types';
-import { formatarData, proximoDia } from '../utils';
+import { formatarData, calcularDataSaida } from '../utils';
 
 export interface DiaPlantao {
 	data: string;
@@ -28,10 +28,7 @@ export function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string 
 
 export function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	if (p.data_saida) return p.data_saida;
-	const he = Number(getHoraEntrada(p, escala).split(':')[0]);
-	const hs = Number(getHoraSaida(p, escala).split(':')[0]);
-	if (hs <= he) return proximoDia(p.data_plantao);
-	return p.data_plantao;
+	return calcularDataSaida(p.data_plantao, getHoraEntrada(p, escala), getHoraSaida(p, escala));
 }
 
 export function formatarHorario(p: EscalaPolicialComDados, escala: Escala): string {
