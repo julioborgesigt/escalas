@@ -7,6 +7,7 @@
 	import { browser } from '$app/environment';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { csrfHeaders } from '$lib/csrf';
+	import { loading } from '$lib/loading.svelte';
 	import {
 		useAutorizacao,
 		getSavedFilters,
@@ -250,11 +251,16 @@
 	}
 
 	async function cancelarSolicitacao(escalaId: number) {
-		await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
-			method: 'DELETE',
-			headers: csrfHeaders()
-		});
-		await invalidateAll();
+		loading.show('Cancelando solicitação...');
+		try {
+			await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+				method: 'DELETE',
+				headers: csrfHeaders()
+			});
+			await invalidateAll();
+		} finally {
+			loading.hide();
+		}
 	}
 
 	const usuarioLogado = $derived(page.data.usuario ?? null);
@@ -470,7 +476,7 @@
 						{/each}
 					</select>
 				</label>
-				<label class="label col-span-12 lg:col-span-3">
+				<label class="label col-span-12 lg:col-span-2">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 						<option value="">Selecione uma unidade...</option>
@@ -481,7 +487,7 @@
 					</select>
 				</label>
 			{:else if isAdminSeccional}
-				<label class="label col-span-12 lg:col-span-6">
+				<label class="label col-span-12 lg:col-span-5">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
 					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 						<option value="">Todas as unidades</option>
@@ -502,7 +508,7 @@
 				</select>
 			</label>
 
-			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-3'}">
+			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-3'}">
 				<span class="label-text font-semibold mb-1">Mês</span>
 				<select class="select" bind:value={filtroMes} onchange={navegarComFiltros}>
 					{#each meses as mes}
