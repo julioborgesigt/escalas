@@ -234,13 +234,13 @@
 				<div class="grid grid-cols-7 gap-0.5">
 					{#each gradeCalendario as cell}
 						{#if cell}
-							{@const iso = isoDiaLocal(calAno, calMes, cell.day)}
+							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
 							{@const sel = iso in diasModal}
 							{@const fer = sel && diasModal[iso].f}
 							{@const ehHoje = iso === hoje()}
 							<button
 								type="button"
-								onclick={() => calCicloDia(iso)}
+								onclick={() => iso && calCicloDia(iso)}
 								class="relative h-9 sm:h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center touch-manipulation
 									{sel
 									? fer
@@ -249,13 +249,13 @@
 									: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}
 									{ehHoje && !sel ? 'ring-1 ring-surface-400 dark:ring-surface-500' : ''}"
 								aria-pressed={sel}
-								aria-label="Dia {cell.day} de {MESES_CAL[calMes]}, {sel
+								aria-label="Dia {cell?.day} de {MESES_CAL[calMes]}, {sel
 									? fer
 										? 'feriado'
 										: 'selecionado'
 									: 'não selecionado'}"
 							>
-								{cell.day}
+								{cell?.day}
 								{#if fer}
 									<span
 										class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[0.45rem] font-bold uppercase text-error-700 dark:text-error-300 leading-none"

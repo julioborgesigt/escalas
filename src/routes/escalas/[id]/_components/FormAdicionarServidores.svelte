@@ -33,7 +33,11 @@
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
-	let dataPlantao = $state(escala.data_inicio ?? '');
+	let dataPlantao = $state('');
+
+	$effect(() => {
+		dataPlantao = escala.data_inicio ?? '';
+	});
 	let addHoraEntrada = $state('08');
 	let addMinutoEntrada = $state('00');
 	let addHoraSaida = $state('08');
