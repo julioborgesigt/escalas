@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { formatarData, proximoDia } from '$lib/utils';
+	import { formatarData, calcularDataSaida } from '$lib/utils';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import ModalEditarDias from './ModalEditarDias.svelte';
 	import type { Escala } from '$lib/server/schema';
@@ -62,10 +62,7 @@
 
 	function getDataSaida(p: EscalaPolicialComDados): string {
 		if (p.data_saida) return p.data_saida;
-		const he = Number(getHoraEntrada(p).split(':')[0]);
-		const hs = Number(getHoraSaida(p).split(':')[0]);
-		if (hs <= he) return proximoDia(p.data_plantao);
-		return p.data_plantao;
+		return calcularDataSaida(p.data_plantao, getHoraEntrada(p), getHoraSaida(p));
 	}
 
 	function formatarHorario(p: EscalaPolicialComDados): string {

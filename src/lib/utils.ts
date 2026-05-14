@@ -16,6 +16,13 @@ export function proximoDia(dateStr: string): string {
 	return d.toISOString().split('T')[0];
 }
 
+/** Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia. */
+export function calcularDataSaida(dataInicio: string, horaEntrada: string, horaSaida: string): string {
+	const he = parseInt(horaEntrada.split(':')[0] ?? '0', 10);
+	const hs = parseInt(horaSaida.split(':')[0] ?? '0', 10);
+	return hs <= he ? proximoDia(dataInicio) : dataInicio;
+}
+
 /**
  * Formata uma data por extenso. Ex: "01 de Janeiro de 2025".
  */
