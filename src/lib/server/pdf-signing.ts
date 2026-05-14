@@ -4,7 +4,8 @@ import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
-import { parseUserAgent, mascaraCPF, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
+import { parseUserAgent, descreverTipoCarimbo, type TipoCarimoTempo } from './document-utils';
+import { mascararCPF } from '../utils';
 import { logger } from './logger';
 
 const SIGNATURE_LENGTH = 8192;
@@ -1156,7 +1157,7 @@ export async function adicionarPaginaAuditoria(
 				authY -= 12;
 			};
 
-			drawP('Identificação', s.signerCpf ? mascaraCPF(s.signerCpf) : 'N/A');
+			drawP('Identificação', s.signerCpf ? mascararCPF(s.signerCpf) : 'N/A');
 			drawP('IP', s.ip || 'Desconhecido');
 			// User-Agent legível
 			const uaLegivel = parseUserAgent(s.userAgent || '');

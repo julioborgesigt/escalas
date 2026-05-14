@@ -16,7 +16,7 @@ import forge from 'node-forge';
 import { logger } from './logger';
 import { loadTrustStore } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
-import { mascaraCPF } from './document-utils';
+import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
 
 // OIDs reaproveitados de pdf-signing.ts
@@ -466,7 +466,7 @@ export async function verificarAssinaturaCompleta(
 		result.certificado = {
 			nome: cn.split(':')[0].trim(),
 			cpf,
-			cpfMascarado: cpf ? mascaraCPF(cpf) : '',
+			cpfMascarado: cpf ? mascararCPF(cpf) : '',
 			issuer: (cms.certificate.issuer.getField('CN')?.value as string) || '',
 			serial: cms.certificate.serialNumber,
 			validoDe: cms.certificate.validity.notBefore.toISOString(),
