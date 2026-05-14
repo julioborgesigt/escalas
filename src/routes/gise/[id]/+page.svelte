@@ -162,8 +162,17 @@
 	let showExcluirGiseConfirm = $state(false);
 	let removendoEquipeId = $state<number | null>(null);
 	let supervisorExpandiuQuadroSeccionais = $state(false);
+	let seccionaisRecolhidas = $state(new Set<number>());
 	const supervisorSomente = $derived(isSupervisor && !isAdminGeral && !isSeccional);
 	const exibirQuadroSeccionais = $derived(!supervisorSomente || supervisorExpandiuQuadroSeccionais);
+
+	function toggleRecolherSeccional(id: number) {
+		if (seccionaisRecolhidas.has(id)) {
+			seccionaisRecolhidas.delete(id);
+		} else {
+			seccionaisRecolhidas.add(id);
+		}
+	}
 
 	// Adicionar equipe
 	let adicionandoEquipeSec = $state<number | null>(null);
@@ -998,28 +1007,55 @@
 
 							<!-- Cabeçalho da seccional -->
 							<div
-								class="flex flex-wrap items-start gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
+								class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
 									sec.seccional_id
-								)}"
+								)} {seccionaisRecolhidas.has(sec.id) ? 'rounded-2xl shadow-sm' : 'rounded-t-2xl'}"
 							>
-								<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-									<span class="font-semibold text-surface-900 dark:text-surface-50 text-sm">
+								<button
+									type="button"
+									class="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-left active:scale-[0.99] transition-transform"
+									onclick={() => toggleRecolherSeccional(sec.id)}
+								>
+									<div
+										class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
+									>
+										<svg
+											class="w-5 h-5 transition-transform duration-300 {seccionaisRecolhidas.has(
+												sec.id
+											)
+												? '-rotate-90'
+												: ''}"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 9l-7 7-7-7"
+											/>
+										</svg>
+									</div>
+									<span class="font-bold text-surface-900 dark:text-surface-50 text-sm sm:text-base">
 										{sec.seccional_nome}
 									</span>
 									{@render statusBadge(sec.status, true)}
-									<div class="flex items-center gap-1.5 text-sm text-surface-500 font-medium ml-2">
+									<div
+										class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2"
+									>
 										<span
 											>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ??
 												gise.hora_saida}h</span
 										>
-										{#if sec.hora_entrada || sec.hora_saida}
+										{#if (sec.hora_entrada || sec.hora_saida) && !seccionaisRecolhidas.has(sec.id)}
 											<span
-												class="ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20"
+												class="hidden sm:inline-block ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 text-[0.65rem]"
 												>H. Personalizado</span
 											>
 										{/if}
 									</div>
-								</div>
+								</button>
 
 								{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 									<div class="hidden shrink-0 items-start sm:flex">
@@ -1055,7 +1091,8 @@
 								{/if}
 							</div>
 
-							{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
+							{#if !seccionaisRecolhidas.has(sec.id)}
+								{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
 								<details
 									class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
 										sec.seccional_id
@@ -2080,8 +2117,9 @@
 									{/if}
 								{/if}
 							</div>
-						</div>
-					{/if}
+						{/if}
+					</div>
+				{/if}
 				{/each}
 			{/if}
 
