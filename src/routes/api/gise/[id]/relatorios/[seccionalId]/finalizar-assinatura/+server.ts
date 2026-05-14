@@ -15,7 +15,8 @@ import {
 	tentarPromoverGiseProntaParaFinalizar
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
-import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado, normalizarTexto } from '$lib/server/pdf-signing';
+import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
+import { normalizarTexto } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 import { logger } from '$lib/server/logger';
