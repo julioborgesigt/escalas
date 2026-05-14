@@ -234,7 +234,6 @@
 	}
 
 	async function confirmarRemoverSeccional() {
-		dialogRemoverSeccionalAberto = false;
 		if (!formRemoverSeccionalPendente) return;
 		pendingCrud = true;
 		const formData = new FormData(formRemoverSeccionalPendente);
@@ -245,6 +244,7 @@
 				headers: csrfHeaders()
 			});
 			if (res.ok) {
+				dialogRemoverSeccionalAberto = false;
 				await invalidate('gise:detail');
 				toaster.success({ title: 'Seccional removida' });
 			} else {
@@ -1579,6 +1579,7 @@
 
 <ModalRemoverSeccional
 	open={dialogRemoverSeccionalAberto}
+	pending={pendingCrud}
 	onOpenChange={(open) => (dialogRemoverSeccionalAberto = open)}
 	onConfirm={confirmarRemoverSeccional}
 />
