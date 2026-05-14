@@ -5,8 +5,8 @@
  * that must be included in every state-changing fetch() to /api/*.
  */
 
-const CSRF_COOKIE_NAME = '__csrf';
-const CSRF_HEADER_NAME = 'x-csrf-token';
+export const CSRF_COOKIE_NAME = '__csrf';
+export const CSRF_HEADER_NAME = 'x-csrf-token';
 
 /** Read the CSRF token from the cookie set by the server. */
 export function getCsrfToken(): string {

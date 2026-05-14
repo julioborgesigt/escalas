@@ -1,17 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import { getDB, listarUnidades } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
-import { limparMatricula } from '$lib/utils';
+import { limparMatricula, normalizarTexto } from '$lib/utils';
 import { gerarSenhaAleatoriaHash } from '$lib/auth';
 import type { Actions } from './$types';
-
-function normalizarTexto(texto: string): string {
-	return texto
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
-		.toLowerCase()
-		.trim();
-}
 
 function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]): string {
 	const normalizado = normalizarTexto(nomeNaPlanilha);
