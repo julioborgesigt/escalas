@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { PDFDocument } from 'pdf-lib';
 import type { Escala, EscalaPolicialComDados } from '../types';
-import { formatarData, formatarDataExtenso } from '../utils';
+import { formatarData, formatarDataExtenso, calcularDataSaida } from '../utils';
 import type { BreveRelatorioEnv } from '$lib/gise/breve-relatorio';
 import {
 	resolveBreveRelatorioConteudoSeccional,
@@ -746,15 +746,9 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	const hEnt = gise.hora_entrada;
 	const hSai = gise.hora_saida;
 
-	let dataSaidaEfetiva = gise.data_inicio;
 	const heVal = parseInt(hEnt.split(':')[0]);
 	const hsVal = parseInt(hSai.split(':')[0]);
-	if (hsVal <= heVal) {
-		const dObj = new Date(gise.data_inicio + 'T12:00:00');
-		dObj.setDate(dObj.getDate() + 1);
-		dataSaidaEfetiva = dObj.toISOString().split('T')[0];
-	}
-
+	const dataSaidaEfetiva = calcularDataSaida(gise.data_inicio, hEnt, hSai);
 	let diff = hsVal - heVal;
 	if (diff <= 0) diff += 24;
 
@@ -952,15 +946,9 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	const hEnt = gise.hora_entrada;
 	const hSai = gise.hora_saida;
 
-	let dataSaidaEfetiva = gise.data_inicio;
 	const heVal = parseInt(hEnt.split(':')[0]);
 	const hsVal = parseInt(hSai.split(':')[0]);
-	if (hsVal <= heVal) {
-		const dObj = new Date(gise.data_inicio + 'T12:00:00');
-		dObj.setDate(dObj.getDate() + 1);
-		dataSaidaEfetiva = dObj.toISOString().split('T')[0];
-	}
-
+	const dataSaidaEfetiva = calcularDataSaida(gise.data_inicio, hEnt, hSai);
 	let diff = hsVal - heVal;
 	if (diff <= 0) diff += 24;
 

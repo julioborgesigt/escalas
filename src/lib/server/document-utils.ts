@@ -140,18 +140,6 @@ function parseUAInternal(ua: string): UAResult {
 // Formatação de CPF (LGPD)
 // ---------------------------------------------------------------------------
 
-/**
- * Formata e mascara um CPF para exibição conforme a LGPD.
- * Máscara: `322.924.***-**`
- *
- * @param cpf - CPF em qualquer formato (com ou sem pontuação)
- */
-export function mascaraCPF(cpf: string): string {
-	const digits = cpf.replace(/\D/g, '');
-	if (digits.length !== 11) return cpf;
-	return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.***-**`;
-}
-
 // ---------------------------------------------------------------------------
 // Determinação do tipo de carimbo de tempo
 // ---------------------------------------------------------------------------

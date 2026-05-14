@@ -7,6 +7,7 @@ import type { Database } from '../core';
 import type { GiseEscala } from '../../server/schema';
 import { buscarGiseEscala } from './escalas';
 import { listarMembrosParaBaseEquipe, type LinhaBaseEquipeMembro } from './base-equipe';
+import { calcularDataSaida } from '../../utils';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -23,17 +24,6 @@ export const BASE_EQUIPE_PLANILHA_HEADERS = [
 	'Hora_Saida_Indiv',
 	'Dia_Saida'
 ] as const;
-
-function dataSaidaEfetivaGise(dataInicio: string, horaEntrada: string, horaSaida: string): string {
-	const heVal = parseInt(horaEntrada.split(':')[0] ?? '0', 10);
-	const hsVal = parseInt(horaSaida.split(':')[0] ?? '0', 10);
-	if (hsVal <= heVal) {
-		const dObj = new Date(dataInicio + 'T12:00:00');
-		dObj.setDate(dObj.getDate() + 1);
-		return dObj.toISOString().slice(0, 10);
-	}
-	return dataInicio;
-}
 
 function isoAgendadoFortaleza(dataYmd: string, hhmm: string): string {
 	const parts = hhmm.split(':');
@@ -112,7 +102,7 @@ export function dadosPlanilhaBaseEquipeParaMembro(
 	const dataInicio = gise.data_inicio;
 	const horaEntradaGise = gise.hora_entrada ?? '08:00';
 	const horaSaidaGise = gise.hora_saida ?? '16:00';
-	const dataSaidaDoc = dataSaidaEfetivaGise(dataInicio, horaEntradaGise, horaSaidaGise);
+	const dataSaidaDoc = calcularDataSaida(dataInicio, horaEntradaGise, horaSaidaGise);
 	const isoEntradaPadrao = isoAgendadoFortaleza(dataInicio, horaEntradaGise);
 
 	let dataEnt: string;
