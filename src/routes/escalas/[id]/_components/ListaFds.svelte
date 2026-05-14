@@ -206,8 +206,8 @@
 	}
 
 	// === Gerenciar dias da escala (FDS) ===
-	let localDataInicio = $state<string>(escala?.data_inicio ?? '');
-	let localDataFim = $state<string>(escala?.data_fim ?? '');
+	let localDataInicio = $state('');
+	let localDataFim = $state('');
 
 	$effect(() => {
 		localDataInicio = escala?.data_inicio ?? '';
