@@ -10,7 +10,7 @@ import {
 	resolveBreveRelatorioTitulo
 } from '$lib/gise/breve-relatorio';
 import {
-	sepDatas, agruparPorData, formatarMatricula, formatarDataPlantao, formatarHorario,
+	sepDatas, agruparPorData, formatarDataPlantao, formatarHorario,
 	sortExpediente, COLS_EXPEDIENTE, rowExpediente,
 	agruparPlantao, COLS_PLANTAO, rowPlantao,
 	formatarMesAno
@@ -199,7 +199,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 	for (const dia of dias) {
 		const tableData = dia.policiais.map(p => [
 			p.nome,
-			formatarMatricula(p.matricula),
+			p.matricula,
 			p.cargo,
 			p.telefone || '',
 			p.lotacao,

@@ -16,6 +16,16 @@ export function proximoDia(dateStr: string): string {
 	return d.toISOString().split('T')[0];
 }
 
+/** Remove acentos e normaliza espaços. Útil para comparações case-insensitive. */
+export function normalizarTexto(texto: string): string {
+	if (!texto) return '';
+	return texto
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.trim()
+		.toLowerCase();
+}
+
 /** Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia. */
 export function calcularDataSaida(dataInicio: string, horaEntrada: string, horaSaida: string): string {
 	const he = parseInt(horaEntrada.split(':')[0] ?? '0', 10);
@@ -140,32 +150,3 @@ export function mascararCPF(cpf: string | undefined): string {
 	return `***.${limpo.slice(3, 6)}.***-**`;
 }
 
-/**
- * Mascara o endereço IP (IPv4 ou IPv6)
- */
-export function mascararIP(ip: string | undefined): string {
-	if (!ip) return 'Não registrado';
-	if (ip.includes(':')) {
-		// IPv6 (Ex: 2804:d4b:7aa8:2500:bdef:80af:18e7:e2f0 -> 2804:d4b...:e2f0)
-		const partes = ip.split(':');
-		if (partes.length < 3) return ip;
-		return `${partes[0]}:${partes[1]}:${partes[2]}:****:****:****:****:${partes[partes.length - 1]}`;
-	} else {
-		// IPv4 (Ex: 177.1.2.3 -> 177.***.***.3)
-		const partes = ip.split('.');
-		if (partes.length !== 4) return ip;
-		return `${partes[0]}.***.***.${partes[3]}`;
-	}
-}
-
-/**
- * Mascara coordenadas GPS para privacidade
- */
-export function mascararCoordenada(valor: number | undefined): string {
-    if (valor === undefined) return '';
-    const str = valor.toFixed(6);
-    const partes = str.split('.');
-    if (partes.length !== 2) return str;
-    // -3.717382 -> -3.71****
-    return `${partes[0]}.${partes[1].slice(0, 2)}****`;
-}

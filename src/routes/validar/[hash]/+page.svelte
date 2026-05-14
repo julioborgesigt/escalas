@@ -1,6 +1,6 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	import { formatarData, mascararNome, mascararCPF, mascararIP, mascararCoordenada } from '$lib/utils';
+	import { formatarData, mascararNome, mascararCPF } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 
 	interface DocumentoComAuditoria {

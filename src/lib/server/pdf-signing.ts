@@ -24,18 +24,6 @@ const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 // ---------------------------------------------------------------------------
 
 /**
- * Remove acentos e padroniza o texto para comparação.
- */
-export function normalizarTexto(text: string): string {
-	if (!text) return '';
-	return text
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "") // Remove acentos
-		.trim()
-		.toUpperCase();
-}
-
-/**
  * Extrai Nome e CPF de uma assinatura CMS (Base64).
  */
 export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf: string } {
