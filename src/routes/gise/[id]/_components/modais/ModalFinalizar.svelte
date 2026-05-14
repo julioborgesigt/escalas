@@ -46,7 +46,7 @@
 						class="w-full btn py-4 rounded-2xl flex items-center justify-center gap-2 group transition-all duration-300 bg-error-500 hover:bg-error-600 text-white font-bold"
 						disabled={pendingCrud}
 					>
-						Finalizar Agora
+						{pendingCrud ? 'Finalizando...' : 'Finalizar Agora'}
 					</button>
 				</form>
 
