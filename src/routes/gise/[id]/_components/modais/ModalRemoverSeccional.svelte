@@ -3,14 +3,15 @@
 
 	interface Props {
 		open: boolean;
+		pending?: boolean;
 		onOpenChange: (open: boolean) => void;
 		onConfirm: () => void | Promise<void>;
 	}
 
-	let { open, onOpenChange, onConfirm }: Props = $props();
+	let { open, pending = false, onOpenChange, onConfirm }: Props = $props();
 </script>
 
-<Dialog {open} onOpenChange={(e) => onOpenChange(e.open)}>
+<Dialog {open} onOpenChange={(e) => !pending && onOpenChange(e.open)}>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
@@ -23,9 +24,16 @@
 				desfeita.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
-				<button type="button" class="btn preset-filled-error-500" onclick={onConfirm}>
-					Remover
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500"
+					onclick={() => onOpenChange(false)}
+					disabled={pending}
+				>
+					Cancelar
+				</button>
+				<button type="button" class="btn preset-filled-error-500" onclick={onConfirm} disabled={pending}>
+					{pending ? 'Removendo...' : 'Remover'}
 				</button>
 			</div>
 		</div>
