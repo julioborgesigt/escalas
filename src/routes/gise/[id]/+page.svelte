@@ -162,16 +162,12 @@
 	let showExcluirGiseConfirm = $state(false);
 	let removendoEquipeId = $state<number | null>(null);
 	let supervisorExpandiuQuadroSeccionais = $state(false);
-	let seccionaisRecolhidas = $state(new Set<number>());
+	let seccionaisRecolhidas = $state<Record<number, boolean>>({});
 	const supervisorSomente = $derived(isSupervisor && !isAdminGeral && !isSeccional);
 	const exibirQuadroSeccionais = $derived(!supervisorSomente || supervisorExpandiuQuadroSeccionais);
 
 	function toggleRecolherSeccional(id: number) {
-		if (seccionaisRecolhidas.has(id)) {
-			seccionaisRecolhidas.delete(id);
-		} else {
-			seccionaisRecolhidas.add(id);
-		}
+		seccionaisRecolhidas[id] = !seccionaisRecolhidas[id];
 	}
 
 	// Adicionar equipe
@@ -829,7 +825,7 @@
 			{/if}
 
 			{#if exibirQuadroSeccionais}
-				{#each gise.seccionais ?? [] as sec}
+				{#each gise.seccionais ?? [] as sec (sec.id)}
 					{#if isAdminGeral || isSupervisor || sec.seccional_id === minhaSeccionalId}
 						<div
 							class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-visible"
@@ -1009,7 +1005,7 @@
 							<div
 								class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
 									sec.seccional_id
-								)} {seccionaisRecolhidas.has(sec.id) ? 'rounded-2xl shadow-sm' : 'rounded-t-2xl'}"
+								)} {seccionaisRecolhidas[sec.id] ? 'rounded-2xl shadow-sm' : 'rounded-t-2xl'}"
 							>
 								<button
 									type="button"
@@ -1020,9 +1016,9 @@
 										class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
 									>
 										<svg
-											class="w-5 h-5 transition-transform duration-300 {seccionaisRecolhidas.has(
+											class="w-5 h-5 transition-transform duration-300 {seccionaisRecolhidas[
 												sec.id
-											)
+											]
 												? '-rotate-90'
 												: ''}"
 											fill="none"
@@ -1048,7 +1044,7 @@
 											>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ??
 												gise.hora_saida}h</span
 										>
-										{#if (sec.hora_entrada || sec.hora_saida) && !seccionaisRecolhidas.has(sec.id)}
+										{#if (sec.hora_entrada || sec.hora_saida) && !seccionaisRecolhidas[sec.id]}
 											<span
 												class="hidden sm:inline-block ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 text-[0.65rem]"
 												>H. Personalizado</span
@@ -1091,7 +1087,7 @@
 								{/if}
 							</div>
 
-							{#if !seccionaisRecolhidas.has(sec.id)}
+							{#if !seccionaisRecolhidas[sec.id]}
 								{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
 								<details
 									class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(

@@ -625,7 +625,7 @@
 			</Dialog.Description>
 			<SignaturePad
 				message="Rubrica do Organizador"
-				onConfirm={async (rubrica, lat, lng, selfie, codigo, desafioId) => {
+				onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined) => {
 					await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
 				}}
 				onCancel={() => (dialogAssinaturaTela = false)}
