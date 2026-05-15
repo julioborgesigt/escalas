@@ -3,6 +3,7 @@ import { escalaDocumentos, giseDocumentos } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 import * as fullSchema from '../server/schema';
+import { anonimizarIp } from './audit';
 
 /**
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).
@@ -47,7 +48,7 @@ export async function salvarDocumentoEscala(
 			verificacao_hash: verificacaoHash,
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
-			ip_address: ipAddress,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
 			user_agent: userAgent,
 			latitude,
 			longitude,
@@ -71,7 +72,7 @@ export async function salvarDocumentoEscala(
 				verificacao_hash: verificacaoHash,
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,
-				ip_address: ipAddress,
+				ip_address: anonimizarIp(ipAddress) ?? undefined,
 				user_agent: userAgent,
 				latitude,
 				longitude,

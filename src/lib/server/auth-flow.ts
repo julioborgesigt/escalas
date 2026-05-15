@@ -17,6 +17,7 @@ import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
+import { anonimizarIp } from '$lib/db/audit';
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
@@ -75,7 +76,7 @@ export async function checkRateLimit(
 }
 
 export async function recordAttempt(db: Database, ip: string, success: boolean): Promise<void> {
-	await db.insert(loginAttempts).values({ ip, success: success ? 1 : 0 });
+	await db.insert(loginAttempts).values({ ip: anonimizarIp(ip) ?? ip, success: success ? 1 : 0 });
 }
 
 /** Alias legado — mesmo que `cookieOptions`. */
