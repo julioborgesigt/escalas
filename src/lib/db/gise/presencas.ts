@@ -17,6 +17,11 @@ import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { getNowBR } from '../../utils';
 import { anonimizarIp } from '../audit';
+import { parseUserAgent } from '../../server/document-utils';
+
+function gps2(v?: number): number | undefined {
+	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+}
 
 export async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
 	return db
@@ -47,9 +52,9 @@ export async function salvarEntradaGise(
 			entrada_rubrica: rubrica,
 			entrada_selfie_key: selfieKey,
 			ip_address: anonimizarIp(ipAddress) ?? undefined,
-			user_agent: userAgent,
-			latitude,
-			longitude,
+			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+			latitude: gps2(latitude),
+			longitude: gps2(longitude),
 			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.onConflictDoUpdate({
@@ -59,9 +64,9 @@ export async function salvarEntradaGise(
 				entrada_rubrica: rubrica,
 				entrada_selfie_key: selfieKey,
 				ip_address: anonimizarIp(ipAddress) ?? undefined,
-				user_agent: userAgent,
-				latitude,
-				longitude,
+				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+				latitude: gps2(latitude),
+				longitude: gps2(longitude),
 				updated_at: sql`datetime('now', '-3 hours')`
 			}
 		});
@@ -85,9 +90,9 @@ export async function salvarSaidaGise(
 			saida_rubrica: rubrica,
 			saida_selfie_key: selfieKey,
 			ip_address: anonimizarIp(ipAddress) ?? undefined,
-			user_agent: userAgent,
-			latitude,
-			longitude,
+			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+			latitude: gps2(latitude),
+			longitude: gps2(longitude),
 			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
