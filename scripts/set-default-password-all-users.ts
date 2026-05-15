@@ -1,17 +1,19 @@
 /**
- * Define uma senha padrão para TODOS os usuários (policiais + administradores).
+ * Define uma senha para TODOS os usuários (policiais + administradores).
  *
  * Uso (local):
- *   npx tsx scripts/set-default-password-all-users.ts --yes
+ *   npx tsx scripts/set-default-password-all-users.ts --password=SENHA --yes
  *
  * Uso (produção/remoto):
- *   npx tsx scripts/set-default-password-all-users.ts --remote --yes
+ *   npx tsx scripts/set-default-password-all-users.ts --password=SENHA --remote --yes
+ *
+ * ATENÇÃO: nunca use uma senha fixa/conhecida. Gere uma senha aleatória
+ * e comunique-a aos usuários por canal seguro fora do terminal.
  */
 
 import { execSync } from 'node:child_process';
 
 const DB_NAME = 'escalas-db';
-const DEFAULT_PASSWORD = 'J1a2b3cd4j';
 const PBKDF2_PREFIX = 'pbkdf2v1:';
 const PBKDF2_ITERATIONS = 100_000;
 
@@ -41,6 +43,24 @@ async function main() {
 	const confirmed = process.argv.includes('--yes');
 	const flag = isRemote ? '--remote' : '--local';
 
+	const passwordArg = process.argv.find((a) => a.startsWith('--password='));
+	if (!passwordArg) {
+		console.error('Erro: forneça --password=SENHA como argumento.');
+		console.error(
+			'Exemplo: npx tsx scripts/set-default-password-all-users.ts --password=MinhaSenh@123 --yes'
+		);
+		console.error(
+			'NUNCA use senhas fixas ou conhecidas. Gere uma senha aleatória e comunique por canal seguro.'
+		);
+		process.exit(1);
+	}
+	const DEFAULT_PASSWORD = passwordArg.slice('--password='.length);
+
+	if (!DEFAULT_PASSWORD) {
+		console.error('Erro: a senha informada está vazia.');
+		process.exit(1);
+	}
+
 	if (!confirmed) {
 		console.error('Confirmação obrigatória: adicione --yes para executar.');
 		process.exit(1);
@@ -53,19 +73,18 @@ async function main() {
 	].join(' ');
 
 	console.log(
-		`Aplicando senha padrão em ${isRemote ? 'PRODUÇÃO (remoto)' : 'LOCAL'} para policiais e administradores...`
+		`Aplicando senha em ${isRemote ? 'PRODUÇÃO (remoto)' : 'LOCAL'} para policiais e administradores...`
 	);
 
 	execSync(`npx wrangler d1 execute ${DB_NAME} ${flag} --command="${sql}"`, {
 		stdio: 'inherit'
 	});
 
-	console.log('Concluído.');
-	console.log(`Senha padrão aplicada: ${DEFAULT_PASSWORD}`);
+	// Nunca imprimir a senha — apenas confirmar o encerramento.
+	console.log('Concluído. Comunique a senha aos usuários por canal seguro e solicite troca imediata.');
 }
 
 main().catch((err) => {
 	console.error('Falha ao aplicar senha padrão:', err);
 	process.exit(1);
 });
-
