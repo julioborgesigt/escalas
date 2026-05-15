@@ -7,6 +7,7 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
@@ -59,6 +60,14 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			{ status: 403 }
 		);
 	}
+
+	registrarAuditComContexto(db, {
+		usuario: u,
+		acao: 'exportar_gise',
+		entidade: 'gise',
+		entidade_id: id,
+		detalhes: `Formato: ${format}`
+	});
 
 	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Prioriza Download do R2)
 	if (format === 'extraordinario') {
