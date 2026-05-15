@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
+import { registrarAuditComContexto } from '$lib/db/audit';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
 import { contentDisposition } from '$lib/server/api';
 import { unidades } from '$lib/server/schema';
@@ -178,6 +179,13 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	if (filtradas.length === 0) {
 		return json({ error: 'Nenhuma escala finalizada encontrada para o filtro informado.' }, { status: 404 });
 	}
+
+	registrarAuditComContexto(db, {
+		usuario: u,
+		acao: 'exportar_gise',
+		entidade: 'gise_historico',
+		detalhes: `Formato: ${format} · Filtros: ${JSON.stringify({ seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica })}`
+	});
 
 	let seccionalNome = 'Todas as seccionais';
 	if (seccionalId !== undefined) {
