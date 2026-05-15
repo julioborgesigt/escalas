@@ -18,8 +18,8 @@
  * pela assessoria jurídica da PCCE.
  */
 
-export const VERSAO = '1.0';
-export const VIGENTE_DESDE = '2026-05-06';
+export const VERSAO = '1.1';
+export const VIGENTE_DESDE = '2026-05-15';
 
 export const CONTEUDO_HTML = `
 <h2>Termo de Uso e Política de Privacidade</h2>
@@ -27,7 +27,7 @@ export const CONTEUDO_HTML = `
 Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 
 <h3>1. Partes e objeto</h3>
-<p><strong>1.1.</strong> Este termo é celebrado entre a <strong>Polícia Civil do Estado do Ceará (PCCE)</strong>, por intermédio da área responsável pelo Sistema de Gestão de Escalas (doravante "Sistema"), e o usuário cadastrado, identificado por matrícula funcional e CPF (doravante "Usuário").</p>
+<p><strong>1.1.</strong> Este termo é celebrado entre a <strong>Polícia Civil do Estado do Ceará (PCCE)</strong>, por intermédio da área responsável pelo Sistema de Gestão de Escalas (doravante “Sistema”), e o usuário cadastrado, identificado por matrícula funcional e CPF (doravante “Usuário”).</p>
 <p><strong>1.2.</strong> O Sistema tem por objeto o gerenciamento de escalas de plantão, expediente e GISE (Grupo de Intervenção e Suporte Especializado), o registro de presença e a assinatura digital dos documentos correspondentes.</p>
 
 <h3>2. Admissibilidade da assinatura eletrônica</h3>
@@ -48,6 +48,7 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>3.1.</strong> Para os fins exclusivos de comprovação e auditoria das assinaturas, com base no art. 7º, V, da Lei nº 13.709/2018 (LGPD), o Usuário <strong>consente</strong> com a coleta, o armazenamento e o tratamento dos seguintes dados:</p>
 <ul>
 	<li>Nome, matrícula funcional e CPF;</li>
+	<li>E-mail pessoal, quando fornecido voluntariamente como canal de recuperação de senha;</li>
 	<li>Endereço IP no momento da assinatura (anonimizado quando exibido em logs);</li>
 	<li>Coordenadas geográficas (latitude e longitude, padrão WGS-84);</li>
 	<li>Identificação do dispositivo e navegador (User-Agent);</li>
@@ -56,7 +57,8 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 	<li>Data e hora do servidor (UTC) e, quando emitido, carimbo de tempo qualificado da Autoridade de Carimbo do Tempo da ICP-Brasil (ACT-ICP).</li>
 </ul>
 <p><strong>3.2.</strong> A finalidade exclusiva do tratamento é a comprovação da autenticidade, integridade e autoria das assinaturas. Os dados são retidos por prazo mínimo de 5 (cinco) anos a contar da data da assinatura, conforme Decreto nº 10.748/2021 e art. 16 da LGPD.</p>
-<p><strong>3.3.</strong> O Usuário poderá exercer os direitos previstos no art. 18 da LGPD junto ao Encarregado de Dados (DPO) da PCCE.</p>
+<p><strong>3.3.</strong> O Usuário poderá exercer os direitos previstos no art. 18 da LGPD (acesso, correção, anonimização, portabilidade, exclusão e oposição) mediante contato com o <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>lgpd@pc.ce.gov.br</strong>, com o assunto “Direitos do Titular – LGPD”. O prazo de resposta é de 15 (quinze) dias úteis, prorrogável por igual período, conforme art. 18, §5º, da LGPD. Informações completas disponíveis em <a href="/termo/dpo">/termo/dpo</a>.</p>
+<p><strong>3.4.</strong> O e-mail pessoal informado pelo Usuário é tratado exclusivamente para o envio de link de recuperação de senha e verificação de identidade, com base no legítimo interesse (art. 7º, IX, da LGPD). Não é compartilhado com terceiros nem utilizado para fins de marketing.</p>
 
 <h3>4. Obrigações do Usuário</h3>
 <p><strong>4.1.</strong> O Usuário obriga-se a:</p>
@@ -92,10 +94,10 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>7.2.</strong> A PCCE não se responsabiliza por assinaturas indevidamente geradas em decorrência de comprometimento de credenciais do Usuário, ressalvada a hipótese de comunicação imediata nos termos da cláusula 4.</p>
 
 <h3>8. Foro</h3>
-<p><strong>8.1.</strong> As partes elegem o foro da Comarca de Fortaleza/CE para dirimir quaisquer questões oriundas deste termo, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
+<p><strong>8.1.</strong> As partes elegem o foro da Comarca de Fortaleza/CE para dirimir quaisquer questões oriunas deste termo, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
 
 <h3>9. Manifestação de aceite</h3>
-<p>Ao marcar as opções de aceite e clicar em <strong>"Aceitar e seguir"</strong>, o Usuário declara que:</p>
+<p>Ao marcar as opções de aceite e clicar em <strong>“Aceitar e seguir”</strong>, o Usuário declara que:</p>
 <ul>
 	<li>leu integralmente o presente termo;</li>
 	<li>compreendeu as obrigações e os direitos aqui estabelecidos;</li>
