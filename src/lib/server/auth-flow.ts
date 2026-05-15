@@ -41,7 +41,10 @@ export function mascararEmail(email: string): string {
 			'*'.repeat(local.length - showStart - 1) +
 			local[local.length - 1];
 	}
-	return masked + '@' + domain;
+	// Ocultar domínio para não revelar provedor (ex: gmail.com → ***.com)
+	const dotIdx = domain.lastIndexOf('.');
+	const maskedDomain = dotIdx > 0 ? '***' + domain.slice(dotIdx) : '***';
+	return masked + '@' + maskedDomain;
 }
 
 /** Opções de cookie de sessão pós-login (httpOnly, sameSite, secure). */
@@ -296,7 +299,7 @@ export async function tentarLogin({
 			};
 		}
 
-		const token = await criarSessao(db, 'admin', admin.id);
+		const token = await criarSessao(db, 'admin', envAdmin.id);
 		const dest = adminDestino(adminModulo);
 		return {
 			sucesso: true,
