@@ -201,14 +201,14 @@ export const escalaSolicitacoesAssinatura = sqliteTable(
 			.notNull()
 			.references(() => policiais.id),
 		tipo: text('tipo', { enum: ['unidade', 'respondencia'] }).notNull(),
-		destinatario_id: integer('destinatario_id').references(() => policiais.id),
+		destinатario_id: integer('destinatario_id').references(() => policiais.id),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_esa_escala_id').on(table.escala_id),
-		index('idx_esa_destinatario_id').on(table.destinatario_id)
+		index('idx_esa_destinatario_id').on(table.destinатario_id)
 	]
 );
 
@@ -236,7 +236,7 @@ export const giseEscalas = sqliteTable(
 		})
 			.notNull()
 			.default('em_definicao_supervisor'),
-		supervisor_id: integer('supervisor_id'), // already exists
+		supervisor_id: integer('supervisor_id'),
 		assessor_id: integer('assessor_id'),
 		seint1_id: integer('seint1_id'),
 		seint2_id: integer('seint2_id'),
@@ -377,8 +377,8 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 
 export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
-	tipo: text('tipo').notNull().default('operacional'), // 'operacional' ou 'seint'
-	config: text('config').notNull().default('[]'), // JSON array de perguntas
+	tipo: text('tipo').notNull().default('operacional'),
+	config: text('config').notNull().default('[]'),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	index('idx_gise_modelo_tipo').on(table.tipo)
@@ -574,6 +574,75 @@ export const auditLog = sqliteTable(
 	]
 );
 
+// ---- LGPD: Registro de Incidentes (art. 48) ----
+
+export const lgpdIncidentes = sqliteTable(
+	'lgpd_incidentes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		titulo: text('titulo').notNull(),
+		descricao: text('descricao').notNull(),
+		tipo_incidente: text('tipo_incidente', {
+			enum: ['acesso_nao_autorizado', 'vazamento', 'uso_indevido', 'perda', 'alteracao', 'outro']
+		}).notNull().default('acesso_nao_autorizado'),
+		data_ocorrencia: text('data_ocorrencia'),
+		data_descoberta: text('data_descoberta').notNull(),
+		dados_afetados: text('dados_afetados').notNull(),
+		usuarios_afetados_estimativa: integer('usuarios_afetados_estimativa'),
+		gravidade: text('gravidade', { enum: ['baixa', 'media', 'alta', 'critica'] }).notNull().default('media'),
+		status: text('status', { enum: ['aberto', 'investigando', 'notificado_anpd', 'encerrado'] }).notNull().default('aberto'),
+		responsavel_nome: text('responsavel_nome').notNull(),
+		responsavel_email: text('responsavel_email').notNull(),
+		notificado_anpd_em: text('notificado_anpd_em'),
+		prazo_notificacao_anpd: text('prazo_notificacao_anpd'),
+		medidas_tomadas: text('medidas_tomadas'),
+		created_by_id: integer('created_by_id').notNull(),
+		created_by_nome: text('created_by_nome').notNull(),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_lgpd_incidentes_status').on(table.status, table.created_at),
+		index('idx_lgpd_incidentes_gravidade').on(table.gravidade)
+	]
+);
+
+// ---- LGPD: Solicitações de Direitos dos Titulares (art. 18) ----
+
+export const lgpdSolicitacoes = sqliteTable(
+	'lgpd_solicitacoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		solicitante_tipo: text('solicitante_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		solicitante_id: integer('solicitante_id').notNull(),
+		solicitante_nome: text('solicitante_nome').notNull(),
+		tipo_direito: text('tipo_direito', {
+			enum: [
+				'acesso',
+				'correcao',
+				'anonimizacao',
+				'portabilidade',
+				'eliminacao',
+				'informacao_compartilhamento',
+				'revogacao_consentimento',
+				'oposicao'
+			]
+		}).notNull(),
+		descricao: text('descricao'),
+		status: text('status', { enum: ['pendente', 'em_analise', 'concluida', 'indeferida'] }).notNull().default('pendente'),
+		resposta: text('resposta'),
+		respondido_por_nome: text('respondido_por_nome'),
+		respondido_em: text('respondido_em'),
+		prazo_resposta: text('prazo_resposta').notNull(),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_lgpd_sol_solicitante').on(table.solicitante_tipo, table.solicitante_id, table.created_at),
+		index('idx_lgpd_sol_status').on(table.status, table.prazo_resposta)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
@@ -599,3 +668,7 @@ export type NovoAceiteTermo = typeof aceitesTermos.$inferInsert;
 export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NovoAuditLog = typeof auditLog.$inferInsert;
+export type LgpdIncidente = typeof lgpdIncidentes.$inferSelect;
+export type NovoLgpdIncidente = typeof lgpdIncidentes.$inferInsert;
+export type LgpdSolicitacao = typeof lgpdSolicitacoes.$inferSelect;
+export type NovaLgpdSolicitacao = typeof lgpdSolicitacoes.$inferInsert;
