@@ -164,17 +164,27 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400'
 	});
 
+	// Mascarar dados pessoais antes de serializar para o cliente.
+	// CPF: manter apenas 3 primeiros + 2 últimos dígitos (ex: 123.***.***-01).
+	// IP, user-agent e coordenadas precisas são omitidos — não necessários para
+	// validação pública e permitem rastreamento individual (LGPD art. 6º e 46).
+	const cpfMascarado = documento.assinante_cpf
+		? documento.assinante_cpf.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
+		: null;
+	const latReduzida =
+		documento.latitude != null ? Math.round(documento.latitude * 100) / 100 : null;
+	const lngReduzida =
+		documento.longitude != null ? Math.round(documento.longitude * 100) / 100 : null;
+
 	return {
 		encontrado: true as const,
 		documento: {
 			assinante_nome: documento.assinante_nome,
-			assinante_cpf: documento.assinante_cpf,
+			assinante_cpf: cpfMascarado,
 			created_at: documento.created_at,
 			tipo: documento.tipo_doc,
-			ip_address: documento.ip_address,
-			user_agent: documento.user_agent,
-			latitude: documento.latitude,
-			longitude: documento.longitude,
+			latitude: latReduzida,
+			longitude: lngReduzida,
 			tipo_assinatura: tipoAssin,
 			cert_issuer: (docAny.cert_issuer as string | undefined) ?? null,
 			cert_valido_ate: (docAny.cert_valido_ate as string | undefined) ?? null,
