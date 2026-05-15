@@ -398,6 +398,85 @@ export async function enviarLinkRedefinicaoSenha(
   }
 }
 
+export async function enviarLinkPrimeiroAcesso(
+  destinatario: string,
+  nomeUsuario: string,
+  linkPrimeiroAcesso: string,
+  platform: App.Platform | undefined
+): Promise<void> {
+  const { user, pass } = ensureCredenciais(platform);
+  const transporter = getTransporter(user, pass);
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Sistema de Escalas - PCCE" <${user}>`,
+      to: destinatario,
+      subject: 'Primeiro Acesso — Sistema de Escalas',
+      html: `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#1a3a6e;padding:24px 32px;">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
+            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 24px;color:#555;font-size:14px;">
+              Sua conta no Sistema de Escalas de Plantão foi criada. Clique no botão abaixo para definir sua senha e ativar o acesso:
+            </p>
+            <div style="text-align:center;margin-bottom:24px;">
+              <a href="${linkPrimeiroAcesso}"
+                 style="display:inline-block;background:#1a3a6e;color:#ffffff;font-size:15px;font-weight:bold;
+                        text-decoration:none;padding:14px 32px;border-radius:8px;">
+                Definir minha senha
+              </a>
+            </div>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              ⏱ Este link expira em <strong>1 hora</strong>.
+            </p>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              Se o botão não funcionar, copie e cole este link no navegador:
+            </p>
+            <p style="margin:0 0 16px;font-size:12px;word-break:break-all;">
+              <a href="${linkPrimeiroAcesso}" style="color:#1a3a6e;">${linkPrimeiroAcesso}</a>
+            </p>
+            <p style="margin:0;color:#e53e3e;font-size:13px;font-weight:bold;">
+              🔒 Se você não esperava este e-mail, entre em contato com o administrador do sistema.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+    });
+    logger.info('[email/primeiro-acesso] Link enviado', {
+      destinatario,
+      messageId: info.messageId
+    });
+  } catch (err) {
+    logger.error('[email/primeiro-acesso] Erro ao enviar', {
+      destinatario,
+      error: err instanceof Error ? err.message : String(err)
+    });
+    throw err;
+  }
+}
+
 /**
  * Envia a escala de FDS como anexo DOCX para o e-mail de destino (ex: DPI Sul).
  */

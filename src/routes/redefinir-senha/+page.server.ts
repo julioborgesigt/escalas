@@ -6,7 +6,9 @@ import { administradores, policiais, sessoes, resetSenhaTokens } from '$lib/serv
 import { alterarSenhaSchema } from '$lib/schemas';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ url, platform }) => {
+export const load: PageServerLoad = async ({ url, platform, setHeaders }) => {
+	setHeaders({ 'cache-control': 'no-store' });
+
 	const token = url.searchParams.get('token') ?? '';
 
 	if (!token) {
