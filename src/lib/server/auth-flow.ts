@@ -163,9 +163,44 @@ export async function tentarLogin({
 		const envSenha = _env?.ADMIN_GERAL_SENHA ?? '';
 
 		if (envLogin && envSenha && matricula === envLogin) {
-			// AVISO DE SEGURANÇA: credenciais de bootstrap em uso. Remova ADMIN_GERAL_LOGIN e
-			// ADMIN_GERAL_SENHA das variáveis de ambiente após o setup inicial — elas ignoram 2FA.
-			logger.warn('[security] Login via credenciais de bootstrap (ADMIN_GERAL). Remova as variáveis de ambiente após o setup inicial.', { ip });
+			// Credenciais de bootstrap: usadas apenas no setup inicial, antes de o admin
+			// ter e-mail configurado. Após o primeiro acesso completo, o bootstrap é
+			// desativado automaticamente para impedir que estas credenciais contornem o 2FA.
+			const envAdminExistente = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.login, envLogin))
+				.get();
+
+			if (envAdminExistente?.email && envAdminExistente.primeiro_acesso === 0) {
+				// Setup concluído — bootstrap não é mais necessário. Recusar e logar.
+				logger.error(
+					'[security] Bootstrap bloqueado: admin já possui e-mail configurado. ' +
+						'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA das variáveis de ambiente.',
+					{ ip }
+				);
+				await recordAttempt(db, ip, false);
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'falha_login',
+					entidade: 'admin',
+					detalhes: 'Tentativa de login via bootstrap bloqueada (setup já concluído)',
+					ip
+				});
+				return {
+					sucesso: false,
+					statusCode: 401,
+					erro: 'Login ou senha inválidos',
+					fields: { matricula, tipo }
+				};
+			}
+
+			logger.warn(
+				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
+					'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA após concluir o setup inicial.',
+				{ ip }
+			);
+
 			if (!compararSegredoUtf8TimingSafe(senha, envSenha)) {
 				await recordAttempt(db, ip, false);
 				await registrarAuditComContexto(db, {
@@ -183,7 +218,7 @@ export async function tentarLogin({
 				};
 			}
 
-			let envAdmin = await db.select().from(administradores).where(eq(administradores.login, envLogin)).get();
+			let envAdmin = envAdminExistente;
 			if (!envAdmin) {
 				const senhaHash = await hashSenha(crypto.randomUUID());
 				await db.insert(administradores).values({

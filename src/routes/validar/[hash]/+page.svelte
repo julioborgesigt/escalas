@@ -1,15 +1,13 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	import { formatarData, mascararNome, mascararCPF } from '$lib/utils';
+	import { formatarData, mascararNome } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
-		assinante_cpf?: string;
+		assinante_cpf?: string; // já mascarado pelo servidor (LGPD)
 		created_at: string;
 		tipo: string;
-		ip_address?: string;
-		user_agent?: string;
 		latitude?: number;
 		longitude?: number;
 	}
@@ -264,7 +262,7 @@
 								<span class="block text-[10px] uppercase font-bold text-surface-400">Assinado Digitalmente por</span>
 								<span class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words">{mascararNome(documento.assinante_nome)}</span>
 								{#if documento.assinante_cpf}
-									<span class="block text-xs text-surface-500 mt-1">CPF: {mascararCPF(documento.assinante_cpf)}</span>
+									<span class="block text-xs text-surface-500 mt-1">CPF: {documento.assinante_cpf}</span>
 								{/if}
 							</div>
 						</div>
