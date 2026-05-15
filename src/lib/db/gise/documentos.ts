@@ -15,6 +15,7 @@ import {
 } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
+import { anonimizarIp } from '../audit';
 
 /** Reexportado de '../documentos' para uso pelos endpoints. */
 export type { AssinaturaCadesMetadata } from '../documentos';
@@ -53,7 +54,7 @@ export async function salvarGiseDocumento(
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
 			rubrica: rubrica || null,
-			ip_address: ipAddress,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
 			user_agent: userAgent,
 			latitude,
 			longitude,
@@ -79,7 +80,7 @@ export async function salvarGiseDocumento(
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,
 				rubrica: rubrica || null,
-				ip_address: ipAddress,
+				ip_address: anonimizarIp(ipAddress) ?? undefined,
 				user_agent: userAgent,
 				latitude,
 				longitude,
