@@ -6,6 +6,7 @@ import { contentDisposition } from '$lib/server/api';
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { registrarAuditComContexto } from '$lib/db/audit';
 
 async function carregarLogoR2(platform: App.Platform | undefined, key: string): Promise<Uint8Array | undefined> {
 	try {
@@ -36,7 +37,16 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 	}
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
-	const filename = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.${format === 'docx' || format === 'doc' ? 'docx' : format === 'xlsx' || format === 'excel' || format === 'xls' ? 'xlsx' : 'pdf'}`;
+
+	registrarAuditComContexto(db, {
+		usuario: u,
+		acao: 'exportar_escala',
+		entidade: 'escala',
+		entidade_id: id,
+		detalhes: `Formato: ${format} · Tipo: ${escala.tipo}`
+	});
+
+	const filename = `${escala.titulo.replace(/[\/\\?%*:|"<>]/g, '-')}.${format === 'docx' || format === 'doc' ? 'docx' : format === 'xlsx' || format === 'excel' || format === 'xls' ? 'xlsx' : 'pdf'}`;
 
 	try {
 		// ── PDF: servir documento assinado do R2 se existir ──────────────────
