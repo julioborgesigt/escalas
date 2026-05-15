@@ -46,10 +46,10 @@
 			method="POST"
 			action="?/aceitar"
 			use:enhance={() => {
-				enviando = true;
+				enviam = true;
 				return async ({ update }) => {
 					await update();
-					enviando = false;
+					enviam = false;
 				};
 			}}
 			class="p-4 sm:p-6 border-t border-surface-200 dark:border-white/5 space-y-3"
@@ -81,8 +81,8 @@
 					class="mt-1 shrink-0"
 				/>
 				<span class="text-sm text-surface-800 dark:text-surface-200">
-					Autorizo a coleta de IP, geolocalização (GPS), dispositivo e selfie para fins de
-					auditoria das assinaturas, conforme art. 7º, V, da LGPD.
+					Autorizo a coleta de IP, geolocalização (GPS), dispositivo, selfie e e-mail pessoal
+					(quando fornecido) para os fins descritos neste termo, conforme art. 7º, V e IX, da LGPD.
 				</span>
 			</label>
 
