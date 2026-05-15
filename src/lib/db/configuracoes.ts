@@ -2,6 +2,13 @@ import { eq, sql } from 'drizzle-orm';
 import { configuracoes } from '../server/schema';
 import type { Database } from './core';
 
+// Chaves de configuração de retenção de dados (LGPD art. 16)
+export const LGPD_RETENCAO_SESSOES_DIAS         = 'lgpd.retencao.sessoes_dias';
+export const LGPD_RETENCAO_LOGIN_ATTEMPTS_DIAS  = 'lgpd.retencao.login_attempts_dias';
+export const LGPD_RETENCAO_2FA_DIAS             = 'lgpd.retencao.dois_fatores_dias';
+export const LGPD_RETENCAO_RESET_TOKENS_DIAS    = 'lgpd.retencao.reset_tokens_dias';
+export const LGPD_RETENCAO_AUDIT_LOG_ANOS       = 'lgpd.retencao.audit_log_anos';
+
 export async function buscarConfiguracao(db: Database, chave: string): Promise<string | null> {
 	const row = await db.select().from(configuracoes).where(eq(configuracoes.chave, chave)).get();
 	return row?.valor ?? null;

@@ -2,8 +2,8 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { eq, and, count, gt } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, verificarDesafio2FA, criarSessao } from '$lib/auth';
-import { enviarSenhaProvisoria } from '$lib/server/email';
+import { verificarDesafio2FA, criarSessao, criarTokenRedefinicao } from '$lib/auth';
+import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import {
 	tentarLogin,
@@ -11,7 +11,6 @@ import {
 	cookieOptionsLogin,
 	type AdminModulo
 } from '$lib/server/auth-flow';
-import { gerarSenhaProvisoria } from '$lib/server/provisional-password';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 
@@ -158,7 +157,7 @@ export const actions: Actions = {
 		};
 	},
 
-	solicitarPrimeiroAcesso: async ({ request, platform, getClientAddress }) => {
+	solicitarPrimeiroAcesso: async ({ request, platform, url, getClientAddress }) => {
 		const db = getDB(platform);
 		const ip = getClientAddress();
 		const formData = await request.formData();
@@ -170,8 +169,6 @@ export const actions: Actions = {
 
 		const respostaGenerica = { success: true, enviado: true };
 
-		// Rate limit por IP: previne DoS de conta via ciclo de senha provisória.
-		// Reusa `loginAttempts` (mesmo padrão de `solicitar-redefinicao`).
 		const windowIp = new Date(
 			Date.now() - PRIMEIRO_ACESSO_JANELA_IP_MINUTOS * 60 * 1000
 		).toISOString();
@@ -198,12 +195,11 @@ export const actions: Actions = {
 			return fail(422, { error: 'Nenhum e-mail cadastrado para esta matrícula.' });
 		}
 
-		const senhaProvisoria = gerarSenhaProvisoria();
-		const senhaHash = await hashSenha(senhaProvisoria);
-		await db.update(policiais).set({ senha: senhaHash }).where(eq(policiais.id, policial.id));
+		const token = await criarTokenRedefinicao(db, 'policial', policial.id);
+		const link = `${url.origin}/redefinir-senha?token=${token}`;
 
 		try {
-			await enviarSenhaProvisoria(policial.email, senhaProvisoria, policial.nome, platform);
+			await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);
 		} catch (err) {
 			logger.error('[login/primeiro-acesso] Falha ao enviar e-mail', {
 				policial_id: policial.id,

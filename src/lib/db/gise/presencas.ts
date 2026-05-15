@@ -15,8 +15,8 @@ import {
 } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
-
 import { getNowBR } from '../../utils';
+import { anonimizarIp } from '../audit';
 
 export async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
 	return db
@@ -46,7 +46,7 @@ export async function salvarEntradaGise(
 			entrada_timestamp: now,
 			entrada_rubrica: rubrica,
 			entrada_selfie_key: selfieKey,
-			ip_address: ipAddress,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
 			user_agent: userAgent,
 			latitude,
 			longitude,
@@ -58,7 +58,7 @@ export async function salvarEntradaGise(
 				entrada_timestamp: now,
 				entrada_rubrica: rubrica,
 				entrada_selfie_key: selfieKey,
-				ip_address: ipAddress,
+				ip_address: anonimizarIp(ipAddress) ?? undefined,
 				user_agent: userAgent,
 				latitude,
 				longitude,
@@ -84,7 +84,7 @@ export async function salvarSaidaGise(
 			saida_timestamp: getNowBR().toISOString(),
 			saida_rubrica: rubrica,
 			saida_selfie_key: selfieKey,
-			ip_address: ipAddress,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
 			user_agent: userAgent,
 			latitude,
 			longitude,

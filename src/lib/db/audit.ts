@@ -42,7 +42,8 @@ export type AcaoAudit =
 	| 'falha_login'
 	| 'solicitar_redefinicao_senha'
 	| 'redefinir_senha'
-	| 'aceitar_termos';
+	| 'aceitar_termos'
+	| 'limpeza_retencao';
 
 interface AuditEntry {
 	usuario_id: number | null;
