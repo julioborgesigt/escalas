@@ -45,7 +45,11 @@ export type AcaoAudit =
 	| 'aceitar_termos'
 	| 'limpeza_retencao'
 	| 'exportar_escala'
-	| 'exportar_gise';
+	| 'exportar_gise'
+	| 'registrar_incidente'
+	| 'atualizar_incidente'
+	| 'solicitar_direito_lgpd'
+	| 'responder_solicitacao_lgpd';
 
 interface AuditEntry {
 	usuario_id: number | null;
