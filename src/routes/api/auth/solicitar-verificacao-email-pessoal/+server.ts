@@ -12,27 +12,11 @@ import { eq, and, gt, count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
+import { mascararEmail } from '$lib/server/auth-flow';
 import { doisFatoresTokens } from '$lib/server/schema';
 import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function mascararEmail(email: string): string {
-	const at = email.indexOf('@');
-	if (at <= 0) return email;
-	const local = email.slice(0, at);
-	const domain = email.slice(at + 1);
-	let masked: string;
-	if (local.length === 1) {
-		masked = local;
-	} else if (local.length === 2) {
-		masked = local[0] + '*';
-	} else {
-		const showStart = Math.min(2, Math.floor(local.length / 2));
-		masked = local.slice(0, showStart) + '*'.repeat(local.length - showStart - 1) + local[local.length - 1];
-	}
-	return masked + '@' + domain;
-}
 
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const u = locals.usuario;
