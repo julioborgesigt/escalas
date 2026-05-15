@@ -276,6 +276,15 @@ export function gerarCodigo2FA(): string {
 	return String(num % 1_000_000).padStart(6, '0');
 }
 
+/** SHA-256 do código 2FA — o código em texto nunca é persisted diretamente. */
+async function hashCodigo2FA(codigo: string): Promise<string> {
+	const enc = new TextEncoder();
+	const hashBuf = await crypto.subtle.digest('SHA-256', enc.encode(codigo));
+	return Array.from(new Uint8Array(hashBuf))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+}
+
 /** Persiste um desafio 2FA no banco e retorna o desafioId (UUID aleatório). */
 export async function criarDesafio2FA(
 	db: Database,
@@ -289,7 +298,7 @@ export async function criarDesafio2FA(
 		desafio_id: desafioId,
 		tipo,
 		usuario_id: usuarioId,
-		codigo,
+		codigo: await hashCodigo2FA(codigo),
 		expires_at: expiresAt
 	});
 	return desafioId;
@@ -369,11 +378,12 @@ export async function verificarDesafio2FA(
 	if (new Date() > new Date(desafio.expires_at)) return 'expirado';
 	if (desafio.tentativas >= 5) return 'esgotado';
 
-	const codigoA = Buffer.from(desafio.codigo.padEnd(10));
-	const codigoB = Buffer.from(String(codigoInput).padEnd(10));
-	const codesMatch = timingSafeEqual(codigoA, codigoB) ? 1 : 0;
-	const lenMatch = desafio.codigo.length === String(codigoInput).length ? 1 : 0;
-	if ((codesMatch & lenMatch) !== 1) {
+	// stored codigo is now SHA-256 hex (64 chars); compare hashes timing-safe
+	const hashedInput = await hashCodigo2FA(String(codigoInput));
+	const codigoA = Buffer.from(desafio.codigo);
+	const codigoB = Buffer.from(hashedInput);
+	const codesMatch = codigoA.length === codigoB.length && timingSafeEqual(codigoA, codigoB) ? 1 : 0;
+	if (codesMatch !== 1) {
 		await db
 			.update(doisFatoresTokens)
 			.set({ tentativas: desafio.tentativas + 1 })
