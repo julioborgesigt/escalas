@@ -12,6 +12,17 @@ function bearerTokenValido(authHeader: string | null, expectedToken: string): bo
 	return (valueMatch & lenMatch) === 1;
 }
 
+async function hmacSha256Valido(secret: string, body: string, sigHeader: string | null): Promise<boolean> {
+	if (!sigHeader?.startsWith('sha256=')) return false;
+	const expectedHex = sigHeader.slice(7);
+	const enc = new TextEncoder();
+	const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+	const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+	const computedHex = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
+	if (computedHex.length !== expectedHex.length) return false;
+	return timingSafeEqual(Buffer.from(computedHex), Buffer.from(expectedHex));
+}
+
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
 function parseNivel(item: Record<string, unknown>): SyncNivel | null {
@@ -27,15 +38,23 @@ function trimCol(item: Record<string, unknown>, key: string): string {
 }
 
 export const POST: RequestHandler = async ({ request, platform }) => {
-	const authHeader = request.headers.get('Authorization');
 	const SYNC_TOKEN = (platform?.env as { SYNC_TOKEN?: string })?.SYNC_TOKEN;
+	if (!SYNC_TOKEN) return json({ error: 'Não autorizado' }, { status: 401 });
 
-	if (!SYNC_TOKEN || !bearerTokenValido(authHeader, SYNC_TOKEN)) {
+	const rawBody = await request.text();
+	const sigHeader = request.headers.get('X-Hub-Signature-256');
+	const authHeader = request.headers.get('Authorization');
+
+	const autorizado = sigHeader
+		? await hmacSha256Valido(SYNC_TOKEN, rawBody, sigHeader)
+		: bearerTokenValido(authHeader, SYNC_TOKEN);
+
+	if (!autorizado) {
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
 	try {
-		const payload = await request.json();
+		const payload = JSON.parse(rawBody);
 		const db = getDB(platform);
 
 		const data = (Array.isArray(payload) ? payload : [payload]) as Record<string, unknown>[];

@@ -176,7 +176,7 @@ export async function criarSessao(
 	usuarioId: number
 ): Promise<string> {
 	const token = gerarToken();
-	const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+	const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 	await db.insert(sessoes).values({
 		token,
 		tipo,

@@ -43,7 +43,9 @@ export type AcaoAudit =
 	| 'solicitar_redefinicao_senha'
 	| 'redefinir_senha'
 	| 'aceitar_termos'
-	| 'limpeza_retencao';
+	| 'limpeza_retencao'
+	| 'exportar_escala'
+	| 'exportar_gise';
 
 interface AuditEntry {
 	usuario_id: number | null;
