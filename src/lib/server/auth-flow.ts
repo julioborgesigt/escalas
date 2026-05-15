@@ -51,7 +51,7 @@ export function cookieOptions(url: URL) {
 		httpOnly: true,
 		sameSite: 'strict' as const,
 		secure: url.protocol === 'https:',
-		maxAge: 12 * 60 * 60
+		maxAge: 60 * 60
 	};
 }
 
