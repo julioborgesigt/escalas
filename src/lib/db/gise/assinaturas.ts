@@ -15,6 +15,7 @@ import {
 } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
+import { anonimizarIp } from '../audit';
 
 export async function buscarAssinaturasRelatoriosGise(db: Database, giseId: number) {
 	return db
@@ -96,9 +97,10 @@ export async function salvarAssinaturaRelatorioGise(
 		tst_token_b64?: string | null;
 	}
 ) {
+	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
 	return db
 		.insert(giseAssinaturasRelatorios)
-		.values({ ...data, assinante_id: data.assinante_id ?? null, assinante_cpf: data.assinante_cpf ?? '' })
+		.values({ ...data, assinante_id: data.assinante_id ?? null, assinante_cpf: data.assinante_cpf ?? '', ip_address: ipAnonimizado })
 		.onConflictDoUpdate({
 			target: [
 				giseAssinaturasRelatorios.gise_id,
@@ -112,7 +114,7 @@ export async function salvarAssinaturaRelatorioGise(
 				tipo_assinatura: data.tipo_assinatura,
 				rubrica: data.rubrica,
 				verification_hash: data.verification_hash,
-				ip_address: data.ip_address,
+				ip_address: ipAnonimizado,
 				user_agent: data.user_agent,
 				latitude: data.latitude,
 				longitude: data.longitude,

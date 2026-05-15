@@ -10,6 +10,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { aceitesTermos } from '../server/schema';
 import type { AceiteTermo } from '../server/schema';
 import type { Database } from './core';
+import { anonimizarIp } from './audit';
 
 export interface RegistrarAceiteInput {
 	usuario_tipo: 'policial' | 'admin';
@@ -33,7 +34,7 @@ export async function registrarAceite(
 			versao_termo: input.versao_termo,
 			hash_termo: input.hash_termo,
 			aceitou_lgpd: input.aceitou_lgpd ? 1 : 0,
-			ip: input.ip ?? null,
+			ip: anonimizarIp(input.ip),
 			user_agent: input.user_agent ?? null
 		})
 		.returning()
