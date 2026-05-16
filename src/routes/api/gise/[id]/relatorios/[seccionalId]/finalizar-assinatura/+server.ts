@@ -5,8 +5,7 @@
  * Retorna o PDF assinado como bytes binários.
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import forge from 'node-forge';
 import {
 	getDB,
@@ -19,15 +18,25 @@ import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$l
 import { normalizarTexto } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
-import { logger } from '$lib/server/logger';
-import { contentDisposition, validateBody } from '$lib/server/api';
+import {
+	apiError,
+	ErrorCode,
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 
-export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
+export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
-	const u = locals.usuario;
-	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
-		return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
+	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
+		return forbidden('Somente policiais supervisores ou administradores podem assinar');
 	}
 
 	const ip = getClientAddress();
@@ -36,20 +45,15 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const id = parseInt(params.id!);
 	const secIdNum = parseInt(params.seccionalId!);
 
-	if (isNaN(id) || isNaN(secIdNum)) {
-		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
-	}
+	if (isNaN(id) || isNaN(secIdNum)) return badRequest('Parâmetros inválidos');
 
 	// Mesma regra do preparar-assinatura: somente admin ou supervisor designado pode finalizar.
 	// Sem isto, qualquer membro de equipe poderia chamar finalizar com um preparedPdf
 	// arbitrário e produzir um relatório "assinado" como se fosse o supervisor.
 	const giseAuth = await buscarGiseEscala(db, id);
-	if (!giseAuth) return json({ error: 'GISE não encontrada' }, { status: 404 });
+	if (!giseAuth) return notFound('GISE');
 	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
-		return json(
-			{ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório' },
-			{ status: 403 }
-		);
+		return forbidden('Apenas o supervisor designado ou administradores podem assinar este relatório');
 	}
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
@@ -94,11 +98,11 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			const cpfToken = dadosToken.cpf;
 
 			if (cpfLogado && cpfToken !== cpfLogado) {
-				return json({ error: 'O token não pertence ao usuário logado (CPF incompatível).' }, { status: 400 });
+				return badRequest('O token não pertence ao usuário logado (CPF incompatível).');
 			}
 			if (nomeLogado && nomeToken !== nomeLogado) {
 				if (!cpfLogado) {
-					return json({ error: 'O token não pertence ao usuário logado (Nome incompatível).' }, { status: 400 });
+					return badRequest('O token não pertence ao usuário logado (Nome incompatível).');
 				}
 			}
 		}
@@ -112,9 +116,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		} else {
 			// Sem SERPRO CMS, exigimos os campos do fluxo Web PKI.
 			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
-				return json(
-					{ error: 'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)' },
-					{ status: 400 }
+				return badRequest(
+					'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)'
 				);
 			}
 			signedPdfBytes = await finalizarAssinatura(
@@ -129,7 +132,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
 		const verif = await verificarECarimbarAssinatura(signedPdfBytes);
 		if (!verif.ok) {
-			return json({ error: verif.error }, { status: verif.status });
+			const code = verif.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
+			return apiError(verif.error, verif.status, code);
 		}
 		const tipoCarimboTempo = verif.tipoCarimboTempo;
 
@@ -190,8 +194,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				'Content-Disposition': contentDisposition(filename)
 			}
 		});
-	} catch (err: any) {
-		logger.error(`[GISE-SIGN] Falha ao finalizar PKI - GISE ${id}, Sec ${secIdNum}`, { error: err?.message });
-		return json({ error: 'Falha ao finalizar assinatura do relatório. Tente novamente.' }, { status: 500 });
+	} catch (err) {
+		return serverError(`[gise/relatorios/finalizar-assinatura] Falha (gise_id=${id}, seccional_id=${secIdNum})`, err);
 	}
 };

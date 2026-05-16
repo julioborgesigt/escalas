@@ -5,17 +5,18 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
 import * as schema from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuth, badRequest } from '$lib/server/api';
 
-export const GET = async ({ params, locals, platform }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const GET: RequestHandler = async ({ params, locals, platform }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const doc = await db.select().from(schema.giseDocumentos).where(eq(schema.giseDocumentos.gise_id, id)).get();

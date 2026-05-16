@@ -2,10 +2,11 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { asc, eq, like, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { unidades } from '$lib/server/schema';
+import { requireAuth } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const q = (url.searchParams.get('q') ?? '').trim();
 	const tipo = (url.searchParams.get('tipo') ?? '').trim();

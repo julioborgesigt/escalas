@@ -5,29 +5,37 @@
  * Salva o documento no R2 e registra no banco de dados.
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import forge from 'node-forge';
-import { logger } from '$lib/server/logger';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { normalizarTexto } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
-import { contentDisposition, validateBody } from '$lib/server/api';
+import {
+	apiError,
+	ErrorCode,
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 
-export const POST = async ({ platform, params, locals, request, getClientAddress, url }: RequestEvent) => {
+export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
 	if (!validated.ok) return validated.response;
@@ -48,16 +56,13 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 
 	try {
 		const gise = await buscarGiseEscala(db, id);
-		if (!gise) return json({ error: 'GISE não encontrada' }, { status: 404 });
+		if (!gise) return notFound('GISE');
 
 		// Mesma regra do preparar-assinatura: somente admin ou supervisor designado pode finalizar.
 		// Sem isto, qualquer membro de equipe poderia chamar finalizar com um preparedPdf
 		// arbitrário (e até com seu próprio token A3) e produzir um documento "assinado".
 		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-			return json(
-				{ error: 'Apenas o supervisor designado ou administradores podem finalizar esta escala' },
-				{ status: 403 }
-			);
+			return forbidden('Apenas o supervisor designado ou administradores podem finalizar esta escala');
 		}
 
 		const diaFinal = dia || 'ambos';
@@ -88,12 +93,12 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			const cpfToken = dadosToken.cpf;
 
 			if (cpfLogado && cpfToken !== cpfLogado) {
-				return json({ error: 'O token não pertence ao usuário logado (CPF incompatível).' }, { status: 400 });
+				return badRequest('O token não pertence ao usuário logado (CPF incompatível).');
 			}
 			if (nomeLogado && nomeToken !== nomeLogado) {
 				// Permite uma margem de manobra se o CPF bater, mas se ambos falharem, bloqueia
 				if (!cpfLogado) {
-					return json({ error: 'O token não pertence ao usuário logado (Nome incompatível).' }, { status: 400 });
+					return badRequest('O token não pertence ao usuário logado (Nome incompatível).');
 				}
 			}
 		}
@@ -104,9 +109,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		} else {
 			// Sem SERPRO CMS, exigimos os campos do fluxo Web PKI.
 			if (!rawSignature || !certificateBase64 || !messageDigest || !signingTimeISO) {
-				return json(
-					{ error: 'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)' },
-					{ status: 400 }
+				return badRequest(
+					'Faltam campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigest, signingTimeISO)'
 				);
 			}
 			signedPdfBytes = await finalizarAssinatura(
@@ -121,7 +125,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
 		const verif = await verificarECarimbarAssinatura(signedPdfBytes);
 		if (!verif.ok) {
-			return json({ error: verif.error }, { status: verif.status });
+			const code = verif.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
+			return apiError(verif.error, verif.status, code);
 		}
 		const tipoCarimboTempo = verif.tipoCarimboTempo;
 
@@ -177,8 +182,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 				'Content-Disposition': contentDisposition(documentKey)
 			}
 		});
-	} catch (err: any) {
-		logger.error('[GISE SIGN] Falha ao finalizar assinatura', { error: err?.message });
-		return json({ error: 'Falha ao finalizar assinatura GISE. Tente novamente.' }, { status: 500 });
+	} catch (err) {
+		return serverError(`[gise/finalizar-assinatura] Falha (giseId=${id})`, err);
 	}
 };

@@ -6,10 +6,16 @@
  * Permissão: Supervisor designado (DPC) com escala em 'aguardando_assinatura'.
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger';
-import { contentDisposition, validateBody } from '$lib/server/api';
+import type { RequestHandler } from './$types';
+import {
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { assinarSimplesGiseSchema } from '$lib/schemas';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
@@ -20,11 +26,9 @@ import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pd
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 
-export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) {
-		return json({ error: 'Não autorizado' }, { status: 401 });
-	}
+export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, assinarSimplesGiseSchema);
 	if (!validated.ok) return validated.response;
@@ -34,43 +38,45 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+	if (!gise) return notFound('Escala GISE');
 
 	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return json({ error: 'A escala não está pronta para assinatura' }, { status: 400 });
+		return badRequest('A escala não está pronta para assinatura');
 	}
 
 	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return json({ error: 'Apenas o supervisor designado ou administradores podem assinar' }, { status: 403 });
+		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
 	}
 
 	try {
 		const giseDetalhado = await buscarGiseDetalhado(db, id);
-		if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
+		if (!giseDetalhado) {
+			return serverError('[gise/assinar-simples] buscarGiseDetalhado retornou null', new Error('GISE_DETALHADO_NULL'));
+		}
 
 		// CRÍTICO: revalidar TODAS as flags de evidência no servidor.
 		// Não confie no cliente — o estado de cookies/UI pode ter sido manipulado.
 		const flags = await lerFlagsAssinatura(platform);
 
 		if (flags.exigirFotoAssinatura && (!selfieBase64 || typeof selfieBase64 !== 'string')) {
-			return json({ error: 'Selfie é obrigatória para esta assinatura.' }, { status: 400 });
+			return badRequest('Selfie é obrigatória para esta assinatura.');
 		}
 		if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
-			return json({ error: 'Coordenadas GPS são obrigatórias para esta assinatura.' }, { status: 400 });
+			return badRequest('Coordenadas GPS são obrigatórias para esta assinatura.');
 		}
 		if (flags.exigirCodigoEmailAssinatura) {
 			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
-				return json({ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' }, { status: 400 });
+				return badRequest('Código de verificação por e-mail é obrigatório para assinaturas em tela.');
 			}
 			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação, ['assinatura']);
-			if (result2FA === 'expirado') return json({ error: 'O código de verificação expirou.' }, { status: 400 });
-			if (result2FA === 'esgotado') return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
-			if (!result2FA) return json({ error: 'Código de verificação inválido.' }, { status: 400 });
-			if (result2FA.usuarioId !== u.id) return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
+			if (result2FA === 'expirado') return badRequest('O código de verificação expirou.');
+			if (result2FA === 'esgotado') return badRequest('Muitas tentativas. Solicite um novo código.');
+			if (!result2FA) return badRequest('Código de verificação inválido.');
+			if (result2FA.usuarioId !== u.id) return forbidden('Código não pertence ao usuário logado.');
 		}
 
 		const r2Logo = getR2(platform);
@@ -181,13 +187,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 				'Content-Disposition': contentDisposition(filename)
 			}
 		});
-	} catch (e: any) {
-		logger.error('[gise/assinar-simples] Erro', { 
-			error: e?.message,
-			stack: e?.stack,
-			giseId: id,
-			usuario: u?.nome
-		});
-		return json({ error: `Falha ao gerar assinatura GISE: ${e?.message || 'Tente novamente.'}` }, { status: 500 });
+	} catch (e) {
+		return serverError(`[gise/assinar-simples] Falha (giseId=${id})`, e);
 	}
 };
