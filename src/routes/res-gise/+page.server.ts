@@ -381,7 +381,7 @@ export const actions: Actions = {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
 			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail);
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
 			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
 			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
 			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
@@ -441,7 +441,7 @@ export const actions: Actions = {
 			if (!codigoEmail || !desafioId) {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
 			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail);
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
 			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
 			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
 			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });

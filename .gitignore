@@ -31,6 +31,11 @@ worker-configuration.d.ts
 tsconfig.tsbuildinfo
 bundle-stats.html
 
+# Dumps de banco — NUNCA versionar (contém dados pessoais)
+dump.sql
+*.backup
+backup/
+
 # Drizzle migrations (geradas por drizzle-kit)
 /drizzle
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	import { loading } from '$lib/loading.svelte';
 
 	interface Props {
@@ -10,6 +11,11 @@
 		restringirSmartphone: boolean;
 		onAssinarManualLote: () => void;
 		onAssinarDigitalLote: () => void | Promise<void>;
+		podeAssinar?: boolean;
+		// Novas props para exibir assinaturas concluídas
+		assinaturasRelatorios?: any[] | null;
+		seccionais?: any[] | null;
+		supervisaoExtraUnidadeId?: number | null;
 	}
 
 	let {
@@ -20,212 +26,220 @@
 		isMobile,
 		restringirSmartphone,
 		onAssinarManualLote,
-		onAssinarDigitalLote
+		onAssinarDigitalLote,
+		podeAssinar = true,
+		assinaturasRelatorios = [],
+		seccionais = [],
+		supervisaoExtraUnidadeId = null
 	}: Props = $props();
 
-	let expandirLoteManual = $state(false);
-	let expandirLoteDigital = $state(false);
+	let expandido = $state(false);
+
+	const concluidosExtra = $derived(
+		(assinaturasRelatorios ?? []).filter(
+			(a) =>
+				a.tipo === 'extraordinario' &&
+				(supervisaoExtraUnidadeId == null || a.seccional_id !== supervisaoExtraUnidadeId)
+		)
+	);
+
+	/** Verdadeiro quando não há nada pendente NEM nada concluído — escala sem equipes escaladas ainda. */
+	const semAtividade = $derived(quantidadePendentes === 0 && concluidosExtra.length === 0);
+
+	function nomeSeccional(seccionalId: number): string {
+		const s = seccionais?.find((x: any) => x.seccional_id === seccionalId);
+		return s?.seccional_nome?.trim() || `Seccional #${seccionalId}`;
+	}
 </script>
 
-<div
-	class="rounded-2xl border border-warning-500/30 bg-warning-50 dark:bg-warning-900/10 p-5 mb-5 shadow-sm space-y-4"
->
-	<div>
-		<h3 class="font-bold text-warning-800 dark:text-warning-400 flex items-center gap-2">
-			<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-				><path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-				/></svg
-			>
-			Painel de assinaturas em lote(assine todos os pendentes)
-		</h3>
-		<p class="text-sm text-warning-700 dark:text-warning-300 mt-1">
-			Você possui <strong>{quantidadePendentes} relatório(s) extraordinário(s)</strong> aptos
-			para assinatura em lote.
-		</p>
-	</div>
-
-	{#if assinandoLote}
-		<div
-			class="flex flex-col items-center gap-1 bg-white/50 dark:bg-surface-800/50 p-6 rounded-3xl border border-warning-500/20 shadow-xl"
+<div class="flex flex-col gap-1.5">
+	<p
+		class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+	>
+		Assinaturas em lote (equipes)
+	</p>
+	<div
+		class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden"
+	>
+		<!-- Header -->
+		<button
+			type="button"
+			class="flex w-full items-center gap-2 p-3 text-left {isMobile
+				? 'cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40'
+				: 'pointer-events-none'}"
+			onclick={() => {
+				if (isMobile) expandido = !expandido;
+			}}
 		>
-			<div class="text-xs font-bold text-warning-700 uppercase tracking-widest mb-2">
-				{etapaAssinatura}
-			</div>
 			<div
-				class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-3 overflow-visible shadow-inner"
+				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {quantidadePendentes > 0
+					? 'bg-warning-100 dark:bg-warning-900/30'
+					: semAtividade
+						? 'bg-surface-100 dark:bg-surface-800'
+						: 'bg-success-100 dark:bg-success-900/30'}"
 			>
-				<div
-					class="bg-warning-500 h-full transition-all duration-500 ease-out flex items-center justify-center text-[0.5rem] text-white font-bold"
-					style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
+				<svg
+					class="w-3.5 h-3.5 {quantidadePendentes > 0
+						? 'text-warning-600 dark:text-warning-400'
+						: semAtividade
+							? 'text-surface-400 dark:text-surface-500'
+							: 'text-success-600 dark:text-success-400'}"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
 				>
-					{Math.round((progressoLote.atual / progressoLote.total) * 100)}%
-				</div>
-			</div>
-			<div class="mt-2 text-[0.6rem] text-surface-500 font-medium">
-				Item {progressoLote.atual} de {progressoLote.total}
-			</div>
-		</div>
-	{:else}
-		<div class="flex flex-col gap-4">
-			<div
-				class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
-			>
-				<button
-					type="button"
-					class="w-full text-left flex items-center justify-between"
-					onclick={() => (expandirLoteManual = !expandirLoteManual)}
-				>
-					<div class="flex items-center gap-2">
-						<div class="p-1.5 bg-warning-500/10 rounded-lg text-warning-600">
-							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-								/>
-							</svg>
-						</div>
-						<h4
-							class="font-bold text-xs text-warning-800 dark:text-warning-400 uppercase tracking-tight"
-						>
-							Assinatura Manual (Lote - Tela)
-						</h4>
-					</div>
-					<svg
-						class="w-4 h-4 text-warning-400 transition-transform duration-300 {expandirLoteManual
-							? 'rotate-180'
-							: ''}"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
+					{#if quantidadePendentes > 0}
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							stroke-width="2"
-							d="M19 9l-7 7-7-7"
+							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
 						/>
-					</svg>
-				</button>
-
-				{#if expandirLoteManual}
-					<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
-						<p class="text-[0.65rem] text-surface-500 leading-tight">
-							Aplica sua rubrica manual em todos os relatórios extraordinários pendentes de uma só
-							vez.
-						</p>
-						{#if isMobile || !restringirSmartphone}
-							<button
-								type="button"
-								class="btn btn-sm preset-filled-warning-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
-								onclick={onAssinarManualLote}
-							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-									/></svg
-								>
-								Assinar Agora
-							</button>
-						{:else}
-							<div class="bg-error-500/5 p-2 rounded-lg border border-error-500/10">
-								<p class="text-[0.6rem] text-error-600 font-bold uppercase text-center">
-									Indisponível no PC. Use o Token A3.
-								</p>
-							</div>
-						{/if}
-					</div>
+					{:else if semAtividade}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+						/>
+					{:else}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						/>
+					{/if}
+				</svg>
+			</div>
+			<div class="min-w-0 flex-1">
+				{#if quantidadePendentes > 0}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+					>
+						{quantidadePendentes} pendente{quantidadePendentes !== 1 ? 's' : ''}
+					</span>
+				{:else if semAtividade}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-500 dark:text-surface-400"
+					>
+						Aguardando escalas
+					</span>
+				{:else}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+					>
+						Concluído
+					</span>
 				{/if}
+				<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
+					Assinaturas em lote
+				</p>
 			</div>
-
-			<div
-				class="card p-4 bg-white/40 dark:bg-surface-800/40 border border-warning-500/20 rounded-2xl flex flex-col gap-3 shadow-sm"
-			>
-				<button
-					type="button"
-					class="w-full text-left flex items-center justify-between"
-					onclick={() => (expandirLoteDigital = !expandirLoteDigital)}
+			{#if isMobile}
+				<svg
+					class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandido
+						? 'rotate-180'
+						: ''}"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
 				>
-					<div class="flex items-center gap-2">
-						<div class="p-1.5 bg-tertiary-500/10 rounded-lg text-tertiary-600">
-							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-								/>
-							</svg>
-						</div>
-						<h4
-							class="font-bold text-xs text-tertiary-700 dark:text-tertiary-400 uppercase tracking-tight"
-						>
-							Assinatura Digital (Lote - Token A3)
-						</h4>
-					</div>
-					<svg
-						class="w-4 h-4 text-tertiary-400 transition-transform duration-300 {expandirLoteDigital
-							? 'rotate-180'
-							: ''}"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 9l-7 7-7-7"
-						/>
-					</svg>
-				</button>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
+			{/if}
+		</button>
 
-				{#if expandirLoteDigital}
-					<div class="pt-3 border-t border-warning-500/10 flex flex-col gap-3">
-						<p class="text-[0.65rem] text-surface-500 leading-tight">
-							Assine todos os relatórios digitalmente usando seu Token A3 através do assinador
-							SERPRO.
+		<!-- Body -->
+		{#if !isMobile || expandido}
+			<div
+				transition:slide={{ duration: 200 }}
+				class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col gap-2.5"
+			>
+				{#if quantidadePendentes > 0}
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						Assine todos os relatórios extraordinários pendentes de uma só vez.
+					</p>
+				{:else if semAtividade}
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						Nenhuma equipe foi escalada ainda. Os relatórios aparecerão aqui quando as seccionais enviarem suas escalas.
+					</p>
+				{:else}
+					<p class="text-[0.68rem] leading-snug text-success-600 dark:text-success-400 font-medium">
+						Todos os relatórios das equipes já foram assinados.
+					</p>
+				{/if}
+
+				{#if assinandoLote}
+					<div class="flex flex-col gap-1.5">
+						<p
+							class="text-[0.6rem] font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
+						>
+							{etapaAssinatura}
 						</p>
-						{#if !isMobile}
-							<div class="flex flex-col gap-2">
-								<button
-									type="button"
-									class="btn btn-sm preset-filled-tertiary-500 font-bold w-full flex items-center justify-center gap-2 py-2 rounded-xl"
-									onclick={onAssinarDigitalLote}
-									disabled={loading.active}
-								>
-									Assinar Lote com SERPRO
-								</button>
-								<p class="text-[0.55rem] text-surface-400 italic text-center">
-									Requer o <a
-										href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro"
-										target="_blank"
-										class="underline">Assinador Desktop</a
-									> instalado e aberto.
-								</p>
-							</div>
-						{:else}
+						<div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
 							<div
-								class="bg-surface-200 dark:bg-surface-700/30 p-2 rounded-xl border border-surface-300 dark:border-surface-600/30"
-							>
-								<p
-									class="text-[0.6rem] text-surface-500 font-bold uppercase text-center leading-tight"
+								class="bg-warning-500 h-full transition-all duration-500 ease-out"
+								style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
+							></div>
+						</div>
+						<p class="text-[0.6rem] text-surface-400 text-center">
+							{progressoLote.atual} de {progressoLote.total}
+						</p>
+					</div>
+				{:else}
+					<div class="flex items-center gap-1.5 flex-wrap justify-end">
+						<button
+							type="button"
+							class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40"
+							disabled={loading.active ||
+								(!isMobile && restringirSmartphone) ||
+								quantidadePendentes === 0 ||
+								!podeAssinar}
+							onclick={onAssinarManualLote}
+						>
+							Tela
+						</button>
+						<button
+							type="button"
+							class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40"
+							disabled={loading.active || isMobile || quantidadePendentes === 0 || !podeAssinar}
+							onclick={onAssinarDigitalLote}
+						>
+							Token
+						</button>
+					</div>
+				{/if}
+
+				<!-- Listagem discreta de assinaturas concluídas -->
+				{#if concluidosExtra.length > 0}
+					<div class="mt-1 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50">
+						<p
+							class="text-[0.55rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
+						>
+							Relatórios Assinados
+						</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each concluidosExtra as ass}
+								<div
+									class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-500/5 border border-success-500/10 text-[0.6rem]"
+									title="Assinado por {ass.assinante_nome}"
 								>
-									Certificados físicos só podem ser lidos em computadores.
-								</p>
-							</div>
-						{/if}
+									<span class="text-success-600 dark:text-success-400">✓</span>
+									<span class="font-medium text-surface-600 dark:text-surface-300"
+										>{nomeSeccional(ass.seccional_id)}</span
+									>
+								</div>
+							{/each}
+						</div>
 					</div>
 				{/if}
 			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>

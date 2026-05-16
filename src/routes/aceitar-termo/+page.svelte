@@ -6,6 +6,8 @@
 
 	let aceitouTermo = $state(false);
 	let aceitouLgpd = $state(false);
+	let aceitouEmail = $state(false);
+	let aceitouLocalizacao = $state(false);
 	let scrollouAteFim = $state(false);
 	let enviando = $state(false);
 
@@ -81,8 +83,36 @@
 					class="mt-1 shrink-0"
 				/>
 				<span class="text-sm text-surface-800 dark:text-surface-200">
-					Autorizo a coleta de IP, geolocalização (GPS), dispositivo e selfie para fins de
-					auditoria das assinaturas, conforme art. 7º, V, da LGPD.
+					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados
+					pela PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com
+					a coleta de IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
+				</span>
+			</label>
+
+			<p class="text-[11px] text-surface-500 mt-1">Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):</p>
+
+			<label class="flex items-start gap-2 cursor-pointer">
+				<input
+					type="checkbox"
+					name="aceitou_uso_email"
+					bind:checked={aceitouEmail}
+					class="mt-1 shrink-0"
+				/>
+				<span class="text-sm text-surface-700 dark:text-surface-300">
+					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação ao
+					meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
+				</span>
+			</label>
+			<label class="flex items-start gap-2 cursor-pointer">
+				<input
+					type="checkbox"
+					name="aceitou_uso_localizacao"
+					bind:checked={aceitouLocalizacao}
+					class="mt-1 shrink-0"
+				/>
+				<span class="text-sm text-surface-700 dark:text-surface-300">
+					<strong>Geolocalização</strong> — Autorizo a captura de coordenadas GPS ao assinar documentos
+					digitalmente, para fins de evidência jurídica (art. 7º, I, LGPD). Precisão reduzida (~1 km).
 				</span>
 			</label>
 

@@ -30,6 +30,7 @@ export type AcaoAudit =
 	| 'remover_policial_escala'
 	| 'assinar_escala'
 	| 'revogar_assinatura'
+	| 'finalizar_escala_fds'
 	| 'mudar_papel'
 	| 'criar_unidade'
 	| 'editar_unidade'
@@ -41,7 +42,14 @@ export type AcaoAudit =
 	| 'falha_login'
 	| 'solicitar_redefinicao_senha'
 	| 'redefinir_senha'
-	| 'aceitar_termos';
+	| 'aceitar_termos'
+	| 'limpeza_retencao'
+	| 'exportar_escala'
+	| 'exportar_gise'
+	| 'registrar_incidente'
+	| 'atualizar_incidente'
+	| 'solicitar_direito_lgpd'
+	| 'responder_solicitacao_lgpd';
 
 interface AuditEntry {
 	usuario_id: number | null;

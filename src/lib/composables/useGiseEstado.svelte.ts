@@ -3,8 +3,14 @@
  * Centraliza permissões, formatação e detecção de dispositivo.
  */
 
+interface Seccional {
+	seccional_id: number;
+	status: string;
+	[key: string]: unknown;
+}
+
 export interface GiseEstadoParams {
-	getData: () => Record<string, any>;
+	getData: () => any;
 }
 
 export function useGiseEstado({ getData }: GiseEstadoParams) {
@@ -15,18 +21,20 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const minhaSeccionalId = $derived(getData().minhaSeccionalId);
 
 	// Permissões
-	const isAdminGeral = $derived(getData().isGeral ?? papelGise === 'admin_geral');
-	const isSeccional = $derived(getData().isSeccional ?? papelGise === 'admin_seccional');
-	const isSupervisor = $derived(getData().isSupervisor || gise?.supervisor_id === getData().usuarioAtual?.id);
+	const isAdminGeral = $derived(getData().isGeral === true);
+	const isSeccional = $derived(getData().isSeccional === true);
+	const isUnidade = $derived(getData().isUnidade === true);
+	const isSupervisor = $derived(getData().isSupervisor === true || gise?.supervisor_id === getData().usuarioAtual?.id);
+	const isMembro = $derived(getData().isMembro === true);
 
 	const minhaSeccional = $derived(
-		isSeccional ? gise?.seccionais?.find((s: any) => s.seccional_id === minhaSeccionalId) : null
+		isSeccional ? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId) : null
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
 		gise?.seccionais?.length > 0 &&
 		gise.seccionais.every(
-			(s: any) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+			(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
 		)
 	);
 
@@ -84,16 +92,16 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 	}
 
-	// Detecção de mobile
-	let isMobile = $state(true);
+	// Detecção de mobile via matchMedia (confiável e reativa a resize)
+	let isMobile = $state(
+		typeof window !== 'undefined' ? !window.matchMedia('(min-width: 768px)').matches : true
+	);
 	$effect(() => {
-		if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-			isMobile =
-				/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-					navigator.userAgent
-				) ||
-				(window.innerWidth <= 800 && navigator.maxTouchPoints > 0);
-		}
+		const mql = window.matchMedia('(min-width: 768px)');
+		isMobile = !mql.matches;
+		const handler = (e: MediaQueryListEvent) => (isMobile = !e.matches);
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
 	});
 
 	return {
@@ -102,7 +110,9 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 		get todasUnidades() { return todasUnidades; },
 		get isAdminGeral() { return isAdminGeral; },
 		get isSeccional() { return isSeccional; },
+		get isUnidade() { return isUnidade; },
 		get isSupervisor() { return isSupervisor; },
+		get isMembro() { return isMembro; },
 		get minhaSeccional() { return minhaSeccional; },
 		get minhaSeccionalId() { return minhaSeccionalId; },
 		get todasSeccionaisPreenchidas() { return todasSeccionaisPreenchidas; },

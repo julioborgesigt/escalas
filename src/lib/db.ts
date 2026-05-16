@@ -59,13 +59,20 @@ export {
 	excluirEscala,
 	verificarEscalaExistente,
 	marcarVisto,
+	finalizarEscalaFDS,
+	desfinalizarEscalaFDS,
 	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
 	atualizarEscalaPolicial,
 	removerPolicialEscala,
 	adicionarTodosPoliciais,
 	listarPoliciaisEscala,
-	listarPoliciaisEscalaQuery
+	listarPoliciaisEscalaQuery,
+	criarSolicitacaoAssinatura,
+	buscarSolicitacaoAssinatura,
+	excluirSolicitacaoAssinatura,
+	listarSolicitacoesEscalas,
+	temSolicitacaoParaDpcAdmin
 } from './db/escalas';
 
 export {

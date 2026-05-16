@@ -10,6 +10,8 @@ import { and, desc, eq } from 'drizzle-orm';
 import { aceitesTermos } from '../server/schema';
 import type { AceiteTermo } from '../server/schema';
 import type { Database } from './core';
+import { anonimizarIp } from './audit';
+import { parseUserAgent } from '../server/document-utils';
 
 export interface RegistrarAceiteInput {
 	usuario_tipo: 'policial' | 'admin';
@@ -17,6 +19,8 @@ export interface RegistrarAceiteInput {
 	versao_termo: string;
 	hash_termo: string;
 	aceitou_lgpd: boolean;
+	aceitou_uso_email?: boolean;
+	aceitou_uso_localizacao?: boolean;
 	ip?: string | null;
 	user_agent?: string | null;
 }
@@ -33,8 +37,10 @@ export async function registrarAceite(
 			versao_termo: input.versao_termo,
 			hash_termo: input.hash_termo,
 			aceitou_lgpd: input.aceitou_lgpd ? 1 : 0,
-			ip: input.ip ?? null,
-			user_agent: input.user_agent ?? null
+			aceitou_uso_email: input.aceitou_uso_email ? 1 : 0,
+			aceitou_uso_localizacao: input.aceitou_uso_localizacao ? 1 : 0,
+			ip: anonimizarIp(input.ip),
+			user_agent: input.user_agent ? parseUserAgent(input.user_agent) : null
 		})
 		.returning()
 		.get();

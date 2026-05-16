@@ -7,7 +7,7 @@ import { buildCSP } from '../server/csp';
 
 describe('apiError', () => {
 	it('retorna Response com status e corpo de erro', async () => {
-		const { apiError } = await import('$lib/server/api-error');
+		const { apiError } = await import('$lib/server/api');
 		const response = apiError('Não autorizado', 401);
 		expect(response.status).toBe(401);
 		const body = await response.json();
@@ -15,32 +15,99 @@ describe('apiError', () => {
 	});
 
 	it('usa 500 como padrão quando status não é informado', async () => {
-		const { apiError } = await import('$lib/server/api-error');
+		const { apiError } = await import('$lib/server/api');
 		const response = apiError('Erro interno');
 		expect(response.status).toBe(500);
 		const body = await response.json();
 		expect(body.status).toBe(500);
 	});
 
-	it('inclui errorType quando fornecido', async () => {
-		const { apiError } = await import('$lib/server/api-error');
-		const response = apiError('Campo obrigatório', 400, 'validation');
+	it('inclui errorType tipado quando fornecido', async () => {
+		const { apiError, ErrorCode } = await import('$lib/server/api');
+		const response = apiError('Campo obrigatório', 400, ErrorCode.VALIDATION);
 		const body = await response.json();
 		expect(body).toEqual({ error: 'Campo obrigatório', status: 400, errorType: 'validation' });
 	});
 
+	it('inclui errorId quando fornecido', async () => {
+		const { apiError, ErrorCode } = await import('$lib/server/api');
+		const response = apiError('erro 5xx', 500, ErrorCode.INTERNAL, { errorId: 'abc12345' });
+		const body = await response.json();
+		expect(body.errorId).toBe('abc12345');
+	});
+
 	it('não inclui errorType quando não é fornecido', async () => {
-		const { apiError } = await import('$lib/server/api-error');
+		const { apiError } = await import('$lib/server/api');
 		const response = apiError('Erro genérico');
 		const body = await response.json();
 		expect(body).not.toHaveProperty('errorType');
 	});
 
 	it('suporta string vazia como mensagem', async () => {
-		const { apiError } = await import('$lib/server/api-error');
+		const { apiError } = await import('$lib/server/api');
 		const response = apiError('', 400);
 		const body = await response.json();
 		expect(body.error).toBe('');
+	});
+
+	it('ErrorCode é congelado e expõe códigos esperados', async () => {
+		const { ErrorCode } = await import('$lib/server/api');
+		expect(ErrorCode.VALIDATION).toBe('validation');
+		expect(ErrorCode.AUTH_REQUIRED).toBe('auth_required');
+		expect(ErrorCode.FORBIDDEN).toBe('forbidden');
+		expect(ErrorCode.CSRF).toBe('csrf');
+		expect(ErrorCode.NOT_FOUND).toBe('not_found');
+		expect(ErrorCode.CONFLICT).toBe('conflict');
+		expect(ErrorCode.RATE_LIMIT).toBe('rate_limit');
+		expect(ErrorCode.UPSTREAM).toBe('upstream');
+		expect(ErrorCode.INTERNAL).toBe('internal');
+	});
+});
+
+describe('helpers de erro (badRequest, unauthorized, ...)', () => {
+	it('badRequest default usa ErrorCode.VALIDATION', async () => {
+		const { badRequest } = await import('$lib/server/api');
+		const body = await badRequest('campo X').json();
+		expect(body).toEqual({ error: 'campo X', status: 400, errorType: 'validation' });
+	});
+
+	it('unauthorized retorna AUTH_REQUIRED', async () => {
+		const { unauthorized } = await import('$lib/server/api');
+		const body = await unauthorized().json();
+		expect(body).toMatchObject({ status: 401, errorType: 'auth_required' });
+	});
+
+	it('forbidden retorna FORBIDDEN', async () => {
+		const { forbidden } = await import('$lib/server/api');
+		const body = await forbidden().json();
+		expect(body).toMatchObject({ status: 403, errorType: 'forbidden' });
+	});
+
+	it('notFound retorna NOT_FOUND com recurso interpolado', async () => {
+		const { notFound } = await import('$lib/server/api');
+		const body = await notFound('Escala').json();
+		expect(body).toMatchObject({ status: 404, errorType: 'not_found', error: 'Escala não encontrado' });
+	});
+
+	it('conflict retorna CONFLICT', async () => {
+		const { conflict } = await import('$lib/server/api');
+		const body = await conflict('já assinado').json();
+		expect(body).toMatchObject({ status: 409, errorType: 'conflict' });
+	});
+
+	it('rateLimited retorna RATE_LIMIT', async () => {
+		const { rateLimited } = await import('$lib/server/api');
+		const body = await rateLimited().json();
+		expect(body).toMatchObject({ status: 429, errorType: 'rate_limit' });
+	});
+
+	it('serverError inclui errorId rastreável', async () => {
+		const { serverError } = await import('$lib/server/api');
+		const resp = serverError('contexto', new Error('boom'));
+		const body = await resp.json();
+		expect(resp.status).toBe(500);
+		expect(body.errorType).toBe('internal');
+		expect(body.errorId).toMatch(/^[0-9a-f]{8}$/);
 	});
 });
 

@@ -6,6 +6,7 @@ import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAudi
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
+import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -37,11 +38,11 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	const escala = await buscarEscala(db, id);
 	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
-	// Mesma regra do preparar-assinatura: somente admin ou dono da lotação pode finalizar.
-	// Sem isto, qualquer usuário autenticado poderia enviar um preparedPdf arbitrário e
-	// produzir um documento "assinado" em nome de outra unidade.
-	if (u.tipo !== 'admin' && u.lotacao !== escala.lotacao) {
-		return json({ error: 'Sem permissão para assinar esta escala' }, { status: 403 });
+	// Mesma regra do preparar-assinatura: somente admin, dono da lotação ou DPC admin
+	// com solicitação direcionada pode finalizar.
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) {
+		return json({ error: perm.motivo ?? 'Sem permissão para assinar esta escala' }, { status: 403 });
 	}
 
 	try {

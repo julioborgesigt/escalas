@@ -10,7 +10,16 @@
       "Bash(grep -n \"Adicionar todos\\\\|tipo === ''plantao'' || escala.tipo === ''expediente''\" src/routes/escalas/[id]/+page.svelte)",
       "Bash(npx wrangler d1 execute escalas-db --local --file=./migrations/0014_equipe_plantao.sql)",
       "Bash(npx svelte-kit sync)",
-      "Bash(npx svelte-check --tsconfig ./tsconfig.json)"
+      "Bash(npx svelte-check --tsconfig ./tsconfig.json)",
+      "Bash(python3 -c ' *)",
+      "Bash(sed -i '838s/{#if !documentoAssinadoInfo?.existe}/{#if !documentoAssinadoInfo?.existe \\\\&\\\\& !finalizadaEm}/' \"src/routes/escalas/[id]/+page.svelte\")",
+      "Bash(sed -n '838p' \"src/routes/escalas/[id]/+page.svelte\")",
+      "Bash(xargs grep -l \"enviarNotificacaoAssessorGisePreenchimentoSeccional\")",
+      "Bash(npx tsc *)",
+      "Bash(npx wrangler *)",
+      "Bash(node -e ' *)",
+      "Bash(npm run *)",
+      "Bash(grep -v \"gise\\\\\\\\\\\\\\\\\\\\\\\\[id\\\\\\\\\\\\\\\\\\\\\\\\]\")"
     ]
   }
 }

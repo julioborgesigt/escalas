@@ -3,6 +3,13 @@ import { escalaDocumentos, giseDocumentos } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 import * as fullSchema from '../server/schema';
+import { anonimizarIp } from './audit';
+import { parseUserAgent } from '../server/document-utils';
+
+/** Reduz a precisão de coordenada GPS para ~1 km (2 casas decimais). */
+function gps2(v?: number): number | undefined {
+	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+}
 
 /**
  * Metadados criptográficos persistidos junto com a assinatura (CAdES-LT).
@@ -47,10 +54,10 @@ export async function salvarDocumentoEscala(
 			verificacao_hash: verificacaoHash,
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
-			ip_address: ipAddress,
-			user_agent: userAgent,
-			latitude,
-			longitude,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
+			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+			latitude: gps2(latitude),
+			longitude: gps2(longitude),
 			assinante_email: assinanteEmail ?? null,
 			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 			cert_issuer: meta.cert_issuer ?? null,
@@ -71,10 +78,10 @@ export async function salvarDocumentoEscala(
 				verificacao_hash: verificacaoHash,
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,
-				ip_address: ipAddress,
-				user_agent: userAgent,
-				latitude,
-				longitude,
+				ip_address: anonimizarIp(ipAddress) ?? undefined,
+				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+				latitude: gps2(latitude),
+				longitude: gps2(longitude),
 				assinante_email: assinanteEmail ?? null,
 				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 				cert_issuer: meta.cert_issuer ?? null,

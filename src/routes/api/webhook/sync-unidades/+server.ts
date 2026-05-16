@@ -1,16 +1,8 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
-import { timingSafeEqual } from 'node:crypto';
-
-function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
-	const expected = `Bearer ${expectedToken}`;
-	const a = Buffer.from((authHeader ?? '').padEnd(expected.length, ' ').slice(0, expected.length));
-	const b = Buffer.from(expected);
-	const valueMatch = timingSafeEqual(a, b) ? 1 : 0;
-	const lenMatch = (authHeader ?? '').length === expected.length ? 1 : 0;
-	return (valueMatch & lenMatch) === 1;
-}
+import { validarWebhookSync } from '$lib/server/webhook-auth';
+import { logger } from '$lib/server/logger';
 
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
@@ -26,16 +18,20 @@ function trimCol(item: Record<string, unknown>, key: string): string {
 	return String(item[key] ?? '').trim();
 }
 
-export const POST: RequestHandler = async ({ request, platform }) => {
-	const authHeader = request.headers.get('Authorization');
-	const SYNC_TOKEN = (platform?.env as { SYNC_TOKEN?: string })?.SYNC_TOKEN;
-
-	if (!SYNC_TOKEN || !bearerTokenValido(authHeader, SYNC_TOKEN)) {
+export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
+	const rawBody = await request.text();
+	const auth = await validarWebhookSync(SYNC_TOKEN, request, rawBody);
+	if (!auth.ok) {
+		logger.warn('[sync-unidades] auth rejeitada', {
+			ip: getClientAddress(),
+			reason: auth.reason
+		});
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 
 	try {
-		const payload = await request.json();
+		const payload = JSON.parse(rawBody);
 		const db = getDB(platform);
 
 		const data = (Array.isArray(payload) ? payload : [payload]) as Record<string, unknown>[];

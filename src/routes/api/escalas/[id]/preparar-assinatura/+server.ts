@@ -8,6 +8,7 @@ import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, adicionarRodapeUni
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
+import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
 	const u = locals.usuario;
@@ -26,9 +27,10 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const escala = await buscarEscala(db, id);
 	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
 
-	// Somente admin ou o dono da lotação pode preparar assinatura
-	if (u.tipo !== 'admin' && u.lotacao !== escala.lotacao) {
-		return json({ error: 'Sem permissão para assinar esta escala' }, { status: 403 });
+	// Somente admin, dono da lotação, ou DPC admin com solicitação direcionada pode preparar assinatura
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) {
+		return json({ error: perm.motivo ?? 'Sem permissão para assinar esta escala' }, { status: 403 });
 	}
 
 	const policiais = await listarPoliciaisEscala(db, id);
@@ -38,11 +40,12 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	let result;
 	if (escala.tipo === 'plantao') result = gerarPdfPlantao(escala, policiais);
-	else if (escala.tipo === 'expediente') result = gerarPdfExpediente(escala, policiais);
+	else if (escala.tipo === 'expediente') result = await gerarPdfExpediente(escala, policiais);
 	else result = gerarPdf(escala, policiais);
 
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
+	const pageHeightMm = result.pageHeightMm ?? 210;
 
 	const verificationHash = gerarCodigoValidacao();
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
@@ -86,7 +89,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
+	const boxY_pts = (pageHeightMm - sigY) * 2.8346 + 1.5;
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,

@@ -8,6 +8,8 @@ import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/ter
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
+import { withSentryRequest } from '$lib/server/sentry';
+import { apiError, ErrorCode } from '$lib/server/api';
 
 const ROTAS_PUBLICAS = new Set([
 	'/login',
@@ -80,10 +82,7 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 	) {
 		const headerToken = event.request.headers.get(CSRF_HEADER_NAME);
 		if (!headerToken || headerToken !== csrfToken) {
-			return new Response(JSON.stringify({ error: 'Token CSRF inválido ou ausente' }), {
-				status: 403,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return apiError('Token CSRF inválido ou ausente', 403, ErrorCode.CSRF);
 		}
 	}
 
@@ -111,10 +110,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	if (!usuario) {
 		if (pathname.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Não autorizado' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return apiError('Não autorizado', 401, ErrorCode.AUTH_REQUIRED);
 		}
 		throw redirect(302, '/login');
 	}
@@ -125,10 +121,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	// Fluxo de Primeiro Acesso
 	if (usuario.primeiro_acesso && !pathname.startsWith('/alterar-senha') && !pathname.startsWith('/api/auth/')) {
 		if (pathname.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Altere sua senha antes de continuar' }), {
-				status: 403,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return apiError('Altere sua senha antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
 		throw redirect(302, '/alterar-senha');
 	}
@@ -149,9 +142,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			const ok = await temAceiteVigente(db, usuario.tipo, usuario.id, TERMO_VERSAO, hash);
 			if (!ok) {
 				if (pathname.startsWith('/api/')) {
-					return new Response(
-						JSON.stringify({ error: 'Aceite o Termo de Uso vigente antes de continuar' }),
-						{ status: 403, headers: { 'Content-Type': 'application/json' } }
+					return apiError(
+						'Aceite o Termo de Uso vigente antes de continuar',
+						403,
+						ErrorCode.FORBIDDEN
 					);
 				}
 				throw redirect(302, '/aceitar-termo');
@@ -206,8 +200,18 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+/**
+ * 0. Sentry: precisa ser o PRIMEIRO middleware para que `captureException`
+ *    funcione (init é feito por `wrapRequestHandler` por request, via
+ *    AsyncLocalStorage). Sem isto, todas as chamadas a `captureException` no
+ *    `handleError` são no-op silenciosos.
+ */
+const handleSentry: Handle = async ({ event, resolve }) => {
+	return withSentryRequest(event.platform, event.request, () => resolve(event));
+};
+
 /** Main Export with sequence middleware */
-export const handle = sequence(handleCsrf, handleAuth, handleSecurity);
+export const handle = sequence(handleSentry, handleCsrf, handleAuth, handleSecurity);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
@@ -223,6 +227,7 @@ export const handleError: HandleServerError = ({ error, event }) => {
 			: {})
 	});
 
+	// `path` é sanitizado por `sentryBeforeSend` (mascarando IDs numéricos).
 	captureException(error, {
 		tags: { errorId, path: event.url.pathname },
 		extra: { method: event.request.method }

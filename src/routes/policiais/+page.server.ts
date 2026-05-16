@@ -31,20 +31,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	let seccional = url.searchParams.get('seccional');
 	let seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
 
-	// Se não for admin geral, restringir escopo
-	if (!isAdmin) {
-		if (u.papel === 'admin_seccional' && u.papel_unidade_id) {
-			// Seccional Admin: fixar seccional se não houver unidade específica
-			if (!lotacaoParam) {
-				seccionalId = u.papel_unidade_id;
-				seccional = String(u.papel_unidade_id);
-			}
-		} else if (u.papel === 'admin_unidade') {
-			// Unit Admin: fixar unidade
-			lotacaoParam = u.lotacao;
-		}
-	}
-
 	const [resultado, unidades] = await Promise.all([
 		listarPoliciais(db, lotacaoParam, false, {
 			busca,

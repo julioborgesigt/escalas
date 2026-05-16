@@ -11,12 +11,14 @@ import {
 	criarSessao,
 	gerarCodigo2FA,
 	criarDesafio2FA,
-	compararSegredoUtf8TimingSafe
+	compararSegredoUtf8TimingSafe,
+	SESSION_TTL_MS
 } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
+import { anonimizarIp } from '$lib/db/audit';
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
@@ -40,17 +42,27 @@ export function mascararEmail(email: string): string {
 			'*'.repeat(local.length - showStart - 1) +
 			local[local.length - 1];
 	}
-	return masked + '@' + domain;
+	// Ocultar domínio para não revelar provedor (ex: gmail.com → ***.com)
+	const dotIdx = domain.lastIndexOf('.');
+	const maskedDomain = dotIdx > 0 ? '***' + domain.slice(dotIdx) : '***';
+	return masked + '@' + maskedDomain;
 }
 
-/** Opções de cookie de sessão pós-login (httpOnly, sameSite, secure). */
+/**
+ * Opções de cookie de sessão pós-login (httpOnly, sameSite, secure).
+ *
+ * `maxAge` é alinhado com `SESSION_TTL_MS` (8h) e estendido implicitamente:
+ * cada validação de sessão que cruza o threshold sliding atualiza
+ * `sessoes.expires_at` no banco. O cookie em si é renovado quando o navegador
+ * recebe um novo `Set-Cookie` (ex.: pós-login, pós-2FA, pós-troca de senha).
+ */
 export function cookieOptions(url: URL) {
 	return {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'strict' as const,
 		secure: url.protocol === 'https:',
-		maxAge: 12 * 60 * 60
+		maxAge: Math.floor(SESSION_TTL_MS / 1000)
 	};
 }
 
@@ -75,7 +87,7 @@ export async function checkRateLimit(
 }
 
 export async function recordAttempt(db: Database, ip: string, success: boolean): Promise<void> {
-	await db.insert(loginAttempts).values({ ip, success: success ? 1 : 0 });
+	await db.insert(loginAttempts).values({ ip: anonimizarIp(ip) ?? ip, success: success ? 1 : 0 });
 }
 
 /** Alias legado — mesmo que `cookieOptions`. */
@@ -163,9 +175,48 @@ export async function tentarLogin({
 		const envSenha = _env?.ADMIN_GERAL_SENHA ?? '';
 
 		if (envLogin && envSenha && matricula === envLogin) {
-			// AVISO DE SEGURANÇA: credenciais de bootstrap em uso. Remova ADMIN_GERAL_LOGIN e
-			// ADMIN_GERAL_SENHA das variáveis de ambiente após o setup inicial — elas ignoram 2FA.
-			logger.warn('[security] Login via credenciais de bootstrap (ADMIN_GERAL). Remova as variáveis de ambiente após o setup inicial.', { ip });
+			// Credenciais de bootstrap: usadas apenas no setup inicial, antes de o admin
+			// ter e-mail configurado. Após o primeiro acesso completo, o bootstrap é
+			// desativado automaticamente para impedir que estas credenciais contornem o 2FA.
+			const envAdminExistente = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.login, envLogin))
+				.get();
+
+			// Bootstrap é desativado assim que QUALQUER admin DB tem e-mail configurado,
+			// independente de primeiro_acesso. Antes, exigir `primeiro_acesso === 0` deixava
+			// uma janela em que um admin recém-criado mas que não completou o setup
+			// permitia que o bootstrap (sem 2FA) continuasse autenticando.
+			if (envAdminExistente?.email) {
+				// Setup concluído — bootstrap não é mais necessário. Recusar e logar.
+				logger.error(
+					'[security] Bootstrap bloqueado: admin já possui e-mail configurado. ' +
+						'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA das variáveis de ambiente.',
+					{ ip }
+				);
+				await recordAttempt(db, ip, false);
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'falha_login',
+					entidade: 'admin',
+					detalhes: 'Tentativa de login via bootstrap bloqueada (setup já concluído)',
+					ip
+				});
+				return {
+					sucesso: false,
+					statusCode: 401,
+					erro: 'Login ou senha inválidos',
+					fields: { matricula, tipo }
+				};
+			}
+
+			logger.warn(
+				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
+					'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA após concluir o setup inicial.',
+				{ ip }
+			);
+
 			if (!compararSegredoUtf8TimingSafe(senha, envSenha)) {
 				await recordAttempt(db, ip, false);
 				await registrarAuditComContexto(db, {
@@ -183,7 +234,7 @@ export async function tentarLogin({
 				};
 			}
 
-			let envAdmin = await db.select().from(administradores).where(eq(administradores.login, envLogin)).get();
+			let envAdmin = envAdminExistente;
 			if (!envAdmin) {
 				const senhaHash = await hashSenha(crypto.randomUUID());
 				await db.insert(administradores).values({

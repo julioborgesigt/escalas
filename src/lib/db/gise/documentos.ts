@@ -15,6 +15,12 @@ import {
 } from '../../server/schema';
 import type * as schema from '../../server/schema';
 import type { Database } from '../core';
+import { anonimizarIp } from '../audit';
+import { parseUserAgent } from '../../server/document-utils';
+
+function gps2(v?: number): number | undefined {
+	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
+}
 
 /** Reexportado de '../documentos' para uso pelos endpoints. */
 export type { AssinaturaCadesMetadata } from '../documentos';
@@ -53,10 +59,10 @@ export async function salvarGiseDocumento(
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
 			rubrica: rubrica || null,
-			ip_address: ipAddress,
-			user_agent: userAgent,
-			latitude,
-			longitude,
+			ip_address: anonimizarIp(ipAddress) ?? undefined,
+			user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+			latitude: gps2(latitude),
+			longitude: gps2(longitude),
 			tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 			cert_issuer: meta.cert_issuer ?? null,
 			cert_serial: meta.cert_serial ?? null,
@@ -79,10 +85,10 @@ export async function salvarGiseDocumento(
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,
 				rubrica: rubrica || null,
-				ip_address: ipAddress,
-				user_agent: userAgent,
-				latitude,
-				longitude,
+				ip_address: anonimizarIp(ipAddress) ?? undefined,
+				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
+				latitude: gps2(latitude),
+				longitude: gps2(longitude),
 				tipo_carimbo_tempo: tipoCarimboTempo || 'servidor',
 				cert_issuer: meta.cert_issuer ?? null,
 				cert_serial: meta.cert_serial ?? null,

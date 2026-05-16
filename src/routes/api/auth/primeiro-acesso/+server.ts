@@ -1,23 +1,27 @@
 /**
  * POST /api/auth/primeiro-acesso
  *
- * Gera uma senha provisória e envia por e-mail para policiais com primeiro_acesso = 1.
+ * Gera um link de primeiro acesso (token de redefinição de senha) e envia por
+ * e-mail. Substitui o fluxo anterior de senha provisória em texto claro.
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
-import { hashSenha } from '$lib/auth';
-import { enviarSenhaProvisoria } from '$lib/server/email';
+import { criarTokenRedefinicao } from '$lib/auth';
+import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import { gerarSenhaProvisoria } from '$lib/server/provisional-password';
-import { policiais, loginAttempts } from '$lib/server/schema';
-import { and, count, eq, gt } from 'drizzle-orm';
+import { policiais } from '$lib/server/schema';
+import { and, eq } from 'drizzle-orm';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/recovery-rate-limit';
 
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
 
-export const POST: RequestHandler = async ({ platform, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ platform, request, url, getClientAddress }) => {
 	const db = getDB(platform);
 	const ip = getClientAddress();
 	const body = await request.json().catch(() => ({}));
@@ -30,22 +34,21 @@ export const POST: RequestHandler = async ({ platform, request, getClientAddress
 	// Resposta genérica para não revelar se a matrícula existe
 	const respostaGenerica = json({
 		ok: true,
-		message: 'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá a senha por e-mail.'
+		message: 'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá o link por e-mail.'
 	});
 
-	// Rate limit por IP: previne DoS de conta via ciclo de senha provisória.
-	// Reusa `loginAttempts` (mesmo padrão de `solicitar-redefinicao`).
-	const windowIp = new Date(Date.now() - JANELA_IP_MINUTOS * 60 * 1000).toISOString();
-	const [ipCount] = await db
-		.select({ n: count() })
-		.from(loginAttempts)
-		.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
-
-	if ((ipCount?.n ?? 0) >= MAX_TENTATIVAS_IP) {
+	// Rate limit em recovery_attempts (isolado de login_attempts).
+	const limite = await contarRecoveryAttempts(
+		db,
+		ip,
+		'primeiro_acesso',
+		JANELA_IP_MINUTOS,
+		MAX_TENTATIVAS_IP
+	);
+	if (limite.blocked) {
 		return respostaGenerica;
 	}
-
-	await db.insert(loginAttempts).values({ ip, success: 0 });
+	await registrarRecoveryAttempt(db, ip, 'primeiro_acesso');
 
 	const policial = await db
 		.select()
@@ -62,13 +65,11 @@ export const POST: RequestHandler = async ({ platform, request, getClientAddress
 		);
 	}
 
-	const senhaProvisoria = gerarSenhaProvisoria();
-	const senhaHash = await hashSenha(senhaProvisoria);
-
-	await db.update(policiais).set({ senha: senhaHash }).where(eq(policiais.id, policial.id));
+	const token = await criarTokenRedefinicao(db, 'policial', policial.id);
+	const link = `${url.origin}/redefinir-senha?token=${token}`;
 
 	try {
-		await enviarSenhaProvisoria(policial.email, senhaProvisoria, policial.nome, platform);
+		await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);
 	} catch (err) {
 		logger.error('[primeiro-acesso] Falha ao enviar e-mail', {
 			policial_id: policial.id,

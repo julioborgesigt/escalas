@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
+import { mascararEmail } from '$lib/server/auth-flow';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ platform, locals, url }) => {
@@ -54,20 +55,3 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 		return json({ error: 'Erro ao processar solicitação. Tente novamente.' }, { status: 500 });
 	}
 };
-
-function mascararEmail(email: string): string {
-	const at = email.indexOf('@');
-	if (at <= 0) return email;
-	const local = email.slice(0, at);
-	const domain = email.slice(at + 1);
-	let masked: string;
-	if (local.length === 1) {
-		masked = local;
-	} else if (local.length === 2) {
-		masked = local[0] + '*';
-	} else {
-		const showStart = Math.min(2, Math.floor(local.length / 2));
-		masked = local.slice(0, showStart) + '*'.repeat(local.length - showStart - 1) + local[local.length - 1];
-	}
-	return masked + '@' + domain;
-}

@@ -56,6 +56,8 @@ export const escalas = sqliteTable(
 		lotacao: text('lotacao').notNull().default(''),
 		tipo: text('tipo', { enum: ['plantao', 'expediente', 'fds'] }),
 		visto_por_admin: integer('visto_por_admin').notNull().default(0),
+		finalizada_em: text('finalizada_em'),
+		email_envio: text('email_envio'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
@@ -185,6 +187,36 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 
+// ---- Solicitações de Assinatura de Escalas ----
+
+export const escalaSolicitacoesAssinatura = sqliteTable(
+	'escala_solicitacoes_assinatura',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		escala_id: integer('escala_id')
+			.notNull()
+			.unique()
+			.references(() => escalas.id, { onDelete: 'cascade' }),
+		// onDelete: cascade — solicitação não faz sentido sem solicitante.
+		solicitante_id: integer('solicitante_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', { enum: ['unidade', 'respondencia'] }).notNull(),
+		// onDelete: set null — solicitação sobrevive mesmo se destinatário sumir;
+		// a coluna é nullable, então preserva o histórico do solicitante.
+		destinatario_id: integer('destinatario_id').references(() => policiais.id, {
+			onDelete: 'set null'
+		}),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_esa_escala_id').on(table.escala_id),
+		index('idx_esa_destinatario_id').on(table.destinatario_id)
+	]
+);
+
 // ---- GISE ----
 
 export const giseEscalas = sqliteTable(
@@ -209,7 +241,7 @@ export const giseEscalas = sqliteTable(
 		})
 			.notNull()
 			.default('em_definicao_supervisor'),
-		supervisor_id: integer('supervisor_id'), // already exists
+		supervisor_id: integer('supervisor_id'),
 		assessor_id: integer('assessor_id'),
 		seint1_id: integer('seint1_id'),
 		seint2_id: integer('seint2_id'),
@@ -243,9 +275,11 @@ export const giseSeccionais = sqliteTable(
 		gise_id: integer('gise_id')
 			.notNull()
 			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		// onDelete: restrict — bloqueia remoção de unidades que têm GISE histórico
+		// vinculado. Garante integridade de auditoria; admin deve apagar GISE antes.
 		seccional_id: integer('seccional_id')
 			.notNull()
-			.references(() => unidades.id),
+			.references(() => unidades.id, { onDelete: 'restrict' }),
 		unidade_operacional_id: integer('unidade_operacional_id'),
 		status: text('status', { enum: ['pendente', 'preenchida', 'retificada', 'preenchida_retificada'] }).notNull().default('pendente'),
 		hora_entrada: text('hora_entrada'),
@@ -350,8 +384,8 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 
 export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
-	tipo: text('tipo').notNull().default('operacional'), // 'operacional' ou 'seint'
-	config: text('config').notNull().default('[]'), // JSON array de perguntas
+	tipo: text('tipo').notNull().default('operacional'),
+	config: text('config').notNull().default('[]'),
 	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
 }, (table) => [
 	index('idx_gise_modelo_tipo').on(table.tipo)
@@ -452,6 +486,8 @@ export const aceitesTermos = sqliteTable(
 		versao_termo: text('versao_termo').notNull(),
 		hash_termo: text('hash_termo').notNull(),
 		aceitou_lgpd: integer('aceitou_lgpd').notNull().default(0),
+		aceitou_uso_email: integer('aceitou_uso_email').notNull().default(0),
+		aceitou_uso_localizacao: integer('aceitou_uso_localizacao').notNull().default(0),
 		ip: text('ip'),
 		user_agent: text('user_agent'),
 		aceitou_em: text('aceitou_em').notNull().default(sql`(datetime('now', '-3 hours'))`)
@@ -522,6 +558,27 @@ export const loginAttempts = sqliteTable('login_attempts', {
 	index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)
 ]);
 
+/**
+ * Rate-limit dedicado aos fluxos de recuperação de senha e verificação de
+ * e-mail pessoal. Separado de `login_attempts` para não inflar a contagem
+ * usada pelo rate-limit de LOGIN (atacante poderia bloquear logins legítimos
+ * disparando requests de reset).
+ */
+export const recoveryAttempts = sqliteTable(
+	'recovery_attempts',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		ip: text('ip').notNull(),
+		purpose: text('purpose', {
+			enum: ['solicitar_redefinicao', 'confirmar_redefinicao', 'primeiro_acesso']
+		}).notNull(),
+		attempted_at: text('attempted_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(table) => [
+		index('idx_recovery_attempts_ip_purpose_time').on(table.ip, table.purpose, table.attempted_at)
+	]
+);
+
 // ---- Log de Auditoria ----
 
 export const auditLog = sqliteTable(
@@ -544,6 +601,75 @@ export const auditLog = sqliteTable(
 		index('idx_audit_entidade').on(table.entidade, table.entidade_id),
 		index('idx_audit_acao').on(table.acao),
 		index('idx_audit_created_at').on(table.created_at)
+	]
+);
+
+// ---- LGPD: Registro de Incidentes (art. 48) ----
+
+export const lgpdIncidentes = sqliteTable(
+	'lgpd_incidentes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		titulo: text('titulo').notNull(),
+		descricao: text('descricao').notNull(),
+		tipo_incidente: text('tipo_incidente', {
+			enum: ['acesso_nao_autorizado', 'vazamento', 'uso_indevido', 'perda', 'alteracao', 'outro']
+		}).notNull().default('acesso_nao_autorizado'),
+		data_ocorrencia: text('data_ocorrencia'),
+		data_descoberta: text('data_descoberta').notNull(),
+		dados_afetados: text('dados_afetados').notNull(),
+		usuarios_afetados_estimativa: integer('usuarios_afetados_estimativa'),
+		gravidade: text('gravidade', { enum: ['baixa', 'media', 'alta', 'critica'] }).notNull().default('media'),
+		status: text('status', { enum: ['aberto', 'investigando', 'notificado_anpd', 'encerrado'] }).notNull().default('aberto'),
+		responsavel_nome: text('responsavel_nome').notNull(),
+		responsavel_email: text('responsavel_email').notNull(),
+		notificado_anpd_em: text('notificado_anpd_em'),
+		prazo_notificacao_anpd: text('prazo_notificacao_anpd'),
+		medidas_tomadas: text('medidas_tomadas'),
+		created_by_id: integer('created_by_id').notNull(),
+		created_by_nome: text('created_by_nome').notNull(),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_lgpd_incidentes_status').on(table.status, table.created_at),
+		index('idx_lgpd_incidentes_gravidade').on(table.gravidade)
+	]
+);
+
+// ---- LGPD: Solicitações de Direitos dos Titulares (art. 18) ----
+
+export const lgpdSolicitacoes = sqliteTable(
+	'lgpd_solicitacoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		solicitante_tipo: text('solicitante_tipo', { enum: ['policial', 'admin'] }).notNull(),
+		solicitante_id: integer('solicitante_id').notNull(),
+		solicitante_nome: text('solicitante_nome').notNull(),
+		tipo_direito: text('tipo_direito', {
+			enum: [
+				'acesso',
+				'correcao',
+				'anonimizacao',
+				'portabilidade',
+				'eliminacao',
+				'informacao_compartilhamento',
+				'revogacao_consentimento',
+				'oposicao'
+			]
+		}).notNull(),
+		descricao: text('descricao'),
+		status: text('status', { enum: ['pendente', 'em_analise', 'concluida', 'indeferida'] }).notNull().default('pendente'),
+		resposta: text('resposta'),
+		respondido_por_nome: text('respondido_por_nome'),
+		respondido_em: text('respondido_em'),
+		prazo_resposta: text('prazo_resposta').notNull(),
+		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_lgpd_sol_solicitante').on(table.solicitante_tipo, table.solicitante_id, table.created_at),
+		index('idx_lgpd_sol_status').on(table.status, table.prazo_resposta)
 	]
 );
 
@@ -572,3 +698,7 @@ export type NovoAceiteTermo = typeof aceitesTermos.$inferInsert;
 export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type NovoAuditLog = typeof auditLog.$inferInsert;
+export type LgpdIncidente = typeof lgpdIncidentes.$inferSelect;
+export type NovoLgpdIncidente = typeof lgpdIncidentes.$inferInsert;
+export type LgpdSolicitacao = typeof lgpdSolicitacoes.$inferSelect;
+export type NovaLgpdSolicitacao = typeof lgpdSolicitacoes.$inferInsert;

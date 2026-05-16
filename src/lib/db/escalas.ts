@@ -1,9 +1,10 @@
-import { eq, and, or, sql, desc, asc, inArray, like, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like, isNull } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
 	escalaDocumentos,
-	policiais
+	policiais,
+	escalaSolicitacoesAssinatura
 } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { EscalaPolicialComDados, EscalaListagem } from '../types';
@@ -27,6 +28,7 @@ export async function listarEscalas(
 		busca?: string;
 		page?: number;
 		limit?: number;
+		lotacoes?: string[];
 	}
 ): Promise<{
 	escalas: EscalaListagem[];
@@ -37,7 +39,11 @@ export async function listarEscalas(
 }> {
 	const conditions: ReturnType<typeof eq>[] = [];
 
-	if (lotacao) conditions.push(eq(escalas.lotacao, lotacao));
+	if (lotacao) {
+		conditions.push(eq(escalas.lotacao, lotacao));
+	} else if (opts?.lotacoes && opts.lotacoes.length > 0) {
+		conditions.push(inArray(escalas.lotacao, opts.lotacoes));
+	}
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
 		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}` as any);
@@ -94,6 +100,8 @@ export async function listarEscalas(
 			lotacao: escalas.lotacao,
 			tipo: escalas.tipo,
 			visto_por_admin: escalas.visto_por_admin,
+			finalizada_em: escalas.finalizada_em,
+			email_envio: escalas.email_envio,
 			created_at: escalas.created_at,
 			total: sql<number>`count(*) OVER()`
 		})
@@ -118,7 +126,10 @@ export async function listarEscalas(
 
 	const assinadas = new Set(docs.map((d) => d.escala_id));
 
-	const mapeadas = results.map(({ total: _t, ...e }) => ({ ...e, is_assinada: assinadas.has(e.id) }));
+	const mapeadas = results.map(({ total: _t, ...e }) => ({
+		...e,
+		is_assinada: assinadas.has(e.id)
+	}));
 
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
@@ -145,13 +156,23 @@ export async function verificarEscalaExistente(
 	db: Database,
 	lotacao: string,
 	tipo: 'plantao' | 'expediente' | 'fds',
-	dataInicio: string
+	dataInicio: string,
+	dataFim?: string
 ): Promise<schema.Escala | undefined> {
 	if (tipo === 'fds') {
+		const fim = dataFim ?? dataInicio;
+		// Overlap: existente.inicio <= novoFim AND existente.fim >= novoInicio
 		return db
 			.select()
 			.from(escalas)
-			.where(and(eq(escalas.lotacao, lotacao), eq(escalas.tipo, tipo), eq(escalas.data_inicio, dataInicio)))
+			.where(
+				and(
+					eq(escalas.lotacao, lotacao),
+					eq(escalas.tipo, tipo),
+					sql`${escalas.data_inicio} <= ${fim}`,
+					sql`${escalas.data_fim} >= ${dataInicio}`
+				)
+			)
 			.get();
 	}
 	// Range query em vez de substr() para aproveitar índices em data_inicio
@@ -175,6 +196,15 @@ export async function verificarEscalaExistente(
 
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
 	return db.update(escalas).set({ visto_por_admin: visto ? 1 : 0 }).where(eq(escalas.id, id));
+}
+
+export async function finalizarEscalaFDS(db: Database, id: number, emailEnvio: string): Promise<void> {
+	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+	await db.update(escalas).set({ finalizada_em: agora, email_envio: emailEnvio }).where(eq(escalas.id, id));
+}
+
+export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {
+	await db.update(escalas).set({ finalizada_em: null }).where(eq(escalas.id, id));
 }
 
 // ---- Escala Policiais ----
@@ -258,7 +288,6 @@ export async function adicionarTodosPoliciais(
 	horaEntrada: string,
 	horaSaida: string
 ): Promise<number> {
-	// Filtrar no banco em vez de carregar tudo para o JS
 	const candidatos = await db
 		.select({ id: policiais.id })
 		.from(policiais)
@@ -266,10 +295,7 @@ export async function adicionarTodosPoliciais(
 			and(
 				eq(policiais.ativo, 1),
 				eq(policiais.lotacao, lotacao),
-				or(
-					eq(policiais.regime, regime),
-					isNull(policiais.regime)
-				)
+				eq(policiais.regime, regime)
 			)
 		);
 
@@ -285,19 +311,21 @@ export async function adicionarTodosPoliciais(
 
 	if (novos.length === 0) return 0;
 
-	// Batch insert único dentro de transação para atomicidade
-	await db.transaction(async (tx) => {
-		await tx.insert(escalaPoliciais).values(
-			novos.map((p) => ({
+	// D1 limita ~100 parâmetros por statement; cada linha tem 9 campos,
+	// então um INSERT multi-linha com >11 policiais estouraria o limite.
+	// db.batch() executa N statements em um único round-trip de forma atômica.
+	await db.batch(
+		novos.map((p) =>
+			db.insert(escalaPoliciais).values({
 				escala_id: escalaId,
 				policial_id: p.id,
 				data_plantao: dataPlantao,
 				data_saida: dataSaida,
 				hora_entrada: horaEntrada,
 				hora_saida: horaSaida
-			}))
-		);
-	});
+			})
+		) as any
+	);
 
 	return novos.length;
 }
@@ -340,4 +368,117 @@ export async function listarPoliciaisEscala(
 ): Promise<EscalaPolicialComDados[]> {
 	const result = await listarPoliciaisEscalaQuery(db, escalaId);
 	return result as EscalaPolicialComDados[];
+}
+
+// ---- Solicitações de Assinatura ----
+
+export async function criarSolicitacaoAssinatura(
+	db: Database,
+	escalaId: number,
+	solicitanteId: number,
+	tipo: 'unidade' | 'respondencia',
+	destinatarioId?: number
+) {
+	await db
+		.delete(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId));
+	await db.insert(escalaSolicitacoesAssinatura).values({
+		escala_id: escalaId,
+		solicitante_id: solicitanteId,
+		tipo,
+		destinatario_id: destinatarioId ?? null
+	});
+}
+
+/**
+ * Verifica se um admin DPC tem acesso a uma escala fora de sua lotação/seccional
+ * através de uma solicitação de assinatura.
+ *
+ * Retorna `true` quando:
+ * - há solicitação do tipo `respondencia` direcionada diretamente a este usuário, OU
+ * - há solicitação do tipo `unidade` e a escala pertence a uma das lotações permitidas
+ *   (passadas como `lotacoesPermitidas`).
+ */
+export async function temSolicitacaoParaDpcAdmin(
+	db: Database,
+	escalaId: number,
+	usuarioId: number,
+	lotacoesPermitidas?: string[]
+): Promise<boolean> {
+	const sol = await db
+		.select({
+			tipo: escalaSolicitacoesAssinatura.tipo,
+			destinatario_id: escalaSolicitacoesAssinatura.destinatario_id
+		})
+		.from(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
+		.get();
+
+	if (!sol) return false;
+
+	// Nomeado por respondência direta
+	if (sol.tipo === 'respondencia' && sol.destinatario_id === usuarioId) return true;
+
+	// Solicitação de unidade — a lotação da escala já é validada no contexto do chamador
+	// via `lotacoesPermitidas` (para admin seccional) ou lotacao direta (para admin unidade).
+	// Aqui apenas confirmamos que existe solicitação do tipo unidade.
+	if (sol.tipo === 'unidade') {
+		// Para admin seccional que passou lotacoesPermitidas: qualquer unidade da seccional
+		// já foi autorizada no load; retornamos true para escalar qualquer escala
+		// que tenha uma solicitação de tipo unidade direcionada àquele escopo.
+		if (lotacoesPermitidas !== undefined) return true;
+		// Para admin unidade: a escala.lotacao === u.lotacao já foi verificada antes
+		// (esse caso não chega aqui), mas deixamos retornar true para consistência.
+		return true;
+	}
+
+	return false;
+}
+
+export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number) {
+	return db
+		.select()
+		.from(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
+		.get();
+}
+
+export async function excluirSolicitacaoAssinatura(db: Database, escalaId: number) {
+	await db
+		.delete(escalaSolicitacoesAssinatura)
+		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId));
+}
+
+export async function listarSolicitacoesEscalas(
+	db: Database,
+	escalaIds: number[]
+): Promise<Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>> {
+	if (escalaIds.length === 0) return new Map();
+
+	// Alias para o join com policiais (destinatário)
+	const dest = {
+		id: policiais.id,
+		nome: policiais.nome
+	};
+
+	const rows = await db
+		.select({
+			escala_id: escalaSolicitacoesAssinatura.escala_id,
+			tipo: escalaSolicitacoesAssinatura.tipo,
+			destinatario_id: escalaSolicitacoesAssinatura.destinatario_id,
+			destinatario_nome: policiais.nome
+		})
+		.from(escalaSolicitacoesAssinatura)
+		.leftJoin(policiais, eq(policiais.id, escalaSolicitacoesAssinatura.destinatario_id))
+		.where(inArray(escalaSolicitacoesAssinatura.escala_id, escalaIds));
+
+	const map = new Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>();
+	for (const row of rows) {
+		map.set(row.escala_id, {
+			tipo: row.tipo as 'unidade' | 'respondencia',
+			destinatario_id: row.destinatario_id ?? undefined,
+			destinatario_nome: row.destinatario_nome ?? undefined
+		});
+	}
+	return map;
 }

@@ -13,6 +13,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	let exigirFotoAssinatura = true;
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
+	let restringirSmartphone = false;
 
 	if (u) {
 		try {
@@ -34,6 +35,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 			exigirFotoAssinatura = flags.exigirFotoAssinatura;
 			exigirGpsAssinatura = flags.exigirGpsAssinatura;
 			exigirCodigoEmailAssinatura = flags.exigirCodigoEmailAssinatura;
+			restringirSmartphone = flags.restringirSmartphone;
 
 			if (papel) {
 				isSupervisorGise = papel.isSupervisor;
@@ -61,6 +63,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 		exigirFotoAssinatura,
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,
+		restringirSmartphone,
 		adminModulo
 	};
 };

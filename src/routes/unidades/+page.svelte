@@ -1,13 +1,16 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { invalidate, invalidateAll } from '$app/navigation';
+	import { page, navigating } from '$app/state';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
+	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
 
 	let { data, form } = $props();
 
@@ -17,21 +20,16 @@
 
 	let unidades = $derived(data.unidades as Unidade[]);
 
-	// Filtros
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
 	let filtroBusca = $state(savedFilters.busca);
 
-	// Salvar filtros a cada mudança
 	$effect(() => {
 		if (browser) {
 			localStorage.setItem(
 				'filtros_unidades',
-				JSON.stringify({
-					seccional: filtroSeccional,
-					busca: filtroBusca
-				})
+				JSON.stringify({ seccional: filtroSeccional, busca: filtroBusca })
 			);
 		}
 	});
@@ -106,25 +104,7 @@
 		return out;
 	});
 
-	// Estado para o cadastro guiado
-	let tipoUnidade = $state<'delegacia' | 'seccional'>('delegacia');
-	let delegaciaPrefixo = $state('');
-	let delegaciaSufixo = $state('');
-	let seccionalPrefixo = $state('');
-	let seccionalSufixo = $state('Interior Sul');
-
-	const novoNome = $derived(
-		tipoUnidade === 'delegacia'
-			? `${delegaciaPrefixo ? delegaciaPrefixo + ' ' : ''}Delegacia de Polícia Civil de ${delegaciaSufixo}`.trim()
-			: `${seccionalPrefixo ? seccionalPrefixo + ' ' : ''}Seccional do ${seccionalSufixo}`.trim()
-	);
-
-	let novoSeccionalId = $state<number | null>(null);
 	const seccionais = $derived(unidades.filter((u) => u.tipo === 'seccional'));
-
-	let novoTemPlantao = $state(false);
-	let novoTemExpediente = $state(false);
-	let novoTemFds = $state(false);
 
 	// Edição inline
 	let editandoId = $state<number | null>(null);
@@ -135,19 +115,16 @@
 	let editTemExpediente = $state(false);
 	let editTemFds = $state(false);
 	let editCidade = $state('');
-	let buscaCidade = $state('');
-
-	// Loading inline por ação
 	let pendingEditar = $state(false);
-	let pendingExcluir = $state(false);
-	let pendingCadastro = $state(false);
 
 	// Exclusão
-	let dialogOpen = $state(false);
+	let dialogExcluirOpen = $state(false);
 	let unidadeParaExcluir = $state<{ id: number; nome: string } | null>(null);
 
 	// Cadastro
 	let cadastroOpen = $state(false);
+
+	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 
 	function iniciarEdicao(u: Unidade) {
 		editandoId = u.id;
@@ -186,29 +163,9 @@
 		};
 	}
 
-	function mudarSeccional() {
-		// filtro local, sem ação necessária
-	}
-
 	function solicitarExclusao(id: number, nome: string) {
 		unidadeParaExcluir = { id, nome };
-		dialogOpen = true;
-	}
-
-	function handleExcluir() {
-		pendingExcluir = true;
-		return async ({ result }: any) => {
-			pendingExcluir = false;
-			if (result.type === 'success') {
-				await invalidateAll();
-				toaster.create({ title: `Unidade "${unidadeParaExcluir?.nome}" removida com sucesso`, type: 'success' });
-				dialogOpen = false;
-				unidadeParaExcluir = null;
-			} else {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao remover DP'), type: 'error' });
-			}
-		};
+		dialogExcluirOpen = true;
 	}
 
 	function limparFiltros() {
@@ -216,40 +173,85 @@
 		filtroBusca = '';
 	}
 
-	function handleCadastro({ formData }: { formData: FormData }) {
-		pendingCadastro = true;
-		return async ({ result }: { result: any }) => {
-			pendingCadastro = false;
-			if (result.type === 'success') {
-				await invalidateAll();
-				toaster.create({ title: 'Unidade cadastrada com sucesso!', type: 'success' });
-				delegaciaPrefixo = '';
-				delegaciaSufixo = '';
-				seccionalPrefixo = '';
-				seccionalSufixo = 'Interior Sul';
-				novoSeccionalId = null;
-				novoTemPlantao = false;
-				novoTemExpediente = false;
-				novoTemFds = false;
-				cadastroOpen = false;
-			} else if (result.type === 'failure') {
-				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao cadastrar'), type: 'error' });
-			}
-		};
+	function tipoLabel(tipo: string) {
+		if (tipo === 'departamento') return 'Departamento';
+		if (tipo === 'sub_departamento') return 'Subdepartamento';
+		if (tipo === 'seccional') return 'Seccional';
+		return 'Delegacia';
 	}
-
-	const temFiltros = $derived(filtroSeccional !== 'todas' || filtroBusca !== '');
 </script>
 
 <svelte:head>
 	<title>Gerenciar Unidades - Portal de Escalas</title>
 </svelte:head>
 
+{#snippet badges(u: Unidade)}
+	{#if u.tem_plantao}<span
+			class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
+			>Plantão</span
+		>{/if}
+	{#if u.tem_expediente}<span
+			class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
+			>Expediente</span
+		>{/if}
+	{#if u.tem_fds}<span
+			class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
+			>FDS</span
+		>{/if}
+{/snippet}
+
+{#snippet editInputs()}
+	<input type="hidden" name="id" value={editandoId} />
+	<input type="hidden" name="nome" value={editNome} />
+	<input type="hidden" name="tipo" value={editTipo} />
+	<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
+	<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
+	<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
+	<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
+	<input type="hidden" name="cidade" value={editCidade} />
+{/snippet}
+
+{#snippet editFields(datalistId: string)}
+	<input
+		class="input text-sm w-full"
+		type="text"
+		bind:value={editNome}
+		onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
+	/>
+	<div class="flex flex-wrap items-center gap-3 text-sm py-2">
+		<label class="flex items-center space-x-1.5"
+			><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span
+				>Plantão</span
+			></label
+		>
+		<label class="flex items-center space-x-1.5"
+			><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span
+				>Expediente</span
+			></label
+		>
+		<label class="flex items-center space-x-1.5"
+			><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span>FDS</span></label
+		>
+		<input
+			class="input text-xs w-full sm:w-auto sm:min-w-[140px] sm:max-w-[200px]"
+			type="text"
+			list={datalistId}
+			bind:value={editCidade}
+			placeholder="Mudar cidade..."
+		/>
+		<datalist id={datalistId}>
+			{#each CIDADES_CEARA as c}
+				<option value={c}></option>
+			{/each}
+		</datalist>
+	</div>
+{/snippet}
+
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button type="button"
+		<button
+			type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -259,7 +261,11 @@
 			Limpar filtros
 		</button>
 		{#if isAdmin}
-			<button type="button" class="btn btn-sm preset-filled-primary-500" onclick={() => (cadastroOpen = true)}>
+			<button
+				type="button"
+				class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+				onclick={() => (cadastroOpen = true)}
+			>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 					><path
 						stroke-linecap="round"
@@ -275,12 +281,12 @@
 </div>
 
 <div
-	class="p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6"
+	class="p-4 sm:p-6 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-md shadow-black/5 mb-6"
 >
 	<div class="flex flex-col sm:flex-row gap-4">
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
-			<select class="select" bind:value={filtroSeccional} onchange={mudarSeccional}>
+			<select class="select" bind:value={filtroSeccional}>
 				<option value="todas">Todas as Seccionais</option>
 				{#each seccionais as sec (sec.id)}
 					<option value={sec.id}>{sec.nome}</option>
@@ -311,215 +317,11 @@
 	</div>
 </div>
 
-<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
-	>
-		<div
-			class="card p-6 max-w-sm w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
-			<Dialog.Title class="h3 font-bold mb-2">Excluir Unidade?</Dialog.Title>
-			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-				Tem certeza que deseja excluir a unidade "{unidadeParaExcluir?.nome}"? Esta ação não afeta
-				os policiais já lotados nela.
-			</Dialog.Description>
-			<div class="flex justify-end gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
-				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
-					<input type="hidden" name="unidade_id" value={unidadeParaExcluir?.id} />
-					<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2" disabled={pendingExcluir}>
-						{pendingExcluir ? 'Excluindo...' : 'Excluir'}
-					</button>
-				</form>
-			</div>
-		</div>
-	</Dialog.Content>
-</Dialog>
-
-<!-- Modal de Cadastro -->
-<Dialog
-	open={cadastroOpen}
-	onOpenChange={(e) => {
-		cadastroOpen = e.open;
-		if (!e.open) {
-			delegaciaPrefixo = '';
-			delegaciaSufixo = '';
-			seccionalPrefixo = '';
-			seccionalSufixo = 'Interior Sul';
-			novoTemPlantao = false;
-			novoTemExpediente = false;
-			novoTemFds = false;
-			buscaCidade = '';
-		}
-	}}
->
-	<Dialog.Content
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
-	>
-		<div
-			class="card p-6 max-w-md w-full bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
-		>
-			<Dialog.Title class="h3 font-bold mb-5">Cadastrar Nova Unidade</Dialog.Title>
-			<form method="POST" action="?/criar" use:enhance={handleCadastro} class="flex flex-col gap-4">
-				<!-- Campos hidden -->
-				<input type="hidden" name="nome" value={novoNome} />
-				<input type="hidden" name="tipo" value={tipoUnidade} />
-				<input type="hidden" name="seccional_id" value={novoSeccionalId ?? ''} />
-				<input type="hidden" name="cidade" value={buscaCidade} />
-				<input type="hidden" name="tem_plantao" value={novoTemPlantao ? 'on' : ''} />
-				<input type="hidden" name="tem_expediente" value={novoTemExpediente ? 'on' : ''} />
-				<input type="hidden" name="tem_fds" value={novoTemFds ? 'on' : ''} />
-
-				<div
-					class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5"
-				>
-					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
-						>Tipo de Unidade</span
-					>
-					<div class="flex gap-2">
-						<button
-							type="button"
-							class="btn btn-sm flex-1 {tipoUnidade === 'seccional'
-								? 'preset-filled-primary-500'
-								: 'preset-outlined-surface'}"
-							onclick={() => (tipoUnidade = 'seccional')}>Seccional</button
-						>
-						<button
-							type="button"
-							class="btn btn-sm flex-1 {tipoUnidade === 'delegacia'
-								? 'preset-filled-primary-500'
-								: 'preset-outlined-surface'}"
-							onclick={() => (tipoUnidade = 'delegacia')}>Delegacia</button
-						>
-					</div>
-				</div>
-
-				<label class="label">
-					<span class="label-text font-semibold">Cidade no Ceará</span>
-					<div class="relative">
-						<input
-							class="input"
-							type="text"
-							list="cidades-ce-registro"
-							bind:value={buscaCidade}
-							placeholder="Buscar e selecionar cidade..."
-							required
-						/>
-						<datalist id="cidades-ce-registro">
-							{#each CIDADES_CEARA as c}
-								<option value={c}></option>
-							{/each}
-						</datalist>
-					</div>
-				</label>
-
-				{#if tipoUnidade === 'delegacia'}
-					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
-						<label class="label">
-							<span class="label-text">Seccional Vinculada</span>
-							<select class="select" bind:value={novoSeccionalId}>
-								<option value={null}>Selecione uma Seccional...</option>
-								{#each seccionais as sec}
-									<option value={sec.id}>{sec.nome}</option>
-								{/each}
-							</select>
-						</label>
-						<div class="grid grid-cols-[6rem_1fr] gap-2">
-							<label class="label">
-								<span class="label-text">Prefixo</span>
-								<select class="select" bind:value={delegaciaPrefixo}>
-									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
-										<option value={ord}>{ord}</option>
-									{/each}
-								</select>
-							</label>
-							<label class="label">
-								<span class="label-text">Local (cidade / nome)</span>
-								<input
-									class="input"
-									type="text"
-									bind:value={delegaciaSufixo}
-									placeholder="Iguatu"
-								/>
-							</label>
-						</div>
-					</div>
-				{:else}
-					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
-						<div class="grid grid-cols-[6rem_1fr] gap-2">
-							<label class="label">
-								<span class="label-text">Prefixo</span>
-								<select class="select" bind:value={seccionalPrefixo}>
-									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
-										<option value={ord}>{ord}</option>
-									{/each}
-								</select>
-							</label>
-							<label class="label">
-								<span class="label-text">Local</span>
-								<input
-									class="input"
-									type="text"
-									bind:value={seccionalSufixo}
-									placeholder="Interior Sul"
-								/>
-							</label>
-						</div>
-					</div>
-				{/if}
-
-				<div class="p-3 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-					<p class="text-[10px] uppercase font-bold text-primary-600 dark:text-primary-400 mb-1">
-						Preview do Nome:
-					</p>
-					<p class="text-sm font-semibold truncate">{novoNome || 'Preencha os campos...'}</p>
-				</div>
-
-				<div
-					class="flex flex-col gap-2 p-3 bg-surface-200/50 dark:bg-surface-800/50 rounded-xl border border-surface-300 dark:border-white/5"
-				>
-					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-						Regimes de Escala:
-					</p>
-					<div class="flex gap-4">
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span
-								>Plantão</span
-							></label
-						>
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span
-								>Expediente</span
-							></label
-						>
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span
-								>Fim de Semana</span
-							></label
-						>
-					</div>
-				</div>
-				<div class="flex justify-end gap-3 pt-1">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 flex items-center gap-2"
-						disabled={pendingCadastro ||
-							!novoNome.trim() ||
-							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
-					>
-						{pendingCadastro ? 'Cadastrando...' : 'Cadastrar'}
-					</button>
-				</div>
-			</form>
-		</div>
-	</Dialog.Content>
-</Dialog>
+<ModalExcluirUnidade bind:open={dialogExcluirOpen} unidade={unidadeParaExcluir} />
+<ModalCadastrarUnidade bind:open={cadastroOpen} {seccionais} />
 
 <div
-	class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
+	class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden"
 >
 	{#if data.unidades.length === 0}
 		<div class="text-center py-20">
@@ -555,284 +357,179 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each unidadesAgrupadas as u (u.id)}
-						<tr>
-							<td
-								class="relative"
-								style:padding-left={u.depth > 0 ? `${Math.min(u.depth, 8) * 0.75}rem` : null}
-							>
-								{#if u.hasChildren}
-									<div
-										class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"
-									></div>
-								{/if}
-								{#if u.isChild}
-									<div
-										class="absolute left-1 top-0 {u.isLastChild
-											? 'bottom-1/2'
-											: 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"
-									></div>
-									<div
-										class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"
-									></div>
-								{/if}
-								{#if isAdmin && editandoId === u.id}
-									<div class="flex flex-col gap-2">
-										<input
-											class="input text-sm"
-											type="text"
-											bind:value={editNome}
-											onkeydown={(e) => {
-												if (e.key === 'Escape') cancelarEdicao();
-											}}
-										/>
-										<div class="flex flex-wrap items-center gap-3 text-sm mt-1">
-											<label class="flex items-center space-x-1.5"
-												><input
-													class="checkbox"
-													type="checkbox"
-													bind:checked={editTemPlantao}
-												/><span>Plantão</span></label
-											>
-											<label class="flex items-center space-x-1.5"
-												><input
-													class="checkbox"
-													type="checkbox"
-													bind:checked={editTemExpediente}
-												/><span>Expediente</span></label
-											>
-											<label class="flex items-center space-x-1.5"
-												><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
-													>FDS</span
-												></label
-											>
-
-											<div class="relative ml-2">
-												<input
-													class="input text-xs py-1 h-8 min-w-[140px] max-w-[200px]"
-													type="text"
-													list="cidades-ce-edicao"
-													bind:value={editCidade}
-													placeholder="Mudar cidade..."
-												/>
-												<datalist id="cidades-ce-edicao">
-													{#each CIDADES_CEARA as c}
-														<option value={c}></option>
-													{/each}
-												</datalist>
-											</div>
+					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+						{#each { length: 8 } as _}
+							<tr class="animate-pulse">
+								<td class="px-4 py-3"><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-6 w-28 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+							</tr>
+						{/each}
+					{:else}
+						{#each unidadesAgrupadas as u (u.id)}
+							<tr>
+								<td
+									class="relative"
+									style:padding-left={u.depth > 0 ? `${Math.min(u.depth, 8) * 0.75}rem` : null}
+								>
+									{#if u.hasChildren}
+										<div class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
+									{/if}
+									{#if u.isChild}
+										<div
+											class="absolute left-1 top-0 {u.isLastChild
+												? 'bottom-1/2'
+												: 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"
+										></div>
+										<div class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"></div>
+									{/if}
+									{#if isAdmin && editandoId === u.id}
+										<div class="flex flex-col gap-2">
+											{@render editFields('cidades-ce-edicao')}
 										</div>
-									</div>
-								{:else}
-									<div>
-										<span class="font-medium block">{u.nome}</span>
-										<span
-											class="inline-block mt-1 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
-											>{u.tipo === 'departamento'
-												? 'Departamento'
-												: u.tipo === 'sub_departamento'
-													? 'Subdepartamento'
-													: u.tipo === 'seccional'
-														? 'Seccional'
-														: 'Delegacia'}</span
-										>
-										<div class="flex gap-1.5 mt-1.5 items-center">
-											{#if u.tem_plantao}<span
-													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
-													>Plantão</span
-												>{/if}
-											{#if u.tem_expediente}<span
-													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
-													>Expediente</span
-												>{/if}
-											{#if u.tem_fds}<span
-													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
-													>FDS</span
-												>{/if}
-										</div>
-									</div>
-								{/if}
-							</td>
-							<td class="text-surface-600 dark:text-surface-300 text-xs">
-								{#if u.seccional_id}
-									<span class="opacity-70">Subordinada a</span>
-									<span class="font-semibold block truncate max-w-[14rem]">
-										{unidades.find((x) => x.id === u.seccional_id)?.nome ?? `#${u.seccional_id}`}
-									</span>
-								{:else}
-									<span class="italic opacity-60">—</span>
-								{/if}
-							</td>
-							<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic"
-								>{u.cidade || 'Sem cidade'}</td
-							>
-							{#if isAdmin}
-								<td>
-									{#if editandoId === u.id}
-										<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
-											<input type="hidden" name="id" value={editandoId} />
-											<input type="hidden" name="nome" value={editNome} />
-											<input type="hidden" name="tipo" value={editTipo} />
-											<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
-											<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
-											<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
-											<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
-											<input type="hidden" name="cidade" value={editCidade} />
-											<button
-												type="submit"
-												class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5"
-												disabled={pendingEditar || !editNome.trim()}
-											>
-												{pendingEditar ? 'Salvando...' : 'Salvar'}
-											</button>
-											<button type="button" class="btn btn-sm preset-outlined-surface" onclick={cancelarEdicao}
-												>Cancelar</button
-											>
-										</form>
 									{:else}
-										<div class="flex gap-2">
-											<button type="button"
-												class="btn btn-sm preset-outlined-primary-500"
-												onclick={() => iniciarEdicao(u)}>Editar</button
+										<div>
+											<span class="font-medium block">{u.nome}</span>
+											<span
+												class="inline-block mt-1 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
+												>{tipoLabel(u.tipo)}</span
 											>
-											<button type="button"
-												class="btn btn-sm preset-filled-error-500"
-												onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
-											>
+											<div class="flex gap-1.5 mt-1.5 items-center">
+												{@render badges(u)}
+											</div>
 										</div>
 									{/if}
 								</td>
-							{/if}
-						</tr>
-					{/each}
+								<td class="text-surface-600 dark:text-surface-300 text-xs">
+									{#if u.seccional_id}
+										<span class="opacity-70">Subordinada a</span>
+										<span class="font-semibold block truncate max-w-[14rem]">
+											{unidades.find((x) => x.id === u.seccional_id)?.nome ?? `#${u.seccional_id}`}
+										</span>
+									{:else}
+										<span class="italic opacity-60">—</span>
+									{/if}
+								</td>
+								<td class="text-surface-600 dark:text-surface-300 text-sm font-medium italic"
+									>{u.cidade || 'Sem cidade'}</td
+								>
+								{#if isAdmin}
+									<td>
+										{#if editandoId === u.id}
+											<form
+												method="POST"
+												action="?/editar"
+												use:enhance={handleEditar}
+												class="flex gap-2"
+											>
+												{@render editInputs()}
+												<button
+													type="submit"
+													class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5 active:scale-95 transition-all"
+													disabled={pendingEditar || !editNome.trim()}
+												>
+													{pendingEditar ? 'Salvando...' : 'Salvar'}
+												</button>
+												<button
+													type="button"
+													class="btn btn-sm preset-outlined-surface"
+													onclick={cancelarEdicao}>Cancelar</button
+												>
+											</form>
+										{:else}
+											<div class="flex gap-2">
+												<button
+													type="button"
+													class="btn btn-sm preset-outlined-primary-500"
+													onclick={() => iniciarEdicao(u)}>Editar</button
+												>
+												<button
+													type="button"
+													class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+													onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+												>
+											</div>
+										{/if}
+									</td>
+								{/if}
+							</tr>
+						{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
 
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
-			{#each unidadesAgrupadas as u (u.id)}
-				<div
-					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild
-						? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6'
-						: 'border-surface-200 dark:border-white/10'}"
-				>
-					{#if isAdmin && editandoId === u.id}
-						<div class="space-y-2">
-							<input
-								class="input text-sm w-full"
-								type="text"
-								bind:value={editNome}
-								onkeydown={(e) => {
-									if (e.key === 'Escape') cancelarEdicao();
-								}}
-							/>
-							<div class="flex flex-wrap items-center gap-3 text-sm py-2">
-								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span
-										>Plantão</span
-									></label
-								>
-								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={editTemExpediente} /><span
-										>Expediente</span
-									></label
-								>
-								<label class="flex items-center space-x-1.5"
-									><input class="checkbox" type="checkbox" bind:checked={editTemFds} /><span
-										>FDS</span
-									></label
-								>
-								<div class="relative w-full mt-1">
-									<input
-										class="input text-xs w-full"
-										type="text"
-										list="cidades-ce-edicao-mobile"
-										bind:value={editCidade}
-										placeholder="Mudar cidade..."
-									/>
-									<datalist id="cidades-ce-edicao-mobile">
-										{#each CIDADES_CEARA as c}
-											<option value={c}></option>
-										{/each}
-									</datalist>
-								</div>
+			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+				{#each { length: 5 } as _}
+					<SkeletonCard lines={3} hasFooter={false} />
+				{/each}
+			{:else}
+				{#each unidadesAgrupadas as u (u.id)}
+					<div
+						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {u.isChild
+							? 'border-l-4 border-l-surface-400 dark:border-l-surface-600 border-surface-200 dark:border-white/10 ml-6'
+							: 'border-surface-200 dark:border-white/10'}"
+					>
+						{#if isAdmin && editandoId === u.id}
+							<div class="space-y-2">
+								{@render editFields('cidades-ce-edicao-mobile')}
+								<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
+									{@render editInputs()}
+									<button
+										type="submit"
+										class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+										disabled={pendingEditar || !editNome.trim()}
+									>
+										{pendingEditar ? 'Salvando...' : 'Salvar'}
+									</button>
+									<button
+										type="button"
+										class="btn btn-sm preset-outlined-surface flex-1"
+										onclick={cancelarEdicao}>Cancelar</button
+									>
+								</form>
 							</div>
-							<form method="POST" action="?/editar" use:enhance={handleEditar} class="flex gap-2">
-								<input type="hidden" name="id" value={editandoId} />
-								<input type="hidden" name="nome" value={editNome} />
-								<input type="hidden" name="tipo" value={editTipo} />
-								<input type="hidden" name="seccional_id" value={editSeccionalId ?? ''} />
-								<input type="hidden" name="tem_plantao" value={editTemPlantao ? 'on' : ''} />
-								<input type="hidden" name="tem_expediente" value={editTemExpediente ? 'on' : ''} />
-								<input type="hidden" name="tem_fds" value={editTemFds ? 'on' : ''} />
-								<input type="hidden" name="cidade" value={editCidade} />
-								<button
-									type="submit"
-									class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5"
-									disabled={pendingEditar || !editNome.trim()}
-								>
-									{pendingEditar ? 'Salvando...' : 'Salvar'}
-								</button>
-								<button type="button" class="btn btn-sm preset-outlined-surface flex-1" onclick={cancelarEdicao}
-									>Cancelar</button
-								>
-							</form>
-						</div>
-					{:else}
-						<div class="flex items-center justify-between gap-3">
-							<div class="min-w-0">
-								<p class="font-semibold text-sm">{u.nome}</p>
-								<p class="text-[0.65rem] font-bold uppercase text-surface-500 mt-0.5">
-									{u.tipo === 'departamento'
-										? 'Departamento'
-										: u.tipo === 'sub_departamento'
-											? 'Subdepartamento'
-											: u.tipo === 'seccional'
-												? 'Seccional'
-												: 'Delegacia'}
-								</p>
-								{#if u.seccional_id}
-									<p class="text-[0.65rem] text-surface-500 mt-0.5 truncate">
-										Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ?? u.seccional_id}
+						{:else}
+							<div class="flex items-center justify-between gap-3">
+								<div class="min-w-0">
+									<p class="font-semibold text-sm">{u.nome}</p>
+									<p class="text-[0.65rem] font-bold uppercase text-surface-500 mt-0.5">
+										{tipoLabel(u.tipo)}
 									</p>
+									{#if u.seccional_id}
+										<p class="text-[0.65rem] text-surface-500 mt-0.5 truncate">
+											Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ??
+												u.seccional_id}
+										</p>
+									{/if}
+									<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
+										{@render badges(u)}
+									</div>
+									<p class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1">
+										{u.cidade || 'Sem cidade'}
+									</p>
+								</div>
+								{#if isAdmin}
+									<div class="flex gap-2 shrink-0">
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-primary-500"
+											onclick={() => iniciarEdicao(u)}>Editar</button
+										>
+										<button
+											type="button"
+											class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+											onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
+										>
+									</div>
 								{/if}
-								<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
-									{#if u.tem_plantao}<span
-											class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
-											>Plantão</span
-										>{/if}
-									{#if u.tem_expediente}<span
-											class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
-											>Expediente</span
-										>{/if}
-									{#if u.tem_fds}<span
-											class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
-											>FDS</span
-										>{/if}
-								</div>
-								<p
-									class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1"
-								>
-									{u.cidade || 'Sem cidade'}
-								</p>
 							</div>
-							{#if isAdmin}
-								<div class="flex gap-2 shrink-0">
-									<button type="button"
-										class="btn btn-sm preset-outlined-primary-500"
-										onclick={() => iniciarEdicao(u)}>Editar</button
-									>
-									<button type="button"
-										class="btn btn-sm preset-filled-error-500"
-										onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
-									>
-								</div>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{/each}
+						{/if}
+					</div>
+				{/each}
+			{/if}
 		</div>
 
 		<p class="mt-3 text-surface-500 text-sm">
@@ -843,3 +540,4 @@
 		</p>
 	{/if}
 </div>
+<FloatingRefresh />

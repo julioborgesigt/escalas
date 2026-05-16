@@ -1,12 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
 	hashSenha,
 	verificarSenha,
 	isHashLegado,
 	gerarToken,
 	gerarSenhaAleatoriaHash,
-	compararSegredoUtf8TimingSafe
+	compararSegredoUtf8TimingSafe,
+	verificarDesafio2FA,
+	type TipoDesafio2FA
 } from '../auth';
+import type { Database } from '$lib/db';
 
 describe('hashSenha (PBKDF2)', () => {
 	it('produz hash no formato pbkdf2v1:<salt>:<hash>', async () => {
@@ -76,6 +79,107 @@ describe('compararSegredoUtf8TimingSafe', () => {
 	it('suporta UTF-8', () => {
 		expect(compararSegredoUtf8TimingSafe('café', 'café')).toBe(true);
 		expect(compararSegredoUtf8TimingSafe('café', 'cafe')).toBe(false);
+	});
+});
+
+describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
+	async function sha256Hex(s: string): Promise<string> {
+		const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+		return Array.from(new Uint8Array(buf))
+			.map((b) => b.toString(16).padStart(2, '0'))
+			.join('');
+	}
+
+	type FakeRow = {
+		id: number;
+		desafio_id: string;
+		tipo: TipoDesafio2FA;
+		usuario_id: number;
+		codigo: string;
+		expires_at: string;
+		tentativas: number;
+		usado: 0 | 1;
+	};
+
+	function fakeDb(row: FakeRow | null) {
+		const get = vi.fn().mockResolvedValue(row);
+		const where = vi.fn().mockReturnValue({ get });
+		const from = vi.fn().mockReturnValue({ where });
+		const select = vi.fn().mockReturnValue({ from });
+		const update = vi.fn().mockReturnValue({
+			set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) })
+		});
+		return { select, update } as unknown as Database;
+	}
+
+	async function makeRow(tipo: TipoDesafio2FA, codigo = '123456'): Promise<FakeRow> {
+		return {
+			id: 1,
+			desafio_id: 'd1',
+			tipo,
+			usuario_id: 42,
+			codigo: await sha256Hex(codigo),
+			expires_at: new Date(Date.now() + 60_000).toISOString(),
+			tentativas: 0,
+			usado: 0
+		};
+	}
+
+	it('aceita desafio quando tipo está em expectedTipos', async () => {
+		const row = await makeRow('policial');
+		const db = fakeDb(row);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial', 'admin']);
+		expect(result).toEqual({ tipo: 'policial', usuarioId: 42 });
+	});
+
+	it('REJEITA desafio "assinatura" submetido em canal de login (bug C2)', async () => {
+		// Ataque: atacante captura desafioId de e-mail de assinatura e
+		// submete em /api/auth/verificar-2fa para criar sessão sem senha.
+		const row = await makeRow('assinatura');
+		const db = fakeDb(row);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial', 'admin']);
+		expect(result).toBeNull();
+	});
+
+	it('REJEITA desafio "reset_policial" submetido em canal de assinatura', async () => {
+		const row = await makeRow('reset_policial');
+		const db = fakeDb(row);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['assinatura']);
+		expect(result).toBeNull();
+	});
+
+	it('aceita reset_policial OU reset_admin no canal de reset', async () => {
+		const dbA = fakeDb(await makeRow('reset_policial'));
+		expect(await verificarDesafio2FA(dbA, 'd1', '123456', ['reset_policial', 'reset_admin']))
+			.toEqual({ tipo: 'reset_policial', usuarioId: 42 });
+
+		const dbB = fakeDb(await makeRow('reset_admin'));
+		expect(await verificarDesafio2FA(dbB, 'd1', '123456', ['reset_policial', 'reset_admin']))
+			.toEqual({ tipo: 'reset_admin', usuarioId: 42 });
+	});
+
+	it('retorna null para desafio inexistente', async () => {
+		const db = fakeDb(null);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial']);
+		expect(result).toBeNull();
+	});
+
+	it('retorna "expirado" quando passou da validade (mesmo com tipo correto)', async () => {
+		const row = await makeRow('policial');
+		row.expires_at = new Date(Date.now() - 1000).toISOString();
+		const db = fakeDb(row);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial']);
+		expect(result).toBe('expirado');
+	});
+
+	it('mismatch de tipo retorna null ANTES de expirado/esgotado (não vaza estado)', async () => {
+		// Garantia: tipo errado é indistinguível de "código não existe".
+		const row = await makeRow('assinatura');
+		row.expires_at = new Date(Date.now() - 1000).toISOString(); // expirado
+		row.tentativas = 99; // esgotado
+		const db = fakeDb(row);
+		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial']);
+		expect(result).toBeNull();
 	});
 });
 
