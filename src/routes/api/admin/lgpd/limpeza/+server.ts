@@ -4,15 +4,13 @@
  */
 import { json } from '@sveltejs/kit';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
+import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ platform, locals, request }) => {
-	const usuario = locals.usuario;
-	if (!usuario || !isAdminGeral(usuario)) {
-		return json({ error: 'Acesso restrito ao Administrador Geral' }, { status: 403 });
-	}
+export const POST: RequestHandler = async ({ platform, locals }) => {
+	const usuario = requireAdmin(locals);
+	if (usuario instanceof Response) return usuario;
 
 	const db = getDB(platform);
 	const config = await carregarConfigRetencao(db);

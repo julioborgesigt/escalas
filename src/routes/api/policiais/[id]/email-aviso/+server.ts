@@ -8,19 +8,15 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { policiais } from '$lib/server/schema';
+import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ locals, platform, params }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) {
-		return json({ error: 'Não autorizado' }, { status: 403 });
-	}
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id ?? '', 10);
-	if (Number.isNaN(id) || id < 1) {
-		return json({ error: 'ID inválido' }, { status: 400 });
-	}
+	if (Number.isNaN(id) || id < 1) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const row = await db
@@ -32,9 +28,7 @@ export const GET: RequestHandler = async ({ locals, platform, params }) => {
 		.where(eq(policiais.id, id))
 		.get();
 
-	if (!row) {
-		return json({ error: 'Policial não encontrado' }, { status: 404 });
-	}
+	if (!row) return notFound('Policial');
 
 	return json({
 		email_pessoal: row.email_pessoal,

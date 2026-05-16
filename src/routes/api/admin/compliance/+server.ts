@@ -3,6 +3,7 @@ import { getDB } from '$lib/db';
 import { unidades, escalas, escalaDocumentos } from '$lib/server/schema';
 import { and, eq, gte, lte, inArray, sql } from 'drizzle-orm';
 import { getNowBR } from '$lib/utils';
+import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 export interface ItemCompliance {
@@ -54,9 +55,8 @@ function fdsAtualSemana(hoje: Date): { inicio: string; fim: string; label: strin
 }
 
 export const GET: RequestHandler = async ({ platform, locals, url }) => {
-	if (locals.usuario?.tipo !== 'admin') {
-		return json({ error: 'Acesso restrito' }, { status: 403 });
-	}
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const db = getDB(platform);
 	const hoje = getNowBR();

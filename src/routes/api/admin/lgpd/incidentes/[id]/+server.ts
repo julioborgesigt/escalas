@@ -5,40 +5,40 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { buscarIncidente, atualizarIncidente } from '$lib/db/lgpd-incidentes';
+import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ platform, locals, params }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const incidente = await buscarIncidente(db, id);
-	if (!incidente) return json({ error: 'Incidente não encontrado' }, { status: 404 });
+	if (!incidente) return notFound('Incidente');
 
 	return json({ incidente });
 };
 
 export const PATCH: RequestHandler = async ({ platform, locals, params, request }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	let body: Record<string, unknown>;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'JSON inválido' }, { status: 400 });
+		return badRequest('JSON inválido');
 	}
 
 	const db = getDB(platform);
 	const incidente = await buscarIncidente(db, id);
-	if (!incidente) return json({ error: 'Incidente não encontrado' }, { status: 404 });
+	if (!incidente) return notFound('Incidente');
 
 	const atualizado = await atualizarIncidente(db, id, {
 		titulo: body.titulo !== undefined ? String(body.titulo) : undefined,
