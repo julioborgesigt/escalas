@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 	const db = getDB(platform);
 
-	const resultado = await verificarDesafio2FA(db, desafioId, codigo);
+	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['assinatura']);
 
 	if (resultado === 'expirado') {
 		return json({ error: 'Código expirado. Solicite um novo código.' }, { status: 400 });
@@ -41,9 +41,6 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 	if (!resultado) {
 		return json({ error: 'Código inválido' }, { status: 400 });
-	}
-	if (resultado.tipo !== 'assinatura') {
-		return json({ error: 'Token inválido' }, { status: 403 });
 	}
 
 	// Garante que o token pertence ao usuário logado

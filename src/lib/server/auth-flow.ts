@@ -176,7 +176,11 @@ export async function tentarLogin({
 				.where(eq(administradores.login, envLogin))
 				.get();
 
-			if (envAdminExistente?.email && envAdminExistente.primeiro_acesso === 0) {
+			// Bootstrap é desativado assim que QUALQUER admin DB tem e-mail configurado,
+			// independente de primeiro_acesso. Antes, exigir `primeiro_acesso === 0` deixava
+			// uma janela em que um admin recém-criado mas que não completou o setup
+			// permitia que o bootstrap (sem 2FA) continuasse autenticando.
+			if (envAdminExistente?.email) {
 				// Setup concluído — bootstrap não é mais necessário. Recusar e logar.
 				logger.error(
 					'[security] Bootstrap bloqueado: admin já possui e-mail configurado. ' +
@@ -299,7 +303,7 @@ export async function tentarLogin({
 			};
 		}
 
-		const token = await criarSessao(db, 'admin', envAdmin.id);
+		const token = await criarSessao(db, 'admin', admin.id);
 		const dest = adminDestino(adminModulo);
 		return {
 			sucesso: true,

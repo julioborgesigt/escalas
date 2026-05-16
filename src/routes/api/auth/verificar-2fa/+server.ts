@@ -30,7 +30,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 		return json({ error: 'Dados inválidos' }, { status: 400 });
 	}
 
-	const resultado = await verificarDesafio2FA(db, desafioId, String(codigo));
+	const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
 
 	if (resultado === 'expirado') {
 		return json(

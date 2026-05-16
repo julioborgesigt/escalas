@@ -8,6 +8,7 @@ import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/ter
 import { logger } from '$lib/server/logger';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
+import { withSentryRequest } from '$lib/server/sentry';
 
 const ROTAS_PUBLICAS = new Set([
 	'/login',
@@ -206,8 +207,18 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+/**
+ * 0. Sentry: precisa ser o PRIMEIRO middleware para que `captureException`
+ *    funcione (init é feito por `wrapRequestHandler` por request, via
+ *    AsyncLocalStorage). Sem isto, todas as chamadas a `captureException` no
+ *    `handleError` são no-op silenciosos.
+ */
+const handleSentry: Handle = async ({ event, resolve }) => {
+	return withSentryRequest(event.platform, event.request, () => resolve(event));
+};
+
 /** Main Export with sequence middleware */
-export const handle = sequence(handleCsrf, handleAuth, handleSecurity);
+export const handle = sequence(handleSentry, handleCsrf, handleAuth, handleSecurity);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
@@ -223,6 +234,7 @@ export const handleError: HandleServerError = ({ error, event }) => {
 			: {})
 	});
 
+	// `path` é sanitizado por `sentryBeforeSend` (mascarando IDs numéricos).
 	captureException(error, {
 		tags: { errorId, path: event.url.pathname },
 		extra: { method: event.request.method }

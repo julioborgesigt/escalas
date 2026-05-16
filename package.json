@@ -18,7 +18,8 @@
 		"users:clear-passwords-non-admins:prod": "npx tsx scripts/clear-passwords-non-admins.ts --remote --yes",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"lint": "eslint --max-warnings 0 src/",
+		"lint": "eslint src/",
+		"lint:strict": "eslint --max-warnings 0 src/",
 		"lint:fix": "eslint --fix src/",
 		"format": "prettier --write src/",
 		"format:check": "prettier --check src/"
