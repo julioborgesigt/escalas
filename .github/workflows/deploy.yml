@@ -44,6 +44,9 @@ jobs:
       - run: npx vitest run --reporter=verbose
       - run: npm run build
 
+      - name: Apply D1 migrations (local, for E2E)
+        run: npx wrangler d1 migrations apply escalas-db --local
+
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
