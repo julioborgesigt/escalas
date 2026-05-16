@@ -85,14 +85,38 @@ function buildCertId(
 	md1.update(issuerSubjectDer);
 	const issuerNameHash = md1.digest().getBytes();
 
-	// issuerKeyHash = SHA-1(BIT STRING value da chave pública do issuer)
+	// issuerKeyHash = SHA-1(BIT STRING value da chave pública do issuer).
+	//
+	// Em node-forge, `publicKeyToAsn1` retorna um SubjectPublicKeyInfo cujo
+	// BIT STRING (último filho) pode vir em DUAS formas:
+	//   1. PRIMITIVO  — `value` é string de bytes começando com `\x00`
+	//      (octeto "unused bits = 0"), seguido pelos bytes da RSAPublicKey
+	//      em DER. Caso típico quando o cert foi parseado a partir de DER.
+	//   2. CONSTRUÍDO — `value` é um Array (a RSAPublicKey já parseada).
+	//      Caso típico quando o cert foi construído programaticamente.
+	//
+	// O bug original assumia sempre o caso (1) e crashava com
+	// "bitStringBytes.startsWith is not a function" no caso (2). Como
+	// `consultarOcsp` engole exceções e retorna `{ status: 'unknown' }`,
+	// a falha era silenciosa — o cliente OCSP nunca funcionava para certs
+	// construídos in-memory (e degradava silenciosamente p/ outros casos
+	// onde a regra `\x00` não se aplicasse).
 	const pubKeyAsn1 = forge.pki.publicKeyToAsn1(issuer.publicKey);
-	// SubjectPublicKeyInfo: o último filho é o BIT STRING; pegamos seu value (sem o byte de unused bits)
 	const spki = pubKeyAsn1.value as forge.asn1.Asn1[];
 	const bitString = spki[spki.length - 1];
-	const bitStringBytes = bitString.value as string;
-	// O primeiro byte do BIT STRING é o número de bits não usados — descartar
-	const keyBytes = bitStringBytes.startsWith('\x00') ? bitStringBytes.slice(1) : bitStringBytes;
+	let keyBytes: string;
+	if (typeof bitString.value === 'string') {
+		// Primitivo: descarta o primeiro byte (unused bits count).
+		keyBytes = bitString.value.startsWith('\x00')
+			? bitString.value.slice(1)
+			: bitString.value;
+	} else {
+		// Construído: re-serializa os filhos para obter os bytes do conteúdo.
+		const children = bitString.value as forge.asn1.Asn1[];
+		keyBytes = children
+			.map((child) => forge.asn1.toDer(child).getBytes())
+			.join('');
+	}
 	const md2 = forge.md.sha1.create();
 	md2.update(keyBytes);
 	const issuerKeyHash = md2.digest().getBytes();

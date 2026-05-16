@@ -11,6 +11,7 @@ import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { cookieOptions } from '$lib/server/auth-flow';
+import { apiError, ErrorCode, badRequest, notFound, forbidden } from '$lib/server/api';
 
 export const POST = async ({ platform, request, cookies, url }: RequestEvent) => {
 	const db = getDB(platform);
@@ -18,25 +19,42 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 	const { desafioId, codigo } = body;
 
 	if (!desafioId || !codigo) {
-		return json({ error: 'Dados inválidos' }, { status: 400 });
+		return badRequest('Dados inválidos');
 	}
 
 	const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
 
 	if (resultado === 'expirado') {
+		// Mantém status 401 + flag legada `expirado` para o front diferenciar
+		// até a próxima major do contrato. O ErrorCode novo (AUTH_REQUIRED)
+		// também identifica o caso para consumidores que migrarem.
 		return json(
-			{ error: 'Código expirado. Faça login novamente.', expirado: true },
+			{
+				error: 'Código expirado. Faça login novamente.',
+				status: 401,
+				errorType: ErrorCode.AUTH_REQUIRED,
+				expirado: true
+			},
 			{ status: 401 }
 		);
 	}
 	if (resultado === 'esgotado') {
 		return json(
-			{ error: 'Muitas tentativas incorretas. Faça login novamente.', esgotado: true },
+			{
+				error: 'Muitas tentativas incorretas. Faça login novamente.',
+				status: 429,
+				errorType: ErrorCode.RATE_LIMIT,
+				esgotado: true
+			},
 			{ status: 429 }
 		);
 	}
 	if (!resultado) {
-		return json({ error: 'Código inválido. Verifique e tente novamente.' }, { status: 401 });
+		return apiError(
+			'Código inválido. Verifique e tente novamente.',
+			401,
+			ErrorCode.AUTH_REQUIRED
+		);
 	}
 
 	const { tipo, usuarioId } = resultado;
@@ -49,7 +67,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 			.from(administradores)
 			.where(eq(administradores.id, usuarioId))
 			.get();
-		if (!admin) return json({ error: 'Usuário não encontrado' }, { status: 404 });
+		if (!admin) return notFound('Usuário');
 		primeiroAcesso = admin.primeiro_acesso === 1;
 	} else {
 		const policial = await db
@@ -58,7 +76,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 			.where(eq(policiais.id, usuarioId))
 			.get();
 		if (!policial || policial.ativo === 0) {
-			return json({ error: 'Usuário inativo' }, { status: 403 });
+			return forbidden('Usuário inativo');
 		}
 		primeiroAcesso = policial.primeiro_acesso === 1;
 	}
