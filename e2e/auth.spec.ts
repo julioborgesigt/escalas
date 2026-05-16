@@ -29,10 +29,12 @@ test.describe('Autenticação', () => {
 			await matriculaLocator(page).fill('99999999');
 			await page.fill('input[type="password"]', 'errada');
 			await page.click('button[type="submit"]');
-			await page.waitForTimeout(500);
+			// Aguarda a resposta do servidor antes de tentar novamente — em CI
+			// o D1 local pode ser mais lento que 500ms fixo.
+			await page.waitForLoadState('networkidle');
 		}
 		// Após 5+ tentativas, deve exibir mensagem de rate limit
-		await expect(page.locator('text=/tentativas/i').first()).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('text=/tentativas/i').first()).toBeVisible({ timeout: 10000 });
 	});
 });
 
