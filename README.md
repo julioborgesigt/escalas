@@ -205,8 +205,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 # Aplicar migrações localmente
 npm run db:migrate
 
-# Aplicar migrações em produção (requer Wrangler autenticado)
-npm run db:migrate:prod
+# Aplicar migrações em produção (requer Wrangler autenticado; --yes obrigatório)
+npm run db:migrate:prod -- --yes
 
 # Gerar nova migração após alterar src/lib/server/schema.ts
 npx drizzle-kit generate --dialect sqlite
@@ -259,8 +259,8 @@ npm run test               # Vitest (run once)
 npm run test:watch         # Vitest (watch mode)
 
 # Banco de dados
-npm run db:migrate         # Aplica migrações localmente
-npm run db:migrate:prod    # Aplica migrações em produção
+npm run db:migrate              # Aplica migrações localmente
+npm run db:migrate:prod -- --yes # Aplica migrações em produção (--yes obrigatório)
 
 # Utilitários de usuários (scripts/)
 npm run users:set-default-password          # Define senha padrão para todos os usuários (local)
@@ -612,7 +612,7 @@ Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.
 
 ```bash
 # 1. Aplicar migrações de banco em produção (SEMPRE antes de deploiar código novo)
-npm run db:migrate:prod
+npm run db:migrate:prod -- --yes
 
 # 2. Build
 npm ci
@@ -626,7 +626,7 @@ wrangler pages deploy .svelte-kit/cloudflare --project-name=escalas
 
 - [ ] Todas as variáveis de ambiente estão configuradas no dashboard Cloudflare
 - [ ] `RESET_TOKEN` é diferente de `SYNC_TOKEN` (ou intencionalmente vazio)
-- [ ] Migrações aplicadas: `npm run db:migrate:prod`
+- [ ] Migrações aplicadas: `npm run db:migrate:prod -- --yes`
 - [ ] Testes passando: `npm run test`
 - [ ] Type-check limpo: `npm run check`
 - [ ] Build sem erros: `npm run build`
