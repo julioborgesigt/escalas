@@ -1,9 +1,15 @@
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from './$types';
-import { logger } from '$lib/server/logger';
+import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
 import { assinarSimplesEscalasSchema } from '$lib/schemas';
-import { validateBody } from '$lib/server/api';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
@@ -11,9 +17,9 @@ import { gerarCodigoValidacao } from '$lib/utils';
 import { PDFDocument } from 'pdf-lib';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, assinarSimplesEscalasSchema);
 	if (!validated.ok) return validated.response;
@@ -22,27 +28,25 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	// CRÍTICO: revalidar flags de evidência no servidor — nunca confie no cliente.
 	const flags = await lerFlagsAssinatura(platform);
 	if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
-		return json({ error: 'Coordenadas GPS são obrigatórias para esta assinatura.' }, { status: 400 });
+		return badRequest('Coordenadas GPS são obrigatórias para esta assinatura.');
 	}
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	// Somente admin, dono da lotação, ou DPC admin com solicitação direcionada pode assinar
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) {
-		return json({ error: perm.motivo ?? 'Sem permissão para assinar esta escala' }, { status: 403 });
-	}
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {
-		return json({ error: 'A escala está vazia e não pode ser assinada' }, { status: 400 });
+		return badRequest('A escala está vazia e não pode ser assinada');
 	}
 
 	try {
@@ -100,7 +104,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 
 		// Upload para R2
 		if (!hasR2(platform)) {
-			return json({ error: 'Storage R2 não configurado' }, { status: 500 });
+			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 		}
 
 		const bucket = getR2(platform);
@@ -132,8 +136,7 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 		});
 
 		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });
-	} catch (err: any) {
-		logger.error('[API/assinar-simples] Erro', { error: err?.message });
-		return json({ error: 'Falha ao processar assinatura. Tente novamente.' }, { status: 500 });
+	} catch (err) {
+		return serverError(`[assinar-simples] Falha ao processar assinatura (escala_id=${id})`, err);
 	}
 };

@@ -1,8 +1,14 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala, buscarDocumentoEscala } from '$lib/db';
 import * as exportLib from '$lib/server/export';
-import { contentDisposition } from '$lib/server/api';
+import {
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError
+} from '$lib/server/api';
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
@@ -21,20 +27,18 @@ async function carregarLogoR2(platform: App.Platform | undefined, key: string): 
 }
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) {
-		return json({ error: perm.motivo ?? 'Sem permissão para baixar esta escala' }, { status: 403 });
-	}
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para baixar esta escala');
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
 
@@ -114,11 +118,6 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			}
 		});
 	} catch (err) {
-		logger.error('[escalas/download] Erro ao gerar arquivo', {
-			escala_id: id,
-			error: err instanceof Error ? err.message : String(err),
-			stack: err instanceof Error ? err.stack : undefined
-		});
-		return json({ error: 'Erro ao gerar o arquivo para download.' }, { status: 500 });
+		return serverError(`[escalas/download] Falha ao gerar arquivo (escala_id=${id})`, err);
 	}
 };

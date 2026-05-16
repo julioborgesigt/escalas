@@ -1,16 +1,24 @@
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from './$types';
-import { logger } from '$lib/server/logger';
-import { validateBody } from '$lib/server/api';
+import type { RequestHandler } from './$types';
+import {
+	apiError,
+	ErrorCode,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST = async ({ platform, params, locals, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -32,18 +40,16 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 	} = validated.data;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	// Mesma regra do preparar-assinatura: somente admin, dono da lotação ou DPC admin
 	// com solicitação direcionada pode finalizar.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) {
-		return json({ error: perm.motivo ?? 'Sem permissão para assinar esta escala' }, { status: 403 });
-	}
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
 
 	try {
 		const preparedPdfBytes = Buffer.from(preparedPdf, 'base64');
@@ -62,9 +68,8 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 			// + messageDigest + signingTime). Antes a ausência crashava em runtime; agora
 			// devolvemos 400 com mensagem clara.
 			if (!signature || !certificate || !messageDigestHex || !signingTimeISO) {
-				return json(
-					{ error: 'Faltam campos do fluxo Web PKI (signature, certificate, messageDigestHex, signingTimeISO)' },
-					{ status: 400 }
+				return badRequest(
+					'Faltam campos do fluxo Web PKI (signature, certificate, messageDigestHex, signingTimeISO)'
 				);
 			}
 			signedPdf = await finalizarAssinatura(
@@ -82,14 +87,16 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).
 		const verif = await verificarECarimbarAssinatura(signedPdf);
 		if (!verif.ok) {
-			return json({ error: verif.error }, { status: verif.status });
+			// 4xx = falha do payload (assinatura inválida); 5xx = falha externa (OCSP).
+			const code = verif.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
+			return apiError(verif.error, verif.status, code);
 		}
 		// Preferimos os dados extraídos do certificado verificado.
 		nomeAssinante = verif.signerName || nomeAssinante;
 		cpfAssinante = verif.signerCpf || cpfAssinante;
 
 		if (!hasR2(platform)) {
-			return json({ error: 'Storage R2 não configurado' }, { status: 500 });
+			return serverError('[finalizar-assinatura] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 		}
 
 		const bucket = getR2(platform);
@@ -126,8 +133,7 @@ export const POST = async ({ platform, params, locals, request, getClientAddress
 		});
 
 		return json({ success: true, message: 'Escala assinada digitalmente com sucesso' });
-	} catch (err: any) {
-		logger.error('[API/finalizar-assinatura] Erro', { error: err?.message });
-		return json({ error: 'Falha ao finalizar assinatura. Tente novamente.' }, { status: 500 });
+	} catch (err) {
+		return serverError(`[finalizar-assinatura] Falha (escala_id=${id})`, err);
 	}
 };
