@@ -2,7 +2,7 @@
  * Helpers centralizados para API routes.
  *
  * Uso típico:
- *   import { requireAuth, requireAdmin, apiError } from '$lib/server/api';
+ *   import { requireAuth, requireAdmin, apiError, ErrorCode } from '$lib/server/api';
  *
  *   export const GET: RequestHandler = async ({ locals }) => {
  *     const usuario = requireAuth(locals);
@@ -16,6 +16,66 @@ import type { z } from 'zod';
 import type { UsuarioLogado } from '$lib/auth';
 import { logger } from './logger';
 
+// ---- ErrorCode tipado --------------------------------------------------
+//
+// Substitui a string livre `errorType?: string` por um enum fechado. O
+// front-end pode discriminar fluxos (ex.: `validation` → realça campo;
+// `csrf` → reloga; `rate_limit` → mostra contador) sem depender da
+// mensagem em PT-BR (que pode mudar a qualquer momento).
+//
+// A regra é: adicionar valor novo SEMPRE que o front precise reagir
+// diferente — nunca duplicar com strings ad-hoc.
+
+export const ErrorCode = {
+	/** Falha de validação de schema (Zod) — caller deve realçar o campo. */
+	VALIDATION: 'validation',
+	/** Sessão expirada / sem cookie — front deve redirecionar para /login. */
+	AUTH_REQUIRED: 'auth_required',
+	/** Autenticado mas sem permissão — exibir mensagem, não relogar. */
+	FORBIDDEN: 'forbidden',
+	/** Token CSRF ausente/inválido — reload p/ obter novo. */
+	CSRF: 'csrf',
+	/** Recurso não existe. */
+	NOT_FOUND: 'not_found',
+	/** Conflito de estado (ex.: já assinado). */
+	CONFLICT: 'conflict',
+	/** Janela de rate-limit ultrapassada — front pode esconder formulário. */
+	RATE_LIMIT: 'rate_limit',
+	/** Falha externa (e-mail, OCSP, etc.) — caller pode oferecer retry. */
+	UPSTREAM: 'upstream',
+	/** Erro inesperado (5xx) — caller mostra errorId. */
+	INTERNAL: 'internal'
+} as const;
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+/** Corpo serializado padronizado de erro da API. */
+export interface ApiErrorBody {
+	error: string;
+	status: number;
+	errorType?: ErrorCode;
+	/** Identificador único para correlação com Sentry / logs. Só em 5xx. */
+	errorId?: string;
+}
+
+/**
+ * Cria uma resposta JSON de erro padronizada para a API.
+ *
+ * Formato: `{ error, status, errorType?, errorId? }`. O `errorType` é
+ * **fortemente tipado** (`ErrorCode`); novas categorias devem ser adicionadas
+ * ao enum, não passadas como string livre.
+ */
+export function apiError(
+	message: string,
+	status: number = 500,
+	errorType?: ErrorCode,
+	extras?: { errorId?: string }
+): Response {
+	const body: ApiErrorBody = { error: message, status };
+	if (errorType) body.errorType = errorType;
+	if (extras?.errorId) body.errorId = extras.errorId;
+	return json(body as unknown as Record<string, unknown>, { status });
+}
+
 // ---- Autenticação e autorização ----
 
 /**
@@ -24,7 +84,7 @@ import { logger } from './logger';
  */
 export function requireAuth(locals: App.Locals): UsuarioLogado | Response {
 	if (!locals.usuario) {
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return apiError('Não autorizado', 401, ErrorCode.AUTH_REQUIRED);
 	}
 	return locals.usuario;
 }
@@ -36,7 +96,7 @@ export function requireAdmin(locals: App.Locals): UsuarioLogado | Response {
 	const usuario = requireAuth(locals);
 	if (usuario instanceof Response) return usuario;
 	if (usuario.tipo !== 'admin') {
-		return json({ error: 'Acesso restrito a administradores' }, { status: 403 });
+		return apiError('Acesso restrito a administradores', 403, ErrorCode.FORBIDDEN);
 	}
 	return usuario;
 }
@@ -48,31 +108,41 @@ export function requireAnyAdmin(locals: App.Locals): UsuarioLogado | Response {
 	const usuario = requireAuth(locals);
 	if (usuario instanceof Response) return usuario;
 	if (usuario.tipo !== 'admin' && !usuario.papel) {
-		return json({ error: 'Acesso negado' }, { status: 403 });
+		return apiError('Acesso negado', 403, ErrorCode.FORBIDDEN);
 	}
 	return usuario;
 }
 
 // ---- Respostas de erro padronizadas ----
 
-/** Resposta 400 Bad Request */
-export function badRequest(mensagem: string): Response {
-	return json({ error: mensagem }, { status: 400 });
+/** Resposta 400 Bad Request — opcionalmente com ErrorCode (default VALIDATION). */
+export function badRequest(mensagem: string, code: ErrorCode = ErrorCode.VALIDATION): Response {
+	return apiError(mensagem, 400, code);
 }
 
 /** Resposta 401 Unauthorized */
 export function unauthorized(mensagem = 'Não autorizado'): Response {
-	return json({ error: mensagem }, { status: 401 });
+	return apiError(mensagem, 401, ErrorCode.AUTH_REQUIRED);
 }
 
 /** Resposta 403 Forbidden */
 export function forbidden(mensagem = 'Acesso negado'): Response {
-	return json({ error: mensagem }, { status: 403 });
+	return apiError(mensagem, 403, ErrorCode.FORBIDDEN);
 }
 
 /** Resposta 404 Not Found */
 export function notFound(recurso = 'Recurso'): Response {
-	return json({ error: `${recurso} não encontrado` }, { status: 404 });
+	return apiError(`${recurso} não encontrado`, 404, ErrorCode.NOT_FOUND);
+}
+
+/** Resposta 409 Conflict — mudança de estado bloqueada. */
+export function conflict(mensagem: string): Response {
+	return apiError(mensagem, 409, ErrorCode.CONFLICT);
+}
+
+/** Resposta 429 Too Many Requests. */
+export function rateLimited(mensagem = 'Muitas requisições. Tente novamente em breve.'): Response {
+	return apiError(mensagem, 429, ErrorCode.RATE_LIMIT);
 }
 
 /**
@@ -94,25 +164,38 @@ export async function validateBody<T extends z.ZodTypeAny>(
 	try {
 		body = await request.json();
 	} catch {
-		return { ok: false, response: json({ error: 'Body JSON inválido' }, { status: 400 }) };
+		return { ok: false, response: badRequest('Body JSON inválido') };
 	}
 	const parsed = schema.safeParse(body);
 	if (!parsed.success) {
 		return {
 			ok: false,
-			response: json({ error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }, { status: 400 })
+			response: badRequest(parsed.error.issues[0]?.message ?? 'Dados inválidos')
 		};
 	}
 	return { ok: true, data: parsed.data };
 }
 
-/** Resposta 500 Internal Server Error — não expõe detalhes ao cliente */
+/**
+ * Resposta 500 Internal Server Error — registra o erro com errorId único
+ * e devolve esse mesmo ID ao cliente. NÃO expõe detalhes técnicos.
+ *
+ * Use sempre que precisar retornar 500 — assim o usuário pode reportar
+ * o errorId e o operador rastreia no log/Sentry imediatamente.
+ */
 export function serverError(contexto: string, err: unknown): Response {
+	const errorId = crypto.randomUUID().slice(0, 8);
 	logger.error(contexto, {
+		errorId,
 		error: err instanceof Error ? err.message : String(err),
 		stack: err instanceof Error ? err.stack : undefined
 	});
-	return json({ error: 'Erro interno do servidor' }, { status: 500 });
+	return apiError(
+		'Erro interno do servidor. Reporte o código de rastreamento abaixo.',
+		500,
+		ErrorCode.INTERNAL,
+		{ errorId }
+	);
 }
 
 // ---- Headers HTTP ----
@@ -137,11 +220,15 @@ export function contentDisposition(filename: string): string {
  */
 export function validate<T>(
 	data: unknown,
-	schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } } }
+	schema: {
+		safeParse: (
+			v: unknown
+		) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } };
+	}
 ): T | Response {
 	const result = schema.safeParse(data);
 	if (!result.success) {
-		return json({ error: result.error.issues[0].message }, { status: 400 });
+		return badRequest(result.error.issues[0].message);
 	}
 	return result.data;
 }

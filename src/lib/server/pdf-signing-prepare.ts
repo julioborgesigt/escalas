@@ -41,9 +41,17 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 		// Tenta extrair o nome (parte antes dos dois pontos)
 		const nome = commonName.split(':')[0].trim();
 
-		// Tenta pegar o CPF do serialNumber ou do final do Common Name
+		// Tenta pegar o CPF do atributo serialNumber do subject (OID 2.5.4.5).
+		//
+		// Bug corrigido: `getField('serialNumber')` em node-forge é traduzido como
+		// `{shortName: 'serialNumber'}` — e o atributo serialNumber NÃO tem
+		// shortName na tabela OID do forge (só `name`). Antes, o lookup sempre
+		// retornava null e o CPF caía no fallback do CN, que falha para certs
+		// ICP-Brasil cujo CN não embute o CPF após `:`.
 		let cpf = '';
-		const snField = cert.subject.getField('serialNumber');
+		const snField =
+			cert.subject.getField({ type: '2.5.4.5' }) ??
+			cert.subject.getField({ name: 'serialNumber' });
 		if (snField) {
 			// No ICP-Brasil, serialNumber pode conter o CPF
 			cpf = String(snField.value).replace(/\D/g, '');

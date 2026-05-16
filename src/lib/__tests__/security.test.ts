@@ -157,7 +157,7 @@ describe('RBAC - isAnyAdmin', () => {
 
 describe('API Error Response Helper', () => {
 	it('apiError creates consistent error format', async () => {
-		const { apiError } = await import('$lib/server/api-error');
+		const { apiError } = await import('$lib/server/api');
 		const response = apiError('Não autorizado', 401);
 		expect(response.status).toBe(401);
 		const body = await response.json();
@@ -166,8 +166,8 @@ describe('API Error Response Helper', () => {
 	});
 
 	it('apiError with details includes them', async () => {
-		const { apiError } = await import('$lib/server/api-error');
-		const response = apiError('Erro de validação', 400, 'validation');
+		const { apiError, ErrorCode } = await import('$lib/server/api');
+		const response = apiError('Erro de validação', 400, ErrorCode.VALIDATION);
 		const body = await response.json();
 		expect(body.errorType).toBe('validation');
 	});
