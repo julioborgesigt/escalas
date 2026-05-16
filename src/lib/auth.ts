@@ -361,12 +361,20 @@ export async function verificarTokenRedefinicao(
 
 /**
  * Verifica um desafio 2FA.
+ *
+ * `expectedTipos` é OBRIGATÓRIO e funciona como defense-in-depth: o canal
+ * (login, reset, assinatura) precisa declarar quais tipos de desafio aceita.
+ * Sem isso, um `desafioId` emitido para um canal (ex.: `'assinatura'`) poderia
+ * ser submetido em outro (ex.: `/api/auth/verificar-2fa`) e gerar sessão
+ * indevida. Mismatch retorna `null` indistinguível de código inválido.
+ *
  * Retorna os dados do usuário se válido, ou uma string descrevendo o erro.
  */
 export async function verificarDesafio2FA(
 	db: Database,
 	desafioId: string,
-	codigoInput: string
+	codigoInput: string,
+	expectedTipos: readonly TipoDesafio2FA[]
 ): Promise<{ tipo: TipoDesafio2FA; usuarioId: number } | 'expirado' | 'esgotado' | null> {
 	const desafio = await db
 		.select()
@@ -375,6 +383,7 @@ export async function verificarDesafio2FA(
 		.get();
 
 	if (!desafio || desafio.usado === 1) return null;
+	if (!expectedTipos.includes(desafio.tipo as TipoDesafio2FA)) return null;
 	if (new Date() > new Date(desafio.expires_at)) return 'expirado';
 	if (desafio.tentativas >= 5) return 'esgotado';
 

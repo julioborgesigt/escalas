@@ -90,7 +90,7 @@ export const POST = async ({
 					{ status: 400 }
 				);
 			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação);
+			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação, ['assinatura']);
 			if (result2FA === 'expirado')
 				return json({ error: 'O código de verificação expirou.' }, { status: 400 });
 			if (result2FA === 'esgotado')

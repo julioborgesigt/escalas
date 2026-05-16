@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB, registrarAceite, registrarAuditComContexto } from '$lib/db';
 import { CONTEUDO_HTML, VERSAO, VIGENTE_DESDE, calcularHashTermo } from '$lib/server/termo/termo-vigente';
+import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		versao: VERSAO,
 		vigenteDesde: VIGENTE_DESDE,
-		conteudoHtml: CONTEUDO_HTML,
+		conteudoHtml: sanitizeTermoHtml(CONTEUDO_HTML),
 		hash
 	};
 };

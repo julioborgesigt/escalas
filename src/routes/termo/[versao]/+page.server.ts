@@ -5,6 +5,7 @@ import {
 	VIGENTE_DESDE,
 	calcularHashTermo
 } from '$lib/server/termo/termo-vigente';
+import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
 	return {
 		versao: VERSAO,
 		vigenteDesde: VIGENTE_DESDE,
-		conteudoHtml: CONTEUDO_HTML,
+		conteudoHtml: sanitizeTermoHtml(CONTEUDO_HTML),
 		hash
 	};
 };

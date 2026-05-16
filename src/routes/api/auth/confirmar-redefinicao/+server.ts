@@ -54,7 +54,7 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 
 	await db.insert(loginAttempts).values({ ip, success: 0 });
 
-	const resultado = await verificarDesafio2FA(db, desafioId, codigo);
+	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['reset_policial', 'reset_admin']);
 
 	if (resultado === 'expirado') {
 		return json({ error: 'Código expirado. Solicite um novo código.' }, { status: 400 });
@@ -64,9 +64,6 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	}
 	if (!resultado) {
 		return json({ error: 'Código inválido' }, { status: 400 });
-	}
-	if (resultado.tipo !== 'reset_policial' && resultado.tipo !== 'reset_admin') {
-		return json({ error: 'Token inválido' }, { status: 403 });
 	}
 
 	const tipo: TipoUsuarioReset = resultado.tipo === 'reset_policial' ? 'policial' : 'admin';
