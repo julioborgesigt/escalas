@@ -1,9 +1,10 @@
 import { fail } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { hashSenha, verificarSenha, invalidarOutrasSessoes } from '$lib/auth';
-import { administradores, policiais } from '$lib/server/schema';
+import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
+import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
+import { cookieOptions } from '$lib/server/auth-flow';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -13,10 +14,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions = {
-	alterar: async ({ request, platform, locals, cookies }) => {
+	alterar: async ({ request, platform, locals, cookies, url }) => {
 		const db = getDB(platform);
 		const usuario = locals.usuario;
-		const token = cookies.get('session_token');
 
 		if (!usuario) {
 			return fail(401, { error: 'Não autorizado' });
@@ -93,9 +93,15 @@ export const actions = {
 				.where(eq(policiais.id, usuario.id));
 		}
 
-		if (token) {
-			await invalidarOutrasSessoes(db, usuario.tipo, usuario.id, token);
-		}
+		// Rotação completa: invalida TODAS as sessões (inclusive a atual) e cria
+		// uma nova. Se um atacante tinha o cookie roubado, o `Set-Cookie` novo
+		// só vai para o navegador legítimo desta resposta — atacante perde acesso.
+		await db
+			.delete(sessoes)
+			.where(and(eq(sessoes.tipo, usuario.tipo), eq(sessoes.usuario_id, usuario.id)));
+
+		const novoToken = await criarSessao(db, usuario.tipo, usuario.id);
+		cookies.set('session_token', novoToken, cookieOptions(url));
 
 		return { success: true };
 	}

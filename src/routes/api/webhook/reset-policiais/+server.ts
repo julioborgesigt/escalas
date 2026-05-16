@@ -21,6 +21,7 @@ import { count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
+import { SYNC_TOKEN_MIN_LEN } from '$lib/server/webhook-auth';
 import {
 	policiais,
 	unidades,
@@ -63,6 +64,11 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	// Fail-closed: sem RESET_TOKEN configurado, ninguém apaga nada.
 	if (!SYNC_TOKEN || !RESET_TOKEN) {
 		logger.warn('[reset-policiais] tentativa sem segredos configurados', { ip });
+		return json({ error: 'Não autorizado' }, { status: 401 });
+	}
+	// Recusa segredos fracos (config drift / placeholders esquecidos).
+	if (SYNC_TOKEN.length < SYNC_TOKEN_MIN_LEN || RESET_TOKEN.length < SYNC_TOKEN_MIN_LEN) {
+		logger.warn('[reset-policiais] segredos abaixo do mínimo de entropia', { ip });
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 

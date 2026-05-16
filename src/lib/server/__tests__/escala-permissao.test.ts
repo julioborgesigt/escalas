@@ -1,0 +1,125 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Database } from '$lib/db';
+import type { UsuarioLogado } from '$lib/auth';
+
+// Mock do módulo $lib/db ANTES de importar o SUT — Vitest interpreta hoisting.
+vi.mock('$lib/db', () => ({
+	temSolicitacaoParaDpcAdmin: vi.fn()
+}));
+
+// Import depois do mock para garantir bind correto.
+import { verificarPermissaoEscala } from '../escala-permissao';
+import { temSolicitacaoParaDpcAdmin } from '$lib/db';
+
+const fakeDb = {} as Database;
+
+function user(overrides: Partial<UsuarioLogado>): NonNullable<App.Locals['usuario']> {
+	return {
+		id: 1,
+		tipo: 'policial',
+		nome: 'Fulano',
+		primeiro_acesso: false,
+		matricula: '00001',
+		lotacao: 'DELEGACIA A',
+		papel: null,
+		papel_unidade_id: null,
+		cargo: 'OIP',
+		cpf: null,
+		email: null,
+		...overrides
+	} as NonNullable<App.Locals['usuario']>;
+}
+
+describe('verificarPermissaoEscala', () => {
+	beforeEach(() => {
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockClear();
+	});
+
+	it('admin geral SEMPRE pode (mesmo de outra lotação)', async () => {
+		const u = user({ tipo: 'admin', lotacao: undefined, papel: undefined });
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA X', u);
+		expect(r).toEqual({ permitido: true });
+		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+
+	it('policial da mesma lotação pode', async () => {
+		const u = user({ lotacao: 'DELEGACIA A' });
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA A', u);
+		expect(r).toEqual({ permitido: true });
+	});
+
+	it('policial de outra lotação sem papel admin NÃO pode', async () => {
+		const u = user({ lotacao: 'DELEGACIA A' });
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA B', u);
+		expect(r.permitido).toBe(false);
+		expect(r.motivo).toMatch(/Sem permiss/i);
+	});
+
+	it('admin seccional DPC de outra lotação pode SE houver solicitação para ele', async () => {
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(true);
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: 'admin_seccional',
+			cargo: 'DPC'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 42, 'DELEGACIA X', u);
+		expect(r).toEqual({ permitido: true });
+		expect(temSolicitacaoParaDpcAdmin).toHaveBeenCalledWith(fakeDb, 42, u.id);
+	});
+
+	it('admin seccional DPC SEM solicitação direcionada NÃO pode', async () => {
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(false);
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: 'admin_seccional',
+			cargo: 'DPC'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 42, 'DELEGACIA X', u);
+		expect(r.permitido).toBe(false);
+		expect(r.motivo).toMatch(/solicita/i);
+	});
+
+	it('admin unidade DPC funciona da mesma forma (mesmo path)', async () => {
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(true);
+		const u = user({
+			lotacao: 'OUTRA',
+			papel: 'admin_unidade',
+			cargo: 'DPC'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA X', u);
+		expect(r.permitido).toBe(true);
+	});
+
+	it('admin seccional OIP (não DPC) NÃO pode via solicitação — só DPC assina', async () => {
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: 'admin_seccional',
+			cargo: 'OIP'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA X', u);
+		expect(r.permitido).toBe(false);
+		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+
+	it('policial DPC sem papel administrativo de outra lotação NÃO pode', async () => {
+		const u = user({
+			lotacao: 'SECCIONAL A',
+			papel: null,
+			cargo: 'DPC'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA X', u);
+		expect(r.permitido).toBe(false);
+		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+
+	it('mesma lotação tem prioridade sobre rota DPC (sem consulta DB)', async () => {
+		const u = user({
+			lotacao: 'DELEGACIA A',
+			papel: 'admin_seccional',
+			cargo: 'DPC'
+		});
+		const r = await verificarPermissaoEscala(fakeDb, 1, 'DELEGACIA A', u);
+		expect(r.permitido).toBe(true);
+		expect(temSolicitacaoParaDpcAdmin).not.toHaveBeenCalled();
+	});
+});

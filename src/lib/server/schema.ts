@@ -197,11 +197,16 @@ export const escalaSolicitacoesAssinatura = sqliteTable(
 			.notNull()
 			.unique()
 			.references(() => escalas.id, { onDelete: 'cascade' }),
+		// onDelete: cascade — solicitação não faz sentido sem solicitante.
 		solicitante_id: integer('solicitante_id')
 			.notNull()
-			.references(() => policiais.id),
+			.references(() => policiais.id, { onDelete: 'cascade' }),
 		tipo: text('tipo', { enum: ['unidade', 'respondencia'] }).notNull(),
-		destinatario_id: integer('destinatario_id').references(() => policiais.id),
+		// onDelete: set null — solicitação sobrevive mesmo se destinatário sumir;
+		// a coluna é nullable, então preserva o histórico do solicitante.
+		destinatario_id: integer('destinatario_id').references(() => policiais.id, {
+			onDelete: 'set null'
+		}),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
@@ -270,9 +275,11 @@ export const giseSeccionais = sqliteTable(
 		gise_id: integer('gise_id')
 			.notNull()
 			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		// onDelete: restrict — bloqueia remoção de unidades que têm GISE histórico
+		// vinculado. Garante integridade de auditoria; admin deve apagar GISE antes.
 		seccional_id: integer('seccional_id')
 			.notNull()
-			.references(() => unidades.id),
+			.references(() => unidades.id, { onDelete: 'restrict' }),
 		unidade_operacional_id: integer('unidade_operacional_id'),
 		status: text('status', { enum: ['pendente', 'preenchida', 'retificada', 'preenchida_retificada'] }).notNull().default('pendente'),
 		hora_entrada: text('hora_entrada'),
@@ -550,6 +557,27 @@ export const loginAttempts = sqliteTable('login_attempts', {
 }, (table) => [
 	index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)
 ]);
+
+/**
+ * Rate-limit dedicado aos fluxos de recuperação de senha e verificação de
+ * e-mail pessoal. Separado de `login_attempts` para não inflar a contagem
+ * usada pelo rate-limit de LOGIN (atacante poderia bloquear logins legítimos
+ * disparando requests de reset).
+ */
+export const recoveryAttempts = sqliteTable(
+	'recovery_attempts',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		ip: text('ip').notNull(),
+		purpose: text('purpose', {
+			enum: ['solicitar_redefinicao', 'confirmar_redefinicao', 'primeiro_acesso']
+		}).notNull(),
+		attempted_at: text('attempted_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(table) => [
+		index('idx_recovery_attempts_ip_purpose_time').on(table.ip, table.purpose, table.attempted_at)
+	]
+);
 
 // ---- Log de Auditoria ----
 
