@@ -40,7 +40,7 @@ Antes de deletar, o endpoint registra no logger estruturado um snapshot com a co
 
 - Configuração de binding: [`wrangler.toml`](wrangler.toml) (`escalas_db`, diretório `migrations/`).
 - **Migrações locais:** `npm run db:migrate`
-- **Produção / remoto:** `npm run db:migrate:prod` (usa `--remote` no script; exige Wrangler autenticado)
+- **Produção / remoto:** `npm run db:migrate:prod -- --yes` (usa `--remote`; o flag `--yes` é obrigatório para evitar mutação acidental de produção enquanto staging/prod compartilham D1 — ver seção de [Separação staging vs produção](#-separação-staging-vs-produção-pendente))
 
 Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório e aplicar no ambiente alvo antes ou logo após o deploy compatível.
 
@@ -108,7 +108,7 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 ### Mitigações enquanto a separação não é feita
 
 - Bloqueio temporário do script: NÃO rodar `npm run db:migrate:prod` da branch staging.
-- Adicionar guard no `scripts/migrate.ts` que exija confirmação `--yes` explícita quando `--remote`.
+- ✅ **Implementado**: `scripts/migrate.ts` exige `--yes` explícito quando `--remote` (use `npm run db:migrate:prod -- --yes`). Sem o flag o script aborta antes de tocar no D1.
 - Comunicar a equipe que **toda escrita feita em staging persiste em produção**.
 
 ## Modelos do face-api (assets estáticos)

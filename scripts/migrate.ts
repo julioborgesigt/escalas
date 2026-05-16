@@ -5,10 +5,12 @@
  * sequencialmente via wrangler CLI.
  *
  * Uso:
- *   npm run db:migrate        → executa localmente (--local)
- *   npm run db:migrate:prod   → executa remotamente (--remote)
+ *   npm run db:migrate              → executa localmente (--local)
+ *   npm run db:migrate:prod -- --yes → executa em PRODUÇÃO (--remote)
  *
- * Substitui a linha gigante e manual no package.json.
+ * Enquanto staging e produção compartilham o mesmo D1 (ver
+ * DEPLOY.md → "Separação staging vs produção"), o flag --yes é
+ * obrigatório em --remote para evitar mutação acidental de produção.
  */
 
 import { execSync } from 'child_process';
@@ -18,7 +20,17 @@ import { join, resolve } from 'path';
 const MIGRATIONS_DIR = resolve(import.meta.dirname, '../migrations');
 const DB_NAME = 'escalas-db';
 const REMOTE = process.argv.includes('--remote');
+const CONFIRMED = process.argv.includes('--yes');
 const FLAG = REMOTE ? '--remote' : '--local';
+
+if (REMOTE && !CONFIRMED) {
+	console.error(
+		'\n❌ Bloqueado: --remote escreve no banco de PRODUÇÃO.\n' +
+			'   Confirme explicitamente com --yes:\n' +
+			'   npm run db:migrate:prod -- --yes\n'
+	);
+	process.exit(1);
+}
 
 console.log(`\n🚀 Executando migrations no D1 (${REMOTE ? 'PRODUÇÃO' : 'LOCAL'})...\n`);
 

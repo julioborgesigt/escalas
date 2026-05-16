@@ -1,33 +1,46 @@
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from './$types';
+import type { RequestHandler } from './$types';
 import { getDB, getR2, hasR2, buscarDocumentoEscala, excluirDocumentoEscala, buscarEscala } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
-import { contentDisposition } from '$lib/server/api';
+import {
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError
+} from '$lib/server/api';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const GET = async ({ platform, params, locals }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const GET: RequestHandler = async ({ platform, params, locals }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
+	const escala = await buscarEscala(db, id);
+	if (!escala) return notFound('Escala');
+
+	// Confidencialidade entre lotações: só admin, mesma lotação, ou DPC admin
+	// com solicitação direcionada pode baixar o PDF assinado. Sem esta checagem,
+	// qualquer usuário autenticado conseguiria PDF de escala de outra unidade
+	// apenas trocando o [id] na URL — vazamento de PII e quebra do LGPD.
+	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para acessar esta escala.');
+
 	const documento = await buscarDocumentoEscala(db, id);
-	if (!documento) {
-		return json({ error: 'Documento assinado não encontrado' }, { status: 404 });
-	}
+	if (!documento) return notFound('Documento assinado');
 
 	if (!hasR2(platform)) {
-		return json({ error: 'Storage R2 não configurado no servidor' }, { status: 500 });
+		return serverError('[escalas/documento-assinado] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 	}
 
 	const bucket = getR2(platform);
 	const object = await bucket.get(documento.r2_key);
-	if (!object) {
-		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
-	}
+	if (!object) return notFound('Arquivo PDF no Storage');
 
 	return new Response(object.body as unknown as BodyInit, {
 		headers: {
@@ -37,27 +50,24 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	});
 };
 
-export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
-	// Somente admin, dono da lotação ou DPC admin com solicitação pode revogar
+	// Somente admin, dono da lotação ou DPC admin com solicitação pode revogar.
+	// Mensagem genérica para não vazar quem TEM permissão (anti-enumeração).
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) {
-		return json({ error: 'Apenas administradores podem revogar assinaturas' }, { status: 403 });
-	}
+	if (!perm.permitido) return forbidden('Sem permissão para esta ação.');
 
 	const documento = await buscarDocumentoEscala(db, id);
-	if (!documento) {
-		return json({ message: 'Nenhuma assinatura encontrada para revogar' });
-	}
+	if (!documento) return notFound('Assinatura');
 
 	// Deletar do R2
 	if (hasR2(platform)) {
