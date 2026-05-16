@@ -12,13 +12,14 @@ import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
+import { requireAuth, badRequest, forbidden, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const body = await request.json().catch(() => null);
 	const desafioId: string = body?.desafioId ?? '';
@@ -26,27 +27,21 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const email: string = body?.email?.trim() ?? '';
 
 	if (!desafioId || !codigo || !email || !EMAIL_REGEX.test(email)) {
-		return json({ error: 'Dados inválidos' }, { status: 400 });
+		return badRequest('Dados inválidos');
 	}
 
 	const db = getDB(platform);
 
 	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['assinatura']);
 
-	if (resultado === 'expirado') {
-		return json({ error: 'Código expirado. Solicite um novo código.' }, { status: 400 });
-	}
+	if (resultado === 'expirado') return badRequest('Código expirado. Solicite um novo código.');
 	if (resultado === 'esgotado') {
-		return json({ error: 'Muitas tentativas incorretas. Solicite um novo código.' }, { status: 429 });
+		return rateLimited('Muitas tentativas incorretas. Solicite um novo código.');
 	}
-	if (!resultado) {
-		return json({ error: 'Código inválido' }, { status: 400 });
-	}
+	if (!resultado) return badRequest('Código inválido');
 
 	// Garante que o token pertence ao usuário logado
-	if (resultado.usuarioId !== u.id) {
-		return json({ error: 'Token inválido' }, { status: 403 });
-	}
+	if (resultado.usuarioId !== u.id) return forbidden('Token inválido');
 
 	// Persiste o e-mail pessoal verificado
 	if (u.tipo === 'admin') {

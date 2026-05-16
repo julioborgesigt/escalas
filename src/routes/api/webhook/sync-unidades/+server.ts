@@ -3,6 +3,7 @@ import { getDB } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
 import { validarWebhookSync } from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
+import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
@@ -27,7 +28,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			ip: getClientAddress(),
 			reason: auth.reason
 		});
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 
 	try {
@@ -188,7 +189,12 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			errors: errors.length > 0 ? errors : undefined
 		});
 	} catch (err: unknown) {
-		return json({ error: 'Erro ao processar payload', details: messageFromUnknown(err) }, { status: 400 });
+		// 400 (não 500): payload do webhook é input do caller, não bug interno.
+		return apiError(
+			`Erro ao processar payload: ${messageFromUnknown(err)}`,
+			400,
+			ErrorCode.VALIDATION
+		);
 	}
 };
 

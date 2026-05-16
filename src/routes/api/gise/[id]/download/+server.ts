@@ -1,4 +1,3 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
 	getDB,
@@ -10,7 +9,14 @@ import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
-import { contentDisposition } from '$lib/server/api';
+import {
+	contentDisposition,
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError
+} from '$lib/server/api';
 import { toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { logger } from '$lib/server/logger';
@@ -22,25 +28,22 @@ import { appendGiseDetalhadoToXlsxWorkbook, createAppendGiseXlsxState } from '$l
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	// Validação de Parâmetros
 	const paramParsed = giseIdParamSchema.safeParse(params);
-	if (!paramParsed.success) {
-		return json({ error: paramParsed.error.issues[0].message }, { status: 400 });
-	}
+	if (!paramParsed.success) return badRequest(paramParsed.error.issues[0].message);
 	const { id } = paramParsed.data;
 
 	const queryParsed = giseDownloadSchema.safeParse(Object.fromEntries(url.searchParams));
-	if (!queryParsed.success) {
-		return json({ error: 'Parâmetros de busca inválidos' }, { status: 400 });
-	}
+	if (!queryParsed.success) return badRequest('Parâmetros de busca inválidos');
+
 	const { format, seccionalId, equipeType } = queryParsed.data;
 
 	const db = getDB(platform);
 	const gise = await buscarGiseDetalhado(db, id);
-	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+	if (!gise) return notFound('Escala GISE');
 
 	const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
 	const isMembro =
@@ -55,10 +58,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].some((pid) => pid === u.id);
 
 	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro && !isQuadroSupervisao) {
-		return json(
-			{ error: 'Sem permissão para acessar downloads desta escala GISE.' },
-			{ status: 403 }
-		);
+		return forbidden('Sem permissão para acessar downloads desta escala GISE.');
 	}
 
 	registrarAuditComContexto(db, {
@@ -72,12 +72,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	// RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (Prioriza Download do R2)
 	if (format === 'extraordinario') {
 		if (seccionalId === undefined || seccionalId === null) {
-			return json({ error: 'Parâmetro seccionalId é obrigatório.' }, { status: 400 });
+			return badRequest('Parâmetro seccionalId é obrigatório.');
 		}
 		const secAutorizada = await giseAutorizaSeccionalRelatorioExtra(db, id, seccionalId);
-		if (!secAutorizada) {
-			return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
-		}
+		if (!secAutorizada) return badRequest('Seccional inválida para esta GISE.');
 
 		const r2 = getR2(platform);
 
@@ -86,7 +84,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		// 1. Se existir assinatura, baixar do R2 preferencialmente usando a chave do banco
 		if (reportSignature?.verification_hash) {
 			if (!r2) {
-				return json({ error: 'R2 não configurado na plataforma.' }, { status: 500 });
+				return serverError('[gise/download] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 			}
 
 			try {
@@ -112,19 +110,16 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						}
 					});
 				} else {
-					return json({ error: 'Relatório assinado não encontrado no R2.' }, { status: 404 });
+					return notFound('Relatório assinado no R2');
 				}
-			} catch (e: any) {
-				return json({ error: 'Erro ao recuperar arquivo do R2' }, { status: 500 });
+			} catch (e) {
+				return serverError(`[gise/download] Erro ao recuperar arquivo do R2 (gise=${id}, sec=${seccionalId})`, e);
 			}
 		}
 
 		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO
 		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor) {
-			return json(
-				{ error: 'Este relatório ainda não foi assinado.' },
-				{ status: 403 }
-			);
+			return forbidden('Este relatório ainda não foi assinado.');
 		}
 
 		try {
@@ -164,7 +159,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				}
 			});
 		} catch (err) {
-			return json({ error: 'Erro ao gerar rascunho do relatório.' }, { status: 500 });
+			return serverError(`[gise/download] Erro ao gerar rascunho do relatório (gise=${id})`, err);
 		}
 	}
 
@@ -229,14 +224,15 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	if (format === 'produtividade') {
-		if (!seccionalId) return json({ error: 'Seccional é obrigatória' }, { status: 400 });
+		if (!seccionalId) return badRequest('Seccional é obrigatória');
+
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
 		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export');
 
 		const seccional = gise.seccionais.find(
 			(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
 		);
-		if (!seccional) return json({ error: 'Seccional não encontrada' }, { status: 404 });
+		if (!seccional) return notFound('Seccional');
 
 		// Achatar todas as equipes da seccional (de todas as unidades)
 		const todasEquipes = (seccional.unidades ?? []).flatMap((u: any) => u.equipes ?? []);
@@ -273,10 +269,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		gise.status !== 'pronta_para_finalizar' &&
 		gise.status !== 'finalizada'
 	) {
-		return json(
-			{ error: 'Download só é liberado após a assinatura do Supervisor.' },
-			{ status: 400 }
-		);
+		return badRequest('Download só é liberado após a assinatura do Supervisor.');
 	}
 
 	// XLSX (mesma estrutura que o export agregado do histórico; uma GISE por arquivo)

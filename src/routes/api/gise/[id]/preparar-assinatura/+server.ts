@@ -7,10 +7,17 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { validateBody } from '$lib/server/api';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
@@ -23,11 +30,10 @@ import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 
-export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u || u.tipo !== 'policial') {
-		return json({ error: 'Não autorizado' }, { status: 401 });
-	}
+export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
+	if (u.tipo !== 'policial') return forbidden('Apenas policiais designados como supervisor podem assinar');
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
@@ -36,22 +42,24 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+	if (!gise) return notFound('Escala GISE');
 
 	if (gise.status !== 'aguardando_assinatura' && gise.status !== 'em_andamento') {
-		return json({ error: 'A escala não está pronta para assinatura' }, { status: 400 });
+		return badRequest('A escala não está pronta para assinatura');
 	}
 
 	if (gise.supervisor_id !== u.id) {
-		return json({ error: 'Apenas o Supervisor designado pode assinar esta escala' }, { status: 403 });
+		return forbidden('Apenas o Supervisor designado pode assinar esta escala');
 	}
 
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
-	if (!giseDetalhado) return json({ error: 'Erro ao carregar dados da escala' }, { status: 500 });
+	if (!giseDetalhado) {
+		return serverError('[gise/preparar-assinatura] buscarGiseDetalhado retornou null', new Error('GISE_DETALHADO_NULL'));
+	}
 
 	const r2Logo = getR2(platform);
 	let logoJpgBytes: Uint8Array | undefined;

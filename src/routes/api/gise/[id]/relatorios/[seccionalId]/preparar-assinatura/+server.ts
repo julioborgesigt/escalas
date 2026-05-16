@@ -5,11 +5,16 @@
  * A folha de auditoria é adicionada aqui (antes da assinatura) para preservar a validade da assinatura.
  */
 
-import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { validateBody } from '$lib/server/api';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	validateBody
+} from '$lib/server/api';
 import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
@@ -22,11 +27,13 @@ import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { json } from '@sveltejs/kit';
 
-export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
-		return json({ error: 'Não autorizado' }, { status: 401 });
+export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
+	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
+		return forbidden('Somente policiais supervisores ou administradores podem assinar');
 	}
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
@@ -38,20 +45,18 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const id = parseInt(params.id!);
 	const secIdNum = parseInt(params.seccionalId!);
 
-	if (isNaN(id) || isNaN(secIdNum)) {
-		return json({ error: 'Parâmetros inválidos' }, { status: 400 });
-	}
+	if (isNaN(id) || isNaN(secIdNum)) return badRequest('Parâmetros inválidos');
 
 	const db = getDB(platform);
 	const gise = await buscarGiseDetalhado(db, id);
-	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+	if (!gise) return notFound('Escala GISE');
 
 	const secOk = await giseAutorizaSeccionalRelatorioExtra(db, id, secIdNum);
-	if (!secOk) return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
+	if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
 	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
 	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return json({ error: 'Apenas o supervisor designado ou administradores podem assinar este relatório.' }, { status: 403 });
+		return forbidden('Apenas o supervisor designado ou administradores podem assinar este relatório.');
 	}
 
 	const presencas = await buscarPresencasGise(db, id);

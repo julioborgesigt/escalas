@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from './$types';
+import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
-import { validateBody } from '$lib/server/api';
+import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/document-utils';
@@ -10,9 +10,9 @@ import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST = async ({ platform, params, locals, url, request, getClientAddress }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
@@ -21,21 +21,19 @@ export const POST = async ({ platform, params, locals, url, request, getClientAd
 	const ua = request.headers.get('user-agent') || '';
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	// Somente admin, dono da lotação, ou DPC admin com solicitação direcionada pode preparar assinatura
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
-	if (!perm.permitido) {
-		return json({ error: perm.motivo ?? 'Sem permissão para assinar esta escala' }, { status: 403 });
-	}
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
 
 	const policiais = await listarPoliciaisEscala(db, id);
 	if (!policiais || policiais.length === 0) {
-		return json({ error: 'A escala está vazia e não pode ser assinada' }, { status: 400 });
+		return badRequest('A escala está vazia e não pode ser assinada');
 	}
 
 	let result;

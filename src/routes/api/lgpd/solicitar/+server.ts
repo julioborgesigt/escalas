@@ -6,6 +6,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarSolicitacao, listarSolicitacoesPorUsuario } from '$lib/db/lgpd-solicitacoes';
+import { requireAuth, badRequest } from '$lib/server/api';
 
 const TIPOS_VALIDOS = [
 	'acesso', 'correcao', 'anonimizacao', 'portabilidade',
@@ -13,8 +14,8 @@ const TIPOS_VALIDOS = [
 ] as const;
 
 export const GET: RequestHandler = async ({ platform, locals }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const db = getDB(platform);
 	const solicitacoes = await listarSolicitacoesPorUsuario(db, u.tipo, u.id);
@@ -22,19 +23,19 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ platform, locals, request }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	let body: Record<string, unknown>;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'JSON inválido' }, { status: 400 });
+		return badRequest('JSON inválido');
 	}
 
 	const tipo_direito = String(body.tipo_direito ?? '');
 	if (!TIPOS_VALIDOS.includes(tipo_direito as any)) {
-		return json({ error: `tipo_direito inválido. Use: ${TIPOS_VALIDOS.join(', ')}` }, { status: 400 });
+		return badRequest(`tipo_direito inválido. Use: ${TIPOS_VALIDOS.join(', ')}`);
 	}
 
 	const db = getDB(platform);

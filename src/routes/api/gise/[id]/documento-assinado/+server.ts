@@ -4,33 +4,40 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, getR2, hasR2, buscarGiseDocumento, reabrirGiseEscala } from '$lib/db';
-import { contentDisposition } from '$lib/server/api';
+import {
+	contentDisposition,
+	requireAuth,
+	requireAdmin,
+	badRequest,
+	notFound,
+	serverError
+} from '$lib/server/api';
 
-export const GET = async ({ platform, params, locals }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+// TODO(audit P0.3): adicionar verificação de permissão GISE no GET — hoje
+// qualquer usuário autenticado pode baixar o PDF assinado de qualquer GISE
+// trocando o [id]. Mesmo padrão que foi corrigido em /api/escalas/[id]/
+// documento-assinado. Requer modelo de permissão GISE (papel + lotação).
+export const GET: RequestHandler = async ({ platform, params, locals }) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 
 	const documento = await buscarGiseDocumento(db, id);
-	if (!documento) {
-		return json({ error: 'Documento assinado não encontrado' }, { status: 404 });
-	}
+	if (!documento) return notFound('Documento assinado');
 
 	if (!hasR2(platform)) {
-		return json({ error: 'Storage R2 não configurado no servidor' }, { status: 500 });
+		return serverError('[gise/documento-assinado] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 	}
 
 	const bucket = getR2(platform);
 	const object = await bucket.get(documento.r2_key);
-	if (!object) {
-		return json({ error: 'Arquivo PDF não encontrado no Storage' }, { status: 404 });
-	}
+	if (!object) return notFound('Arquivo PDF no Storage');
 
 	return new Response(object.body as unknown as BodyInit, {
 		headers: {
@@ -40,23 +47,16 @@ export const GET = async ({ platform, params, locals }: RequestEvent) => {
 	});
 };
 
-export const DELETE = async ({ platform, params, locals }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
-
-	// Somente admin geral pode revogar assinatura GISE
-	if (u.tipo !== 'admin') {
-		return json({ error: 'Apenas o Administrador Geral pode revogar a assinatura' }, { status: 403 });
-	}
+export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id!);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const documento = await buscarGiseDocumento(db, id);
-	if (!documento) {
-		return json({ message: 'Nenhuma assinatura encontrada para revogar' });
-	}
+	if (!documento) return notFound('Assinatura');
 
 	// Deletar do R2
 	if (hasR2(platform)) {

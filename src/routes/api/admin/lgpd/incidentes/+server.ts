@@ -5,12 +5,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { registrarIncidente, listarIncidentes } from '$lib/db/lgpd-incidentes';
+import { requireAdmin, badRequest } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ platform, locals }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const db = getDB(platform);
 	const incidentes = await listarIncidentes(db);
@@ -18,19 +18,19 @@ export const GET: RequestHandler = async ({ platform, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ platform, locals, request }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	let body: Record<string, unknown>;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'JSON inválido' }, { status: 400 });
+		return badRequest('JSON inválido');
 	}
 
 	const campos = ['titulo', 'descricao', 'tipo_incidente', 'data_descoberta', 'dados_afetados', 'gravidade', 'responsavel_nome', 'responsavel_email'];
 	for (const c of campos) {
-		if (!body[c]) return json({ error: `Campo obrigatório: ${c}` }, { status: 400 });
+		if (!body[c]) return badRequest(`Campo obrigatório: ${c}`);
 	}
 
 	const db = getDB(platform);

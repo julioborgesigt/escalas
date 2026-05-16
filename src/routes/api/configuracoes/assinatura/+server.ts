@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getDB, salvarConfiguracao } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
 import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { requireAdmin, badRequest, validateBody } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const flags = await lerFlagsAssinatura(platform);
@@ -15,19 +16,14 @@ export const GET: RequestHandler = async ({ platform }) => {
 };
 
 export const PUT: RequestHandler = async ({ platform, request, locals }) => {
-	if (locals.usuario?.tipo !== 'admin') {
-		return json({ error: 'Acesso negado' }, { status: 403 });
-	}
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
-	const body = await request.json().catch(() => ({}));
-	const parsed = assinaturaConfigSchema.safeParse(body);
-
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
+	const v = await validateBody(request, assinaturaConfigSchema);
+	if (!v.ok) return v.response;
 
 	const db = getDB(platform);
-	const data = parsed.data;
+	const data = v.data;
 	const saves: Promise<void>[] = [];
 
 	if (data.exigirFoto !== undefined) {
@@ -45,9 +41,7 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 		saves.push(salvarConfiguracao(db, 'restringir_smartphone', data.restringirSmartphone ? '1' : '0'));
 	}
 
-	if (saves.length === 0) {
-		return json({ error: 'Nenhum campo válido para salvar' }, { status: 400 });
-	}
+	if (saves.length === 0) return badRequest('Nenhum campo válido para salvar');
 
 	await Promise.all(saves);
 

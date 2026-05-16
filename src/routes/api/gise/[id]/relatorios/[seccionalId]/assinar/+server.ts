@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
@@ -10,7 +10,6 @@ import {
 } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
-import { logger } from '$lib/server/logger';
 import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
@@ -21,30 +20,32 @@ import {
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
 import { giseSignatureSchema } from '$lib/schemas';
+import {
+	requireAuth,
+	badRequest,
+	notFound,
+	forbidden,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 
-export const POST = async ({
+export const POST: RequestHandler = async ({
 	locals,
 	params,
 	request,
 	platform,
 	getClientAddress,
 	url
-}: RequestEvent) => {
-	const u = locals.usuario;
-	if (!u || (u.tipo !== 'policial' && u.tipo !== 'admin')) {
-		return json(
-			{ error: 'Somente policiais supervisores ou administradores podem assinar' },
-			{ status: 403 }
-		);
+}) => {
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
+	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
+		return forbidden('Somente policiais supervisores ou administradores podem assinar');
 	}
 
 	const { id, seccionalId } = params;
-	const body = await request.json().catch(() => ({}));
-	const parsed = giseSignatureSchema.safeParse(body);
-
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
+	const v = await validateBody(request, giseSignatureSchema);
+	if (!v.ok) return v.response;
 
 	const {
 		rubrica,
@@ -57,7 +58,7 @@ export const POST = async ({
 		selfieBase64,
 		codigoValidação,
 		desafioId
-	} = parsed.data;
+	} = v.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -72,10 +73,10 @@ export const POST = async ({
 		const secIdNum = parseInt(seccionalId!);
 
 		const gise = await buscarGiseDetalhado(db, giseIdNum);
-		if (!gise) return json({ error: 'Escala não encontrada' }, { status: 404 });
+		if (!gise) return notFound('Escala');
 
 		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
-		if (!secOk) return json({ error: 'Seccional inválida para esta GISE.' }, { status: 400 });
+		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
 		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
 		if (exigirCodigoEmail && type !== 'serpro') {
@@ -85,19 +86,15 @@ export const POST = async ({
 				!desafioId ||
 				typeof desafioId !== 'string'
 			) {
-				return json(
-					{ error: 'Código de verificação por e-mail é obrigatório para assinaturas em tela.' },
-					{ status: 400 }
+				return badRequest(
+					'Código de verificação por e-mail é obrigatório para assinaturas em tela.'
 				);
 			}
 			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação, ['assinatura']);
-			if (result2FA === 'expirado')
-				return json({ error: 'O código de verificação expirou.' }, { status: 400 });
-			if (result2FA === 'esgotado')
-				return json({ error: 'Muitas tentativas. Solicite um novo código.' }, { status: 400 });
-			if (!result2FA) return json({ error: 'Código de verificação inválido.' }, { status: 400 });
-			if (result2FA.usuarioId !== u.id)
-				return json({ error: 'Código não pertence ao usuário logado.' }, { status: 403 });
+			if (result2FA === 'expirado') return badRequest('O código de verificação expirou.');
+			if (result2FA === 'esgotado') return badRequest('Muitas tentativas. Solicite um novo código.');
+			if (!result2FA) return badRequest('Código de verificação inválido.');
+			if (result2FA.usuarioId !== u.id) return forbidden('Código não pertence ao usuário logado.');
 		}
 
 		const presencas = await buscarPresencasGise(db, giseIdNum);
@@ -220,17 +217,9 @@ export const POST = async ({
 
 		return json({ success: true });
 	} catch (e) {
-		logger.error('[gise/relatorios/assinar] Falha ao salvar assinatura', {
-			gise_id: id,
-			seccional_id: seccionalId,
-			error: e instanceof Error ? e.message : String(e),
-			stack: e instanceof Error ? e.stack : undefined
-		});
-		return json(
-			{
-				error: 'Falha técnica ao gravar a assinatura no banco de dados.'
-			},
-			{ status: 500 }
+		return serverError(
+			`[gise/relatorios/assinar] Falha ao salvar assinatura (gise_id=${id}, seccional_id=${seccionalId})`,
+			e
 		);
 	}
 };

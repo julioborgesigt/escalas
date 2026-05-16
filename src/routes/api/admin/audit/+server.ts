@@ -14,14 +14,12 @@
 
 import { json } from '@sveltejs/kit';
 import { getDB, listarAuditLog } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
+import { requireAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, url, locals }) => {
-	const usuario = locals.usuario;
-	if (!usuario || !isAdminGeral(usuario)) {
-		return json({ error: 'Acesso restrita ao Administrador Geral' }, { status: 403 });
-	}
+	const usuario = requireAdmin(locals);
+	if (usuario instanceof Response) return usuario;
 
 	const db = getDB(platform);
 

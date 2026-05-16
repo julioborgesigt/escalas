@@ -22,6 +22,7 @@ import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { SYNC_TOKEN_MIN_LEN } from '$lib/server/webhook-auth';
+import { apiError, ErrorCode, unauthorized, serverError } from '$lib/server/api';
 import {
 	policiais,
 	unidades,
@@ -64,12 +65,12 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	// Fail-closed: sem RESET_TOKEN configurado, ninguém apaga nada.
 	if (!SYNC_TOKEN || !RESET_TOKEN) {
 		logger.warn('[reset-policiais] tentativa sem segredos configurados', { ip });
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 	// Recusa segredos fracos (config drift / placeholders esquecidos).
 	if (SYNC_TOKEN.length < SYNC_TOKEN_MIN_LEN || RESET_TOKEN.length < SYNC_TOKEN_MIN_LEN) {
 		logger.warn('[reset-policiais] segredos abaixo do mínimo de entropia', { ip });
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 
 	const authHeader = request.headers.get('Authorization');
@@ -78,12 +79,12 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 
 	if (!bearerTokenValido(authHeader, SYNC_TOKEN)) {
 		logger.warn('[reset-policiais] bearer inválido', { ip });
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 
 	if (!resetHeader || !compararSegredoUtf8TimingSafe(resetHeader, RESET_TOKEN)) {
 		logger.warn('[reset-policiais] X-Reset-Token ausente ou inválido', { ip });
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 
 	const hoje = dataIsoHojeUtc();
@@ -93,9 +94,13 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			esperado: hoje,
 			recebido: confirmHeader ?? '(vazio)'
 		});
-		return json(
-			{ error: `Cabeçalho X-Confirm-Reset deve ser igual a "${hoje}" (UTC).` },
-			{ status: 401 }
+		// Mensagem específica (com o valor esperado) ajuda o operador na hora
+		// de disparar do Google Apps Script; status mantido 401 para preservar
+		// behavior do client.
+		return apiError(
+			`Cabeçalho X-Confirm-Reset deve ser igual a "${hoje}" (UTC).`,
+			401,
+			ErrorCode.AUTH_REQUIRED
 		);
 	}
 
@@ -129,11 +134,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		);
 		logger.warn('[reset-policiais] snapshot pré-deleção', { ip, snapshot });
 	} catch (err) {
-		logger.error('[reset-policiais] falha ao gerar snapshot — abortando', {
-			ip,
-			error: err instanceof Error ? err.message : String(err)
-		});
-		return json({ error: 'Falha ao preparar reset' }, { status: 500 });
+		return serverError(`[reset-policiais] Falha ao gerar snapshot (ip=${ip})`, err);
 	}
 
 	try {
@@ -168,10 +169,6 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			snapshot
 		});
 	} catch (err) {
-		logger.error('[reset-policiais] falha durante deleção', {
-			ip,
-			error: err instanceof Error ? err.message : String(err)
-		});
-		return json({ error: 'Erro ao limpar banco de dados' }, { status: 500 });
+		return serverError(`[reset-policiais] Falha durante deleção (ip=${ip})`, err);
 	}
 };

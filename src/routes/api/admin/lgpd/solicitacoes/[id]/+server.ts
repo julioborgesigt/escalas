@@ -5,52 +5,50 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { buscarSolicitacao, responderSolicitacao } from '$lib/db/lgpd-solicitacoes';
+import { requireAdmin, badRequest, notFound, conflict } from '$lib/server/api';
 
 const STATUS_VALIDOS = ['em_analise', 'concluida', 'indeferida'] as const;
 
 export const GET: RequestHandler = async ({ platform, locals, params }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const solicitacao = await buscarSolicitacao(db, id);
-	if (!solicitacao) return json({ error: 'Solicitação não encontrada' }, { status: 404 });
+	if (!solicitacao) return notFound('Solicitação');
 
 	return json({ solicitacao });
 };
 
 export const PATCH: RequestHandler = async ({ platform, locals, params, request }) => {
-	const u = locals.usuario;
-	if (!u || !isAdminGeral(u)) return json({ error: 'Acesso restrito' }, { status: 403 });
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	let body: Record<string, unknown>;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: 'JSON inválido' }, { status: 400 });
+		return badRequest('JSON inválido');
 	}
 
 	const status = String(body.status ?? '');
 	if (!STATUS_VALIDOS.includes(status as any)) {
-		return json({ error: `status inválido. Use: ${STATUS_VALIDOS.join(', ')}` }, { status: 400 });
+		return badRequest(`status inválido. Use: ${STATUS_VALIDOS.join(', ')}`);
 	}
-	if (!body.resposta) {
-		return json({ error: 'Campo obrigatório: resposta' }, { status: 400 });
-	}
+	if (!body.resposta) return badRequest('Campo obrigatório: resposta');
 
 	const db = getDB(platform);
 	const solicitacao = await buscarSolicitacao(db, id);
-	if (!solicitacao) return json({ error: 'Solicitação não encontrada' }, { status: 404 });
+	if (!solicitacao) return notFound('Solicitação');
 	if (solicitacao.status === 'concluida' || solicitacao.status === 'indeferida') {
-		return json({ error: 'Solicitação já encerrada' }, { status: 409 });
+		return conflict('Solicitação já encerrada');
 	}
 
 	const atualizada = await responderSolicitacao(db, id, status as any, String(body.resposta), u.nome);

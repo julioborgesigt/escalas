@@ -1,24 +1,21 @@
-import { json } from '@sveltejs/kit';
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { getR2 } from '$lib/server/platform';
-import { contentDisposition } from '$lib/server/api';
+import { contentDisposition, badRequest, notFound, serverError } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-export const GET = async ({ platform, params, url }: RequestEvent) => {
+export const GET: RequestHandler = async ({ platform, params, url }) => {
 	const db = getDB(platform);
 	const hash = params.hash;
 
-	if (!hash) {
-		return json({ error: 'Código de verificação ausente' }, { status: 400 });
-	}
+	if (!hash) return badRequest('Código de verificação ausente');
 
 	logger.info('[validar/download] Iniciando', { hash });
 
 	const documento = await buscarDocumentoPorHash(db, hash);
 	if (!documento) {
 		logger.warn('[validar/download] Documento não encontrado', { hash });
-		return json({ error: 'Documento não encontrado' }, { status: 404 });
+		return notFound('Documento');
 	}
 
 	logger.info('[validar/download] Documento localizado', {
@@ -90,7 +87,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 					hash,
 					escala_id: documento.escala_id
 				});
-				return json({ error: 'GISE não encontrada' }, { status: 404 });
+				return notFound('GISE');
 			}
 
 			const seccionalId = documento.seccional_id;
@@ -129,7 +126,7 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 						hash,
 						seccional_id: seccionalId
 					});
-					return json({ error: 'Seccional não encontrada' }, { status: 404 });
+					return notFound('Seccional');
 				}
 
 				const respostas = await buscarRespostasProdutividadeSeccional(db, documento.escala_id, seccional.id);
@@ -161,20 +158,10 @@ export const GET = async ({ platform, params, url }: RequestEvent) => {
 				}
 			});
 		} catch (err) {
-			logger.error('[validar/download] Falha crítica na geração dinâmica', {
-				hash,
-				error: err instanceof Error ? err.message : String(err),
-				stack: err instanceof Error ? err.stack : undefined
-			});
-			return new Response(JSON.stringify({
-				error: 'Erro ao processar documento. Tente novamente.'
-			}), {
-				status: 500,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return serverError(`[validar/download] Falha crítica na geração dinâmica (hash=${hash})`, err);
 		}
 	}
 
 	logger.error('[validar/download] PDF indisponível em todas as fontes', { hash });
-	return json({ error: 'Arquivo PDF não disponível para este documento' }, { status: 404 });
+	return notFound('Arquivo PDF para este documento');
 };

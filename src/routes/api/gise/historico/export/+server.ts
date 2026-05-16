@@ -1,10 +1,14 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, listarGiseEscalas, buscarGiseDetalhado } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { giseHistoricoExportQuerySchema } from '$lib/schemas';
-import { contentDisposition } from '$lib/server/api';
+import {
+	contentDisposition,
+	requireAdmin,
+	badRequest,
+	notFound,
+	serverError
+} from '$lib/server/api';
 import { unidades } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
@@ -142,16 +146,13 @@ async function buildHistoricoPdfBuffer(
 }
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autenticado' }, { status: 401 });
-	if (!isAdminGeral(u)) {
-		return json({ error: 'Apenas o Administrador Geral pode exportar o histórico.' }, { status: 403 });
-	}
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const parsed = giseHistoricoExportQuerySchema.safeParse(Object.fromEntries(url.searchParams));
 	if (!parsed.success) {
 		const msg = parsed.error.issues[0]?.message ?? 'Parâmetros inválidos';
-		return json({ error: msg }, { status: 400 });
+		return badRequest(msg);
 	}
 	const { format, seccionalId, periodo, mesAno, ano, ciclo, data: dataEspecifica } = parsed.data;
 
@@ -177,7 +178,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	});
 
 	if (filtradas.length === 0) {
-		return json({ error: 'Nenhuma escala finalizada encontrada para o filtro informado.' }, { status: 404 });
+		return notFound('Escala finalizada para o filtro informado');
 	}
 
 	registrarAuditComContexto(db, {
@@ -220,7 +221,10 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	}
 
 	if (gisesDetalhadas.length === 0) {
-		return json({ error: 'Não foi possível carregar os dados das escalas para exportação.' }, { status: 500 });
+		return serverError(
+			'[gise/historico/export] Não foi possível carregar os dados das escalas para exportação',
+			new Error('GISE_DETALHADAS_EMPTY')
+		);
 	}
 
 	const safeSlug =
@@ -250,8 +254,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 				}
 			});
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			return json({ error: `Falha ao gerar a planilha: ${msg}` }, { status: 500 });
+			return serverError('[gise/historico/export] Falha ao gerar a planilha', e);
 		}
 	}
 

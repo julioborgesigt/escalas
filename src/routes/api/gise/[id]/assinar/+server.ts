@@ -5,11 +5,13 @@
  * Mantido para compatibilidade, redireciona para assinar-simples.
  */
 
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { apiError, ErrorCode } from '$lib/server/api';
 
 export const POST: RequestHandler = async () => {
-	return json({
-		error: 'Este endpoint foi substituído. Use /assinar-simples, /preparar-assinatura ou /finalizar-assinatura.'
-	}, { status: 410 });
+	return apiError(
+		'Este endpoint foi substituído. Use /assinar-simples, /preparar-assinatura ou /finalizar-assinatura.',
+		410,
+		ErrorCode.NOT_FOUND
+	);
 };

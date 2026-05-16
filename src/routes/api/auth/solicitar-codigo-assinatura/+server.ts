@@ -6,19 +6,15 @@ import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { mascararEmail } from '$lib/server/auth-flow';
+import { requireAuth, badRequest, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ platform, locals, url }) => {
+export const POST: RequestHandler = async ({ platform, locals }) => {
 	try {
-		const db = getDB(platform);
-		const u = locals.usuario;
+		const u = requireAuth(locals);
+		if (u instanceof Response) return u;
 
-		if (!u) {
-			logger.error('[assinatura/2fa] Usuário ausente em locals.usuario', {
-				path: url.pathname
-			});
-			return json({ error: 'Sessão inválida ou expirada. Faça login novamente.' }, { status: 401 });
-		}
+		const db = getDB(platform);
 
 		// Recuperar o usuário do DB para confirmar o e-mail
 		let email: string | null = null;
@@ -32,7 +28,7 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 
 		if (!email) {
 			logger.warn('[Assinatura 2FA] Email não encontrado', { usuarioId: u.id, tipo: u.tipo });
-			return json({ error: 'Você não possui um e-mail cadastrado. Contate o administrador.' }, { status: 400 });
+			return badRequest('Você não possui um e-mail cadastrado. Contate o administrador.');
 		}
 
 		const codigo = gerarCodigo2FA();
@@ -40,9 +36,8 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 
 		try {
 			await enviarCodigo2FA(email, codigo, u.nome, platform);
-		} catch (err: any) {
-			logger.error('[Assinatura 2FA] Falha ao enviar e-mail', { error: err?.message });
-			return json({ error: 'Falha no envio do código. Tente novamente.' }, { status: 500 });
+		} catch (err) {
+			return serverError('[Assinatura 2FA] Falha ao enviar e-mail', err);
 		}
 
 		return json({
@@ -50,8 +45,7 @@ export const POST: RequestHandler = async ({ platform, locals, url }) => {
 			desafioId,
 			emailMascarado: mascararEmail(email)
 		});
-	} catch (err: any) {
-		logger.error('[Assinatura 2FA] Erro crítico no handler', { error: err?.message });
-		return json({ error: 'Erro ao processar solicitação. Tente novamente.' }, { status: 500 });
+	} catch (err) {
+		return serverError('[Assinatura 2FA] Erro crítico no handler', err);
 	}
 };

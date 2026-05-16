@@ -16,15 +16,15 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB, listarPoliciais } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { policialSearchQuerySchema } from '$lib/schemas';
+import { requireAuth, badRequest, forbidden } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const parsed = policialSearchQuerySchema.safeParse(Object.fromEntries(url.searchParams));
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
+	if (!parsed.success) return badRequest(parsed.error.issues[0].message);
+
 	const { q, cargo, page, limit, somente_admins } = parsed.data;
 	let { lotacao, seccional_id } = parsed.data;
 
@@ -34,15 +34,14 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 
 	if (!isGeral) {
 		// Policial comum: só vê a própria lotação.
-		if (lotacao && lotacao !== u.lotacao) {
-			return json({ error: 'Sem permissão para esta lotação' }, { status: 403 });
-		}
+		if (lotacao && lotacao !== u.lotacao) return forbidden('Sem permissão para esta lotação');
+
 		lotacao = u.lotacao;
 		seccional_id = undefined;
 
 		const temBusca = !!(q && q.length >= 2);
 		if (!temBusca && !lotacao && !seccional_id) {
-			return json({ error: 'Informe um termo de busca ou lotação' }, { status: 400 });
+			return badRequest('Informe um termo de busca ou lotação');
 		}
 	}
 

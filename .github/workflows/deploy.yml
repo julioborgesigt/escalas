@@ -44,6 +44,19 @@ jobs:
       - run: npx vitest run --reporter=verbose
       - run: npm run build
 
+      # Guard contra regressão do padrão API: todas as rotas devem usar
+      # os helpers de \$lib/server/api (badRequest, unauthorized, etc.) em
+      # vez de retornar json({ error }) manual. Ver CLAUDE.md → "Erros de
+      # API — padrão obrigatório".
+      - name: Guard — padrão de erros API (lib/server/api)
+        run: |
+          violations=$(grep -rln "return json({ error" src/routes/api || true)
+          if [ -n "$violations" ]; then
+            echo "::error::Rotas API usando json({ error }) manual — use os helpers de \$lib/server/api:"
+            echo "$violations"
+            exit 1
+          fi
+
       - name: Apply D1 migrations (local, for E2E)
         run: npx wrangler d1 migrations apply escalas-db --local
 

@@ -14,27 +14,23 @@ import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
 import { mascararEmail } from '$lib/server/auth-flow';
 import { doisFatoresTokens } from '$lib/server/schema';
+import { requireAuth, badRequest, rateLimited, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const body = await request.json().catch(() => null);
 	const email: string = body?.email?.trim() ?? '';
 
-	if (!email || !EMAIL_REGEX.test(email)) {
-		return json({ error: 'E-mail inválido' }, { status: 400 });
-	}
+	if (!email || !EMAIL_REGEX.test(email)) return badRequest('E-mail inválido');
 
 	// E-mail pessoal deve ser diferente do e-mail institucional
 	if (u.email && email.toLowerCase() === u.email.toLowerCase()) {
-		return json(
-			{ error: 'O e-mail pessoal deve ser diferente do e-mail institucional' },
-			{ status: 400 }
-		);
+		return badRequest('O e-mail pessoal deve ser diferente do e-mail institucional');
 	}
 
 	const db = getDB(platform);
@@ -53,10 +49,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		);
 
 	if ((countResult?.n ?? 0) >= 3) {
-		return json(
-			{ error: 'Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.' },
-			{ status: 429 }
-		);
+		return rateLimited('Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.');
 	}
 
 	const codigo = gerarCodigo2FA();
@@ -64,8 +57,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 	try {
 		await enviarCodigoEmailPessoal(email, codigo, u.nome, platform);
-	} catch {
-		return json({ error: 'Falha ao enviar e-mail. Verifique o endereço informado.' }, { status: 500 });
+	} catch (err) {
+		return serverError('[verificacao-email-pessoal] Falha ao enviar e-mail', err);
 	}
 
 	return json({ desafioId, emailMascarado: mascararEmail(email) });

@@ -9,6 +9,7 @@ import {
 	excluirSolicitacaoAssinatura
 } from '$lib/db';
 import { z } from 'zod';
+import { requireAuth, badRequest, forbidden, notFound, validateBody } from '$lib/server/api';
 
 const solicitarSchema = z.object({
 	tipo: z.enum(['unidade', 'respondencia']),
@@ -22,51 +23,40 @@ function podeOIPSolicitar(u: App.Locals['usuario']) {
 }
 
 export const POST: RequestHandler = async ({ params, locals, platform, request }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
-	if (!podeOIPSolicitar(u)) return json({ error: 'Sem permissão' }, { status: 403 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
+	if (!podeOIPSolicitar(u)) return forbidden('Sem permissão');
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
-	let body: unknown;
-	try {
-		body = await request.json();
-	} catch {
-		return json({ error: 'Corpo inválido' }, { status: 400 });
-	}
-
-	const parsed = solicitarSchema.safeParse(body);
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
-
-	const { tipo, destinatario_id } = parsed.data;
+	const v = await validateBody(request, solicitarSchema);
+	if (!v.ok) return v.response;
+	const { tipo, destinatario_id } = v.data;
 
 	if (tipo === 'respondencia' && !destinatario_id) {
-		return json({ error: 'Informe o destinatário para assinatura em respondência' }, { status: 400 });
+		return badRequest('Informe o destinatário para assinatura em respondência');
 	}
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	if (escala.tipo === 'fds') {
-		return json({ error: 'Escalas de FDS não requerem assinatura' }, { status: 400 });
+		return badRequest('Escalas de FDS não requerem assinatura');
 	}
 
 	// admin_unidade só pode solicitar para sua própria unidade
 	if (u.tipo !== 'admin' && u.papel === 'admin_unidade' && u.lotacao !== escala.lotacao) {
-		return json({ error: 'Sem permissão para esta escala' }, { status: 403 });
+		return forbidden('Sem permissão para esta escala');
 	}
 
 	// Valida destinatário para respondência: deve ser DPC com papel administrativo
 	if (tipo === 'respondencia' && destinatario_id) {
 		const dest = await buscarPolicial(db, destinatario_id);
 		if (!dest || dest.cargo !== 'DPC' || !dest.papel) {
-			return json(
-				{ error: 'Destinatário inválido: deve ser um delegado (DPC) com papel de administrador' },
-				{ status: 400 }
+			return badRequest(
+				'Destinatário inválido: deve ser um delegado (DPC) com papel de administrador'
 			);
 		}
 	}
@@ -76,26 +66,26 @@ export const POST: RequestHandler = async ({ params, locals, platform, request }
 };
 
 export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
-	const u = locals.usuario;
-	if (!u) return json({ error: 'Não autorizado' }, { status: 401 });
+	const u = requireAuth(locals);
+	if (u instanceof Response) return u;
 
 	const id = Number(params.id);
-	if (isNaN(id)) return json({ error: 'ID inválido' }, { status: 400 });
+	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
 	const escala = await buscarEscala(db, id);
-	if (!escala) return json({ error: 'Escala não encontrada' }, { status: 404 });
+	if (!escala) return notFound('Escala');
 
 	if (u.tipo !== 'admin') {
 		const sol = await buscarSolicitacaoAssinatura(db, id);
-		if (!sol) return json({ error: 'Nenhuma solicitação ativa' }, { status: 404 });
+		if (!sol) return notFound('Solicitação');
 
 		const podeCancel =
 			sol.solicitante_id === u.id ||
 			(u.papel === 'admin_unidade' && u.lotacao === escala.lotacao) ||
 			u.papel === 'admin_seccional';
 
-		if (!podeCancel) return json({ error: 'Sem permissão para cancelar' }, { status: 403 });
+		if (!podeCancel) return forbidden('Sem permissão para cancelar');
 	}
 
 	await excluirSolicitacaoAssinatura(db, id);

@@ -7,27 +7,24 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
 import { giseIdParamSchema } from '$lib/schemas';
+import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 
-export const POST = async ({ locals, params, platform }: RequestEvent) => {
-	const u = locals.usuario;
-	if (!isAdminGeral(u)) {
-		return json({ error: 'Apenas o Administrador Geral pode reabrir escalas GISE' }, { status: 403 });
-	}
+export const POST: RequestHandler = async ({ locals, params, platform }) => {
+	const u = requireAdmin(locals);
+	if (u instanceof Response) return u;
 
 	const parsed = giseIdParamSchema.safeParse(params);
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
+	if (!parsed.success) return badRequest(parsed.error.issues[0].message);
+
 	const { id } = parsed.data;
 
 	const db = getDB(platform);
 	const gise = await buscarGiseEscala(db, id);
-	if (!gise) return json({ error: 'Escala GISE não encontrada' }, { status: 404 });
+	if (!gise) return notFound('Escala GISE');
 
 	if (
 		gise.status !== 'em_andamento' &&
@@ -36,7 +33,7 @@ export const POST = async ({ locals, params, platform }: RequestEvent) => {
 		gise.status !== 'pronta_para_finalizar' &&
 		gise.status !== 'finalizada'
 	) {
-		return json({ error: 'Apenas escalas em andamento ou finalizadas podem ser reabertas' }, { status: 400 });
+		return badRequest('Apenas escalas em andamento ou finalizadas podem ser reabertas');
 	}
 
 	// Cache invalidation: ao reabrir, supervisor + membros voltam a ter papel
