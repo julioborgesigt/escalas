@@ -106,7 +106,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos' });
 		}
 
-		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo));
+		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
 
 		if (resultado === 'expirado') {
 			return fail(401, { error: 'Código expirado. Faça login novamente.', expirado: true });
@@ -119,9 +119,6 @@ export const actions: Actions = {
 		}
 
 		const { tipo, usuarioId } = resultado;
-		if (tipo !== 'admin' && tipo !== 'policial') {
-			return fail(403, { error: 'Código inválido para login. Faça login novamente.', esgotado: true });
-		}
 
 		let primeiroAcesso = false;
 		if (tipo === 'admin') {

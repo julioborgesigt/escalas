@@ -201,14 +201,14 @@ export const escalaSolicitacoesAssinatura = sqliteTable(
 			.notNull()
 			.references(() => policiais.id),
 		tipo: text('tipo', { enum: ['unidade', 'respondencia'] }).notNull(),
-		destinатario_id: integer('destinatario_id').references(() => policiais.id),
+		destinatario_id: integer('destinatario_id').references(() => policiais.id),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_esa_escala_id').on(table.escala_id),
-		index('idx_esa_destinatario_id').on(table.destinатario_id)
+		index('idx_esa_destinatario_id').on(table.destinatario_id)
 	]
 );
 
@@ -479,6 +479,8 @@ export const aceitesTermos = sqliteTable(
 		versao_termo: text('versao_termo').notNull(),
 		hash_termo: text('hash_termo').notNull(),
 		aceitou_lgpd: integer('aceitou_lgpd').notNull().default(0),
+		aceitou_uso_email: integer('aceitou_uso_email').notNull().default(0),
+		aceitou_uso_localizacao: integer('aceitou_uso_localizacao').notNull().default(0),
 		ip: text('ip'),
 		user_agent: text('user_agent'),
 		aceitou_em: text('aceitou_em').notNull().default(sql`(datetime('now', '-3 hours'))`)
