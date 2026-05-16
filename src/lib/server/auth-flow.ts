@@ -11,7 +11,8 @@ import {
 	criarSessao,
 	gerarCodigo2FA,
 	criarDesafio2FA,
-	compararSegredoUtf8TimingSafe
+	compararSegredoUtf8TimingSafe,
+	SESSION_TTL_MS
 } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
@@ -47,14 +48,21 @@ export function mascararEmail(email: string): string {
 	return masked + '@' + maskedDomain;
 }
 
-/** Opções de cookie de sessão pós-login (httpOnly, sameSite, secure). */
+/**
+ * Opções de cookie de sessão pós-login (httpOnly, sameSite, secure).
+ *
+ * `maxAge` é alinhado com `SESSION_TTL_MS` (8h) e estendido implicitamente:
+ * cada validação de sessão que cruza o threshold sliding atualiza
+ * `sessoes.expires_at` no banco. O cookie em si é renovado quando o navegador
+ * recebe um novo `Set-Cookie` (ex.: pós-login, pós-2FA, pós-troca de senha).
+ */
 export function cookieOptions(url: URL) {
 	return {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'strict' as const,
 		secure: url.protocol === 'https:',
-		maxAge: 60 * 60
+		maxAge: Math.floor(SESSION_TTL_MS / 1000)
 	};
 }
 

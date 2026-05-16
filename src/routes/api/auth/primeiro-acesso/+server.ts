@@ -11,8 +11,12 @@ import { getDB } from '$lib/db';
 import { criarTokenRedefinicao } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import { policiais, loginAttempts } from '$lib/server/schema';
-import { and, count, eq, gt } from 'drizzle-orm';
+import { policiais } from '$lib/server/schema';
+import { and, eq } from 'drizzle-orm';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/recovery-rate-limit';
 
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
@@ -33,18 +37,18 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 		message: 'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá o link por e-mail.'
 	});
 
-	// Rate limit por IP
-	const windowIp = new Date(Date.now() - JANELA_IP_MINUTOS * 60 * 1000).toISOString();
-	const [ipCount] = await db
-		.select({ n: count() })
-		.from(loginAttempts)
-		.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
-
-	if ((ipCount?.n ?? 0) >= MAX_TENTATIVAS_IP) {
+	// Rate limit em recovery_attempts (isolado de login_attempts).
+	const limite = await contarRecoveryAttempts(
+		db,
+		ip,
+		'primeiro_acesso',
+		JANELA_IP_MINUTOS,
+		MAX_TENTATIVAS_IP
+	);
+	if (limite.blocked) {
 		return respostaGenerica;
 	}
-
-	await db.insert(loginAttempts).values({ ip, success: 0 });
+	await registrarRecoveryAttempt(db, ip, 'primeiro_acesso');
 
 	const policial = await db
 		.select()

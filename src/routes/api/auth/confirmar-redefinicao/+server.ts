@@ -10,7 +10,11 @@ import { and, count, eq, gt } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarTokenRedefinicao, verificarDesafio2FA } from '$lib/auth';
 import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
-import { administradores, loginAttempts, policiais, resetSenhaTokens } from '$lib/server/schema';
+import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema';
+import {
+	contarRecoveryAttempts,
+	registrarRecoveryAttempt
+} from '$lib/server/recovery-rate-limit';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA =
@@ -42,17 +46,17 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	const db = getDB(platform);
 	const ip = getClientAddress();
 
-	const windowIp = new Date(Date.now() - JANELA_IP_MINUTOS * 60 * 1000).toISOString();
-	const [ipCount] = await db
-		.select({ n: count() })
-		.from(loginAttempts)
-		.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
-
-	if ((ipCount?.n ?? 0) >= MAX_TENTATIVAS_IP) {
+	const limite = await contarRecoveryAttempts(
+		db,
+		ip,
+		'confirmar_redefinicao',
+		JANELA_IP_MINUTOS,
+		MAX_TENTATIVAS_IP
+	);
+	if (limite.blocked) {
 		return json({ message: RESPOSTA_GENERICA });
 	}
-
-	await db.insert(loginAttempts).values({ ip, success: 0 });
+	await registrarRecoveryAttempt(db, ip, 'confirmar_redefinicao');
 
 	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['reset_policial', 'reset_admin']);
 

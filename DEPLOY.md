@@ -48,6 +48,69 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 
 - Binding `escalas_docs` em [`wrangler.toml`](wrangler.toml) — documentos e artefatos de assinatura dependem deste bucket.
 
+## ⚠️ Separação staging vs produção (PENDENTE)
+
+> **Risco aberto identificado pela auditoria.** Hoje `wrangler.toml` declara **um único** `[[d1_databases]]` e **um único** `[[r2_buckets]]`. O workflow faz `pages deploy --branch=staging` para PRs/staging, mas **as bindings apontam para o mesmo banco de produção**. Consequência: qualquer deploy em staging escreve no D1 real; rodar `npm run db:migrate:prod` da branch errada destrói dados de produção.
+
+### Como separar (recomendado antes do go-live)
+
+1. **Criar D1 e R2 dedicados ao staging:**
+
+	```bash
+	wrangler d1 create escalas-db-staging
+	wrangler r2 bucket create escalas-docs-staging
+	```
+
+	Anote os `database_id` retornados.
+
+2. **Editar `wrangler.toml` para usar environments:**
+
+	```toml
+	# wrangler.toml — exemplo após a separação
+	name = "escalas"
+	compatibility_date = "2026-04-01"
+	compatibility_flags = ["nodejs_compat"]
+	pages_build_output_dir = ".svelte-kit/cloudflare"
+
+	[env.production]
+	[[env.production.d1_databases]]
+	binding = "escalas_db"
+	database_name = "escalas-db"
+	database_id = "dc86ec72-..."  # ID atual (produção)
+	migrations_dir = "migrations"
+
+	[[env.production.r2_buckets]]
+	binding = "escalas_docs"
+	bucket_name = "escalas-docs"
+
+	[env.staging]
+	[[env.staging.d1_databases]]
+	binding = "escalas_db"
+	database_name = "escalas-db-staging"
+	database_id = "<ID-DO-STAGING>"
+	migrations_dir = "migrations"
+
+	[[env.staging.r2_buckets]]
+	binding = "escalas_docs"
+	bucket_name = "escalas-docs-staging"
+	```
+
+3. **Atualizar `scripts/migrate.ts`** para aceitar `--env staging|production` em vez de só `--remote`, e ajustar os scripts `npm run db:migrate*` correspondentes.
+
+4. **Atualizar `.github/workflows/deploy.yml`** para passar `--env staging` / `--env production` no `pages deploy` (ou usar projetos de Pages separados — `escalas` e `escalas-staging`).
+
+5. **Configurar variáveis de ambiente separadas** no Cloudflare Pages para staging (SENTRY_DSN com `SENTRY_ENVIRONMENT=staging`, GMAIL_* dedicado, etc.).
+
+6. **Sincronizar schema** do staging executando todas as migrações: `wrangler d1 migrations apply escalas-db-staging --env staging --remote`.
+
+7. **Validar**: deploy de teste para staging, conferir no Cloudflare Dashboard que o tráfego escreve no `escalas-db-staging`, não no `escalas-db`.
+
+### Mitigações enquanto a separação não é feita
+
+- Bloqueio temporário do script: NÃO rodar `npm run db:migrate:prod` da branch staging.
+- Adicionar guard no `scripts/migrate.ts` que exija confirmação `--yes` explícita quando `--remote`.
+- Comunicar a equipe que **toda escrita feita em staging persiste em produção**.
+
 ## Modelos do face-api (assets estáticos)
 
 O reconhecimento facial usado pelo `SignaturePad.svelte` carrega o modelo `tinyFaceDetector` de [`@vladmandic/face-api`](https://github.com/vladmandic/face-api). Os arquivos (`tiny_face_detector_model-weights_manifest.json` + `tiny_face_detector_model.bin`, ~196 KB) ficam **versionados em [`static/face-api/`](static/face-api/)** e são servidos pela CDN do Cloudflare Pages em `/face-api/`.
