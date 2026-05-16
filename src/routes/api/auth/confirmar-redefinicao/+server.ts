@@ -15,6 +15,7 @@ import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/recovery-rate-limit';
+import { badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA =
@@ -39,9 +40,7 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	const desafioId = String(body?.desafioId ?? '').trim();
 	const codigo = String(body?.codigo ?? '').trim();
 
-	if (!desafioId || !codigo) {
-		return json({ error: 'Dados inválidos' }, { status: 400 });
-	}
+	if (!desafioId || !codigo) return badRequest('Dados inválidos');
 
 	const db = getDB(platform);
 	const ip = getClientAddress();
@@ -60,15 +59,11 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 
 	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['reset_policial', 'reset_admin']);
 
-	if (resultado === 'expirado') {
-		return json({ error: 'Código expirado. Solicite um novo código.' }, { status: 400 });
-	}
+	if (resultado === 'expirado') return badRequest('Código expirado. Solicite um novo código.');
 	if (resultado === 'esgotado') {
-		return json({ error: 'Muitas tentativas incorretas. Solicite um novo código.' }, { status: 429 });
+		return rateLimited('Muitas tentativas incorretas. Solicite um novo código.');
 	}
-	if (!resultado) {
-		return json({ error: 'Código inválido' }, { status: 400 });
-	}
+	if (!resultado) return badRequest('Código inválido');
 
 	const tipo: TipoUsuarioReset = resultado.tipo === 'reset_policial' ? 'policial' : 'admin';
 	let usuario: UsuarioReset | null = null;

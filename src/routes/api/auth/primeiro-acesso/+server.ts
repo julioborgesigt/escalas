@@ -10,13 +10,13 @@ import type { RequestHandler } from './$types';
 import { getDB } from '$lib/db';
 import { criarTokenRedefinicao } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
-import { logger } from '$lib/server/logger';
 import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/recovery-rate-limit';
+import { apiError, ErrorCode, badRequest, serverError } from '$lib/server/api';
 
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
@@ -27,9 +27,7 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	const body = await request.json().catch(() => ({}));
 	const { matricula } = body;
 
-	if (!matricula || typeof matricula !== 'string') {
-		return json({ error: 'Matrícula inválida.' }, { status: 400 });
-	}
+	if (!matricula || typeof matricula !== 'string') return badRequest('Matrícula inválida.');
 
 	// Resposta genérica para não revelar se a matrícula existe
 	const respostaGenerica = json({
@@ -59,9 +57,11 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	if (!policial) return respostaGenerica;
 	if (policial.primeiro_acesso !== 1) return respostaGenerica;
 	if (!policial.email) {
-		return json(
-			{ error: 'Nenhum e-mail cadastrado para esta matrícula. Contate o administrador.' },
-			{ status: 422 }
+		// 422 Unprocessable: matrícula válida mas falta pré-requisito (e-mail).
+		return apiError(
+			'Nenhum e-mail cadastrado para esta matrícula. Contate o administrador.',
+			422,
+			ErrorCode.VALIDATION
 		);
 	}
 
@@ -71,14 +71,7 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	try {
 		await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);
 	} catch (err) {
-		logger.error('[primeiro-acesso] Falha ao enviar e-mail', {
-			policial_id: policial.id,
-			error: err instanceof Error ? err.message : String(err)
-		});
-		return json(
-			{ error: 'Falha ao enviar e-mail. Tente novamente ou contate o administrador.' },
-			{ status: 500 }
-		);
+		return serverError(`[primeiro-acesso] Falha ao enviar e-mail (policial_id=${policial.id})`, err);
 	}
 
 	return respostaGenerica;

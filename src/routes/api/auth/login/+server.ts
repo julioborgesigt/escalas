@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { tentarLogin, cookieOptionsLogin } from '$lib/server/auth-flow';
 import { loginSchema } from '$lib/schemas';
+import { apiError, ErrorCode, badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 const cookieOptions = cookieOptionsLogin;
@@ -12,9 +13,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	const body = await request.json();
 
 	const parsed = loginSchema.safeParse(body);
-	if (!parsed.success) {
-		return json({ error: parsed.error.issues[0].message }, { status: 400 });
-	}
+	if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
 	const { matricula, senha, tipo } = parsed.data;
 
@@ -27,9 +26,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		platform
 	});
 
-	if (!result.sucesso && result.statusCode === 429) {
-		return json({ error: result.erro }, { status: 429 });
-	}
+	if (!result.sucesso && result.statusCode === 429) return rateLimited(result.erro);
 
 	if (!result.sucesso && 'pendente2FA' in result) {
 		const p = result.pendente2FA;
@@ -43,7 +40,13 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	}
 
 	if (!result.sucesso) {
-		return json({ error: result.erro }, { status: result.statusCode });
+		// tentarLogin pode devolver 400 (validação), 401 (credenciais inválidas),
+		// 429 (rate-limit, já tratado acima) ou 500 (interno).
+		const code =
+			result.statusCode === 401 ? ErrorCode.AUTH_REQUIRED
+			: result.statusCode === 500 ? ErrorCode.INTERNAL
+			: ErrorCode.VALIDATION;
+		return apiError(result.erro, result.statusCode, code);
 	}
 
 	cookies.set('session_token', result.token, cookieOptions(url));
