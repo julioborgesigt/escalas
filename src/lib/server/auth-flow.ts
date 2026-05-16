@@ -70,13 +70,16 @@ export async function checkRateLimit(
 	db: Database,
 	ip: string
 ): Promise<{ blocked: boolean; remaining: number }> {
+	// Deve usar o mesmo IP anonimizado que recordAttempt grava — sem isso a
+	// consulta nunca encontra os registros e o rate limit fica inoperante.
+	const ipNormalized = anonimizarIp(ip) ?? ip;
 	/** Mesmo relógio/formato que `attempted_at` (default `datetime('now')` no SQLite). */
 	const desde = sql.raw(`datetime('now', '-${LOGIN_WINDOW_MINUTES} minutes')`);
 	const attempts = await db
 		.select()
 		.from(loginAttempts)
 		.where(
-			and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, desde), eq(loginAttempts.success, 0))
+			and(eq(loginAttempts.ip, ipNormalized), gt(loginAttempts.attempted_at, desde), eq(loginAttempts.success, 0))
 		)
 		.all();
 	const count = attempts.length;
