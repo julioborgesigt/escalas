@@ -60,4 +60,3 @@ com Sentry/logs.
 
 Nunca passe string livre como `errorType`. Se precisa de uma categoria
 nova, adicione ao enum `ErrorCode` em `src/lib/server/api.ts`.
-
