@@ -10,16 +10,7 @@ import { getDB } from '$lib/db';
 import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-
-function cookieOptions(url: URL) {
-	return {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax' as const,
-		secure: url.protocol === 'https:',
-		maxAge: 12 * 60 * 60
-	};
-}
+import { cookieOptions } from '$lib/server/auth-flow';
 
 export const POST = async ({ platform, request, cookies, url }: RequestEvent) => {
 	const db = getDB(platform);

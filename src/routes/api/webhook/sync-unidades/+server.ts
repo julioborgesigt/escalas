@@ -1,27 +1,8 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
-import { timingSafeEqual } from 'node:crypto';
-
-function bearerTokenValido(authHeader: string | null, expectedToken: string): boolean {
-	const expected = `Bearer ${expectedToken}`;
-	const a = Buffer.from((authHeader ?? '').padEnd(expected.length, ' ').slice(0, expected.length));
-	const b = Buffer.from(expected);
-	const valueMatch = timingSafeEqual(a, b) ? 1 : 0;
-	const lenMatch = (authHeader ?? '').length === expected.length ? 1 : 0;
-	return (valueMatch & lenMatch) === 1;
-}
-
-async function hmacSha256Valido(secret: string, body: string, sigHeader: string | null): Promise<boolean> {
-	if (!sigHeader?.startsWith('sha256=')) return false;
-	const expectedHex = sigHeader.slice(7);
-	const enc = new TextEncoder();
-	const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-	const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
-	const computedHex = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
-	if (computedHex.length !== expectedHex.length) return false;
-	return timingSafeEqual(Buffer.from(computedHex), Buffer.from(expectedHex));
-}
+import { validarWebhookSync } from '$lib/server/webhook-auth';
+import { logger } from '$lib/server/logger';
 
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
@@ -37,19 +18,15 @@ function trimCol(item: Record<string, unknown>, key: string): string {
 	return String(item[key] ?? '').trim();
 }
 
-export const POST: RequestHandler = async ({ request, platform }) => {
-	const SYNC_TOKEN = (platform?.env as { SYNC_TOKEN?: string })?.SYNC_TOKEN;
-	if (!SYNC_TOKEN) return json({ error: 'Não autorizado' }, { status: 401 });
-
+export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
 	const rawBody = await request.text();
-	const sigHeader = request.headers.get('X-Hub-Signature-256');
-	const authHeader = request.headers.get('Authorization');
-
-	const autorizado = sigHeader
-		? await hmacSha256Valido(SYNC_TOKEN, rawBody, sigHeader)
-		: bearerTokenValido(authHeader, SYNC_TOKEN);
-
-	if (!autorizado) {
+	const auth = await validarWebhookSync(SYNC_TOKEN, request, rawBody);
+	if (!auth.ok) {
+		logger.warn('[sync-unidades] auth rejeitada', {
+			ip: getClientAddress(),
+			reason: auth.reason
+		});
 		return json({ error: 'Não autorizado' }, { status: 401 });
 	}
 

@@ -1,4 +1,4 @@
-import { eq, and, gt, inArray } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import { sessoes, administradores, policiais, doisFatoresTokens, resetSenhaTokens } from './server/schema';
 import type { Database } from './db';
@@ -170,13 +170,23 @@ export async function gerarSenhaAleatoriaHash(): Promise<string> {
 	return `${PBKDF2_PREFIX}${salt}:${fakeHash}`;
 }
 
+/** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */
+export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+/**
+ * Threshold para evitar UPDATE em todo request. Só estende `expires_at` quando
+ * faltar menos que `SESSION_SLIDING_THRESHOLD_MS` do vencimento. Mantém o
+ * throughput sem perder a propriedade sliding (no pior caso, a sessão é
+ * estendida `SESSION_TTL_MS - threshold` antes do vencimento).
+ */
+export const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
+
 export async function criarSessao(
 	db: Database,
 	tipo: 'policial' | 'admin',
 	usuarioId: number
 ): Promise<string> {
 	const token = gerarToken();
-	const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+	const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 	await db.insert(sessoes).values({
 		token,
 		tipo,
@@ -192,13 +202,22 @@ export async function validarSessao(
 ): Promise<UsuarioLogado | null> {
 	if (!token) return null;
 
+	const now = Date.now();
 	const sessao = await db
 		.select()
 		.from(sessoes)
-		.where(and(eq(sessoes.token, token), gt(sessoes.expires_at, new Date().toISOString())))
+		.where(and(eq(sessoes.token, token), gt(sessoes.expires_at, new Date(now).toISOString())))
 		.get();
 
 	if (!sessao) return null;
+
+	// Sliding: se a sessão está perto de expirar, estende para now + SESSION_TTL_MS.
+	// Cap por threshold evita UPDATE em todo request.
+	const expiresAtMs = new Date(sessao.expires_at).getTime();
+	if (expiresAtMs - now < SESSION_TTL_MS - SESSION_SLIDING_THRESHOLD_MS) {
+		const novoExpiresAt = new Date(now + SESSION_TTL_MS).toISOString();
+		await db.update(sessoes).set({ expires_at: novoExpiresAt }).where(eq(sessoes.id, sessao.id));
+	}
 
 	// Query both tables in parallel — only one will match based on sessao.tipo
 	const [admin, policial] = await Promise.all([
@@ -241,29 +260,19 @@ export async function excluirSessao(db: Database, token: string): Promise<void> 
 }
 
 /**
- * Invalida todas as sessões do usuário, exceto a sessão atual.
- * Deve ser chamado após troca de senha para forçar re-login nos outros dispositivos.
+ * Invalida TODAS as sessões do usuário. Use após troca/redefinição de senha
+ * para forçar re-login em todos os dispositivos (inclusive o atual). O caller
+ * é responsável por emitir uma nova sessão e setar o cookie se quiser manter
+ * o usuário logado.
  */
-export async function invalidarOutrasSessoes(
+export async function invalidarTodasSessoes(
 	db: Database,
 	tipo: 'policial' | 'admin',
-	usuarioId: number,
-	tokenAtual: string
+	usuarioId: number
 ): Promise<void> {
-	// Buscar todas as sessões do usuário e excluir as que não são a atual
-	const todasSessoes = await db
-		.select({ id: sessoes.id, token: sessoes.token })
-		.from(sessoes)
-		.where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)))
-		.all();
-
-	const idsParaExcluir = todasSessoes
-		.filter((s) => s.token !== tokenAtual)
-		.map((s) => s.id);
-
-	if (idsParaExcluir.length > 0) {
-		await db.delete(sessoes).where(inArray(sessoes.id, idsParaExcluir));
-	}
+	await db
+		.delete(sessoes)
+		.where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
 }
 
 // ---- Autenticação de Dois Fatores ----
