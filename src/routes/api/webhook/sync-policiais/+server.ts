@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
 import { validarWebhookSync } from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
+import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 
 export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
 	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
@@ -15,7 +16,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			ip: getClientAddress(),
 			reason: auth.reason
 		});
-		return json({ error: 'Não autorizado' }, { status: 401 });
+		return unauthorized();
 	}
 
 	try {
@@ -109,12 +110,12 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			errorDetails: errors.length > 0 ? errors : undefined
 		});
 	} catch (err: unknown) {
-		return json(
-			{
-				error: 'Erro crítico no processamento',
-				details: err instanceof Error ? err.message : String(err)
-			},
-			{ status: 400 }
+		// 400 (não 500): payload do webhook é input inválido do caller, não bug
+		// interno. Preserva o behavior anterior + adiciona errorType VALIDATION.
+		return apiError(
+			`Erro crítico no processamento: ${err instanceof Error ? err.message : String(err)}`,
+			400,
+			ErrorCode.VALIDATION
 		);
 	}
 };
