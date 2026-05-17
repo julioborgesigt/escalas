@@ -14,7 +14,7 @@ import type { Database } from '$lib/db';
 describe('hashSenha (PBKDF2)', () => {
 	it('produz hash no formato pbkdf2v2:<iter>:<salt>:<hash>', async () => {
 		const hash = await hashSenha('minhaSenha');
-		expect(hash).toMatch(/^pbkdf2v2:600000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+		expect(hash).toMatch(/^pbkdf2v2:100000:[0-9a-f]{32}:[0-9a-f]{64}$/);
 	});
 
 	it('gera salt diferente para cada chamada (mesmo input)', async () => {
@@ -91,7 +91,12 @@ describe('isHashLegado', () => {
 		expect(isHashLegado('pbkdf2v1:abc123:def456')).toBe(true);
 	});
 
-	it('identifica hash PBKDF2 v2 (600k) como atual', () => {
+	it('identifica hash PBKDF2 v2 como atual (qualquer iter ≥ 100k)', () => {
+		// Formato v2 com iter explícito — 100k é o piso operacional do
+		// Cloudflare Pages Functions; valores maiores estouram CPU.
+		expect(isHashLegado('pbkdf2v2:100000:abc123:def456')).toBe(false);
+		// Garante que iter futuros maiores (caso o sistema migre para
+		// Workers Paid) também sejam aceitos.
 		expect(isHashLegado('pbkdf2v2:600000:abc123:def456')).toBe(false);
 	});
 });
@@ -284,7 +289,7 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 describe('gerarSenhaAleatoriaHash', () => {
 	it('retorna hash PBKDF2 v2 válido', async () => {
 		const hash = await gerarSenhaAleatoriaHash();
-		expect(hash).toMatch(/^pbkdf2v2:600000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+		expect(hash).toMatch(/^pbkdf2v2:100000:[0-9a-f]{32}:[0-9a-f]{64}$/);
 	});
 
 	it('gera hashes diferentes a cada chamada', async () => {

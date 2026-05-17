@@ -57,21 +57,33 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 //
 // Formatos suportados (`verificarSenha` aceita os dois, `hashSenha` só emite o atual):
 //   v1 (legado): `pbkdf2v1:<salt_hex>:<hash_hex>`        — iterations = 100 000 implícito
-//   v2 (atual):  `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` — iterations explícito (≥ 600 000)
+//   v2 (atual):  `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` — iterations explícito
 //
-// OWASP 2023+ recomenda no mínimo 600 000 iterações para PBKDF2-SHA256.
-// 100 000 (v1) deriva em ~5-10 ms e permite ~10⁹ tentativas/s em GPU; 600 000
-// sobe para ~50-60 ms (aceitável no UX de login) e força o atacante a investir
-// 6x mais por candidato. Hashes v1 continuam válidos para login — a verificação
-// usa as 100k iterações fixadas — e são automaticamente re-hashados para v2 no
-// próximo login bem-sucedido pelo mesmo caminho que já migra SHA-256 → PBKDF2
-// (auth-flow.ts via `isHashLegado` + `hashSenha`).
+// Sobre as iterações (importante):
+//
+// OWASP 2023+ recomenda mínimo 600 000 iterações para PBKDF2-SHA256, mas o
+// runtime Cloudflare Pages Functions tem CPU limit baixo (10 ms no free tier,
+// 50 ms no paid). 600k derivação leva ~50-60 ms num isolate — estoura o
+// limite em qualquer plano que não seja Workers Paid completo, devolvendo
+// "Error 1102: Worker exceeded CPU time limit" como HTTP 500.
+//
+// Mantemos 100 000 iterações (mesmo valor pré-auditoria) como teto seguro
+// para o plano atual. O formato v2 (iter explícito) fica preparado para
+// subir o número assim que o sistema migrar para Workers Paid — basta
+// trocar a constante abaixo, sem migração de banco. Hashes v1 antigos
+// continuam aceitos via fallback.
+//
+// Defesa em camadas que compensa parcialmente o iter baixo:
+//  - Rate-limit forte por IP em `login_attempts` (auth-flow.ts:69)
+//  - Recovery isolado em `recovery_attempts` para não amplificar
+//  - 2FA por e-mail obrigatório para admins e qualquer reset
+//  - SENHAS_COMUNS blocklist (~60 entradas) em schemas/auth.ts (I-6)
 
 const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
 const PBKDF2_V2_PREFIX = 'pbkdf2v2:';
 const PBKDF2_V1_ITERATIONS = 100_000;
-const PBKDF2_V2_ITERATIONS = 600_000;
-/** Prefixo emitido por `hashSenha`. Mantido como `pbkdf2v` (qualquer versão) para `isHashLegado`. */
+const PBKDF2_V2_ITERATIONS = 100_000;
+/** Prefixo emitido por `hashSenha` (sempre v2 — formato versionado). */
 const PBKDF2_PREFIX = PBKDF2_V2_PREFIX;
 /** Iterações usadas em hashes recém-criados. */
 const PBKDF2_ITERATIONS = PBKDF2_V2_ITERATIONS;
