@@ -15,6 +15,7 @@ import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinatura, embedSerproCms, extrairDadosCertificado } from '$lib/server/pdf-signing';
 import { verificarECarimbarAssinatura } from '$lib/server/cades-finalizer';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { normalizarTexto } from '$lib/utils';
 
 export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
 	const u = requireAuth(locals);
@@ -58,11 +59,12 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 		let nomeAssinante = u.nome;
 		let cpfAssinante = u.cpf || '';
 
+		let dadosToken: { nome: string; cpf: string } | null = null;
 		if (serproCms) {
 			signedPdf = await embedSerproCms(preparedPdfBytes, serproCms);
-			const dados = extrairDadosCertificado(serproCms);
-			nomeAssinante = dados.nome;
-			cpfAssinante = dados.cpf;
+			dadosToken = extrairDadosCertificado(serproCms);
+			nomeAssinante = dadosToken.nome;
+			cpfAssinante = dadosToken.cpf;
 		} else {
 			// Sem SERPRO CMS, exigimos os 4 campos do fluxo Web PKI (signature + certificate
 			// + messageDigest + signingTime). Antes a ausência crashava em runtime; agora
@@ -79,9 +81,32 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 				messageDigestHex,
 				signingTimeISO
 			);
-			const dados = extrairDadosCertificado(certificate);
-			nomeAssinante = dados.nome;
-			cpfAssinante = dados.cpf;
+			dadosToken = extrairDadosCertificado(certificate);
+			nomeAssinante = dadosToken.nome;
+			cpfAssinante = dadosToken.cpf;
+		}
+
+		// Defesa adicional (A-5): o certificado precisa pertencer ao usuário
+		// logado. Sem isto, qualquer admin com acesso físico/lógico a um token
+		// de terceiro poderia produzir uma assinatura "em nome de" alguém,
+		// preservando a aparência jurídica mas burlando a accountability.
+		// O Admin Geral (`u.cpf == null` no schema) está dispensado — ele
+		// assume o papel institucional de assinante de gestão.
+		if (u.tipo !== 'admin' && dadosToken) {
+			const cpfLogado = u.cpf || '';
+			if (!cpfLogado) {
+				return badRequest(
+					'Seu cadastro não possui CPF — não é possível validar a propriedade do certificado. Contate o administrador.'
+				);
+			}
+			if (dadosToken.cpf !== cpfLogado) {
+				return badRequest('O token não pertence ao usuário logado (CPF incompatível).');
+			}
+			const nomeLogado = normalizarTexto(u.nome);
+			const nomeToken = normalizarTexto(dadosToken.nome);
+			if (nomeLogado && nomeToken && nomeToken !== nomeLogado) {
+				return badRequest('O token não pertence ao usuário logado (Nome incompatível).');
+			}
 		}
 
 		// Validação criptográfica + OCSP + extração de metadados (CAdES-LT).

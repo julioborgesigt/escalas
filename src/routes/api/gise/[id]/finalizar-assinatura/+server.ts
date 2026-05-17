@@ -92,14 +92,20 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 			const cpfLogado = u.cpf || '';
 			const cpfToken = dadosToken.cpf;
 
-			if (cpfLogado && cpfToken !== cpfLogado) {
+			// Sessão sem CPF cadastrado NÃO pode assinar com certificado de
+			// terceiro. Antes, `if (cpfLogado && ...)` silenciava a checagem
+			// quando o usuário logado não tinha CPF — bastava o nome bater
+			// por coincidência (após normalização) para o token alheio passar.
+			if (!cpfLogado) {
+				return badRequest(
+					'Seu cadastro não possui CPF — não é possível validar a propriedade do certificado. Contate o administrador.'
+				);
+			}
+			if (cpfToken !== cpfLogado) {
 				return badRequest('O token não pertence ao usuário logado (CPF incompatível).');
 			}
 			if (nomeLogado && nomeToken !== nomeLogado) {
-				// Permite uma margem de manobra se o CPF bater, mas se ambos falharem, bloqueia
-				if (!cpfLogado) {
-					return badRequest('O token não pertence ao usuário logado (Nome incompatível).');
-				}
+				return badRequest('O token não pertence ao usuário logado (Nome incompatível).');
 			}
 		}
 

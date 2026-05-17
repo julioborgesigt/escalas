@@ -4,6 +4,7 @@ import { getDB, getR2, hasR2, buscarGiseModeloFormulario, buscarRespostaGise, sa
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
+import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { parseRespostasFormularioJsonLoose, parseRespostasFormularioJsonStrict } from '$lib/schemas/gise-respostas-form';
 import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
@@ -394,19 +395,12 @@ export const actions: Actions = {
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {
 			const r2 = getR2(platform);
-			const regex = /^data:image\/(jpeg|png|jpg);base64,/;
-			const matches = selfieBase64.match(regex);
-			if (matches) {
-				const ext = matches[1] === 'png' ? 'png' : 'jpg';
-				const dataBase64 = selfieBase64.replace(regex, '');
-				const bytes = Buffer.from(dataBase64, 'base64');
-
-				const [yyyy, mm, dd] = gise.data_inicio.split('-');
-				const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
-				selfieKey = `${folder}/presenca_${u.id}_entrada.${ext}`;
-
-				await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
-			}
+			const [yyyy, mm, dd] = gise.data_inicio.split('-');
+			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+			// Helper compartilhado: valida magic bytes, limita 5 MB e usa UUID
+			// na chave para esconder o `policial_id` da URL do R2.
+			const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
+			if (r.ok) selfieKey = r.key;
 		}
 
 		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
@@ -454,19 +448,10 @@ export const actions: Actions = {
 		let selfieKey: string | undefined = undefined;
 		if (hasR2(platform) && selfieBase64) {
 			const r2 = getR2(platform);
-			const regex = /^data:image\/(jpeg|png|jpg);base64,/;
-			const matches = selfieBase64.match(regex);
-			if (matches) {
-				const ext = matches[1] === 'png' ? 'png' : 'jpg';
-				const dataBase64 = selfieBase64.replace(regex, '');
-				const bytes = Buffer.from(dataBase64, 'base64');
-
-				const [yyyy, mm, dd] = giseOrig.data_inicio.split('-');
-				const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
-				selfieKey = `${folder}/presenca_${u.id}_saida.${ext}`;
-
-				await r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } });
-			}
+			const [yyyy, mm, dd] = giseOrig.data_inicio.split('-');
+			const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/selfies`;
+			const r = await uploadSelfieDataUri(r2, folder, selfieBase64);
+			if (r.ok) selfieKey = r.key;
 		}
 
 		await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);

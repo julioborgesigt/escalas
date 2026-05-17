@@ -19,6 +19,7 @@ import {
 } from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { getR2 } from '$lib/server/platform';
+import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -184,25 +185,12 @@ export const POST: RequestHandler = async ({
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			const r2Promises: Promise<any>[] = [
-				r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' })
-			];
-
+			await r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' });
 			if (selfieBase64) {
-				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
-				const matches = selfieBase64.match(regex);
-				if (matches) {
-					const ext = matches[1] === 'png' ? 'png' : 'jpg';
-					const dataBase64 = selfieBase64.replace(regex, '');
-					const bytes = Buffer.from(dataBase64, 'base64');
-					selfieKey = `${prefixBase}_selfie.${ext}`;
-					r2Promises.push(
-						r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } })
-					);
-				}
+				// Helper compartilhado: valida magic bytes, limita 5 MB, chave UUID.
+				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);
+				if (r.ok) selfieKey = r.key;
 			}
-
-			await Promise.all(r2Promises);
 		}
 
 		await salvarAssinaturaRelatorioGise(db, {

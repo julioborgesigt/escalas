@@ -6,12 +6,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarSolicitacao, listarSolicitacoesPorUsuario } from '$lib/db/lgpd-solicitacoes';
-import { requireAuth, badRequest } from '$lib/server/api';
-
-const TIPOS_VALIDOS = [
-	'acesso', 'correcao', 'anonimizacao', 'portabilidade',
-	'eliminacao', 'informacao_compartilhamento', 'revogacao_consentimento', 'oposicao'
-] as const;
+import { requireAuth, validateBody } from '$lib/server/api';
+import { novaSolicitacaoTitularSchema } from '$lib/schemas';
 
 export const GET: RequestHandler = async ({ platform, locals }) => {
 	const u = requireAuth(locals);
@@ -26,25 +22,20 @@ export const POST: RequestHandler = async ({ platform, locals, request }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	let body: Record<string, unknown>;
-	try {
-		body = await request.json();
-	} catch {
-		return badRequest('JSON inválido');
-	}
-
-	const tipo_direito = String(body.tipo_direito ?? '');
-	if (!TIPOS_VALIDOS.includes(tipo_direito as any)) {
-		return badRequest(`tipo_direito inválido. Use: ${TIPOS_VALIDOS.join(', ')}`);
-	}
+	// Schema Zod: enum fechado em `tipo_direito` (8 valores LGPD), limite de
+	// 5000 chars em `descricao`. Bloqueia mass-assignment de `solicitante_*`
+	// — esses campos sempre vêm da sessão.
+	const v = await validateBody(request, novaSolicitacaoTitularSchema);
+	if (!v.ok) return v.response;
+	const { tipo_direito, descricao } = v.data;
 
 	const db = getDB(platform);
 	const solicitacao = await criarSolicitacao(db, {
 		solicitante_tipo: u.tipo,
 		solicitante_id: u.id,
 		solicitante_nome: u.nome,
-		tipo_direito: tipo_direito as any,
-		descricao: body.descricao ? String(body.descricao) : null
+		tipo_direito,
+		descricao: descricao ?? null
 	});
 
 	await registrarAuditComContexto(db, {
@@ -55,9 +46,12 @@ export const POST: RequestHandler = async ({ platform, locals, request }) => {
 		detalhes: `Tipo: ${tipo_direito} · Prazo: ${solicitacao.prazo_resposta}`
 	});
 
-	return json({
-		ok: true,
-		solicitacao,
-		mensagem: `Solicitação registrada. Prazo de resposta: ${solicitacao.prazo_resposta} (15 dias úteis). Dúvidas: lgpd@pc.ce.gov.br`
-	}, { status: 201 });
+	return json(
+		{
+			ok: true,
+			solicitacao,
+			mensagem: `Solicitação registrada. Prazo de resposta: ${solicitacao.prazo_resposta} (15 dias úteis). Dúvidas: lgpd@pc.ce.gov.br`
+		},
+		{ status: 201 }
+	);
 };
