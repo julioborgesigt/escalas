@@ -50,6 +50,46 @@ test.describe('Rotas protegidas', () => {
 		const response = await request.get('/api/gise/1');
 		expect(response.status()).toBe(401);
 	});
+
+	// Regressão da P0.1 da auditoria: GET de documento assinado de escala
+	// passou a exigir permissão (verificarPermissaoEscala). Esses testes não
+	// validam o gate cross-lotação propriamente dito (precisaria de fixture
+	// de login), mas garantem que pelo menos o gate de autenticação
+	// continua presente — qualquer regressão que devolva 200 sem cookie
+	// quebra o build.
+	test('GET /api/escalas/[id]/documento-assinado exige autenticação', async ({ request }) => {
+		const response = await request.get('/api/escalas/1/documento-assinado');
+		expect(response.status()).toBe(401);
+		const body = await response.json();
+		expect(body.errorType).toBe('auth_required');
+	});
+
+	test('GET /api/gise/[id]/documento-assinado exige autenticação', async ({ request }) => {
+		const response = await request.get('/api/gise/1/documento-assinado');
+		expect(response.status()).toBe(401);
+		const body = await response.json();
+		expect(body.errorType).toBe('auth_required');
+	});
+
+	test('GET /api/gise/[id]/documento-assinado/info exige autenticação', async ({ request }) => {
+		const response = await request.get('/api/gise/1/documento-assinado/info');
+		expect(response.status()).toBe(401);
+		const body = await response.json();
+		expect(body.errorType).toBe('auth_required');
+	});
+
+	// Sanity-check do contrato de erro tipado (P0.2 — `errorType` deve estar
+	// presente em TODA resposta 4xx/5xx; CI guarda já impede regressão de
+	// `json({ error })` mas o E2E confirma de ponta a ponta.
+	test('respostas 401 trazem errorType tipado (contrato P0.2)', async ({ request }) => {
+		const response = await request.get('/api/policiais');
+		const body = await response.json();
+		expect(body).toMatchObject({
+			error: expect.any(String),
+			status: 401,
+			errorType: 'auth_required'
+		});
+	});
 });
 
 test.describe('Health check', () => {
