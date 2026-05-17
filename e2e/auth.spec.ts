@@ -93,12 +93,19 @@ test.describe('Rotas protegidas', () => {
 });
 
 test.describe('Health check', () => {
-	test('/api/health responde sem autenticação', async ({ request }) => {
+	test('/api/health responde sem autenticação (M-6: resposta mínima por default)', async ({ request }) => {
+		// Após M-6 da auditoria, a resposta pública é binária — `{ status: ok|down }`.
+		// Detalhe estruturado (checks individuais, timestamp) só com
+		// `?detail=<HEALTH_DETAIL_TOKEN>` válido, para não vazar topologia
+		// interna em reconhecimento. Monitoramento externo (que checa só o
+		// status code) continua funcionando.
 		const response = await request.get('/api/health');
+		expect(response.status()).toBe(200);
 		const body = await response.json();
-		expect(body.status).toBeDefined();
-		expect(body.checks).toBeDefined();
-		expect(body.timestamp).toBeDefined();
+		expect(body.status).toBe('ok');
+		// Defesa anti-reconnaissance: NÃO deve vazar estado individual.
+		expect(body.checks).toBeUndefined();
+		expect(body.timestamp).toBeUndefined();
 	});
 });
 
