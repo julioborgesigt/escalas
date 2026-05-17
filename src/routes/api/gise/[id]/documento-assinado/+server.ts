@@ -5,20 +5,18 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarGiseDocumento, reabrirGiseEscala } from '$lib/db';
+import { getDB, getR2, hasR2, buscarGiseDocumento, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
 import {
 	contentDisposition,
 	requireAuth,
 	requireAdmin,
 	badRequest,
 	notFound,
+	forbidden,
 	serverError
 } from '$lib/server/api';
+import { verificarPermissaoGise } from '$lib/server/gise-permissao';
 
-// TODO(audit P0.3): adicionar verificação de permissão GISE no GET — hoje
-// qualquer usuário autenticado pode baixar o PDF assinado de qualquer GISE
-// trocando o [id]. Mesmo padrão que foi corrigido em /api/escalas/[id]/
-// documento-assinado. Requer modelo de permissão GISE (papel + lotação).
 export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
@@ -27,6 +25,17 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
+
+	// Antes da P0.3 desta auditoria, GET só checava login: qualquer usuário
+	// autenticado conseguia baixar o PDF assinado de qualquer GISE trocando
+	// o [id]. Agora aplica o mesmo modelo de permissão usado por /download:
+	// admin, quadro de supervisão (supervisor/assessor/seint1/seint2) ou
+	// membro de equipe da própria GISE.
+	const gise = await buscarGiseEscala(db, id);
+	if (!gise) return notFound('Escala GISE');
+
+	const perm = await verificarPermissaoGise(db, gise, u);
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para acessar esta GISE.');
 
 	const documento = await buscarGiseDocumento(db, id);
 	if (!documento) return notFound('Documento assinado');

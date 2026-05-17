@@ -6,10 +6,11 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB } from '$lib/db';
+import { getDB, buscarGiseEscala } from '$lib/db';
 import * as schema from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, badRequest } from '$lib/server/api';
+import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
+import { verificarPermissaoGise } from '$lib/server/gise-permissao';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	const u = requireAuth(locals);
@@ -19,6 +20,17 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	if (isNaN(id)) return badRequest('ID inválido');
 
 	const db = getDB(platform);
+
+	// Antes da P0.3, qualquer usuário autenticado conseguia descobrir se uma
+	// GISE foi assinada + nome/CPF do assinante + hash de validação trocando
+	// o [id] — vazamento de PII e enumeração. Aplica a mesma permissão de
+	// download.
+	const gise = await buscarGiseEscala(db, id);
+	if (!gise) return notFound('Escala GISE');
+
+	const perm = await verificarPermissaoGise(db, gise, u);
+	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para acessar esta GISE.');
+
 	const doc = await db.select().from(schema.giseDocumentos).where(eq(schema.giseDocumentos.gise_id, id)).get();
 
 	if (!doc) {
