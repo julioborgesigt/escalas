@@ -57,6 +57,28 @@ jobs:
             exit 1
           fi
 
+      # Guard contra regressão da P0.1/P0.3 da auditoria: o GET de qualquer
+      # documento assinado (PDF + metadados) DEVE invocar o helper de
+      # permissão correto antes de devolver o recurso. Apenas requireAuth
+      # não basta — qualquer usuário autenticado conseguia baixar PDF de
+      # outra unidade. O grep abaixo confirma que cada rota crítica ainda
+      # importa o helper de permissão.
+      - name: Guard — permissão de documento assinado (P0.1 / P0.3)
+        run: |
+          set -e
+          check_imports() {
+            local file=$1
+            local helper=$2
+            if ! grep -q "$helper" "$file"; then
+              echo "::error file=$file::regressão de segurança — falta importar \"$helper\""
+              return 1
+            fi
+          }
+          check_imports src/routes/api/escalas/\[id\]/documento-assinado/+server.ts verificarPermissaoEscala
+          check_imports src/routes/api/gise/\[id\]/documento-assinado/+server.ts verificarPermissaoGise
+          check_imports src/routes/api/gise/\[id\]/documento-assinado/info/+server.ts verificarPermissaoGise
+          check_imports src/routes/api/gise/\[id\]/download/+server.ts verificarPermissaoGise
+
       - name: Apply D1 migrations (local, for E2E)
         run: npx wrangler d1 migrations apply escalas-db --local
 

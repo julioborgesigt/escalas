@@ -579,6 +579,22 @@ export const recoveryAttempts = sqliteTable(
 	]
 );
 
+/**
+ * Nonces já consumidos por webhooks de sync (P1.3 da auditoria — replay
+ * protection). Cada chamada de `/api/webhook/*` que envia X-Webhook-Nonce
+ * resulta em uma linha aqui; o PRIMARY KEY garante que uma segunda tentativa
+ * com o mesmo nonce falha por UNIQUE constraint. Limpeza periódica usa o
+ * índice em `received_at` para purgar nonces fora da janela.
+ */
+export const webhookNonces = sqliteTable(
+	'webhook_nonces',
+	{
+		nonce: text('nonce').primaryKey().notNull(),
+		received_at: text('received_at').notNull().default(sql`(datetime('now'))`)
+	},
+	(table) => [index('idx_webhook_nonces_received_at').on(table.received_at)]
+);
+
 // ---- Log de Auditoria ----
 
 export const auditLog = sqliteTable(

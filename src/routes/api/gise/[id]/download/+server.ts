@@ -6,6 +6,7 @@ import {
 	buscarAssinaturaRelatorioGise
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
+import { verificarPermissaoGise } from '$lib/server/gise-permissao';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
@@ -45,20 +46,12 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	const gise = await buscarGiseDetalhado(db, id);
 	if (!gise) return notFound('Escala GISE');
 
-	const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
-	const isMembro =
-		u.tipo === 'policial' &&
-		gise.seccionais.some((s) =>
-			s.unidades.some((unidade) =>
-				unidade.equipes.some((eq) => eq.membros.some((m) => m.policial_id === u.id))
-			)
-		);
-	const isQuadroSupervisao =
-		u.tipo === 'policial' &&
-		[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].some((pid) => pid === u.id);
-
-	if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor && !isMembro && !isQuadroSupervisao) {
-		return forbidden('Sem permissão para acessar downloads desta escala GISE.');
+	// GiseDetalhado estende GiseEscala — o helper enxerga supervisor_id,
+	// assessor_id, seint*_id direto e só dispara query extra de gise_membros
+	// se o usuário não for admin/quadro.
+	const perm = await verificarPermissaoGise(db, gise, u);
+	if (!perm.permitido) {
+		return forbidden(perm.motivo ?? 'Sem permissão para acessar downloads desta escala GISE.');
 	}
 
 	registrarAuditComContexto(db, {
@@ -117,7 +110,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		}
 
-		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO
+		// 2. Se NÃO existir assinatura, permitir apenas para admins/supervisores como RASCUNHO.
+		// Note: mais restritivo que verificarPermissaoGise — não libera para
+		// membros nem quadro de apoio (assessor/seint), só supervisor da GISE.
+		const isSupervisor = u.tipo === 'policial' && gise.supervisor_id === u.id;
 		if (!isAdminGeral(u) && !isAdminSeccional(u) && !isSupervisor) {
 			return forbidden('Este relatório ainda não foi assinado.');
 		}

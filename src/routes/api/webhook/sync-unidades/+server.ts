@@ -1,7 +1,11 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
-import { validarWebhookSync } from '$lib/server/webhook-auth';
+import {
+	validarWebhookSync,
+	validarReplayProtection,
+	replayEnforceLigado
+} from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 
@@ -20,7 +24,8 @@ function trimCol(item: Record<string, unknown>, key: string): string {
 }
 
 export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
-	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
+	const env = platform?.env as Env | undefined;
+	const SYNC_TOKEN = env?.SYNC_TOKEN;
 	const rawBody = await request.text();
 	const auth = await validarWebhookSync(SYNC_TOKEN, request, rawBody);
 	if (!auth.ok) {
@@ -29,6 +34,18 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			reason: auth.reason
 		});
 		return unauthorized();
+	}
+
+	// Replay protection (P1.3): mesmo padrão dos demais webhooks.
+	const replay = await validarReplayProtection(getDB(platform), request);
+	if (!replay.ok) {
+		const ctx = { ip: getClientAddress(), reason: replay.reason };
+		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
+			logger.info('[sync-unidades] sem headers de replay protection — rollout', ctx);
+		} else {
+			logger.warn('[sync-unidades] replay protection rejeitou', ctx);
+			return unauthorized();
+		}
 	}
 
 	try {

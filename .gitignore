@@ -39,6 +39,10 @@ backup/
 # Drizzle migrations (geradas por drizzle-kit)
 /drizzle
 
+# Playwright — artefatos de execução local (screenshots, traces, last-run)
+test-results/
+playwright-report/
+
 DPI_DATA_PLANTÃO_DADOS.xlsx
 AutomacaoEquipeExtras.gs
 DPI_DATA_PLANTÃO_DADOS.xlsx
