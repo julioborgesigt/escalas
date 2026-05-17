@@ -178,32 +178,34 @@ export async function tentarLogin({
 		const envSenha = _env?.ADMIN_GERAL_SENHA ?? '';
 
 		if (envLogin && envSenha && matricula === envLogin) {
-			// Credenciais de bootstrap: usadas apenas no setup inicial, antes de o admin
-			// ter e-mail configurado. Após o primeiro acesso completo, o bootstrap é
-			// desativado automaticamente para impedir que estas credenciais contornem o 2FA.
+			// Bootstrap one-shot: as credenciais de ambiente só funcionam para
+			// CRIAR o registro inicial do administrador. Assim que existir
+			// QUALQUER admin no banco com o login configurado, este caminho
+			// fica desabilitado — fechando a janela em que um admin sem e-mail
+			// (criado por script, em meio ao setup) podia continuar logando
+			// sem 2FA pelas credenciais de env.
+			//
+			// Recuperação de admin esquecido: usar o fluxo `/redefinir-senha`
+			// (envia link por e-mail), nunca reativar o bootstrap.
 			const envAdminExistente = await db
 				.select()
 				.from(administradores)
 				.where(eq(administradores.login, envLogin))
 				.get();
 
-			// Bootstrap é desativado assim que QUALQUER admin DB tem e-mail configurado,
-			// independente de primeiro_acesso. Antes, exigir `primeiro_acesso === 0` deixava
-			// uma janela em que um admin recém-criado mas que não completou o setup
-			// permitia que o bootstrap (sem 2FA) continuasse autenticando.
-			if (envAdminExistente?.email) {
-				// Setup concluído — bootstrap não é mais necessário. Recusar e logar.
+			if (envAdminExistente) {
 				logger.error(
-					'[security] Bootstrap bloqueado: admin já possui e-mail configurado. ' +
-						'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA das variáveis de ambiente.',
-					{ ip }
+					'[security] Bootstrap bloqueado: registro do admin já existe. ' +
+						'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA do ambiente e ' +
+						'use redefinição de senha por e-mail para recuperar acesso.',
+					{ ip, adminTemEmail: !!envAdminExistente.email }
 				);
 				await recordAttempt(db, ip, false);
 				await registrarAuditComContexto(db, {
 					usuario: null,
 					acao: 'falha_login',
 					entidade: 'admin',
-					detalhes: 'Tentativa de login via bootstrap bloqueada (setup já concluído)',
+					detalhes: 'Tentativa de login via bootstrap bloqueada (admin já existe)',
 					ip
 				});
 				return {
@@ -215,8 +217,9 @@ export async function tentarLogin({
 			}
 
 			logger.warn(
-				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
-					'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA após concluir o setup inicial.',
+				'[security] Bootstrap inicial do Admin Geral em execução. ' +
+					'Remova ADMIN_GERAL_LOGIN e ADMIN_GERAL_SENHA do ambiente IMEDIATAMENTE ' +
+					'após concluir o primeiro login — este caminho não será mais válido.',
 				{ ip }
 			);
 
@@ -237,31 +240,42 @@ export async function tentarLogin({
 				};
 			}
 
-			let envAdmin = envAdminExistente;
-			if (!envAdmin) {
-				const senhaHash = await hashSenha(crypto.randomUUID());
-				await db.insert(administradores).values({
-					login: envLogin,
-					nome: 'Administrador Geral',
-					senha: senhaHash,
-					primeiro_acesso: 0
-				});
-				envAdmin = await db.select().from(administradores).where(eq(administradores.login, envLogin)).get();
-			}
+			// Cria o admin inicial. Marca `primeiro_acesso = 1` para forçar a
+			// configuração de senha + e-mail pessoal verificado já no primeiro
+			// passo — depois disso, qualquer login deste admin passa pelo
+			// fluxo normal (com 2FA), e o `envAdminExistente` acima bloqueia
+			// novas tentativas de bootstrap.
+			const senhaHash = await hashSenha(crypto.randomUUID());
+			await db.insert(administradores).values({
+				login: envLogin,
+				nome: 'Administrador Geral',
+				senha: senhaHash,
+				primeiro_acesso: 1
+			});
+			const envAdmin = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.login, envLogin))
+				.get();
 			if (!envAdmin) {
 				return { sucesso: false, statusCode: 500, erro: 'Erro ao inicializar administrador.' };
 			}
 
 			await recordAttempt(db, ip, true);
 			const token = await criarSessao(db, 'admin', envAdmin.id);
+			// `primeiroAcesso: true` força o front a ir para `/alterar-senha`
+			// e completar a configuração de senha + e-mail pessoal verificado.
+			// Após isso, o `envAdminExistente` no topo deste branch bloqueia
+			// qualquer reuso do bootstrap, mesmo se as variáveis de ambiente
+			// permanecerem por engano.
 			return {
 				sucesso: true,
 				statusCode: 200,
 				token,
 				nome: envAdmin.nome,
-				primeiroAcesso: false,
+				primeiroAcesso: true,
 				role: 'admin',
-				formRedirect: isForm ? adminDestino(adminModulo) : undefined,
+				formRedirect: isForm ? '/alterar-senha' : undefined,
 				adminModuloCookie: isForm ? adminModulo : undefined
 			};
 		}
