@@ -21,7 +21,11 @@ import { count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
-import { SYNC_TOKEN_MIN_LEN } from '$lib/server/webhook-auth';
+import {
+	SYNC_TOKEN_MIN_LEN,
+	validarReplayProtection,
+	replayEnforceLigado
+} from '$lib/server/webhook-auth';
 import { apiError, ErrorCode, unauthorized, serverError } from '$lib/server/api';
 import {
 	policiais,
@@ -105,6 +109,21 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	}
 
 	const db = getDB(platform);
+
+	// Replay protection (P1.3): EXTRA crítica neste endpoint destrutivo.
+	// A janela X-Confirm-Reset de 24h é grande demais para defender sozinha;
+	// se SYNC+RESET vazarem, o atacante teria 24h para reenviar a mesma
+	// requisição inteira. O nonce + timestamp fecha isso em 5min.
+	const replay = await validarReplayProtection(db, request);
+	if (!replay.ok) {
+		const ctx = { ip, reason: replay.reason };
+		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
+			logger.warn('[reset-policiais] sem replay protection — rollout (alta sensibilidade)', ctx);
+		} else {
+			logger.warn('[reset-policiais] replay protection rejeitou', ctx);
+			return unauthorized();
+		}
+	}
 
 	// Snapshot pré-deleção. Útil para auditoria/recuperação forense.
 	let snapshot: Record<string, number>;

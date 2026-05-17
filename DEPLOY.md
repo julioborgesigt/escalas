@@ -19,6 +19,7 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 | `RESET_TOKEN` | **Apenas** se quiser permitir reset destrutivo | Segredo **separado**, distinto do `SYNC_TOKEN`, exigido por [`/api/webhook/reset-policiais`](src/routes/api/webhook/reset-policiais/+server.ts). Sem ele configurado, o endpoint sempre retorna 401 (fail-closed). |
 | `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login admin via env (ver [`api/auth/login`](src/routes/api/auth/login/+server.ts)) |
 | `SENTRY_*` / DSN | Se Sentry estiver ligado | Erros no worker (`@sentry/cloudflare`) |
+| `WEBHOOK_REPLAY_ENFORCE` | Após rollout (ver abaixo) | Quando truthy (`1`, `true`, `yes`, `on`), webhooks rejeitam requisições sem `X-Webhook-Timestamp` + `X-Webhook-Nonce`. Default: aceita por compatibilidade, mas loga `info` para cada chamada sem headers. |
 
 **Secrets sensíveis:** nunca commitar `.dev.vars` com valores reais; usar apenas localmente ou CI.
 
@@ -35,6 +36,25 @@ Apaga TODAS as tabelas operacionais (policiais, unidades, escalas, GISE, documen
 Antes de deletar, o endpoint registra no logger estruturado um snapshot com a contagem de linhas por tabela. Esse snapshot é devolvido na resposta e pode ser consultado em Workers Logs / Sentry para recuperação forense.
 
 **Operação recomendada:** disparar pelo menu da planilha (`scripts/GoogleAppsScript_Sync.gs` → "⚠️ ZERAR Banco de Dados"). Há dupla confirmação (botão + frase digitada) para evitar acidente. Ver setup em [Sincronização Google Sheets](#sincronização-google-sheets).
+
+### Replay protection dos webhooks (P1.3)
+
+Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) suportam dois headers extras para impedir reenvio de payload capturado:
+
+| Header | Valor |
+|--------|-------|
+| `X-Webhook-Timestamp` | Unix em segundos (10 dígitos), milissegundos (13 dígitos), ou ISO 8601. Servidor aceita janela de ±5 min (clock skew). |
+| `X-Webhook-Nonce` | Único por requisição, ≥16 chars. UUID v4 ou similar. Persistido em `webhook_nonces` (PRIMARY KEY) — reenvio do mesmo nonce devolve 401. |
+
+O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as chamadas a partir do `sendToAPI()`. **Republicar a Web App do Apps Script após o deploy é o que ativa a geração desses headers no caller.**
+
+#### Rollout em duas fases
+
+1. **Deploy do código (esta versão)**: servidor passa a aceitar e validar os headers quando presentes, mas **não exige**. Sem headers, vai um `info` no log dizendo "sem headers de replay protection — rollout".
+2. **Republicar a Apps Script**: passa a enviar os headers. Confirmar nos logs do Worker que toda chamada agora vem com timestamp+nonce.
+3. **Setar `WEBHOOK_REPLAY_ENFORCE=1`** no Cloudflare (Settings → Environment variables): qualquer chamada sem os headers passa a devolver 401. A partir daqui, replay protection está **obrigatório**.
+
+A limpeza periódica de `webhook_nonces` ainda não é automatizada. Como nonces fora da janela de 5min são inúteis para defender contra replay, qualquer cron simples (ex.: `DELETE FROM webhook_nonces WHERE received_at < datetime('now', '-1 hour');`) pode rodar via Cloudflare Cron Trigger no futuro.
 
 ## Banco de dados (D1)
 

@@ -3,12 +3,17 @@ import { getDB } from '$lib/db';
 import { upsertPolicial } from '$lib/db/policiais';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
-import { validarWebhookSync } from '$lib/server/webhook-auth';
+import {
+	validarWebhookSync,
+	validarReplayProtection,
+	replayEnforceLigado
+} from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 
 export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
-	const SYNC_TOKEN = (platform?.env as Env | undefined)?.SYNC_TOKEN;
+	const env = platform?.env as Env | undefined;
+	const SYNC_TOKEN = env?.SYNC_TOKEN;
 	const rawBody = await request.text();
 	const auth = await validarWebhookSync(SYNC_TOKEN, request, rawBody);
 	if (!auth.ok) {
@@ -17,6 +22,20 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			reason: auth.reason
 		});
 		return unauthorized();
+	}
+
+	// Replay protection (P1.3): roda APÓS HMAC para não gastar D1 com payloads
+	// não autenticados. Headers ausentes → comportamento controlado pela env
+	// WEBHOOK_REPLAY_ENFORCE (rollout staged: log only → enforce).
+	const replay = await validarReplayProtection(getDB(platform), request);
+	if (!replay.ok) {
+		const ctx = { ip: getClientAddress(), reason: replay.reason };
+		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
+			logger.info('[sync-policiais] sem headers de replay protection — rollout', ctx);
+		} else {
+			logger.warn('[sync-policiais] replay protection rejeitou', ctx);
+			return unauthorized();
+		}
 	}
 
 	try {
