@@ -63,12 +63,27 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		lotacao: p.lotacao
 	}));
 
-	return json({
-		policiais: enxuto,
-		total: result.total,
-		page: result.page,
-		limit: result.limit,
-		totalPages: result.totalPages
-	});
+	// `private` bloqueia qualquer cache compartilhado (essencial aqui — o escopo
+	// da query depende do usuário: policial comum só vê própria lotação, admins
+	// veem tudo). `Vary: Cookie` garante que, se a sessão trocar no mesmo
+	// browser (logout → login), o cache do browser seja invalidado naturalmente.
+	// 30s é curto o suficiente para que remoções/desativações de policiais
+	// fiquem visíveis rapidamente, e longo o suficiente para eliminar refetches
+	// de keystrokes repetidos em autocomplete.
+	return json(
+		{
+			policiais: enxuto,
+			total: result.total,
+			page: result.page,
+			limit: result.limit,
+			totalPages: result.totalPages
+		},
+		{
+			headers: {
+				'Cache-Control': 'private, max-age=30, stale-while-revalidate=120',
+				Vary: 'Cookie'
+			}
+		}
+	);
 };
 
