@@ -217,6 +217,26 @@ describe('alterarSenhaSchema', () => {
 		}
 	});
 
+	it('rejeita expansão pós-I-6 da blocklist (institucional + top breach)', () => {
+		// Amostra do conjunto expandido — não tenta cobrir tudo, só garantir
+		// que as categorias chave estão ativas:
+		const amostra = [
+			'Password123',     // top breach com variação capitalizada
+			'Policial2024',    // vocabulário institucional + ano
+			'Delegado2025',
+			'Plantao2024',
+			'Admin2026',
+			'Iloveyou1',       // rockyou clássico
+			'Qwerty123',
+			'00000000',
+			'11223344'
+		];
+		for (const senha of amostra) {
+			const result = alterarSenhaSchema.safeParse({ nova_senha: senha });
+			expect(result.success, `senha "${senha}" deveria ser bloqueada`).toBe(false);
+		}
+	});
+
 	it('aceita senha_atual opcional', () => {
 		const result = alterarSenhaSchema.safeParse({
 			nova_senha: 'Segura1x',

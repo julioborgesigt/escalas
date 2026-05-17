@@ -6,9 +6,39 @@ export const loginSchema = z.object({
 	tipo: z.enum(['policial', 'admin']).default('policial')
 });
 
+/**
+ * Lista negra de senhas inviáveis — comparada em lowercase. Cobre:
+ *  - Top 20 do leak SecLists (rockyou / HaveIBeenPwned top)
+ *  - Sequências numéricas óbvias
+ *  - Padrões de teclado (qwerty, asdfgh)
+ *  - Vocabulário institucional do contexto (policial, delegado, etc.) que
+ *    seria a primeira tentativa de um atacante focado neste sistema
+ *  - Variações com sufixo numérico curto (`senha1`, `admin12`) que passam
+ *    pelos critérios mínimos de força mas são triviais em dicionário
+ *
+ * NÃO é exaustiva — uma blocklist completa precisaria de listas externas
+ * de 1M+ entradas (Have I Been Pwned API). Esta serve como primeira
+ * camada (`refine` é O(1) em Set lookup) sem custo operacional.
+ */
 const SENHAS_COMUNS = new Set([
-	'12345678', '87654321', 'password', 'admin123', 'qwerty12',
-	'abc12345', '11111111', '00000000', 'policial', 'delegado'
+	// Sequências numéricas / repetições
+	'12345678', '123456789', '1234567890', '87654321', '01234567',
+	'11111111', '22222222', '33333333', '44444444', '55555555',
+	'66666666', '77777777', '88888888', '99999999', '00000000',
+	'12341234', '11223344', '11112222', '12121212',
+	// Top do rockyou / breach datasets
+	'password', 'password1', 'password12', 'password123', 'senha123',
+	'qwerty', 'qwerty12', 'qwerty123', 'qwertyui', 'asdfghjk',
+	'iloveyou', 'iloveyou1', 'iloveyou12', 'iloveyou123',
+	'princess', 'princess1', 'sunshine', 'sunshine1', 'football', 'baseball',
+	'welcome1', 'monkey12', 'dragon12', 'master12', 'letmein1',
+	'admin123', 'admin1234', 'administrador', 'admin2024', 'admin2025', 'admin2026',
+	'abc12345', 'abcd1234', 'abc123456', 'a1b2c3d4',
+	// Vocabulário institucional / regional (contexto Polícia Civil CE)
+	'policial', 'policial1', 'policial2024', 'policial2025', 'policial2026',
+	'delegado', 'delegado1', 'delegado2024', 'delegado2025',
+	'pccear', 'pccea2024', 'pccea2025', 'ceara123',
+	'plantao1', 'plantao2024', 'escala2024', 'escala2025'
 ]);
 
 export const alterarSenhaSchema = z.object({

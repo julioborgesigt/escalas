@@ -246,12 +246,24 @@ export const handle = sequence(handleSentry, handleCsrf, handleAuth, handleSecur
 export const handleError: HandleServerError = ({ error, event }) => {
 	const errorId = crypto.randomUUID().slice(0, 8);
 
+	// Stack trace fica apenas no Sentry (com sanitização do `sentryBeforeSend`).
+	// Antes, `import.meta.env.DEV && error.stack` colocava o stack inteiro no
+	// `logger.error` — se um deploy de produção fosse acidentalmente buildado
+	// com `MODE=development`, stacks vazariam para Cloudflare Logs (e Logpush
+	// downstream). Confirmamos ambas as flags (`DEV` + `!PROD` + MODE) para
+	// que SÓ um build local-dev autêntico inclua stack no logger; produção
+	// jamais, mesmo se uma das flags for tampered.
+	const isDevBuild =
+		import.meta.env.DEV &&
+		!import.meta.env.PROD &&
+		import.meta.env.MODE !== 'production';
+
 	logger.error('Erro não tratado', {
 		errorId,
 		path: event.url.pathname,
 		method: event.request.method,
 		message: error instanceof Error ? error.message : String(error),
-		...(import.meta.env.DEV && error instanceof Error && error.stack
+		...(isDevBuild && error instanceof Error && error.stack
 			? { stack: error.stack }
 			: {})
 	});
