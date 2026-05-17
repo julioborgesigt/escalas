@@ -9,7 +9,8 @@ import {
 	promoverPolicial
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
-import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
+import { isAdminGeral, isAdminSeccional, isAdminUnidade, isAnyAdmin } from '$lib/auth';
+import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -49,6 +50,13 @@ export const actions: Actions = {
 	salvar: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
+		// Sem este guard, qualquer policial autenticado podia POSTar `?/salvar`
+		// e modificar dados arbitrários de qualquer outro policial (nome,
+		// matrícula, cargo, lotação, email — o último é vetor de takeover
+		// porque o link de reset vai para `usuario.email`).
+		if (!isAnyAdmin(u)) {
+			return fail(403, { error: 'Sem permissão para editar policiais' });
+		}
 
 		const id = Number(params.id);
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
@@ -72,6 +80,23 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
+		const alvo = await buscarPolicial(db, id);
+		if (!alvo) return fail(404, { error: 'Policial não encontrado', fields: data });
+
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, alvo.lotacao)) {
+			return fail(403, { error: 'Sem permissão para editar este policial', fields: data });
+		}
+		// Bloqueia transferência para fora do escopo do administrador (impede
+		// admin_seccional/admin_unidade de "exportar" um policial e perder o
+		// controle sobre ele depois).
+		if (!lotacaoNoEscopo(escopo, data.lotacao)) {
+			return fail(403, {
+				error: 'Não é possível transferir o policial para fora das unidades sob sua administração',
+				fields: data
+			});
+		}
+
 		try {
 			await atualizarPolicial(db, id, { ...parsed.data, email: data.email ?? undefined });
 			return { success: true };

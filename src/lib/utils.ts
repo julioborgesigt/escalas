@@ -54,13 +54,23 @@ export function limparMatricula(matricula: string): string {
 }
 
 /**
- * Gera um código aleatório para validação de documentos impressos.
- * Ex: "ABCD-1234"
+ * Gera um código aleatório para validação de documentos impressos. Ex: "ABCD-1234".
+ *
+ * Usa `crypto.getRandomValues` (CSPRNG) — `Math.random` é o PRNG xorshift128+
+ * do V8, criptograficamente previsível: bastam 2 saídas para reconstruir o
+ * estado interno e prever as próximas. Como o código é a única chave da rota
+ * pública `/validar/[hash]` (sem autenticação), isso permitiria enumerar e
+ * baixar todos os PDFs assinados.
+ *
+ * O byte é mapeado por `byte % 32` em vez de rejection sampling: como o
+ * alfabeto tem exatamente 32 caracteres e 256 % 32 === 0, a distribuição é
+ * uniforme sem viés.
  */
 export function gerarCodigoValidacao(): string {
 	const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Sem O, I, 1, 0 para evitar confusão
-	const gen = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-	return `${gen(4)}-${gen(4)}`;
+	const bytes = crypto.getRandomValues(new Uint8Array(8));
+	const out = Array.from(bytes, (b) => chars[b % chars.length]).join('');
+	return `${out.slice(0, 4)}-${out.slice(4, 8)}`;
 }
 export function formatarTelefone(v: string): string {
 	if (!v) return '';
