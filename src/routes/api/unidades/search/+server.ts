@@ -30,8 +30,18 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		.orderBy(asc(unidades.nome))
 		.limit(limit);
 
-	return json({
-		items: rows
-	});
+	// `private` bloqueia cache em proxies/edge (defesa em profundidade — dados
+	// só visíveis a usuários autenticados). Browser cacheia 60s e serve stale
+	// por +300s enquanto revalida em background, eliminando o re-fetch a cada
+	// keystroke de autocomplete (typeahead). Unidades mudam raramente (sync
+	// via webhook), então 60s é seguro.
+	return json(
+		{ items: rows },
+		{
+			headers: {
+				'Cache-Control': 'private, max-age=60, stale-while-revalidate=300'
+			}
+		}
+	);
 };
 
