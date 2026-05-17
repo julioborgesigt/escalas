@@ -12,7 +12,14 @@
  * - Não substitui um parser HTML completo (a runtime do Cloudflare Workers
  *   não suporta jsdom/DOMPurify de forma trivial), mas cobre os vetores
  *   citados na auditoria: <script>, <style>, <iframe>, on*=, javascript:.
+ *
+ * Limite de tamanho (`MAX_INPUT_BYTES`): regex com `[\s\S]*?` pode degradar
+ * em backtracking sobre payload gigante sem fechamento. Como o termo real
+ * fica abaixo de ~50 KB, qualquer input acima de 256 KB é rejeitado por
+ * inteiro (retorna string vazia) — defesa anti-ReDoS sem ônus prático.
  */
+
+const MAX_INPUT_BYTES = 256 * 1024;
 
 /** Tags permitidas no termo. */
 const ALLOWED_TAGS = new Set([
@@ -36,8 +43,13 @@ const ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
 	li: new Set(['class'])
 };
 
-/** Schemes seguros para href. Bloqueia javascript:, data:, vbscript:, file:, etc. */
-const SAFE_HREF = /^(https?:\/\/|mailto:|\/|#)/i;
+/**
+ * Schemes seguros para href. Bloqueia javascript:, data:, vbscript:, file:,
+ * e protocol-relative URLs (`//attacker.com`). O `(?!\/)` após `/` garante
+ * que apenas paths absolutos same-origin (`/foo/bar`) passem, e não `//foo`
+ * que o navegador interpretaria como `https://foo` cross-origin.
+ */
+const SAFE_HREF = /^(https?:\/\/|mailto:|\/(?!\/)|#)/i;
 
 /**
  * Sanitiza o HTML do termo. Retorna string segura para `{@html}`.
@@ -49,6 +61,9 @@ const SAFE_HREF = /^(https?:\/\/|mailto:|\/|#)/i;
  *     atributos fora da allowlist.
  */
 export function sanitizeTermoHtml(input: string): string {
+	// Hard cap anti-ReDoS — payload maior que isto é descartado por inteiro.
+	if (input.length > MAX_INPUT_BYTES) return '';
+
 	// 1. Remove blocos perigosos COM conteúdo (caso o atacante feche corretamente)
 	const dangerousBlocks = /<(script|style|iframe|object|embed|svg|math|form|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 	let html = input.replace(dangerousBlocks, '');
