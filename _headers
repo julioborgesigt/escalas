@@ -6,12 +6,6 @@
 /face-api/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Logos e base64 estáticos da PCCE: mudam raramente.
-/logo_*
-  Cache-Control: public, max-age=604800
-/logogise.jpg
-  Cache-Control: public, max-age=604800
-
 # Boot script de tema/fontes — curto porque pode mudar entre deploys.
 /init.js
   Cache-Control: public, max-age=3600
