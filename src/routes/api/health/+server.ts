@@ -1,10 +1,26 @@
+/**
+ * GET /api/health — sonda de liveness/readiness.
+ *
+ * Resposta pública é binária (`200 ok` vs `503 down`) — antes devolvia
+ * `{ checks: { database, r2 } }` com o estado individual dos bindings,
+ * útil para reconnaissance: atacante mapeava qual peça da infra está
+ * fora e ajustava o alvo do DDoS. O detalhe estruturado continua
+ * disponível para o operador via `?detail=<HEALTH_DETAIL_TOKEN>`
+ * (segredo opcional via env).
+ */
+
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { getR2 } from '$lib/server/platform';
 import { sql } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
+import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 
-export const GET = async ({ platform }: RequestEvent) => {
+interface HealthEnv {
+	HEALTH_DETAIL_TOKEN?: string;
+}
+
+export const GET = async ({ platform, url }: RequestEvent) => {
 	const checks: Record<string, 'ok' | 'error'> = {};
 	let healthy = true;
 
@@ -32,8 +48,24 @@ export const GET = async ({ platform }: RequestEvent) => {
 		healthy = false;
 	}
 
-	return json(
-		{ status: healthy ? 'healthy' : 'degraded', checks, timestamp: new Date().toISOString() },
-		{ status: healthy ? 200 : 503 }
-	);
+	// Detalhe estruturado: só com `?detail=<HEALTH_DETAIL_TOKEN>` válido.
+	// Comparação timing-safe; min 16 chars para não permitir token fraco.
+	const env = (platform?.env ?? {}) as HealthEnv;
+	const detailToken = url.searchParams.get('detail') ?? '';
+	const wantDetail =
+		!!env.HEALTH_DETAIL_TOKEN &&
+		env.HEALTH_DETAIL_TOKEN.length >= 16 &&
+		compararSegredoUtf8TimingSafe(detailToken, env.HEALTH_DETAIL_TOKEN);
+
+	if (wantDetail) {
+		return json(
+			{ status: healthy ? 'healthy' : 'degraded', checks, timestamp: new Date().toISOString() },
+			{ status: healthy ? 200 : 503 }
+		);
+	}
+
+	// Resposta pública mínima: monitoramento externo continua funcionando
+	// (curl checa só o status code), atacante não aprende nada sobre a
+	// topologia interna.
+	return json({ status: healthy ? 'ok' : 'down' }, { status: healthy ? 200 : 503 });
 };

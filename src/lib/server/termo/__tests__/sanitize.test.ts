@@ -58,6 +58,21 @@ describe('sanitizeTermoHtml — vetores de ataque', () => {
 		expect(sanitizeTermoHtml('<a href="#secao">x</a>')).toContain('href="#secao"');
 	});
 
+	it('bloqueia href protocol-relative //evil.com (M-8)', () => {
+		// Browser interpreta `//evil.com` como `https://evil.com` se a página
+		// for servida via HTTPS — vazamento cross-origin.
+		const out = sanitizeTermoHtml('<a href="//evil.com">x</a>');
+		expect(out).not.toContain('href="//');
+		expect(out).toBe('<a>x</a>');
+	});
+
+	it('rejeita input acima do limite anti-ReDoS (M-8)', () => {
+		// 257 KB — acima do MAX_INPUT_BYTES (256 KB). Defesa contra
+		// payload sem fechamento que faria o regex backtrackingar.
+		const huge = '<p>' + 'a'.repeat(257 * 1024) + '</p>';
+		expect(sanitizeTermoHtml(huge)).toBe('');
+	});
+
 	it('remove tags fora da allowlist (input, button, form, etc.)', () => {
 		expect(sanitizeTermoHtml('<input type=text>')).toBe('');
 		// <form> é dangerous block — TODO o conteúdo é removido (mais conservador

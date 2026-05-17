@@ -45,13 +45,29 @@ function isCsrfExempt(pathname: string): boolean {
 	return false;
 }
 
-// Security headers aplicados em todas as respostas
+// Security headers aplicados em todas as respostas.
+//
+// Os três `Cross-Origin-*` formam uma proteção em camadas contra ataques de
+// vazamento por canal lateral (XS-Leaks, Spectre, COOP-bypass):
+//  - CORP `same-origin`: bloqueia outros sites de carregar nossos recursos
+//    em <img>/<script>/<link>. Impede que um atacante use timing/error
+//    feedback para inferir conteúdo autenticado.
+//  - COOP `same-origin`: isola este browsing context. Janelas/popups de
+//    origem cruzada não conseguem inspecionar `window` deste documento
+//    (defesa contra COOP-bypass que precede ataques tipo Spectre).
+//  - COEP `credentialless`: permite carregar recursos cross-origin sem
+//    cookies (em vez de `require-corp`, que quebraria fontes e scripts
+//    externos sem CORP próprio). Trade-off: garante isolamento sem
+//    obrigar todos os fornecedores externos a setarem CORP.
 const SECURITY_HEADERS: Record<string, string> = {
 	'X-Frame-Options': 'DENY',
 	'X-Content-Type-Options': 'nosniff',
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
-	'X-XSS-Protection': '1; mode=block'
+	'X-XSS-Protection': '1; mode=block',
+	'Cross-Origin-Resource-Policy': 'same-origin',
+	'Cross-Origin-Opener-Policy': 'same-origin',
+	'Cross-Origin-Embedder-Policy': 'credentialless'
 };
 
 /** 1. CSRF Layer: Double-submit cookie pattern verification */

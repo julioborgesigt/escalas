@@ -4,7 +4,8 @@ import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
 import {
 	validarWebhookSync,
 	validarReplayProtection,
-	replayEnforceLigado
+	replayEnforceLigado,
+	logFaltaReplayHeaders
 } from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
@@ -41,7 +42,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	if (!replay.ok) {
 		const ctx = { ip: getClientAddress(), reason: replay.reason };
 		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
-			logger.info('[sync-unidades] sem headers de replay protection — rollout', ctx);
+			logFaltaReplayHeaders('sync-unidades', ctx, import.meta.env.PROD);
 		} else {
 			logger.warn('[sync-unidades] replay protection rejeitou', ctx);
 			return unauthorized();
