@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidate } from '$app/navigation';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { loading } from '$lib/loading.svelte';
-	import { toaster } from '$lib/toast';
-	import { csrfHeaders } from '$lib/csrf';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import ModalRemoverSeccional from './modais/ModalRemoverSeccional.svelte';
-	import { makeEnhanceHandler } from '$lib/enhance-handler';
+	import { useGiseSeccionalActions } from '$lib/composables/gise';
 	import {
 		checkAllSigned,
 		getFaltandoRubrica,
@@ -63,11 +60,9 @@
 		onAssinarRelatorioDigital
 	}: Props = $props();
 
-	// Estado interno — nenhum destes precisava viver no pai
+	// Estado de UI (edição inline). Vive aqui porque é mutuamente exclusivo
+	// entre as equipes/slots renderizados pelo template deste componente.
 	let modoEdicaoSeccional = $state(false);
-	let pendingCrud = $state(false);
-	let dialogRemoverSeccionalAberto = $state(false);
-	let formRemoverSeccionalPendente = $state<HTMLFormElement | null>(null);
 
 	let editandoEquipe = $state<number | null>(null);
 	let editSlotsDpc = $state(0);
@@ -93,171 +88,45 @@
 	let adicionandoSlot = $state(false);
 	let novoSlotUnidadeId = $state<number | ''>('');
 
-	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
-		return async (query: string, signal: AbortSignal) => {
-			const params = new URLSearchParams({ cargo, limit: '50' });
-			if (query) params.set('q', query);
-			const res = await fetch(`/api/policiais/search?${params}`, { signal });
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
-				throw new Error(err.error ?? 'Erro na busca');
-			}
-			const data = (await res.json()) as {
-				policiais: { id: number; nome: string; matricula: string }[];
-			};
-			return data.policiais.map((p) => ({
-				value: p.id,
-				label: `${p.nome} (${p.matricula})`
-			}));
-		};
-	}
-
-	const buscarMembroAdicional = $derived(
-		cargoParaAdicionar ? buscarPorCargo(cargoParaAdicionar) : undefined
-	);
-
-	const setPending = (p: boolean) => (pendingCrud = p);
-
-	const handleFinalizarSeccional = makeEnhanceHandler<{ gise_status?: string }>({
-		setPending,
-		successTitle: (d) =>
-			d?.gise_status === 'aguardando_assinatura'
-				? 'Todas as seccionais finalizadas!'
-				: 'Seccional finalizada',
-		successDescription: (d) =>
-			d?.gise_status === 'aguardando_assinatura'
-				? 'Escala aguardando assinatura do Supervisor.'
-				: 'Aguardando demais seccionais.',
-		errorTitle: 'Erro ao finalizar',
-		onSuccess: () => {
+	// CRUD: `pendingCrud`, todos os `use:enhance` handlers, fluxo do modal de
+	// remover seccional e factory `buscarPorCargo` vivem no composable.
+	const actions = useGiseSeccionalActions({
+		onFinalizarSeccionalSuccess: () => {
 			modoEdicaoSeccional = false;
-		}
-	});
-
-	const handleSelecionarUnidade = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Unidade selecionada',
-		errorTitle: 'Erro ao selecionar',
-		onSuccess: () => {
+		},
+		onSelecionarUnidadeSuccess: () => {
 			selecionandoUnidadeSlotId = null;
 			slotUnidadeId = '';
-		}
-	});
-
-	const handleRemoverUnidade = makeEnhanceHandler({
-		setPending,
-		errorTitle: 'Erro ao remover DP'
-	});
-
-	const handleAdicionarEquipe = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Equipe adicionada',
-		errorTitle: 'Erro ao adicionar',
-		onSuccess: () => {
+		},
+		onAdicionarEquipeSuccess: () => {
 			adicionandoEquipe = false;
 			adicionandoEquipeSlotId = null;
-		}
-	});
-
-	const handleRemoverEquipe = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Equipe removida',
-		errorTitle: 'Erro ao remover'
-	});
-
-	const handleSalvarSlotsEquipe = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Vagas atualizadas',
-		errorTitle: 'Erro ao atualizar',
-		onSuccess: () => {
-			editandoEquipe = null;
-		}
-	});
-
-	const handleSalvarHorariosEquipe = makeEnhanceHandler({
-		setPending,
-		beforeSubmit: () => {
-			const horas = [editEqHoraEnt, editEqHoraSai].filter(Boolean);
-			if (horas.some((h) => !validarHora(h))) {
-				toaster.error({
-					title: 'Formato inválido',
-					description: 'Use o formato HH:MM, ex: 14:00'
-				});
-				return false;
-			}
-			return true;
 		},
-		successTitle: 'Horários da equipe atualizados',
-		errorTitle: 'Erro ao salvar',
-		onSuccess: () => {
+		onSalvarSlotsEquipeSuccess: () => {
+			editandoEquipe = null;
+		},
+		onSalvarHorariosEquipeSuccess: () => {
 			editandoHorariosEquipeId = null;
-		}
-	});
-
-	const handleAdicionarMembro = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Membro adicionado',
-		errorTitle: 'Erro ao adicionar membro',
-		onSuccess: () => {
+		},
+		onAdicionarMembroSuccess: () => {
 			equipeParaAdicionar = null;
 			policialParaAdicionar = '';
 			cargoParaAdicionar = null;
-		}
-	});
-
-	const handleRemoverMembro = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Membro removido',
-		errorTitle: 'Erro ao remover membro'
-	});
-
-	const handleAdicionarUnidade = makeEnhanceHandler({
-		setPending,
-		successTitle: 'Unidade adicionada',
-		errorTitle: 'Erro ao adicionar unidade',
-		onSuccess: () => {
+		},
+		onAdicionarUnidadeSuccess: () => {
 			novoSlotUnidadeId = '';
 			adicionandoSlot = false;
-		}
+		},
+		getHorariosEquipeFormulario: () => ({
+			entrada: editEqHoraEnt,
+			saida: editEqHoraSai
+		})
 	});
 
-	function handleRemoverSeccionalForm({
-		cancel,
-		formElement
-	}: {
-		cancel(): void;
-		formElement: HTMLFormElement;
-	}) {
-		cancel();
-		formRemoverSeccionalPendente = formElement;
-		dialogRemoverSeccionalAberto = true;
-	}
-
-	async function confirmarRemoverSeccional() {
-		if (!formRemoverSeccionalPendente) return;
-		pendingCrud = true;
-		const formData = new FormData(formRemoverSeccionalPendente);
-		try {
-			const res = await fetch(formRemoverSeccionalPendente.action, {
-				method: 'POST',
-				body: formData,
-				headers: csrfHeaders()
-			});
-			if (res.ok) {
-				dialogRemoverSeccionalAberto = false;
-				await invalidate('gise:detail');
-				toaster.success({ title: 'Seccional removida' });
-			} else {
-				const data = (await res.json().catch(() => ({}))) as { error?: string };
-				toaster.error({ title: String(data?.error || 'Erro ao remover') });
-			}
-		} catch {
-			toaster.error({ title: 'Erro ao remover seccional' });
-		} finally {
-			pendingCrud = false;
-			formRemoverSeccionalPendente = null;
-		}
-	}
+	const pendingCrud = $derived(actions.pendingCrud);
+	const buscarMembroAdicional = $derived(
+		cargoParaAdicionar ? actions.buscarPorCargo(cargoParaAdicionar) : undefined
+	);
 </script>
 
 {#snippet statusBadge(status: string, isSeccionalBadge = false)}
@@ -531,7 +400,7 @@
 				<form
 					method="POST"
 					action="?/removerSeccional"
-					use:enhance={handleRemoverSeccionalForm}
+					use:enhance={actions.handleRemoverSeccionalForm}
 					class="block"
 				>
 					<input type="hidden" name="secId" value={sec.id} />
@@ -627,7 +496,7 @@
 						<form
 							method="POST"
 							action="?/removerSeccional"
-							use:enhance={handleRemoverSeccionalForm}
+							use:enhance={actions.handleRemoverSeccionalForm}
 							class="block w-full"
 						>
 							<input type="hidden" name="secId" value={sec.id} />
@@ -709,7 +578,7 @@
 						<form
 							method="POST"
 							action="?/finalizarSeccional"
-							use:enhance={handleFinalizarSeccional}
+							use:enhance={actions.handleFinalizarSeccional}
 							class="contents"
 						>
 							<input type="hidden" name="secId" value={sec.id} />
@@ -805,7 +674,7 @@
 									<form
 										method="POST"
 										action="?/selecionarUnidade"
-										use:enhance={handleSelecionarUnidade}
+										use:enhance={actions.handleSelecionarUnidade}
 										class="flex-1 min-w-0"
 									>
 										<input type="hidden" name="slotId" value={slot.id} />
@@ -833,7 +702,7 @@
 									<form
 										method="POST"
 										action="?/removerUnidade"
-										use:enhance={handleRemoverUnidade}
+										use:enhance={actions.handleRemoverUnidade}
 										class="w-full sm:ml-auto sm:w-auto sm:flex sm:justify-end"
 									>
 										<input type="hidden" name="secId" value={sec.id} />
@@ -897,7 +766,7 @@
 									<form
 										method="POST"
 										action="?/removerUnidade"
-										use:enhance={handleRemoverUnidade}
+										use:enhance={actions.handleRemoverUnidade}
 										class="w-auto shrink-0 sm:self-start"
 									>
 										<input type="hidden" name="secId" value={sec.id} />
@@ -952,7 +821,7 @@
 									<form
 										method="POST"
 										action="?/removerUnidade"
-										use:enhance={handleRemoverUnidade}
+										use:enhance={actions.handleRemoverUnidade}
 										class="w-auto sm:min-w-0"
 									>
 										<input type="hidden" name="secId" value={sec.id} />
@@ -998,7 +867,7 @@
 											id="remover-equipe-form-{equipe.id}"
 											method="POST"
 											action="?/removerEquipe"
-											use:enhance={handleRemoverEquipe}
+											use:enhance={actions.handleRemoverEquipe}
 											class="hidden"
 											aria-hidden="true"
 										>
@@ -1058,7 +927,7 @@
 													<form
 														method="POST"
 														action="?/salvarSlotsEquipe"
-														use:enhance={handleSalvarSlotsEquipe}
+														use:enhance={actions.handleSalvarSlotsEquipe}
 														class="contents"
 													>
 														<input type="hidden" name="equipeId" value={equipe.id} />
@@ -1139,7 +1008,7 @@
 													<form
 														method="POST"
 														action="?/salvarHorariosEquipe"
-														use:enhance={handleSalvarHorariosEquipe}
+														use:enhance={actions.handleSalvarHorariosEquipe}
 														class="contents"
 													>
 														<input type="hidden" name="eqId" value={equipe.id} />
@@ -1264,7 +1133,7 @@
 													<form
 														method="POST"
 														action="?/removerMembro"
-														use:enhance={handleRemoverMembro}
+														use:enhance={actions.handleRemoverMembro}
 														class="ml-2"
 													>
 														<input type="hidden" name="memId" value={m.id} />
@@ -1291,7 +1160,7 @@
 										<form
 											method="POST"
 											action="?/adicionarMembro"
-											use:enhance={handleAdicionarMembro}
+											use:enhance={actions.handleAdicionarMembro}
 										>
 											<input type="hidden" name="secId" value={sec.id} />
 											<input type="hidden" name="equipe_id" value={equipeParaAdicionar} />
@@ -1449,7 +1318,7 @@
 									<form
 										method="POST"
 										action="?/adicionarEquipe"
-										use:enhance={handleAdicionarEquipe}
+										use:enhance={actions.handleAdicionarEquipe}
 										class="contents"
 									>
 										<input type="hidden" name="secId" value={sec.id} />
@@ -1531,7 +1400,7 @@
 						<form
 							method="POST"
 							action="?/adicionarUnidade"
-							use:enhance={handleAdicionarUnidade}
+							use:enhance={actions.handleAdicionarUnidade}
 							class="flex gap-2 shrink-0"
 						>
 							<input type="hidden" name="secId" value={sec.id} />
@@ -1578,8 +1447,8 @@
 </div>
 
 <ModalRemoverSeccional
-	open={dialogRemoverSeccionalAberto}
+	open={actions.dialogRemoverSeccionalAberto}
 	pending={pendingCrud}
-	onOpenChange={(open) => (dialogRemoverSeccionalAberto = open)}
-	onConfirm={confirmarRemoverSeccional}
+	onOpenChange={(open) => (actions.dialogRemoverSeccionalAberto = open)}
+	onConfirm={actions.confirmarRemoverSeccional}
 />
