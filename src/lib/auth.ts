@@ -45,11 +45,33 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 }
 
 // ---- Hashing de senha ----
+//
+// Formatos suportados (`verificarSenha` aceita os dois, `hashSenha` só emite o atual):
+//   v1 (legado): `pbkdf2v1:<salt_hex>:<hash_hex>`        — iterations = 100 000 implícito
+//   v2 (atual):  `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` — iterations explícito (≥ 600 000)
+//
+// OWASP 2023+ recomenda no mínimo 600 000 iterações para PBKDF2-SHA256.
+// 100 000 (v1) deriva em ~5-10 ms e permite ~10⁹ tentativas/s em GPU; 600 000
+// sobe para ~50-60 ms (aceitável no UX de login) e força o atacante a investir
+// 6x mais por candidato. Hashes v1 continuam válidos para login — a verificação
+// usa as 100k iterações fixadas — e são automaticamente re-hashados para v2 no
+// próximo login bem-sucedido pelo mesmo caminho que já migra SHA-256 → PBKDF2
+// (auth-flow.ts via `isHashLegado` + `hashSenha`).
 
-const PBKDF2_PREFIX = 'pbkdf2v1:';
-const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
+const PBKDF2_V2_PREFIX = 'pbkdf2v2:';
+const PBKDF2_V1_ITERATIONS = 100_000;
+const PBKDF2_V2_ITERATIONS = 600_000;
+/** Prefixo emitido por `hashSenha`. Mantido como `pbkdf2v` (qualquer versão) para `isHashLegado`. */
+const PBKDF2_PREFIX = PBKDF2_V2_PREFIX;
+/** Iterações usadas em hashes recém-criados. */
+const PBKDF2_ITERATIONS = PBKDF2_V2_ITERATIONS;
 
-async function derivarPBKDF2(senha: string, salt: Uint8Array<ArrayBuffer>): Promise<string> {
+async function derivarPBKDF2(
+	senha: string,
+	salt: Uint8Array<ArrayBuffer>,
+	iterations: number
+): Promise<string> {
 	const keyMaterial = await crypto.subtle.importKey(
 		'raw',
 		new TextEncoder().encode(senha) as BufferSource,
@@ -58,7 +80,7 @@ async function derivarPBKDF2(senha: string, salt: Uint8Array<ArrayBuffer>): Prom
 		['deriveBits']
 	);
 	const hashBuffer = await crypto.subtle.deriveBits(
-		{ name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+		{ name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
 		keyMaterial,
 		256
 	);
@@ -80,33 +102,55 @@ function toHex(bytes: Uint8Array): string {
 
 /**
  * Gera um hash seguro da senha usando PBKDF2 com salt aleatório.
- * Formato: `pbkdf2v1:<salt_hex>:<hash_hex>`
+ * Formato emitido: `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` (600 000 iterações).
  */
 export async function hashSenha(senha: string): Promise<string> {
 	const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
 	const saltHex = toHex(salt);
-	const hashHex = await derivarPBKDF2(senha, salt);
-	return `${PBKDF2_PREFIX}${saltHex}:${hashHex}`;
+	const hashHex = await derivarPBKDF2(senha, salt, PBKDF2_ITERATIONS);
+	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${saltHex}:${hashHex}`;
 }
 
 /**
  * Verifica se uma senha corresponde ao hash armazenado.
- * Suporta hashes PBKDF2 (novo) e SHA-256 legado (migração automática).
- * Com `db`, o prazo do legado vem de `configuracoes.auth.legacy_password_deadline` (cache 5 min).
+ * Suporta hashes PBKDF2 v1 (100k implícito, legado), v2 (iterações explícitas, atual)
+ * e SHA-256 sem salt (legado pré-PBKDF2, migração automática).
+ * Com `db`, o prazo do SHA-256 vem de `configuracoes.auth.legacy_password_deadline` (cache 5 min).
  */
 export async function verificarSenha(
 	senha: string,
 	storedHash: string,
 	db?: Database
 ): Promise<boolean> {
-	if (storedHash.startsWith(PBKDF2_PREFIX)) {
-		const parts = storedHash.slice(PBKDF2_PREFIX.length).split(':');
+	if (storedHash.startsWith(PBKDF2_V2_PREFIX)) {
+		// Formato: pbkdf2v2:<iter>:<salt_hex>:<hash_hex>
+		const parts = storedHash.slice(PBKDF2_V2_PREFIX.length).split(':');
+		if (parts.length !== 3) return false;
+		const [iterStr, saltHex, expectedHex] = parts;
+		const iter = parseInt(iterStr, 10);
+		// Sanity: iter precisa ser numérico positivo e dentro de uma janela
+		// razoável (impede DoS via iter gigante vindo de hash corrompido/banco
+		// adulterado).
+		if (!Number.isFinite(iter) || iter < PBKDF2_V1_ITERATIONS || iter > 10_000_000) return false;
+		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
+		if (!saltBytes) return false;
+		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
+		const actualHex = await derivarPBKDF2(senha, salt, iter);
+		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
+		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
+		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
+		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
+		return (hashMatch & lenMatch) === 1;
+	}
+	if (storedHash.startsWith(PBKDF2_V1_PREFIX)) {
+		// Formato legado: pbkdf2v1:<salt_hex>:<hash_hex>, iter = 100 000 implícito.
+		const parts = storedHash.slice(PBKDF2_V1_PREFIX.length).split(':');
 		if (parts.length !== 2) return false;
 		const [saltHex, expectedHex] = parts;
 		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
 		if (!saltBytes) return false;
 		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
-		const actualHex = await derivarPBKDF2(senha, salt);
+		const actualHex = await derivarPBKDF2(senha, salt, PBKDF2_V1_ITERATIONS);
 		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
 		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
 		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
@@ -123,12 +167,24 @@ export async function verificarSenha(
 	const data = new TextEncoder().encode(senha);
 	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 	const legacyHash = toHex(new Uint8Array(hashBuffer));
-	return legacyHash === storedHash;
+	// Timing-safe — espelha o tratamento do ramo PBKDF2 acima. Sem isto,
+	// `legacyHash === storedHash` vaza por timing-oracle byte-a-byte (legacy
+	// é SHA-256 sem salt, então um atacante com banco vazado poderia testar
+	// candidatos online via diferença de tempo de comparação de string).
+	const aBuf = Buffer.from(legacyHash.padEnd(64, '0').slice(0, 64));
+	const bBuf = Buffer.from(storedHash.padEnd(64, '0').slice(0, 64));
+	const hashMatch = timingSafeEqual(aBuf, bBuf) ? 1 : 0;
+	const lenMatch = legacyHash.length === storedHash.length ? 1 : 0;
+	return (hashMatch & lenMatch) === 1;
 }
 
-/** Retorna true se o hash armazenado é legado (SHA-256 sem salt) e precisa ser migrado */
+/**
+ * Retorna true se o hash armazenado deve ser migrado para o formato atual.
+ * Inclui SHA-256 sem salt (pré-PBKDF2) E PBKDF2 v1 (100k iterações — fraco
+ * para 2026). O auth-flow chama `hashSenha` para re-hashar quando true.
+ */
 export function isHashLegado(storedHash: string): boolean {
-	return !storedHash.startsWith(PBKDF2_PREFIX);
+	return !storedHash.startsWith(PBKDF2_V2_PREFIX);
 }
 
 export function gerarToken(): string {
@@ -165,9 +221,11 @@ export function compararSegredoUtf8TimingSafe(input: string, expected: string): 
 export async function gerarSenhaAleatoriaHash(): Promise<string> {
 	// Gera payload PBKDF2-formatado sem derivação pesada para evitar estouro de CPU.
 	// O hash não corresponde a senha real e continua inválido para autenticação.
+	// Emite no formato v2 (`pbkdf2v2:<iter>:<salt>:<hash>`) para não disparar
+	// re-hash desnecessário em `isHashLegado` quando o primeiro login real ocorrer.
 	const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
 	const fakeHash = toHex(crypto.getRandomValues(new Uint8Array(32)));
-	return `${PBKDF2_PREFIX}${salt}:${fakeHash}`;
+	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${salt}:${fakeHash}`;
 }
 
 /** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */

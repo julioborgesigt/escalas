@@ -1,6 +1,7 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
+import { timingSafeEqual } from 'node:crypto';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessao } from '$lib/auth';
 import { getDB, temAceiteVigente } from '$lib/db';
@@ -81,7 +82,19 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 		!isCsrfExempt(pathname)
 	) {
 		const headerToken = event.request.headers.get(CSRF_HEADER_NAME);
-		if (!headerToken || headerToken !== csrfToken) {
+		// Comparação timing-safe: o cookie é gerado por `crypto.getRandomValues`
+		// (64 hex chars), então o tamanho dos dois lados é estável. Mesmo assim,
+		// padronizamos por buffer de tamanho fixo e checamos len-match em
+		// constant time para evitar timing oracle byte-a-byte sobre o token.
+		const headerBuf = Buffer.from(headerToken ?? '', 'utf8');
+		const cookieBuf = Buffer.from(csrfToken, 'utf8');
+		const len = Math.max(headerBuf.length, cookieBuf.length, 1);
+		const a = Buffer.alloc(len);
+		const b = Buffer.alloc(len);
+		headerBuf.copy(a);
+		cookieBuf.copy(b);
+		const equal = timingSafeEqual(a, b) && headerBuf.length === cookieBuf.length;
+		if (!headerToken || !equal) {
 			return apiError('Token CSRF inválido ou ausente', 403, ErrorCode.CSRF);
 		}
 	}
