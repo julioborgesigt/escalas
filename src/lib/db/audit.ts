@@ -123,17 +123,42 @@ export async function registrarAuditComContexto(
 
 /**
  * Anonimiza endereços IP para conformidade com LGPD.
- * IPv4: zera o último octeto (ex: 192.168.1.42 → 192.168.1.0)
- * IPv6: zera os últimos 80 bits / 5 grupos (ex: 2001:db8::1 → 2001:db8::)
+ *
+ * - IPv4: zera o último octeto (`/24`), ex.: 192.168.1.42 → 192.168.1.0
+ * - IPv6: zera os últimos 64 bits (`/64`), ex.: 2001:db8::1 → 2001:db8::
+ *
+ * O `/64` (4 grupos preservados) é o equivalente em granularidade do `/24`
+ * em IPv4: identifica a rede do ISP/operadora, não o assinante. Antes, o
+ * código preservava 48 bits (3 grupos) — granularidade maior, ainda
+ * identificável em algumas correlações de log com outras bases.
+ *
+ * IPv6 com `::` (notação comprimida) é expandido antes do corte, para que
+ * `2001:db8::1` produza `2001:db8::` e não algo inválido como
+ * `2001:db8::1::`.
  */
 export function anonimizarIp(ip: string | null | undefined): string | null {
 	if (!ip) return null;
 	if (ip.includes(':')) {
-		// IPv6 — expande e zera últimos 5 grupos (80 bits)
 		try {
-			const parts = ip.split(':');
-			if (parts.length >= 3) {
-				return parts.slice(0, 3).join(':') + '::';
+			// Expansão da notação `::` em 8 grupos.
+			let parts: string[];
+			if (ip.includes('::')) {
+				const [head, tail] = ip.split('::');
+				const headParts = head ? head.split(':') : [];
+				const tailParts = tail ? tail.split(':') : [];
+				const zerosFaltando = 8 - headParts.length - tailParts.length;
+				if (zerosFaltando < 0) return null;
+				parts = [
+					...headParts,
+					...Array<string>(zerosFaltando).fill('0'),
+					...tailParts
+				];
+			} else {
+				parts = ip.split(':');
+			}
+			if (parts.length === 8) {
+				// Preserva 4 primeiros grupos (64 bits), zera os 4 últimos.
+				return parts.slice(0, 4).join(':') + '::';
 			}
 		} catch {
 			// fallback
