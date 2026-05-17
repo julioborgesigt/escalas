@@ -25,6 +25,7 @@ import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
+import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 
 export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
 	const u = requireAuth(locals);
@@ -158,21 +159,16 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			const r2Promises: Promise<any>[] = [r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' })];
+			await r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' });
 
 			if (selfieBase64) {
-				const regex = /^data:image\/(jpeg|png|jpg);base64,/;
-				const matches = selfieBase64.match(regex);
-				if (matches) {
-					const ext = matches[1] === 'png' ? 'png' : 'jpg';
-					const dataBase64 = selfieBase64.replace(regex, '');
-					const bytes = Buffer.from(dataBase64, 'base64');
-					selfieKey = `${prefixBase}_selfie.${ext}`;
-					r2Promises.push(r2.put(selfieKey, bytes, { httpMetadata: { contentType: `image/${ext}` } }));
-				}
+				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
+				// chave com UUID aleatório (não-enumerável). Falha silenciosa
+				// no upload por motivos defensivos não bloqueia a assinatura
+				// — a selfie é opcional aqui (flag `exigirFotoAssinatura`).
+				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);
+				if (r.ok) selfieKey = r.key;
 			}
-
-			await Promise.all(r2Promises);
 		}
 
 		await Promise.all([
