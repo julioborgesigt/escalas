@@ -23,3 +23,13 @@ export {
 	type AssinarSimplesEscalasInput,
 	type AssinarSimplesGiseInput
 } from './assinatura-pdf';
+export {
+	novoIncidenteSchema,
+	atualizarIncidenteSchema,
+	responderSolicitacaoSchema,
+	novaSolicitacaoTitularSchema,
+	type NovoIncidenteInput,
+	type AtualizarIncidenteInput,
+	type ResponderSolicitacaoInput,
+	type NovaSolicitacaoTitularInput
+} from './lgpd';

@@ -6,7 +6,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { registrarIncidente, listarIncidentes } from '$lib/db/lgpd-incidentes';
-import { requireAdmin, badRequest } from '$lib/server/api';
+import { requireAdmin, validateBody } from '$lib/server/api';
+import { novoIncidenteSchema } from '$lib/schemas';
 
 export const GET: RequestHandler = async ({ platform, locals }) => {
 	const u = requireAdmin(locals);
@@ -21,31 +22,30 @@ export const POST: RequestHandler = async ({ platform, locals, request }) => {
 	const u = requireAdmin(locals);
 	if (u instanceof Response) return u;
 
-	let body: Record<string, unknown>;
-	try {
-		body = await request.json();
-	} catch {
-		return badRequest('JSON inválido');
-	}
-
-	const campos = ['titulo', 'descricao', 'tipo_incidente', 'data_descoberta', 'dados_afetados', 'gravidade', 'responsavel_nome', 'responsavel_email'];
-	for (const c of campos) {
-		if (!body[c]) return badRequest(`Campo obrigatório: ${c}`);
-	}
+	// Antes: `Record<string, unknown>` cru + `String(body.X)` campo a campo.
+	// Sem schema Zod, valores fora dos enums (gravidade, tipo_incidente)
+	// virariam string arbitrária no banco; `usuarios_afetados_estimativa`
+	// aceitava qualquer coisa; `created_by_id` podia ser sobrescrito via
+	// mass-assignment (em vez de vir da sessão). Schema agora corta isso.
+	const v = await validateBody(request, novoIncidenteSchema);
+	if (!v.ok) return v.response;
+	const data = v.data;
 
 	const db = getDB(platform);
 	const incidente = await registrarIncidente(db, {
-		titulo: String(body.titulo),
-		descricao: String(body.descricao),
-		tipo_incidente: body.tipo_incidente as any,
-		data_ocorrencia: body.data_ocorrencia ? String(body.data_ocorrencia) : null,
-		data_descoberta: String(body.data_descoberta),
-		dados_afetados: String(body.dados_afetados),
-		usuarios_afetados_estimativa: body.usuarios_afetados_estimativa ? Number(body.usuarios_afetados_estimativa) : null,
-		gravidade: body.gravidade as any,
-		responsavel_nome: String(body.responsavel_nome),
-		responsavel_email: String(body.responsavel_email),
-		medidas_tomadas: body.medidas_tomadas ? String(body.medidas_tomadas) : null,
+		titulo: data.titulo,
+		descricao: data.descricao,
+		tipo_incidente: data.tipo_incidente,
+		data_ocorrencia: data.data_ocorrencia ?? null,
+		data_descoberta: data.data_descoberta,
+		dados_afetados: data.dados_afetados,
+		usuarios_afetados_estimativa: data.usuarios_afetados_estimativa ?? null,
+		gravidade: data.gravidade,
+		responsavel_nome: data.responsavel_nome,
+		responsavel_email: data.responsavel_email,
+		medidas_tomadas: data.medidas_tomadas ?? null,
+		// `created_by_*` vem SEMPRE da sessão — nunca do body. Mass-assignment
+		// blockado pelo schema (campos não declarados são strippados pelo Zod).
 		created_by_id: u.id,
 		created_by_nome: u.nome
 	});

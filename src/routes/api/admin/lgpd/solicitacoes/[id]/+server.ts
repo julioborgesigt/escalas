@@ -6,9 +6,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { buscarSolicitacao, responderSolicitacao } from '$lib/db/lgpd-solicitacoes';
-import { requireAdmin, badRequest, notFound, conflict } from '$lib/server/api';
-
-const STATUS_VALIDOS = ['em_analise', 'concluida', 'indeferida'] as const;
+import { requireAdmin, badRequest, notFound, conflict, validateBody } from '$lib/server/api';
+import { responderSolicitacaoSchema } from '$lib/schemas';
 
 export const GET: RequestHandler = async ({ platform, locals, params }) => {
 	const u = requireAdmin(locals);
@@ -31,18 +30,13 @@ export const PATCH: RequestHandler = async ({ platform, locals, params, request 
 	const id = Number(params.id);
 	if (isNaN(id)) return badRequest('ID inválido');
 
-	let body: Record<string, unknown>;
-	try {
-		body = await request.json();
-	} catch {
-		return badRequest('JSON inválido');
-	}
-
-	const status = String(body.status ?? '');
-	if (!STATUS_VALIDOS.includes(status as any)) {
-		return badRequest(`status inválido. Use: ${STATUS_VALIDOS.join(', ')}`);
-	}
-	if (!body.resposta) return badRequest('Campo obrigatório: resposta');
+	// Schema Zod: enum fechado em `status`, tamanho mínimo/máximo em
+	// `resposta`, rejeita campos extras (não dá pra sobrescrever
+	// `solicitante_id`/`prazo_resposta` via mass-assignment). Antes,
+	// `status as any` aceitava qualquer string e ia para o banco.
+	const v = await validateBody(request, responderSolicitacaoSchema);
+	if (!v.ok) return v.response;
+	const { status, resposta } = v.data;
 
 	const db = getDB(platform);
 	const solicitacao = await buscarSolicitacao(db, id);
@@ -51,7 +45,7 @@ export const PATCH: RequestHandler = async ({ platform, locals, params, request 
 		return conflict('Solicitação já encerrada');
 	}
 
-	const atualizada = await responderSolicitacao(db, id, status as any, String(body.resposta), u.nome);
+	const atualizada = await responderSolicitacao(db, id, status, resposta, u.nome);
 
 	await registrarAuditComContexto(db, {
 		usuario: u,
