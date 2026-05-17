@@ -16,7 +16,8 @@ import {
 	contarRecoveryAttempts,
 	registrarRecoveryAttempt
 } from '$lib/server/recovery-rate-limit';
-import { apiError, ErrorCode, badRequest, serverError } from '$lib/server/api';
+import { badRequest, serverError } from '$lib/server/api';
+import { logger } from '$lib/server/logger';
 
 const MAX_TENTATIVAS_IP = 5;
 const JANELA_IP_MINUTOS = 15;
@@ -54,15 +55,18 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 		.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial) return respostaGenerica;
-	if (policial.primeiro_acesso !== 1) return respostaGenerica;
-	if (!policial.email) {
-		// 422 Unprocessable: matrícula válida mas falta pré-requisito (e-mail).
-		return apiError(
-			'Nenhum e-mail cadastrado para esta matrícula. Contate o administrador.',
-			422,
-			ErrorCode.VALIDATION
-		);
+	// Anti-enumeração: TODAS as respostas de pré-requisitos devolvem a mesma
+	// resposta genérica de sucesso. Antes, ausência de e-mail era 422 com
+	// mensagem específica — diferenciava "matrícula existe" de "não existe",
+	// permitindo enumerar a base de policiais. A informação útil ("contate o
+	// administrador") agora fica no log estruturado para o operador.
+	if (!policial || policial.primeiro_acesso !== 1 || !policial.email) {
+		if (policial && !policial.email) {
+			logger.warn('[primeiro-acesso] matrícula sem e-mail cadastrado', {
+				policial_id: policial.id
+			});
+		}
+		return respostaGenerica;
 	}
 
 	const token = await criarTokenRedefinicao(db, 'policial', policial.id);
