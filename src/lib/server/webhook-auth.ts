@@ -14,6 +14,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { webhookNonces } from './schema';
+import { logger } from './logger';
 import type { Database } from '$lib/db';
 
 /** Comprimento mínimo aceito do SYNC_TOKEN (32 chars hex = 128 bits). */
@@ -207,4 +208,32 @@ export function replayEnforceLigado(env: unknown): boolean {
 	if (typeof raw !== 'string') return false;
 	const v = raw.trim().toLowerCase();
 	return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
+
+/**
+ * Loga falha de replay protection com nível adequado ao ambiente.
+ *
+ * Em produção, ausência de nonce/timestamp é um sinal forte (o sender
+ * deveria estar atualizado faz tempo) — escalado para `error` para
+ * disparar alerta no Sentry. Em dev/staging, fica `warn` e não polui o
+ * canal de produção.
+ *
+ * Caller deve usar este helper em vez de `logger.info` puro — o log
+ * antigo escondia o problema sob o radar.
+ */
+export function logFaltaReplayHeaders(
+	caller: string,
+	ctx: Record<string, unknown>,
+	isProduction: boolean
+): void {
+	const msg = `[${caller}] webhook sem headers de replay protection (X-Webhook-Timestamp/Nonce). ` +
+		'Atualize o sender e ligue WEBHOOK_REPLAY_ENFORCE.';
+	// `import.meta.env.PROD` fica embutido em build-time pelo Vite — o helper
+	// recebe explícito para facilitar teste e para evitar acoplamento ao Vite
+	// neste módulo server-only.
+	if (isProduction) {
+		logger.error(msg, ctx);
+	} else {
+		logger.warn(msg, ctx);
+	}
 }

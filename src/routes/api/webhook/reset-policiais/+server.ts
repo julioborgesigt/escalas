@@ -24,7 +24,8 @@ import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import {
 	SYNC_TOKEN_MIN_LEN,
 	validarReplayProtection,
-	replayEnforceLigado
+	replayEnforceLigado,
+	logFaltaReplayHeaders
 } from '$lib/server/webhook-auth';
 import { apiError, ErrorCode, unauthorized, serverError } from '$lib/server/api';
 import {
@@ -118,7 +119,8 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	if (!replay.ok) {
 		const ctx = { ip, reason: replay.reason };
 		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
-			logger.warn('[reset-policiais] sem replay protection — rollout (alta sensibilidade)', ctx);
+			// Endpoint destrutivo — sempre log alto, ignora isProduction.
+			logFaltaReplayHeaders('reset-policiais (alta sensibilidade)', ctx, true);
 		} else {
 			logger.warn('[reset-policiais] replay protection rejeitou', ctx);
 			return unauthorized();

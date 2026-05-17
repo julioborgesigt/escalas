@@ -6,7 +6,8 @@ import { unidades } from '$lib/server/schema';
 import {
 	validarWebhookSync,
 	validarReplayProtection,
-	replayEnforceLigado
+	replayEnforceLigado,
+	logFaltaReplayHeaders
 } from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
@@ -48,7 +49,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	if (!replay.ok) {
 		const ctx = { ip: getClientAddress(), reason: replay.reason };
 		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
-			logger.info('[sync-policiais] sem headers de replay protection — rollout', ctx);
+			logFaltaReplayHeaders('sync-policiais', ctx, import.meta.env.PROD);
 		} else {
 			logger.warn('[sync-policiais] replay protection rejeitou', ctx);
 			return unauthorized();
