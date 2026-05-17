@@ -31,8 +31,20 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	const db = getDB(platform);
+	const emailNormalizado = email.toLowerCase();
 
-	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['assinatura']);
+	// Tipo dedicado `verificacao_email` (I-2): se o desafio veio do canal de
+	// assinatura, é rejeitado aqui — fecha confused-deputy.
+	// `bindExtra = emailNormalizado` (I-1): o hash precisa bater contra o
+	// MESMO e-mail que recebeu o OTP. Se o usuário trocar o `email` no body
+	// entre solicitar e confirmar, o hash diverge → 'Código inválido'.
+	const resultado = await verificarDesafio2FA(
+		db,
+		desafioId,
+		codigo,
+		['verificacao_email'],
+		emailNormalizado
+	);
 
 	if (resultado === 'expirado') return badRequest('Código expirado. Solicite um novo código.');
 	if (resultado === 'esgotado') {
@@ -43,16 +55,16 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	// Garante que o token pertence ao usuário logado
 	if (resultado.usuarioId !== u.id) return forbidden('Token inválido');
 
-	// Persiste o e-mail pessoal verificado
+	// Persiste o e-mail pessoal verificado (normalizado).
 	if (u.tipo === 'admin') {
 		await db
 			.update(administradores)
-			.set({ email_pessoal: email, email_pessoal_verificado: 1 })
+			.set({ email_pessoal: emailNormalizado, email_pessoal_verificado: 1 })
 			.where(eq(administradores.id, u.id));
 	} else {
 		await db
 			.update(policiais)
-			.set({ email_pessoal: email, email_pessoal_verificado: 1 })
+			.set({ email_pessoal: emailNormalizado, email_pessoal_verificado: 1 })
 			.where(eq(policiais.id, u.id));
 	}
 

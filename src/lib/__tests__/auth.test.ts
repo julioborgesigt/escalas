@@ -200,6 +200,62 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 			.toEqual({ tipo: 'reset_admin', usuarioId: 42 });
 	});
 
+	it('NOVO canal `verificacao_email` é separado de `assinatura` (I-2)', async () => {
+		// Desafio criado no canal de verificação de e-mail NÃO pode ser
+		// submetido em canal de assinatura (e vice-versa).
+		const dbVerif = fakeDb(await makeRow('verificacao_email'));
+		expect(await verificarDesafio2FA(dbVerif, 'd1', '123456', ['assinatura']))
+			.toBeNull();
+
+		const dbAss = fakeDb(await makeRow('assinatura'));
+		expect(await verificarDesafio2FA(dbAss, 'd1', '123456', ['verificacao_email']))
+			.toBeNull();
+	});
+
+	it('bindExtra amarra o código ao e-mail (I-1)', async () => {
+		// Cria desafio amarrado a email_A. Verificar com email_B falha mesmo
+		// que o código esteja correto. Pré-requisito: o `codigo` do row de
+		// teste precisa ser o hash do `extra\x1fcodigo` esperado.
+		async function sha256HexBound(extra: string, codigo: string): Promise<string> {
+			const enc = new TextEncoder();
+			const buf = await crypto.subtle.digest(
+				'SHA-256',
+				enc.encode(`${extra}\x1f${codigo}`)
+			);
+			return Array.from(new Uint8Array(buf))
+				.map((b) => b.toString(16).padStart(2, '0'))
+				.join('');
+		}
+
+		const row: FakeRow = {
+			id: 1,
+			desafio_id: 'd1',
+			tipo: 'verificacao_email',
+			usuario_id: 42,
+			codigo: await sha256HexBound('a@b.com', '123456'),
+			expires_at: new Date(Date.now() + 60_000).toISOString(),
+			tentativas: 0,
+			usado: 0
+		};
+		const db = fakeDb(row);
+
+		// E-mail correto + código correto → ok.
+		expect(
+			await verificarDesafio2FA(db, 'd1', '123456', ['verificacao_email'], 'a@b.com')
+		).toEqual({ tipo: 'verificacao_email', usuarioId: 42 });
+
+		// E-mail trocado → null (mesmo código correto, hash diverge).
+		const db2 = fakeDb({
+			...row,
+			codigo: await sha256HexBound('a@b.com', '123456'),
+			tentativas: 0,
+			usado: 0
+		});
+		expect(
+			await verificarDesafio2FA(db2, 'd1', '123456', ['verificacao_email'], 'evil@evil.com')
+		).toBeNull();
+	});
+
 	it('retorna null para desafio inexistente', async () => {
 		const db = fakeDb(null);
 		const result = await verificarDesafio2FA(db, 'd1', '123456', ['policial']);
