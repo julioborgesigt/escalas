@@ -1,0 +1,110 @@
+# Dependabot — atualizações automatizadas de dependências.
+#
+# O bot abre Pull Requests automaticamente quando:
+#   1. Uma dependência tem vulnerabilidade conhecida (CVE / GitHub Advisory)
+#      → PR com label `dependencies` + `security`, prioridade alta.
+#   2. Uma dependência tem versão nova disponível (cadência semanal abaixo)
+#      → PR com label `dependencies`, prioridade normal.
+#
+# Toda PR ainda passa pelo CI normal (test + svelte-check + vitest + E2E).
+# Bot NÃO faz merge sozinho — você revisa, aprova e mergeia manualmente.
+#
+# Documentação: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+
+updates:
+  # ─── npm (package.json) ──────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Fortaleza"
+    # Limita a 5 PRs abertas ao mesmo tempo — evita fila gigante quando
+    # várias dependências atualizam no mesmo intervalo.
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Agrupa atualizações relacionadas em uma única PR para reduzir ruído.
+    # As regras abaixo cobrem ~80% das deps; o resto sai em PRs individuais.
+    groups:
+      # Ecossistema SvelteKit — atualizar junto para evitar incompatibilidade
+      # de tipos entre adapter, kit, e svelte.
+      svelte:
+        patterns:
+          - "@sveltejs/*"
+          - "svelte"
+          - "svelte-*"
+        # `patch` e `minor` agrupados; `major` sai sempre em PR isolada.
+        update-types:
+          - "patch"
+          - "minor"
+      # Tooling — vite, vitest, eslint, prettier, typescript.
+      tooling:
+        patterns:
+          - "vite"
+          - "vitest"
+          - "@vitest/*"
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "@typescript-eslint/*"
+          - "prettier"
+          - "prettier-*"
+          - "typescript"
+          - "tslib"
+        update-types:
+          - "patch"
+          - "minor"
+      # Tipos do TypeScript (@types/*) — quase nunca quebram, agrupar.
+      types:
+        patterns:
+          - "@types/*"
+        update-types:
+          - "patch"
+          - "minor"
+      # Cloudflare/wrangler — ecosistema relacionado.
+      cloudflare:
+        patterns:
+          - "wrangler"
+          - "@cloudflare/*"
+          - "miniflare"
+        update-types:
+          - "patch"
+          - "minor"
+    # Dependências que NÃO devem receber atualização automática.
+    # Bumps maior versão dessas exigem revisão manual extra.
+    ignore:
+      # node-forge: usado para validar certificados ICP-Brasil. Mudanças
+      # podem afetar interpretação de cadeia de certificados — testar
+      # exaustivamente antes de atualizar major.
+      - dependency-name: "node-forge"
+        update-types:
+          - "version-update:semver-major"
+      # pdf-lib / @signpdf: caminho crítico da assinatura digital.
+      # Updates major podem mudar formato de placeholder/embedSignature
+      # e quebrar PDFs já assinados.
+      - dependency-name: "pdf-lib"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@signpdf/*"
+        update-types:
+          - "version-update:semver-major"
+
+  # ─── GitHub Actions (.github/workflows/*.yml) ────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

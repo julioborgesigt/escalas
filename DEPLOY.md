@@ -183,6 +183,38 @@ Falhas bloqueiam staging e produção.
 
 **E2E local:** após clonar ou atualizar o Playwright, execute `npx playwright install` (ou `npx playwright install chromium`) para baixar o browser; sem isso, testes que usam `page` falham com “Executable doesn't exist”.
 
+## Dependabot (atualizações automatizadas)
+
+Configurado em `.github/dependabot.yml`. O bot do GitHub abre PRs automaticamente:
+
+- **Semanalmente (segundas, 06:00 BRT)**: novas versões de dependências npm.
+- **Mensalmente**: novas versões de actions do GitHub Actions.
+- **Imediatamente**: qualquer vulnerabilidade publicada que afete uma dependência atual (CVE / GitHub Advisory).
+
+PRs do bot:
+
+- Aparecem com label `dependencies` (+ `security` se for fix de CVE, `npm` ou `github-actions`).
+- Passam pelo CI normal — só mergeie depois que o job `test` ficar verde.
+- Vêm agrupadas por ecossistema (ex.: todas as `@sveltejs/*` numa PR só, `@types/*` em outra) para reduzir ruído.
+
+### Quando NÃO mergeiar direto
+
+O `dependabot.yml` ignora **upgrades major** de algumas dependências críticas:
+
+| Dependência | Por quê |
+|---|---|
+| `node-forge` | Mudança pode alterar validação de cadeia ICP-Brasil |
+| `pdf-lib` | Caminho da assinatura digital — pode quebrar PDFs já assinados |
+| `@signpdf/*` | Idem — placeholder/embed pode mudar formato |
+
+Para esses, qualquer upgrade major precisa ser feito manualmente após testar o fluxo de assinatura ponta-a-ponta em staging.
+
+### Boas práticas
+
+1. Para alertas de **vulnerabilidade**, mergeie em até 7 dias (24h se severidade `critical`).
+2. Para upgrades rotineiros, agrupe a revisão em uma única sessão semanal — evita PRs antigas quebrando contra mudanças recentes.
+3. Se uma PR do bot quebrar testes que **não são** da dependência atualizada, é sinal de teste frágil; abra issue separada antes de fechar a PR.
+
 ## Checklist rápido de release
 
 1. Migrações D1 aplicadas no ambiente alvo.
