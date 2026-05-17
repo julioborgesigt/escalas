@@ -124,6 +124,22 @@ export async function buscarPolicial(
 	return db.select().from(policiais).where(eq(policiais.id, id)).get();
 }
 
+/**
+ * Lookup por matrícula (já normalizada). Usado pelo webhook de sync para
+ * detectar se o registro já existe — e, com isso, preservar campos
+ * privilegiados que NÃO devem ser tocados pelo payload externo (papel).
+ */
+export async function buscarPolicialPorMatricula(
+	db: Database,
+	matricula: string
+): Promise<schema.Policial | undefined> {
+	return db
+		.select()
+		.from(policiais)
+		.where(eq(policiais.matricula, limparMatricula(matricula)))
+		.get();
+}
+
 export async function criarPolicial(
 	db: Database,
 	data: {
