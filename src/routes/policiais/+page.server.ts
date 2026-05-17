@@ -11,7 +11,8 @@ import {
 	registrarAuditComContexto
 } from '$lib/db';
 import { policialSchema } from '$lib/schemas/policial';
-import { gerarSenhaAleatoriaHash } from '$lib/auth';
+import { isAdminGeral, isAnyAdmin } from '$lib/auth';
+import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
@@ -66,6 +67,13 @@ export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
+		// Sem este guard, qualquer policial autenticado podia POSTar `?/criar`
+		// e cadastrar um colega na própria lotação — em conjunto com a entrada
+		// de `papel` no form, isso era escalada de privilégio (criava um
+		// `admin_seccional`/`admin_unidade` apontando para si).
+		if (!isAnyAdmin(u)) {
+			return fail(403, { error: 'Apenas administradores podem cadastrar policiais' });
+		}
 
 		const data = await request.formData();
 
@@ -79,14 +87,26 @@ export const actions: Actions = {
 		const lotacao = data.get('lotacao')?.toString() || '';
 		const email = data.get('email')?.toString() || null;
 		const emailPessoal = data.get('email_pessoal')?.toString() || null;
-		const papel = data.get('papel')?.toString() || null;
-		const papelUnidadeId = data.get('papel_unidade_id')
+		const papelRequisitado = data.get('papel')?.toString() || null;
+		const papelUnidadeIdRequisitado = data.get('papel_unidade_id')
 			? Number(data.get('papel_unidade_id'))
 			: null;
 
-		// Policial só pode cadastrar na sua lotação
-		if (u.tipo === 'policial' && lotacao !== u.lotacao) {
-			return fail(403, { error: 'Você só pode cadastrar policiais na sua lotação' });
+		// Apenas Admin Geral pode atribuir papel administrativo. Para os demais,
+		// ignoramos silenciosamente — o caminho legítimo é o endpoint dedicado
+		// `?/salvarPapel` (em /policiais/[id], guardado por `u.tipo === 'admin'`).
+		const papel = isAdminGeral(u) ? papelRequisitado : null;
+		const papelUnidadeId = isAdminGeral(u) ? papelUnidadeIdRequisitado : null;
+
+		const db = getDB(platform);
+
+		// Escopo: admin_unidade só cria na própria lotação; admin_seccional só
+		// dentro das unidades vinculadas à seccional dele.
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, lotacao)) {
+			return fail(403, {
+				error: 'Você só pode cadastrar policiais nas unidades sob sua administração'
+			});
 		}
 
 		const parsed = policialSchema.safeParse({
@@ -111,7 +131,6 @@ export const actions: Actions = {
 			});
 		}
 
-		const db = getDB(platform);
 		try {
 			await criarPolicial(db, {
 				...parsed.data,
@@ -142,7 +161,7 @@ export const actions: Actions = {
 	atualizar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+		if (!isAnyAdmin(u)) {
 			return fail(403, { error: 'Sem permissão para editar policiais' });
 		}
 
@@ -160,10 +179,36 @@ export const actions: Actions = {
 		const lotacao = data.get('lotacao')?.toString() || '';
 		const email = data.get('email')?.toString() || null;
 		const emailPessoal = data.get('email_pessoal')?.toString() || null;
-		const papel = data.get('papel')?.toString() || null;
-		const papelUnidadeId = data.get('papel_unidade_id')
+		const papelRequisitado = data.get('papel')?.toString() || null;
+		const papelUnidadeIdRequisitado = data.get('papel_unidade_id')
 			? Number(data.get('papel_unidade_id'))
 			: null;
+
+		const db = getDB(platform);
+
+		// Carrega o registro ANTES de validar para: (1) checar escopo do alvo,
+		// (2) preservar `papel`/`papel_unidade_id` atuais quando o caller não é
+		// Admin Geral (impede que admin_seccional/admin_unidade troque o papel
+		// de outro policial via este endpoint — o caminho legítimo é `?/salvarPapel`).
+		const policialAtual = await buscarPolicial(db, policialId);
+		if (!policialAtual) return fail(404, { error: 'Policial não encontrado' });
+
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, policialAtual.lotacao)) {
+			return fail(403, { error: 'Sem permissão para editar este policial' });
+		}
+		// Nova lotação também precisa estar no escopo — bloqueia transferência
+		// para fora da seccional/unidade do administrador.
+		if (!lotacaoNoEscopo(escopo, lotacao)) {
+			return fail(403, {
+				error: 'Não é possível transferir o policial para fora das unidades sob sua administração'
+			});
+		}
+
+		const papel = isAdminGeral(u) ? papelRequisitado : (policialAtual.papel ?? null);
+		const papelUnidadeId = isAdminGeral(u)
+			? papelUnidadeIdRequisitado
+			: (policialAtual.papel_unidade_id ?? null);
 
 		const parsed = policialSchema.safeParse({
 			nome,
@@ -185,10 +230,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const db = getDB(platform);
 		try {
-			const policialAtual = await buscarPolicial(db, policialId);
-			if (!policialAtual) return fail(404, { error: 'Policial não encontrado' });
 			const emailPessoalNormalizado = emailPessoal || null;
 			const emailPessoalVerificado =
 				(policialAtual.email_pessoal ?? null) === emailPessoalNormalizado
@@ -221,6 +263,7 @@ export const actions: Actions = {
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (!isAnyAdmin(u)) return fail(403, { error: 'Apenas administradores podem excluir policiais' });
 
 		const data = await request.formData();
 		const policialId = Number(data.get('policial_id'));
@@ -228,12 +271,14 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		if (u.tipo === 'policial') {
-			const { buscarPolicial } = await import('$lib/db');
-			const policial = await buscarPolicial(db, policialId);
-			if (policial && policial.lotacao !== u.lotacao) {
-				return fail(403, { error: 'Sem permissão' });
-			}
+		// Escopo do alvo: admin_seccional/unidade só apaga policiais sob sua
+		// administração. Admin Geral irrestrito.
+		const policial = await buscarPolicial(db, policialId);
+		if (!policial) return fail(404, { error: 'Policial não encontrado' });
+
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, policial.lotacao)) {
+			return fail(403, { error: 'Sem permissão para excluir este policial' });
 		}
 
 		await excluirPolicial(db, policialId);

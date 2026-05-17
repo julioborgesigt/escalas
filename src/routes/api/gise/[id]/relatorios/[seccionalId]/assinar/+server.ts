@@ -75,6 +75,17 @@ export const POST: RequestHandler = async ({
 		const gise = await buscarGiseDetalhado(db, giseIdNum);
 		if (!gise) return notFound('Escala');
 
+		// Mesma regra de `preparar-assinatura` e `finalizar-assinatura`: apenas
+		// o supervisor designado ou um Administrador Geral pode assinar o
+		// relatório extraordinário. Sem isto, qualquer policial autenticado
+		// podia POST direto neste endpoint com signerName/signerCpf arbitrário
+		// e produzir um relatório "assinado" em nome do supervisor.
+		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
+			return forbidden(
+				'Apenas o supervisor designado ou administradores podem assinar este relatório.'
+			);
+		}
+
 		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
 		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
