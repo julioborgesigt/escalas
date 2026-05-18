@@ -28,7 +28,25 @@ binários ficam em `https://acraiz.icpbrasil.gov.br/`.
 
 ### Procedimento (recomendado): script automatizado
 
-Em qualquer máquina Linux/macOS/WSL com `curl`, `openssl` e `unzip`:
+Há duas versões equivalentes — use a que corresponde ao seu ambiente:
+
+**Windows (PowerShell 5.1+ ou PowerShell Core 7+):**
+
+```powershell
+cd src/lib/server/icp-brasil
+.\update-trust-store.ps1
+git diff roots.pem intermediates.pem    # revise as mudanças
+git add roots.pem intermediates.pem
+git commit -m "chore(icp-brasil): atualiza trust store ($(Get-Date -Format yyyy-MM-dd))"
+```
+
+Não precisa de bash/curl/openssl/unzip externos — usa cmdlets nativos
+do PowerShell e `System.Security.Cryptography.X509Certificates.X509Certificate2`.
+
+> Se o PowerShell barrar a execução com erro de política, rode antes:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+**Linux/macOS/WSL (bash com `curl`, `openssl`, `unzip`):**
 
 ```sh
 cd src/lib/server/icp-brasil
@@ -38,10 +56,15 @@ git add roots.pem intermediates.pem
 git commit -m "chore(icp-brasil): atualiza trust store ($(date +%F))"
 ```
 
-O script baixa as raízes ativas (v5 e v10), o zip oficial das ACs
-intermediárias da ICP-Brasil, converte tudo para PEM, anota subject /
-validade / SHA-256 antes de cada certificado, e substitui os PEMs
-versionados. Idempotente — pode rodar de novo a qualquer momento.
+Os dois scripts são funcionalmente equivalentes: baixam as raízes
+ativas (v5 e v10), o zip oficial das ACs intermediárias, anotam
+subject / validade / SHA-256 antes de cada certificado, e substituem
+os PEMs versionados. Idempotentes — rode quando precisar atualizar.
+
+> **Aviso comum em Windows:** rodar `./update-trust-store.sh` no
+> PowerShell **não funciona** (PowerShell não executa `.sh`
+> nativamente). Use `.\update-trust-store.ps1` ou, se preferir o bash,
+> abra o "Git Bash" (vem com Git for Windows) na pasta e rode lá.
 
 ### Procedimento manual (fallback)
 

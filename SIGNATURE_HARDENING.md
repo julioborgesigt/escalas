@@ -115,17 +115,38 @@ A pasta `src/lib/server/icp-brasil/` tem `roots.pem` e `intermediates.pem`
 vazios. Em máquina com acesso à internet (não funciona no sandbox de
 agentes — precisa do ambiente da PCCE):
 
+**Windows (PowerShell):**
+
+```powershell
+cd src/lib/server/icp-brasil
+.\update-trust-store.ps1
+git diff roots.pem intermediates.pem
+git add roots.pem intermediates.pem
+git commit -m "chore(icp-brasil): popula trust store $(Get-Date -Format yyyy-MM-dd)"
+git push
+```
+
+> Se aparecer "execução de scripts foi desabilitada", rode antes:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+**Linux/macOS/WSL/Git Bash:**
+
 ```sh
 cd src/lib/server/icp-brasil
-./update-trust-store.sh   # baixa raízes + ZIP das ACs da ITI
-git diff roots.pem intermediates.pem   # confira mudanças
+./update-trust-store.sh
+git diff roots.pem intermediates.pem
 git add roots.pem intermediates.pem
 git commit -m "chore(icp-brasil): popula trust store $(date +%F)"
 git push
 ```
 
+> **Atenção Windows:** rodar `./update-trust-store.sh` no PowerShell
+> **não funciona** — PowerShell não executa `.sh` nativamente. Use o
+> `.ps1` acima ou abra Git Bash na pasta.
+
 Há também o workflow `.github/workflows/update-icp-brasil-trust-store.yml`
-que abre PR automaticamente todo dia 1 do mês.
+que abre PR automaticamente todo dia 1 do mês (roda no Ubuntu do GitHub
+Actions, usa o `.sh`).
 
 ### 2. Calcular o hash da PA-AD-RB v2.3
 
