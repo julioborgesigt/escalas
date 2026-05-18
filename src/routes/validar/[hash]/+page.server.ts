@@ -159,10 +159,15 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		});
 	}
 
-	// Resultado imutável: dados de assinatura não mudam após a criação.
-	// Cache no edge do Cloudflare por 1h; browser revalida após 60s.
+	// O documento (R2 blob) é imutável por hash, mas a PÁGINA de validação
+	// pode mudar de status — ex.: o certificado é revogado depois da assinatura,
+	// e o snapshot OCSP armazenado revela isso na próxima consulta. Por isso
+	// NÃO usamos `immutable` aqui (que diria ao browser para nunca revalidar):
+	//   - cache curto (60s) para evitar martelar D1 em F5 repetido
+	//   - revalidação obrigatória para refletir mudanças de status
+	//   - stale-while-revalidate de 5 min para latência baixa
 	setHeaders({
-		'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400'
+		'Cache-Control': 'public, max-age=60, must-revalidate, stale-while-revalidate=300'
 	});
 
 	// Mascarar dados pessoais antes de serializar para o cliente.
