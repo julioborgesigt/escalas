@@ -15,7 +15,7 @@ import { logger } from './logger';
 import {
 	extrairCmsDoPdf,
 	parseCms,
-	verificarAssinaturaRsa,
+	verificarAssinaturaCmsAsync,
 	verificarCadeiaIcpBrasil,
 	verificarIntegridadePdf,
 	verificarTimestampToken
@@ -107,8 +107,9 @@ export async function verificarECarimbarAssinatura(
 	}
 
 	// 3. Assinatura RSA dos SignedAttributes
-	const rsaOk = verificarAssinaturaRsa(
+	const rsaOk = await verificarAssinaturaCmsAsync(
 		cms.certificate,
+		cms.sigAlgOid,
 		cms.signedAttrsAsSet,
 		cms.signatureValue
 	);
@@ -116,7 +117,7 @@ export async function verificarECarimbarAssinatura(
 		return {
 			ok: false,
 			status: 422,
-			error: 'Assinatura RSA dos SignedAttributes inválida'
+			error: 'Assinatura criptográfica dos SignedAttributes inválida (RSA/RSA-PSS/ECDSA)'
 		};
 	}
 
