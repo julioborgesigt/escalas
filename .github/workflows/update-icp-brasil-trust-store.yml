@@ -41,6 +41,7 @@ jobs:
           fi
 
       - name: Abrir PR
+        id: pr
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
@@ -75,3 +76,60 @@ jobs:
           labels: |
             chore
             icp-brasil
+
+      # Notifica os responsaveis por e-mail. Sem isso, o PR pode ficar
+      # parado na aba "Pull Requests" sem ninguem perceber por dias —
+      # a ITI eventualmente publica nova versao da cadeia (com cert novo
+      # que so vai validar APOS o merge), entao precisamos de canal ativo.
+      #
+      # Requer 3 secrets configurados em Settings → Secrets and variables →
+      # Actions do repositorio:
+      #   GMAIL_USER             — conta SMTP (mesma usada pelo worker)
+      #   GMAIL_APP_PASSWORD     — App Password do Gmail (NAO a senha)
+      #   ICP_TRUST_NOTIFY_TO    — destinatario(s); separe multiplos com virgula
+      #
+      # Se algum dos secrets nao estiver setado, o step e pulado silencioso
+      # (nao quebra o workflow) — controlado pela condicao `vars.NOTIFY ==`.
+      - name: Notificar por e-mail
+        if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-url != ''
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          from: 'Escalas PC-CE (CI) <${{ secrets.GMAIL_USER }}>'
+          to: ${{ secrets.ICP_TRUST_NOTIFY_TO }}
+          subject: '[Escalas] Trust store ICP-Brasil atualizado — PR aguardando revisão'
+          html_body: |
+            <h2>Cadeia ICP-Brasil mudou</h2>
+            <p>O workflow mensal detectou alteração na cadeia oficial da ITI
+            (raízes ou ACs intermediárias) e abriu um PR automático para
+            atualizar o trust store do sistema de assinaturas digitais.</p>
+
+            <p><strong>Operação:</strong> ${{ steps.pr.outputs.pull-request-operation }}<br>
+            <strong>PR:</strong> <a href="${{ steps.pr.outputs.pull-request-url }}">
+            #${{ steps.pr.outputs.pull-request-number }}</a></p>
+
+            <h3>O que fazer</h3>
+            <ol>
+              <li>Abra o PR no link acima.</li>
+              <li>Confira o diff dos PEMs — os comentários antes de cada
+              cert mostram Subject, Validade e SHA-256.</li>
+              <li>Compare opcionalmente com o publicado em
+              <a href="https://www.gov.br/iti/pt-br/assuntos/repositorio">
+              gov.br/iti/repositorio</a>.</li>
+              <li>Aprove e dê merge em <code>main</code>.</li>
+            </ol>
+
+            <p>Após merge, o sistema reconhece as ACs novas automaticamente —
+            nenhum redeploy manual necessário.</p>
+
+            <hr>
+            <p style="color:#666;font-size:0.85em">
+            Mensagem automática gerada pelo workflow
+            <code>update-icp-brasil-trust-store.yml</code>.<br>
+            Para parar de receber, remova
+            <code>ICP_TRUST_NOTIFY_TO</code> dos secrets do repositório.</p>
