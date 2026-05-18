@@ -122,6 +122,7 @@
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;
 				editingId = null;
+				toaster.create({ title: 'Dados salvos', type: 'success' });
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {

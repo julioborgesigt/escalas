@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { toaster } from '$lib/toast';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import type { Unidade } from '$lib/types';
 	import type { GiseRespostaListagemItem } from '$lib/db/gise';
 	import { useMultiSelect, useCharts } from '$lib/composables';
@@ -29,6 +31,7 @@
 	// Chart.js loaded lazily to save ~200KB on initial bundle
 	let Chart: ChartJs | null = null;
 	let chartLoaded = $state(false);
+	let exporting = $state(false);
 
 	async function loadChart() {
 		if (!Chart) {
@@ -169,92 +172,95 @@
 	});
 
 	async function exportChartsAsImages() {
-		if (selectedCharts.length === 0) return;
+		if (selectedCharts.length === 0 || exporting) return;
+		exporting = true;
+		try {
+			const seccionalName =
+				data.seccionais?.find((s: Unidade) => s.id === Number(filterSeccional))?.nome ||
+				'Todas as Seccionais';
+			const start = filterInicio || defaultStart;
+			const end = filterFim || defaultEnd;
+			const periodText = `${start.split('-').reverse().join('/')} a ${end.split('-').reverse().join('/')}`;
+			const payload = { seccionalName, periodText };
 
-		const seccionalName =
-			data.seccionais?.find((s: Unidade) => s.id === Number(filterSeccional))?.nome ||
-			'Todas as Seccionais';
-		const start = filterInicio || defaultStart;
-		const end = filterFim || defaultEnd;
-		const periodText = `${start.split('-').reverse().join('/')} a ${end.split('-').reverse().join('/')}`;
-		const payload = { seccionalName, periodText };
+			for (const id of selectedCharts) {
+				const isVirtual = typeof id === 'string';
+				const virtualConfig = VIRTUAL_CHARTS[id as string];
 
-		for (const id of selectedCharts) {
-			const isVirtual = typeof id === 'string';
-			const virtualConfig = VIRTUAL_CHARTS[id as string];
-
-			if (!isVirtual) {
-				// Chart normal — usar utilitário
-				const q = QUESTIONS.find((qi) => qi.id === id);
-				if (!q) continue;
-				const sourceCanvas = canvasElements[id as number];
-				if (!sourceCanvas) continue;
-
-				const { canvas, filename } = exportChartAsPng(
-					{ label: q.label, color: q.color, sourceCanvas, type: 'chart' },
-					payload
-				);
-				await downloadCanvas(canvas, filename);
-			} else if (virtualConfig && virtualConfig.type === 'ranking') {
-				// Ranking
-				let ranking: RankingItem[] = [];
-				let unit = '';
-				if (id === 'rank-prisoes') {
-					ranking = rankingPrisoes;
-				} else if (id === 'rank-drogas') {
-					ranking = rankingDrogasPeso;
-					unit = 'kg';
-				} else if (id === 'rank-armas') {
-					ranking = rankingArmas;
+				if (!isVirtual) {
+					const q = QUESTIONS.find((qi) => qi.id === id);
+					if (!q) continue;
+					const sourceCanvas = canvasElements[id as number];
+					if (!sourceCanvas) continue;
+					const { canvas, filename } = exportChartAsPng(
+						{ label: q.label, color: q.color, sourceCanvas, type: 'chart' },
+						payload
+					);
+					await downloadCanvas(canvas, filename);
+				} else if (virtualConfig && virtualConfig.type === 'ranking') {
+					let ranking: RankingItem[] = [];
+					let unit = '';
+					if (id === 'rank-prisoes') {
+						ranking = rankingPrisoes;
+					} else if (id === 'rank-drogas') {
+						ranking = rankingDrogasPeso;
+						unit = 'kg';
+					} else if (id === 'rank-armas') {
+						ranking = rankingArmas;
+					}
+					const { canvas, filename } = exportRankingAsPng(
+						virtualConfig.label,
+						virtualConfig.color,
+						ranking,
+						unit,
+						payload
+					);
+					await downloadCanvas(canvas, filename);
+				} else if (virtualConfig && virtualConfig.type === 'detail') {
+					let details: DetailItem[] = [];
+					let total = 0;
+					let unit = '';
+					if (id === 'detail-prisoes') {
+						const prisoesFlagrante = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
+						details = [
+							{ label: 'Flagrantes (P4)', value: stats.prisaoFlagrante },
+							{ label: 'Mandados (P5)', value: stats.prisaoMandado },
+							{ label: 'Total de Presos (P7)', value: prisoesFlagrante }
+						];
+						total = Math.max(prisoesFlagrante, stats.prisaoFlagrante, stats.prisaoMandado);
+					} else if (id === 'detail-drogas') {
+						details = (Object.entries(stats.drogasPorTipo) as [string, number][])
+							.sort((a, b) => b[1] - a[1])
+							.slice(0, 8)
+							.map(([l, v]) => ({ label: l, value: v }));
+						total = stats.drogasGeral;
+						unit = 'g';
+					} else if (id === 'detail-armas') {
+						details = (Object.entries(stats.armasPorTipo) as [string, number][])
+							.sort((a, b) => b[1] - a[1])
+							.slice(0, 8)
+							.map(([l, v]) => ({ label: l, value: v }));
+						total = stats.apreensoes_armas;
+					}
+					const { canvas, filename } = exportDetailAsPng(
+						virtualConfig.label,
+						virtualConfig.color,
+						details,
+						total,
+						unit,
+						payload
+					);
+					await downloadCanvas(canvas, filename);
 				}
-
-				const { canvas, filename } = exportRankingAsPng(
-					virtualConfig.label,
-					virtualConfig.color,
-					ranking,
-					unit,
-					payload
-				);
-				await downloadCanvas(canvas, filename);
-			} else if (virtualConfig && virtualConfig.type === 'detail') {
-				// Detail
-				let details: DetailItem[] = [];
-				let total = 0;
-				let unit = '';
-
-				if (id === 'detail-prisoes') {
-					const prisoesFlagrante = (stats['prisoes_apreensoes_flagrante'] as number) || 0;
-					details = [
-						{ label: 'Flagrantes (P4)', value: stats.prisaoFlagrante },
-						{ label: 'Mandados (P5)', value: stats.prisaoMandado },
-						{ label: 'Total de Presos (P7)', value: prisoesFlagrante }
-					];
-					total = Math.max(prisoesFlagrante, stats.prisaoFlagrante, stats.prisaoMandado);
-				} else if (id === 'detail-drogas') {
-					details = (Object.entries(stats.drogasPorTipo) as [string, number][])
-						.sort((a, b) => b[1] - a[1])
-						.slice(0, 8)
-						.map(([l, v]) => ({ label: l, value: v }));
-					total = stats.drogasGeral;
-					unit = 'g';
-				} else if (id === 'detail-armas') {
-					details = (Object.entries(stats.armasPorTipo) as [string, number][])
-						.sort((a, b) => b[1] - a[1])
-						.slice(0, 8)
-						.map(([l, v]) => ({ label: l, value: v }));
-					total = stats.apreensoes_armas;
-				}
-
-				const { canvas, filename } = exportDetailAsPng(
-					virtualConfig.label,
-					virtualConfig.color,
-					details,
-					total,
-					unit,
-					payload
-				);
-				await downloadCanvas(canvas, filename);
 			}
+			toaster.create({
+				title: `${selectedCharts.length} imagem${selectedCharts.length > 1 ? 'ns exportadas' : ' exportada'}`,
+				type: 'success'
+			});
+		} catch {
+			toaster.create({ title: 'Erro ao exportar imagens', type: 'error' });
+		} finally {
+			exporting = false;
 		}
 	}
 </script>
@@ -508,17 +514,22 @@
 					? 'hover:scale-105 active:scale-95'
 					: ''} flex items-center gap-2"
 				onclick={exportChartsAsImages}
-				disabled={selectedCharts.length === 0}
+				disabled={selectedCharts.length === 0 || exporting}
 			>
-				<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="3"
-						d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-					/></svg
-				>
-				Baixar PNGs {selectedCharts.length > 0 ? `(${selectedCharts.length})` : ''}
+				{#if exporting}
+					<Spinner size="sm" />
+					Exportando...
+				{:else}
+					<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="3"
+							d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/></svg
+					>
+					Baixar PNGs {selectedCharts.length > 0 ? `(${selectedCharts.length})` : ''}
+				{/if}
 			</button>
 
 			<button type="button"
