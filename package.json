@@ -41,7 +41,7 @@
 		"eslint-plugin-svelte": "^3.17.1",
 		"prettier": "^3.8.3",
 		"rollup-plugin-visualizer": "^5.14.0",
-		"svelte": "^5.51.0",
+		"svelte": "^5.55.8",
 		"svelte-check": "^4.4.8",
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3",
