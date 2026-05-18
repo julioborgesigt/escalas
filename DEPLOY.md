@@ -150,6 +150,49 @@ As flags `exigir_foto_assinatura`, `exigir_gps_assinatura`, `exigir_codigo_email
 
 > **Por que não cookie?** Antes essas flags eram cacheadas em um cookie do cliente (`cfg_ass`). Como o cookie não era assinado, um usuário podia editá-lo no devtools e desligar exigências de selfie/GPS/código antes de chamar os endpoints de assinatura. A migração para Cache API server-side fechou esse vetor.
 
+## Trust Store ICP-Brasil (assinatura qualificada)
+
+A verificação da cadeia ICP-Brasil em [`pdf-verification.ts`](src/lib/server/pdf-verification.ts) depende dos arquivos [`src/lib/server/icp-brasil/roots.pem`](src/lib/server/icp-brasil/roots.pem) e [`intermediates.pem`](src/lib/server/icp-brasil/intermediates.pem). Estes nascem vazios no repo — **antes do primeiro deploy em produção**, popule-os:
+
+```sh
+cd src/lib/server/icp-brasil
+./update-trust-store.sh   # baixa raízes da ITI + ZIP das ACs credenciadas
+git diff roots.pem intermediates.pem   # confira o que mudou
+git add roots.pem intermediates.pem
+git commit -m "chore(icp-brasil): popula trust store ($(date +%F))"
+```
+
+Há também um GitHub Action mensal ([`update-icp-brasil-trust-store.yml`](.github/workflows/update-icp-brasil-trust-store.yml)) que abre PR automaticamente quando a ITI publica mudanças.
+
+**Após popular, ative a checagem estrita em produção:**
+
+```
+ICP_BRASIL_TRUST_STORE_REQUIRED=1
+```
+
+Sem essa env (default), o sistema apenas loga warning e aceita assinaturas mesmo com trust store vazio — útil em dev/staging, **perigoso em produção** (sem cadeia validada, qualquer cert auto-assinado passaria como "qualificada ICP-Brasil").
+
+## Carimbo de tempo qualificado (TSA RFC 3161)
+
+O fluxo de assinatura qualificada pode receber `TimeStampToken` por dois caminhos:
+
+1. **Do cliente:** Web PKI / Assinador SERPRO v4+ podem embarcar TST direto no CMS. Quando presente, é validado e adotado como `act_icp`.
+
+2. **Server-side:** quando o cliente não embarca, [`cades-finalizer.ts`](src/lib/server/cades-finalizer.ts) consulta a TSA configurada via env e **reescreve o CMS** anexando o TST como `UnsignedAttribute` do `SignerInfo` (promove CAdES-BES → CAdES-T).
+
+Configuração:
+
+```
+TSA_URL=https://act.exemplo.com.br/tsa     # endpoint RFC 3161 da ACT
+TSA_USERNAME=...                           # se a ACT exigir basic auth
+TSA_PASSWORD=...
+EXIGIR_TSA_QUALIFICADA=1                   # produção: recusa assinatura sem TST
+```
+
+Provedores credenciados ICP-Brasil: Bry, Soluti, Certisign, AC Safeweb, ICP-EDU. Provedores públicos (não-ICP) como `timestamp.digicert.com` funcionam mas têm valor probatório menor.
+
+> **Aviso:** sem `EXIGIR_TSA_QUALIFICADA=1`, o sistema aceita assinaturas com apenas o `signingTime` do servidor — sem oponibilidade a terceiros conforme DOC-ICP-15.
+
 ## Sincronização Google Sheets
 
 O script [`scripts/GoogleAppsScript_Sync.gs`](scripts/GoogleAppsScript_Sync.gs) faz o upsert de servidores e unidades a partir de uma planilha. Ele consome `SYNC_TOKEN` (e opcionalmente `RESET_TOKEN`) via `PropertiesService` da própria planilha — **nunca** colocados no código-fonte.
