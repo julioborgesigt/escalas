@@ -1,16 +1,19 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
-import { assinarSimplesEscalasSchema } from '$lib/schemas';
+import { assinarSimplesSchema } from '$lib/schemas';
 import {
 	requireAuth,
+	apiError,
+	ErrorCode,
 	badRequest,
 	notFound,
 	forbidden,
 	serverError,
 	validateBody
 } from '$lib/server/api';
-import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
+import { validarEvidenciasAvancada } from '$lib/server/signature-service';
+import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { gerarCodigoValidacao } from '$lib/utils';
@@ -21,15 +24,10 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const validated = await validateBody(request, assinarSimplesEscalasSchema);
+	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
-	const { rubrica, latitude, longitude } = validated.data;
+	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = validated.data;
 
-	// CRÍTICO: revalidar flags de evidência no servidor — nunca confie no cliente.
-	const flags = await lerFlagsAssinatura(platform);
-	if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
-		return badRequest('Coordenadas GPS são obrigatórias para esta assinatura.');
-	}
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -40,7 +38,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const escala = await buscarEscala(db, id);
 	if (!escala) return notFound('Escala');
 
-	// Somente admin, dono da lotação, ou DPC admin com solicitação direcionada pode assinar
+	// Permissão de negócio: admin, dono da lotação ou DPC admin com solicitação direcionada.
 	const perm = await verificarPermissaoEscala(db, id, escala.lotacao, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para assinar esta escala');
 
@@ -48,6 +46,19 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	if (!policiais || policiais.length === 0) {
 		return badRequest('A escala está vazia e não pode ser assinada');
 	}
+
+	// Validação de evidências unificada: aplica TODAS as flags globais
+	// (foto/GPS/2FA) — antes da consolidação, este endpoint ignorava silenciosamente
+	// foto e 2FA, fazendo escala mensal cair para nível SIMPLES (Lei 14.063 art. 4º I)
+	// mesmo com flags ligadas no admin.
+	const evid = await validarEvidenciasAvancada(
+		db,
+		u,
+		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId },
+		{ platform }
+	);
+	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+	const validatedEv = evid.validated;
 
 	try {
 		let result;
@@ -68,19 +79,23 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		const origDoc = await PDFDocument.load(pdfBytes);
 		const contentPageIndex = origDoc.getPageCount() - 1;
 
-		// Adicionar folha de auditoria
+		// Adicionar folha de auditoria com nível AVANÇADA (Lei 14.063/2020 art. 4º II).
 		const pdfWithAudit = await adicionarPaginaAuditoria(pdfBytes, {
 			signerName: finalSignerName,
 			signerCpf: finalSignerCpf || undefined,
+			signerEmail: u.email ?? undefined,
 			signingTime: new Date(),
 			verificationHash,
 			verificationUrl,
 			ip: ip ?? undefined,
 			userAgent: ua || undefined,
-			latitude: latitude ?? undefined,
-			longitude: longitude ?? undefined,
+			latitude: validatedEv.latitude ?? undefined,
+			longitude: validatedEv.longitude ?? undefined,
+			selfieBase64: validatedEv.selfieBase64 ?? undefined,
+			rubricBase64: validatedEv.rubrica ?? undefined,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
+			signatureLevel: 'avancada'
 		});
 
 		const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
@@ -93,16 +108,14 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			verificationHash,
 			verificationUrl,
 			boxY_pts,
-			rubrica || undefined,
+			validatedEv.rubrica ?? undefined,
 			undefined,
 			undefined,
 			contentPageIndex
 		);
 
-		// Diferente da digital, aqui já temos a rubrica, então embutimos tudo e salvamos
 		const finalPdf = prepResult.preparedPdf;
 
-		// Upload para R2
 		if (!hasR2(platform)) {
 			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 		}
@@ -113,7 +126,18 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
-		// Salvar no BD
+		// Upload de selfie quando enviada (helper valida magic bytes + tamanho).
+		let selfieKey: string | undefined;
+		if (validatedEv.selfieBase64) {
+			const year = new Date().getFullYear();
+			const r = await uploadSelfieDataUri(
+				bucket,
+				`escalas/${year}/${id}/selfies`,
+				validatedEv.selfieBase64
+			);
+			if (r.ok) selfieKey = r.key;
+		}
+
 		await salvarDocumentoEscala(
 			db,
 			id,
@@ -123,8 +147,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			verificationHash,
 			ip ?? undefined,
 			ua || undefined,
-			latitude ?? undefined,
-			longitude ?? undefined
+			validatedEv.latitude ?? undefined,
+			validatedEv.longitude ?? undefined,
+			selfieKey
 		);
 
 		await registrarAuditComContexto(db, {
@@ -132,7 +157,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			acao: 'assinar_escala',
 			entidade: 'escala',
 			entidade_id: id,
-			detalhes: `Escala ${id} assinada via rubrica por ${finalSignerName}`
+			detalhes: `Escala ${id} assinada via rubrica (avançada) por ${finalSignerName}`
 		});
 
 		return json({ success: true, message: 'Escala assinada manualmente com sucesso' });

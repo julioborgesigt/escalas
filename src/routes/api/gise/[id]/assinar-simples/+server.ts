@@ -8,6 +8,8 @@
 
 import type { RequestHandler } from './$types';
 import {
+	apiError,
+	ErrorCode,
 	contentDisposition,
 	requireAuth,
 	badRequest,
@@ -17,9 +19,8 @@ import {
 	validateBody
 } from '$lib/server/api';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
-import { assinarSimplesGiseSchema } from '$lib/schemas';
-import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
-import { verificarDesafio2FA } from '$lib/auth';
+import { assinarSimplesSchema } from '$lib/schemas';
+import { validarEvidenciasAvancada } from '$lib/server/signature-service';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
@@ -31,7 +32,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const validated = await validateBody(request, assinarSimplesGiseSchema);
+	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
 	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = validated.data;
 
@@ -53,31 +54,20 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		return forbidden('Apenas o supervisor designado ou administradores podem assinar');
 	}
 
+	// Validação unificada de evidências (mesma lógica de escalas e relatórios extra).
+	const evid = await validarEvidenciasAvancada(
+		db,
+		u,
+		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId },
+		{ platform }
+	);
+	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
+	const validatedEv = evid.validated;
+
 	try {
 		const giseDetalhado = await buscarGiseDetalhado(db, id);
 		if (!giseDetalhado) {
 			return serverError('[gise/assinar-simples] buscarGiseDetalhado retornou null', new Error('GISE_DETALHADO_NULL'));
-		}
-
-		// CRÍTICO: revalidar TODAS as flags de evidência no servidor.
-		// Não confie no cliente — o estado de cookies/UI pode ter sido manipulado.
-		const flags = await lerFlagsAssinatura(platform);
-
-		if (flags.exigirFotoAssinatura && (!selfieBase64 || typeof selfieBase64 !== 'string')) {
-			return badRequest('Selfie é obrigatória para esta assinatura.');
-		}
-		if (flags.exigirGpsAssinatura && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
-			return badRequest('Coordenadas GPS são obrigatórias para esta assinatura.');
-		}
-		if (flags.exigirCodigoEmailAssinatura) {
-			if (!codigoValidação || typeof codigoValidação !== 'string' || !desafioId || typeof desafioId !== 'string') {
-				return badRequest('Código de verificação por e-mail é obrigatório para assinaturas em tela.');
-			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação, ['assinatura']);
-			if (result2FA === 'expirado') return badRequest('O código de verificação expirou.');
-			if (result2FA === 'esgotado') return badRequest('Muitas tentativas. Solicite um novo código.');
-			if (!result2FA) return badRequest('Código de verificação inválido.');
-			if (result2FA.usuarioId !== u.id) return forbidden('Código não pertence ao usuário logado.');
 		}
 
 		const r2Logo = getR2(platform);
@@ -110,12 +100,12 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			{
 				verificationHash,
 				verificationUrl,
-				rubricBase64: rubrica || undefined,
+				rubricBase64: validatedEv.rubrica ?? undefined,
 				customRubricX: rx_pts,
 				customRubricY: ry_pts,
 				ip,
-				latitude,
-				longitude
+				latitude: validatedEv.latitude,
+				longitude: validatedEv.longitude
 			}
 		);
 
@@ -134,10 +124,10 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
 			ip,
 			userAgent: ua,
-			latitude,
-			longitude,
-			selfieBase64: selfieBase64,
-			rubricBase64: rubrica || undefined,
+			latitude: validatedEv.latitude ?? undefined,
+			longitude: validatedEv.longitude ?? undefined,
+			selfieBase64: validatedEv.selfieBase64 ?? undefined,
+			rubricBase64: validatedEv.rubrica ?? undefined,
 			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
@@ -161,18 +151,16 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		if (r2) {
 			await r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' });
 
-			if (selfieBase64) {
+			if (validatedEv.selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
-				// chave com UUID aleatório (não-enumerável). Falha silenciosa
-				// no upload por motivos defensivos não bloqueia a assinatura
-				// — a selfie é opcional aqui (flag `exigirFotoAssinatura`).
-				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);
+				// chave com UUID aleatório (não-enumerável).
+				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, validatedEv.selfieBase64);
 				if (r.ok) selfieKey = r.key;
 			}
 		}
 
 		await Promise.all([
-			salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, rubrica, ip, ua, latitude, longitude, selfieKey, arquivo_hash),
+			salvarGiseDocumento(db, id, documentKey, u.id, u.nome, '', verificationHash, validatedEv.rubrica ?? undefined, ip, ua, validatedEv.latitude ?? undefined, validatedEv.longitude ?? undefined, selfieKey, arquivo_hash),
 			atualizarGiseEscala(db, id, { status: 'em_andamento' })
 		]);
 
