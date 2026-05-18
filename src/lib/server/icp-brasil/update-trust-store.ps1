@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Popula roots.pem e intermediates.pem com a cadeia oficial da ICP-Brasil.
 
@@ -28,6 +28,13 @@ param()
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # Esconde a barra de download (acelera).
 
+# Compat com Windows PowerShell 5.1 (default no Windows):
+#  - Forca UTF-8 na saida pra acentos do log nao virarem mojibake.
+#  - Forca TLS 1.2: PS 5.1 default usa TLS 1.0/1.1, que muitos endpoints
+#    .gov.br ja rejeitam (inclusive acraiz.icpbrasil.gov.br).
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 # -----------------------------------------------------------------------------
 # Setup
 # -----------------------------------------------------------------------------
@@ -35,6 +42,11 @@ $ProgressPreference = 'SilentlyContinue'  # Esconde a barra de download (acelera
 Set-Location -Path $PSScriptRoot
 $workDir = New-Item -ItemType Directory -Path ([System.IO.Path]::GetTempPath()) `
     -Name "icp-trust-$(Get-Random)" -Force
+
+# Helper compat 5.1+: ISO 8601 UTC sem dependencia do parametro -AsUTC (PS 7+).
+function Get-IsoUtcNow {
+    return (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
 
 # Cleanup automático ao sair (sucesso ou erro).
 $cleanup = {
@@ -134,7 +146,7 @@ Write-Log 'Baixando AC Raízes...'
 $rootsTmp = Join-Path $workDir.FullName 'roots.pem'
 $header = @"
 # AC Raízes ICP-Brasil — gerado por update-trust-store.ps1
-# Atualizado em $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ" -AsUTC)
+# Atualizado em $(Get-IsoUtcNow)
 
 "@
 [System.IO.File]::WriteAllText($rootsTmp, $header, [Text.UTF8Encoding]::new($false))
@@ -196,7 +208,7 @@ $intTmp = Join-Path $workDir.FullName 'intermediates.pem'
 $header = @"
 # ACs intermediárias da ICP-Brasil — gerado por update-trust-store.ps1
 # Origem:    $zipUrl
-# Atualizado em $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ" -AsUTC)
+# Atualizado em $(Get-IsoUtcNow)
 
 "@
 [System.IO.File]::WriteAllText($intTmp, $header, [Text.UTF8Encoding]::new($false))
