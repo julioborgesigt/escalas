@@ -218,7 +218,8 @@ function validarPropriedadeToken(
  */
 export async function finalizarAssinaturaQualificada(
 	user: SignatureUser,
-	input: QualifiedInput
+	input: QualifiedInput,
+	options: { platform?: App.Platform } = {}
 ): Promise<QualifiedFinalization | ServiceFailure> {
 	// 1. Determinar dialeto e validar campos mínimos.
 	const temSerpro = !!input.serproCms;
@@ -271,8 +272,11 @@ export async function finalizarAssinaturaQualificada(
 	}
 
 	// 4. Verificar criptograficamente (CAdES-LT + OCSP + DSS).
+	// Repassa o env para que o verifier possa rejeitar quando o trust store
+	// ICP-Brasil estiver vazio e a env ICP_BRASIL_TRUST_STORE_REQUIRED=true.
+	const env = options.platform?.env as unknown as Record<string, string | undefined> | undefined;
 	const verif: CadesFinalizationResult | CadesFinalizationError =
-		await verificarECarimbarAssinatura(signedPdf);
+		await verificarECarimbarAssinatura(signedPdf, { env });
 	if (!verif.ok) {
 		return {
 			ok: false,

@@ -6,7 +6,21 @@ import forge from 'node-forge';
 import * as QRCode from 'qrcode';
 import { logger } from './logger';
 
-const SIGNATURE_LENGTH = 8192;
+/**
+ * Tamanho do placeholder de assinatura no PDF (bytes binários ⇒ 2× em hex).
+ *
+ * Calculado para acomodar:
+ *   - CMS PKCS#7 SignedData típico (~3 KB com 1 cert ICP-Brasil + signedAttrs)
+ *   - + TimeStampToken RFC 3161 anexado como UnsignedAttribute (~5-7 KB)
+ *
+ * 16 KB dão folga confortável (~5 KB sobrando para cert chains maiores e
+ * paddings de algoritmos modernos). Aumentar de novo se o sistema vier a
+ * embarcar múltiplas TSAs ou assinaturas long-archive com PoE.
+ *
+ * IMPORTANTE: mudar este valor só afeta NOVOS PDFs preparados. PDFs antigos
+ * permanecem com placeholder do tamanho original.
+ */
+const SIGNATURE_LENGTH = 16384;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
 
 // OIDs usados na estrutura CMS
@@ -692,6 +706,55 @@ export async function prepararPdfParaAssinatura(
 		signingTimeISO: signingTime.toISOString(),
 		dataToSignBase64: dataToSign.toString('base64')
 	};
+}
+
+/**
+ * Embute bytes CMS arbitrários no placeholder /Contents do PDF preparado.
+ *
+ * Reusada por `embedSerproCms` (CMS do cliente) e pelo `cades-finalizer`
+ * para re-embed após anexar TST RFC 3161 (CAdES-T).
+ *
+ * Preserva os bytes do CMS literalmente (sem re-encode ASN.1) — a manipulação
+ * de signed attributes invalidaria a assinatura RSA. Quando o caller precisar
+ * alterar a estrutura (ex.: adicionar UnsignedAttribute), deve fazê-lo no
+ * próprio CMS bytes ANTES de chamar esta função.
+ *
+ * Aceita bytes maiores que o conteúdo atual do placeholder, desde que caibam
+ * no tamanho original reservado (`SIGNATURE_LENGTH`).
+ */
+export function embedCmsBytesNoPlaceholder(
+	preparedPdf: Uint8Array,
+	cmsDer: Uint8Array
+): Uint8Array {
+	const pdfBuffer = Buffer.from(preparedPdf);
+	const pdfString = pdfBuffer.toString('latin1');
+
+	const contentsTagPos = pdfString.lastIndexOf('/Contents <');
+	if (contentsTagPos === -1) {
+		throw new Error('Não foi possível encontrar /Contents no PDF preparado');
+	}
+
+	const sigStart = pdfString.indexOf('<', contentsTagPos + 9);
+	const sigEnd = pdfString.indexOf('>', sigStart);
+	const placeholderLength = sigEnd - sigStart - 1;
+
+	let cmsHex = '';
+	for (let i = 0; i < cmsDer.length; i++) {
+		cmsHex += cmsDer[i].toString(16).padStart(2, '0');
+	}
+
+	if (cmsHex.length > placeholderLength) {
+		throw new Error(
+			`CMS muito grande: ${cmsHex.length / 2} bytes — ` +
+				`placeholder suporta ${placeholderLength / 2} bytes. ` +
+				`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
+		);
+	}
+
+	const paddedSig = cmsHex.padEnd(placeholderLength, '0');
+	const signedPdf = Buffer.from(pdfBuffer);
+	signedPdf.write(paddedSig, sigStart + 1, placeholderLength, 'latin1');
+	return new Uint8Array(signedPdf);
 }
 
 /**

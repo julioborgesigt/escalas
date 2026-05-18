@@ -53,14 +53,18 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 		// Delega TODO o fluxo criptográfico ao serviço unificado: validação de
 		// propriedade do token (CPF do cert vs CPF logado, sem bypass para
 		// admin), embed do CMS, verificação CAdES-LT, OCSP e PAdES-LT.
-		const result = await finalizarAssinaturaQualificada(u, {
-			preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-			serproCms,
-			rawSignature: signature,
-			certificateBase64: certificate,
-			messageDigestHex,
-			signingTimeISO
-		});
+		const result = await finalizarAssinaturaQualificada(
+			u,
+			{
+				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
+				serproCms,
+				rawSignature: signature,
+				certificateBase64: certificate,
+				messageDigestHex,
+				signingTimeISO
+			},
+			{ platform }
+		);
 		if (!('pdfFinal' in result)) {
 			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
 			return apiError(result.error, result.status, code);

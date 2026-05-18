@@ -14,7 +14,7 @@
 
 import forge from 'node-forge';
 import { logger } from './logger';
-import { loadTrustStore } from './icp-brasil/trust-store';
+import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
@@ -421,6 +421,13 @@ export interface VerifyOptions {
 	ocspSnapshotB64?: string | null;
 	/** Tipo de carimbo registrado no banco (auditoria adicional). */
 	tipoCarimboTempoArmazenado?: 'servidor' | 'act_icp' | null;
+	/**
+	 * `platform.env` para checar `ICP_BRASIL_TRUST_STORE_REQUIRED`. Quando
+	 * essa env está ligada e o trust store está vazio, devolvemos
+	 * `valid: false` em vez de aceitar com warning — assim a página /validar
+	 * deixa claro que a cadeia não pôde ser validada.
+	 */
+	env?: Record<string, string | undefined>;
 }
 
 export async function verificarAssinaturaCompleta(
@@ -537,9 +544,19 @@ export async function verificarAssinaturaCompleta(
 	}
 
 	// Resultado consolidado: válido apenas se TODOS os checks essenciais passaram.
-	// Cadeia "indisponivel" não invalida (trust store ainda não populado), mas
-	// é exibido com aviso na UI.
-	const cadeiaOk = cadeia === true || cadeia === 'indisponivel';
+	//
+	// Política de cadeia "indisponivel":
+	//   - default: trata como ok (legado, trust store em fase de implantação)
+	//   - com ICP_BRASIL_TRUST_STORE_REQUIRED=true: trata como inválido (não
+	//     dá pra afirmar que é qualificada sem validar a cadeia).
+	const cadeiaOk =
+		cadeia === true ||
+		(cadeia === 'indisponivel' && !trustStoreRequerido(options.env));
+	if (cadeia === 'indisponivel' && trustStoreRequerido(options.env)) {
+		erros.push(
+			'Trust store ICP-Brasil não populado neste servidor — não foi possível validar a cadeia.'
+		);
+	}
 	result.valid =
 		result.checks.integridade &&
 		result.checks.assinaturaRsa &&
