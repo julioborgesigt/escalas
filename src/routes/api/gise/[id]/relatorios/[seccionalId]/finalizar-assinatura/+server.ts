@@ -70,14 +70,18 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 
 	try {
 		// Delega ao serviço unificado.
-		const result = await finalizarAssinaturaQualificada(u, {
-			preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-			serproCms,
-			rawSignature,
-			certificateBase64,
-			messageDigestHex: messageDigest,
-			signingTimeISO
-		});
+		const result = await finalizarAssinaturaQualificada(
+			u,
+			{
+				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
+				serproCms,
+				rawSignature,
+				certificateBase64,
+				messageDigestHex: messageDigest,
+				signingTimeISO
+			},
+			{ platform: p }
+		);
 		if (!('pdfFinal' in result)) {
 			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
 			return apiError(result.error, result.status, code);

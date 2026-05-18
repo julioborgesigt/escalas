@@ -21,7 +21,7 @@ import {
 	verificarTimestampToken
 } from './pdf-verification';
 import { consultarOcsp } from './ocsp';
-import { loadTrustStore } from './icp-brasil/trust-store';
+import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { aplicarDss } from './pades-lt';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
@@ -57,7 +57,11 @@ export interface CadesFinalizationError {
 }
 
 export async function verificarECarimbarAssinatura(
-	signedPdfBytes: Uint8Array
+	signedPdfBytes: Uint8Array,
+	options: {
+		/** Env do `platform.env` para checar `ICP_BRASIL_TRUST_STORE_REQUIRED`. */
+		env?: Record<string, string | undefined>;
+	} = {}
 ): Promise<CadesFinalizationResult | CadesFinalizationError> {
 	// 1. Extrair e parsear CMS
 	const extracao = extrairCmsDoPdf(signedPdfBytes);
@@ -114,8 +118,23 @@ export async function verificarECarimbarAssinatura(
 		};
 	}
 	if (cadeia === 'indisponivel') {
+		// Trust store vazio: a postura depende da env ICP_BRASIL_TRUST_STORE_REQUIRED.
+		// Em produção, esta env DEVE estar ligada — sem ela, qualquer certificado
+		// auto-assinado passaria pela verificação RSA (que só checa a integridade
+		// do CMS) e seria erroneamente classificado como "qualificada ICP-Brasil".
+		if (trustStoreRequerido(options.env)) {
+			return {
+				ok: false,
+				status: 422,
+				error:
+					'Trust store ICP-Brasil não populado neste servidor. ' +
+					'Execute src/lib/server/icp-brasil/update-trust-store.sh, ' +
+					'comite roots.pem e intermediates.pem, e refaça o deploy.'
+			};
+		}
 		logger.warn(
-			'[CADES] Trust store ICP-Brasil vazio — cadeia não pôde ser validada (assinatura aceita)'
+			'[CADES] Trust store ICP-Brasil vazio — cadeia não pôde ser validada (assinatura aceita). ' +
+				'Em produção, defina ICP_BRASIL_TRUST_STORE_REQUIRED=true para fazer disso um hard error.'
 		);
 	}
 
