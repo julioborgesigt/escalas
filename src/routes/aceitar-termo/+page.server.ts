@@ -45,7 +45,10 @@ export const actions: Actions = {
 			aceitou_uso_email: aceitouEmail,
 			aceitou_uso_localizacao: aceitouLocalizacao,
 			ip,
-			user_agent: ua
+			user_agent: ua,
+			// Snapshot do HTML servido. Em juizo, reproduzimos o texto exato
+			// que o usuario viu sem depender do git history. ~10 KB.
+			conteudo_html_snapshot: sanitizeTermoHtml(CONTEUDO_HTML)
 		});
 
 		await registrarAuditComContexto(db, {

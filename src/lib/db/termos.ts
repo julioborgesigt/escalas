@@ -23,6 +23,12 @@ export interface RegistrarAceiteInput {
 	aceitou_uso_localizacao?: boolean;
 	ip?: string | null;
 	user_agent?: string | null;
+	/**
+	 * HTML do termo no momento do aceite. Preservado para reprodução
+	 * em juízo sem depender de git history (a versão de código em produção
+	 * na data do aceite pode ter sido sobrescrita por squash/rewrite).
+	 */
+	conteudo_html_snapshot?: string | null;
 }
 
 export async function registrarAceite(
@@ -40,7 +46,8 @@ export async function registrarAceite(
 			aceitou_uso_email: input.aceitou_uso_email ? 1 : 0,
 			aceitou_uso_localizacao: input.aceitou_uso_localizacao ? 1 : 0,
 			ip: anonimizarIp(input.ip),
-			user_agent: input.user_agent ? parseUserAgent(input.user_agent) : null
+			user_agent: input.user_agent ? parseUserAgent(input.user_agent) : null,
+			conteudo_html_snapshot: input.conteudo_html_snapshot ?? null
 		})
 		.returning()
 		.get();
