@@ -2,6 +2,8 @@
   import { Dialog } from '@skeletonlabs/skeleton-svelte';
   import { csrfHeaders } from '$lib/csrf';
   import { invalidateAll } from '$app/navigation';
+  import { toaster } from '$lib/toast';
+  import Spinner from '$lib/components/Spinner.svelte';
 
   let {
     open = $bindable(false),
@@ -73,8 +75,14 @@
       if (res.ok) {
         open = false;
         await invalidateAll();
+        toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
         onConfirmado();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toaster.create({ title: (json as { error?: string }).error || 'Erro ao enviar solicitação', type: 'error' });
       }
+    } catch {
+      toaster.create({ title: 'Erro de rede ao enviar solicitação', type: 'error' });
     } finally {
       enviandoSolicitacao = false;
     }
@@ -165,7 +173,7 @@
                   oninput={(e) => buscarDestinatarios(e.currentTarget.value)}
                 />
                 {#if buscandoDestinatario}
-                  <div class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-tertiary-500 border-t-transparent rounded-full animate-spin"></div>
+                  <Spinner size="sm" class="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary-500" />
                 {/if}
               </div>
               {#if resultadosBuscaDestinatario.length > 0}

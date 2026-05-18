@@ -253,11 +253,19 @@
 	async function cancelarSolicitacao(escalaId: number) {
 		loading.show('Cancelando solicitação...');
 		try {
-			await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
+			const res = await fetch(`/api/escalas/${escalaId}/solicitar-assinatura`, {
 				method: 'DELETE',
 				headers: csrfHeaders()
 			});
-			await invalidateAll();
+			if (res.ok) {
+				await invalidateAll();
+				toaster.create({ title: 'Solicitação cancelada', type: 'success' });
+			} else {
+				const json = await res.json().catch(() => ({}));
+				toaster.create({ title: (json as { error?: string }).error || 'Erro ao cancelar solicitação', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de rede ao cancelar solicitação', type: 'error' });
 		} finally {
 			loading.hide();
 		}
