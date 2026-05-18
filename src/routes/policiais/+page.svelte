@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
@@ -707,8 +708,9 @@
 					<SkeletonCard />
 				{/each}
 			{:else}
-			{#each policiais as p (p.id)}
+			{#each policiais as p, i (p.id)}
 				<div
+					transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
 					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
 				>
 					<div class="flex items-center justify-between mb-2">

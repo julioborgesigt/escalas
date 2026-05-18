@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-  import { slide } from 'svelte/transition';
+  import { slide, fly } from 'svelte/transition';
   import { page, navigating } from '$app/state';
   import type { EscalaListagem } from '$lib/types';
   import { formatarData } from '$lib/utils';
@@ -181,9 +181,12 @@
           <SkeletonCard />
         {/each}
       {:else}
-        {#each escalas as esc (esc.id)}
+        {#each escalas as esc, i (esc.id)}
           {@const d = new Date(esc.data_inicio + 'T00:00:00')}
-          <div class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors">
+          <div
+            transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
+            class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
+          >
             <div class="flex justify-between items-start mb-3 gap-2">
               <div class="min-w-0 flex-1">
                 {#if esc.tipo === 'expediente'}

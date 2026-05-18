@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { page, navigating } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll, onNavigate } from '$app/navigation';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
@@ -104,6 +104,16 @@
 		rotaPath === '/gise' || (rotaPath.startsWith('/gise/') && !rotaPath.startsWith('/gise/config'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
+
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 </script>
 
 <svelte:head>
@@ -675,25 +685,6 @@
 		class="min-h-screen relative transition-[margin] duration-300"
 		style="margin-left: {usuario ? 'var(--desktop-sidebar-offset)' : '0'};"
 	>
-		<!-- Centralized bouncing dots animation during page navigation -->
-		{#if navigating?.to && navigating.to.url.pathname !== page.url.pathname}
-			<div
-				class="fixed inset-0 z-40 pointer-events-none flex items-center justify-center min-[900px]:pl-60"
-			>
-				<div
-					class="flex items-center gap-2.5 p-4 rounded-full bg-surface-50/90 dark:bg-surface-900/90 backdrop-blur-md shadow-2xl border border-surface-200/50 dark:border-surface-700/50"
-				>
-					<div
-						class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.3s]"
-					></div>
-					<div
-						class="w-3 h-3 rounded-full bg-primary-500 animate-bounce [animation-delay:-0.15s]"
-					></div>
-					<div class="w-3 h-3 rounded-full bg-primary-500 animate-bounce"></div>
-				</div>
-			</div>
-		{/if}
-
 		<div
 			class="max-w-6xl mx-auto min-w-0 px-2 sm:px-4 pt-20 min-[900px]:pt-8 pb-12 transition-opacity duration-200 {navigating?.to &&
 			navigating.to.url.pathname !== page.url.pathname
@@ -722,6 +713,21 @@
 			/* No desktop, a largura é fluida: min 168px (70% de 240), ideal 18vw, max 240px */
 			--sidebar-width: clamp(168px, 18vw, 240px);
 			--desktop-sidebar-offset: var(--sidebar-width);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		::view-transition-old(root) {
+			animation: 180ms linear both vt-fade-out;
+		}
+		::view-transition-new(root) {
+			animation: 180ms linear both vt-fade-in;
+		}
+		@keyframes vt-fade-out {
+			to { opacity: 0; }
+		}
+		@keyframes vt-fade-in {
+			from { opacity: 0; }
 		}
 	}
 
