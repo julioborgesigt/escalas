@@ -49,6 +49,18 @@ export interface VerificationResult {
 	/** Sinaliza se o PDF tem DSS Dictionary embarcado (PAdES-LT auto-contido). */
 	padesLt?: { presente: boolean; certCount: number; ocspCount: number; crlCount: number };
 	erros: string[];
+	/**
+	 * Resumo das assinaturas adicionais quando o PDF tem mais de 1
+	 * (workflow multi-signature). A "principal" do resultado é sempre a
+	 * última. Cada item: subject/serial + status individual de integridade.
+	 */
+	assinaturasAdicionais?: Array<{
+		ordem: number;
+		signerCN: string;
+		serial: string;
+		integridade: boolean;
+		assinaturaRsa: boolean;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,26 +75,16 @@ export interface CmsExtraido {
 }
 
 /**
- * Localiza o /ByteRange e /Contents da última assinatura embarcada no PDF
- * e retorna o CMS DER + os bytes que entraram no hash.
+ * Extrai 1 assinatura a partir de um match de /ByteRange. Retorna `null`
+ * se a estrutura não bate (PDF corrompido ou ByteRange órfão).
  */
-export function extrairCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido | null {
-	// Trabalhamos em ASCII porque os marcadores /ByteRange e /Contents são ASCII;
-	// os bytes binários da assinatura ficam dentro de <...> em hex.
-	const ascii = new TextDecoder('latin1').decode(pdfBytes);
-
-	// Pega a ÚLTIMA ocorrência de /ByteRange (a última assinatura é a "atual").
-	const brRegex = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
-	let lastBr: RegExpExecArray | null = null;
-	let m: RegExpExecArray | null;
-	while ((m = brRegex.exec(ascii)) !== null) lastBr = m;
-	if (!lastBr) return null;
-
-	const a = parseInt(lastBr[1]);
-	const b = parseInt(lastBr[2]);
-	const c = parseInt(lastBr[3]);
-	const d = parseInt(lastBr[4]);
-
+function extrairAssinaturaDeByteRange(
+	pdfBytes: Uint8Array,
+	a: number,
+	b: number,
+	c: number,
+	d: number
+): CmsExtraido | null {
 	// Os bytes da assinatura ficam em hex entre as posições [a+b, c-1] inclusive.
 	// Mais especificamente, entre `<` (em a+b) e `>` (em c-1) há o conteúdo hex.
 	const inicioMarcador = a + b;
@@ -136,6 +138,44 @@ export function extrairCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido | null {
 		byteRange: [a, b, c, d],
 		bytesAssinados
 	};
+}
+
+/**
+ * Extrai TODAS as assinaturas embarcadas no PDF, na ordem em que aparecem
+ * (mais antiga → mais recente). Cada incremental update adiciona uma nova
+ * /ByteRange ao final do arquivo, então a última do array é a "atual".
+ *
+ * Usado por `verificarAssinaturaCompleta` para validar workflows multi-
+ * assinatura (ex.: documento assinado pelo OIP e depois pelo DPC). Antes,
+ * só a última assinatura era validada — uma assinatura anterior corrompida
+ * passava despercebida.
+ */
+export function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
+	const ascii = new TextDecoder('latin1').decode(pdfBytes);
+	const brRegex = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
+	const out: CmsExtraido[] = [];
+	let m: RegExpExecArray | null;
+	while ((m = brRegex.exec(ascii)) !== null) {
+		const a = parseInt(m[1]);
+		const b = parseInt(m[2]);
+		const c = parseInt(m[3]);
+		const d = parseInt(m[4]);
+		const cms = extrairAssinaturaDeByteRange(pdfBytes, a, b, c, d);
+		if (cms) out.push(cms);
+	}
+	return out;
+}
+
+/**
+ * Localiza o /ByteRange e /Contents da última assinatura embarcada no PDF
+ * e retorna o CMS DER + os bytes que entraram no hash.
+ *
+ * Mantém comportamento legado (apenas a última). Para validar todas as
+ * assinaturas em workflow multi-signature, use `extrairTodasCmsDoPdf`.
+ */
+export function extrairCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido | null {
+	const todas = extrairTodasCmsDoPdf(pdfBytes);
+	return todas.length > 0 ? todas[todas.length - 1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -588,6 +628,57 @@ export async function verificarAssinaturaCompleta(
 		result.padesLt = await detectarDss(pdfBytes);
 	} catch {
 		/* falha aqui não invalida — apenas não exibe badge PAdES-LT */
+	}
+
+	// 7. Multi-signature: valida CADA assinatura anterior à atual (workflow
+	//    em que OIP assina, depois DPC assina por cima). Hoje validamos só a
+	//    última; aqui resumimos as anteriores para que a UI possa mostrar e
+	//    o orquestrador possa rejeitar PDFs com assinaturas corrompidas no
+	//    meio (sinal de adulteração).
+	try {
+		const todas = extrairTodasCmsDoPdf(pdfBytes);
+		if (todas.length > 1) {
+			const adicionais: NonNullable<VerificationResult['assinaturasAdicionais']> = [];
+			// Itera todas EXCETO a última (que já foi validada acima como principal).
+			for (let i = 0; i < todas.length - 1; i++) {
+				const t = todas[i];
+				const cmsAnt = parseCms(t.cmsDer);
+				if (!cmsAnt) {
+					adicionais.push({
+						ordem: i,
+						signerCN: '<malformado>',
+						serial: '',
+						integridade: false,
+						assinaturaRsa: false
+					});
+					continue;
+				}
+				const integOk = await verificarIntegridadePdf(t.bytesAssinados, cmsAnt.messageDigest);
+				const rsaOk = await verificarAssinaturaCmsAsync(
+					cmsAnt.certificate,
+					cmsAnt.sigAlgOid,
+					cmsAnt.signedAttrsAsSet,
+					cmsAnt.signatureValue
+				);
+				adicionais.push({
+					ordem: i,
+					signerCN: (cmsAnt.certificate.subject.getField('CN')?.value as string) || '',
+					serial: cmsAnt.certificate.serialNumber,
+					integridade: integOk,
+					assinaturaRsa: rsaOk
+				});
+				if (!integOk || !rsaOk) {
+					erros.push(
+						`Assinatura adicional #${i + 1} inválida (integridade=${integOk}, rsa=${rsaOk})`
+					);
+				}
+			}
+			if (adicionais.length > 0) {
+				result.assinaturasAdicionais = adicionais;
+			}
+		}
+	} catch {
+		/* falha aqui não invalida a principal — apenas omite o resumo das anteriores */
 	}
 
 	// Resultado consolidado: válido apenas se TODOS os checks essenciais passaram.
