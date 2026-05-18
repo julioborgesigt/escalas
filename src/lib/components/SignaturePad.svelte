@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
+	import Spinner from './Spinner.svelte';
 	let faceapi: any = $state(null);
 
 	let {
@@ -613,9 +614,7 @@
 									/></svg
 								>
 							{:else}
-								<span
-									class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-								></span>
+								<Spinner size="xs" />
 							{/if}
 							<p
 								class="text-[0.7rem] font-black uppercase tracking-widest {isMoving
@@ -663,9 +662,7 @@
 				{#if solicitandoCodigo}
 					<p class="text-sm font-medium text-surface-500">Enviando código de verificação...</p>
 					<div class="mt-6">
-						<span
-							class="inline-block w-8 h-8 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin"
-						></span>
+						<Spinner size="lg" class="text-primary-500" />
 					</div>
 				{:else}
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6 max-w-sm">

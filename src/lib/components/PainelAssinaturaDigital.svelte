@@ -11,6 +11,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import { useAssinaturaEscala, useMobile } from '$lib/composables';
+	import Spinner from './Spinner.svelte';
 
 	interface DocumentoAssinadoInfo {
 		existe: boolean;
@@ -529,7 +530,7 @@
 									oninput={(e) => buscarDestinatarios(e.currentTarget.value)}
 								/>
 								{#if buscandoDestinatario}
-									<div class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-tertiary-500 border-t-transparent rounded-full animate-spin"></div>
+									<Spinner size="sm" class="absolute right-3 top-1/2 -translate-y-1/2 text-tertiary-500" />
 								{/if}
 							</div>
 							{#if resultadosBuscaDestinatario.length > 0}
