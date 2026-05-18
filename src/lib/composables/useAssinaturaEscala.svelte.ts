@@ -204,7 +204,19 @@ export function useAssinaturaEscala({
 		loading.hide();
 	}
 
-	async function assinarSimples(rubrica: string, lat?: number, lng?: number, selfie?: string | null, codigoValidação?: string, desafioId?: string) {
+	async function assinarSimples(
+		rubrica: string,
+		lat?: number,
+		lng?: number,
+		selfie?: string | null,
+		codigoValidação?: string,
+		desafioId?: string,
+		// Resultado do desafio ativo (blink/smile) — exigido pelo servidor
+		// quando a flag exigirFotoAssinatura está ligada. Tipo intencionalmente
+		// `unknown` para não acoplar este composable ao formato exato; o
+		// servidor valida via Zod (livenessChallengeSchema).
+		livenessChallenge?: unknown
+	) {
 		loading.show('Assinando...');
 		// Usamos a geolocalizacao já capturada no SignaturePad ou fall-back
 		if (lat && lng) {
@@ -224,7 +236,8 @@ export function useAssinaturaEscala({
 				latitude: gpsCoords?.lat,
 				longitude: gpsCoords?.lng,
 				codigoValidação,
-				desafioId
+				desafioId,
+				livenessChallenge
 			})
 		});
 		if (!res.ok) throw new Error((await res.json()).error);

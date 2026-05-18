@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
-	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = validated.data;
+	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge } = validated.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
-		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId },
+		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge },
 		{ platform }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
@@ -131,7 +131,15 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
-			signatureLevel: 'avancada'
+			signatureLevel: 'avancada',
+			livenessChallenge: validatedEv.livenessChallenge
+				? {
+						tipo: validatedEv.livenessChallenge.tipo,
+						cumprido: validatedEv.livenessChallenge.cumprido,
+						tentativas: validatedEv.livenessChallenge.tentativas,
+						duracaoMs: validatedEv.livenessChallenge.duracaoMs
+					}
+				: null
 		});
 
 		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfFinal.slice());

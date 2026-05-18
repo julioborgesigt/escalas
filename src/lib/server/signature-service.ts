@@ -89,6 +89,15 @@ export interface QualifiedFinalization {
 	padesLt: boolean;
 }
 
+export interface LivenessResult {
+	tipo: 'blink' | 'smile';
+	cumprido: boolean;
+	tentativas: number;
+	iniciadoEm: string | null;
+	concluidoEm: string | null;
+	duracaoMs: number;
+}
+
 export interface SimpleEvidence {
 	rubrica?: string | null;
 	latitude?: number | null;
@@ -96,6 +105,7 @@ export interface SimpleEvidence {
 	selfieBase64?: string | null;
 	codigoValidação?: string | null;
 	desafioId?: string | null;
+	livenessChallenge?: LivenessResult | null;
 }
 
 /**
@@ -109,6 +119,8 @@ export interface ValidatedEvidence {
 	selfieBase64: string | null;
 	/** `true` se 2FA foi validado nesta requisição (sempre exigido). */
 	doisFatorOk: boolean;
+	/** Resultado do challenge de liveness — null quando exigirFoto=false. */
+	livenessChallenge: LivenessResult | null;
 }
 
 export type ServiceFailure = {
@@ -376,6 +388,40 @@ export async function validarEvidenciasAvancada(
 		};
 	}
 
+	// 2b. Quando a foto é exigida, o cliente DEVE comprovar liveness ativa
+	//     (challenge blink/smile cumprido). Sem isso, atacante poderia
+	//     submeter selfie roubada da vítima. O componente SignaturePad
+	//     bloqueia a UI, mas validamos no servidor também — defesa em
+	//     profundidade contra cliente comprometido.
+	if (flags.exigirFotoAssinatura) {
+		const ch = evidence.livenessChallenge;
+		if (!ch) {
+			return {
+				ok: false,
+				status: 400,
+				error:
+					'Comprovação de presença ativa ausente (liveness challenge). ' +
+					'Atualize a aplicação cliente.'
+			};
+		}
+		if (!ch.cumprido) {
+			return {
+				ok: false,
+				status: 400,
+				error: `Desafio de presença não cumprido (${ch.tipo}). Tente novamente.`
+			};
+		}
+		// Sanity check: challenge "cumprido" instantâneo é suspeito (foto pré-fabricada
+		// com payload falsificado). Exigimos ao menos 500 ms entre início e conclusão.
+		if (ch.duracaoMs < 500) {
+			return {
+				ok: false,
+				status: 400,
+				error: 'Desafio de presença concluído em tempo implausível.'
+			};
+		}
+	}
+
 	// 3. GPS — reforço opcional.
 	if (
 		flags.exigirGpsAssinatura &&
@@ -408,7 +454,8 @@ export async function validarEvidenciasAvancada(
 			longitude:
 				typeof evidence.longitude === 'number' ? evidence.longitude : null,
 			selfieBase64: evidence.selfieBase64 ?? null,
-			doisFatorOk: !!flags.exigirCodigoEmailAssinatura
+			doisFatorOk: !!flags.exigirCodigoEmailAssinatura,
+			livenessChallenge: evidence.livenessChallenge ?? null
 		}
 	};
 }

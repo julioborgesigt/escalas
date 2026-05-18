@@ -58,7 +58,8 @@ export const POST: RequestHandler = async ({
 		longitude,
 		selfieBase64,
 		codigoValidação,
-		desafioId
+		desafioId,
+		livenessChallenge
 	} = v.data;
 
 	const ip = getClientAddress();
@@ -103,7 +104,8 @@ export const POST: RequestHandler = async ({
 					longitude: longitude ?? undefined,
 					selfieBase64,
 					codigoValidação,
-					desafioId
+					desafioId,
+					livenessChallenge
 				},
 				{ platform }
 			);
