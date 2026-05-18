@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
-	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId } = validated.data;
+	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge } = validated.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -54,7 +54,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const evid = await validarEvidenciasAvancada(
 		db,
 		u,
-		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId },
+		{ rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge },
 		{ platform }
 	);
 	if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
@@ -95,7 +95,15 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			rubricBase64: validatedEv.rubrica ?? undefined,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
-			signatureLevel: 'avancada'
+			signatureLevel: 'avancada',
+			livenessChallenge: validatedEv.livenessChallenge
+				? {
+						tipo: validatedEv.livenessChallenge.tipo,
+						cumprido: validatedEv.livenessChallenge.cumprido,
+						tentativas: validatedEv.livenessChallenge.tentativas,
+						duracaoMs: validatedEv.livenessChallenge.duracaoMs
+					}
+				: null
 		});
 
 		const boxY_pts = (210 - sigY) * 2.8346 + 1.5;

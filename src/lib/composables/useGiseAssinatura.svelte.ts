@@ -96,17 +96,18 @@ export function useGiseAssinatura({
 		lng?: number,
 		selfie?: string | null,
 		codigoValidação?: string,
-		desafioId?: string
+		desafioId?: string,
+		livenessChallenge?: unknown
 	) {
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
 
 		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId);
+			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId, livenessChallenge);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
-			await executarAssinarSimples(lat, lng, codigoValidação, desafioId);
+			await executarAssinarSimples(lat, lng, codigoValidação, desafioId, livenessChallenge);
 		} else if (tipoAssinaturaPendente === 'serpro') {
 			await executarAssinarComSerpro(lat, lng);
 		}
@@ -116,7 +117,8 @@ export function useGiseAssinatura({
 		latitude?: number,
 		longitude?: number,
 		codigoValidação?: string,
-		desafioId?: string
+		desafioId?: string,
+		livenessChallenge?: unknown
 	) {
 		loading.show('Assinando e gerando PDF...');
 		try {
@@ -133,7 +135,8 @@ export function useGiseAssinatura({
 					longitude,
 					selfieBase64: selfieCapturada,
 					codigoValidação,
-					desafioId
+					desafioId,
+					livenessChallenge
 				})
 			});
 			if (r.ok) {
@@ -286,7 +289,8 @@ export function useGiseAssinatura({
 		longitude?: number,
 		selfieBase64?: string | null,
 		codigoValidação?: string,
-		desafioId?: string
+		desafioId?: string,
+		livenessChallenge?: unknown
 	) {
 		if (!relatorioSendoAssinado) return;
 		loading.show('Iniciando assinatura...');
@@ -316,7 +320,8 @@ export function useGiseAssinatura({
 								longitude,
 								selfieBase64,
 								codigoValidação,
-								desafioId
+								desafioId,
+								livenessChallenge
 							})
 						}
 					);
@@ -356,7 +361,8 @@ export function useGiseAssinatura({
 						longitude,
 						selfieBase64,
 						codigoValidação,
-						desafioId
+						desafioId,
+						livenessChallenge
 					})
 				}
 			);

@@ -196,6 +196,13 @@ export interface AuditTrailOptions {
 	signatureLevel?: 'avancada' | 'qualificada';
 	/** Tipo do carimbo de tempo: 'servidor' (sistema) ou 'act_icp' (TSA ICP-Brasil) */
 	tipoCarimoTempo?: TipoCarimoTempo;
+	/** Resultado do liveness challenge (blink/smile) — registrado para auditoria. */
+	livenessChallenge?: {
+		tipo: 'blink' | 'smile';
+		cumprido: boolean;
+		tentativas: number;
+		duracaoMs: number;
+	} | null;
 }
 
 /**
@@ -343,6 +350,17 @@ export async function adicionarPaginaAuditoria(
 			const tipoCarimbo = descreverTipoCarimbo(s.tipoCarimoTempo ?? 'servidor');
 			drawP('Carimbo de Tempo', tipoCarimbo);
 			drawP('Localização', (s.latitude && s.longitude) ? `${s.latitude}, ${s.longitude}` : 'Não capturado');
+			// Liveness challenge (apenas em assinaturas avançadas com selfie).
+			if (s.livenessChallenge) {
+				const lc = s.livenessChallenge;
+				const tipoLabel = lc.tipo === 'blink' ? 'Piscar' : 'Sorrir';
+				const status = lc.cumprido ? '✓' : '✗';
+				const tentLabel = lc.tentativas > 1 ? ` (${lc.tentativas} tentativas)` : '';
+				drawP(
+					'Prova de Vida',
+					`${tipoLabel} ${status}${tentLabel} — ${(lc.duracaoMs / 1000).toFixed(1)}s`
+				);
+			}
 
 			if (!isQualified) {
 				const rubW = 90; const rubX = 340; const fotX = 445; const rowY = boxTop - 25;

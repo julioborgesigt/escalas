@@ -28,7 +28,18 @@ export const giseSignatureSchema = z.object({
 	signerName: optionalNullable(z.string().max(200)),
 	signerCpf: optionalNullable(z.string().max(20)),
 	latitude: z.number().min(-90).max(90).nullable().optional(),
-	longitude: z.number().min(-180).max(180).nullable().optional()
+	longitude: z.number().min(-180).max(180).nullable().optional(),
+	/** Liveness challenge cumprido — exigido quando exigirFoto está ativo. */
+	livenessChallenge: optionalNullable(
+		z.object({
+			tipo: z.enum(['blink', 'smile']),
+			cumprido: z.boolean(),
+			tentativas: z.number().int().min(1).max(20),
+			iniciadoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
+			concluidoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
+			duracaoMs: z.number().int().min(0).max(600_000)
+		})
+	)
 });
 
 /**
