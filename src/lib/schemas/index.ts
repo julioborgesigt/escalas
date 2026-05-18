@@ -15,11 +15,13 @@ export {
 	prepararAssinaturaSchema,
 	finalizarAssinaturaEscalasSchema,
 	finalizarAssinaturaGiseSchema,
+	assinarSimplesSchema,
 	assinarSimplesEscalasSchema,
 	assinarSimplesGiseSchema,
 	type PrepararAssinaturaInput,
 	type FinalizarAssinaturaEscalasInput,
 	type FinalizarAssinaturaGiseInput,
+	type AssinarSimplesInput,
 	type AssinarSimplesEscalasInput,
 	type AssinarSimplesGiseInput
 } from './assinatura-pdf';
