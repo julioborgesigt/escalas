@@ -91,12 +91,12 @@ describe('statusDeSnapshot', () => {
 	});
 
 	it('retorna unknown para base64 inválido', () => {
-		expect(statusDeSnapshot('nao-é-base64-de-DER!!!')).toEqual({ status: 'unknown' });
+		expect(statusDeSnapshot('nao-é-base64-de-DER!!!').status).toBe('unknown');
 	});
 
 	it('retorna unknown para DER válido mas não-OCSP', () => {
 		// Apenas um INTEGER mínimo (02 01 00) em base64
-		expect(statusDeSnapshot('AgEA')).toEqual({ status: 'unknown' });
+		expect(statusDeSnapshot('AgEA').status).toBe('unknown');
 	});
 });
 

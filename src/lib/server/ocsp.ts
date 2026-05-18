@@ -14,6 +14,7 @@ import { logger } from './logger';
 
 const OID_OCSP_BASIC = '1.3.6.1.5.5.7.48.1.1';
 const OID_OCSP_AIA = '1.3.6.1.5.5.7.48.1';
+const OID_OCSP_NONCE = '1.3.6.1.5.5.7.48.1.2';
 const OID_SHA1 = '1.3.14.3.2.26';
 
 export type StatusOcsp = 'good' | 'revoked' | 'unknown';
@@ -30,6 +31,22 @@ export interface OcspSnapshot {
 	revokedAt?: string;
 	/** Motivo de erro se a consulta falhou (status === 'unknown'). */
 	erro?: string;
+	/**
+	 * Resultado da validação da assinatura do BasicOCSPResponse contra a
+	 * chave pública do responder:
+	 *   - `'valida'`: assinatura matemática conferida + responder confiável
+	 *     (cert do responder vem na resposta e é assinado pelo issuer,
+	 *      OU o responder é o próprio issuer)
+	 *   - `'invalida'`: matemática falhou OU responder não confiável
+	 *   - `'nao_verificada'`: snapshot antigo (pré-feature) ou sem issuer
+	 *      disponível para a checagem offline.
+	 *
+	 * **Importante**: snapshots com `assinaturaResponder='invalida'` NÃO devem
+	 * ser confiados. O caller (`cades-finalizer`) trata isso como falha 422.
+	 */
+	assinaturaResponder?: 'valida' | 'invalida' | 'nao_verificada';
+	/** Eco do nonce recebido (se o responder suportou). */
+	nonceEcoadoOk?: boolean;
 }
 
 /**
@@ -155,11 +172,20 @@ function buildCertId(
 
 /**
  * Constrói um OCSPRequest DER para um único certificado, sem assinatura.
+ *
+ * Inclui a extensão `id-pkix-ocsp-nonce` (OID 1.3.6.1.5.5.7.48.1.2) com
+ * 16 bytes aleatórios — mitiga replay caching pelo responder (RFC 6960 §4.4.1).
+ * O nonce gerado é devolvido para o caller comparar com o eco da resposta.
+ *
+ * Nota: alguns responders OCSP (Microsoft, ITI antigos) ignoram a extensão.
+ * Nesses casos a resposta não traz o nonce de volta e tratamos como "sem
+ * confirmação de freshness" mas não inválida — é o comportamento da maioria
+ * das libs (OpenSSL, Bouncy Castle).
  */
 function buildOcspRequestDer(
 	cert: forge.pki.Certificate,
 	issuer: forge.pki.Certificate
-): Uint8Array {
+): { requestDer: Uint8Array; nonce: Uint8Array } {
 	const certId = buildCertId(cert, issuer);
 	const request = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		certId
@@ -167,8 +193,57 @@ function buildOcspRequestDer(
 	const requestList = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		request
 	]);
+
+	// Nonce de 16 bytes (RFC 8954 recomenda 1..32 octets).
+	const nonce = crypto.getRandomValues(new Uint8Array(16));
+	let nonceStr = '';
+	for (const b of nonce) nonceStr += String.fromCharCode(b);
+
+	// Extension ::= SEQUENCE { extnID OID, critical BOOLEAN DEFAULT FALSE, extnValue OCTET STRING }
+	// extnValue contém um OCTET STRING DER aninhado (que é o valor real da extensão).
+	const nonceOctet = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.OCTETSTRING,
+		false,
+		nonceStr
+	);
+	const nonceOctetDer = forge.asn1.toDer(nonceOctet).getBytes();
+	const nonceExt = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.SEQUENCE,
+		true,
+		[
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_OCSP_NONCE).getBytes()
+			),
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OCTETSTRING,
+				false,
+				nonceOctetDer
+			)
+		]
+	);
+	const extensions = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.SEQUENCE,
+		true,
+		[nonceExt]
+	);
+	// [2] EXPLICIT requestExtensions
+	const requestExtensionsWrap = forge.asn1.create(
+		forge.asn1.Class.CONTEXT_SPECIFIC,
+		2,
+		true,
+		[extensions]
+	);
+
 	const tbsRequest = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		requestList
+		requestList,
+		requestExtensionsWrap
 	]);
 	const ocspRequest = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		tbsRequest
@@ -177,7 +252,217 @@ function buildOcspRequestDer(
 
 	const bytes = new Uint8Array(der.length);
 	for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i) & 0xff;
-	return bytes;
+	return { requestDer: bytes, nonce };
+}
+
+// ---------------------------------------------------------------------------
+// Validação da assinatura do BasicOCSPResponse (RFC 6960 §4.2.2.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extrai os componentes do `BasicOCSPResponse` necessários para validar a
+ * assinatura matemática e a confiabilidade do responder.
+ *
+ * BasicOCSPResponse ::= SEQUENCE {
+ *     tbsResponseData      ResponseData,
+ *     signatureAlgorithm   AlgorithmIdentifier,
+ *     signature            BIT STRING,
+ *     certs            [0] EXPLICIT SEQUENCE OF Certificate OPTIONAL
+ * }
+ */
+function extrairComponentesBasic(basicAsn1: forge.asn1.Asn1): {
+	tbsResponseDataDer: string;
+	signatureValue: string;
+	sigAlgOid: string;
+	responderCerts: forge.pki.Certificate[];
+	responseExtensions: forge.asn1.Asn1[] | null;
+} | null {
+	try {
+		const children = basicAsn1.value as forge.asn1.Asn1[];
+		const tbs = children[0];
+		const sigAlg = children[1];
+		const sig = children[2];
+
+		const tbsDer = forge.asn1.toDer(tbs).getBytes();
+		const sigAlgOidBytes = (sigAlg.value as forge.asn1.Asn1[])[0].value as string;
+		const sigAlgOid = forge.asn1.derToOid(sigAlgOidBytes);
+
+		// BIT STRING: o primeiro byte é "unused bits count" (geralmente 0).
+		let signatureValue = sig.value as string;
+		if (signatureValue.startsWith('\x00')) signatureValue = signatureValue.slice(1);
+
+		const responderCerts: forge.pki.Certificate[] = [];
+		for (const f of children.slice(3)) {
+			if (
+				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
+				(f.type as number) === 0
+			) {
+				// [0] EXPLICIT SEQUENCE OF Certificate
+				for (const certAsn1 of f.value as forge.asn1.Asn1[]) {
+					try {
+						responderCerts.push(forge.pki.certificateFromAsn1(certAsn1));
+					} catch {
+						/* cert malformado — ignora */
+					}
+				}
+			}
+		}
+
+		// Extensões da resposta (procuramos o nonce em responseExtensions).
+		let responseExtensions: forge.asn1.Asn1[] | null = null;
+		const tbsChildren = tbs.value as forge.asn1.Asn1[];
+		for (const f of tbsChildren) {
+			if (
+				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
+				(f.type as number) === 1
+			) {
+				responseExtensions = (f.value as forge.asn1.Asn1[])[0].value as forge.asn1.Asn1[];
+				break;
+			}
+		}
+
+		return {
+			tbsResponseDataDer: tbsDer,
+			signatureValue,
+			sigAlgOid,
+			responderCerts,
+			responseExtensions
+		};
+	} catch (e) {
+		logger.warn('[OCSP] Falha ao extrair componentes do BasicOCSPResponse', {
+			error: e instanceof Error ? e.message : String(e)
+		});
+		return null;
+	}
+}
+
+/**
+ * OIDs de algoritmo de assinatura comuns em respostas OCSP da ICP-Brasil.
+ * Mapeia para o digest algorithm do `forge.md`.
+ */
+const SIG_ALG_DIGEST: Record<string, () => forge.md.MessageDigest> = {
+	'1.2.840.113549.1.1.5': forge.md.sha1.create, // sha1WithRSAEncryption
+	'1.2.840.113549.1.1.11': forge.md.sha256.create, // sha256WithRSAEncryption
+	'1.2.840.113549.1.1.12': forge.md.sha384.create, // sha384WithRSAEncryption
+	'1.2.840.113549.1.1.13': forge.md.sha512.create // sha512WithRSAEncryption
+};
+
+/**
+ * Verifica a assinatura matemática do `BasicOCSPResponse` contra a chave
+ * pública do responder, e checa que o responder é confiável:
+ *
+ *   1. Responder é o próprio issuer do cert consultado (caso comum em ACs
+ *      ICP-Brasil), OU
+ *   2. Responder é um "delegate" cujo certificado está em `responderCerts`,
+ *      foi emitido pelo issuer, e tem o EKU `id-kp-OCSPSigning` (RFC 6960
+ *      §4.2.2.2 b).
+ *
+ * Retorna `'valida' | 'invalida'` sempre — `'nao_verificada'` é decisão
+ * do caller quando não temos issuer disponível.
+ */
+function verificarSignatureBasic(
+	basicAsn1: forge.asn1.Asn1,
+	issuer: forge.pki.Certificate
+): 'valida' | 'invalida' {
+	const comp = extrairComponentesBasic(basicAsn1);
+	if (!comp) return 'invalida';
+
+	// Selecionar a chave pública do responder.
+	let responderCert: forge.pki.Certificate | null = null;
+	let responderEhDelegate = false;
+	if (comp.responderCerts.length > 0) {
+		// Responder delegado — primeiro cert é o do responder.
+		responderCert = comp.responderCerts[0];
+		responderEhDelegate = true;
+	} else {
+		// Sem cert na resposta: o responder é o próprio issuer.
+		responderCert = issuer;
+	}
+
+	// 1. Validar matemática RSA (suporte só a RSA por enquanto;
+	//    ECDSA em responders OCSP é raro mas existe — TODO).
+	const mdFactory = SIG_ALG_DIGEST[comp.sigAlgOid];
+	if (!mdFactory) {
+		logger.warn('[OCSP] Algoritmo de assinatura do responder não suportado', {
+			oid: comp.sigAlgOid
+		});
+		return 'invalida';
+	}
+
+	try {
+		const md = mdFactory();
+		md.update(comp.tbsResponseDataDer);
+		const pubKey = responderCert.publicKey as forge.pki.rsa.PublicKey;
+		const ok = pubKey.verify(md.digest().getBytes(), comp.signatureValue);
+		if (!ok) {
+			logger.info('[OCSP] Assinatura do responder NÃO confere matematicamente');
+			return 'invalida';
+		}
+	} catch (e) {
+		logger.warn('[OCSP] Erro na verificação RSA do responder', {
+			error: e instanceof Error ? e.message : String(e)
+		});
+		return 'invalida';
+	}
+
+	// 2. Confirmar confiança no responder.
+	if (!responderEhDelegate) {
+		// Já é o issuer — confiável por construção.
+		return 'valida';
+	}
+
+	// É delegate: cert do responder deve ter sido emitido PELO issuer.
+	try {
+		const issuerCaStore = forge.pki.createCaStore([issuer]);
+		const cadeiaOk = forge.pki.verifyCertificateChain(issuerCaStore, [responderCert]);
+		if (!cadeiaOk) return 'invalida';
+	} catch {
+		return 'invalida';
+	}
+
+	// E ter o EKU id-kp-OCSPSigning (RFC 6960 §4.2.2.2 b).
+	const eku = responderCert.getExtension('extKeyUsage') as
+		| { serverAuth?: boolean; OCSPSigning?: boolean }
+		| null
+		| undefined;
+	if (!eku?.OCSPSigning) {
+		logger.info('[OCSP] Cert responder delegate sem EKU id-kp-OCSPSigning');
+		return 'invalida';
+	}
+
+	return 'valida';
+}
+
+/**
+ * Verifica o eco do nonce na resposta OCSP. Retorna `true` quando o nonce
+ * está presente e bate; `false` quando está presente e diverge (alerta);
+ * `null` quando ausente (responder não suportou — aceitável).
+ */
+function verificarNonceEco(
+	responseExtensions: forge.asn1.Asn1[] | null,
+	nonceEsperado: Uint8Array
+): boolean | null {
+	if (!responseExtensions) return null;
+	for (const ext of responseExtensions) {
+		const filhos = ext.value as forge.asn1.Asn1[];
+		const oidBytes = filhos[0].value as string;
+		if (forge.asn1.derToOid(oidBytes) !== OID_OCSP_NONCE) continue;
+
+		// extnValue é OCTET STRING contendo outro OCTET STRING DER aninhado.
+		const wrapper = filhos[filhos.length - 1].value as string;
+		try {
+			const innerAsn1 = forge.asn1.fromDer(wrapper);
+			const recebido = innerAsn1.value as string;
+			if (recebido.length !== nonceEsperado.length) return false;
+			for (let i = 0; i < nonceEsperado.length; i++) {
+				if (recebido.charCodeAt(i) !== nonceEsperado[i]) return false;
+			}
+			return true;
+		} catch {
+			return false;
+		}
+	}
+	return null; // ausente
 }
 
 /**
@@ -201,6 +486,8 @@ function buildOcspRequestDer(
 function parseOcspStatus(responseDer: Uint8Array): {
 	status: StatusOcsp;
 	revokedAt?: string;
+	/** BasicOCSPResponse parseado, para o caller validar signature. */
+	basicAsn1?: forge.asn1.Asn1;
 } {
 	try {
 		const buffer = forge.util.createBuffer(
@@ -220,6 +507,7 @@ function parseOcspStatus(responseDer: Uint8Array): {
 		// responseInner is an OCTET STRING containing BasicOCSPResponse DER
 		const basicDer = responseInner.value as string;
 		const basic = forge.asn1.fromDer(basicDer);
+		const basicAsn1 = basic; // capturado para o caller validar signature
 		const tbsResponseData = (basic.value as forge.asn1.Asn1[])[0];
 		const tbs = tbsResponseData.value as forge.asn1.Asn1[];
 		// Achar a SEQUENCE responses (uma SEQUENCE OF SingleResponse)
@@ -251,7 +539,7 @@ function parseOcspStatus(responseDer: Uint8Array): {
 			certStatus.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
 			(certStatus.type as number) === 0
 		) {
-			return { status: 'good' };
+			return { status: 'good', basicAsn1 };
 		}
 		if (
 			certStatus.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
@@ -260,9 +548,9 @@ function parseOcspStatus(responseDer: Uint8Array): {
 			// RevokedInfo ::= SEQUENCE { revocationTime GeneralizedTime, ... }
 			const revokedInfo = certStatus.value as forge.asn1.Asn1[];
 			const revTime = revokedInfo[0]?.value as string | undefined;
-			return { status: 'revoked', revokedAt: revTime };
+			return { status: 'revoked', revokedAt: revTime, basicAsn1 };
 		}
-		return { status: 'unknown' };
+		return { status: 'unknown', basicAsn1 };
 	} catch (e) {
 		logger.warn('[OCSP] Falha ao parsear OCSPResponse', {
 			error: e instanceof Error ? e.message : String(e)
@@ -296,8 +584,11 @@ export async function consultarOcsp(
 	}
 
 	let requestDer: Uint8Array;
+	let nonceEnviado: Uint8Array;
 	try {
-		requestDer = buildOcspRequestDer(cert, issuer);
+		const built = buildOcspRequestDer(cert, issuer);
+		requestDer = built.requestDer;
+		nonceEnviado = built.nonce;
 	} catch (e) {
 		return {
 			status: 'unknown',
@@ -333,12 +624,42 @@ export async function consultarOcsp(
 				.join('')
 		);
 		const parsed = parseOcspStatus(respBuf);
+
+		// Validar assinatura matemática + confiança do responder.
+		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' =
+			'nao_verificada';
+		let nonceEcoadoOk: boolean | undefined;
+		if (parsed.basicAsn1) {
+			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);
+			// Checar eco do nonce (apenas informativo — responder pode não suportar).
+			const comp = extrairComponentesBasic(parsed.basicAsn1);
+			if (comp) {
+				const eco = verificarNonceEco(comp.responseExtensions, nonceEnviado);
+				if (eco !== null) nonceEcoadoOk = eco;
+			}
+		}
+
+		// Se o responder respondeu mas a assinatura é inválida, o status é
+		// inutilizável — defesa contra MITM forjando "good" para cert revogado.
+		if (assinaturaResponder === 'invalida') {
+			return {
+				status: 'unknown',
+				responseDerB64: respB64,
+				url,
+				consultadoEm,
+				erro: 'Assinatura do responder OCSP NÃO confere — possível MITM ou responder comprometido',
+				assinaturaResponder
+			};
+		}
+
 		return {
 			status: parsed.status,
 			revokedAt: parsed.revokedAt,
 			responseDerB64: respB64,
 			url,
-			consultadoEm
+			consultadoEm,
+			assinaturaResponder,
+			nonceEcoadoOk
 		};
 	} catch (e) {
 		return {
@@ -355,19 +676,44 @@ export async function consultarOcsp(
 
 /**
  * Re-parseia uma resposta OCSP previamente armazenada (CAdES-LT) e
- * retorna apenas o status. Usado pela página /validar/[hash] sem
- * consultar a rede.
+ * retorna o status + (opcionalmente) o resultado de validação da
+ * assinatura do responder.
+ *
+ * Usado pela página /validar/[hash] na verificação offline.
+ *
+ * @param snapshotB64 - resposta OCSP em DER base64
+ * @param issuer - issuer do certificado consultado (para validar signature).
+ *                 Quando omitido, retorna apenas `status` sem validar
+ *                 assinatura (compat com snapshots antigos onde o issuer
+ *                 não está prontamente disponível).
  */
-export function statusDeSnapshot(snapshotB64: string): {
+export function statusDeSnapshot(
+	snapshotB64: string,
+	issuer?: forge.pki.Certificate
+): {
 	status: StatusOcsp;
 	revokedAt?: string;
+	assinaturaResponder?: 'valida' | 'invalida' | 'nao_verificada';
 } {
 	if (!snapshotB64) return { status: 'unknown' };
 	try {
 		const der = forge.util.decode64(snapshotB64);
 		const bytes = new Uint8Array(der.length);
 		for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i) & 0xff;
-		return parseOcspStatus(bytes);
+		const parsed = parseOcspStatus(bytes);
+		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' = 'nao_verificada';
+		if (parsed.basicAsn1 && issuer) {
+			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);
+		}
+		// Se temos o issuer e a assinatura não bate, status é inutilizável.
+		if (assinaturaResponder === 'invalida') {
+			return { status: 'unknown', assinaturaResponder };
+		}
+		return {
+			status: parsed.status,
+			revokedAt: parsed.revokedAt,
+			assinaturaResponder
+		};
 	} catch {
 		return { status: 'unknown' };
 	}
