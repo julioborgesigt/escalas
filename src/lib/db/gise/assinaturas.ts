@@ -104,11 +104,12 @@ export async function salvarAssinaturaRelatorioGise(
 ) {
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
 	const uaResumido = data.user_agent ? parseUserAgent(data.user_agent) : undefined;
+	const uaRaw = data.user_agent ? data.user_agent.slice(0, 1024) : undefined;
 	const lat2 = gps2(data.latitude ?? undefined);
 	const lng2 = gps2(data.longitude ?? undefined);
 	return db
 		.insert(giseAssinaturasRelatorios)
-		.values({ ...data, assinante_id: data.assinante_id ?? null, assinante_cpf: data.assinante_cpf ?? '', ip_address: ipAnonimizado, user_agent: uaResumido, latitude: lat2, longitude: lng2 })
+		.values({ ...data, assinante_id: data.assinante_id ?? null, assinante_cpf: data.assinante_cpf ?? '', ip_address: ipAnonimizado, user_agent: uaResumido, user_agent_raw: uaRaw, latitude: lat2, longitude: lng2 })
 		.onConflictDoUpdate({
 			target: [
 				giseAssinaturasRelatorios.gise_id,
@@ -124,6 +125,7 @@ export async function salvarAssinaturaRelatorioGise(
 				verification_hash: data.verification_hash,
 				ip_address: ipAnonimizado,
 				user_agent: uaResumido,
+				user_agent_raw: uaRaw,
 				latitude: lat2,
 				longitude: lng2,
 				selfie_key: data.selfie_key,
