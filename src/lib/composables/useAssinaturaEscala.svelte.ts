@@ -17,6 +17,7 @@ import type { UsuarioLogado } from '$lib/auth';
 import { csrfHeaders } from '$lib/csrf';
 import { loading } from '$lib/loading.svelte';
 import { logger } from '$lib/logger';
+import { page } from '$app/state';
 
 export interface UseAssinaturaParams {
 	getParams: () => {
@@ -84,7 +85,11 @@ export function useAssinaturaEscala({
 		tentouLerCertificados = true;
 		try {
 			if (!pkInstance) {
-				pkInstance = await initWebPKI();
+				// Licença Lacuna propagada do server via +layout.server.ts.
+				// `null` em dev/localhost (gratuito) ou ausência de config; ambos
+				// os casos retornam undefined para initWebPKI (legado).
+				const lic = (page.data?.webPkiLicense as string | null | undefined) ?? undefined;
+				pkInstance = await initWebPKI(lic);
 			}
 			certificados = await listarCertificados(pkInstance);
 		} catch (err) {

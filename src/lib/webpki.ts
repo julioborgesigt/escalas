@@ -30,7 +30,19 @@ function toNativePromise<T>(webPkiPromise: { success(cb: (result: T) => void): {
 
 /**
  * Inicializa o Lacuna Web PKI e retorna a instância pronta.
- * Funciona gratuitamente em localhost.
+ *
+ * **Licença em produção:** Lacuna Web PKI é gratuito **apenas em localhost**.
+ * Em qualquer outro domínio (produção, staging, etc.) requer licença comercial
+ * paga, configurada via env `WEBPKI_LICENSE` no Cloudflare Pages. A chave
+ * deve ser propagada do server ao cliente através de `+layout.server.ts`
+ * (ou endpoint dedicado).
+ *
+ * Sem licença em produção:
+ *   - `pki.init()` chama `defaultFail` com erro de "license missing".
+ *   - O caller (componente de assinatura) deve degradar para SERPRO ou
+ *     mostrar mensagem clara ao usuário.
+ *
+ * Pricing/registro: https://www.lacunasoftware.com/products/web-pki
  */
 export async function initWebPKI(license?: string): Promise<PKIInstance> {
 	const { default: LacunaWebPKI } = await import('web-pki');
@@ -44,7 +56,24 @@ export async function initWebPKI(license?: string): Promise<PKIInstance> {
 						'Lacuna Web PKI não está instalado. Instale a extensão e o componente nativo em https://get.webpkiplugin.com/'
 					)
 				),
-			defaultFail: (ex: unknown) => reject(ex)
+			defaultFail: (ex: unknown) => {
+				// O erro "license is required" da Lacuna chega aqui. Reescrevemos
+				// a mensagem para deixar claro para o operador o que fazer.
+				const msg = typeof ex === 'object' && ex !== null && 'userMessage' in ex
+					? String((ex as { userMessage?: unknown }).userMessage)
+					: String(ex);
+				if (/license/i.test(msg)) {
+					reject(
+						new Error(
+							'Lacuna Web PKI sem licença válida para este domínio. ' +
+								'Configure a env `WEBPKI_LICENSE` no Cloudflare Pages (admin geral). ' +
+								'Alternativamente, use o Assinador SERPRO no painel de assinatura.'
+						)
+					);
+				} else {
+					reject(ex);
+				}
+			}
 		});
 	});
 }

@@ -18,6 +18,7 @@ import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
+import { verificarAssinaturaCms } from './crypto-verify';
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
@@ -164,6 +165,8 @@ interface CmsParsed {
 	signedAttrsAsSet: forge.asn1.Asn1; // mesma coisa, mas com tag SET (0x31)
 	messageDigest: string; // bytes binários
 	signatureValue: string; // bytes binários
+	/** OID do signatureAlgorithm (SignerInfo.signatureAlgorithm). */
+	sigAlgOid: string;
 	signingTimeISO?: string;
 	timestampToken?: forge.asn1.Asn1;
 }
@@ -206,10 +209,15 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		const certificate = forge.pki.certificateFromAsn1(certificateAsn1);
 
 		// SignerInfo: version, sid, digestAlgorithm, [0] signedAttrs?, signatureAlgorithm, signature, [1] unsignedAttrs?
+		// signatureAlgorithm vem APÓS signedAttrs e ANTES do signatureValue.
+		// Identificamos pela posição: o último SEQUENCE universal antes do
+		// OCTETSTRING é o signatureAlgorithm.
 		const si = signerInfo.value as forge.asn1.Asn1[];
 		let signedAttrs: forge.asn1.Asn1 | null = null;
 		let unsignedAttrs: forge.asn1.Asn1 | null = null;
 		let signatureValue: string | null = null;
+		let sigAlgOid = '1.2.840.113549.1.1.11'; // default sha256WithRSAEncryption
+		let sigAlgEncontrado: forge.asn1.Asn1 | null = null;
 		for (const f of si) {
 			if (
 				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
@@ -224,12 +232,29 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				unsignedAttrs = f;
 			} else if (
 				f.tagClass === forge.asn1.Class.UNIVERSAL &&
+				f.type === forge.asn1.Type.SEQUENCE &&
+				signatureValue === null
+			) {
+				// Pode ser digestAlgorithm (antes de signedAttrs) ou signatureAlgorithm
+				// (depois). O signatureAlgorithm é o ÚLTIMO SEQUENCE antes do OCTETSTRING
+				// — sobrescrevemos no loop para ficar com ele.
+				sigAlgEncontrado = f;
+			} else if (
+				f.tagClass === forge.asn1.Class.UNIVERSAL &&
 				f.type === forge.asn1.Type.OCTETSTRING
 			) {
 				signatureValue = f.value as string;
 			}
 		}
 		if (!signedAttrs || !signatureValue) return null;
+		if (sigAlgEncontrado) {
+			try {
+				const oidBytes = (sigAlgEncontrado.value as forge.asn1.Asn1[])[0].value as string;
+				sigAlgOid = forge.asn1.derToOid(oidBytes);
+			} catch {
+				/* mantém default */
+			}
+		}
 
 		// Re-codifica signedAttrs como SET (tag 0x31) — a assinatura é sobre essa forma.
 		const signedAttrsAsSet = forge.asn1.create(
@@ -286,6 +311,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			signedAttrsAsSet,
 			messageDigest,
 			signatureValue,
+			sigAlgOid,
 			signingTimeISO,
 			timestampToken
 		};
@@ -317,6 +343,11 @@ export async function verificarIntegridadePdf(
 	return true;
 }
 
+/**
+ * @deprecated Use `verificarAssinaturaCmsAsync` — só suporta RSA PKCS#1 v1.5
+ *             + SHA-256, falha silenciosamente para ECDSA/RSA-PSS. Mantida
+ *             como wrapper síncrono apenas para callers legados.
+ */
 export function verificarAssinaturaRsa(
 	cert: forge.pki.Certificate,
 	signedAttrsAsSet: forge.asn1.Asn1,
@@ -329,11 +360,26 @@ export function verificarAssinaturaRsa(
 		const pubKey = cert.publicKey as forge.pki.rsa.PublicKey;
 		return pubKey.verify(md.digest().getBytes(), signatureValue);
 	} catch (e) {
-		logger.warn('[PDF-VERIFY] Falha na verificação RSA', {
+		logger.warn('[PDF-VERIFY] Falha na verificação RSA (legado)', {
 			error: e instanceof Error ? e.message : String(e)
 		});
 		return false;
 	}
+}
+
+/**
+ * Verifica a assinatura do SignerInfo respeitando o `sigAlgOid` extraído
+ * do CMS — suporta RSA PKCS#1 v1.5, RSA-PSS e ECDSA.
+ *
+ * Deve ser preferida em todo código novo.
+ */
+export async function verificarAssinaturaCmsAsync(
+	cert: forge.pki.Certificate,
+	sigAlgOid: string,
+	signedAttrsAsSet: forge.asn1.Asn1,
+	signatureValue: string
+): Promise<boolean> {
+	return verificarAssinaturaCms({ cert, sigAlgOid, signedAttrsAsSet, signatureValue });
 }
 
 export function verificarCadeiaIcpBrasil(
@@ -492,14 +538,15 @@ export async function verificarAssinaturaCompleta(
 		erros.push('Hash do conteúdo do PDF não confere com o messageDigest assinado');
 	}
 
-	// 2. Assinatura RSA
-	result.checks.assinaturaRsa = verificarAssinaturaRsa(
+	// 2. Assinatura do SignerInfo (RSA PKCS#1, RSA-PSS ou ECDSA conforme sigAlgOid).
+	result.checks.assinaturaRsa = await verificarAssinaturaCmsAsync(
 		cms.certificate,
+		cms.sigAlgOid,
 		cms.signedAttrsAsSet,
 		cms.signatureValue
 	);
 	if (!result.checks.assinaturaRsa) {
-		erros.push('Assinatura RSA dos SignedAttributes inválida');
+		erros.push('Assinatura criptográfica dos SignedAttributes inválida');
 	}
 
 	// 3. Cadeia ICP-Brasil
