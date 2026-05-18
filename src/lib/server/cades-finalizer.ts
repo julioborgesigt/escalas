@@ -234,7 +234,16 @@ export async function verificarECarimbarAssinatura(
 		});
 	}
 
-	// 6. OCSP — tenta localizar o issuer para construir o request
+	// 6. OCSP — tenta localizar o issuer para construir o request.
+	//
+	// TODO(crl-fallback): hoje só consultamos OCSP. CAdES-LT também aceita
+	// CRL como fonte de revogação (ETSI EN 319 122-1 §6.3.4). Toda AC ICP-Brasil
+	// publica OCSP, então a falta de fallback CRL não bloqueia validação na
+	// prática. Implementar quando aparecer cert ICP-Brasil sem OCSP no AIA
+	// — exigirá download/parse/verify de CRL (~1-5 MB por AC) e cache local
+	// das CRLs ativas. Por ora, em ausência de OCSP devolvemos status='unknown'
+	// e o cades-finalizer aceita (rejeita só 'revoked'); o validador da UI
+	// destaca "OCSP indisponível".
 	let ocspMetadata: {
 		ocsp_response_b64?: string;
 		ocsp_consultado_em?: string;
