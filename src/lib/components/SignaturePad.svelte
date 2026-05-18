@@ -2,6 +2,13 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';
+	import {
+		sortearChallenge,
+		BlinkCounter,
+		SmileDetector,
+		type ChallengeDefinicao,
+		type ChallengeProgresso
+	} from '$lib/liveness-challenge';
 	let faceapi: any = $state(null);
 
 	let {
@@ -42,6 +49,17 @@
 	let isFlashActive = $state(false);
 	let stableFrames = $state(0); // Contador para evitar flickering
 	let lastErrorCode = $state<string | null>(null); // Erros de captura final
+
+	// Liveness ATIVA (challenge-response) — barra foto/vídeo pré-gravado.
+	// Sorteia 1 challenge (blink ou smile) por sessão. O usuário precisa
+	// cumprir antes do botão "tirar foto" ser liberado.
+	let challengeAtual = $state<ChallengeDefinicao | null>(null);
+	let challengeProgresso = $state<ChallengeProgresso | null>(null);
+	let challengeIniciadoEm = $state<string | null>(null);
+	let challengeConcluidoEm = $state<string | null>(null);
+	let challengeTentativas = $state(0);
+	const blinkCounter = new BlinkCounter();
+	const smileDetector = new SmileDetector();
 
 	// Estados do Email Code
 	let solicitandoCodigo = $state(false);
@@ -87,6 +105,14 @@
 		} else {
 			// se voltar para a tela de assinatura
 			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+			// Reset do challenge para que próxima entrada na câmera sorteie novo
+			challengeAtual = null;
+			challengeProgresso = null;
+			challengeIniciadoEm = null;
+			challengeConcluidoEm = null;
+			challengeTentativas = 0;
+			blinkCounter.reset();
+			smileDetector.reset();
 		}
 
 		return () => {
@@ -104,11 +130,29 @@
 			}
 			if (faceapi && !isFaceModelLoaded) {
 				// Self-hostado em `static/face-api/` — servido pela CDN do Cloudflare
-				// Pages. Removemos a dependência de `cdn.jsdelivr.net` (anti rate-limit
-				// e simplifica a CSP).
-				await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/');
+				// Pages. Removemos a dependência de `cdn.jsdelivr.net`.
+				//
+				// Carrega 3 modelos:
+				//  - tinyFaceDetector: presença e localização do rosto
+				//  - faceLandmark68Net: 68 pontos faciais (EAR para blink challenge)
+				//  - faceExpressionNet: probabilidades de happy/sad/etc (smile challenge)
+				await Promise.all([
+					faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/'),
+					faceapi.nets.faceLandmark68Net.loadFromUri('/face-api/'),
+					faceapi.nets.faceExpressionNet.loadFromUri('/face-api/')
+				]);
 				isFaceModelLoaded = true;
 			}
+
+			// Sortear challenge da sessão (cada vez que entra na step camera).
+			if (!challengeAtual) {
+				challengeAtual = sortearChallenge();
+				challengeIniciadoEm = new Date().toISOString();
+				challengeTentativas = 1;
+				blinkCounter.reset();
+				smileDetector.reset();
+			}
+
 			startDetectionLoop();
 		} catch (e: unknown) {
 			console.error('Erro ao carregar face-api:', e);
@@ -116,59 +160,102 @@
 		}
 	}
 
+	/**
+	 * Re-sorteia um novo challenge (chamado pelo botão "trocar desafio").
+	 * Útil quando o usuário tem dificuldade em executar o sorteado (ex.: smile
+	 * com máscara).
+	 */
+	function trocarChallenge() {
+		const anterior = challengeAtual?.tipo;
+		// Re-sorteia até pegar um diferente do anterior.
+		let novo = sortearChallenge();
+		let tentativas = 0;
+		while (novo.tipo === anterior && tentativas < 5) {
+			novo = sortearChallenge();
+			tentativas++;
+		}
+		challengeAtual = novo;
+		challengeProgresso = null;
+		challengeIniciadoEm = new Date().toISOString();
+		challengeConcluidoEm = null;
+		challengeTentativas += 1;
+		blinkCounter.reset();
+		smileDetector.reset();
+	}
+
 	function startDetectionLoop() {
 		if (faceDetectionInterval) clearInterval(faceDetectionInterval);
 		faceDetectionInterval = setInterval(async () => {
-			if (videoElement && !videoElement.paused && isFaceModelLoaded) {
-				try {
-					const detections = await faceapi.detectAllFaces(
+			if (!videoElement || videoElement.paused || !isFaceModelLoaded) return;
+			try {
+				// Pipeline: detect → landmarks → expressions. Cada etapa só roda
+				// se a anterior achou exatamente 1 rosto, economizando CPU em
+				// dispositivos modestos.
+				const detection = await faceapi
+					.detectSingleFace(
 						videoElement,
 						new faceapi.TinyFaceDetectorOptions({
 							inputSize: 224,
 							scoreThreshold: 0.5
 						})
-					);
-					if (detections.length === 1) {
-						faceDetected = true;
-						const box = detections[0].box;
+					)
+					.withFaceLandmarks()
+					.withFaceExpressions();
 
-						if (lastBox) {
-							const dx = box.x - lastBox.x;
-							const dy = box.y - lastBox.y;
-							const dist = Math.sqrt(dx * dx + dy * dy);
-							const movedValue = dist > 12;
+				if (!detection) {
+					faceDetected = false;
+					stableFrames = 0;
+					faceStatusMessage = 'Posicione seu rosto na frente da câmera.';
+					isMoving = false;
+					return;
+				}
 
-							if (movedValue) {
-								isMoving = true;
-								stableFrames = 0;
-								faceStatusMessage = 'Mantenha o celular firme! ✋';
-							} else {
-								stableFrames++;
-								if (stableFrames >= 3) {
-									isMoving = false;
-									faceStatusMessage = 'Rosto Detectado ✅';
-								}
-							}
-						} else {
+				// Reaproveita o detection.detection para box e o resto para landmarks/expressions.
+				faceDetected = true;
+				const box = detection.detection.box;
+
+				if (lastBox) {
+					const dx = box.x - lastBox.x;
+					const dy = box.y - lastBox.y;
+					const dist = Math.sqrt(dx * dx + dy * dy);
+					const movedValue = dist > 12;
+
+					if (movedValue) {
+						isMoving = true;
+						stableFrames = 0;
+						faceStatusMessage = 'Mantenha o celular firme! ✋';
+					} else {
+						stableFrames++;
+						if (stableFrames >= 3) {
+							isMoving = false;
 							faceStatusMessage = 'Rosto Detectado ✅';
 						}
-						lastBox = box;
-					} else if (detections.length === 0) {
-						faceDetected = false;
-						stableFrames = 0;
-						faceStatusMessage = 'Posicione seu rosto na frente da câmera.';
-						isMoving = false;
-					} else {
-						faceDetected = false;
-						stableFrames = 0;
-						faceStatusMessage = 'Apenas 1 rosto é permitido!';
-						isMoving = false;
 					}
-				} catch (e) {
-					// Ignora erros ocasionais
+				} else {
+					faceStatusMessage = 'Rosto Detectado ✅';
 				}
+				lastBox = box;
+
+				// Alimentar o challenge ativo com os dados desta frame.
+				if (challengeAtual && !challengeProgresso?.concluido) {
+					if (challengeAtual.tipo === 'blink') {
+						const landmarks = detection.landmarks;
+						challengeProgresso = blinkCounter.feed(
+							landmarks.getLeftEye(),
+							landmarks.getRightEye()
+						);
+					} else if (challengeAtual.tipo === 'smile') {
+						const happy = detection.expressions.happy ?? 0;
+						challengeProgresso = smileDetector.feed(happy);
+					}
+					if (challengeProgresso?.concluido && !challengeConcluidoEm) {
+						challengeConcluidoEm = new Date().toISOString();
+					}
+				}
+			} catch (e) {
+				// Ignora erros ocasionais (pipeline pesado pode falhar em frames específicos)
 			}
-		}, 400); // Intervalo reduzido para 400ms para melhor detecção de movimento
+		}, 400);
 	}
 
 	$effect(() => {
@@ -367,18 +454,37 @@
 		processarAssinatura(dataUrl, coords?.lat, coords?.lng, selfieBase64);
 	}
 
+	/**
+	 * Resultado consolidado do challenge ativo (liveness), pronto para
+	 * persistência no manifesto. Quando exigirFoto=false, fica `null`.
+	 */
+	function montarLivenessResultado() {
+		if (!exigirFoto || !challengeAtual) return null;
+		const inicio = challengeIniciadoEm ? new Date(challengeIniciadoEm).getTime() : Date.now();
+		const fim = challengeConcluidoEm ? new Date(challengeConcluidoEm).getTime() : Date.now();
+		return {
+			tipo: challengeAtual.tipo,
+			cumprido: !!challengeProgresso?.concluido,
+			tentativas: challengeTentativas,
+			iniciadoEm: challengeIniciadoEm,
+			concluidoEm: challengeConcluidoEm,
+			duracaoMs: Math.max(0, fim - inicio)
+		};
+	}
+
 	async function processarAssinatura(
 		dataUrl: string,
 		lat: number | undefined,
 		lng: number | undefined,
 		selfieBase64: string | null
 	) {
+		const liveness = montarLivenessResultado();
 		if (exigirCodigoEmail) {
 			pendingSignature = { dataUrl, lat, lng, selfieBase64 };
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
-			onConfirm(dataUrl, lat, lng, selfieBase64);
+			onConfirm(dataUrl, lat, lng, selfieBase64, undefined, undefined, liveness);
 		}
 	}
 
@@ -423,13 +529,21 @@
 				pendingSignature.lng,
 				pendingSignature.selfieBase64,
 				codigoInput,
-				desafioId
+				desafioId,
+				montarLivenessResultado()
 			);
 		}
 	}
 
 	function startCaptureSequence() {
 		if (countdown > 0) return;
+		// Liveness ativa: bloqueia captura enquanto o challenge sorteado não
+		// foi cumprido. Sem isso, o face-api só atestou "tem rosto na frente"
+		// — o que passa em foto/vídeo pré-gravado.
+		if (exigirFoto && challengeAtual && !challengeProgresso?.concluido) {
+			lastErrorCode = `Cumpra o desafio antes de tirar a foto: ${challengeAtual.instrucao}`;
+			return;
+		}
 
 		// Inicia contagem de 3 segundos para dar tempo ao usuário de estabilizar o celular
 		countdown = 3;
@@ -625,6 +739,53 @@
 							</p>
 						</div>
 					{/if}
+
+					<!-- Banner do challenge ativo (liveness) — barra foto/vídeo pré-gravado -->
+					{#if challengeAtual && faceDetected}
+						{@const ok = challengeProgresso?.concluido ?? false}
+						<div
+							class="absolute top-3 left-3 right-3 z-10 px-3 py-2 rounded-xl backdrop-blur-md border-2 transition-all duration-200 {ok
+								? 'bg-success-500/20 border-success-400/60 text-success-50'
+								: 'bg-primary-900/70 border-primary-400/60 text-white'}"
+						>
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex-1 min-w-0">
+									<p class="text-[0.6rem] font-black uppercase tracking-widest opacity-80">
+										Desafio de presença
+									</p>
+									<p class="text-sm font-bold leading-tight truncate">
+										{ok ? '✅ Desafio concluído' : challengeAtual.instrucao}
+									</p>
+									{#if !ok && challengeProgresso}
+										<p class="text-[0.65rem] opacity-90 mt-0.5">
+											{challengeProgresso.mensagem}
+										</p>
+									{:else if !ok}
+										<p class="text-[0.65rem] opacity-70 mt-0.5">{challengeAtual.hint}</p>
+									{/if}
+								</div>
+								{#if !ok}
+									<button
+										type="button"
+										onclick={trocarChallenge}
+										class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+										title="Trocar para outro desafio"
+									>
+										Trocar
+									</button>
+								{/if}
+							</div>
+							{#if challengeProgresso && !ok}
+								<!-- Barra de progresso -->
+								<div class="mt-1.5 h-1 bg-white/15 rounded-full overflow-hidden">
+									<div
+										class="h-full bg-primary-300 transition-all duration-200"
+										style="width: {challengeProgresso.progresso * 100}%"
+									></div>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 				{#if cameraError}
 					<div
@@ -752,15 +913,18 @@
 				Voltar
 			</button>
 
+			{@const challengeOk = !challengeAtual || challengeProgresso?.concluido}
 			<button type="button"
-				class="btn {faceDetected && !isMoving
+				class="btn {faceDetected && !isMoving && challengeOk
 					? 'preset-filled-primary-500'
 					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
 				onclick={startCaptureSequence}
-				disabled={capturingLocation || capturingImage || !!cameraError || !stream || !faceDetected}
+				disabled={capturingLocation || capturingImage || !!cameraError || !stream || !faceDetected || !challengeOk}
 			>
 				{#if !faceDetected}
 					Aguardando Rosto...
+				{:else if !challengeOk}
+					Cumpra o desafio…
 				{:else if countdown > 0}
 					Prepare-se ({countdown})
 				{:else if capturingImage}
