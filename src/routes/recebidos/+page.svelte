@@ -2,6 +2,7 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -343,13 +344,16 @@
 								<td class="text-center">
 									<form method="POST" action="?/toggleVisto" use:enhance={handleToggleVisto(escala)} class="contents">
 										<input type="hidden" name="escala_id" value={escala.id} />
-										<input
-											type="checkbox"
-											class="checkbox mx-auto"
-											disabled={togglingId === escala.id}
-											checked={!!escala.visto_por_admin}
-											onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
-										/>
+										{#if togglingId === escala.id}
+											<Spinner size="sm" class="mx-auto text-primary-500" />
+										{:else}
+											<input
+												type="checkbox"
+												class="checkbox mx-auto"
+												checked={!!escala.visto_por_admin}
+												onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
+											/>
+										{/if}
 									</form>
 								</td>
 								<td class="font-bold text-sm text-center">{escala.lotacao}</td>
@@ -498,13 +502,16 @@
 								<span class="text-[10px] uppercase font-bold text-surface-500">Lida</span>
 								<form method="POST" action="?/toggleVisto" use:enhance={handleToggleVisto(escala)} class="contents">
 									<input type="hidden" name="escala_id" value={escala.id} />
-									<input
-										type="checkbox"
-										class="checkbox checkbox-sm"
-										disabled={togglingId === escala.id}
-										checked={!!escala.visto_por_admin}
-										onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
-									/>
+									{#if togglingId === escala.id}
+										<Spinner size="xs" class="text-primary-500" />
+									{:else}
+										<input
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											checked={!!escala.visto_por_admin}
+											onchange={(e) => e.currentTarget.closest('form')?.requestSubmit()}
+										/>
+									{/if}
 								</form>
 							</label>
 						</div>
