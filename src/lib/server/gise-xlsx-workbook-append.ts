@@ -44,7 +44,7 @@ export function statusLabelGiseXlsx(status: string): string {
 		aguardando_assinatura: 'Aguardando assinatura da supervisão',
 		em_andamento: 'GISE em operação',
 		aguardando_relatorios: 'Aguardando relatórios',
-		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+		aguardando_assinatura_relat: 'Aguardando assinatura do supervisor (extras)',
 		pronta_para_finalizar: 'Pronta para finalizar',
 		finalizada: 'Concluída'
 	};

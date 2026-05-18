@@ -54,10 +54,10 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const STATUS_MAP: Record<string, string> = {
 		em_definicao_supervisor: 'Em definição do supervisor',
 		em_preenchimento: 'Preenchendo escalados',
-		aguardando_assinatura: 'Aguardando assinatura do supervisor',
+		aguardando_assinatura: 'Aguardando assinatura do supervisor (escala)',
 		em_andamento: 'GISE em operação',
 		aguardando_relatorios: 'Aguardando entradas',
-		aguardando_assinatura_relat: 'Aguardando assinatura dos Rel. de Extra',
+		aguardando_assinatura_relat: 'Aguardando assinatura do supervisor (extras)',
 		pronta_para_finalizar: 'Pronta para finalizar',
 		finalizada: 'Concluída'
 	};

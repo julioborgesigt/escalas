@@ -282,7 +282,7 @@
 						? getFaltandoRubrica(sec)
 						: assRel
 							? `Assinado por ${assRel.assinante_nome}`
-							: 'Aguardando assinatura do supervisor'}
+							: 'Aguardando assinatura do supervisor (escala)'}
 				>
 					<svg
 						class="w-3.5 h-3.5 shrink-0"
