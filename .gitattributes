@@ -1,0 +1,11 @@
+# Preserva o BOM UTF-8 dos scripts PowerShell (.ps1).
+#
+# Windows PowerShell 5.1 (default no Windows 10/11 fora do PowerShell Core)
+# le arquivos sem BOM como Windows-1252, o que corrompe acentos em strings
+# e literais multi-linha. Como o update-trust-store.ps1 usa caracteres
+# acentuados em strings de log e cabecalhos PEM, salvamos com BOM e
+# instruimos o git a NUNCA normalizar.
+#
+# `binary` desliga conversao CRLF/LF tambem — apropriado pra scripts
+# que dependem do encoding exato dos bytes.
+*.ps1 binary
