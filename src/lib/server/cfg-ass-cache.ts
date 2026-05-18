@@ -65,7 +65,7 @@ export async function lerFlagsAssinatura(
 	}
 
 	const db = getDB(platform);
-	const [foto, gps, codigo, smartphone] = await Promise.all([
+	const [foto, gps, _codigoBanco, smartphone] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
 		buscarExigirGpsAssinatura(db),
 		buscarExigirCodigoEmailAssinatura(db),
@@ -75,7 +75,12 @@ export async function lerFlagsAssinatura(
 	const flags: FlagsAssinatura = {
 		exigirFotoAssinatura: foto,
 		exigirGpsAssinatura: gps,
-		exigirCodigoEmailAssinatura: codigo,
+		// 2FA por e-mail é requisito MÍNIMO da assinatura avançada
+		// (Lei 14.063/2020 art. 4º II "b"). Tratamos como sempre `true` mesmo
+		// que o D1 contenha "0" por migração antiga ou bypass administrativo
+		// direto no banco — a UI bloqueia desligar e o endpoint PUT rejeita
+		// `false`. Documentado em signature-level.ts.
+		exigirCodigoEmailAssinatura: true,
 		restringirSmartphone: smartphone
 	};
 

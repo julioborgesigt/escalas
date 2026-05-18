@@ -132,21 +132,19 @@ export const finalizarAssinaturaGiseSchema = z.object({
 export type FinalizarAssinaturaGiseInput = z.infer<typeof finalizarAssinaturaGiseSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ASSINAR-SIMPLES — escalas (rubrica + GPS)
+// ASSINAR-SIMPLES — schema canônico (escalas + gise unificados)
+//
+// Antes existiam dois schemas distintos: `assinarSimplesEscalasSchema` (apenas
+// rubrica + GPS) e `assinarSimplesGiseSchema` (rubrica + GPS + selfie + 2FA).
+// Isso fazia escala mensal ignorar silenciosamente as flags globais
+// `exigirFotoAssinatura` e `exigirCodigoEmailAssinatura`.
+//
+// Agora o schema aceita todos os campos como opcionais; a obrigatoriedade
+// é decidida pelo servidor em `signature-service.ts` a partir das flags
+// efetivas lidas via `lerFlagsAssinatura(platform)`.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const assinarSimplesEscalasSchema = z.object({
-	rubrica: dataUrlImagemSchema,
-	latitude: latitudeSchema,
-	longitude: longitudeSchema
-});
-export type AssinarSimplesEscalasInput = z.infer<typeof assinarSimplesEscalasSchema>;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ASSINAR-SIMPLES — gise (rubrica + GPS + selfie + 2FA por e-mail)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const assinarSimplesGiseSchema = z.object({
+export const assinarSimplesSchema = z.object({
 	rubrica: dataUrlImagemSchema,
 	latitude: latitudeSchema,
 	longitude: longitudeSchema,
@@ -155,4 +153,13 @@ export const assinarSimplesGiseSchema = z.object({
 	codigoValidação: optionalNullable(z.string().regex(/^\d{4,8}$/, 'Código inválido')),
 	desafioId: optionalNullable(z.string().regex(/^[0-9a-fA-F]+$/, 'desafioId inválido').max(80))
 });
-export type AssinarSimplesGiseInput = z.infer<typeof assinarSimplesGiseSchema>;
+export type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
+
+/** @deprecated use `assinarSimplesSchema`. Alias mantido para não quebrar imports. */
+export const assinarSimplesEscalasSchema = assinarSimplesSchema;
+/** @deprecated */
+export type AssinarSimplesEscalasInput = AssinarSimplesInput;
+/** @deprecated use `assinarSimplesSchema`. */
+export const assinarSimplesGiseSchema = assinarSimplesSchema;
+/** @deprecated */
+export type AssinarSimplesGiseInput = AssinarSimplesInput;

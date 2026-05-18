@@ -5,14 +5,11 @@ import {
 	salvarAssinaturaRelatorioGise,
 	buscarGiseDetalhado,
 	buscarPresencasGise,
-	tentarPromoverGiseProntaParaFinalizar,
-	buscarExigirCodigoEmailAssinatura
+	tentarPromoverGiseProntaParaFinalizar
 } from '$lib/db';
-import { verificarDesafio2FA } from '$lib/auth';
 import { getNowBR } from '$lib/utils';
 import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
-import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
@@ -21,7 +18,10 @@ import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pd
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
+import { validarEvidenciasAvancada } from '$lib/server/signature-service';
 import {
+	apiError,
+	ErrorCode,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -90,23 +90,24 @@ export const POST: RequestHandler = async ({
 		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
 		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
-		const exigirCodigoEmail = await buscarExigirCodigoEmailAssinatura(db);
-		if (exigirCodigoEmail && type !== 'serpro') {
-			if (
-				!codigoValidação ||
-				typeof codigoValidação !== 'string' ||
-				!desafioId ||
-				typeof desafioId !== 'string'
-			) {
-				return badRequest(
-					'Código de verificação por e-mail é obrigatório para assinaturas em tela.'
-				);
-			}
-			const result2FA = await verificarDesafio2FA(db, desafioId, codigoValidação, ['assinatura']);
-			if (result2FA === 'expirado') return badRequest('O código de verificação expirou.');
-			if (result2FA === 'esgotado') return badRequest('Muitas tentativas. Solicite um novo código.');
-			if (!result2FA) return badRequest('Código de verificação inválido.');
-			if (result2FA.usuarioId !== u.id) return forbidden('Código não pertence ao usuário logado.');
+		// Validação unificada de evidências (foto/GPS/2FA segundo flags globais).
+		// O fluxo SERPRO segue para o endpoint qualificado; aqui só passa
+		// assinatura em tela ("simples"/"avancada" segundo classificação).
+		if (type !== 'serpro') {
+			const evid = await validarEvidenciasAvancada(
+				db,
+				u,
+				{
+					rubrica,
+					latitude: latitude ?? undefined,
+					longitude: longitude ?? undefined,
+					selfieBase64,
+					codigoValidação,
+					desafioId
+				},
+				{ platform }
+			);
+			if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
 		}
 
 		const presencas = await buscarPresencasGise(db, giseIdNum);
