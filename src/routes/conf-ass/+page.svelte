@@ -7,8 +7,32 @@
 
 	let exigirFoto = $state(page.data.exigirFoto as boolean);
 	let exigirGps = $state(page.data.exigirGps as boolean);
-	let exigirCodigoEmail = $state(page.data.exigirCodigoEmail as boolean);
+	// `exigirCodigoEmail` é fixo `true` (requisito legal da assinatura avançada);
+	// mantido como const local para o body do PUT (idempotente).
+	const exigirCodigoEmail = true;
 	let restringirSmartphone = $state(page.data.restringirSmartphone as boolean);
+
+	// Metadados vindos do +page.server.ts — referência legal e classificação.
+	const nivelEfetivo = page.data.nivelEfetivo as 'simples' | 'avancada';
+	const baseLegalAtual = page.data.baseLegalAtual as string;
+	const requisitosSempreAtivos = page.data.requisitosSempreAtivos as Array<{
+		id: string;
+		descricao: string;
+		baseLegal: string;
+	}>;
+	const requisitosObrigatorios = page.data.requisitosObrigatorios as Array<{
+		id: string;
+		flag: string;
+		descricao: string;
+		baseLegal: string;
+	}>;
+	const reforcosOpcionais = page.data.reforcosOpcionais as Array<{
+		id: string;
+		flag: string;
+		descricao: string;
+		valorProbatorio: string;
+		notas: string;
+	}>;
 
 	async function salvar() {
 		loading.show('Salvando configurações...');
@@ -32,23 +56,19 @@
 		}
 	}
 
-	const segurancaScore = $derived(
-		(exigirFoto ? 1 : 0) +
-			(exigirGps ? 1 : 0) +
-			(exigirCodigoEmail ? 2 : 0) +
-			(restringirSmartphone ? 2 : 0)
+	// Score de reforços opcionais (informativo — não altera a classificação legal).
+	const reforcoScore = $derived(
+		(exigirFoto ? 1 : 0) + (exigirGps ? 1 : 0) + (restringirSmartphone ? 1 : 0)
 	);
-
-	const segurancaNivel = $derived(
-		segurancaScore >= 5 ? 'Máximo' : segurancaScore >= 3 ? 'Médio' : 'Básico'
+	const reforcoNivel = $derived(
+		reforcoScore >= 3 ? 'Máximo' : reforcoScore >= 2 ? 'Médio' : reforcoScore >= 1 ? 'Básico' : 'Mínimo'
 	);
-
-	const segurancaCor = $derived(
-		segurancaScore >= 5
+	const reforcoCor = $derived(
+		reforcoScore >= 3
 			? 'text-success-600 dark:text-success-400 bg-success-500/10'
-			: segurancaScore >= 3
+			: reforcoScore >= 1
 				? 'text-warning-600 dark:text-warning-400 bg-warning-500/10'
-				: 'text-error-600 dark:text-error-400 bg-error-500/10'
+				: 'text-surface-600 dark:text-surface-400 bg-surface-500/10'
 	);
 </script>
 
@@ -58,9 +78,88 @@
 
 <div class="max-w-2xl mx-auto px-4 py-8">
 	<h1 class="h2 font-bold mb-1">Configurações de Assinatura</h1>
-	<p class="text-surface-500 text-sm mb-8">
+	<p class="text-surface-500 text-sm mb-6">
 		Parâmetros globais que afetam todas as assinaturas em tela do sistema.
 	</p>
+
+	<!-- Painel de classificação legal: indica o nível efetivo das assinaturas
+	     em tela e os requisitos legais que NÃO podem ser desligados. -->
+	<div
+		class="card p-4 sm:p-6 mb-6 bg-gradient-to-br from-primary-50/40 to-surface-50 dark:from-primary-900/20 dark:to-surface-900 border border-primary-300/40 dark:border-primary-700/30 rounded-2xl"
+	>
+		<div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+			<div>
+				<p class="text-[10px] font-black uppercase tracking-widest text-surface-500">
+					Nível Legal das Assinaturas em Tela
+				</p>
+				<p class="text-xl font-black text-surface-900 dark:text-white mt-1">
+					{nivelEfetivo === 'avancada' ? 'AVANÇADA' : 'SIMPLES'}
+				</p>
+				<p class="text-[11px] text-surface-500 italic mt-0.5">
+					Base legal: {baseLegalAtual}
+				</p>
+			</div>
+			<span
+				class="badge font-black px-3 py-1.5 rounded-full text-[0.7rem] uppercase whitespace-nowrap
+				{nivelEfetivo === 'avancada'
+					? 'text-success-600 dark:text-success-400 bg-success-500/10'
+					: 'text-warning-600 dark:text-warning-400 bg-warning-500/10'}"
+			>
+				{nivelEfetivo === 'avancada' ? 'Lei 14.063/20 art. 4º II' : 'Lei 14.063/20 art. 4º I'}
+			</span>
+		</div>
+
+		<!-- Sempre ativos -->
+		<details class="text-[11px] mt-3">
+			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+				Garantias sempre ativas no sistema ({requisitosSempreAtivos.length})
+			</summary>
+			<ul class="mt-2 space-y-1 pl-4">
+				{#each requisitosSempreAtivos as r (r.id)}
+					<li class="text-surface-700 dark:text-surface-300">
+						<span class="text-success-600 font-black">✓</span> {r.descricao}
+						<br />
+						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+					</li>
+				{/each}
+			</ul>
+		</details>
+
+		<!-- Obrigatórios para Avançada -->
+		<details class="text-[11px] mt-2" open>
+			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+				Requisitos mínimos para AVANÇADA (bloqueados) ({requisitosObrigatorios.length})
+			</summary>
+			<ul class="mt-2 space-y-1 pl-4">
+				{#each requisitosObrigatorios as r (r.id)}
+					<li class="text-surface-700 dark:text-surface-300">
+						<span class="text-primary-600 font-black">🔒</span> {r.descricao}
+						<br />
+						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+					</li>
+				{/each}
+			</ul>
+		</details>
+
+		<!-- Reforços opcionais -->
+		<details class="text-[11px] mt-2">
+			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+				Reforços opcionais ({reforcosOpcionais.length}) — não alteram a classificação legal
+			</summary>
+			<ul class="mt-2 space-y-1 pl-4">
+				{#each reforcosOpcionais as r (r.id)}
+					<li class="text-surface-700 dark:text-surface-300">
+						{r.descricao}
+						<span class="text-[9px] uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700">
+							valor {r.valorProbatorio}
+						</span>
+						<br />
+						<span class="text-surface-400 italic ml-3">{r.notas}</span>
+					</li>
+				{/each}
+			</ul>
+		</details>
+	</div>
 
 	<div
 		class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4 sm:space-y-6"
@@ -120,31 +219,42 @@
 
 		<div class="border-t border-surface-200 dark:border-white/10"></div>
 
-		<!-- Exigir Código via E-mail -->
-		<div class="flex items-start justify-between gap-4">
+		<!-- Exigir Código via E-mail — BLOQUEADO (requisito legal Lei 14.063/2020 art. 4º II "b") -->
+		<div class="flex items-start justify-between gap-4 opacity-90">
 			<div class="flex-1">
-				<p class="font-semibold text-sm mb-0.5">Exigir código via E-mail</p>
+				<p class="font-semibold text-sm mb-0.5 flex items-center gap-1.5">
+					Exigir código via E-mail
+					<span
+						class="text-[8px] uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
+						title="Requisito legal — Lei 14.063/2020 art. 4º II"
+					>
+						🔒 Obrigatório
+					</span>
+				</p>
 				<p class="text-xs text-surface-500">
-					Quando ativado, os usuários precisarão confirmar as assinaturas em tela através de um
-					código numérico de 6 dígitos enviado para seu e-mail de cadastro. Impede assinatura por
-					terceiros não autorizados caso o terminal fique desbloqueado.
+					Confirmação por código numérico de 6 dígitos no e-mail cadastrado.
+					Este requisito é o que caracteriza a assinatura como
+					<strong>AVANÇADA</strong> nos termos da
+					<strong>Lei 14.063/2020 art. 4º II "b"</strong> (controle exclusivo dos dados de criação).
+					Sem ele, as assinaturas em tela seriam classificadas como
+					<strong>SIMPLES</strong> (art. 4º I), exigindo aceite expresso da contraparte
+					para serem oponíveis (art. 5º I) — por isso não pode ser desligado.
 					<strong class="text-error-500 block mt-1"
-						>Atenção: Os usuários precisarão ter e-mail funcional cadastrado no perfil.</strong
+						>Atenção: Os usuários precisam ter e-mail funcional cadastrado no perfil.</strong
 					>
 				</p>
 			</div>
 			<button
 				type="button"
 				role="switch"
-				aria-label="Ativar ou desativar exigência de código no email"
-				aria-checked={exigirCodigoEmail}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
-					{exigirCodigoEmail ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
-				onclick={() => (exigirCodigoEmail = !exigirCodigoEmail)}
+				aria-label="Bloqueado por requisito legal (Lei 14.063/2020 art. 4º II)"
+				aria-checked={true}
+				disabled
+				class="relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none bg-primary-500 cursor-not-allowed"
+				title="Bloqueado por requisito legal"
 			>
 				<span
-					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200
-						{exigirCodigoEmail ? 'translate-x-5' : 'translate-x-0'}"
+					class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 translate-x-5"
 				></span>
 			</button>
 		</div>
@@ -183,14 +293,20 @@
 			class="p-4 sm:p-5 border-t border-surface-200 dark:border-white/10 bg-surface-100/30 dark:bg-surface-800/20 rounded-b-2xl space-y-4"
 		>
 			<div class="flex items-center justify-between gap-4">
-				<div class="flex items-center gap-2">
-					<span class="text-xs font-bold uppercase tracking-wider text-surface-500"
-						>Nível de Proteção:</span
-					>
-					<span
-						class="badge {segurancaCor} font-black px-3 py-1 rounded-full text-[0.65rem] uppercase"
-						>{segurancaNivel}</span
-					>
+				<div class="flex flex-col gap-0.5">
+					<div class="flex items-center gap-2">
+						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500"
+							>Reforços ativos:</span
+						>
+						<span
+							class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-[0.65rem] uppercase"
+							>{reforcoNivel} ({reforcoScore}/3)</span
+						>
+					</div>
+					<span class="text-[10px] text-surface-400 italic">
+						Não alteram a classificação legal (sempre AVANÇADA),
+						apenas o valor probatório em juízo.
+					</span>
 				</div>
 				<button
 					type="button"
@@ -247,28 +363,6 @@
 					</div>
 				{/if}
 
-				{#if exigirCodigoEmail}
-					<div
-						class="flex items-start gap-2 p-2 rounded-xl bg-primary-500/5 border border-primary-500/10"
-					>
-						<svg
-							class="w-4 h-4 text-primary-500 shrink-0 mt-0.5"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-							/></svg
-						>
-						<p class="text-[0.65rem] text-surface-600 dark:text-surface-400 leading-tight">
-							<strong>Verificação em Rede:</strong> Requer acesso ao e-mail institucional para validar
-							a identidade.
-						</p>
-					</div>
-				{/if}
 
 				{#if exigirFoto}
 					<div

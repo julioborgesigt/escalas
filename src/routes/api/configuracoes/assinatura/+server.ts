@@ -4,6 +4,7 @@ import { getDB, salvarConfiguracao } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
 import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { requireAdmin, badRequest, validateBody } from '$lib/server/api';
+import { REQUISITOS_OBRIGATORIOS_AVANCADA } from '$lib/server/signature-level';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	const flags = await lerFlagsAssinatura(platform);
@@ -11,7 +12,12 @@ export const GET: RequestHandler = async ({ platform }) => {
 		exigirFoto: flags.exigirFotoAssinatura,
 		exigirGps: flags.exigirGpsAssinatura,
 		exigirCodigoEmail: flags.exigirCodigoEmailAssinatura,
-		restringirSmartphone: flags.restringirSmartphone
+		restringirSmartphone: flags.restringirSmartphone,
+		// Metadados para a UI: requisitos legais que NÃO podem ser desligados.
+		bloqueados: REQUISITOS_OBRIGATORIOS_AVANCADA.map((r) => ({
+			flag: r.flag,
+			motivo: r.baseLegal
+		}))
 	});
 };
 
@@ -32,9 +38,21 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	if (data.exigirGps !== undefined) {
 		saves.push(salvarConfiguracao(db, 'exigir_gps_assinatura', data.exigirGps ? '1' : '0'));
 	}
+	// 2FA por e-mail é REQUISITO MÍNIMO da assinatura avançada
+	// (Lei 14.063/2020 art. 4º II "b" — controle exclusivo). Não pode ser
+	// desligado pela UI: tentativa de gravar `false` é rejeitada com 400.
+	// Permitir ligar (idempotente) — útil em fluxo de instalação inicial.
 	if (data.exigirCodigoEmail !== undefined) {
+		if (data.exigirCodigoEmail === false) {
+			return badRequest(
+				'O 2FA por e-mail é requisito legal mínimo para assinatura AVANÇADA ' +
+				'(Lei 14.063/2020 art. 4º II "b") e não pode ser desativado. ' +
+				'Sem ele, as assinaturas em tela seriam classificadas como SIMPLES (art. 4º I), ' +
+				'exigindo aceite expresso da contraparte para serem oponíveis (art. 5º I).'
+			);
+		}
 		saves.push(
-			salvarConfiguracao(db, 'exigir_codigo_email_assinatura', data.exigirCodigoEmail ? '1' : '0')
+			salvarConfiguracao(db, 'exigir_codigo_email_assinatura', '1')
 		);
 	}
 	if (data.restringirSmartphone !== undefined) {
