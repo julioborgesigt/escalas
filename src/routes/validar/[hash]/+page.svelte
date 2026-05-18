@@ -208,6 +208,25 @@
 									<div><strong>Válido até:</strong> {formatarDataHora(v.certificado.validoAte)}</div>
 								</div>
 							{/if}
+							{#if v.assinaturasAdicionais && v.assinaturasAdicionais.length > 0}
+								<div class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5">
+									<p class="text-[11px] font-bold text-surface-500 uppercase tracking-wider mb-1">
+										Assinaturas anteriores ({v.assinaturasAdicionais.length})
+									</p>
+									<ul class="space-y-0.5">
+										{#each v.assinaturasAdicionais as ass (ass.ordem)}
+											<li class="flex items-center gap-2 text-[11px]">
+												<span class="font-black {ass.integridade && ass.assinaturaRsa ? 'text-success-600' : 'text-error-600'}">
+													{ass.integridade && ass.assinaturaRsa ? '✓' : '✕'}
+												</span>
+												<span class="text-surface-700 dark:text-surface-300 truncate">
+													#{ass.ordem + 1} {ass.signerCN || '(signatário desconhecido)'}
+												</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
 							{#if !v.valid && v.erros.length > 0}
 								<div class="mt-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-700/30 rounded text-[11px] text-error-700 dark:text-error-300">
 									<strong>Falhas detectadas:</strong>
@@ -361,6 +380,35 @@
 						Qualquer divergência deve ser comunicada à unidade responsável.
 					</p>
 				</div>
+
+				<!-- Validador ITI: oferece conferência cruzada para assinaturas qualificadas. -->
+				{#if ehQualificada}
+					<div class="flex items-start gap-3 p-4 bg-primary-50/50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700/30 rounded-xl sm:rounded-2xl">
+						<svg class="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+						</svg>
+						<div class="flex-1">
+							<p class="text-sm text-primary-800 dark:text-primary-300 mb-2">
+								<strong>Validação independente:</strong> esta assinatura pode ser conferida no
+								validador oficial do Instituto Nacional de Tecnologia da Informação (ITI).
+							</p>
+							<a
+								href="https://validar.iti.gov.br"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 dark:text-primary-300 hover:underline"
+							>
+								Abrir Validador ITI
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+								</svg>
+							</a>
+							<p class="text-[10px] text-surface-500 mt-1">
+								Faça upload do PDF baixado acima para conferir independentemente.
+							</p>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<footer class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center">

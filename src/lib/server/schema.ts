@@ -172,6 +172,8 @@ export const escalaDocumentos = sqliteTable('escala_documentos', {
 	arquivo_hash: text('arquivo_hash'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
+	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+	user_agent_raw: text('user_agent_raw'),
 	latitude: real('latitude'),
 	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
@@ -363,6 +365,8 @@ export const giseDocumentos = sqliteTable('gise_documentos', {
 	rubrica: text('rubrica'),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
+	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+	user_agent_raw: text('user_agent_raw'),
 	latitude: real('latitude'),
 	longitude: real('longitude'),
 	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
@@ -455,6 +459,8 @@ export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorio
 	verification_hash: text('verification_hash').unique(),
 	ip_address: text('ip_address'),
 	user_agent: text('user_agent'),
+	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+	user_agent_raw: text('user_agent_raw'),
 	latitude: real('latitude'),
 	longitude: real('longitude'),
 	r2_key: text('r2_key'),
@@ -490,6 +496,12 @@ export const aceitesTermos = sqliteTable(
 		aceitou_uso_localizacao: integer('aceitou_uso_localizacao').notNull().default(0),
 		ip: text('ip'),
 		user_agent: text('user_agent'),
+		/**
+		 * Snapshot do HTML do termo no momento do aceite — preserva o texto
+		 * exato para reprodução em juízo sem depender do git history.
+		 * Nullable para compat com registros pré-migração 0026.
+		 */
+		conteudo_html_snapshot: text('conteudo_html_snapshot'),
 		aceitou_em: text('aceitou_em').notNull().default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
