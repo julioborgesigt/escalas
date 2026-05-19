@@ -2,6 +2,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';
+	import CodigoTimer from './CodigoTimer.svelte';
 	import {
 		sortearChallenge,
 		BlinkCounter,
@@ -823,43 +824,24 @@
 				</div>
 				<h3 class="h3 font-bold mb-2">Confirme sua Identidade</h3>
 
-				{#if solicitandoCodigo}
-					<p class="text-sm font-medium text-surface-500">Enviando código de verificação...</p>
-					<div class="mt-6">
-						<Spinner size="lg" class="text-primary-500" />
-					</div>
-				{:else}
-					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6 max-w-sm">
-						Enviamos um código de 6 dígitos para o seu e-mail cadastrado <strong
-							>({emailMascarado || '...'})</strong
-						>. Digite-o abaixo para concluir a assinatura.
-					</p>
+				<div class="w-full max-w-xs space-y-4">
+					<input
+						type="text"
+						inputmode="numeric"
+						maxlength="6"
+						placeholder="000000"
+						bind:value={codigoInput}
+						class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
+							? 'border-error-500 uppercase'
+							: 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
+					/>
 
-					<div class="w-full max-w-xs space-y-4">
-						<input
-							type="text"
-							inputmode="numeric"
-							maxlength="6"
-							placeholder="000000"
-							bind:value={codigoInput}
-							class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
-								? 'border-error-500 uppercase'
-								: 'border-surface-300 dark:border-surface-600 placeholder:opacity-50'}"
-						/>
+					{#if codigoError}
+						<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
+					{/if}
 
-						{#if codigoError}
-							<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
-						{/if}
-
-						<button
-							type="button"
-							class="text-xs font-semibold text-primary-600 dark:text-primary-400 underline decoration-primary-500/30 hover:decoration-primary-500 transition-all"
-							onclick={enviarOuReenviarCodigo}
-						>
-							Não recebeu? Reenviar código
-						</button>
-					</div>
-				{/if}
+					<CodigoTimer {emailMascarado} onReenviar={enviarOuReenviarCodigo} />
+				</div>
 			</div>
 		{/if}
 	</div>

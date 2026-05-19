@@ -6,6 +6,7 @@
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	type ActionData = Record<string, unknown> | undefined;
@@ -170,6 +171,24 @@
 				toaster.create({ title: String(d?.error || 'Erro ao processar solicitação.'), type: 'error' });
 			}
 		};
+	}
+
+	async function reenviarCodigo2FA() {
+		const res = await fetch('/api/auth/reenviar-codigo', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+			body: JSON.stringify({ desafioId })
+		});
+		const data = await res.json().catch(() => ({}));
+		if (res.ok) {
+			desafioId = String(data.desafioId || desafioId);
+			emailMascarado = String(data.emailMascarado || emailMascarado);
+			toaster.create({ title: 'Código reenviado com sucesso!', type: 'success' });
+		} else {
+			const msg = String(data?.error || 'Erro ao reenviar código');
+			toaster.create({ title: msg, type: 'error' });
+			throw new Error(msg);
+		}
 	}
 
 	function voltarLogin() {
@@ -487,10 +506,6 @@
 				<div class="text-center mb-6">
 					<div class="text-5xl mb-3">📧</div>
 					<p class="font-semibold mb-1">Código de validação</p>
-					<p class="text-sm text-surface-600 dark:text-surface-400">
-						Enviamos um código de 6 dígitos para<br />
-						<span class="font-medium text-surface-800 dark:text-surface-200">{emailMascaradoRec}</span>
-					</p>
 				</div>
 
 				<div class="flex flex-col gap-5">
@@ -507,6 +522,8 @@
 							autocomplete="one-time-code"
 						/>
 					</label>
+
+					<CodigoTimer emailMascarado={emailMascaradoRec} onReenviar={solicitarRecuperacao} />
 
 					<button
 						type="button"
@@ -597,10 +614,6 @@
 			<div class="text-center mb-6">
 				<div class="text-5xl mb-3">📧</div>
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>
-				<p class="text-sm text-surface-600 dark:text-surface-400">
-					Enviamos um código de 6 dígitos para<br />
-					<span class="font-medium text-surface-800 dark:text-surface-200">{emailMascarado}</span>
-				</p>
 			</div>
 
 			<form method="POST" action="?/verificar2FA" use:enhance={handleVerificar2FA} class="flex flex-col gap-5">
@@ -620,6 +633,8 @@
 					/>
 				</label>
 
+				<CodigoTimer {emailMascarado} onReenviar={reenviarCodigo2FA} />
+
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 w-full py-3 flex items-center justify-center gap-2"
@@ -632,10 +647,6 @@
 					← Voltar
 				</button>
 			</form>
-
-			<p class="text-center mt-4 text-xs text-surface-500">
-				O código expira em <strong>10 minutos</strong>.
-			</p>
 		{/if}
 	</div>
 </div>
