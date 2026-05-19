@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
@@ -98,18 +99,6 @@
 
 	function hoje(): string {
 		return new Date().toISOString().slice(0, 10);
-	}
-
-	function fmtDate(iso: string): string {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
-
-	function diaSemana(iso: string): string {
-		if (!iso) return '';
-		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-		return dias[new Date(iso + 'T12:00:00').getDay()];
 	}
 
 	function handleCriarGise({ cancel }: any) {
