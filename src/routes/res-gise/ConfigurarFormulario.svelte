@@ -103,7 +103,7 @@
 		</div>
 	</div>
 
-	<div class="grid grid-cols-1 gap-4 max-h-[70vh] overflow-y-auto pr-1 sm:pr-4 custom-scrollbar">
+	<div class="grid grid-cols-1 gap-4">
 		{#snippet renderItem(p: any, level = 0)}
 			<div
 				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
