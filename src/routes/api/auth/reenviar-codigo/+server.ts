@@ -7,51 +7,30 @@
  *
  * Só aceita desafios do tipo 'policial' ou 'admin' — não permite reenvio de
  * assinatura, reset ou verificação de e-mail pessoal por esta rota.
+ *
+ * Rate-limit: o próprio desafioId é a prova de autenticidade (quem não passou
+ * pela tela de login não tem um desafio válido). Cada resend invalida o desafio
+ * anterior, limitando a janela de abuso naturalmente.
  */
 import { json } from '@sveltejs/kit';
-import { eq, and, gt, count } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { criarDesafio2FA, gerarCodigo2FA } from '$lib/auth';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
-import {
-	administradores,
-	policiais,
-	doisFatoresTokens,
-	rateLimitAttempts
-} from '$lib/server/schema';
+import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth-flow';
-import { badRequest, rateLimited, serverError } from '$lib/server/api';
+import { badRequest, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
-const MAX_REENVIOS_POR_IP = 5;
-const JANELA_SEGUNDOS = 15 * 60;
-
-export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, platform }) => {
 	try {
-		const ip = getClientAddress();
 		const db = getDB(platform);
 
 		const body = await request.json().catch(() => null);
 		if (!body || typeof body !== 'object') return badRequest('Body inválido');
 		const { desafioId } = body as Record<string, unknown>;
 		if (!desafioId || typeof desafioId !== 'string') return badRequest('desafioId inválido');
-
-		// Rate limit por IP
-		const cutoff = new Date(Date.now() - JANELA_SEGUNDOS * 1000).toISOString();
-		const [{ total }] = await db
-			.select({ total: count() })
-			.from(rateLimitAttempts)
-			.where(
-				and(
-					eq(rateLimitAttempts.ip, ip),
-					eq(rateLimitAttempts.tipo, 'reenvio_2fa'),
-					gt(rateLimitAttempts.created_at, cutoff)
-				)
-			);
-		if (total >= MAX_REENVIOS_POR_IP) return rateLimited('Muitas tentativas. Aguarde 15 minutos.');
-
-		await db.insert(rateLimitAttempts).values({ ip, tipo: 'reenvio_2fa' });
 
 		// Busca desafio original (deve existir, ser policial/admin, não expirado, não usado)
 		const agora = new Date().toISOString();
