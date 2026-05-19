@@ -487,7 +487,16 @@ export const actions: Actions = {
 			}
 
 			if (linhasParaInserir.length > 0) {
-				await db.insert(escalaPoliciais).values(linhasParaInserir);
+				// D1 limita ~100 statements por batch e ~999 params por statement.
+				// Cada linha usa 8 campos → inserimos em lotes de 50 statements,
+				// bem abaixo do limite. db.batch() garante atomicidade por lote.
+				const BATCH_SIZE = 50;
+				for (let i = 0; i < linhasParaInserir.length; i += BATCH_SIZE) {
+					const chunk = linhasParaInserir.slice(i, i + BATCH_SIZE);
+					await db.batch(
+						chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any
+					);
+				}
 			}
 
 			return { success: true, id: novaEscalaId, adicionados, nao_processados: naoProcessados };

@@ -3,19 +3,17 @@
  * Centraliza toda a lógica de assinatura para reutilização.
  */
 
-import { untrack } from 'svelte';
 import { toaster } from '$lib/toast';
 import {
 	initWebPKI,
 	listarCertificados,
 	assinarHash,
-	lerCertificado,
 	type WebPKICertificate,
 } from '$lib/webpki';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
-import { csrfHeaders } from '$lib/csrf';
 import { loading } from '$lib/loading.svelte';
+import { apiFetch } from '$lib/api-fetch';
 import { logger } from '$lib/logger';
 import { page } from '$app/state';
 
@@ -49,7 +47,7 @@ export function useAssinaturaEscala({
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(untrack(() => usuario?.nome ?? ''));
+	let serproSignerName = $state(usuario?.nome ?? '');
 	let serproSignerCpf = $state('');
 
 	// Rubrica/Selfie/GPS
@@ -100,16 +98,8 @@ export function useAssinaturaEscala({
 		}
 	}
 
-	async function onCertSelecionado(alias: string) {
+	function onCertSelecionado(alias: string) {
 		certSelecionado = alias;
-		if (pkInstance) {
-			try {
-				const info = await lerCertificado(pkInstance, alias);
-				// info is base64 string, we just store it for later use
-			} catch (err) {
-				logger.warn('[AssinaturaEscala] ler certificado Web PKI', { err: String(err) });
-			}
-		}
 	}
 
 	async function assinarComWebPKI() {
@@ -117,22 +107,18 @@ export function useAssinaturaEscala({
 		gpsCoords = await getCoordinates();
 
 		loading.show('Preparando assinatura...');
-		const prepRes = await fetch(`/api/escalas/${escalaId}/preparar-assinatura`, {
+		const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ signerName: '', signerCpf: '' })
 		});
-		if (!prepRes.ok) throw new Error((await prepRes.json()).error);
-		const prepData = await prepRes.json();
 
 		loading.show('Assinando com token...');
 		const hash = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
 		const signature = await assinarHash(pkInstance, certSelecionado, hash);
 
 		loading.show('Finalizando assinatura...');
-		const finRes = await fetch(`/api/escalas/${escalaId}/finalizar-assinatura`, {
+		const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				preparedPdf: prepData.preparedPdf,
 				serproCms: signature,
@@ -145,10 +131,8 @@ export function useAssinaturaEscala({
 				longitude: gpsCoords?.lng
 			})
 		});
-		if (!finRes.ok) throw new Error((await finRes.json()).error);
 
 		toaster.success({ title: 'Escala assinada com sucesso!' });
-		const info = await finRes.json();
 		onDocumentoAssinado?.(info);
 		loading.hide();
 	}
@@ -168,22 +152,18 @@ export function useAssinaturaEscala({
 		gpsCoords = await getCoordinates();
 
 		loading.show('Preparando assinatura...');
-		const prepRes = await fetch(`/api/escalas/${escalaId}/preparar-assinatura`, {
+		const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
 		});
-		if (!prepRes.ok) throw new Error((await prepRes.json()).error);
-		const prepData = await prepRes.json();
 
 		loading.show('Assinando com SERPRO...');
 		const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
 		const serproRes = await client.sign(messageDigestBase64);
 
 		loading.show('Finalizando assinatura...');
-		const finRes = await fetch(`/api/escalas/${escalaId}/finalizar-assinatura`, {
+		const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				preparedPdf: prepData.preparedPdf,
 				serproCms: serproRes.rawSignature,
@@ -196,10 +176,8 @@ export function useAssinaturaEscala({
 				longitude: gpsCoords?.lng
 			})
 		});
-		if (!finRes.ok) throw new Error((await finRes.json()).error);
 
 		toaster.success({ title: 'Escala assinada com sucesso!' });
-		const info = await finRes.json();
 		onDocumentoAssinado?.(info);
 		loading.hide();
 	}
@@ -227,9 +205,8 @@ export function useAssinaturaEscala({
 		}
 
 		loading.show('Assinando...');
-		const res = await fetch(`/api/escalas/${escalaId}/assinar-simples`, {
+		const info = await apiFetch<any>(`/api/escalas/${escalaId}/assinar-simples`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				rubrica,
 				selfieBase64: selfie,
@@ -240,10 +217,8 @@ export function useAssinaturaEscala({
 				livenessChallenge
 			})
 		});
-		if (!res.ok) throw new Error((await res.json()).error);
 
 		toaster.success({ title: 'Escala assinada com sucesso!' });
-		const info = await res.json();
 		onDocumentoAssinado?.(info);
 		rubricaCapturada = null;
 		selfieCapturada = null;
@@ -260,7 +235,6 @@ export function useAssinaturaEscala({
 
 	return {
 		get assinando() { return loading.active; },
-		get etapaAssinatura() { return ''; },
 		get assinandoSimples() { return loading.active; },
 		get dialogSignOpen() { return dialogSignOpen; },
 		set dialogSignOpen(v: boolean) { dialogSignOpen = v; },

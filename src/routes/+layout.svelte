@@ -50,14 +50,14 @@
 	);
 
 	let sidebarOpen = $state(false);
-	let isDark = $state(true);
+	let isDark = $state(
+		typeof document !== 'undefined'
+			? document.documentElement.classList.contains('dark')
+			: true
+	);
 	let showLogoutConfirm = $state(false);
 
 	useScrollLock(() => sidebarOpen);
-
-	$effect(() => {
-		isDark = document.documentElement.classList.contains('dark');
-	});
 
 	function toggleTheme() {
 		isDark = !isDark;

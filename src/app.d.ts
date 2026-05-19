@@ -76,6 +76,7 @@ declare global {
 	namespace App {
 		interface Locals {
 			usuario: UsuarioLogado | null;
+			requestId: string;
 		}
 		interface Error {
 			message: string;

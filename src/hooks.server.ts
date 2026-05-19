@@ -7,6 +7,7 @@ import { validarSessao } from '$lib/auth';
 import { getDB, temAceiteVigente } from '$lib/db';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
+import { requestStore, getRequestCtx } from '$lib/server/request-context';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
 import { withSentryRequest } from '$lib/server/sentry';
@@ -144,7 +145,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
-	// Adicionar contexto do usuário ao Sentry
+	// Propagar userId para contexto de logs e Sentry
+	const reqCtx = getRequestCtx();
+	if (reqCtx) reqCtx.userId = String(usuario.id);
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
 	// Fluxo de Primeiro Acesso
@@ -239,12 +242,22 @@ const handleSentry: Handle = async ({ event, resolve }) => {
 	return withSentryRequest(event.platform, event.request, () => resolve(event));
 };
 
+/** 0. Request Context: injeta requestId no AsyncLocalStorage para correlação de logs */
+const handleRequestContext: Handle = async ({ event, resolve }) => {
+	const requestId = crypto.randomUUID().slice(0, 8);
+	event.locals.requestId = requestId;
+	const ctx = { requestId, path: event.url.pathname, userId: 'anon' };
+	return requestStore.run(ctx, () => resolve(event));
+};
+
 /** Main Export with sequence middleware */
-export const handle = sequence(handleSentry, handleCsrf, handleAuth, handleSecurity);
+export const handle = sequence(handleRequestContext, handleSentry, handleCsrf, handleAuth, handleSecurity);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
-	const errorId = crypto.randomUUID().slice(0, 8);
+	// Reutiliza o requestId já criado em handleRequestContext para correlacionar
+	// logs emitidos antes do erro com o errorId devolvido ao usuário.
+	const errorId = event.locals.requestId ?? crypto.randomUUID().slice(0, 8);
 
 	// Stack trace fica apenas no Sentry (com sanitização do `sentryBeforeSend`).
 	// Antes, `import.meta.env.DEV && error.stack` colocava o stack inteiro no
