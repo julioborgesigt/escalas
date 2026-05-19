@@ -5,6 +5,7 @@
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
+	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
@@ -354,21 +355,23 @@
 								</div>
 								{#if !documentoAssinadoExiste && !finalizadaEm && !modoSelecao}
 									<div class="flex items-center gap-1 shrink-0 mt-0.5">
-										<button
-											type="button"
-											title="Editar"
-											class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
-											onclick={() => startEdit(p)}
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-												><path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-												/></svg
+										<IconTooltip label="Editar">
+											<button
+												type="button"
+												aria-label="Editar"
+												class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
+												onclick={() => startEdit(p)}
 											>
-										</button>
+												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+													/></svg
+												>
+											</button>
+										</IconTooltip>
 										<button
 											type="button"
 											class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
@@ -666,26 +669,28 @@
 											<td class="!py-4 !px-4 text-right align-middle">
 												<div class="flex items-center justify-end gap-1">
 													{#if !documentoAssinadoExiste && !finalizadaEm}
-														<button
-															type="button"
-															title="Editar"
-															class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
-															onclick={() => startEdit(p)}
-														>
-															<svg
-																class="w-3.5 h-3.5"
-																fill="none"
-																viewBox="0 0 24 24"
-																stroke="currentColor"
+														<IconTooltip label="Editar">
+															<button
+																type="button"
+																aria-label="Editar"
+																class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
+																onclick={() => startEdit(p)}
 															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																/>
-															</svg>
-														</button>
+																<svg
+																	class="w-3.5 h-3.5"
+																	fill="none"
+																	viewBox="0 0 24 24"
+																	stroke="currentColor"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+														</IconTooltip>
 														<button
 															type="button"
 															class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"

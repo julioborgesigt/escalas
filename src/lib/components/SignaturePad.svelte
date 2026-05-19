@@ -2,6 +2,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';
+	import IconTooltip from './IconTooltip.svelte';
 	import CodigoTimer from './CodigoTimer.svelte';
 	import {
 		sortearChallenge,
@@ -769,14 +770,15 @@
 									{/if}
 								</div>
 								{#if !ok}
-									<button
-										type="button"
-										onclick={trocarChallenge}
-										class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
-										title="Trocar para outro desafio"
-									>
-										Trocar
-									</button>
+									<IconTooltip label="Trocar para outro desafio">
+										<button
+											type="button"
+											onclick={trocarChallenge}
+											class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+										>
+											Trocar
+										</button>
+									</IconTooltip>
 								{/if}
 							</div>
 							{#if challengeProgresso && !ok}

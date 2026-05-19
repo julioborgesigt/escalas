@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
 	import { loading } from '$lib/loading.svelte';
@@ -431,68 +432,77 @@
 
 	{#if !recolhida}
 		{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
-			<details
+			<Accordion
+				collapsible
 				class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
 					sec.seccional_id
 				)}"
 			>
-				<summary
-					class="flex cursor-pointer list-none items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50 [&::-webkit-details-marker]:hidden"
-				>
-					<span class="inline-flex items-center gap-1.5 font-semibold">
-						Downloads da Seccional
-						<svg
-							class="h-4 w-4 shrink-0 text-surface-500"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M19 9l-7 7-7-7"
-							/>
-						</svg>
-					</span>
-				</summary>
-				<div
-					class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
-				>
-					{@render seccionalRelatoriosDownloads(true)}
-				</div>
-			</details>
+				<Accordion.Item value="downloads">
+					<Accordion.ItemTrigger
+						class="flex w-full cursor-pointer items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50"
+					>
+						<span class="inline-flex items-center gap-1.5 font-semibold">
+							Downloads da Seccional
+							<Accordion.ItemIndicator>
+								<svg
+									class="h-4 w-4 shrink-0 text-surface-500 transition-transform"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
+								</svg>
+							</Accordion.ItemIndicator>
+						</span>
+					</Accordion.ItemTrigger>
+					<Accordion.ItemContent
+						class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
+					>
+						{@render seccionalRelatoriosDownloads(true)}
+					</Accordion.ItemContent>
+				</Accordion.Item>
+			</Accordion>
 
 			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-				<details
+				<Accordion
+					collapsible
 					class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
 						sec.seccional_id
 					)}"
 				>
-					<summary
-						class="flex cursor-pointer list-none items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50 [&::-webkit-details-marker]:hidden"
-					>
-						<span class="inline-flex items-center gap-1.5 font-semibold">
-							Opções da Seccional
-							<svg
-								class="h-4 w-4 shrink-0 text-surface-500"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 9l-7 7-7-7"
-								/>
-							</svg>
-						</span>
-					</summary>
-					<div
-						class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
-					>
+					<Accordion.Item value="opcoes">
+						<Accordion.ItemTrigger
+							class="flex w-full cursor-pointer items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50"
+						>
+							<span class="inline-flex items-center gap-1.5 font-semibold">
+								Opções da Seccional
+								<Accordion.ItemIndicator>
+									<svg
+										class="h-4 w-4 shrink-0 text-surface-500 transition-transform"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 9l-7 7-7-7"
+										/>
+									</svg>
+								</Accordion.ItemIndicator>
+							</span>
+						</Accordion.ItemTrigger>
+						<Accordion.ItemContent
+							class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
+						>
 						<form
 							method="POST"
 							action="?/removerSeccional"
@@ -539,8 +549,9 @@
 							>
 							+ Adicionar + DP(s) nesta Seccional
 						</button>
-					</div>
-				</details>
+					</Accordion.ItemContent>
+					</Accordion.Item>
+				</Accordion>
 			{/if}
 		{/if}
 
