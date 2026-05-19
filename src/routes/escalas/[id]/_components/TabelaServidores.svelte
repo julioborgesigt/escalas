@@ -4,6 +4,8 @@
 	import { formatarData, calcularDataSaida } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
+	import { Pagination } from '@skeletonlabs/skeleton-svelte';
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
@@ -705,28 +707,43 @@
 		{/each}
 	</div>
 	{#if totalPaginasServ > 1}
-		<div class="flex items-center justify-between gap-3 mt-5 px-1">
+		<div class="mt-5 pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
 			<span class="text-xs text-surface-500">
 				Exibindo {(paginaServidor - 1) * SERV_POR_PAG + 1}–{Math.min(
 					paginaServidor * SERV_POR_PAG,
 					policiaisEscalaLocal.length
 				)} de {policiaisEscalaLocal.length} servidores
 			</span>
-			<div class="flex items-center gap-2">
-				<button
-					type="button"
-					class="btn btn-sm preset-outlined-surface-500"
-					onclick={() => paginaServidor--}
-					disabled={paginaServidor <= 1}>← Anterior</button
-				>
-				<span class="text-xs text-surface-500">{paginaServidor} / {totalPaginasServ}</span>
-				<button
-					type="button"
-					class="btn btn-sm preset-outlined-surface-500"
-					onclick={() => paginaServidor++}
-					disabled={paginaServidor >= totalPaginasServ}>Próximo →</button
-				>
-			</div>
+			<Pagination
+				count={policiaisEscalaLocal.length}
+				pageSize={SERV_POR_PAG}
+				page={paginaServidor}
+				onPageChange={(e) => (paginaServidor = e.page)}
+				siblingCount={1}
+			>
+				<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior">
+					<ChevronLeft size={16} />
+				</Pagination.PrevTrigger>
+				<Pagination.Context>
+					{#snippet children(pagination)}
+						{#each pagination().pages as p, index (p)}
+							{#if p.type === 'page'}
+								<Pagination.Item
+									{...p}
+									class="btn btn-sm min-w-[32px] {p.value === paginaServidor
+										? 'preset-filled-primary-500'
+										: 'preset-outlined-surface'}"
+								>{p.value}</Pagination.Item>
+							{:else}
+								<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
+							{/if}
+						{/each}
+					{/snippet}
+				</Pagination.Context>
+				<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página">
+					<ChevronRight size={16} />
+				</Pagination.NextTrigger>
+			</Pagination>
 		</div>
 	{/if}
 {/if}
