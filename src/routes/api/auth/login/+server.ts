@@ -10,7 +10,8 @@ const cookieOptions = cookieOptionsLogin;
 export const POST: RequestHandler = async ({ platform, request, cookies, url, getClientAddress }) => {
 	const db = getDB(platform);
 	const ip = getClientAddress();
-	const body = await request.json();
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body !== 'object') return badRequest('Body JSON inválido');
 
 	const parsed = loginSchema.safeParse(body);
 	if (!parsed.success) return badRequest(parsed.error.issues[0].message);
