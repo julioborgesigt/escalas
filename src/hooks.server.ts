@@ -6,6 +6,7 @@ import { validarSessao } from '$lib/auth';
 import { getDB, temAceiteVigente } from '$lib/db';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
+import { requestStore, getRequestCtx } from '$lib/server/request-context';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
 
@@ -49,6 +50,14 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
 	'X-XSS-Protection': '1; mode=block'
+};
+
+/** 0. Request Context: injeta requestId no AsyncLocalStorage para correlação de logs */
+const handleRequestContext: Handle = async ({ event, resolve }) => {
+	const requestId = crypto.randomUUID().slice(0, 8);
+	event.locals.requestId = requestId;
+	const ctx = { requestId, path: event.url.pathname, userId: 'anon' };
+	return requestStore.run(ctx, () => resolve(event));
 };
 
 /** 1. CSRF Layer: Double-submit cookie pattern verification */
@@ -119,7 +128,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
-	// Adicionar contexto do usuário ao Sentry
+	// Propagar userId para o contexto de logs e Sentry
+	const reqCtx = getRequestCtx();
+	if (reqCtx) reqCtx.userId = String(usuario.id);
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
 	// Fluxo de Primeiro Acesso
@@ -207,11 +218,13 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 };
 
 /** Main Export with sequence middleware */
-export const handle = sequence(handleCsrf, handleAuth, handleSecurity);
+export const handle = sequence(handleRequestContext, handleCsrf, handleAuth, handleSecurity);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
-	const errorId = crypto.randomUUID().slice(0, 8);
+	// Reutiliza o requestId já criado no handleRequestContext para correlacionar
+	// os logs emitidos antes do erro com o errorId devolvido ao usuário.
+	const errorId = event.locals.requestId ?? crypto.randomUUID().slice(0, 8);
 
 	logger.error('Erro não tratado', {
 		errorId,

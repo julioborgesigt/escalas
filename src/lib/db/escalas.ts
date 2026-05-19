@@ -64,20 +64,11 @@ export async function listarEscalas(
 		);
 	}
 
-	// Filtro de status aplicado no WHERE via LEFT JOIN com escalaDocumentos
-	// pendente = sem documento assinado, assinada = com documento
+	// Filtro de status via LEFT JOIN — evita subqueries, aproveita o join já feito abaixo
 	if (status === 'pendente') {
-		// Subquery: escalas que NÃO têm documento
-		const subq = db
-			.select({ escala_id: escalaDocumentos.escala_id })
-			.from(escalaDocumentos);
-		conditions.push(sql`${escalas.id} NOT IN (${subq})` as any);
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL` as any);
 	} else if (status === 'assinada') {
-		// Subquery: escalas que têm documento
-		const subq = db
-			.select({ escala_id: escalaDocumentos.escala_id })
-			.from(escalaDocumentos);
-		conditions.push(sql`${escalas.id} IN (${subq})` as any);
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NOT NULL` as any);
 	}
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -86,7 +77,8 @@ export async function listarEscalas(
 	const limit = Math.min(100, Math.max(1, opts?.limit ?? 20));
 	const offset = (page - 1) * limit;
 
-	// Window function elimina o round-trip separado de COUNT (igual ao listarPoliciais)
+	// LEFT JOIN com escalaDocumentos (1:1, UNIQUE constraint) para obter is_assinada
+	// e window COUNT em um único round-trip ao D1.
 	const results = await db
 		.select({
 			id: escalas.id,
@@ -103,9 +95,11 @@ export async function listarEscalas(
 			finalizada_em: escalas.finalizada_em,
 			email_envio: escalas.email_envio,
 			created_at: escalas.created_at,
+			is_assinada: sql<boolean>`CASE WHEN ${escalaDocumentos.escala_id} IS NOT NULL THEN 1 ELSE 0 END`,
 			total: sql<number>`count(*) OVER()`
 		})
 		.from(escalas)
+		.leftJoin(escalaDocumentos, eq(escalaDocumentos.escala_id, escalas.id))
 		.where(whereClause)
 		.orderBy(desc(escalas.created_at))
 		.limit(limit)
@@ -118,18 +112,7 @@ export async function listarEscalas(
 		return { escalas: [], total, page, limit, totalPages };
 	}
 
-	const escalaIds = results.map((e) => e.id);
-	const docs = await db
-		.select({ escala_id: escalaDocumentos.escala_id })
-		.from(escalaDocumentos)
-		.where(inArray(escalaDocumentos.escala_id, escalaIds));
-
-	const assinadas = new Set(docs.map((d) => d.escala_id));
-
-	const mapeadas = results.map(({ total: _t, ...e }) => ({
-		...e,
-		is_assinada: assinadas.has(e.id)
-	}));
+	const mapeadas = results.map(({ total: _t, ...e }) => e);
 
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }

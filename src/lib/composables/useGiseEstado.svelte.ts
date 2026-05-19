@@ -14,18 +14,19 @@ export interface GiseEstadoParams {
 }
 
 export function useGiseEstado({ getData }: GiseEstadoParams) {
-	const gise = $derived(getData().gise);
-	const policiais = $derived(getData().policiais ?? []);
-	const todasUnidades = $derived(getData().todasUnidades ?? []);
-	const papelGise = $derived(getData().papelGise);
-	const minhaSeccionalId = $derived(getData().minhaSeccionalId);
+	const _data = $derived(getData());
+	const gise = $derived(_data.gise);
+	const policiais = $derived(_data.policiais ?? []);
+	const todasUnidades = $derived(_data.todasUnidades ?? []);
+	const papelGise = $derived(_data.papelGise);
+	const minhaSeccionalId = $derived(_data.minhaSeccionalId);
 
 	// Permissões
-	const isAdminGeral = $derived(getData().isGeral === true);
-	const isSeccional = $derived(getData().isSeccional === true);
-	const isUnidade = $derived(getData().isUnidade === true);
-	const isSupervisor = $derived(getData().isSupervisor === true || gise?.supervisor_id === getData().usuarioAtual?.id);
-	const isMembro = $derived(getData().isMembro === true);
+	const isAdminGeral = $derived(_data.isGeral === true);
+	const isSeccional = $derived(_data.isSeccional === true);
+	const isUnidade = $derived(_data.isUnidade === true);
+	const isSupervisor = $derived(_data.isSupervisor === true || gise?.supervisor_id === _data.usuarioAtual?.id);
+	const isMembro = $derived(_data.isMembro === true);
 
 	const minhaSeccional = $derived(
 		isSeccional ? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId) : null
