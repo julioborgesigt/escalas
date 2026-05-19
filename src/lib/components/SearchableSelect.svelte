@@ -9,6 +9,7 @@
 		selectedOption = undefined,
 		debounceMs = 300,
 		minSearchChars = 0,
+		showTrigger = true,
 		value = $bindable(null),
 		placeholder = 'Selecione...',
 		id = '',
@@ -21,6 +22,7 @@
 		selectedOption?: Option | null;
 		debounceMs?: number;
 		minSearchChars?: number;
+		showTrigger?: boolean;
 		value: unknown;
 		placeholder?: string;
 		id?: string;
@@ -151,11 +153,23 @@
 		{onInputValueChange}
 		class="w-full"
 	>
-		<Combobox.Control>
-			<Combobox.Input />
-			<Combobox.Trigger />
+		<Combobox.Control
+			class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-400/30 transition-colors overflow-hidden {disabled ? 'opacity-60 cursor-not-allowed' : ''}"
+		>
+			<Combobox.Input
+				class="flex-1 min-w-0 px-3 py-2 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
+			/>
+			{#if !isValueEmpty(value)}
+				<Combobox.ClearTrigger
+					class="flex items-center justify-center px-2 py-2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+				/>
+			{/if}
+			{#if showTrigger}
+				<Combobox.Trigger
+					class="flex items-center justify-center px-2 py-2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+				/>
+			{/if}
 		</Combobox.Control>
-		<Combobox.ClearTrigger />
 		<Portal>
 			<Combobox.Positioner>
 				<Combobox.Content>
