@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
@@ -87,25 +87,26 @@
 				<div
 					class="flex flex-col gap-2 p-4 bg-surface-200/30 dark:bg-surface-800/20 rounded-xl border border-surface-200 dark:border-white/5"
 				>
-					<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
-						>Tipo de Unidade</span
+					<SegmentedControl
+						value={tipoUnidade}
+						onValueChange={(e) => (tipoUnidade = e.value as 'delegacia' | 'seccional')}
+						class="w-full"
 					>
-					<div class="flex gap-2">
-						<button
-							type="button"
-							class="btn btn-sm flex-1 {tipoUnidade === 'seccional'
-								? 'preset-filled-primary-500'
-								: 'preset-outlined-surface'}"
-							onclick={() => (tipoUnidade = 'seccional')}>Seccional</button
-						>
-						<button
-							type="button"
-							class="btn btn-sm flex-1 {tipoUnidade === 'delegacia'
-								? 'preset-filled-primary-500'
-								: 'preset-outlined-surface'}"
-							onclick={() => (tipoUnidade = 'delegacia')}>Delegacia</button
-						>
-					</div>
+						<SegmentedControl.Label class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+							Tipo de Unidade
+						</SegmentedControl.Label>
+						<SegmentedControl.Control class="w-full">
+							<SegmentedControl.Indicator />
+							<SegmentedControl.Item value="seccional" class="flex-1">
+								<SegmentedControl.ItemText>Seccional</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="delegacia" class="flex-1">
+								<SegmentedControl.ItemText>Delegacia</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+						</SegmentedControl.Control>
+					</SegmentedControl>
 				</div>
 
 				<label class="label">
