@@ -49,7 +49,20 @@
 	let filterInicio = $state('');
 	let filterFim = $state('');
 
-	// Export Selection — usando hook reutilizável
+	// Year filter — defaults to current year; 'personalizado' shows date pickers
+	const currentYear = new Date().getFullYear();
+	const anos = Array.from({ length: 4 }, (_, i) => currentYear - i);
+	let filterAno = $state(String(currentYear));
+
+	const defaultStart = `${currentYear}-01-01`;
+	const defaultEnd = `${currentYear}-12-31`;
+
+	const effectiveStart = $derived(
+		filterAno === 'personalizado' ? filterInicio || defaultStart : `${filterAno}-01-01`
+	);
+	const effectiveEnd = $derived(
+		filterAno === 'personalizado' ? filterFim || defaultEnd : `${filterAno}-12-31`
+	);
 	const selection = useMultiSelect<number | string>();
 	const TOP_IDS = [
 		'rank-prisoes',
@@ -78,11 +91,6 @@
 	// Armas key via utilitário
 	const armasKey = $derived(getArmasKey(data.modeloOperacional));
 
-	// Default to current year if no dates set
-	const currentYear = new Date().getFullYear();
-	const defaultStart = `${currentYear}-01-01`;
-	const defaultEnd = `${currentYear}-12-31`;
-
 	// Derived Data
 	let filteredData = $derived(
 		(data.lista || []).filter((item: ProdutividadeListaItem) => {
@@ -90,10 +98,8 @@
 			const tipo = (item.equipe_tipo || 'operacional').toLowerCase();
 			if (tipo !== filterTipo) return false;
 			if (filterSeccional && item.seccional_id !== Number(filterSeccional)) return false;
-			const start = filterInicio || defaultStart;
-			const end = filterFim || defaultEnd;
-			if (date < start) return false;
-			if (date > end) return false;
+			if (date < effectiveStart) return false;
+			if (date > effectiveEnd) return false;
 			return true;
 		})
 	);
@@ -179,8 +185,8 @@
 			const seccionalName =
 				data.seccionais?.find((s: Unidade) => s.id === Number(filterSeccional))?.nome ||
 				'Todas as Seccionais';
-			const start = filterInicio || defaultStart;
-			const end = filterFim || defaultEnd;
+			const start = effectiveStart;
+			const end = effectiveEnd;
 			const periodText = `${start.split('-').reverse().join('/')} a ${end.split('-').reverse().join('/')}`;
 			const payload = { seccionalName, periodText };
 
@@ -559,16 +565,13 @@
 	<section
 		class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
 	>
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
-			<div class="space-y-1.5">
-				<span
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1 block"
-					>Tipo de Equipe</span
+		<div class="flex flex-wrap gap-5 items-end">
+			<!-- 1. Tipo de equipe -->
+			<div class="space-y-1.5 shrink-0">
+				<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
+					>1. Tipo de equipe</span
 				>
-				<SegmentedControl
-					value={filterTipo}
-					onValueChange={(e) => (filterTipo = e.value ?? '')}
-				>
+				<SegmentedControl value={filterTipo} onValueChange={(e) => (filterTipo = e.value ?? '')}>
 					<SegmentedControl.Control
 						class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
 					>
@@ -592,16 +595,18 @@
 					</SegmentedControl.Control>
 				</SegmentedControl>
 			</div>
-			<div class="space-y-1.5">
+
+			<!-- 2. Seccional -->
+			<div class="space-y-1.5 w-52 shrink-0">
 				<label
 					for="f-sec"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
-					>Seccional</label
+					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
+					>2. Seccional</label
 				>
 				<select
 					id="f-sec"
 					bind:value={filterSeccional}
-					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+					class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 				>
 					<option value="">Todas as Seccionais</option>
 					{#each data.seccionais ?? [] as sec}
@@ -609,30 +614,70 @@
 					{/each}
 				</select>
 			</div>
-			<div class="space-y-1.5">
-				<label
-					for="f-ini"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1">De</label
+
+			<!-- 3. Período -->
+			<div class="space-y-1.5 flex-1 min-w-0">
+				<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
+					>3. Período</span
 				>
-				<input
-					id="f-ini"
-					type="date"
-					bind:value={filterInicio}
-					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-				/>
-			</div>
-			<div class="space-y-1.5">
-				<label
-					for="f-fim"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
-					>Até</label
-				>
-				<input
-					id="f-fim"
-					type="date"
-					bind:value={filterFim}
-					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-				/>
+				<div class="flex flex-wrap items-center gap-2">
+					<!-- Pill selector de ano / personalizado -->
+					<div
+						class="flex rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5"
+					>
+						{#each anos as ano}
+							<button
+								type="button"
+								class="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors {filterAno ===
+								String(ano)
+									? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-50'
+									: 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
+								onclick={() => (filterAno = String(ano))}>{ano}</button
+							>
+						{/each}
+						<button
+							type="button"
+							class="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors {filterAno ===
+							'personalizado'
+								? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-50'
+								: 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
+							onclick={() => (filterAno = 'personalizado')}>Personalizado</button
+						>
+					</div>
+
+					<!-- Date pickers — visíveis apenas no modo personalizado -->
+					{#if filterAno === 'personalizado'}
+						<div class="flex items-center gap-2 flex-wrap">
+							<div class="space-y-0.5">
+								<label
+									for="f-ini"
+									class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+									>De</label
+								>
+								<input
+									id="f-ini"
+									type="date"
+									bind:value={filterInicio}
+									class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+								/>
+							</div>
+							<span class="text-surface-400 mt-3">—</span>
+							<div class="space-y-0.5">
+								<label
+									for="f-fim"
+									class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+									>Até</label
+								>
+								<input
+									id="f-fim"
+									type="date"
+									bind:value={filterFim}
+									class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+								/>
+							</div>
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
 	</section>
