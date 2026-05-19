@@ -47,6 +47,7 @@
 	let asyncItems = $state<Option[]>([]);
 	let asyncLoading = $state(false);
 	let asyncError = $state<string | null>(null);
+	let hasSearched = $state(false);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let inFlightController: AbortController | null = null;
 
@@ -112,6 +113,7 @@
 		if (term.length < minSearchChars) {
 			asyncItems = [];
 			asyncLoading = false;
+			hasSearched = false;
 			return;
 		}
 
@@ -129,12 +131,14 @@
 				if (!controller.signal.aborted) {
 					asyncItems = result;
 					asyncLoading = false;
+					hasSearched = true;
 				}
 			} catch (err) {
 				if (!controller.signal.aborted) {
 					asyncItems = [];
 					asyncError = err instanceof Error ? err.message : 'Erro na busca';
 					asyncLoading = false;
+					hasSearched = true;
 				}
 			}
 		}, debounceMs);
@@ -172,7 +176,9 @@
 		</Combobox.Control>
 		<Portal>
 			<Combobox.Positioner>
-				<Combobox.Content>
+				<Combobox.Content
+					class="z-50 min-w-[12rem] rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-lg py-1 max-h-64 overflow-y-auto"
+				>
 					{#if asyncLoading}
 						<div class="px-3 py-2 text-sm text-surface-500 flex items-center gap-2">
 							<svg class="animate-spin h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -183,7 +189,7 @@
 						</div>
 					{:else if asyncError}
 						<div class="px-3 py-2 text-sm text-error-600">{asyncError}</div>
-					{:else if isAsync && minSearchChars > 0 && asyncItems.length === 0}
+					{:else if isAsync && minSearchChars > 0 && !hasSearched}
 						<div class="px-3 py-2 text-sm text-surface-500">
 							Digite ao menos {minSearchChars} caractere{minSearchChars > 1 ? 's' : ''} para buscar
 						</div>
@@ -191,7 +197,10 @@
 						<div class="px-3 py-2 text-sm text-surface-500">Nenhum resultado encontrado</div>
 					{:else}
 						{#each items as item (String(item.value))}
-							<Combobox.Item {item}>
+							<Combobox.Item
+								{item}
+								class="flex items-center justify-between gap-2 px-3 py-2 text-sm text-surface-800 dark:text-surface-100 cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-700 data-[highlighted]:bg-surface-100 dark:data-[highlighted]:bg-surface-700"
+							>
 								<Combobox.ItemText>{item.label}</Combobox.ItemText>
 								<Combobox.ItemIndicator />
 							</Combobox.Item>
