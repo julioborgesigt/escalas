@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 	import { toaster } from '$lib/toast';
-	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import type { Unidade } from '$lib/types';
 	import type { GiseRespostaListagemItem } from '$lib/db/gise';
@@ -53,6 +53,9 @@
 	const currentYear = new Date().getFullYear();
 	const anos = Array.from({ length: 4 }, (_, i) => currentYear - i);
 	let filterAno = $state(String(currentYear));
+
+	let mostrarFiltros = $state(false);
+	let filtrosAtivos = $derived(filterSeccional !== '' || filterInicio !== '' || filterFim !== '' || filterAno !== String(currentYear));
 
 	const defaultStart = `${currentYear}-01-01`;
 	const defaultEnd = `${currentYear}-12-31`;
@@ -562,114 +565,112 @@
 		</div>
 	</header>
 
-	<section
-		class="card p-4 sm:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm"
-	>
-		<div class="flex flex-wrap gap-5 items-end">
-			<!-- 1. Tipo de equipe -->
-			<div class="space-y-1.5 shrink-0">
-				<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
-					>1. Tipo de equipe</span
-				>
-				<SegmentedControl value={filterTipo} onValueChange={(e) => (filterTipo = e.value ?? '')}>
-					<SegmentedControl.Control
-						class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
-					>
-						<SegmentedControl.Indicator
-							class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200"
-						/>
-						<SegmentedControl.Item
-							value="operacional"
-							class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md"
-						>
-							<SegmentedControl.ItemText>Operacional</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-						<SegmentedControl.Item
-							value="seint"
-							class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md"
-						>
-							<SegmentedControl.ItemText>Inteligência</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-					</SegmentedControl.Control>
-				</SegmentedControl>
-			</div>
-
-			<!-- 2. Seccional -->
-			<div class="space-y-1.5 w-52 shrink-0">
-				<label
-					for="f-sec"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
-					>2. Seccional</label
-				>
-				<select
-					id="f-sec"
-					bind:value={filterSeccional}
-					class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-				>
-					<option value="">Todas as Seccionais</option>
-					{#each data.seccionais ?? [] as sec}
-						<option value={sec.id}>{sec.nome}</option>
-					{/each}
-				</select>
-			</div>
-
-			<!-- 3. Período -->
-			<div class="space-y-1.5 shrink-0">
-				<label
-					for="f-ano"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
-					>3. Período</label
-				>
-				<div class="flex items-end gap-2">
-					<select
-						id="f-ano"
-						bind:value={filterAno}
-						class="px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-					>
-						{#each anos as ano}
-							<option value={String(ano)}>{ano}</option>
-						{/each}
-						<option value="personalizado">Personalizado</option>
-					</select>
-
-					<!-- Date pickers — visíveis apenas no modo personalizado -->
-					{#if filterAno === 'personalizado'}
-						<div class="flex items-end gap-2">
-							<div class="space-y-0.5">
-								<label
-									for="f-ini"
-									class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
-									>De</label
-								>
-								<input
-									id="f-ini"
-									type="date"
-									bind:value={filterInicio}
-									class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-								/>
-							</div>
-							<span class="text-surface-400 pb-2.5">—</span>
-							<div class="space-y-0.5">
-								<label
-									for="f-fim"
-									class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
-									>Até</label
-								>
-								<input
-									id="f-fim"
-									type="date"
-									bind:value={filterFim}
-									class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
-								/>
-							</div>
-						</div>
-					{/if}
-				</div>
-			</div>
+	<div class="space-y-3">
+		<div class="flex items-center justify-between gap-2">
+			<span class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500">Filtros</span>
+			<button
+				type="button"
+				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-all hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {mostrarFiltros
+					? 'border-primary-500/50 bg-primary-500/5 dark:border-primary-500/40 dark:bg-primary-500/10'
+					: ''}"
+				onclick={() => (mostrarFiltros = !mostrarFiltros)}
+				aria-expanded={mostrarFiltros}
+			>
+				<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+				</svg>
+				Filtros
+				{#if filtrosAtivos}
+					<span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
+				{/if}
+			</button>
 		</div>
-	</section>
+
+		{#if mostrarFiltros}
+			<section
+				class="overflow-hidden rounded-3xl border border-surface-200 bg-white shadow-sm dark:border-surface-800 dark:bg-surface-900"
+				transition:slide={{ duration: 250 }}
+			>
+				<!-- 1. Tipo de equipe: pill toggle com cor de fundo -->
+				<div class="border-b border-surface-200/80 px-4 py-3 dark:border-surface-700/80 sm:px-5">
+					<p class="mb-2.5 text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500">1. Tipo de equipe</p>
+					<div class="inline-flex rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80">
+						<button
+							type="button"
+							class="rounded-lg px-5 py-1.5 text-xs font-bold transition-all {filterTipo === 'operacional'
+								? 'bg-warning-500 text-white shadow-sm'
+								: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+							onclick={() => (filterTipo = 'operacional')}
+						>Operacional</button>
+						<button
+							type="button"
+							class="rounded-lg px-5 py-1.5 text-xs font-bold transition-all {filterTipo === 'seint'
+								? 'bg-tertiary-500 text-white shadow-sm'
+								: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+							onclick={() => (filterTipo = 'seint')}
+						>Inteligência</button>
+					</div>
+				</div>
+
+				<!-- 2 + 3. Seccional + Período: grid responsivo -->
+				<div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
+					<div class="space-y-1.5">
+						<label for="f-sec" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">2. Seccional</label>
+						<select
+							id="f-sec"
+							bind:value={filterSeccional}
+							class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+						>
+							<option value="">Todas as Seccionais</option>
+							{#each data.seccionais ?? [] as sec}
+								<option value={sec.id}>{sec.nome}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="space-y-1.5 sm:col-span-2">
+						<label for="f-ano" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">3. Período</label>
+						<div class="flex flex-wrap items-end gap-2">
+							<select
+								id="f-ano"
+								bind:value={filterAno}
+								class="px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+							>
+								{#each anos as ano}
+									<option value={String(ano)}>{ano}</option>
+								{/each}
+								<option value="personalizado">Personalizado</option>
+							</select>
+
+							{#if filterAno === 'personalizado'}
+								<div class="flex flex-wrap items-end gap-2">
+									<div class="space-y-0.5">
+										<label for="f-ini" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">De</label>
+										<input
+											id="f-ini"
+											type="date"
+											bind:value={filterInicio}
+											class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+										/>
+									</div>
+									<span class="text-surface-400 pb-2.5">—</span>
+									<div class="space-y-0.5">
+										<label for="f-fim" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">Até</label>
+										<input
+											id="f-fim"
+											type="date"
+											bind:value={filterFim}
+											class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+										/>
+									</div>
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+			</section>
+		{/if}
+	</div>
 
 	<!-- Highlights Analytics: 3 Strategic Rows [Ranking | Detailing] -->
 	{#if filterTipo === 'operacional'}
