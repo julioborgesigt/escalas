@@ -840,7 +840,7 @@
 						<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
 					{/if}
 
-					<CodigoTimer {emailMascarado} onReenviar={enviarOuReenviarCodigo} />
+					<CodigoTimer {emailMascarado} onReenviar={async () => { await enviarOuReenviarCodigo(); }} />
 				</div>
 			</div>
 		{/if}
