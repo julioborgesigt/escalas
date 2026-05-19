@@ -150,14 +150,32 @@ Actions, usa o `.sh`).
 
 ### 2. Calcular o hash da PA-AD-RB v2.3
 
+**Forma fácil (Windows PowerShell):**
+
+```powershell
+.\scripts\calc-policy-hash.ps1
+```
+
+O script baixa o PDF oficial da ITI, calcula SHA-256, imprime o hash em
+minúsculas e mostra as instruções de configuração no Cloudflare Pages.
+
+Quando a ITI publicar nova versão do DOC-ICP-15.03 (eventualmente),
+rode com URL diferente:
+
+```powershell
+.\scripts\calc-policy-hash.ps1 -Url 'https://www.gov.br/iti/...DOCICP1503v74.pdf'
+```
+
+**Forma manual (alternativa):**
+
 ```sh
 curl -O https://www.gov.br/iti/pt-br/centrais-de-conteudo/DOCICP1503v73.pdf
 openssl dgst -sha256 DOCICP1503v73.pdf
-# Resultado: SHA256(DOCICP1503v73.pdf)= <hex de 64 chars>
+# ou no Windows: Get-FileHash -Algorithm SHA256 .\DOCICP1503v73.pdf
 ```
 
-Cole o hex no Cloudflare Pages → Settings → Environment variables como
-`PA_AD_RB_HASH_HEX=<hex>`.
+Cole o hash de 64 chars (lowercase) no Cloudflare Pages → Settings →
+Environment variables → Production como `PA_AD_RB_HASH_HEX`.
 
 ### 3. Escolher e configurar a ACT (Time-Stamp Authority)
 
