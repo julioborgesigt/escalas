@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { toaster } from '$lib/toast';
+	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import type { Unidade } from '$lib/types';
 	import type { GiseRespostaListagemItem } from '$lib/db/gise';
@@ -560,19 +561,26 @@
 	>
 		<div class="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
 			<div class="space-y-1.5">
-				<label
-					for="f-tipo"
-					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
-					>Tipo de Equipe</label
+				<span
+					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1 block"
+					>Tipo de Equipe</span
 				>
-				<select
-					id="f-tipo"
-					bind:value={filterTipo}
-					class="w-full px-4 py-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+				<SegmentedControl
+					value={filterTipo}
+					onValueChange={(e) => (filterTipo = e.value)}
 				>
-					<option value="operacional">Operacional</option>
-					<option value="seint">Inteligência (SEINT)</option>
-				</select>
+					<SegmentedControl.Control>
+						<SegmentedControl.Indicator />
+						<SegmentedControl.Item value="operacional">
+							<SegmentedControl.ItemText>Operacional</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+						<SegmentedControl.Item value="seint">
+							<SegmentedControl.ItemText>Inteligência</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					</SegmentedControl.Control>
+				</SegmentedControl>
 			</div>
 			<div class="space-y-1.5">
 				<label

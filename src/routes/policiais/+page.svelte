@@ -8,7 +8,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import { browser } from '$app/environment';
 	import { formatarTelefone, formatarCPF, limparCPF } from '$lib/utils';
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
@@ -573,14 +573,26 @@
 				</select>
 			</label>
 		{/if}
-		<label class="label w-full sm:w-48 shrink-0">
-			<span class="label-text font-semibold mb-1">Cargo</span>
-			<select class="select" bind:value={filtroCargo} onchange={navegarComFiltros}>
-				<option value="">Todos</option>
-				<option value="DPC">DPC — Delegado</option>
-				<option value="OIP">OIP — Oficial Investigador</option>
-			</select>
-		</label>
+		<div class="flex flex-col gap-1.5 shrink-0">
+			<span class="label-text font-semibold">Cargo</span>
+			<SegmentedControl
+				value={filtroCargo || ''}
+				onValueChange={(e) => {
+					filtroCargo = e.value;
+					navegarComFiltros();
+				}}
+			>
+				<SegmentedControl.Control>
+					<SegmentedControl.Indicator />
+					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
+						<SegmentedControl.Item value={val}>
+							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					{/each}
+				</SegmentedControl.Control>
+			</SegmentedControl>
+		</div>
 
 		<label class="label flex-1 min-w-0 sm:min-w-[200px]">
 			<span class="label-text font-semibold mb-1">Buscar por Nome ou Matrícula</span>

@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-	import { useAutorizacao, useMobile, useScrollLock } from '$lib/composables';
+	import { useAutorizacao, useMobile } from '$lib/composables';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { useResGise } from './useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -16,7 +17,6 @@
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 
-	useScrollLock(() => resGise.capturandoRubrica);
 
 	function voltarParaLista() {
 		resGise.escalaSelecionada = null;
@@ -297,48 +297,53 @@
 <svelte:window onkeydown={(e) => { if (resGise.escalaSelecionada && e.key === 'Escape' && !resGise.capturandoRubrica) voltarParaLista(); }} />
 
 <!-- Modal de Rubrica — Confirmação de Entrada / Saída do Policial -->
-{#if resGise.capturandoRubrica && resGise.escalaSelecionada}
-	{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp ? 'entrada' : 'saida'}
-	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
-		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-8 space-y-6 border border-white/10"
-			role="dialog"
-			aria-modal="true"
-		>
-			<div class="text-center space-y-2">
-				<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-					{tipoPresenca === 'entrada' ? 'Confirmação de Entrada' : 'Confirmação de Saída'}
-				</h2>
-				<p class="text-sm text-surface-500">
-					{tipoPresenca === 'entrada'
-						? 'Registre sua rubrica para confirmar a entrada no serviço.'
-						: 'Registre sua rubrica para confirmar a saída do serviço.'}
+<Dialog
+	open={resGise.capturandoRubrica && !!resGise.escalaSelecionada}
+	onOpenChange={(e) => { if (!e.open && !loading.active) resGise.capturandoRubrica = false; }}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
+	>
+		{#if resGise.escalaSelecionada}
+			{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp ? 'entrada' : 'saida'}
+			<div
+				class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-8 space-y-6 border border-white/10"
+			>
+				<div class="text-center space-y-2">
+					<Dialog.Title class="text-2xl font-bold text-surface-900 dark:text-surface-50">
+						{tipoPresenca === 'entrada' ? 'Confirmação de Entrada' : 'Confirmação de Saída'}
+					</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-500">
+						{tipoPresenca === 'entrada'
+							? 'Registre sua rubrica para confirmar a entrada no serviço.'
+							: 'Registre sua rubrica para confirmar a saída do serviço.'}
+					</Dialog.Description>
+				</div>
+
+				{#if loading.active}
+					<div class="flex flex-col items-center gap-4 py-10">
+						<svg class="w-10 h-10 text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
+							{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
+						</p>
+					</div>
+				{:else}
+					<SignaturePad
+						onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
+						onCancel={() => (resGise.capturandoRubrica = false)}
+						exigirFoto={page.data.exigirFotoAssinatura ?? true}
+						exigirGps={page.data.exigirGpsAssinatura ?? true}
+						exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+					/>
+				{/if}
+
+				<p class="text-sm text-surface-400 text-center italic">
+					Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca === 'entrada' ? 'entrada' : 'saída'} no serviço.
 				</p>
 			</div>
-
-			{#if loading.active}
-				<div class="flex flex-col items-center gap-4 py-10">
-					<svg class="w-10 h-10 text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-					</svg>
-					<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
-						{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
-					</p>
-				</div>
-			{:else}
-				<SignaturePad
-					onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
-					onCancel={() => (resGise.capturandoRubrica = false)}
-					exigirFoto={page.data.exigirFotoAssinatura ?? true}
-					exigirGps={page.data.exigirGpsAssinatura ?? true}
-					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-				/>
-			{/if}
-
-			<p class="text-sm text-surface-400 text-center italic">
-				Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca === 'entrada' ? 'entrada' : 'saída'} no serviço.
-			</p>
-		</div>
-	</div>
-{/if}
+		{/if}
+	</Dialog.Content>
+</Dialog>

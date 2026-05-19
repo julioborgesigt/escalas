@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { Pagination } from '@skeletonlabs/skeleton-svelte';
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+
 	interface Props {
 		paginaAtual: number;
 		totalPaginas: number;
@@ -19,58 +22,55 @@
 		onPageChange
 	}: Props = $props();
 
-	function irParaPagina(p: number) {
-		if (p < 1 || p > totalPaginas) return;
-		onPageChange?.(p);
-		window.scrollTo({ top: 0, behavior: 'smooth' });
-	}
-
 	const itensInicio = $derived((paginaAtual - 1) * itensPorPagina + 1);
 	const itensFim = $derived(Math.min(paginaAtual * itensPorPagina, totalItens));
+
+	function handlePageChange(event: { page: number }) {
+		onPageChange?.(event.page);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 </script>
 
-<div
-	class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
->
+<div class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
 	<p class="text-surface-500 text-xs px-1">
-		Mostrando <strong>{totalItens > 0 ? itensInicio : 0}</strong>-<strong>{itensFim}</strong>
+		Mostrando <strong>{totalItens > 0 ? itensInicio : 0}</strong>–<strong>{itensFim}</strong>
 		de <strong>{totalItens}</strong> {totalItens === 1 ? labelSingular : labelPlural}
 	</p>
 
 	{#if totalPaginas > 1}
-		<div class="flex items-center gap-2">
-			<button type="button"
-				class="btn btn-sm preset-outlined-surface"
-				onclick={() => irParaPagina(paginaAtual - 1)}
-				disabled={paginaAtual === 1}
-			>
-				Anterior
-			</button>
+		<Pagination
+			count={totalItens}
+			pageSize={itensPorPagina}
+			page={paginaAtual}
+			onPageChange={handlePageChange}
+			siblingCount={1}
+		>
+			<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior">
+				<ChevronLeft size={16} />
+			</Pagination.PrevTrigger>
 
-			<div class="flex items-center gap-1">
-				{#each Array.from({ length: totalPaginas }, (_, i) => i + 1) as p}
-					{#if totalPaginas <= 5 || p === 1 || p === totalPaginas || (p >= paginaAtual - 1 && p <= paginaAtual + 1)}
-						<button type="button"
-							class="btn btn-sm {paginaAtual === p
-								? 'preset-filled-primary-500'
-								: 'preset-outlined-surface'} min-w-[32px]"
-							onclick={() => irParaPagina(p)}
-						>
-							{p}
-						</button>
-					{:else if (p === 2 && paginaAtual > 3) || (p === totalPaginas - 1 && paginaAtual < totalPaginas - 2)}
-						<span class="px-1 opacity-50">...</span>
-					{/if}
-				{/each}
-			</div>
+			<Pagination.Context>
+				{#snippet children(pagination)}
+					{#each pagination().pages as p, index (p)}
+						{#if p.type === 'page'}
+							<Pagination.Item
+								{...p}
+								class="btn btn-sm min-w-[32px] {p.value === paginaAtual
+									? 'preset-filled-primary-500'
+									: 'preset-outlined-surface'}"
+							>
+								{p.value}
+							</Pagination.Item>
+						{:else}
+							<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
+						{/if}
+					{/each}
+				{/snippet}
+			</Pagination.Context>
 
-			<button type="button"
-				class="btn btn-sm preset-outlined-surface"
-				onclick={() => irParaPagina(paginaAtual + 1)}
-				disabled={paginaAtual >= totalPaginas}
-			>
-				Próxima
-			</button>
-		</div>
+			<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página">
+				<ChevronRight size={16} />
+			</Pagination.NextTrigger>
+		</Pagination>
 	{/if}
 </div>

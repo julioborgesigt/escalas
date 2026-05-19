@@ -7,7 +7,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal, Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -223,21 +223,27 @@
 	<div
 		class="p-4 sm:p-5 mb-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col gap-4"
 	>
-		<div class="flex flex-wrap gap-2 items-center">
-			<span class="text-sm font-semibold text-surface-600 dark:text-surface-300 mr-1"
+		<div class="flex flex-wrap gap-3 items-center">
+			<span class="text-sm font-semibold text-surface-600 dark:text-surface-300"
 				>Período de Recebimento:</span
 			>
-			{#each [['todos', 'Tudo'], ['24h', 'Últimas 24h'], ['48h', 'Últimas 48h'], ['semana', 'Última Semana'], ['mes', 'Último Mês']] as [val, label]}
-				<button type="button"
-					class="btn btn-sm {filtroTimeRange === val
-						? 'preset-filled-primary-500'
-						: 'preset-tonal-surface ring-1 ring-surface-300 dark:ring-surface-600'}"
-					onclick={() => {
-						filtroTimeRange = val as typeof filtroTimeRange;
-						recarregar();
-					}}>{label}</button
-				>
-			{/each}
+			<SegmentedControl
+				value={filtroTimeRange}
+				onValueChange={(e) => {
+					filtroTimeRange = e.value as typeof filtroTimeRange;
+					recarregar();
+				}}
+			>
+				<SegmentedControl.Control>
+					<SegmentedControl.Indicator />
+					{#each [['todos', 'Tudo'], ['24h', 'Últimas 24h'], ['48h', 'Últimas 48h'], ['semana', 'Última Semana'], ['mes', 'Último Mês']] as [val, label]}
+						<SegmentedControl.Item value={val}>
+							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					{/each}
+				</SegmentedControl.Control>
+			</SegmentedControl>
 		</div>
 
 		<div class="flex flex-col sm:flex-row gap-4 items-end w-full">

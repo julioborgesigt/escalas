@@ -5,7 +5,7 @@
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -322,20 +322,25 @@
 		class="p-4 sm:p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-4 sm:gap-5"
 	>
 		<!-- Regime Row -->
-		<div class="flex flex-wrap items-center gap-2">
-			<span class="text-sm font-bold text-surface-500 mr-1">Regime:</span>
-			{#each [['todos', 'Todos'], ['plantao', 'Plantão'], ['expediente', 'Expediente'], ['fds', 'FDS']] as [val, label]}
-				<button type="button"
-					class="btn btn-sm px-4 rounded-full transition-all text-sm font-medium {filtroRegime ===
-					val
-						? 'bg-[#00ADC8] text-white shadow-sm'
-						: 'text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800'}"
-					onclick={() => {
-						filtroRegime = val as typeof filtroRegime;
-						mostrarIgnorados = false;
-					}}>{label}</button
-				>
-			{/each}
+		<div class="flex flex-wrap items-center gap-3">
+			<span class="text-sm font-bold text-surface-500">Regime:</span>
+			<SegmentedControl
+				value={filtroRegime}
+				onValueChange={(e) => {
+					filtroRegime = e.value as typeof filtroRegime;
+					mostrarIgnorados = false;
+				}}
+			>
+				<SegmentedControl.Control>
+					<SegmentedControl.Indicator />
+					{#each [['todos', 'Todos'], ['plantao', 'Plantão'], ['expediente', 'Expediente'], ['fds', 'FDS']] as [val, label]}
+						<SegmentedControl.Item value={val}>
+							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					{/each}
+				</SegmentedControl.Control>
+			</SegmentedControl>
 		</div>
 
 		<!-- Main Filters Row -->
