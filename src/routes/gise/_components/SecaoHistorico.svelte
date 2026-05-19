@@ -6,6 +6,8 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 	import { slide } from 'svelte/transition';
+	import { Popover, Portal, Pagination } from '@skeletonlabs/skeleton-svelte';
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	let {
 		historico,
@@ -28,9 +30,7 @@
 	let filtroNumeroCiclo = $state<number | ''>('');
 	let filtroData = $state('');
 	let mostrarFiltrosHistorico = $state(false);
-	let baixarHistoricoAberto = $state(false);
 	let paginaHistorico = $state(1);
-	let dropdownAberto = $state<{ escalaId: number; tipo: 'prod' | 'extra' } | null>(null);
 
 	const CICLOS = [
 		{ n: 1, label: 'Ciclo 1  (21/Dez – 20/Jan)' },
@@ -133,7 +133,6 @@
 	}
 
 	async function baixarHistoricoArquivo(format: 'xlsx' | 'pdf') {
-		baixarHistoricoAberto = false;
 		const fallbackName = `gise_historico_${historicoExportSlug}.${format}`;
 		const url = buildHistoricoExportHref(format);
 		loading.show('Preparando download…');
@@ -206,7 +205,6 @@
 		filtroAnoCiclo = '';
 		filtroNumeroCiclo = '';
 		filtroData = '';
-		baixarHistoricoAberto = false;
 	}
 
 	const totalPaginasHistorico = $derived(
@@ -227,15 +225,6 @@
 		filtroData;
 		paginaHistorico = 1;
 	});
-
-	function toggleDropdown(escalaId: number, tipo: 'prod' | 'extra', ev: MouseEvent) {
-		ev.stopPropagation();
-		if (dropdownAberto?.escalaId === escalaId && dropdownAberto.tipo === tipo) {
-			dropdownAberto = null;
-		} else {
-			dropdownAberto = { escalaId, tipo };
-		}
-	}
 
 	function statusLabel(status: string): string {
 		const labels: Record<string, string> = {
@@ -277,8 +266,6 @@
 		return dias[new Date(iso + 'T12:00:00').getDay()];
 	}
 </script>
-
-<svelte:window onclick={() => { baixarHistoricoAberto = false; dropdownAberto = null; }} />
 
 {#if isAdminGeral && historico.length > 0}
 	<div class="space-y-2">
@@ -400,42 +387,40 @@
 					</p>
 					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
 						{#if isAdminGeral}
-							<div class="relative">
-								<button
-									type="button"
+							<Popover positioning={{ placement: 'top-end' }}>
+								<Popover.Trigger
 									class="inline-flex items-center gap-1.5 rounded-xl border-2 border-primary-500 bg-primary-500/10 px-3.5 py-2 text-xs font-bold text-primary-700 shadow-sm transition-all hover:bg-primary-500/18 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200 dark:hover:bg-primary-500/25 disabled:cursor-not-allowed disabled:border-surface-300 disabled:bg-surface-100 disabled:text-surface-400 disabled:shadow-none dark:disabled:border-surface-600 dark:disabled:bg-surface-800 dark:disabled:text-surface-500"
 									disabled={!podeExportarHistorico}
-									aria-expanded={baixarHistoricoAberto}
-									aria-haspopup="true"
 									title={podeExportarHistorico ? 'Exportar lista filtrada' : 'Selecione mês/ano, ano/ciclo ou data específica para habilitar'}
-									onclick={(e) => { e.stopPropagation(); if (!podeExportarHistorico) return; baixarHistoricoAberto = !baixarHistoricoAberto; }}
 								>
 									Baixar
 									<svg class="h-3.5 w-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 									</svg>
-								</button>
-								{#if baixarHistoricoAberto && podeExportarHistorico}
-									<div class="absolute right-0 bottom-full z-30 mb-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800">
-										<button
-											type="button"
-											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => baixarHistoricoArquivo('xlsx')}
-										>
-											<span class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400">XLSX</span>
-											Planilha
-										</button>
-										<button
-											type="button"
-											class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
-											onclick={() => baixarHistoricoArquivo('pdf')}
-										>
-											<span class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400">PDF</span>
-											Documento
-										</button>
-									</div>
-								{/if}
-							</div>
+								</Popover.Trigger>
+								<Portal>
+									<Popover.Positioner>
+										<Popover.Content class="z-30 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800">
+											<button
+												type="button"
+												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+												onclick={() => baixarHistoricoArquivo('xlsx')}
+											>
+												<span class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400">XLSX</span>
+												Planilha
+											</button>
+											<button
+												type="button"
+												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
+												onclick={() => baixarHistoricoArquivo('pdf')}
+											>
+												<span class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400">PDF</span>
+												Documento
+											</button>
+										</Popover.Content>
+									</Popover.Positioner>
+								</Portal>
+							</Popover>
 						{/if}
 						{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
 							<button
@@ -482,7 +467,7 @@
 							<button
 								type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
-								onclick={() => { dropdownAberto = null; goto(`/gise/${escala.id}`); }}
+								onclick={() => goto(`/gise/${escala.id}`)}
 							>
 								<div class="min-w-0">
 									<p class="text-sm font-semibold text-surface-900 dark:text-surface-100 truncate">
@@ -510,71 +495,69 @@
 									</svg>
 								</a>
 
-								<div class="relative">
-									<button
-										type="button"
+								<Popover positioning={{ placement: 'bottom-end' }}>
+									<Popover.Trigger
+										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors touch-manipulation"
 										title="Baixar relatório de produtividade"
 										aria-label="Baixar relatório de produtividade"
-										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-success-500/10 hover:text-success-600 transition-colors touch-manipulation"
-										onclick={(e) => toggleDropdown(escala.id, 'prod', e)}
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 										</svg>
-									</button>
-									{#if dropdownAberto !== null && dropdownAberto.escalaId === escala.id && dropdownAberto.tipo === 'prod'}
-										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
-											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Produtividade por seccional</p>
-											{#each escala.seccionais ?? [] as sec}
-												{#each sec.tipos ?? ['operacional'] as tipo}
-													<a
-														href="/api/gise/{escala.id}/download?format=produtividade&seccionalId={sec.id}&equipeType={tipo}"
-														download
-														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
-														onclick={() => (dropdownAberto = null)}
-													>
-														<svg class="w-3 h-3 shrink-0 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-														</svg>
-														<span class="truncate">{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span>
-													</a>
+									</Popover.Trigger>
+									<Portal>
+										<Popover.Positioner>
+											<Popover.Content class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
+												<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Produtividade por seccional</p>
+												{#each escala.seccionais ?? [] as sec}
+													{#each sec.tipos ?? ['operacional'] as tipo}
+														<a
+															href="/api/gise/{escala.id}/download?format=produtividade&seccionalId={sec.id}&equipeType={tipo}"
+															download
+															class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
+														>
+															<svg class="w-3 h-3 shrink-0 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+															</svg>
+															<span class="truncate">{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span>
+														</a>
+													{/each}
 												{/each}
-											{/each}
-										</div>
-									{/if}
-								</div>
+											</Popover.Content>
+										</Popover.Positioner>
+									</Portal>
+								</Popover>
 
-								<div class="relative">
-									<button
-										type="button"
+								<Popover positioning={{ placement: 'bottom-end' }}>
+									<Popover.Trigger
+										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors touch-manipulation"
 										title="Baixar relatório de extra assinado"
 										aria-label="Baixar relatório de extra assinado"
-										class="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-surface-500 hover:bg-warning-500/10 hover:text-warning-600 transition-colors touch-manipulation"
-										onclick={(e) => toggleDropdown(escala.id, 'extra', e)}
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 										</svg>
-									</button>
-									{#if dropdownAberto !== null && dropdownAberto.escalaId === escala.id && dropdownAberto.tipo === 'extra'}
-										<div class="absolute right-0 top-full mt-1 z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
-											<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Extra por seccional</p>
-											{#each escala.seccionais ?? [] as sec}
-												<a
-													href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
-													download
-													class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
-													onclick={() => (dropdownAberto = null)}
-												>
-													<svg class="w-3 h-3 shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-													</svg>
-													<span class="truncate">{sec.nome}</span>
-												</a>
-											{/each}
-										</div>
-									{/if}
-								</div>
+									</Popover.Trigger>
+									<Portal>
+										<Popover.Positioner>
+											<Popover.Content class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
+												<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Extra por seccional</p>
+												{#each escala.seccionais ?? [] as sec}
+													<a
+														href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
+														download
+														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
+													>
+														<svg class="w-3 h-3 shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+														</svg>
+														<span class="truncate">{sec.nome}</span>
+													</a>
+												{/each}
+											</Popover.Content>
+										</Popover.Positioner>
+									</Portal>
+								</Popover>
 							</div>
 						</div>
 					</div>
@@ -582,24 +565,27 @@
 			{/if}
 		</div>
 
-		<div class="flex items-center justify-between gap-2 mt-3">
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-				disabled={paginaHistorico === 1}
-				onclick={() => paginaHistorico--}
-			>
-				← Anterior
-			</button>
-			<span class="text-xs text-surface-500">{paginaHistorico} / {totalPaginasHistorico}</span>
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-				disabled={paginaHistorico === totalPaginasHistorico}
-				onclick={() => paginaHistorico++}
-			>
-				Próxima →
-			</button>
-		</div>
+		{#if totalPaginasHistorico > 1}
+			<div class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+				<span class="text-xs text-surface-500">
+					{historicoFiltrado.length} resultado(s) — página {paginaHistorico} de {totalPaginasHistorico}
+				</span>
+				<Pagination count={historicoFiltrado.length} pageSize={ITEMS_POR_PAGINA} page={paginaHistorico} onPageChange={(e) => (paginaHistorico = e.page)} siblingCount={1}>
+					<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger>
+					<Pagination.Context>
+						{#snippet children(pagination)}
+							{#each pagination().pages as p, index (p)}
+								{#if p.type === 'page'}
+									<Pagination.Item {...p} class="btn btn-sm min-w-[32px] {p.value === paginaHistorico ? 'preset-filled-primary-500' : 'preset-outlined-surface'}">{p.value}</Pagination.Item>
+								{:else}
+									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
+								{/if}
+							{/each}
+						{/snippet}
+					</Pagination.Context>
+					<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger>
+				</Pagination>
+			</div>
+		{/if}
 	</div>
 {/if}
