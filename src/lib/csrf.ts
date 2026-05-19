@@ -14,7 +14,7 @@ export function getCsrfToken(): string {
 	const match = document.cookie
 		.split('; ')
 		.find((row) => row.startsWith(`${CSRF_COOKIE_NAME}=`));
-	return match ? match.split('=')[1] : '';
+	return match ? match.slice(match.indexOf('=') + 1) : '';
 }
 
 /** Return a headers object containing the CSRF token, ready to spread into fetch options. */
