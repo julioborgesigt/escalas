@@ -32,6 +32,8 @@
       destinatarioSelecionado = null;
       resultadosBuscaDestinatario = [];
       erroBuscaDestinatario = '';
+    } else {
+      if (buscaTimer) { clearTimeout(buscaTimer); buscaTimer = null; }
     }
   });
 

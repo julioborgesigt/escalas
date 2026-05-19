@@ -39,6 +39,7 @@
 	let faceDetected = $state(false);
 	let isFaceModelLoaded = $state(false);
 	let faceDetectionInterval: ReturnType<typeof setInterval> | null = null;
+	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 	let faceStatusMessage = $state('Inicializando IA...');
 	let faceLoadError = $state<string | null>(null);
 
@@ -120,6 +121,7 @@
 				stream.getTracks().forEach((track) => track.stop());
 			}
 			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+			if (countdownTimer) clearInterval(countdownTimer);
 		};
 	});
 
@@ -547,10 +549,11 @@
 
 		// Inicia contagem de 3 segundos para dar tempo ao usuário de estabilizar o celular
 		countdown = 3;
-		const timer = setInterval(() => {
+		countdownTimer = setInterval(() => {
 			countdown--;
 			if (countdown === 0) {
-				clearInterval(timer);
+				if (countdownTimer) clearInterval(countdownTimer);
+				countdownTimer = null;
 				confirm();
 			}
 		}, 1000);

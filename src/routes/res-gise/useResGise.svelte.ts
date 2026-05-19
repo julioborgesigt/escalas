@@ -1,4 +1,5 @@
 import { toaster } from '$lib/toast';
+import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';
 import { page } from '$app/state';
 import { goto, invalidateAll } from '$app/navigation';
@@ -239,12 +240,6 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	// --- Getters / Utils ---
-	const fmtDate = (iso: string) => {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	};
-
 	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {
 		if (isAdminGeral) return true;
 		if (!escala?.horarioPrevisto?.inicio) return true;
@@ -336,6 +331,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
+			window.URL.revokeObjectURL(downloadUrl);
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
@@ -364,6 +360,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			document.body.appendChild(a);
 			a.click();
 			a.remove();
+			window.URL.revokeObjectURL(downloadUrl);
 		} catch (e: unknown) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {

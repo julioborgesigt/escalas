@@ -8,6 +8,7 @@
 	import { slide } from 'svelte/transition';
 	import { Popover, Portal, Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
 	let {
 		historico,
@@ -226,45 +227,7 @@
 		paginaHistorico = 1;
 	});
 
-	function statusLabel(status: string): string {
-		const labels: Record<string, string> = {
-			em_definicao_supervisor: 'Em definição do supervisor',
-			em_preenchimento: 'Preenchendo escalados',
-			aguardando_assinatura: 'Aguardando assinatura do supervisor (escala)',
-			em_andamento: 'GISE em operação',
-			aguardando_relatorios: 'Aguardando entradas',
-			aguardando_assinatura_relat: 'Aguardando assinatura do supervisor (extras)',
-			pronta_para_finalizar: 'Pronta para finalizar',
-			finalizada: 'Concluída'
-		};
-		return labels[status] ?? status;
-	}
 
-	function statusColor(status: string): string {
-		const colors: Record<string, string> = {
-			em_definicao_supervisor: 'bg-surface-500/15 text-surface-600 dark:text-surface-300',
-			em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
-			aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
-			em_andamento: 'bg-success-500/15 text-success-700 dark:text-success-400',
-			aguardando_relatorios: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
-			aguardando_assinatura_relat: 'bg-tertiary-500/15 text-tertiary-700 dark:text-tertiary-400',
-			pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
-			finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
-		};
-		return colors[status] ?? '';
-	}
-
-	function fmtDate(iso: string): string {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
-
-	function diaSemana(iso: string): string {
-		if (!iso) return '';
-		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-		return dias[new Date(iso + 'T12:00:00').getDay()];
-	}
 </script>
 
 {#if isAdminGeral && historico.length > 0}

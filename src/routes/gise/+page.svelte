@@ -14,6 +14,7 @@
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
+	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
 	let { data }: { data: PageData } = $props();
 
@@ -402,17 +403,7 @@
 		}
 	}
 
-	function fmtDate(iso: string): string {
-		if (!iso) return '';
-		const [y, m, d] = iso.split('-');
-		return `${d}/${m}/${y}`;
-	}
 
-	function diaSemana(iso: string): string {
-		if (!iso) return '';
-		const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-		return dias[new Date(iso + 'T12:00:00').getDay()];
-	}
 </script>
 
 <svelte:head>
