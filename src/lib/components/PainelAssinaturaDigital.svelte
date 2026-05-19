@@ -564,7 +564,7 @@
 	</Dialog.Content>
 </Dialog>
 
-<Dialog open={dialogSignOpen} onOpenChange={(e) => (dialogSignOpen = e.open)}>
+<Dialog open={dialogSignOpen} onOpenChange={(e) => { if (!e.open) assinatura.dialogSignOpen = false; }}>
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
@@ -579,7 +579,7 @@
 			<SignaturePad
 				message="Rubrica do Organizador"
 				onConfirm={assinarSimples}
-				onCancel={() => (dialogSignOpen = false)}
+				onCancel={() => (assinatura.dialogSignOpen = false)}
 				exigirFoto={page.data.exigirFotoAssinatura ?? true}
 				exigirGps={page.data.exigirGpsAssinatura ?? true}
 				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
