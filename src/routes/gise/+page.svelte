@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { Pagination } from '@skeletonlabs/skeleton-svelte';
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
@@ -512,23 +514,28 @@
 				/>
 			{/each}
 		</div>
-		<div class="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 shrink-0 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-				disabled={paginaAtivas === 1}
-				onclick={() => paginaAtivas--}>← Anterior</button
-			>
-			<span class="min-w-0 flex-1 px-1 text-center text-xs text-surface-500"
-				>Página {paginaAtivas} de {totalPaginasAtivas}</span
-			>
-			<button
-				type="button"
-				class="btn preset-outlined-surface-500 shrink-0 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40"
-				disabled={paginaAtivas === totalPaginasAtivas}
-				onclick={() => paginaAtivas++}>Próxima →</button
-			>
-		</div>
+		{#if totalPaginasAtivas > 1}
+			<div class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+				<span class="text-xs text-surface-500">
+					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
+				</span>
+				<Pagination count={ativas.length} pageSize={ITEMS_ATIVAS} page={paginaAtivas} onPageChange={(e) => (paginaAtivas = e.page)} siblingCount={1}>
+					<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger>
+					<Pagination.Context>
+						{#snippet children(pagination)}
+							{#each pagination().pages as p, index (p)}
+								{#if p.type === 'page'}
+									<Pagination.Item {...p} class="btn btn-sm min-w-[32px] {p.value === paginaAtivas ? 'preset-filled-primary-500' : 'preset-outlined-surface'}">{p.value}</Pagination.Item>
+								{:else}
+									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
+								{/if}
+							{/each}
+						{/snippet}
+					</Pagination.Context>
+					<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger>
+				</Pagination>
+			</div>
+		{/if}
 	{:else if isAdminGeral || isSeccional || isUnidade || isSupervisor}
 		<div
 			class="rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 p-4 sm:p-6 text-center"
