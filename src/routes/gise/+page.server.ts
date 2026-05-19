@@ -106,31 +106,33 @@ export const actions: Actions = {
 		const db = getDB(platform);
 
 		try {
-			const ids: number[] = [];
+			let ids: number[];
 
 			if (modo === 'clonada' && clonar_de) {
-				for (const { data: d, feriado } of parsed.dias) {
-					const novoId = await clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida, feriado);
-					ids.push(novoId);
-				}
+				// Paralelize: cada data é independente, sem conflito de FK
+				ids = await Promise.all(
+					parsed.dias.map(({ data: d, feriado }) =>
+						clonarGiseParaData(db, clonar_de, d, 'clonada', hora_entrada, hora_saida, feriado)
+					)
+				);
 			} else if (modo === 'branco') {
-				for (const { data: d, feriado } of parsed.dias) {
-					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
-					ids.push(novaId);
-				}
+				ids = await Promise.all(
+					parsed.dias.map(({ data: d, feriado }) =>
+						criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado)
+					)
+				);
 			} else {
-				// Buscar seccionais
+				// Buscar seccionais uma vez; depois criar todas as escalas + suas seccionais em paralelo
 				const seccionais = await db.select({ id: unidades.id, nome: unidades.nome })
 					.from(unidades).where(eq(unidades.tipo, 'seccional')).all();
 
-				for (const { data: d, feriado } of parsed.dias) {
-					const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
-					ids.push(novaId);
-
-					for (const sec of seccionais) {
-						await upsertGiseSeccional(db, novaId, sec.id);
-					}
-				}
+				ids = await Promise.all(
+					parsed.dias.map(async ({ data: d, feriado }) => {
+						const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
+						await Promise.all(seccionais.map((sec) => upsertGiseSeccional(db, novaId, sec.id)));
+						return novaId;
+					})
+				);
 			}
 
 			return { success: true, count: ids.length, ids, datas: parsed.dias.map(d => d.data) };
