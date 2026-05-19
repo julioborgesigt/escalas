@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import { goto, invalidateAll, onNavigate } from '$app/navigation';
 	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
@@ -106,7 +107,11 @@
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
-		return new Promise((resolve) => {
+		// await tick() flushes Svelte's pending DOM updates (e.g. nav-progress-visible)
+		// BEFORE startViewTransition captures the old-state screenshot. Without this,
+		// the progress bar is still opacity:0 in the snapshot and never appears.
+		return new Promise(async (resolve) => {
+			await tick();
 			document.startViewTransition(async () => {
 				resolve();
 				await navigation.complete;

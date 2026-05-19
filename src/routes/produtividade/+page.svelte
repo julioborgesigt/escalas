@@ -616,38 +616,27 @@
 			</div>
 
 			<!-- 3. Período -->
-			<div class="space-y-1.5 flex-1 min-w-0">
-				<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
-					>3. Período</span
+			<div class="space-y-1.5 shrink-0">
+				<label
+					for="f-ano"
+					class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-0.5 block"
+					>3. Período</label
 				>
-				<div class="flex flex-wrap items-center gap-2">
-					<!-- Pill selector de ano / personalizado -->
-					<div
-						class="flex rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5"
+				<div class="flex items-end gap-2">
+					<select
+						id="f-ano"
+						bind:value={filterAno}
+						class="px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 					>
 						{#each anos as ano}
-							<button
-								type="button"
-								class="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors {filterAno ===
-								String(ano)
-									? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-50'
-									: 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
-								onclick={() => (filterAno = String(ano))}>{ano}</button
-							>
+							<option value={String(ano)}>{ano}</option>
 						{/each}
-						<button
-							type="button"
-							class="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors {filterAno ===
-							'personalizado'
-								? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-50'
-								: 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200'}"
-							onclick={() => (filterAno = 'personalizado')}>Personalizado</button
-						>
-					</div>
+						<option value="personalizado">Personalizado</option>
+					</select>
 
 					<!-- Date pickers — visíveis apenas no modo personalizado -->
 					{#if filterAno === 'personalizado'}
-						<div class="flex items-center gap-2 flex-wrap">
+						<div class="flex items-end gap-2">
 							<div class="space-y-0.5">
 								<label
 									for="f-ini"
@@ -661,7 +650,7 @@
 									class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 								/>
 							</div>
-							<span class="text-surface-400 mt-3">—</span>
+							<span class="text-surface-400 pb-2.5">—</span>
 							<div class="space-y-0.5">
 								<label
 									for="f-fim"
