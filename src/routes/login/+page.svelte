@@ -7,6 +7,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
+	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	type ActionData = Record<string, unknown> | undefined;
@@ -311,29 +312,24 @@
 
 		{#if !pendente2FA && !primeiroAcesso && !recuperacao}
 			<!-- ===== Formulário de credenciais ===== -->
-			<div
-				class="flex mb-8 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5"
-			>
-				<button type="button"
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial'
-						? 'preset-filled-primary-500'
-						: 'text-surface-500'}"
-					onclick={() => {
-						tipo = 'policial';
-					}}
+			<div class="mb-8">
+				<SegmentedControl
+					value={tipo}
+					onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
+					class="w-full"
 				>
-					Policial
-				</button>
-				<button type="button"
-					class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin'
-						? 'preset-filled-primary-500'
-						: 'text-surface-500'}"
-					onclick={() => {
-						tipo = 'admin';
-					}}
-				>
-					Administrador
-				</button>
+					<SegmentedControl.Control class="w-full">
+						<SegmentedControl.Indicator />
+						<SegmentedControl.Item value="policial" class="flex-1">
+							<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+						<SegmentedControl.Item value="admin" class="flex-1">
+							<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					</SegmentedControl.Control>
+				</SegmentedControl>
 			</div>
 
 			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
@@ -461,22 +457,26 @@
 				</div>
 
 				<div class="flex flex-col gap-5">
-					<div class="flex mb-4 bg-surface-100 dark:bg-surface-900/50 p-1 rounded-xl border border-surface-200 dark:border-white/5">
-						<button
-							type="button"
-							class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'policial' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-							onclick={() => { tipo = 'policial'; identificadorRec = ''; }}
-						>
-							Policial
-						</button>
-						<button
-							type="button"
-							class="flex-1 py-2 text-sm font-medium transition-colors {tipo === 'admin' ? 'preset-filled-primary-500' : 'text-surface-500'}"
-							onclick={() => { tipo = 'admin'; identificadorRec = ''; }}
-						>
-							Administrador
-						</button>
-					</div>
+					<SegmentedControl
+						value={tipo}
+						onValueChange={(e) => {
+							tipo = e.value as 'policial' | 'admin';
+							identificadorRec = '';
+						}}
+						class="w-full mb-4"
+					>
+						<SegmentedControl.Control class="w-full">
+							<SegmentedControl.Indicator />
+							<SegmentedControl.Item value="policial" class="flex-1">
+								<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+							<SegmentedControl.Item value="admin" class="flex-1">
+								<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+						</SegmentedControl.Control>
+					</SegmentedControl>
 
 					<label class="label">
 						<span class="label-text">{tipo === 'policial' ? 'Matrícula' : 'Login'}</span>

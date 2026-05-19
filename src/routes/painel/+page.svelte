@@ -5,7 +5,7 @@
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -387,29 +387,35 @@
 
 			<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
 				{#if !mostrarIgnorados}
-					<label class="flex items-center gap-2 cursor-pointer group">
-						<input
-							type="checkbox"
-							class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none"
-							bind:checked={filtroPendentes}
-						/>
-						<span class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap"
-							>Apenas pendências</span
-						>
-					</label>
+					<Switch
+						checked={filtroPendentes}
+						onCheckedChange={(e) => (filtroPendentes = e.checked)}
+					>
+						<Switch.Control>
+							<Switch.Thumb />
+						</Switch.Control>
+						<Switch.Label class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">
+							Apenas pendências
+						</Switch.Label>
+						<Switch.HiddenInput />
+					</Switch>
 				{/if}
 
-				<label class="flex items-center gap-2 cursor-pointer group">
-					<input
-						type="checkbox"
-						class="checkbox w-4 h-4 rounded border-surface-300 dark:border-surface-600 !bg-[#00ADC8] focus:ring-0 checked:bg-[#00ADC8] border-none"
-						bind:checked={filtreMesCorrente}
-						onchange={onMesCorrenteChange}
-					/>
-					<span class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap"
-						>Mês Corrente</span
-					>
-				</label>
+				<Switch
+					checked={filtreMesCorrente}
+					onCheckedChange={(e) => {
+						filtreMesCorrente = e.checked;
+						onMesCorrenteChange();
+					}}
+				>
+					<Switch.Control>
+						<Switch.Thumb />
+					</Switch.Control>
+					<Switch.Label class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">
+						Mês Corrente
+					</Switch.Label>
+					<Switch.HiddenInput />
+				</Switch>
 			</div>
 		</div>
 

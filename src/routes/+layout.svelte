@@ -3,7 +3,7 @@
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import { goto, invalidateAll, onNavigate } from '$app/navigation';
-	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
@@ -13,6 +13,18 @@
 	let { children } = $props();
 
 	const usuario = $derived(page.data.usuario);
+	const iniciaisUsuario = $derived(
+		usuario?.nome
+			? usuario.nome
+					.trim()
+					.split(/\s+/)
+					.map((n: string) => n[0])
+					.filter(Boolean)
+					.slice(0, 2)
+					.join('')
+					.toUpperCase()
+			: ''
+	);
 	const isSupervisorGise = $derived(page.data.isSupervisorGise ?? false);
 	const isMembroGise = $derived(page.data.isMembroGise ?? false);
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
@@ -562,15 +574,30 @@
 			</button>
 
 			<!-- User info -->
-			<div class="px-3 py-2 space-y-1.5">
+			<div class="px-3 py-2 space-y-2">
 				{#if usuario?.nome}
-					<p
-						class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight"
-					>
-						{usuario.nome}
-					</p>
+					<div class="flex items-center gap-2.5">
+						<Avatar
+							style="width: 2.25rem; height: 2.25rem; background: color-mix(in oklab, var(--color-primary-500) 20%, transparent);"
+							class="border border-primary-500/30 shrink-0"
+						>
+							<Avatar.Fallback class="text-[0.7rem] font-black text-primary-700 dark:text-primary-300">
+								{iniciaisUsuario}
+							</Avatar.Fallback>
+						</Avatar>
+						<div class="flex-1 min-w-0">
+							<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight">
+								{usuario.nome}
+							</p>
+							{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
+								<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5">
+									{usuario.lotacao}
+								</p>
+							{/if}
+						</div>
+					</div>
 				{/if}
-				<div class="flex flex-wrap gap-1 mt-0.5">
+				<div class="flex flex-wrap gap-1">
 					{#if usuario?.tipo === 'admin'}
 						<span
 							class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
@@ -601,11 +628,6 @@
 						>
 					{/if}
 				</div>
-				{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-					<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate">
-						{usuario.lotacao}
-					</p>
-				{/if}
 			</div>
 
 			<!-- Logout -->

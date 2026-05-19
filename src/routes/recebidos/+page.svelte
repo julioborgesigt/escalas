@@ -7,7 +7,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal, Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -282,22 +282,29 @@
 			</label>
 
 			<div class="flex items-center gap-4 pb-3 sm:pl-3">
-				<label class="flex items-center gap-2 cursor-pointer">
-					<input
-						type="checkbox"
-						class="checkbox"
-						checked={!filtroUnidade}
-						onchange={(e) => {
-							if (e.currentTarget.checked) filtroUnidade = '';
-						}}
-					/>
-					<span class="text-sm font-medium whitespace-nowrap">Todas</span>
-				</label>
+				<Switch
+					checked={!filtroUnidade}
+					onCheckedChange={(e) => {
+						if (e.checked) filtroUnidade = '';
+					}}
+				>
+					<Switch.Control>
+						<Switch.Thumb />
+					</Switch.Control>
+					<Switch.Label class="text-sm font-medium whitespace-nowrap">Todas</Switch.Label>
+					<Switch.HiddenInput />
+				</Switch>
 
-				<label class="flex items-center gap-2 cursor-pointer">
-					<input type="checkbox" class="checkbox" bind:checked={mostrarApenasNaoVistos} />
-					<span class="text-sm font-medium whitespace-nowrap">Não lidas</span>
-				</label>
+				<Switch
+					checked={mostrarApenasNaoVistos}
+					onCheckedChange={(e) => (mostrarApenasNaoVistos = e.checked)}
+				>
+					<Switch.Control>
+						<Switch.Thumb />
+					</Switch.Control>
+					<Switch.Label class="text-sm font-medium whitespace-nowrap">Não lidas</Switch.Label>
+					<Switch.HiddenInput />
+				</Switch>
 			</div>
 		</div>
 	</div>

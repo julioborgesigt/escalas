@@ -2,6 +2,7 @@
 	import icon from '$lib/assets/logo.png';
 	import { formatarData, mascararNome } from '$lib/utils';
 	import { toaster } from '$lib/toast';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -113,7 +114,7 @@
 			<!-- ✅ DOCUMENTO VÁLIDO -->
 			<div class="flex flex-col items-center mb-6 sm:mb-10">
 				<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
-				<div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-success-500/10 flex items-center justify-center mb-3 sm:mb-4">
+				<div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full preset-tonal-success flex items-center justify-center mb-3 sm:mb-4">
 					<svg class="w-7 h-7 sm:w-9 sm:h-9 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
 					</svg>
@@ -129,12 +130,12 @@
 						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">Status Criptográfico</h2>
 						<div class="flex gap-2 flex-wrap">
 							{#if ehQualificada}
-								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 tracking-wider">ICP-Brasil</span>
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-primary tracking-wider">ICP-Brasil</span>
 							{:else}
-								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-warning tracking-wider">Avançada (Lei 14.063/2020)</span>
 							{/if}
 							{#if v?.padesLt?.presente}
-								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-success-500/10 text-success-700 dark:text-success-300 tracking-wider" title="DSS Dictionary embarcado: certificados e OCSP dentro do próprio PDF (ETSI EN 319 142-1)">PAdES-LT</span>
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-success tracking-wider" title="DSS Dictionary embarcado: certificados e OCSP dentro do próprio PDF (ETSI EN 319 142-1)">PAdES-LT</span>
 							{/if}
 						</div>
 					</div>
@@ -343,7 +344,7 @@
 				{/if}
 
 				<!-- Download do Documento -->
-				<section class="p-4 sm:p-6 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700/30 rounded-xl sm:rounded-2xl">
+				<section class="p-4 sm:p-6 preset-tonal-primary border border-primary-500/20 rounded-xl sm:rounded-2xl">
 					<h2 class="text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest mb-2 sm:mb-3">Documento Original</h2>
 					<p class="text-sm text-surface-700 dark:text-surface-300 mb-3 sm:mb-4">
 						Faça o download do documento digital assinado e compare com o documento impresso que você possui.
@@ -352,13 +353,10 @@
 					<button type="button"
 						onclick={handleDownload}
 						disabled={baixando}
-						class="flex items-center justify-center gap-2 w-full sm:w-auto sm:inline-flex px-5 py-3 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:bg-surface-400 text-white font-bold rounded-xl transition-colors text-sm touch-manipulation"
+						class="btn preset-filled-primary-500 w-full sm:w-auto font-bold rounded-xl text-sm touch-manipulation flex items-center justify-center gap-2"
 					>
 						{#if baixando}
-							<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
+							<Spinner size="md" class="text-white" />
 							<span>PROCESSANDO...</span>
 						{:else}
 							<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -370,11 +368,11 @@
 				</section>
 
 				<!-- Instrução de Comparação -->
-				<div class="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl sm:rounded-2xl">
-					<svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<div class="flex items-start gap-3 p-4 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700/30 rounded-xl sm:rounded-2xl">
+					<svg class="w-5 h-5 text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
-					<p class="text-sm text-amber-800 dark:text-amber-300">
+					<p class="text-sm text-warning-800 dark:text-warning-300">
 						<strong>Como verificar:</strong> Baixe o documento digital acima e compare seu conteúdo com o documento impresso.
 						Verifique se os nomes, períodos, datas e demais informações são idênticos.
 						Qualquer divergência deve ser comunicada à unidade responsável.

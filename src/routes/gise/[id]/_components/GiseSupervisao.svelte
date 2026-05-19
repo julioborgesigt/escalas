@@ -523,15 +523,15 @@
 						{#if gise.seint1_id}
 							{@const stS1 = marcador('seint', gise.seint1_id)}
 							<div
-								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
+								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/10 dark:border-secondary-500/20"
 							>
 								<div class="flex items-center gap-2.5 min-w-0">
-									<div class="text-indigo-600/70 dark:text-indigo-400/70 shrink-0">
+									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
 										<Users size={14} />
 									</div>
 									<div class="overflow-hidden min-w-0">
 										<span
-											class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
+											class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 											>NUIP OIP</span
 										>
 										<p
@@ -566,15 +566,15 @@
 						{#if gise.seint2_id}
 							{@const stS2 = marcador('seint', gise.seint2_id)}
 							<div
-								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 dark:border-indigo-500/20"
+								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/10 dark:border-secondary-500/20"
 							>
 								<div class="flex items-center gap-2.5 min-w-0">
-									<div class="text-indigo-600/70 dark:text-indigo-400/70 shrink-0">
+									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
 										<Users size={14} />
 									</div>
 									<div class="overflow-hidden min-w-0">
 										<span
-											class="block text-[0.6rem] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/80"
+											class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 											>NUIP OIP</span
 										>
 										<p

@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { loading } from '$lib/loading.svelte';
+	import IconTooltip from '$lib/components/IconTooltip.svelte';
 
 	interface Gise {
 		id: number;
@@ -122,31 +123,34 @@
 				{statusLabel(gise.status)}
 			</span>
 			{#if gise.status === 'finalizada' && gise.planilha_base_equipe_alimentada_em}
-				<span
-					class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-800 border border-emerald-500/35 dark:text-emerald-200 dark:border-emerald-500/40"
-					title="Dados desta GISE já foram enviados com sucesso para a planilha Base_Equipe."
-				>
-					Planilha alimentada
-				</span>
+				<IconTooltip label="Dados desta GISE já foram enviados com sucesso para a planilha Base_Equipe.">
+					<span
+						class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold bg-success-500/15 text-success-800 border border-success-500/35 dark:text-success-200 dark:border-success-500/40"
+					>
+						Planilha alimentada
+					</span>
+				</IconTooltip>
 			{/if}
 			<span class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
 				<span class="whitespace-nowrap">{gise.hora_entrada}h–{gise.hora_saida}h</span>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-					<button
-						type="button"
-						class="btn btn-xs preset-filled-surface-500 rounded p-1"
-						onclick={onAbrirDataHoras}
-						title="Editar Data/Horários"
-					>
-						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-							/></svg
+					<IconTooltip label="Editar Data/Horários">
+						<button
+							type="button"
+							aria-label="Editar Data/Horários"
+							class="btn btn-xs preset-filled-surface-500 rounded p-1"
+							onclick={onAbrirDataHoras}
 						>
-					</button>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/></svg
+							>
+						</button>
+					</IconTooltip>
 				{/if}
 			</span>
 		</div>

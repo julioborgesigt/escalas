@@ -1,6 +1,7 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
 	import { enhance } from '$app/forms';
+	import { Switch } from '@skeletonlabs/skeleton-svelte';
 
 	let { data, form }: { data: any; form: any } = $props();
 
@@ -57,64 +58,78 @@
 			class="p-4 sm:p-6 border-t border-surface-200 dark:border-white/5 space-y-3"
 		>
 			{#if !scrollouAteFim}
-				<p class="text-[11px] text-amber-700 dark:text-amber-400 italic">
+				<p class="text-[11px] text-warning-700 dark:text-warning-400 italic">
 					⬆ Role o termo até o final para habilitar o aceite.
 				</p>
 			{/if}
 
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input
-					type="checkbox"
-					name="aceitou_termo"
-					bind:checked={aceitouTermo}
-					disabled={!scrollouAteFim}
-					class="mt-1 shrink-0"
-				/>
-				<span class="text-sm text-surface-800 dark:text-surface-200">
+			<Switch
+				name="aceitou_termo"
+				checked={aceitouTermo}
+				onCheckedChange={(e) => (aceitouTermo = e.checked)}
+				disabled={!scrollouAteFim}
+				style="display: flex; align-items: flex-start; gap: 0.75rem;"
+			>
+				<Switch.Control>
+					<Switch.Thumb />
+				</Switch.Control>
+				<Switch.Label class="text-sm text-surface-800 dark:text-surface-200 leading-snug">
 					Li e concordo integralmente com este Termo de Uso e Política de Privacidade.
-				</span>
-			</label>
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input
-					type="checkbox"
-					name="aceitou_lgpd"
-					bind:checked={aceitouLgpd}
-					disabled={!scrollouAteFim}
-					class="mt-1 shrink-0"
-				/>
-				<span class="text-sm text-surface-800 dark:text-surface-200">
+				</Switch.Label>
+				<Switch.HiddenInput />
+			</Switch>
+
+			<Switch
+				name="aceitou_lgpd"
+				checked={aceitouLgpd}
+				onCheckedChange={(e) => (aceitouLgpd = e.checked)}
+				disabled={!scrollouAteFim}
+				style="display: flex; align-items: flex-start; gap: 0.75rem;"
+			>
+				<Switch.Control>
+					<Switch.Thumb />
+				</Switch.Control>
+				<Switch.Label class="text-sm text-surface-800 dark:text-surface-200 leading-snug">
 					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados
 					pela PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com
 					a coleta de IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
-				</span>
-			</label>
+				</Switch.Label>
+				<Switch.HiddenInput />
+			</Switch>
 
 			<p class="text-[11px] text-surface-500 mt-1">Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):</p>
 
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input
-					type="checkbox"
-					name="aceitou_uso_email"
-					bind:checked={aceitouEmail}
-					class="mt-1 shrink-0"
-				/>
-				<span class="text-sm text-surface-700 dark:text-surface-300">
+			<Switch
+				name="aceitou_uso_email"
+				checked={aceitouEmail}
+				onCheckedChange={(e) => (aceitouEmail = e.checked)}
+				style="display: flex; align-items: flex-start; gap: 0.75rem;"
+			>
+				<Switch.Control>
+					<Switch.Thumb />
+				</Switch.Control>
+				<Switch.Label class="text-sm text-surface-700 dark:text-surface-300 leading-snug">
 					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação ao
 					meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
-				</span>
-			</label>
-			<label class="flex items-start gap-2 cursor-pointer">
-				<input
-					type="checkbox"
-					name="aceitou_uso_localizacao"
-					bind:checked={aceitouLocalizacao}
-					class="mt-1 shrink-0"
-				/>
-				<span class="text-sm text-surface-700 dark:text-surface-300">
+				</Switch.Label>
+				<Switch.HiddenInput />
+			</Switch>
+
+			<Switch
+				name="aceitou_uso_localizacao"
+				checked={aceitouLocalizacao}
+				onCheckedChange={(e) => (aceitouLocalizacao = e.checked)}
+				style="display: flex; align-items: flex-start; gap: 0.75rem;"
+			>
+				<Switch.Control>
+					<Switch.Thumb />
+				</Switch.Control>
+				<Switch.Label class="text-sm text-surface-700 dark:text-surface-300 leading-snug">
 					<strong>Geolocalização</strong> — Autorizo a captura de coordenadas GPS ao assinar documentos
 					digitalmente, para fins de evidência jurídica (art. 7º, I, LGPD). Precisão reduzida (~1 km).
-				</span>
-			</label>
+				</Switch.Label>
+				<Switch.HiddenInput />
+			</Switch>
 
 			{#if form?.erro}
 				<p class="text-sm text-error-600 font-bold">{form.erro}</p>
