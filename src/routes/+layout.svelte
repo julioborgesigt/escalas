@@ -2,12 +2,11 @@
 	import '../app.css';
 	import { page, navigating } from '$app/state';
 	import { goto, invalidateAll, onNavigate } from '$app/navigation';
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
-	import { fade, scale } from 'svelte/transition';
 	import { useScrollLock } from '$lib/composables';
 
 	let { children } = $props();
@@ -621,64 +620,33 @@
 	</aside>
 
 	<!-- Modal de Confirmação de Logout -->
-	{#if showLogoutConfirm}
-		<div
-			class="fixed inset-0 z-[100] flex items-center justify-center p-4"
-			transition:fade={{ duration: 200 }}
-		>
-			<!-- Backdrop -->
-			<button
-				type="button"
-				class="absolute inset-0 bg-surface-950/40 backdrop-blur-sm"
-				onclick={() => (showLogoutConfirm = false)}
-				aria-label="Fechar"
-			></button>
-
-			<!-- Modal -->
-			<div
-				class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6"
-				transition:scale={{ duration: 200, start: 0.95 }}
-			>
+	<Dialog open={showLogoutConfirm} onOpenChange={(e) => { if (!e.open) showLogoutConfirm = false; }}>
+		<Dialog.Content class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-950/40 backdrop-blur-sm">
+			<div class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6">
 				<div class="flex flex-col items-center text-center space-y-4">
-					<div
-						class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center text-error-600 dark:text-error-400"
-					>
+					<div class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center text-error-600 dark:text-error-400">
 						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-							/>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
 						</svg>
 					</div>
 					<div class="space-y-2">
-						<h3 class="text-xl font-bold text-surface-900 dark:text-surface-50">Sair do Sistema</h3>
-						<p class="text-sm text-surface-500 dark:text-surface-400">
+						<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">Sair do Sistema</Dialog.Title>
+						<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400">
 							Deseja realmente encerrar sua sessão?
-						</p>
+						</Dialog.Description>
 					</div>
 				</div>
-
 				<div class="flex flex-col gap-2">
-					<button
-						type="button"
-						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95"
-						onclick={logout}
-					>
+					<button type="button" class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95" onclick={logout}>
 						Sim, Sair
 					</button>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95"
-						onclick={() => (showLogoutConfirm = false)}
-					>
+					<button type="button" class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95" onclick={() => (showLogoutConfirm = false)}>
 						Cancelar
 					</button>
 				</div>
 			</div>
-		</div>
-	{/if}
+		</Dialog.Content>
+	</Dialog>
 
 	<!-- Main content with sidebar offset -->
 	<main

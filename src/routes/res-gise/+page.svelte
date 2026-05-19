@@ -3,7 +3,7 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { useAutorizacao, useMobile } from '$lib/composables';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { useResGise } from './useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -98,20 +98,22 @@
 					<!-- Título + abas alinhadas à direita -->
 					<div class="flex items-center justify-between gap-4">
 						<h2 class="text-lg font-bold shrink-0">Minhas Escalas GISE</h2>
-						<div class="flex p-0.5 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 w-fit shrink-0">
-							<button type="button"
-								class="px-3 py-1 text-xs font-bold rounded-md transition-all {(resGise.statusFilterUrl || 'ativas') === 'ativas'
-									? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
-									: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-								onclick={() => resGise.changeStatusFilter('ativas')}
-							>Ativas</button>
-							<button type="button"
-								class="px-3 py-1 text-xs font-bold rounded-md transition-all {resGise.statusFilterUrl === 'finalizadas'
-									? 'bg-white dark:bg-surface-700 shadow-sm text-primary-600 dark:text-primary-400'
-									: 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'}"
-								onclick={() => resGise.changeStatusFilter('finalizadas')}
-							>Histórico</button>
-						</div>
+						<SegmentedControl
+							value={resGise.statusFilterUrl || 'ativas'}
+							onValueChange={(e) => resGise.changeStatusFilter(e.value)}
+						>
+							<SegmentedControl.Control>
+								<SegmentedControl.Indicator />
+								<SegmentedControl.Item value="ativas">
+									<SegmentedControl.ItemText>Ativas</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+								<SegmentedControl.Item value="finalizadas">
+									<SegmentedControl.ItemText>Histórico</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+							</SegmentedControl.Control>
+						</SegmentedControl>
 					</div>
 
 					<!-- Busca Detalhada (Apenas no Histórico) -->
