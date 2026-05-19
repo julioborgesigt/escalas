@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
-	import { useScrollLock } from '$lib/composables';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	let {
 		open = $bindable(false),
@@ -14,8 +14,6 @@
 		escalas: any[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
-
-	useScrollLock(() => open);
 
 	let diasModal = $state<Record<string, { f: boolean }>>({});
 	let calAno = $state(2026);
@@ -152,28 +150,19 @@
 	}
 </script>
 
-<svelte:window
-	onkeydown={(e) => {
-		if (e.key === 'Escape' && open && !loading.active) open = false;
-	}}
-/>
-
-{#if open}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && !loading.active && (open = false)}
+<Dialog
+	{open}
+	onOpenChange={(e) => { if (!loading.active) open = e.open; }}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto"
-			role="dialog"
-			aria-modal="true"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
 		>
-			<h2
-				class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
-			>
+			<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">
 				Nova Escala GISE
-			</h2>
+			</Dialog.Title>
 			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
 				Uma escala por dia. No calendário: <span
 					class="text-primary-600 dark:text-primary-400 font-medium">1º clique</span
@@ -452,5 +441,5 @@
 				</form>
 			</div>
 		</div>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog>

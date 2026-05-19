@@ -3,7 +3,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
 	import { normalizarHora, validarHora } from '$lib/gise/gise-horarios';
-	import { useScrollLock } from '$lib/composables';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface GiseInfo {
 		data_inicio: string;
@@ -22,8 +22,6 @@
 	}
 
 	let { open, pendingCrud, editaBloqueado, gise, onClose, onSubmit }: Props = $props();
-
-	useScrollLock(() => open);
 
 	// Estado do calendário e horários
 	let dataInicio = $state('');
@@ -113,26 +111,23 @@
 	};
 </script>
 
-<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape' && !pendingCrud) onClose(); }} />
-
-{#if open}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && !pendingCrud && onClose()}
+<Dialog
+	{open}
+	onOpenChange={(e) => { if (!pendingCrud && !e.open) onClose(); }}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-3 max-h-[calc(100dvh-1rem)] overflow-y-auto"
-			role="dialog"
-			aria-modal="true"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-3 max-h-[calc(100dvh-1rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
 		>
 			<div class="flex items-center justify-between">
-				<h2 class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50">
+				<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50">
 					Editar Data e Horários
-				</h2>
-				<button type="button" class="btn btn-sm p-1 opacity-50 hover:opacity-100" onclick={onClose} aria-label="Fechar">
+				</Dialog.Title>
+				<Dialog.CloseTrigger class="btn btn-sm p-1 opacity-50 hover:opacity-100" aria-label="Fechar">
 					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-				</button>
+				</Dialog.CloseTrigger>
 			</div>
 
 			{#if editaBloqueado}
@@ -145,7 +140,7 @@
 				No calendário: <span class="text-primary-600 dark:text-primary-400 font-medium">1º clique</span> seleciona a data, <span class="text-error-600 dark:text-error-400 font-medium">2º clique</span> marca como feriado.
 			</p>
 
-			<!-- Calendário (Mesma interface da criação) -->
+			<!-- Calendário -->
 			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40">
 				<div class="flex items-center justify-between gap-1.5">
 					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesAnterior} aria-label="Mês anterior">
@@ -243,5 +238,5 @@
 				</form>
 			</div>
 		</div>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog>

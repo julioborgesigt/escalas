@@ -10,7 +10,7 @@
 		resolveBreveRelatorioConteudoSeccional,
 		resolveBreveRelatorioConteudoSupervisao
 	} from '$lib/gise/breve-relatorio';
-	import { useScrollLock } from '$lib/composables';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface GiseBreve {
 		breve_relatorio_titulo: string | null;
@@ -30,17 +30,13 @@
 
 	let { open, gise, global, pendingCrud, onClose, onSubmit }: Props = $props();
 
-	useScrollLock(() => open);
-
 	let titulo = $state('');
 	let textoSeccional = $state('');
 	let textoSupervisao = $state('');
 
-	/** Só ao abrir — evita apagar o que o usuário está a editar se `gise` re-renderizar. */
 	let wasOpen = $state(false);
 	$effect(() => {
 		if (open && !wasOpen) {
-			// Valores resolvidos = os mesmos que entram no PDF (GISE → Config. GISE → padrão).
 			titulo = resolveBreveRelatorioTitulo(gise, global);
 			textoSeccional = resolveBreveRelatorioConteudoSeccional(gise, global);
 			textoSupervisao = resolveBreveRelatorioConteudoSupervisao(gise, global);
@@ -49,31 +45,23 @@
 	});
 </script>
 
-<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape' && !pendingCrud) onClose(); }} />
-
-{#if open}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && onClose()}
+<Dialog
+	{open}
+	onOpenChange={(e) => { if (!pendingCrud && !e.open) onClose(); }}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(calc(100dvh-1.5rem),720px)] flex flex-col p-4 sm:p-6"
-			role="dialog"
-			aria-labelledby="br-modal-title"
-			aria-modal="true"
-			tabindex="-1"
+			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[min(calc(100dvh-1.5rem),720px)] flex flex-col p-4 sm:p-6 border border-surface-200 dark:border-white/10"
 		>
-			<h2
-				id="br-modal-title"
-				class="text-lg font-bold text-surface-900 dark:text-surface-50 shrink-0 mb-1"
-			>
+			<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50 shrink-0 mb-1">
 				Texto "Breve relatório" (PDFs de extra)
-			</h2>
-			<p class="text-sm text-surface-600 dark:text-surface-400 mb-4 shrink-0">
+			</Dialog.Title>
+			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400 mb-4 shrink-0">
 				Aqui você pode personalisar o texto do <strong>Relatório de Extra</strong>
 				desta escala GISE.
-			</p>
+			</Dialog.Description>
 
 			<form
 				method="POST"
@@ -137,5 +125,5 @@
 				</div>
 			</form>
 		</div>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog>

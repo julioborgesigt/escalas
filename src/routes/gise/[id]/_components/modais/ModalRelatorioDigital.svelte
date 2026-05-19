@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
-	import { useScrollLock } from '$lib/composables';
+	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
 		open: boolean;
@@ -29,31 +29,26 @@
 		onSuccess,
 		onClose
 	}: Props = $props();
-
-	useScrollLock(() => open);
 </script>
 
-<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape' && !disabled) onClose(); }} />
-
-{#if open}
-	<div
-		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && !disabled && onClose()}
+<Dialog
+	{open}
+	onOpenChange={(e) => { if (!disabled && !e.open) onClose(); }}
+>
+	<Dialog.Content
+		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"
 	>
 		<div
 			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-8 space-y-5 sm:space-y-6 border border-white/10 max-h-[calc(100dvh-1.5rem)] overflow-y-auto"
-			role="dialog"
-			aria-modal="true"
 		>
 			<div class="text-center space-y-2">
-				<h2 class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
+				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
 					Assinatura Digital Individual
-				</h2>
-				<p class="text-sm text-surface-500">
+				</Dialog.Title>
+				<Dialog.Description class="text-sm text-surface-500">
 					Você está assinando o Relatório Extraordinário da seccional: <br />
 					<strong class="text-surface-900 dark:text-surface-50">{seccionalNome}</strong>
-				</p>
+				</Dialog.Description>
 			</div>
 
 			<PainelAssinaturaToken
@@ -77,5 +72,5 @@
 				Cancelar e fechar
 			</button>
 		</div>
-	</div>
-{/if}
+	</Dialog.Content>
+</Dialog>
