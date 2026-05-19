@@ -567,7 +567,7 @@
 				>
 				<SegmentedControl
 					value={filterTipo}
-					onValueChange={(e) => (filterTipo = e.value)}
+					onValueChange={(e) => (filterTipo = e.value ?? '')}
 				>
 					<SegmentedControl.Control>
 						<SegmentedControl.Indicator />

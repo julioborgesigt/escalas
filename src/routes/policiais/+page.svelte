@@ -578,7 +578,7 @@
 			<SegmentedControl
 				value={filtroCargo || ''}
 				onValueChange={(e) => {
-					filtroCargo = e.value;
+					filtroCargo = e.value ?? '';
 					navegarComFiltros();
 				}}
 			>
