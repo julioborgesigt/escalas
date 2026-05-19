@@ -100,7 +100,7 @@
 						<h2 class="text-lg font-bold shrink-0">Minhas Escalas GISE</h2>
 						<SegmentedControl
 							value={resGise.statusFilterUrl || 'ativas'}
-							onValueChange={(e) => resGise.changeStatusFilter(e.value)}
+							onValueChange={(e) => resGise.changeStatusFilter(e.value ?? '')}
 						>
 							<SegmentedControl.Control>
 								<SegmentedControl.Indicator />
