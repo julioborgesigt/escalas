@@ -129,12 +129,15 @@
 	<meta property="og:type" content="website" />
 </svelte:head>
 
-<!-- Navigation progress bar -->
-{#if navigating?.to && !['/login', '/alterar-senha'].includes(navigating.to.url.pathname)}
-	<div class="nav-progress-wrap" aria-hidden="true">
-		<div class="nav-progress-bar"></div>
-	</div>
-{/if}
+<!-- Navigation progress bar — always in DOM so view-transition captures it at full opacity -->
+<div
+	class="nav-progress-wrap"
+	class:nav-progress-visible={navigating?.to &&
+		!['/login', '/alterar-senha'].includes(navigating.to.url.pathname)}
+	aria-hidden="true"
+>
+	<div class="nav-progress-bar"></div>
+</div>
 
 <!-- Global Loading Overlay — only for API operations (signing, saving). Page navigation uses the top progress bar + inline skeletons. -->
 <LoadingOverlay
@@ -704,25 +707,41 @@
 		top: 0;
 		left: 0;
 		right: 0;
-		height: 2px;
+		height: 3px;
 		z-index: 10000;
 		pointer-events: none;
-		background: rgb(var(--color-primary-500) / 0.2);
 		overflow: hidden;
+		opacity: 0;
+		/* Give it its own view-transition name so it is excluded from the
+		   root cross-fade (which starts at opacity:0 and would hide the bar) */
+		view-transition-name: nav-progress;
+	}
+	.nav-progress-visible {
+		opacity: 1;
+		background: rgb(var(--color-primary-500) / 0.25);
 	}
 	.nav-progress-bar {
 		height: 100%;
-		width: 45%;
-		background: rgb(var(--color-primary-500));
+		width: 40%;
+		background: linear-gradient(
+			90deg,
+			rgb(var(--color-primary-500)),
+			rgb(var(--color-secondary-500))
+		);
 		border-radius: 999px;
-		animation: nav-progress 1.2s ease-in-out infinite;
+		animation: nav-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 	}
 	@keyframes nav-progress {
 		0% {
-			transform: translateX(-110%);
+			transform: translateX(-120%);
 		}
 		100% {
-			transform: translateX(320%);
+			transform: translateX(350%);
 		}
+	}
+	/* Opt the progress bar out of the root cross-fade entirely */
+	::view-transition-old(nav-progress),
+	::view-transition-new(nav-progress) {
+		animation: none;
 	}
 </style>
