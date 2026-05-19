@@ -625,8 +625,8 @@
 						class="absolute bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 dark:bg-surface-900/80 backdrop-blur-sm border border-surface-200 dark:border-surface-700"
 					>
 						{#if capturingLocation}
-							<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-							<span class="text-[0.55rem] font-black uppercase text-amber-600"
+							<span class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></span>
+							<span class="text-[0.55rem] font-black uppercase text-warning-600"
 								>Capturando GPS...</span
 							>
 						{:else if coords}

@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import type { Unidade } from '$lib/types';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let {
 		open = $bindable(false),
@@ -23,8 +24,10 @@
 	let novoTemPlantao = $state(false);
 	let novoTemExpediente = $state(false);
 	let novoTemFds = $state(false);
-	let buscaCidade = $state('');
+	let buscaCidade = $state<string | null>('');
 	let pending = $state(false);
+
+	const cidadesOptions = CIDADES_CEARA.map((c) => ({ value: c, label: c }));
 
 	const novoNome = $derived(
 		tipoUnidade === 'delegacia'
@@ -79,7 +82,6 @@
 				<input type="hidden" name="nome" value={novoNome} />
 				<input type="hidden" name="tipo" value={tipoUnidade} />
 				<input type="hidden" name="seccional_id" value={novoSeccionalId ?? ''} />
-				<input type="hidden" name="cidade" value={buscaCidade} />
 				<input type="hidden" name="tem_plantao" value={novoTemPlantao ? 'on' : ''} />
 				<input type="hidden" name="tem_expediente" value={novoTemExpediente ? 'on' : ''} />
 				<input type="hidden" name="tem_fds" value={novoTemFds ? 'on' : ''} />
@@ -109,22 +111,15 @@
 					</SegmentedControl>
 				</div>
 
-				<label class="label">
-					<span class="label-text font-semibold">Cidade no Ceará</span>
-					<input
-						class="input"
-						type="text"
-						list="cidades-ce-registro"
+				<div class="flex flex-col gap-1">
+					<span class="label-text font-semibold text-sm">Cidade no Ceará</span>
+					<SearchableSelect
+						name="cidade"
+						options={cidadesOptions}
 						bind:value={buscaCidade}
 						placeholder="Buscar e selecionar cidade..."
-						required
 					/>
-					<datalist id="cidades-ce-registro">
-						{#each CIDADES_CEARA as c}
-							<option value={c}></option>
-						{/each}
-					</datalist>
-				</label>
+				</div>
 
 				{#if tipoUnidade === 'delegacia'}
 					<div class="flex flex-col gap-3 animate-in fade-in duration-300">
@@ -196,22 +191,37 @@
 					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
 						Regimes de Escala:
 					</p>
-					<div class="flex gap-4">
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemPlantao} /><span
-								>Plantão</span
-							></label
+					<div class="flex flex-col gap-2.5 sm:flex-row sm:gap-4 mt-1">
+						<Switch
+							checked={novoTemPlantao}
+							onCheckedChange={(e) => (novoTemPlantao = e.checked)}
 						>
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemExpediente} /><span
-								>Exped.</span
-							></label
+							<Switch.Control>
+								<Switch.Thumb />
+							</Switch.Control>
+							<Switch.Label>Plantão</Switch.Label>
+							<Switch.HiddenInput />
+						</Switch>
+						<Switch
+							checked={novoTemExpediente}
+							onCheckedChange={(e) => (novoTemExpediente = e.checked)}
 						>
-						<label class="flex items-center space-x-2"
-							><input class="checkbox" type="checkbox" bind:checked={novoTemFds} /><span
-								>Fim de Semana</span
-							></label
+							<Switch.Control>
+								<Switch.Thumb />
+							</Switch.Control>
+							<Switch.Label>Exped.</Switch.Label>
+							<Switch.HiddenInput />
+						</Switch>
+						<Switch
+							checked={novoTemFds}
+							onCheckedChange={(e) => (novoTemFds = e.checked)}
 						>
+							<Switch.Control>
+								<Switch.Thumb />
+							</Switch.Control>
+							<Switch.Label>Fim de Semana</Switch.Label>
+							<Switch.HiddenInput />
+						</Switch>
 					</div>
 				</div>
 
@@ -222,6 +232,7 @@
 						class="btn preset-filled-primary-500 flex items-center gap-2 active:scale-95 transition-all"
 						disabled={pending ||
 							!novoNome.trim() ||
+							!buscaCidade?.trim() ||
 							(tipoUnidade === 'delegacia' && !novoSeccionalId)}
 					>
 						{pending ? 'Cadastrando...' : 'Cadastrar'}

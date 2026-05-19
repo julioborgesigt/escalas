@@ -388,7 +388,7 @@
 				<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
 				{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
 					<span
-						class="hidden sm:inline-block ml-1 px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 text-[0.65rem]"
+						class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-[0.65rem]"
 						>H. Personalizado</span
 					>
 				{/if}
@@ -1049,7 +1049,7 @@
 													>
 													{#if equipe.hora_entrada || equipe.hora_saida}
 														<span
-															class="px-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 uppercase"
+															class="px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 uppercase"
 															>H. Personalizado</span
 														>
 													{/if}

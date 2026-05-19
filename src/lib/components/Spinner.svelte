@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Progress } from '@skeletonlabs/skeleton-svelte';
+
 	let {
 		size = 'sm',
 		class: className = ''
@@ -7,16 +9,22 @@
 		class?: string;
 	} = $props();
 
-	const sizes: Record<string, string> = {
-		xs: 'w-3 h-3 border-2',
-		sm: 'w-4 h-4 border-2',
-		md: 'w-5 h-5 border-2',
-		lg: 'w-8 h-8 border-4'
+	const sizeMap: Record<string, string> = {
+		xs: '0.75rem',
+		sm: '1rem',
+		md: '1.25rem',
+		lg: '2rem'
 	};
 </script>
 
-<span
-	role="status"
+<Progress
+	value={null}
 	aria-label="Carregando"
-	class="inline-block shrink-0 rounded-full animate-spin border-current border-t-transparent {sizes[size]} {className}"
-></span>
+	style="display: inline-flex; flex-direction: row; width: auto; gap: 0;"
+	class="shrink-0 {className}"
+>
+	<Progress.Circle style="--size: {sizeMap[size]}; --thickness: calc(var(--size) / 8);">
+		<Progress.CircleTrack class="stroke-transparent" />
+		<Progress.CircleRange class="stroke-current" />
+	</Progress.Circle>
+</Progress>

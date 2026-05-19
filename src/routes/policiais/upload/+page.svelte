@@ -2,6 +2,7 @@
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
+	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 
 	let file = $state<File | null>(null);
 	let result = $state<{
@@ -110,31 +111,53 @@
 			</div>
 
 			{#if result.errors.length > 0}
-				<details class="border border-surface-200 rounded-lg overflow-hidden" open={result.imported === 0}>
-					<summary class="px-4 py-3 cursor-pointer preset-tonal-error text-sm font-medium select-none">
-						{result.errors.length} linha{result.errors.length !== 1 ? 's' : ''} com observações
-					</summary>
-					<div class="max-h-[300px] overflow-y-auto">
-						<table class="table">
-							<thead>
-								<tr>
-									<th>Linha</th>
-									<th>Nome</th>
-									<th>Problema</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each result.errors as err (err.row)}
-									<tr>
-										<td class="font-semibold whitespace-nowrap">{err.row}</td>
-										<td>{err.nome}</td>
-										<td>{err.message}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</details>
+				<Accordion
+					defaultValue={result.imported === 0 ? ['errors'] : []}
+					collapsible
+					class="border border-surface-200 dark:border-white/10 rounded-lg overflow-hidden"
+				>
+					<Accordion.Item value="errors">
+						<Accordion.ItemTrigger
+							class="w-full px-4 py-3 cursor-pointer preset-tonal-error text-sm font-medium flex items-center justify-between gap-2"
+						>
+							<span>
+								{result.errors.length} linha{result.errors.length !== 1 ? 's' : ''} com observações
+							</span>
+							<Accordion.ItemIndicator>
+								<svg
+									class="w-4 h-4 transition-transform"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+								</svg>
+							</Accordion.ItemIndicator>
+						</Accordion.ItemTrigger>
+						<Accordion.ItemContent>
+							<div class="max-h-[300px] overflow-y-auto">
+								<table class="table">
+									<thead>
+										<tr>
+											<th>Linha</th>
+											<th>Nome</th>
+											<th>Problema</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each result.errors as err (err.row)}
+											<tr>
+												<td class="font-semibold whitespace-nowrap">{err.row}</td>
+												<td>{err.nome}</td>
+												<td>{err.message}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						</Accordion.ItemContent>
+					</Accordion.Item>
+				</Accordion>
 			{/if}
 		</div>
 	{/if}

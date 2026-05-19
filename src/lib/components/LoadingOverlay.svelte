@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { Progress } from '@skeletonlabs/skeleton-svelte';
 	import { useScrollLock } from '$lib/composables';
 
 	let {
@@ -32,13 +33,16 @@
 		     ficar visualmente centrado dentro da área de conteúdo principal. -->
 		<div class="absolute inset-0 {offsetSidebar ? 'min-[900px]:left-60' : ''} flex flex-col items-center justify-center">
 			<div class="flex flex-col items-center gap-6">
-				<!-- Spinner -->
-				<div class="relative w-16 h-16">
-					<!-- Outer ring -->
-					<div class="absolute inset-0 border-4 border-surface-200 dark:border-surface-700 rounded-full opacity-30"></div>
-					<!-- Inner spinning ring -->
-					<div class="absolute inset-0 border-4 border-transparent border-t-primary-500 rounded-full animate-spin"></div>
-				</div>
+				<Progress
+					value={null}
+					aria-label={message}
+					style="display: inline-flex; flex-direction: row; width: auto; gap: 0;"
+				>
+					<Progress.Circle style="--size: 4rem; --thickness: 0.25rem;">
+						<Progress.CircleTrack class="stroke-surface-200 dark:stroke-surface-700 opacity-30" />
+						<Progress.CircleRange class="stroke-primary-500" />
+					</Progress.Circle>
+				</Progress>
 
 				<!-- Message -->
 				<div class="flex flex-col items-center gap-2 px-4 text-center">

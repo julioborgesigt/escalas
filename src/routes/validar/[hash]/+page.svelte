@@ -131,7 +131,7 @@
 							{#if ehQualificada}
 								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-700 dark:text-primary-300 tracking-wider">ICP-Brasil</span>
 							{:else}
-								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
+								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-warning-500/10 text-warning-700 dark:text-warning-300 tracking-wider">Avançada (Lei 14.063/2020)</span>
 							{/if}
 							{#if v?.padesLt?.presente}
 								<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-success-500/10 text-success-700 dark:text-success-300 tracking-wider" title="DSS Dictionary embarcado: certificados e OCSP dentro do próprio PDF (ETSI EN 319 142-1)">PAdES-LT</span>
@@ -370,11 +370,11 @@
 				</section>
 
 				<!-- Instrução de Comparação -->
-				<div class="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl sm:rounded-2xl">
-					<svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<div class="flex items-start gap-3 p-4 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700/30 rounded-xl sm:rounded-2xl">
+					<svg class="w-5 h-5 text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
-					<p class="text-sm text-amber-800 dark:text-amber-300">
+					<p class="text-sm text-warning-800 dark:text-warning-300">
 						<strong>Como verificar:</strong> Baixe o documento digital acima e compare seu conteúdo com o documento impresso.
 						Verifique se os nomes, períodos, datas e demais informações são idênticos.
 						Qualquer divergência deve ser comunicada à unidade responsável.
