@@ -279,6 +279,8 @@
 								loadOptions={buscarDpcs}
 								selectedOption={selectedFromPoliciais(supervisorId)}
 								placeholder="Pesquisar DPC..."
+								minSearchChars={2}
+								showTrigger={false}
 								class="w-full"
 							/>
 						</div>
@@ -295,6 +297,8 @@
 								loadOptions={buscarOips}
 								selectedOption={selectedFromPoliciais(assessorId)}
 								placeholder="Pesquisar Assessor..."
+								minSearchChars={2}
+								showTrigger={false}
 								class="w-full"
 							/>
 						</div>
@@ -383,6 +387,8 @@
 								loadOptions={buscarOips}
 								selectedOption={selectedFromPoliciais(seint1Id)}
 								placeholder="Pesquisar SEINT 1..."
+								minSearchChars={2}
+								showTrigger={false}
 								class="w-full"
 							/>
 						</div>
@@ -399,6 +405,8 @@
 								loadOptions={buscarOips}
 								selectedOption={selectedFromPoliciais(seint2Id)}
 								placeholder="Pesquisar SEINT 2..."
+								minSearchChars={2}
+								showTrigger={false}
 								class="w-full"
 							/>
 						</div>
