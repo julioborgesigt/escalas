@@ -268,6 +268,13 @@
 			filtroSeccional !== 'todas' ||
 			filtroBusca !== ''
 	);
+
+	let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function handleBuscaInput() {
+		if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+		searchDebounceTimer = setTimeout(navegarComFiltros, 400);
+	}
 </script>
 
 <svelte:head>
@@ -582,10 +589,17 @@
 					navegarComFiltros();
 				}}
 			>
-				<SegmentedControl.Control>
-					<SegmentedControl.Indicator />
-					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
-						<SegmentedControl.Item value={val}>
+				<SegmentedControl.Control
+					class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
+				>
+					<SegmentedControl.Indicator
+						class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200"
+					/>
+					{#each [['', 'Todos DPC OIP'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
+						<SegmentedControl.Item
+							value={val}
+							class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md"
+						>
 							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
 						</SegmentedControl.Item>
@@ -596,33 +610,30 @@
 
 		<label class="label flex-1 min-w-0 sm:min-w-[200px]">
 			<span class="label-text font-semibold mb-1">Buscar por Nome ou Matrícula</span>
-			<div class="relative flex gap-2">
-				<div class="relative flex-1">
-					<input
-						type="text"
-						class="input pl-10 pr-4"
-						bind:value={filtroBusca}
-						placeholder="Nome ou matrícula..."
-						onkeydown={(e) => e.key === 'Enter' && navegarComFiltros()}
-					/>
-					<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
-						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-							/></svg
-						>
-					</div>
+			<div class="relative">
+				<input
+					type="text"
+					class="input pl-10 pr-4"
+					bind:value={filtroBusca}
+					placeholder="Nome ou matrícula..."
+					oninput={handleBuscaInput}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+							navegarComFiltros();
+						}
+					}}
+				/>
+				<div class="absolute inset-y-0 left-3 flex items-center pointer-events-none opacity-50">
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+						/></svg
+					>
 				</div>
-				<button
-					type="button"
-					class="btn btn-sm preset-filled-primary-500 shrink-0 self-end active:scale-95 transition-all"
-					onclick={navegarComFiltros}
-				>
-					Buscar
-				</button>
 			</div>
 		</label>
 	</div>
