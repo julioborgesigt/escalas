@@ -161,18 +161,19 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		const codigo = gerarCodigo2FA();
 		const desafioId = await criarDesafio2FA(db, tipoDesafio, usuario.id, codigo);
 
-		try {
-			await enviarCodigoRedefinicaoSenha(usuario.email_pessoal, codigo, usuario.nome, platform);
-		} catch (err) {
+		const emailJob = enviarCodigoRedefinicaoSenha(
+			usuario.email_pessoal,
+			codigo,
+			usuario.nome,
+			platform
+		).catch((err) => {
 			logger.error('[auth/redefinicao] falha ao enviar código', {
 				tipo,
 				usuario_id: usuario.id,
 				error: err instanceof Error ? err.message : String(err)
 			});
-			// Mesmo em caso de falha de envio, devolve a resposta dummy normal
-			// para não revelar que o e-mail existe.
-			return respostaDummy(emailDummyMascarado(identificador));
-		}
+		});
+		platform?.ctx?.waitUntil(emailJob);
 
 		return json({
 			message: RESPOSTA_GENERICA,

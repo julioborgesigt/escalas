@@ -34,11 +34,12 @@ export const POST: RequestHandler = async ({ platform, locals }) => {
 		const codigo = gerarCodigo2FA();
 		const desafioId = await criarDesafio2FA(db, 'assinatura', u.id, codigo);
 
-		try {
-			await enviarCodigo2FA(email, codigo, u.nome, platform);
-		} catch (err) {
-			return serverError('[Assinatura 2FA] Falha ao enviar e-mail', err);
-		}
+		const emailJob = enviarCodigo2FA(email, codigo, u.nome, platform).catch((err) => {
+			logger.error('[Assinatura 2FA] Falha ao enviar e-mail', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		});
+		platform?.ctx?.waitUntil(emailJob);
 
 		return json({
 			success: true,

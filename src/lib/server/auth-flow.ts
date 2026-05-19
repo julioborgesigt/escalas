@@ -302,19 +302,12 @@ export async function tentarLogin({
 		if (admin.email && admin.primeiro_acesso !== 1) {
 			const codigo = gerarCodigo2FA();
 			const desafioId = await criarDesafio2FA(db, 'admin', admin.id, codigo);
-			try {
-				await enviarCodigo2FA(admin.email, codigo, admin.nome, platform);
-			} catch (err) {
+			const emailJob = enviarCodigo2FA(admin.email, codigo, admin.nome, platform).catch((err) => {
 				logger.error('[2FA] Falha ao enviar e-mail (admin)', {
 					error: err instanceof Error ? err.message : String(err)
 				});
-				return {
-					sucesso: false,
-					statusCode: 500,
-					erro: 'Falha ao enviar código de verificação. Contate o administrador.',
-					fields: { matricula, tipo }
-				};
-			}
+			});
+			platform?.ctx?.waitUntil(emailJob);
 			return {
 				sucesso: false,
 				statusCode: 200,
@@ -369,19 +362,12 @@ export async function tentarLogin({
 	if (policial.email && policial.primeiro_acesso !== 1) {
 		const codigo = gerarCodigo2FA();
 		const desafioId = await criarDesafio2FA(db, 'policial', policial.id, codigo);
-		try {
-			await enviarCodigo2FA(policial.email, codigo, policial.nome, platform);
-		} catch (err) {
+		const emailJob = enviarCodigo2FA(policial.email, codigo, policial.nome, platform).catch((err) => {
 			logger.error('[2FA] Falha ao enviar e-mail (policial)', {
 				error: err instanceof Error ? err.message : String(err)
 			});
-			return {
-				sucesso: false,
-				statusCode: 500,
-				erro: 'Falha ao enviar código de verificação. Contate o administrador.',
-				fields: { matricula, tipo }
-			};
-		}
+		});
+		platform?.ctx?.waitUntil(emailJob);
 		return {
 			sucesso: false,
 			statusCode: 200,
