@@ -253,7 +253,12 @@
 		lng?: number,
 		selfie?: string | null,
 		codigo?: string,
-		desafioId?: string
+		desafioId?: string,
+		// Resultado do desafio ativo (blink/smile) capturado pelo SignaturePad.
+		// Quando a flag exigirFotoAssinatura esta ligada no servidor, este
+		// campo e OBRIGATORIO — sem ele o endpoint retorna 400 "Comprovacao
+		// de presenca ativa ausente (liveness challenge)".
+		livenessChallenge?: unknown
 	) {
 		const gise = giseParaAssinar;
 		if (!gise) return;
@@ -270,7 +275,8 @@
 						longitude: lng,
 						selfieBase64: selfie,
 						codigoValidação: codigo,
-						desafioId
+						desafioId,
+						livenessChallenge
 					})
 				});
 				if (r.ok) {
@@ -297,7 +303,8 @@
 							longitude: lng,
 							selfieBase64: selfie,
 							codigoValidação: codigo,
-							desafioId
+							desafioId,
+							livenessChallenge
 						})
 					});
 					if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error ?? 'Erro');
