@@ -131,10 +131,10 @@
 				<textarea
 					id="breve_sec"
 					name="breve_texto_seccional"
-					rows="3"
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-					>{data.breveForm.textoSeccional}</textarea
-				>
+					rows="4"
+					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+					value={data.breveForm.textoSeccional}
+				></textarea>
 			</div>
 			<div>
 				<label for="breve_sup" class="block text-sm font-medium mb-1"
@@ -143,10 +143,10 @@
 				<textarea
 					id="breve_sup"
 					name="breve_texto_supervisao"
-					rows="3"
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-					>{data.breveForm.textoSupervisao}</textarea
-				>
+					rows="4"
+					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+					value={data.breveForm.textoSupervisao}
+				></textarea>
 			</div>
 		</div>
 

@@ -591,30 +591,30 @@
 				class="overflow-hidden rounded-3xl border border-surface-200 bg-white shadow-sm dark:border-surface-800 dark:bg-surface-900"
 				transition:slide={{ duration: 250 }}
 			>
-				<!-- 1. Tipo de equipe: pill toggle com cor de fundo -->
-				<div class="border-b border-surface-200/80 px-4 py-3 dark:border-surface-700/80 sm:px-5">
-					<p class="mb-2.5 text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500">1. Tipo de equipe</p>
-					<div class="inline-flex rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80">
-						<button
-							type="button"
-							class="rounded-lg px-5 py-1.5 text-xs font-bold transition-all {filterTipo === 'operacional'
-								? 'bg-warning-500 text-white shadow-sm'
-								: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-							onclick={() => (filterTipo = 'operacional')}
-						>Operacional</button>
-						<button
-							type="button"
-							class="rounded-lg px-5 py-1.5 text-xs font-bold transition-all {filterTipo === 'seint'
-								? 'bg-tertiary-500 text-white shadow-sm'
-								: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-							onclick={() => (filterTipo = 'seint')}
-						>Inteligência</button>
+				<div class="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-12 items-end">
+					<!-- 1. Tipo de equipe -->
+					<div class="space-y-1.5 lg:col-span-3">
+						<p class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">1. Tipo de equipe</p>
+						<div class="inline-flex w-full rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80">
+							<button
+								type="button"
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo === 'operacional'
+									? 'bg-warning-500 text-white shadow-sm'
+									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+								onclick={() => (filterTipo = 'operacional')}
+							>Operacional</button>
+							<button
+								type="button"
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo === 'seint'
+									? 'bg-tertiary-500 text-white shadow-sm'
+									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
+								onclick={() => (filterTipo = 'seint')}
+							>Inteligência</button>
+						</div>
 					</div>
-				</div>
 
-				<!-- 2 + 3. Seccional + Período: grid responsivo -->
-				<div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
-					<div class="space-y-1.5">
+					<!-- 2. Seccional -->
+					<div class="space-y-1.5 lg:col-span-3">
 						<label for="f-sec" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">2. Seccional</label>
 						<select
 							id="f-sec"
@@ -628,13 +628,14 @@
 						</select>
 					</div>
 
-					<div class="space-y-1.5 sm:col-span-2">
+					<!-- 3. Período -->
+					<div class="space-y-1.5 lg:col-span-6">
 						<label for="f-ano" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">3. Período</label>
-						<div class="flex flex-wrap items-end gap-2">
+						<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
 							<select
 								id="f-ano"
 								bind:value={filterAno}
-								class="px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+								class="w-full lg:w-auto min-w-[120px] px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 							>
 								{#each anos as ano}
 									<option value={String(ano)}>{ano}</option>
@@ -643,24 +644,24 @@
 							</select>
 
 							{#if filterAno === 'personalizado'}
-								<div class="flex flex-wrap items-end gap-2">
-									<div class="space-y-0.5">
+								<div class="flex items-end gap-2 w-full lg:w-auto">
+									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label for="f-ini" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">De</label>
 										<input
 											id="f-ini"
 											type="date"
 											bind:value={filterInicio}
-											class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+											class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 										/>
 									</div>
-									<span class="text-surface-400 pb-2.5">—</span>
-									<div class="space-y-0.5">
+									<span class="text-surface-400 pb-2">—</span>
+									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label for="f-fim" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">Até</label>
 										<input
 											id="f-fim"
 											type="date"
 											bind:value={filterFim}
-											class="px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+											class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 										/>
 									</div>
 								</div>

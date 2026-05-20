@@ -54,7 +54,7 @@
 	<div
 		class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6"
 	>
-		<div>
+		<div class="w-full sm:w-auto">
 			<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">
 				Configurar Formulário
 			</h2>
@@ -62,23 +62,22 @@
 				Defina os textos e campos do relatório de produtividade oficial.
 			</p>
 
-			<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-fit">
+			<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
 				<button type="button"
-					class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
-					'operacional'
+					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'operacional'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 						: 'text-surface-500'}"
 					onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
 				>
 				<button type="button"
-					class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'seint'
+					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'seint'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 						: 'text-surface-500'}"
 					onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
 				>
 			</div>
 		</div>
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
 			{@render actionButton(
 				'Restaurar Padrão',
 				undefined,
@@ -87,7 +86,7 @@
 				solicitarRestaurarPadrao,
 				false,
 				false,
-				'px-4 py-2 text-xs'
+				'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs'
 			)}
 
 			{@render actionButton(
@@ -98,7 +97,7 @@
 				resGise.adicionarPergunta,
 				false,
 				false,
-				'px-4 py-2 shadow-lg shadow-primary-500/30'
+				'w-full sm:w-auto sm:flex-none px-4 py-2.5 text-xs shadow-lg shadow-primary-500/30'
 			)}
 		</div>
 	</div>
@@ -117,32 +116,30 @@
 					</div>
 
 					<div class="space-y-1.5 flex-1 w-full min-w-0">
-						<label
-							for="qtxt-{p.id}"
-							class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest pl-1"
-							>Texto da Pergunta</label
-						>
-						<div class="relative">
-							<textarea
-								id="qtxt-{p.id}"
-								bind:value={p.texto}
-								rows="2"
-								class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950 text-sm font-bold resize-none"
-							></textarea>
-							<div class="absolute top-2 right-2 flex gap-2">
-								{#if p.key?.startsWith('extra_')}
-									<span
-										class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase"
-										>CAMPO ADICIONAL</span
-									>
-								{:else}
-									<span
-										class="bg-surface-100 dark:bg-surface-800 text-[0.5rem] font-black px-2 py-0.5 rounded-full text-surface-400 uppercase border border-surface-200 dark:border-surface-700"
-										>Campo Sistema</span
-									>
-								{/if}
-							</div>
+						<div class="flex items-center justify-between pl-1 gap-2 flex-wrap mb-1">
+							<label
+								for="qtxt-{p.id}"
+								class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+								>Texto da Pergunta</label
+							>
+							{#if p.key?.startsWith('extra_')}
+								<span
+									class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase whitespace-nowrap"
+									>CAMPO ADICIONAL</span
+								>
+							{:else}
+								<span
+									class="bg-surface-100 dark:bg-surface-800 text-[0.5rem] font-black px-2 py-0.5 rounded-full text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
+									>Campo Sistema</span
+								>
+							{/if}
 						</div>
+						<textarea
+							id="qtxt-{p.id}"
+							bind:value={p.texto}
+							rows="2"
+							class="w-full px-4 py-3 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950 text-sm font-bold resize-none"
+						></textarea>
 					</div>
 
 					<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
@@ -349,18 +346,18 @@
 	</div>
 
 	<div
-		class="flex justify-end p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-3xl border-t border-surface-200 dark:border-surface-800"
+		class="w-full p-4 sm:p-6 bg-surface-50 dark:bg-surface-950/40 rounded-b-3xl border-t border-surface-200 dark:border-surface-800"
 	>
 		<form
 			method="POST"
 			action="?/salvarModelo"
 			use:enhance={resGise.handleSalvarModelo}
-			class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4 border-t border-surface-200 dark:border-surface-800"
+			class="w-full flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
 		>
 			<input type="hidden" name="config" value={resGise.configJson} />
 			<input type="hidden" name="tipo" value={resGise.configTipo} />
 
-			<div class="flex-1 p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
+			<div class="flex-grow p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
 				<p class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1">Status da Configuração</p>
 				<div class="flex items-center gap-2">
 					<div class="w-2 h-2 rounded-full {loading.active ? 'bg-warning-500 animate-pulse' : 'bg-success-500'}"></div>
@@ -371,13 +368,14 @@
 			</div>
 
 			{@render actionButton(
-				loading.active ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo}`,
+				loading.active ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
 				undefined,
 				'primary',
 				'filled',
 				undefined,
 				loading.active,
-				false
+				false,
+				'w-full sm:w-auto py-3.5 text-sm shadow-lg shadow-primary-500/20'
 			)}
 		</form>
 	</div>

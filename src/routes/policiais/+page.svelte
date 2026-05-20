@@ -24,7 +24,9 @@
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({
-					title: editingPolicialId ? 'Policial atualizado com sucesso!' : 'Policial cadastrado com sucesso!',
+					title: editingPolicialId
+						? 'Policial atualizado com sucesso!'
+						: 'Policial cadastrado com sucesso!',
 					type: 'success'
 				});
 				resetForm();
@@ -130,9 +132,7 @@
 	});
 
 	const classesDisponiveis = $derived(
-		cargo === 'DPC'
-			? ['1ª', '2ª', '3ª', 'ESPECIAL']
-			: ['A', 'B', 'C', 'D']
+		cargo === 'DPC' ? ['1ª', '2ª', '3ª', 'ESPECIAL'] : ['A', 'B', 'C', 'D']
 	);
 	const lotacaoSelectedOption = $derived(
 		lotacaoInput ? { value: lotacaoInput, label: lotacaoInput } : null
@@ -238,7 +238,10 @@
 		return async ({ result }: any) => {
 			if (result.type === 'success') {
 				await invalidateAll();
-				toaster.create({ title: `${confirmDialog.currentItem?.nome} removido com sucesso`, type: 'success' });
+				toaster.create({
+					title: `${confirmDialog.currentItem?.nome} removido com sucesso`,
+					type: 'success'
+				});
 				confirmDialog.closeDialog();
 			} else {
 				const d = result.data as Record<string, unknown> | undefined;
@@ -284,7 +287,8 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 	<h1 class="h1 text-xl font-bold">Gerenciar Policiais</h1>
 	<div class="flex flex-wrap gap-2">
-		<button type="button"
+		<button
+			type="button"
 			class="btn btn-sm {temFiltros
 				? 'preset-filled-warning-500'
 				: 'preset-outlined-primary-500 opacity-40'}"
@@ -299,7 +303,8 @@
 				class="btn btn-sm preset-outlined-primary-500 hidden sm:inline-flex">Importar Excel</a
 			>
 		{/if}
-		<button type="button"
+		<button
+			type="button"
 			class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
 			onclick={openCreateModal}>Novo Policial</button
 		>
@@ -321,7 +326,12 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
 
-			<form method="POST" action={editingPolicialId ? '?/atualizar' : '?/criar'} use:enhance={handleSalvarPolicial} class="space-y-3">
+			<form
+				method="POST"
+				action={editingPolicialId ? '?/atualizar' : '?/criar'}
+				use:enhance={handleSalvarPolicial}
+				class="space-y-3"
+			>
 				<!-- Campos hidden -->
 				<input type="hidden" name="policial_id" value={editingPolicialId ?? ''} />
 				<input type="hidden" name="cpf" value={limparCPF(cpf)} />
@@ -337,7 +347,13 @@
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
 							>Nome completo (Conforme Certificado Digital)</span
 						>
-						<input class="input py-1 px-3 text-sm" type="text" name="nome" bind:value={nome} required />
+						<input
+							class="input py-1 px-3 text-sm"
+							type="text"
+							name="nome"
+							bind:value={nome}
+							required
+						/>
 					</label>
 					<label class="label sm:col-span-2">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1"
@@ -399,7 +415,6 @@
 							bind:value={emailPessoal}
 							placeholder="email pessoal"
 						/>
-						
 					</label>
 				</div>
 
@@ -504,12 +519,12 @@
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<button
-					type="submit"
-					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
-					disabled={pendingCadastro}
-				>
-					{pendingCadastro ? submitLoadingLabel : submitLabel}
-				</button>
+						type="submit"
+						class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+						disabled={pendingCadastro}
+					>
+						{pendingCadastro ? submitLoadingLabel : submitLabel}
+					</button>
 				</div>
 			</form>
 		</div>
@@ -529,16 +544,18 @@
 				cadastro?
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}>Cancelar</Dialog.CloseTrigger>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+					>Cancelar</Dialog.CloseTrigger
+				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 					<input type="hidden" name="policial_id" value={confirmDialog.currentItem?.id} />
-						<button
-							type="submit"
-							class="btn btn-sm preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
-							disabled={excluindo}
-						>
-							{excluindo ? 'Excluindo...' : 'Remover Policial'}
-						</button>
+					<button
+						type="submit"
+						class="btn btn-sm preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						disabled={excluindo}
+					>
+						{excluindo ? 'Excluindo...' : 'Remover Policial'}
+					</button>
 				</form>
 			</div>
 		</div>
@@ -549,13 +566,13 @@
 	class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6"
 >
 	<div
-		class="flex flex-col sm:flex-row sm:items-end gap-4 mb-8 p-4 sm:p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10"
+		class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4 mb-8 p-4 sm:p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10"
 	>
 		{#if isAdmin}
-			<label class="label flex-1 max-w-sm">
-				<span class="label-text font-semibold mb-1">Seccional</span>
+			<label class="label flex-1 min-w-[220px] lg:max-w-xs">
+				<span class="label-text font-semibold mb-1 ml-0.5">Seccional</span>
 				<select
-					class="select"
+					class="select w-full"
 					bind:value={filtroSeccional}
 					onchange={() => {
 						filtroLotacao = '';
@@ -568,9 +585,9 @@
 					{/each}
 				</select>
 			</label>
-			<label class="label flex-1 max-w-sm">
-				<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-				<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
+			<label class="label flex-1 min-w-[240px] lg:max-w-xs">
+				<span class="label-text font-semibold mb-1 ml-0.5">Unidade de Lotação</span>
+				<select class="select w-full" bind:value={filtroLotacao} onchange={navegarComFiltros}>
 					<option value="">Selecione uma unidade...</option>
 					<option value={TODAS_UNIDADES}>Todas as unidades</option>
 					{#each delegaciasDropdown as del (del.id)}
@@ -580,25 +597,26 @@
 				</select>
 			</label>
 		{/if}
-		<div class="flex flex-col gap-1.5 shrink-0">
-			<span class="label-text font-semibold">Cargo</span>
+		<div class="flex flex-col gap-1.5 flex-1 min-w-[220px] lg:max-w-xs">
+			<span class="label-text font-semibold ml-0.5">Cargo</span>
 			<SegmentedControl
 				value={filtroCargo || ''}
 				onValueChange={(e) => {
 					filtroCargo = e.value ?? '';
 					navegarComFiltros();
 				}}
+				class="w-full"
 			>
 				<SegmentedControl.Control
-					class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
+					class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
 				>
 					<SegmentedControl.Indicator
-						class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200"
+						class="absolute inset-y-1 rounded-md bg-primary-600 dark:bg-primary-500 shadow-sm transition-[left,width] duration-200"
 					/>
-					{#each [['', 'Todos DPC OIP'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
+					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
 						<SegmentedControl.Item
 							value={val}
-							class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md"
+							class="relative z-10 flex-1 px-3 py-1.5 text-center text-sm font-bold text-surface-500 dark:text-surface-400 data-[state=checked]:text-white dark:data-[state=checked]:text-white cursor-pointer select-none transition-colors rounded-md"
 						>
 							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
@@ -608,12 +626,12 @@
 			</SegmentedControl>
 		</div>
 
-		<label class="label flex-1 min-w-0 sm:min-w-[200px]">
-			<span class="label-text font-semibold mb-1">Buscar por Nome ou Matrícula</span>
-			<div class="relative">
+		<label class="label flex-1 min-w-[220px]">
+			<span class="label-text font-semibold mb-1 ml-0.5">Buscar por Nome ou Matrícula</span>
+			<div class="relative w-full">
 				<input
 					type="text"
-					class="input pl-10 pr-4"
+					class="input pl-10 pr-4 w-full"
 					bind:value={filtroBusca}
 					placeholder="Nome ou matrícula..."
 					oninput={handleBuscaInput}
@@ -680,45 +698,61 @@
 					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
 						{#each { length: 8 } as _}
 							<tr class="animate-pulse">
-								<td class="px-4 py-3"><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-6 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="flex gap-2"><div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div><div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div></div></td>
+								<td class="px-4 py-3"
+									><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-6 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="flex gap-2">
+										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+										<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+									</div></td
+								>
 							</tr>
 						{/each}
 					{:else}
-					{#each policiais as p (p.id)}
-						<tr>
-							<td>{p.nome}</td>
-							<td class="font-mono tabular-nums">{p.matricula}</td>
-							<td>
-								<span
-									class="badge text-xs {p.cargo === 'DPC'
-										? 'preset-filled-primary-500'
-										: 'preset-filled-warning-500'}">{p.cargo}</span
-								>
-							</td>
-							<td class="font-mono tabular-nums">{p.telefone}</td>
-							<td>{p.lotacao}</td>
-							<td>
-								<div class="flex gap-2">
-									<button
-										type="button"
-										class="btn btn-sm preset-outlined-primary-500"
-										onclick={() => openEditModal(p)}
+						{#each policiais as p (p.id)}
+							<tr>
+								<td>{p.nome}</td>
+								<td class="font-mono tabular-nums">{p.matricula}</td>
+								<td>
+									<span
+										class="badge text-xs {p.cargo === 'DPC'
+											? 'preset-filled-primary-500'
+											: 'preset-filled-warning-500'}">{p.cargo}</span
 									>
-										Editar
-									</button>
-									<button type="button"
-										class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
-										onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-									>
-								</div>
-							</td>
-						</tr>
-					{/each}
+								</td>
+								<td class="font-mono tabular-nums">{p.telefone}</td>
+								<td>{p.lotacao}</td>
+								<td>
+									<div class="flex gap-2">
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-primary-500"
+											onclick={() => openEditModal(p)}
+										>
+											Editar
+										</button>
+										<button
+											type="button"
+											class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+											onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+										>
+									</div>
+								</td>
+							</tr>
+						{/each}
 					{/if}
 				</tbody>
 			</table>
@@ -731,48 +765,53 @@
 					<SkeletonCard />
 				{/each}
 			{:else}
-			{#each policiais as p, i (p.id)}
-				<div
-					transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
-					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
-				>
-					<div class="flex items-center justify-between mb-2">
-						<span class="font-semibold text-sm">{p.nome}</span>
-						<span
-							class="badge text-xs {p.cargo === 'DPC'
-								? 'preset-filled-primary-500'
-								: 'preset-filled-warning-500'}">{p.cargo}</span
-						>
-					</div>
-					<div class="space-y-1 text-sm mb-3">
-						<div class="flex justify-between">
-							<span class="text-surface-500">Matrícula</span>
-							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums">{p.matricula}</span>
+				{#each policiais as p, i (p.id)}
+					<div
+						transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
+						class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
+					>
+						<div class="flex items-center justify-between mb-2">
+							<span class="font-semibold text-sm">{p.nome}</span>
+							<span
+								class="badge text-xs {p.cargo === 'DPC'
+									? 'preset-filled-primary-500'
+									: 'preset-filled-warning-500'}">{p.cargo}</span
+							>
 						</div>
-						<div class="flex justify-between">
-							<span class="text-surface-500">Telefone</span>
-							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums">{p.telefone}</span>
+						<div class="space-y-1 text-sm mb-3">
+							<div class="flex justify-between">
+								<span class="text-surface-500">Matrícula</span>
+								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+									>{p.matricula}</span
+								>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-surface-500">Telefone</span>
+								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+									>{p.telefone}</span
+								>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-surface-500">Lotação</span>
+								<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
+							</div>
 						</div>
-						<div class="flex justify-between">
-							<span class="text-surface-500">Lotação</span>
-							<span class="text-right text-surface-900 dark:text-surface-100">{p.lotacao}</span>
+						<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1"
+								onclick={() => openEditModal(p)}
+							>
+								Editar
+							</button>
+							<button
+								type="button"
+								class="btn btn-sm preset-filled-error-500 transition-all flex-1 active:scale-95 transition-all"
+								onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
+							>
 						</div>
 					</div>
-					<div class="flex gap-2 pt-3 border-t border-surface-200 dark:border-white/5">
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 transition-all flex-1"
-							onclick={() => openEditModal(p)}
-						>
-							Editar
-						</button>
-						<button type="button"
-							class="btn btn-sm preset-filled-error-500 transition-all flex-1 active:scale-95 transition-all"
-							onclick={() => solicitarExclusao(p.id, p.nome)}>Excluir</button
-						>
-					</div>
-				</div>
-			{/each}
+				{/each}
 			{/if}
 		</div>
 
@@ -792,6 +831,7 @@
 		/>
 	{/if}
 </div>
+<FloatingRefresh />
 
 <style>
 	:global(.cadastro-policial-modal .input),
@@ -808,4 +848,3 @@
 		background-color: #1f2937;
 	}
 </style>
-<FloatingRefresh />

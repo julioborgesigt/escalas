@@ -1,7 +1,6 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
 	import { enhance } from '$app/forms';
-	import { Switch } from '@skeletonlabs/skeleton-svelte';
 
 	let { data, form }: { data: any; form: any } = $props();
 
@@ -11,15 +10,36 @@
 	let aceitouLocalizacao = $state(false);
 	let scrollouAteFim = $state(false);
 	let enviando = $state(false);
+	let termoContainer = $state<HTMLElement>();
 
 	const podeAceitar = $derived(aceitouTermo && aceitouLgpd && scrollouAteFim);
 
 	function onScroll(e: Event) {
 		const el = e.currentTarget as HTMLElement;
 		const fim = el.scrollHeight - el.clientHeight;
-		// 8px de tolerância para evitar que mobile não chegue exatamente
-		if (el.scrollTop >= fim - 8) scrollouAteFim = true;
+		if (fim <= 0 || el.scrollTop >= fim - 8) {
+			scrollouAteFim = true;
+		}
 	}
+
+	$effect(() => {
+		const el = termoContainer;
+		if (el) {
+			const checkScroll = () => {
+				const fim = el.scrollHeight - el.clientHeight;
+				if (fim <= 0 || el.scrollTop >= fim - 8) {
+					scrollouAteFim = true;
+				}
+			};
+
+			checkScroll();
+
+			const observer = new ResizeObserver(checkScroll);
+			observer.observe(el);
+
+			return () => observer.disconnect();
+		}
+	});
 </script>
 
 <svelte:head>
@@ -39,6 +59,7 @@
 		</header>
 
 		<div
+			bind:this={termoContainer}
 			class="termo-conteudo p-4 sm:p-6 max-h-[55vh] overflow-y-auto text-sm leading-relaxed text-surface-700 dark:text-surface-200"
 			onscroll={onScroll}
 		>
@@ -63,73 +84,61 @@
 				</p>
 			{/if}
 
-			<Switch
-				name="aceitou_termo"
-				checked={aceitouTermo}
-				onCheckedChange={(e) => (aceitouTermo = e.checked)}
-				disabled={!scrollouAteFim}
-				style="display: flex; align-items: flex-start; gap: 0.75rem;"
-			>
-				<Switch.Control>
-					<Switch.Thumb />
-				</Switch.Control>
-				<Switch.Label class="text-sm text-surface-800 dark:text-surface-200 leading-snug">
+			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+				<input
+					type="checkbox"
+					name="aceitou_termo"
+					bind:checked={aceitouTermo}
+					disabled={!scrollouAteFim}
+					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
+				/>
+				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
 					Li e concordo integralmente com este Termo de Uso e Política de Privacidade.
-				</Switch.Label>
-				<Switch.HiddenInput />
-			</Switch>
+				</span>
+			</label>
 
-			<Switch
-				name="aceitou_lgpd"
-				checked={aceitouLgpd}
-				onCheckedChange={(e) => (aceitouLgpd = e.checked)}
-				disabled={!scrollouAteFim}
-				style="display: flex; align-items: flex-start; gap: 0.75rem;"
-			>
-				<Switch.Control>
-					<Switch.Thumb />
-				</Switch.Control>
-				<Switch.Label class="text-sm text-surface-800 dark:text-surface-200 leading-snug">
+			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+				<input
+					type="checkbox"
+					name="aceitou_lgpd"
+					bind:checked={aceitouLgpd}
+					disabled={!scrollouAteFim}
+					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
+				/>
+				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
 					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados
 					pela PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com
 					a coleta de IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
-				</Switch.Label>
-				<Switch.HiddenInput />
-			</Switch>
+				</span>
+			</label>
 
 			<p class="text-[11px] text-surface-500 mt-1">Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):</p>
 
-			<Switch
-				name="aceitou_uso_email"
-				checked={aceitouEmail}
-				onCheckedChange={(e) => (aceitouEmail = e.checked)}
-				style="display: flex; align-items: flex-start; gap: 0.75rem;"
-			>
-				<Switch.Control>
-					<Switch.Thumb />
-				</Switch.Control>
-				<Switch.Label class="text-sm text-surface-700 dark:text-surface-300 leading-snug">
+			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200">
+				<input
+					type="checkbox"
+					name="aceitou_uso_email"
+					bind:checked={aceitouEmail}
+					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
+				/>
+				<span class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
 					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação ao
 					meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
-				</Switch.Label>
-				<Switch.HiddenInput />
-			</Switch>
+				</span>
+			</label>
 
-			<Switch
-				name="aceitou_uso_localizacao"
-				checked={aceitouLocalizacao}
-				onCheckedChange={(e) => (aceitouLocalizacao = e.checked)}
-				style="display: flex; align-items: flex-start; gap: 0.75rem;"
-			>
-				<Switch.Control>
-					<Switch.Thumb />
-				</Switch.Control>
-				<Switch.Label class="text-sm text-surface-700 dark:text-surface-300 leading-snug">
+			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200">
+				<input
+					type="checkbox"
+					name="aceitou_uso_localizacao"
+					bind:checked={aceitouLocalizacao}
+					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
+				/>
+				<span class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
 					<strong>Geolocalização</strong> — Autorizo a captura de coordenadas GPS ao assinar documentos
 					digitalmente, para fins de evidência jurídica (art. 7º, I, LGPD). Precisão reduzida (~1 km).
-				</Switch.Label>
-				<Switch.HiddenInput />
-			</Switch>
+				</span>
+			</label>
 
 			{#if form?.erro}
 				<p class="text-sm text-error-600 font-bold">{form.erro}</p>
