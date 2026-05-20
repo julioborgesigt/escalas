@@ -318,13 +318,13 @@
 					onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
 					class="w-full"
 				>
-					<SegmentedControl.Control class="w-full">
-						<SegmentedControl.Indicator />
-						<SegmentedControl.Item value="policial" class="flex-1">
+					<SegmentedControl.Control class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative w-full">
+						<SegmentedControl.Indicator class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200" />
+						<SegmentedControl.Item value="policial" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
 							<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
 						</SegmentedControl.Item>
-						<SegmentedControl.Item value="admin" class="flex-1">
+						<SegmentedControl.Item value="admin" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
 							<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
 						</SegmentedControl.Item>
@@ -465,13 +465,13 @@
 						}}
 						class="w-full mb-4"
 					>
-						<SegmentedControl.Control class="w-full">
-							<SegmentedControl.Indicator />
-							<SegmentedControl.Item value="policial" class="flex-1">
+						<SegmentedControl.Control class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative w-full">
+							<SegmentedControl.Indicator class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200" />
+							<SegmentedControl.Item value="policial" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
 								<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
 								<SegmentedControl.ItemHiddenInput />
 							</SegmentedControl.Item>
-							<SegmentedControl.Item value="admin" class="flex-1">
+							<SegmentedControl.Item value="admin" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
 								<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
 								<SegmentedControl.ItemHiddenInput />
 							</SegmentedControl.Item>
