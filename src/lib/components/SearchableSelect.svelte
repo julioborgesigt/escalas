@@ -10,7 +10,7 @@
 		debounceMs = 300,
 		minSearchChars = 0,
 		showTrigger = true,
-		value = $bindable(null),
+		value = $bindable<any>(null),
 		placeholder = 'Selecione...',
 		id = '',
 		name = '',

@@ -822,7 +822,7 @@
 			itensPorPagina={ITEMS_POR_PAGINA}
 			labelSingular="policial"
 			labelPlural="policial(is)"
-			onPageChange={(p) => {
+			onPageChange={(p: number) => {
 				paginaAtual = p;
 				const params = new URLSearchParams(window.location.search);
 				params.set('page', p.toString());
