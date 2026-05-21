@@ -219,7 +219,7 @@
 		}
 	});
 
-	let prevRegime = filtroRegime;
+	let prevRegime = $state(filtroRegime);
 	$effect(() => {
 		if (filtroRegime !== prevRegime) {
 			prevRegime = filtroRegime;
