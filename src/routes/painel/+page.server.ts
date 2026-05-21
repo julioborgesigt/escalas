@@ -6,6 +6,7 @@ import {
 	excluirEscala,
 	registrarAuditComContexto
 } from '$lib/db';
+import { getNowBR } from '$lib/utils';
 
 // Re-exportar interface do compliance
 export interface ItemCompliance {
@@ -19,7 +20,7 @@ export interface ItemCompliance {
 }
 
 // Importar a lógica de compliance existente
-async function gerarCompliance(db: any, todos = false): Promise<ItemCompliance[]> {
+async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemCompliance[]> {
 	const { unidades: unTable, escalas: escTable, escalaDocumentos: docTable } = await import('$lib/server/schema');
 	const { getNowBR } = await import('$lib/utils');
 	const { and, eq, gte, lte, inArray, sql } = await import('drizzle-orm');
@@ -29,16 +30,23 @@ async function gerarCompliance(db: any, todos = false): Promise<ItemCompliance[]
 	}
 	function diasNoMes(y: number, m: number): number { return new Date(y, m, 0).getDate(); }
 	const MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-	function fdsAtualSemana(hoje: Date) {
-		const dow = hoje.getDay();
-		const offset = dow === 0 ? -1 : 6 - dow;
-		const sab = new Date(hoje); sab.setDate(hoje.getDate() + offset);
-		const dom = new Date(sab); dom.setDate(sab.getDate() + 1);
-		return {
-			inicio: toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate()),
-			fim: toISO(dom.getFullYear(), dom.getMonth() + 1, dom.getDate()),
-			label: `FDS ${String(sab.getDate()).padStart(2, '0')}/${String(sab.getMonth() + 1).padStart(2, '0')}–${String(dom.getDate()).padStart(2, '0')}/${String(dom.getMonth() + 1).padStart(2, '0')}`
-		};
+
+	function obterFdsDoMes(y: number, m: number) {
+		const list = [];
+		const days = diasNoMes(y, m);
+		for (let d = 1; d <= days; d++) {
+			const date = new Date(y, m - 1, d);
+			if (date.getDay() === 6) { // Saturday
+				const sab = new Date(y, m - 1, d);
+				const dom = new Date(y, m - 1, d + 1);
+				list.push({
+					inicio: toISO(sab.getFullYear(), sab.getMonth() + 1, sab.getDate()),
+					fim: toISO(dom.getFullYear(), dom.getMonth() + 1, dom.getDate()),
+					label: `FDS ${String(sab.getDate()).padStart(2, '0')}/${String(sab.getMonth() + 1).padStart(2, '0')}–${String(dom.getDate()).padStart(2, '0')}/${String(dom.getMonth() + 1).padStart(2, '0')}`
+				});
+			}
+		}
+		return list;
 	}
 
 	const listaUnidades = await db.select().from(unTable).all();
@@ -47,98 +55,147 @@ async function gerarCompliance(db: any, todos = false): Promise<ItemCompliance[]
 	const hoje = getNowBR();
 	const anoAtual = hoje.getFullYear();
 	const mesAtual = hoje.getMonth() + 1;
-	const diasAtual = diasNoMes(anoAtual, mesAtual);
-	const inicioMes = toISO(anoAtual, mesAtual, 1);
-	const fimMes = toISO(anoAtual, mesAtual, diasAtual);
 
-	const fds = fdsAtualSemana(hoje);
+	// Determine which (year, month) combinations to evaluate
+	const periodos: { ano: number; mes: number }[] = [];
 
-	// Buscar escalas do mês (ou todas)
-	const escalasMes = await db.select().from(escTable)
-		.where(todos ? undefined : gte(escTable.data_inicio, inicioMes))
+	if (ano > 0 && mes > 0) {
+		periodos.push({ ano, mes });
+	} else if (ano > 0 && mes === 0) {
+		for (let m = 1; m <= 12; m++) {
+			periodos.push({ ano, mes: m });
+		}
+	} else if (ano === 0 && mes > 0) {
+		const anosDisponiveis = [2024, 2025, 2026, 2027];
+		for (const y of anosDisponiveis) {
+			periodos.push({ ano: y, mes });
+		}
+	} else {
+		// Both are "todos" - let's show all months of the current year
+		for (let m = 1; m <= 12; m++) {
+			periodos.push({ ano: anoAtual, mes: m });
+		}
+	}
+
+	// Determine date range to query scales
+	let minDate = '9999-12-31';
+	let maxDate = '0000-01-01';
+	for (const p of periodos) {
+		const start = toISO(p.ano, p.mes, 1);
+		const end = toISO(p.ano, p.mes, diasNoMes(p.ano, p.mes));
+		if (start < minDate) minDate = start;
+		if (end > maxDate) maxDate = end;
+	}
+
+	const escalasPeriodo = await db.select().from(escTable)
+		.where(and(
+			gte(escTable.data_inicio, minDate),
+			lte(escTable.data_inicio, maxDate)
+		))
 		.all();
 
-	const escalaIds = escalasMes.map((e: any) => e.id);
+	const escalaIds = escalasPeriodo.map((e: any) => e.id);
 	const docs = escalaIds.length > 0
 		? await db.select().from(docTable).where(inArray(docTable.escala_id, escalaIds)).all()
 		: [];
 
 	const docSet = new Set(docs.map((d: any) => d.escala_id));
-
 	const result: ItemCompliance[] = [];
 
-	for (const unidade of listaUnidades) {
-		if (!unidade.tem_plantao && !unidade.tem_expediente && !unidade.tem_fds) continue;
+	for (const p of periodos) {
+		const inicioMes = toISO(p.ano, p.mes, 1);
+		const fimMes = toISO(p.ano, p.mes, diasNoMes(p.ano, p.mes));
+		const fdsList = obterFdsDoMes(p.ano, p.mes);
 
-		if (unidade.tem_plantao) {
-			const esc = escalasMes.find((e: any) => e.lotacao === unidade.nome && e.tipo === 'plantao');
-			if (esc) {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'plantao',
-					periodo: `${MESES_PT[mesAtual - 1]} ${anoAtual}`,
-					data_inicio: esc.data_inicio,
-					data_fim: esc.data_fim,
-					status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
-					escala_id: esc.id
-				});
-			} else {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'plantao',
-					periodo: `${MESES_PT[mesAtual - 1]} ${anoAtual}`,
-					data_inicio: inicioMes,
-					data_fim: fimMes,
-					status: 'nao_criada'
-				});
+		for (const unidade of listaUnidades) {
+			if (!unidade.tem_plantao && !unidade.tem_expediente && !unidade.tem_fds) continue;
+
+			if (unidade.tem_plantao) {
+				const esc = escalasPeriodo.find((e: any) => 
+					e.lotacao === unidade.nome && 
+					e.tipo === 'plantao' && 
+					e.data_inicio >= inicioMes && 
+					e.data_inicio <= fimMes
+				);
+				if (esc) {
+					result.push({
+						unidade_nome: unidade.nome,
+						tipo_regime: 'plantao',
+						periodo: `${MESES_PT[p.mes - 1]} ${p.ano}`,
+						data_inicio: esc.data_inicio,
+						data_fim: esc.data_fim,
+						status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
+						escala_id: esc.id
+					});
+				} else {
+					result.push({
+						unidade_nome: unidade.nome,
+						tipo_regime: 'plantao',
+						periodo: `${MESES_PT[p.mes - 1]} ${p.ano}`,
+						data_inicio: inicioMes,
+						data_fim: fimMes,
+						status: 'nao_criada'
+					});
+				}
 			}
-		}
 
-		if (unidade.tem_expediente) {
-			const esc = escalasMes.find((e: any) => e.lotacao === unidade.nome && e.tipo === 'expediente');
-			if (esc) {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'expediente',
-					periodo: `${MESES_PT[mesAtual - 1]} ${anoAtual}`,
-					data_inicio: esc.data_inicio,
-					data_fim: esc.data_fim,
-					status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
-					escala_id: esc.id
-				});
-			} else {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'expediente',
-					periodo: `${MESES_PT[mesAtual - 1]} ${anoAtual}`,
-					data_inicio: inicioMes,
-					data_fim: fimMes,
-					status: 'nao_criada'
-				});
+			if (unidade.tem_expediente) {
+				const esc = escalasPeriodo.find((e: any) => 
+					e.lotacao === unidade.nome && 
+					e.tipo === 'expediente' && 
+					e.data_inicio >= inicioMes && 
+					e.data_inicio <= fimMes
+				);
+				if (esc) {
+					result.push({
+						unidade_nome: unidade.nome,
+						tipo_regime: 'expediente',
+						periodo: `${MESES_PT[p.mes - 1]} ${p.ano}`,
+						data_inicio: esc.data_inicio,
+						data_fim: esc.data_fim,
+						status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
+						escala_id: esc.id
+					});
+				} else {
+					result.push({
+						unidade_nome: unidade.nome,
+						tipo_regime: 'expediente',
+						periodo: `${MESES_PT[p.mes - 1]} ${p.ano}`,
+						data_inicio: inicioMes,
+						data_fim: fimMes,
+						status: 'nao_criada'
+					});
+				}
 			}
-		}
 
-		if (unidade.tem_fds) {
-			const esc = escalasMes.find((e: any) => e.lotacao === unidade.nome && e.tipo === 'fds' && e.data_inicio === fds.inicio);
-			if (esc) {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'fds',
-					periodo: fds.label,
-					data_inicio: esc.data_inicio,
-					data_fim: esc.data_fim,
-					status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
-					escala_id: esc.id
-				});
-			} else {
-				result.push({
-					unidade_nome: unidade.nome,
-					tipo_regime: 'fds',
-					periodo: fds.label,
-					data_inicio: fds.inicio,
-					data_fim: fds.fim,
-					status: 'nao_criada'
-				});
+			if (unidade.tem_fds) {
+				for (const fds of fdsList) {
+					const esc = escalasPeriodo.find((e: any) => 
+						e.lotacao === unidade.nome && 
+						e.tipo === 'fds' && 
+						e.data_inicio === fds.inicio
+					);
+					if (esc) {
+						result.push({
+							unidade_nome: unidade.nome,
+							tipo_regime: 'fds',
+							periodo: fds.label,
+							data_inicio: esc.data_inicio,
+							data_fim: esc.data_fim,
+							status: docSet.has(esc.id) ? 'ok' : 'nao_assinada',
+							escala_id: esc.id
+						});
+					} else {
+						result.push({
+							unidade_nome: unidade.nome,
+							tipo_regime: 'fds',
+							periodo: fds.label,
+							data_inicio: fds.inicio,
+							data_fim: fds.fim,
+							status: 'nao_criada'
+						});
+					}
+				}
 			}
 		}
 	}
@@ -152,17 +209,27 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	if (u.tipo !== 'admin') throw redirect(302, '/');
 
 	const db = getDB(platform);
-	const todos = url.searchParams.get('todos') === 'true';
+	
+	const hoje = getNowBR();
+	const anoCorrente = hoje.getFullYear();
+	const mesCorrente = hoje.getMonth() + 1;
+
+	const qAno = url.searchParams.get('ano');
+	const qMes = url.searchParams.get('mes');
+
+	const ano = qAno === 'todos' ? 0 : (qAno !== null ? Number(qAno) : anoCorrente);
+	const mes = qMes === 'todos' ? 0 : (qMes !== null ? Number(qMes) : mesCorrente);
 
 	const [compliance, unidadesLista] = await Promise.all([
-		gerarCompliance(db, todos),
+		gerarCompliance(db, ano, mes),
 		listarUnidades(db)
 	]);
 
 	return {
 		compliance,
 		unidades: unidadesLista,
-		todos
+		filtroAno: qAno !== null ? qAno : String(anoCorrente),
+		filtroMes: qMes !== null ? qMes : String(mesCorrente)
 	};
 };
 

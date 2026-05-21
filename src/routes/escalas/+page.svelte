@@ -22,6 +22,7 @@
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
 	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
 	import DialogSolicitarAssinatura from './_components/DialogSolicitarAssinatura.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data, form } = $props();
 
@@ -85,6 +86,22 @@
 		unidades.filter((u: Unidade) => u.tipo === 'delegacia' && u.seccional_id === papelUnidadeId)
 	);
 
+	const seccionaisOptions = $derived([
+		{ value: 'todas', label: 'Todas as Seccionais' },
+		...seccionais.map((sec) => ({ value: sec.id, label: sec.nome }))
+	]);
+
+	const unidadesOptions = $derived([
+		{ value: '', label: 'Selecione uma unidade...' },
+		{ value: 'todas', label: 'Todas as unidades' },
+		...delegaciasDropdown.map((del) => ({ value: del.nome, label: del.nome }))
+	]);
+
+	const unidadesDaSeccionalOptions = $derived([
+		{ value: '', label: 'Todas as unidades' },
+		...delegaciasDaSeccional.map((del) => ({ value: del.nome, label: del.nome }))
+	]);
+
 	const escalas = $derived((data.escalas ?? []) as EscalaListagem[]);
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
@@ -113,6 +130,73 @@
 	];
 	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
 
+	const tiposOptions = [
+		{ value: 'todos', label: 'Todos' },
+		{ value: 'plantao', label: 'Plantão' },
+		{ value: 'expediente', label: 'Expediente' },
+		{ value: 'fds', label: 'Final de Semana' }
+	];
+
+	const mesesOptions = meses;
+	const anosOptions = $derived(
+		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
+	);
+
+	let mounted = false;
+	let prevSeccional = $state(filtroSeccional);
+	let prevLotacao = $state(filtroLotacao);
+	let prevTipo = $state(filtroTipo);
+	let prevMes = $state(filtroMes);
+	let prevAno = $state(filtroAno);
+
+	$effect(() => {
+		// Normalize null values from SearchableSelect clear triggers
+		if (filtroSeccional === null) {
+			filtroSeccional = 'todas';
+		}
+		if (filtroLotacao === null) {
+			filtroLotacao = '';
+		}
+		if (filtroTipo === null) {
+			filtroTipo = 'todos';
+		}
+		if (filtroMes === null) {
+			filtroMes = 0;
+		}
+		if (filtroAno === null) {
+			filtroAno = 0;
+		}
+
+		if (!mounted) {
+			prevSeccional = filtroSeccional;
+			prevLotacao = filtroLotacao;
+			prevTipo = filtroTipo;
+			prevMes = filtroMes;
+			prevAno = filtroAno;
+			mounted = true;
+			return;
+		}
+
+		if (
+			filtroSeccional !== prevSeccional ||
+			filtroLotacao !== prevLotacao ||
+			filtroTipo !== prevTipo ||
+			filtroMes !== prevMes ||
+			filtroAno !== prevAno
+		) {
+			prevSeccional = filtroSeccional;
+			prevLotacao = filtroLotacao;
+			prevTipo = filtroTipo;
+			prevMes = filtroMes;
+			prevAno = filtroAno;
+
+			untrack(() => {
+				navegarComFiltros();
+			});
+		}
+	});
+
+
 	function buildQueryParamsComFiltros(p: number) {
 		const params = new URLSearchParams();
 		if (filtroLotacao && filtroLotacao !== 'todas') params.set('lotacao', filtroLotacao);
@@ -139,6 +223,13 @@
 		filtroAno = new Date().getFullYear();
 		filtroTipo = 'todos';
 		filtroBusca = '';
+
+		prevSeccional = 'todas';
+		prevLotacao = 'todas';
+		prevMes = new Date().getMonth() + 1;
+		prevAno = new Date().getFullYear();
+		prevTipo = 'todos';
+
 		navegarComFiltros();
 	}
 
@@ -398,16 +489,30 @@
 		{/if}
 	</div>
 {:else if visao === 'lista'}
-	<div class="flex items-center gap-3 mb-6">
-		<button
-			type="button"
-			class="btn btn-sm preset-outlined-surface"
-			onclick={() => {
-				visao = 'home';
-				goto('/escalas', { replaceState: true, noScroll: true });
-			}}>← Voltar</button
-		>
-		<h1 class="h1 text-xl font-bold">Arquivo</h1>
+	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+		<div class="flex items-center gap-3">
+			<button
+				type="button"
+				class="btn btn-sm preset-outlined-surface"
+				onclick={() => {
+					visao = 'home';
+					goto('/escalas', { replaceState: true, noScroll: true });
+				}}>← Voltar</button
+			>
+			<h1 class="h1 text-xl font-bold">Arquivo</h1>
+		</div>
+		<div class="flex gap-2 justify-end w-full sm:w-auto">
+			<button
+				type="button"
+				class="btn btn-sm {temFiltros
+					? 'preset-filled-warning-500'
+					: 'preset-outlined-primary-500 opacity-40'}"
+				onclick={limparFiltros}
+				disabled={!temFiltros}
+			>
+				Limpar filtros
+			</button>
+		</div>
 	</div>
 
 	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
@@ -472,77 +577,67 @@
 		}}
 	/>
 
-	<div class="p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6">
-		<div class="grid grid-cols-12 gap-3 mb-8 p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5">
+	<div class="p-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-4">
+		<div class="grid grid-cols-12 gap-2 mb-6 p-3 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5 items-end">
 			{#if isAdmin}
-				<label class="label col-span-12 lg:col-span-3">
+				<div class="flex flex-col gap-1 col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Seccional</span>
-					<select class="select" bind:value={filtroSeccional} onchange={() => { filtroLotacao = ''; navegarComFiltros(); }}>
-						<option value="todas">Todas as Seccionais</option>
-						{#each seccionais as sec (sec.id)}
-							<option value={sec.id}>{sec.nome}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="label col-span-12 lg:col-span-2">
+					<SearchableSelect
+						options={seccionaisOptions}
+						bind:value={filtroSeccional}
+						placeholder="Todas as Seccionais"
+						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					/>
+				</div>
+				<div class="flex flex-col gap-1 col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
-						<option value="">Selecione uma unidade...</option>
-						<option value="todas">Todas as unidades</option>
-						{#each delegaciasDropdown as del (del.id)}
-							<option value={del.nome}>{del.nome}</option>
-						{/each}
-					</select>
-				</label>
+					<SearchableSelect
+						options={unidadesOptions}
+						bind:value={filtroLotacao}
+						placeholder="Selecione uma unidade..."
+						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					/>
+				</div>
 			{:else if isAdminSeccional}
-				<label class="label col-span-12 lg:col-span-5">
+				<div class="flex flex-col gap-1 col-span-12 lg:col-span-6">
 					<span class="label-text font-semibold mb-1">Unidade de Lotação</span>
-					<select class="select" bind:value={filtroLotacao} onchange={navegarComFiltros}>
-						<option value="">Todas as unidades</option>
-						{#each delegaciasDaSeccional as del (del.id)}
-							<option value={del.nome}>{del.nome}</option>
-						{/each}
-					</select>
-				</label>
+					<SearchableSelect
+						options={unidadesDaSeccionalOptions}
+						bind:value={filtroLotacao}
+						placeholder="Todas as unidades"
+						class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+					/>
+				</div>
 			{/if}
 
-			<label class="label col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-5'}">
+			<div class="flex flex-col gap-1 col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-6'}">
 				<span class="label-text font-semibold mb-1">Tipo</span>
-				<select class="select" bind:value={filtroTipo} onchange={navegarComFiltros}>
-					<option value="todos">Todos</option>
-					<option value="plantao">Plantão</option>
-					<option value="expediente">Expediente</option>
-					<option value="fds">Final de Semana</option>
-				</select>
-			</label>
+				<SearchableSelect
+					options={tiposOptions}
+					bind:value={filtroTipo}
+					placeholder="Todos"
+					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+				/>
+			</div>
 
-			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-3'}">
+			<div class="flex flex-col gap-1 col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-4'}">
 				<span class="label-text font-semibold mb-1">Mês</span>
-				<select class="select" bind:value={filtroMes} onchange={navegarComFiltros}>
-					{#each meses as mes}
-						<option value={mes.value}>{mes.label}</option>
-					{/each}
-				</select>
-			</label>
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					placeholder="Todos"
+					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+				/>
+			</div>
 
-			<label class="label col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-1' : 'lg:col-span-2'}">
+			<div class="flex flex-col gap-1 col-span-6 lg:col-span-2">
 				<span class="label-text font-semibold mb-1">Ano</span>
-				<select class="select" bind:value={filtroAno} onchange={navegarComFiltros}>
-					{#each anos as ano}
-						<option value={ano}>{ano === 0 ? 'Todos' : ano}</option>
-					{/each}
-				</select>
-			</label>
-
-			<div class="col-span-12 lg:col-span-2 flex items-end">
-				<button
-					type="button"
-					class="btn btn-sm w-full {temFiltros ? 'preset-filled-warning-500' : 'preset-outlined-surface opacity-40'}"
-					onclick={limparFiltros}
-					disabled={!temFiltros}
-				>
-					Limpar filtros
-				</button>
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					placeholder="Todos"
+					class="[&_input]:px-2.5 [&_input]:py-1.5 [&_input]:text-xs sm:[&_input]:text-sm"
+				/>
 			</div>
 		</div>
 

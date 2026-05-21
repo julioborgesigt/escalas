@@ -161,16 +161,16 @@
 			class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-400/30 transition-colors overflow-hidden {disabled ? 'opacity-60 cursor-not-allowed' : ''}"
 		>
 			<Combobox.Input
-				class="flex-1 min-w-0 px-3 py-2 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
+				class="flex-1 min-w-0 pl-3 pr-1 py-1.5 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
 			/>
 			{#if !isValueEmpty(value)}
 				<Combobox.ClearTrigger
-					class="flex items-center justify-center px-2 py-2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+					class="flex items-center justify-center w-5 h-5 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors [&_svg]:w-3 [&_svg]:h-3 flex-shrink-0"
 				/>
 			{/if}
 			{#if showTrigger}
 				<Combobox.Trigger
-					class="flex items-center justify-center px-2 py-2 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+					class="flex items-center justify-center w-6 h-6 mr-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors [&_svg]:w-3.5 [&_svg]:h-3.5 flex-shrink-0"
 				/>
 			{/if}
 		</Combobox.Control>

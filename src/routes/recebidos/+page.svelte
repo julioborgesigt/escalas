@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
-	import { Popover, Portal, Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Portal, Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	let { data } = $props();
 
@@ -59,6 +59,25 @@
 		new Map(unidadesArray.map((u) => [u.nome, u.seccional_id]))
 	);
 	const seccionais = $derived(unidadesArray.filter((u) => u.tipo === 'seccional'));
+	const seccionaisOptions = $derived(
+		seccionais.map((s) => ({ value: s.id, label: s.nome }))
+	);
+
+	const timeRangeOptions = [
+		{ value: 'todos', label: 'Tudo' },
+		{ value: '24h', label: 'Últimas 24h' },
+		{ value: 'semana', label: 'Última Semana' },
+		{ value: 'mes', label: 'Último Mês' }
+	];
+
+	$effect(() => {
+		if (filtroTimeRange === null) {
+			filtroTimeRange = 'todos';
+		}
+		if (filtroSeccional === null) {
+			filtroSeccional = '';
+		}
+	});
 
 	const escalasFiltradas = $derived(
 		(Array.isArray(escalas) ? escalas : []).filter((e) => {
@@ -70,6 +89,17 @@
 				return false;
 			if (filtroData && !e.data_inicio.includes(filtroData)) return false;
 			if (mostrarApenasNaoVistos && e.visto_por_admin) return false;
+
+			if (filtroTimeRange && filtroTimeRange !== 'todos') {
+				const eDate = new Date(e.created_at.replace(' ', 'T'));
+				const now = new Date();
+				const diffMs = now.getTime() - eDate.getTime();
+				const diffDays = diffMs / (1000 * 60 * 60 * 24);
+				if (filtroTimeRange === '24h' && diffDays > 1) return false;
+				if (filtroTimeRange === 'semana' && diffDays > 7) return false;
+				if (filtroTimeRange === 'mes' && diffDays > 30) return false;
+			}
+
 			return true;
 		})
 	);
@@ -191,7 +221,7 @@
 			<h1 class="h1 text-xl font-bold">Cx. de Entrada</h1>
 			<p class="text-sm text-surface-500 mt-0.5">Acompanhamento de novos envios em tempo real</p>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button type="button"
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
@@ -223,43 +253,28 @@
 	<div
 		class="p-4 sm:p-5 mb-4 rounded-2xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 flex flex-col gap-4"
 	>
-		<div class="flex flex-wrap gap-3 items-center">
-			<span class="text-sm font-semibold text-surface-600 dark:text-surface-300"
-				>Período de Recebimento:</span
-			>
-			<SegmentedControl
-				value={filtroTimeRange}
-				onValueChange={(e) => {
-					filtroTimeRange = e.value as typeof filtroTimeRange;
-					recarregar();
-				}}
-			>
-				<SegmentedControl.Control>
-					<SegmentedControl.Indicator />
-					{#each [['todos', 'Tudo'], ['24h', 'Últimas 24h'], ['48h', 'Últimas 48h'], ['semana', 'Última Semana'], ['mes', 'Último Mês']] as [val, label]}
-						<SegmentedControl.Item value={val}>
-							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-					{/each}
-				</SegmentedControl.Control>
-			</SegmentedControl>
-		</div>
+		<div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end w-full">
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Período de Recebimento</span>
+				<SearchableSelect
+					options={timeRangeOptions}
+					bind:value={filtroTimeRange}
+					placeholder="Tudo"
+				/>
+			</div>
 
-		<div class="flex flex-col sm:flex-row gap-4 items-end w-full">
-			<label class="label sm:w-60">
-				<span class="label-text text-sm font-semibold mb-1">Seccional</span>
-				<select class="select" bind:value={filtroSeccional}>
-					<option value="">Todas</option>
-					{#each seccionais as s (s.id)}
-						<option value={s.id}>{s.nome}</option>
-					{/each}
-				</select>
-			</label>
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Seccional</span>
+				<SearchableSelect
+					options={seccionaisOptions}
+					bind:value={filtroSeccional}
+					placeholder="Todas"
+				/>
+			</div>
 
-			<label class="label flex-1 min-w-0 sm:min-w-[400px]">
+			<label class="label flex-1 min-w-0">
 				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
-				<div class="relative">
+				<div class="relative w-full">
 					<svg
 						class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"
 						fill="none"
@@ -274,37 +289,33 @@
 					>
 					<input
 						type="text"
-						class="input pl-10"
+						class="input pl-10 w-full"
 						bind:value={filtroUnidade}
 						placeholder="Buscar por unidade..."
 					/>
 				</div>
 			</label>
 
-			<div class="flex items-center gap-4 pb-3 sm:pl-3">
-				<Switch
-					checked={!filtroUnidade}
-					onCheckedChange={(e) => {
-						if (e.checked) filtroUnidade = '';
-					}}
-				>
-					<Switch.Control>
-						<Switch.Thumb />
-					</Switch.Control>
-					<Switch.Label class="text-sm font-medium whitespace-nowrap">Todas</Switch.Label>
-					<Switch.HiddenInput />
-				</Switch>
+			<div class="flex items-center justify-between sm:justify-start gap-4 pb-2 lg:pb-3 lg:pl-2">
+				<label class="flex items-center gap-2 cursor-pointer select-none">
+					<input
+						type="checkbox"
+						class="checkbox"
+						checked={!mostrarApenasNaoVistos}
+						onchange={() => (mostrarApenasNaoVistos = false)}
+					/>
+					<span class="text-sm font-semibold whitespace-nowrap text-surface-600 dark:text-surface-300">Todas</span>
+				</label>
 
-				<Switch
-					checked={mostrarApenasNaoVistos}
-					onCheckedChange={(e) => (mostrarApenasNaoVistos = e.checked)}
-				>
-					<Switch.Control>
-						<Switch.Thumb />
-					</Switch.Control>
-					<Switch.Label class="text-sm font-medium whitespace-nowrap">Não lidas</Switch.Label>
-					<Switch.HiddenInput />
-				</Switch>
+				<label class="flex items-center gap-2 cursor-pointer select-none">
+					<input
+						type="checkbox"
+						class="checkbox"
+						checked={mostrarApenasNaoVistos}
+						onchange={() => (mostrarApenasNaoVistos = true)}
+					/>
+					<span class="text-sm font-semibold whitespace-nowrap text-surface-600 dark:text-surface-300">Não lidas</span>
+				</label>
 			</div>
 		</div>
 	</div>
@@ -644,4 +655,15 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
-<FloatingRefresh />
+
+<style>
+	/* Hide scrollbar for Chrome, Safari and Opera */
+	:global(.scrollbar-none::-webkit-scrollbar) {
+		display: none;
+	}
+	/* Hide scrollbar for IE, Edge and Firefox */
+	:global(.scrollbar-none) {
+		-ms-overflow-style: none;  /* IE and Edge */
+		scrollbar-width: none;  /* Firefox */
+	}
+</style>

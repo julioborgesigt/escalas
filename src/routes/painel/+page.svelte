@@ -3,9 +3,9 @@
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
 	import { browser } from '$app/environment';
-	import { Dialog, SegmentedControl, Switch } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { toaster } from '$lib/toast';
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
@@ -37,15 +37,12 @@
 		(savedFilters.seccional as unknown as number) || 'todas'
 	);
 	let filtroUnidade = $state(savedFilters.unidade);
-	let filtreMesCorrente = $state(
-		savedFilters.mesCorrente !== undefined ? !!savedFilters.mesCorrente : true
-	);
+	let filtroAno = $state(data.filtroAno);
+	let filtroMes = $state(data.filtroMes);
 	let filtroAgrupamento = $state<'nenhum' | 'unidade' | 'regime' | 'ambos'>(
 		(savedFilters.agrupamento as 'nenhum' | 'unidade' | 'regime' | 'ambos') || 'nenhum'
 	);
-	let filtroPendentes = $state(
-		savedFilters.pendentes !== undefined ? !!savedFilters.pendentes : true
-	);
+	let filtroPendentes = $state(true);
 	let mostrarIgnorados = $state(!!savedFilters.ignorados);
 
 	// Salvar filtros a cada mudança
@@ -57,9 +54,7 @@
 					regime: filtroRegime,
 					seccional: filtroSeccional,
 					unidade: filtroUnidade,
-					mesCorrente: filtreMesCorrente,
 					agrupamento: filtroAgrupamento,
-					pendentes: filtroPendentes,
 					ignorados: mostrarIgnorados
 				})
 			);
@@ -171,6 +166,114 @@
 		ignorados: ignorados.size
 	});
 
+	const seccionaisOptions = $derived(
+		seccionais.map((s) => ({ value: s.id, label: s.nome }))
+	);
+
+	const unidadesDropdownOptions = $derived(
+		unidadesDropdown.map((u) => ({ value: u, label: u }))
+	);
+
+	const agrupamentoOptions = [
+		{ value: 'nenhum', label: 'Nenhum' },
+		{ value: 'unidade', label: 'Delegacia' },
+		{ value: 'regime', label: 'Regime' },
+		{ value: 'ambos', label: 'Delegacia e Regime' }
+	];
+
+	const regimeOptions = [
+		{ value: 'todos', label: 'Todos' },
+		{ value: 'plantao', label: 'Plantão' },
+		{ value: 'expediente', label: 'Expediente' },
+		{ value: 'fds', label: 'FDS' }
+	];
+
+	const mesesOptions = [
+		{ value: 'todos', label: 'Todos' },
+		{ value: '1', label: 'Janeiro' },
+		{ value: '2', label: 'Fevereiro' },
+		{ value: '3', label: 'Março' },
+		{ value: '4', label: 'Abril' },
+		{ value: '5', label: 'Maio' },
+		{ value: '6', label: 'Junho' },
+		{ value: '7', label: 'Julho' },
+		{ value: '8', label: 'Agosto' },
+		{ value: '9', label: 'Setembro' },
+		{ value: '10', label: 'Outubro' },
+		{ value: '11', label: 'Novembro' },
+		{ value: '12', label: 'Dezembro' }
+	];
+
+	const anosOptions = [
+		{ value: 'todos', label: 'Todos' },
+		{ value: '2024', label: '2024' },
+		{ value: '2025', label: '2025' },
+		{ value: '2026', label: '2026' },
+		{ value: '2027', label: '2027' }
+	];
+
+	// Normalizações para quando as caixas de seleção forem limpas (null / '')
+	$effect(() => {
+		if (filtroRegime === null) {
+			filtroRegime = 'todos';
+		}
+	});
+
+	let prevRegime = filtroRegime;
+	$effect(() => {
+		if (filtroRegime !== prevRegime) {
+			prevRegime = filtroRegime;
+			mostrarIgnorados = false;
+		}
+	});
+
+	$effect(() => {
+		if (filtroSeccional === null || filtroSeccional === '') {
+			filtroSeccional = 'todas';
+		}
+	});
+
+	$effect(() => {
+		if (filtroUnidade === null) {
+			filtroUnidade = '';
+		}
+	});
+
+	$effect(() => {
+		if (filtroAgrupamento === null || filtroAgrupamento === '') {
+			filtroAgrupamento = 'nenhum';
+		}
+	});
+
+	// Sync local month/year state with query parameters
+	$effect(() => {
+		if (filtroAno === null) filtroAno = 'todos';
+		if (filtroMes === null) filtroMes = 'todos';
+
+		if (filtroAno !== data.filtroAno || filtroMes !== data.filtroMes) {
+			const params = new URLSearchParams(page.url.searchParams);
+			params.set('ano', filtroAno);
+			params.set('mes', filtroMes);
+			goto(`?${params}`, { keepFocus: true, noScroll: true });
+		}
+	});
+
+	$effect(() => {
+		filtroAno = data.filtroAno;
+		filtroMes = data.filtroMes;
+	});
+
+	// Limpar unidade quando a seccional muda (após o mount)
+	let initialMount = true;
+	$effect(() => {
+		const _sec = filtroSeccional;
+		if (initialMount) {
+			initialMount = false;
+			return;
+		}
+		filtroUnidade = '';
+	});
+
 	// Exclusão de escala (para "não assinada")
 	let escalaExcluirOpen = $state(false);
 	let itemParaExcluir = $state<ItemCompliance | null>(null);
@@ -185,24 +288,18 @@
 		loadingService.hide();
 	}
 
-	async function onMesCorrenteChange() {
-		const params = new URLSearchParams(page.url.searchParams);
-		if (!filtreMesCorrente) {
-			params.set('todos', 'true');
-		} else {
-			params.delete('todos');
-		}
-		await goto(`?${params}`, { keepFocus: true, noScroll: true });
-	}
-
 	async function limparFiltros() {
 		filtroRegime = 'todos';
 		filtroSeccional = 'todas';
 		filtroUnidade = '';
 		filtroPendentes = true;
 		mostrarIgnorados = false;
-		filtreMesCorrente = true;
 		filtroAgrupamento = 'nenhum';
+		
+		const hoje = new Date();
+		filtroAno = String(hoje.getFullYear());
+		filtroMes = String(hoje.getMonth() + 1);
+
 		await goto('?', { keepFocus: true, noScroll: true });
 	}
 
@@ -228,8 +325,9 @@
 			filtroUnidade !== '' ||
 			filtroPendentes !== true ||
 			mostrarIgnorados !== false ||
-			!filtreMesCorrente ||
-			filtroAgrupamento !== 'nenhum'
+			filtroAgrupamento !== 'nenhum' ||
+			filtroAno !== String(new Date().getFullYear()) ||
+			filtroMes !== String(new Date().getMonth() + 1)
 	);
 
 	$effect(() => {
@@ -259,7 +357,7 @@
 				Controle de envio e assinatura de escalas por unidade
 			</p>
 		</div>
-		<div class="flex gap-2">
+		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button type="button"
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
@@ -321,101 +419,59 @@
 	<div
 		class="p-4 sm:p-5 mb-6 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-sm flex flex-col gap-4 sm:gap-5"
 	>
-		<!-- Regime Row -->
-		<div class="flex flex-wrap items-center gap-3">
-			<span class="text-sm font-bold text-surface-500">Regime:</span>
-			<SegmentedControl
-				value={filtroRegime}
-				onValueChange={(e) => {
-					filtroRegime = e.value as typeof filtroRegime;
-					mostrarIgnorados = false;
-				}}
-			>
-				<SegmentedControl.Control>
-					<SegmentedControl.Indicator />
-					{#each [['todos', 'Todos'], ['plantao', 'Plantão'], ['expediente', 'Expediente'], ['fds', 'FDS']] as [val, label]}
-						<SegmentedControl.Item value={val}>
-							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-					{/each}
-				</SegmentedControl.Control>
-			</SegmentedControl>
-		</div>
+		<div class="flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-end w-full">
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Regime</span>
+				<SearchableSelect
+					options={regimeOptions}
+					bind:value={filtroRegime}
+					placeholder="Todos"
+				/>
+			</div>
 
-		<!-- Main Filters Row -->
-		<div class="flex flex-wrap items-end gap-4 sm:gap-6">
-			<label class="flex flex-col gap-1.5 w-full sm:w-60">
-				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Seccional</span>
-				<select
-					class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm"
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Seccional</span>
+				<SearchableSelect
+					options={seccionaisOptions}
 					bind:value={filtroSeccional}
-					onchange={mudarSeccional}
-				>
-					<option value="todas">Todas as seccionais</option>
-					{#each seccionais as sec (sec.id)}
-						<option value={sec.id}>{sec.nome}</option>
-					{/each}
-				</select>
-			</label>
+					placeholder="Todas as seccionais"
+				/>
+			</div>
 
-			<label class="flex flex-col gap-1.5 w-full sm:w-60">
-				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Unidade</span>
-				<select
-					class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm"
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Unidade</span>
+				<SearchableSelect
+					options={unidadesDropdownOptions}
 					bind:value={filtroUnidade}
-				>
-					<option value="">Todas as unidades</option>
-					{#each unidadesDropdown as u}
-						<option value={u}>{u}</option>
-					{/each}
-				</select>
-			</label>
+					placeholder="Todas as unidades"
+				/>
+			</div>
 
-			<label class="flex flex-col gap-1.5 w-full sm:w-48">
-				<span class="text-xs font-bold text-surface-700 dark:text-surface-300">Agrupar por:</span>
-				<select
-					class="select rounded-lg border-surface-200 dark:border-white/10 bg-white dark:bg-surface-800 h-9 px-3 text-sm"
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Agrupar por</span>
+				<SearchableSelect
+					options={agrupamentoOptions}
 					bind:value={filtroAgrupamento}
-				>
-					<option value="nenhum">Nenhum</option>
-					<option value="unidade">Delegacia</option>
-					<option value="regime">Regime</option>
-					<option value="ambos">Delegacia e Regime</option>
-				</select>
-			</label>
+					placeholder="Nenhum"
+				/>
+			</div>
 
-			<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-				{#if !mostrarIgnorados}
-					<Switch
-						checked={filtroPendentes}
-						onCheckedChange={(e) => (filtroPendentes = e.checked)}
-					>
-						<Switch.Control>
-							<Switch.Thumb />
-						</Switch.Control>
-						<Switch.Label class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">
-							Apenas pendências
-						</Switch.Label>
-						<Switch.HiddenInput />
-					</Switch>
-				{/if}
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Mês</span>
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					placeholder="Todos"
+				/>
+			</div>
 
-				<Switch
-					checked={filtreMesCorrente}
-					onCheckedChange={(e) => {
-						filtreMesCorrente = e.checked;
-						onMesCorrenteChange();
-					}}
-				>
-					<Switch.Control>
-						<Switch.Thumb />
-					</Switch.Control>
-					<Switch.Label class="text-xs font-bold text-surface-700 dark:text-surface-200 whitespace-nowrap">
-						Mês Corrente
-					</Switch.Label>
-					<Switch.HiddenInput />
-				</Switch>
+			<div class="flex flex-col gap-1 w-full lg:w-48">
+				<span class="label-text text-sm font-semibold">Ano</span>
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					placeholder="Todos"
+				/>
 			</div>
 		</div>
 
@@ -752,4 +808,3 @@
 		{/if}
 	</div>
 {/if}
-<FloatingRefresh />
