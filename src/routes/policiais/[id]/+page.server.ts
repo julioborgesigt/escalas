@@ -16,6 +16,10 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
+	if (!u.isSuperAdmin) {
+		throw redirect(302, '/');
+	}
+
 	const id = Number(params.id);
 	if (isNaN(id)) throw error(400, 'ID inválido');
 
@@ -50,11 +54,7 @@ export const actions: Actions = {
 	salvar: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		// Sem este guard, qualquer policial autenticado podia POSTar `?/salvar`
-		// e modificar dados arbitrários de qualquer outro policial (nome,
-		// matrícula, cargo, lotação, email — o último é vetor de takeover
-		// porque o link de reset vai para `usuario.email`).
-		if (!isAnyAdmin(u)) {
+		if (!u.isSuperAdmin) {
 			return fail(403, { error: 'Sem permissão para editar policiais' });
 		}
 
@@ -111,7 +111,7 @@ export const actions: Actions = {
 
 	salvarPapel: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
-		if (!u || u.tipo !== 'admin') return fail(403, { error: 'Apenas administradores' });
+		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode alterar papéis' });
 
 		const id = Number(params.id);
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });

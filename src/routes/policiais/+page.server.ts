@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+	if (!u.isSuperAdmin) {
 		throw redirect(302, '/');
 	}
 
@@ -67,12 +67,8 @@ export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		// Sem este guard, qualquer policial autenticado podia POSTar `?/criar`
-		// e cadastrar um colega na própria lotação — em conjunto com a entrada
-		// de `papel` no form, isso era escalada de privilégio (criava um
-		// `admin_seccional`/`admin_unidade` apontando para si).
-		if (!isAnyAdmin(u)) {
-			return fail(403, { error: 'Apenas administradores podem cadastrar policiais' });
+		if (!u.isSuperAdmin) {
+			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar policiais' });
 		}
 
 		const data = await request.formData();
@@ -161,7 +157,7 @@ export const actions: Actions = {
 	atualizar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAnyAdmin(u)) {
+		if (!u.isSuperAdmin) {
 			return fail(403, { error: 'Sem permissão para editar policiais' });
 		}
 
@@ -263,7 +259,7 @@ export const actions: Actions = {
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!isAnyAdmin(u)) return fail(403, { error: 'Apenas administradores podem excluir policiais' });
+		if (!u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode excluir policiais' });
 
 		const data = await request.formData();
 		const policialId = Number(data.get('policial_id'));

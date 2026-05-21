@@ -15,19 +15,23 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
+	if (!u.isSuperAdmin) {
+		throw redirect(302, '/');
+	}
+
 	const db = getDB(platform);
 	const lista = await listarUnidades(db);
 
 	return {
 		unidades: lista,
-		isAdmin: u.tipo === 'admin'
+		isAdmin: true
 	};
 };
 
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (u?.tipo !== 'admin') return fail(403, { error: 'Apenas administradores podem cadastrar unidades' });
+		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode cadastrar unidades' });
 
 		const data = await request.formData();
 		const nome = data.get('nome')?.toString() || '';
@@ -70,7 +74,7 @@ export const actions: Actions = {
 
 	editar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (u?.tipo !== 'admin') return fail(403, { error: 'Apenas administradores podem editar unidades' });
+		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode editar unidades' });
 
 		const data = await request.formData();
 		const id = Number(data.get('id'));
@@ -111,7 +115,7 @@ export const actions: Actions = {
 
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (u?.tipo !== 'admin') return fail(403, { error: 'Apenas administradores podem excluir unidades' });
+		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode excluir unidades' });
 
 		const data = await request.formData();
 		const id = Number(data.get('unidade_id'));

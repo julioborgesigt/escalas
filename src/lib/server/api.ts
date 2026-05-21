@@ -102,6 +102,18 @@ export function requireAdmin(locals: App.Locals): UsuarioLogado | Response {
 }
 
 /**
+ * Retorna o usuário logado se for Super Admin, ou uma Response 403.
+ */
+export function requireSuperAdmin(locals: App.Locals): UsuarioLogado | Response {
+	const usuario = requireAuth(locals);
+	if (usuario instanceof Response) return usuario;
+	if (!usuario.isSuperAdmin) {
+		return apiError('Acesso restrito ao Super Administrador', 403, ErrorCode.FORBIDDEN);
+	}
+	return usuario;
+}
+
+/**
  * Retorna o usuário logado se for admin geral ou admin seccional/unidade, ou 403.
  */
 export function requireAnyAdmin(locals: App.Locals): UsuarioLogado | Response {

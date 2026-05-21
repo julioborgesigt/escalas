@@ -14,6 +14,7 @@ export interface UsuarioLogado {
 	matricula?: string;
 	lotacao?: string;
 	primeiro_acesso: boolean;
+	isSuperAdmin?: boolean;
 	// RBAC
 	papel?: 'admin_seccional' | 'admin_unidade' | null;
 	papel_unidade_id?: number | null;
@@ -277,7 +278,8 @@ export async function criarSessao(
 
 export async function validarSessao(
 	db: Database,
-	token: string | undefined
+	token: string | undefined,
+	platform?: App.Platform
 ): Promise<UsuarioLogado | null> {
 	if (!token) return null;
 
@@ -310,11 +312,16 @@ export async function validarSessao(
 
 	if (sessao.tipo === 'admin') {
 		if (!admin) return null;
+		const _env = platform?.env as any;
+		const superAdminLogin = _env?.SUPER_ADMIN_LOGIN?.trim();
+		const isSuperAdmin = !!superAdminLogin && admin.login === superAdminLogin;
+
 		return {
 			id: admin.id,
 			tipo: 'admin' as const,
 			nome: admin.nome,
-			primeiro_acesso: admin.primeiro_acesso === 1
+			primeiro_acesso: admin.primeiro_acesso === 1,
+			isSuperAdmin
 		};
 	}
 

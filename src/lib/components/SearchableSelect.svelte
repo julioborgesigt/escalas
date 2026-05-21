@@ -38,7 +38,7 @@
 	}
 
 	// Sync mode items (filtered)
-	let syncItems = $state<Option[]>([]);
+	let syncItems = $state<Option[]>(options);
 	$effect(() => {
 		syncItems = options;
 	});

@@ -133,7 +133,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	try {
 		const db = getDB(event.platform);
-		usuario = await validarSessao(db, token);
+		usuario = await validarSessao(db, token, event.platform);
 	} catch (err) {
 		logger.warn('[hooks] validarSessao falhou', { err: String(err) });
 	}

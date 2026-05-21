@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { getDB, salvarConfiguracao } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
 import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
-import { requireAdmin, badRequest, validateBody } from '$lib/server/api';
+import { requireSuperAdmin, badRequest, validateBody } from '$lib/server/api';
 import { REQUISITOS_OBRIGATORIOS_AVANCADA } from '$lib/server/signature-level';
 
 export const GET: RequestHandler = async ({ platform }) => {
@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ platform }) => {
 };
 
 export const PUT: RequestHandler = async ({ platform, request, locals }) => {
-	const u = requireAdmin(locals);
+	const u = requireSuperAdmin(locals);
 	if (u instanceof Response) return u;
 
 	const v = await validateBody(request, assinaturaConfigSchema);

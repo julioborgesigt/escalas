@@ -174,6 +174,67 @@ export async function tentarLogin({
 	const _env = platform?.env as Env | undefined;
 
 	if (tipo === 'admin') {
+		const superLogin = _env?.SUPER_ADMIN_LOGIN?.trim() ?? '';
+		const superSenha = _env?.SUPER_ADMIN_SENHA ?? '';
+
+		if (superLogin && superSenha && matricula === superLogin) {
+			if (!compararSegredoUtf8TimingSafe(senha, superSenha)) {
+				await recordAttempt(db, ip, false);
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'falha_login',
+					entidade: 'admin',
+					detalhes: `Tentativa falha para super admin: ${matricula}`,
+					ip
+				});
+				return {
+					sucesso: false,
+					statusCode: 401,
+					erro: 'Login ou senha inválidos',
+					fields: { matricula, tipo }
+				};
+			}
+
+			// Garantir que existe o registro do super admin no DB para ter id da sessão
+			let superAdmin = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.login, superLogin))
+				.get();
+
+			if (!superAdmin) {
+				const senhaHash = await hashSenha(crypto.randomUUID());
+				await db.insert(administradores).values({
+					login: superLogin,
+					nome: 'Super Administrador',
+					senha: senhaHash,
+					primeiro_acesso: 0
+				});
+				superAdmin = await db
+					.select()
+					.from(administradores)
+					.where(eq(administradores.login, superLogin))
+					.get();
+			}
+
+			if (!superAdmin) {
+				return { sucesso: false, statusCode: 500, erro: 'Erro ao inicializar super administrador.' };
+			}
+
+			await recordAttempt(db, ip, true);
+			const token = await criarSessao(db, 'admin', superAdmin.id);
+			return {
+				sucesso: true,
+				statusCode: 200,
+				token,
+				nome: superAdmin.nome,
+				primeiroAcesso: false,
+				role: 'admin',
+				formRedirect: isForm ? adminDestino(adminModulo) : undefined,
+				adminModuloCookie: isForm ? adminModulo : undefined
+			};
+		}
+
 		const envLogin = _env?.ADMIN_GERAL_LOGIN?.trim() ?? '';
 		const envSenha = _env?.ADMIN_GERAL_SENHA ?? '';
 

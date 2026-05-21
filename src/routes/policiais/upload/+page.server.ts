@@ -1,9 +1,15 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { getDB, listarUnidades } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
 import { limparMatricula, normalizarTexto } from '$lib/utils';
 import { gerarSenhaAleatoriaHash } from '$lib/auth';
-import type { Actions } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.usuario || !locals.usuario.isSuperAdmin) {
+		throw redirect(302, '/');
+	}
+};
 
 function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]): string {
 	const normalizado = normalizarTexto(nomeNaPlanilha);
@@ -50,6 +56,9 @@ function parseCSV(text: string): string[][] {
 
 export const actions = {
 	upload: async ({ request, platform, locals }) => {
+		if (!locals.usuario || !locals.usuario.isSuperAdmin) {
+			return fail(403, { error: 'Não autorizado', errorType: 'auth' });
+		}
 		let db;
 		try {
 			db = getDB(platform);

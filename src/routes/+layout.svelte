@@ -468,13 +468,13 @@
 			{/if}
 			<!-- end showGrupo2 -->
 
-			<!-- Separador 2 (só admin geral) -->
-			{#if usuario?.tipo === 'admin'}
+			<!-- Separador 2 (só super admin) -->
+			{#if usuario?.isSuperAdmin}
 				<hr class="!my-3 border-surface-200 dark:border-white/10" />
 			{/if}
 
-			<!-- Grupo 3: Policiais · Unidades -->
-			{#if usuario?.tipo === 'admin'}
+			<!-- Grupo 3: Policiais · Unidades (exclusivo Super Admin) -->
+			{#if usuario?.isSuperAdmin}
 				<a
 					href="/policiais"
 					data-sveltekit-preload-data="hover"
@@ -495,7 +495,7 @@
 					Policiais
 				</a>
 			{/if}
-			{#if usuario?.tipo === 'admin'}
+			{#if usuario?.isSuperAdmin}
 				<a
 					href="/unidades"
 					data-sveltekit-preload-data="hover"

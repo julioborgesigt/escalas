@@ -10,7 +10,7 @@ import {
 } from '$lib/server/signature-level';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
-	if (locals.usuario?.tipo !== 'admin') throw redirect(302, '/');
+	if (!locals.usuario?.isSuperAdmin) throw redirect(302, '/');
 
 	const db = getDB(platform);
 
