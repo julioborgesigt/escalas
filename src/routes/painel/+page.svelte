@@ -18,7 +18,7 @@
 	const isAdmin = $derived(auth.isAdmin);
 	const savedFilters = getSavedFilters('filtros_painel', {
 		regime: 'todos',
-		seccional: 'todas',
+		seccional: '',
 		unidade: '',
 		mesCorrente: true,
 		agrupamento: 'nenhum',
@@ -30,18 +30,14 @@
 	let unidadesDB = $derived(data.unidades as Unidade[]);
 
 	// Filtros
-	let filtroRegime = $state<'todos' | 'plantao' | 'expediente' | 'fds'>(
-		(savedFilters.regime as 'todos' | 'plantao' | 'expediente' | 'fds') || 'todos'
-	);
-	let filtroSeccional = $state<number | 'todas'>(
-		(savedFilters.seccional as unknown as number) || 'todas'
+	const filtroRegime = 'todos';
+	let filtroSeccional = $state<number | 'todas' | ''>(
+		savedFilters.seccional !== undefined ? (savedFilters.seccional as unknown as number | 'todas' | '') : ''
 	);
 	let filtroUnidade = $state(savedFilters.unidade);
 	let filtroAno = $state(data.filtroAno);
 	let filtroMes = $state(data.filtroMes);
-	let filtroAgrupamento = $state<'nenhum' | 'unidade' | 'regime' | 'ambos'>(
-		(savedFilters.agrupamento as 'nenhum' | 'unidade' | 'regime' | 'ambos') || 'nenhum'
-	);
+	const filtroAgrupamento = 'unidade';
 	let filtroPendentes = $state(true);
 	let mostrarIgnorados = $state(!!savedFilters.ignorados);
 
@@ -119,18 +115,9 @@
 
 	const dadosAgrupados = $derived.by(() => {
 		const base = [...dadosFiltrados];
-		if (filtroAgrupamento === 'nenhum') {
-			return [{ titulo: '', itens: base }];
-		}
-
 		const gruposMap = new Map<string, ItemCompliance[]>();
 		for (const item of base) {
-			let chave = '';
-			if (filtroAgrupamento === 'unidade') chave = item.unidade_nome;
-			else if (filtroAgrupamento === 'regime') chave = item.tipo_regime.toUpperCase();
-			else if (filtroAgrupamento === 'ambos')
-				chave = `${item.unidade_nome} - ${item.tipo_regime.toUpperCase()}`;
-
+			const chave = item.unidade_nome;
 			if (!gruposMap.has(chave)) gruposMap.set(chave, []);
 			gruposMap.get(chave)!.push(item);
 		}
@@ -214,34 +201,14 @@
 
 	// Normalizações para quando as caixas de seleção forem limpas (null / '')
 	$effect(() => {
-		if (filtroRegime === null) {
-			filtroRegime = 'todos';
-		}
-	});
-
-	let prevRegime = $state(filtroRegime);
-	$effect(() => {
-		if (filtroRegime !== prevRegime) {
-			prevRegime = filtroRegime;
-			mostrarIgnorados = false;
-		}
-	});
-
-	$effect(() => {
-		if (filtroSeccional === null || filtroSeccional === '') {
-			filtroSeccional = 'todas';
+		if (filtroSeccional === null) {
+			filtroSeccional = '';
 		}
 	});
 
 	$effect(() => {
 		if (filtroUnidade === null) {
 			filtroUnidade = '';
-		}
-	});
-
-	$effect(() => {
-		if (filtroAgrupamento === null || filtroAgrupamento === '') {
-			filtroAgrupamento = 'nenhum';
 		}
 	});
 
@@ -289,12 +256,10 @@
 	}
 
 	async function limparFiltros() {
-		filtroRegime = 'todos';
-		filtroSeccional = 'todas';
+		filtroSeccional = '';
 		filtroUnidade = '';
 		filtroPendentes = true;
 		mostrarIgnorados = false;
-		filtroAgrupamento = 'nenhum';
 		
 		const hoje = new Date();
 		filtroAno = String(hoje.getFullYear());
@@ -320,12 +285,10 @@
 	}
 
 	const temFiltros = $derived(
-		filtroRegime !== 'todos' ||
-			filtroSeccional !== 'todas' ||
+		filtroSeccional !== 'todas' ||
 			filtroUnidade !== '' ||
 			filtroPendentes !== true ||
 			mostrarIgnorados !== false ||
-			filtroAgrupamento !== 'nenhum' ||
 			filtroAno !== String(new Date().getFullYear()) ||
 			filtroMes !== String(new Date().getMonth() + 1)
 	);
@@ -421,20 +384,11 @@
 	>
 		<div class="flex flex-col lg:flex-row flex-wrap gap-3 items-stretch lg:items-end w-full">
 			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Regime</span>
-				<SearchableSelect
-					options={regimeOptions}
-					bind:value={filtroRegime}
-					placeholder="Todos"
-				/>
-			</div>
-
-			<div class="flex flex-col gap-1 w-full lg:w-48">
 				<span class="label-text text-sm font-semibold">Seccional</span>
 				<SearchableSelect
 					options={seccionaisOptions}
 					bind:value={filtroSeccional}
-					placeholder="Todas as seccionais"
+					placeholder="Selecione"
 				/>
 			</div>
 
@@ -447,29 +401,20 @@
 				/>
 			</div>
 
-			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Agrupar por</span>
-				<SearchableSelect
-					options={agrupamentoOptions}
-					bind:value={filtroAgrupamento}
-					placeholder="Nenhum"
-				/>
-			</div>
-
-			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect
-					options={mesesOptions}
-					bind:value={filtroMes}
-					placeholder="Todos"
-				/>
-			</div>
-
-			<div class="flex flex-col gap-1 w-full lg:w-48">
+			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
 				<SearchableSelect
 					options={anosOptions}
 					bind:value={filtroAno}
+					placeholder="Todos"
+				/>
+			</div>
+
+			<div class="flex flex-col gap-1 w-full lg:w-36">
+				<span class="label-text text-sm font-semibold">Mês</span>
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
 					placeholder="Todos"
 				/>
 			</div>
@@ -546,6 +491,13 @@
 				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
 			>
 				<span class="text-sm">Carregando...</span>
+			</div>
+		{:else if !filtroSeccional}
+			<div class="text-center py-20">
+				<p class="text-4xl mb-4">🔍</p>
+				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
+					Escolha um opção nos filtros para exibir
+				</p>
 			</div>
 		{:else if dadosFiltrados.length === 0}
 			<div class="text-center py-20">
