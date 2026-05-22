@@ -1,4 +1,6 @@
 <script lang="ts">
+import { untrack } from 'svelte';
+
 	let {
 		emailMascarado = '',
 		totalSeconds = 120,
@@ -16,7 +18,9 @@
 	$effect(() => {
 		segundosRestantes = totalSeconds;
 		const id = setInterval(() => {
-			if (segundosRestantes > 0) segundosRestantes--;
+			if (untrack(() => segundosRestantes) > 0) {
+				segundosRestantes--;
+			}
 		}, 1000);
 		return () => clearInterval(id);
 	});
@@ -31,6 +35,8 @@
 		try {
 			await onReenviar();
 			segundosRestantes = totalSeconds;
+		} catch (err) {
+			console.error('[CodigoTimer] Erro ao reenviar código:', err);
 		} finally {
 			reenviando = false;
 		}
