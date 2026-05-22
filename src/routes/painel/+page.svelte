@@ -35,7 +35,9 @@
 		savedFilters.seccional !== undefined ? (savedFilters.seccional as unknown as number | 'todas' | '') : ''
 	);
 	let filtroUnidade = $state(savedFilters.unidade);
+	// svelte-ignore state_referenced_locally
 	let filtroAno = $state(data.filtroAno);
+	// svelte-ignore state_referenced_locally
 	let filtroMes = $state(data.filtroMes);
 	const filtroAgrupamento = 'unidade';
 	let filtroPendentes = $state(true);

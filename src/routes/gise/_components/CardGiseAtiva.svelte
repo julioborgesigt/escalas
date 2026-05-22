@@ -92,89 +92,91 @@
 			</p>
 		</div>
 
-		<div class="flex flex-col gap-3 pt-3 border-t border-surface-100 dark:border-surface-700/50">
-			<div
-				class="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3"
-			>
-				<div class="flex items-center gap-2 min-w-0">
+		<div class="flex flex-col gap-2 pt-3 border-t border-surface-100 dark:border-surface-700/50">
+			{#if isSupervisor && ativa.supervisor_id === usuario?.id}
+				<div class="flex gap-2 w-full">
 					<button
 						type="button"
-						class="btn btn-sm shrink-0 {menuExpandidoId === ativa.id
-							? 'preset-filled-surface-500 text-white'
-							: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
-						onclick={onToggleMenu}
+						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status ===
+						'aguardando_assinatura'
+							? 'preset-filled-warning-500 text-warning-950'
+							: escalaConcluida
+								? 'preset-filled-success-500 text-white'
+								: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+						onclick={onAssEscala}
+						title={ativa.status === 'aguardando_assinatura'
+							? isDesktop
+								? 'Assinar via Token'
+								: 'Assinar em Tela'
+							: escalaConcluida
+								? 'Escala já assinada'
+								: 'Ver o que falta para assinar'}
 					>
-						{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
+						{#if escalaConcluida}
+							<svg
+								class="w-3 h-3 shrink-0"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="3"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+							</svg>
+						{:else}
+							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+							</svg>
+						{/if}
+						Ass. Escala
+					</button>
+
+					<button
+						type="button"
+						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido
+							? 'preset-filled-success-500 text-white'
+							: extraParcial
+								? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600'
+								: ativa.extrasPendentes > 0
+									? 'preset-filled-warning-500 text-warning-950'
+									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
+						onclick={onAssExtra}
+						title={ativa.extrasPendentes > 0
+							? isDesktop
+								? 'Assinar extras via Token'
+								: 'Assinar extras em Tela'
+							: extraConcluido
+								? 'Todos os extras assinados'
+								: 'Ver status dos extras'}
+					>
+						{#if extraConcluido}
+							<svg
+								class="w-3 h-3 shrink-0"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="3"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+							</svg>
+						{:else}
+							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+							</svg>
+						{/if}
+						Ass. Extra ({jaAssinados}/{totalExtras})
 					</button>
 				</div>
+			{/if}
 
-				{#if isSupervisor && ativa.supervisor_id === usuario?.id}
-					<div class="flex gap-2 shrink-0">
-						<button
-							type="button"
-							class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {ativa.status ===
-							'aguardando_assinatura'
-								? 'preset-filled-warning-500 text-warning-950'
-								: escalaConcluida
-									? 'preset-filled-success-500 text-white'
-									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
-							onclick={onAssEscala}
-							title={ativa.status === 'aguardando_assinatura'
-								? isDesktop
-									? 'Assinar via Token'
-									: 'Assinar em Tela'
-								: escalaConcluida
-									? 'Escala já assinada'
-									: 'Ver o que falta para assinar'}
-						>
-							{#if escalaConcluida}
-								<svg
-									class="w-3 h-3 shrink-0"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="3"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-								</svg>
-							{/if}
-							Ass. Escala
-						</button>
-
-						<button
-							type="button"
-							class="btn btn-sm flex-1 min-[420px]:flex-none font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido
-								? 'preset-filled-success-500 text-white'
-								: extraParcial
-									? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600'
-									: ativa.extrasPendentes > 0
-										? 'preset-filled-warning-500 text-warning-950'
-										: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"
-							onclick={onAssExtra}
-							title={ativa.extrasPendentes > 0
-								? isDesktop
-									? 'Assinar extras via Token'
-									: 'Assinar extras em Tela'
-								: extraConcluido
-									? 'Todos os extras assinados'
-									: 'Ver status dos extras'}
-						>
-							{#if extraConcluido}
-								<svg
-									class="w-3 h-3 shrink-0"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="3"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-								</svg>
-							{/if}
-							Ass. Extra ({jaAssinados}/{totalExtras})
-						</button>
-					</div>
-				{/if}
-			</div>
+			<button
+				type="button"
+				class="btn btn-sm w-full {menuExpandidoId === ativa.id
+					? 'preset-filled-surface-500 text-white'
+					: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
+				onclick={onToggleMenu}
+			>
+				{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
+			</button>
 
 			{#if menuExpandidoId === ativa.id}
 				<div class="flex flex-row gap-2 mt-1 w-full" transition:slide={{ duration: 200 }}>

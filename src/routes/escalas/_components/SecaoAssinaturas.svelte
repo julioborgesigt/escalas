@@ -5,6 +5,7 @@
 	let {
 		escalasParaAssinar,
 		assinaturaTelaBloqueada,
+		isMobile,
 		onIniciarAssinaturaTela,
 		onIniciarAssinaturaToken,
 		onVoltar
@@ -20,6 +21,7 @@
 			is_assinada: boolean;
 		}>;
 		assinaturaTelaBloqueada: boolean;
+		isMobile: boolean;
 		onIniciarAssinaturaTela: (id: number) => void;
 		onIniciarAssinaturaToken: (id: number) => void;
 		onVoltar: () => void;
@@ -31,10 +33,34 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex items-center gap-3">
-		<button type="button" class="btn btn-sm preset-outlined-surface" onclick={onVoltar}>← Voltar</button>
-		<h1 class="h1 text-2xl font-bold">Assinaturas Pendentes</h1>
-		<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2">{escalasParaAssinar.length}</span>
+	<div class="min-w-0 flex-1 space-y-3 pb-5 border-b border-surface-200/70 dark:border-surface-700/60">
+		<button
+			type="button"
+			class="btn btn-sm preset-outlined-surface-500 hover:bg-surface-50 dark:hover:bg-surface-900 px-3 py-1.5 rounded-xl transition-all flex w-fit max-w-full items-center gap-2 group"
+			onclick={onVoltar}
+		>
+			<svg
+				class="w-4 h-4 shrink-0 transition-transform group-hover:-translate-x-1"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2.5"
+					d="M10 19l-7-7m0 0l7-7m-7 7h18"
+				/>
+			</svg>
+			<span class="text-sm font-bold uppercase tracking-wider">Voltar</span>
+		</button>
+
+		<div class="flex items-center gap-3">
+			<h1 class="font-bold leading-tight text-surface-900 dark:text-surface-50 text-xl sm:text-2xl xl:text-3xl">
+				Assinaturas Pendentes
+			</h1>
+			<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2">{escalasParaAssinar.length}</span>
+		</div>
 	</div>
 
 	{#if escalasParaAssinar.length === 0}
@@ -87,55 +113,54 @@
 							</p>
 						</div>
 
-						<div class="pt-3 border-t border-surface-100 dark:border-surface-700/50 space-y-2">
-							<div class="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-2">
+						<div class="pt-3 border-t border-surface-100 dark:border-surface-700/50 flex flex-col gap-2">
+							{#if isMobile}
 								<button
 									type="button"
-									class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
-										? 'preset-filled-surface-500 text-white'
-										: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold w-full min-[420px]:w-auto"
-									onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
+									class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1.5"
+									disabled={assinaturaTelaBloqueada || esc.is_assinada}
+									title={esc.is_assinada ? 'Já assinado' : (assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined)}
+									onclick={() => onIniciarAssinaturaTela(esc.id)}
 								>
-									{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
+									{#if esc.is_assinada}
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+										</svg>
+									{:else}
+										<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+									{/if}
+									{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
 								</button>
+							{:else}
+								<button
+									type="button"
+									class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full active:scale-95 transition-all flex items-center justify-center gap-1.5"
+									disabled={esc.is_assinada}
+									onclick={() => onIniciarAssinaturaToken(esc.id)}
+								>
+									{#if esc.is_assinada}
+										<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+										</svg>
+									{:else}
+										<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+									{/if}
+									{esc.is_assinada ? 'Assinado' : 'Assinar (Token)'}
+								</button>
+							{/if}
 
-								<div class="flex gap-2 shrink-0">
-									<button
-										type="button"
-										class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-warning-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1"
-										disabled={assinaturaTelaBloqueada || esc.is_assinada}
-										title={esc.is_assinada ? 'Já assinado' : (assinaturaTelaBloqueada ? 'Restrito a dispositivos móveis pelo administrador' : undefined)}
-										onclick={() => onIniciarAssinaturaTela(esc.id)}
-									>
-										{#if esc.is_assinada}
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-											</svg>
-										{:else}
-											<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-										{/if}
-										{esc.is_assinada ? 'Assinado' : 'Assinar (Tela)'}
-									</button>
-									<button
-										type="button"
-										class="btn btn-sm {esc.is_assinada ? 'preset-filled-success-500 text-white' : 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-1.5 flex-1 min-[420px]:flex-none active:scale-95 transition-all flex items-center justify-center gap-1"
-										disabled={esc.is_assinada}
-										onclick={() => onIniciarAssinaturaToken(esc.id)}
-									>
-										{#if esc.is_assinada}
-											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-											</svg>
-										{:else}
-											<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-										{/if}
-										{esc.is_assinada ? 'Assinado' : 'Assinar (Token)'}
-									</button>
-								</div>
-							</div>
+							<button
+								type="button"
+								class="btn btn-sm {menuExpandidoId === esc.id
+									? 'preset-filled-surface-500 text-white'
+									: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold w-full"
+								onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
+							>
+								{menuExpandidoId === esc.id ? 'Ocultar' : 'Ver PDF(s)'}
+							</button>
 
 							{#if menuExpandidoId === esc.id}
-								<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
+								<div class="flex flex-row gap-2 w-full mt-1" transition:slide={{ duration: 200 }}>
 									<a
 										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 										href="/api/escalas/{esc.id}/download?format=pdf"

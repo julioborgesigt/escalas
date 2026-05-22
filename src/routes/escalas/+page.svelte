@@ -143,10 +143,15 @@
 	);
 
 	let mounted = false;
+	// svelte-ignore state_referenced_locally
 	let prevSeccional = $state(filtroSeccional);
+	// svelte-ignore state_referenced_locally
 	let prevLotacao = $state(filtroLotacao);
+	// svelte-ignore state_referenced_locally
 	let prevTipo = $state(filtroTipo);
+	// svelte-ignore state_referenced_locally
 	let prevMes = $state(filtroMes);
+	// svelte-ignore state_referenced_locally
 	let prevAno = $state(filtroAno);
 
 	$effect(() => {
@@ -660,6 +665,7 @@
 	<SecaoAssinaturas
 		{escalasParaAssinar}
 		{assinaturaTelaBloqueada}
+		{isMobile}
 		onIniciarAssinaturaTela={iniciarAssinaturaTela}
 		onIniciarAssinaturaToken={iniciarAssinaturaToken}
 		onVoltar={() => {

@@ -9,6 +9,7 @@
 		onReenviar?: () => Promise<void>;
 	} = $props();
 
+	// svelte-ignore state_referenced_locally
 	let segundosRestantes = $state(totalSeconds);
 	let reenviando = $state(false);
 

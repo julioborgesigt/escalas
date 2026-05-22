@@ -38,6 +38,7 @@
 	}
 
 	// Sync mode items (filtered)
+	// svelte-ignore state_referenced_locally
 	let syncItems = $state<Option[]>(options);
 	$effect(() => {
 		syncItems = options;
