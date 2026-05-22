@@ -92,36 +92,36 @@
 			<!-- Panel 1: Lista de Escalas -->
 			<div class="min-w-0 space-y-4" style="width: 50%;">
 				<div class="px-2 space-y-3">
-					<!-- Título -->
-					<div>
+					<!-- Título + Abas com layout responsivo -->
+					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
 						<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
-					</div>
-					
-					<!-- Escolha entre Ativas e Histórico -->
-					<SegmentedControl
-						value={resGise.statusFilterUrl || 'ativas'}
-						onValueChange={(e) => resGise.changeStatusFilter(e.value ?? '')}
-						class="w-full"
-					>
-						<SegmentedControl.Control
-							class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full"
+						
+						<!-- Escolha entre Ativas e Histórico -->
+						<SegmentedControl
+							value={resGise.statusFilterUrl || 'ativas'}
+							onValueChange={(e) => resGise.changeStatusFilter(e.value ?? '')}
+							class="w-full sm:w-auto"
 						>
-							<SegmentedControl.Item
-								value="ativas"
-								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							<SegmentedControl.Control
+								class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full sm:w-auto"
 							>
-								<SegmentedControl.ItemText>Ativas</SegmentedControl.ItemText>
-								<SegmentedControl.ItemHiddenInput />
-							</SegmentedControl.Item>
-							<SegmentedControl.Item
-								value="finalizadas"
-								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-							>
-								<SegmentedControl.ItemText>Histórico</SegmentedControl.ItemText>
-								<SegmentedControl.ItemHiddenInput />
-							</SegmentedControl.Item>
-						</SegmentedControl.Control>
-					</SegmentedControl>
+								<SegmentedControl.Item
+									value="ativas"
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>
+									<SegmentedControl.ItemText>Ativas</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+								<SegmentedControl.Item
+									value="finalizadas"
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>
+									<SegmentedControl.ItemText>Histórico</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+							</SegmentedControl.Control>
+						</SegmentedControl>
+					</div>
 
 					<!-- Busca Detalhada (Apenas no Histórico) -->
 					{#if resGise.statusFilterUrl === 'finalizadas'}

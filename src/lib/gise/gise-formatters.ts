@@ -14,8 +14,8 @@ const STATUS_COLORS: Record<string, string> = {
 	em_preenchimento: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
 	aguardando_assinatura: 'bg-primary-500/15 text-primary-700 dark:text-primary-400',
 	em_andamento: 'bg-success-500/15 text-success-700 dark:text-success-400',
-	aguardando_relatorios: 'bg-warning-500/15 text-warning-700 dark:text-warning-400',
-	aguardando_assinatura_relat: 'bg-tertiary-500/15 text-tertiary-700 dark:text-tertiary-400',
+	aguardando_relatorios: 'bg-info-500/15 text-info-700 dark:text-info-400',
+	aguardando_assinatura_relat: 'bg-secondary-500/15 text-secondary-700 dark:text-secondary-400',
 	pronta_para_finalizar: 'bg-success-500/20 text-success-800 dark:text-success-300',
 	finalizada: 'bg-surface-500/15 text-surface-600 dark:text-surface-400'
 };
