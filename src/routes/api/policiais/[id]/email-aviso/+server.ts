@@ -9,10 +9,10 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { policiais } from '$lib/server/schema';
-import { requireSuperAdmin, badRequest, notFound } from '$lib/server/api';
+import { requireAdmin, badRequest, notFound } from '$lib/server/api';
 
 export const GET: RequestHandler = async ({ locals, platform, params }) => {
-	const u = requireSuperAdmin(locals);
+	const u = requireAdmin(locals);
 	if (u instanceof Response) return u;
 
 	const id = parseInt(params.id ?? '', 10);
