@@ -1346,7 +1346,7 @@
 									</form>
 									<button
 										type="button"
-										class="btn preset-outlined-surface text-sm px-2 py-1.5 rounded-lg"
+										class="btn preset-outlined-surface-500 text-sm px-2 py-1.5 rounded-lg"
 										onclick={() => {
 											adicionandoEquipe = false;
 											adicionandoEquipeSlotId = null;
@@ -1425,7 +1425,7 @@
 						</form>
 						<button
 							type="button"
-							class="btn preset-outlined-surface text-sm px-3 py-1.5 rounded-xl"
+							class="btn preset-outlined-surface-500 text-sm px-3 py-1.5 rounded-xl"
 							onclick={() => {
 								adicionandoSlot = false;
 								novoSlotUnidadeId = '';

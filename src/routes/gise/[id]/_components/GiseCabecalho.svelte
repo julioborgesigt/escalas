@@ -32,6 +32,7 @@
 		todasSeccionaisPreenchidas: boolean;
 		documentoAssinadoExiste: boolean;
 		pendingCrud: boolean;
+		isMobile?: boolean;
 		onToggleEdit: () => void;
 		onAbrirDataHoras: () => void;
 		onAbrirExcluir: () => void;
@@ -64,6 +65,7 @@
 		todasSeccionaisPreenchidas,
 		documentoAssinadoExiste,
 		pendingCrud,
+		isMobile = false,
 		onToggleEdit,
 		onAbrirDataHoras,
 		onAbrirExcluir,
@@ -157,7 +159,7 @@
 	</div>
 
 	<div class="flex flex-wrap items-center justify-start gap-2 sm:min-w-0 sm:gap-2 xl:max-w-[min(100%,40rem)] xl:justify-end xl:shrink-0">
-		{#if isAdminGeral && podeDownload}
+		{#if isAdminGeral && podeDownload && (!isMobile || ['pronta_para_finalizar', 'finalizada'].includes(gise.status))}
 			<a
 				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 				href={`/api/gise/${gise.id}/download?format=xlsx`}
@@ -173,7 +175,7 @@
 				onclick={onAbrirBreveRelatorio}
 				disabled={loading.active || pendingCrud}
 			>
-				Alterar texto
+				{isMobile ? 'Alterar Justificativa' : 'Alterar texto'}
 			</button>
 		{/if}
 		{#if isAdminGeral}

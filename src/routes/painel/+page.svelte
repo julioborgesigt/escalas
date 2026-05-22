@@ -470,7 +470,7 @@
 					>? O status voltará a ser "Não Criada".
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={loadingService.active}
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
@@ -618,7 +618,7 @@
 											{:else}
 												<div class="flex gap-2 items-center">
 													<button type="button"
-														class="btn btn-sm preset-outlined-surface opacity-60 hover:opacity-100"
+														class="btn btn-sm preset-outlined-surface-500 opacity-60 hover:opacity-100"
 														title="Ignorar esta pendência"
 														onclick={() => ignorarItem(item)}>🔕</button
 													>
@@ -745,7 +745,7 @@
 										>
 									{:else}
 										<button type="button"
-											class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface flex items-center justify-center rounded-full"
+											class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface-500 flex items-center justify-center rounded-full"
 											title="Ignorar"
 											onclick={() => ignorarItem(item)}
 										>

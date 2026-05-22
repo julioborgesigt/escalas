@@ -45,7 +45,7 @@
 			onPageChange={handlePageChange}
 			siblingCount={1}
 		>
-			<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior">
+			<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior">
 				<ChevronLeft size={16} />
 			</Pagination.PrevTrigger>
 
@@ -57,7 +57,7 @@
 								{...p}
 								class="btn btn-sm min-w-[32px] {p.value === paginaAtual
 									? 'preset-filled-primary-500'
-									: 'preset-outlined-surface'}"
+									: 'preset-outlined-surface-500'}"
 							>
 								{p.value}
 							</Pagination.Item>
@@ -68,7 +68,7 @@
 				{/snippet}
 			</Pagination.Context>
 
-			<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página">
+			<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página">
 				<ChevronRight size={16} />
 			</Pagination.NextTrigger>
 		</Pagination>

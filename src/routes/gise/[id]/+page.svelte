@@ -426,6 +426,7 @@
 			{todasSeccionaisPreenchidas}
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{pendingCrud}
+			{isMobile}
 			onToggleEdit={() => (modoEdicaoGeral = !modoEdicaoGeral)}
 			onAbrirDataHoras={() => (showModalDataHoras = true)}
 			onAbrirExcluir={() => (showExcluirGiseConfirm = true)}
@@ -625,7 +626,7 @@
 							</button>
 							<button
 								type="button"
-								class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
+								class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl flex-1 sm:flex-none"
 								onclick={() => (adicionandoSeccional = false)}
 							>
 								Cancelar

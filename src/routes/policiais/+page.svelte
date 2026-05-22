@@ -515,7 +515,7 @@
 				{/if}
 
 				<div class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-white/5">
-					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface"
+					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
 						>Cancelar</Dialog.CloseTrigger
 					>
 					<button
@@ -544,7 +544,7 @@
 				cadastro?
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={excluindo}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={excluindo}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">

@@ -226,7 +226,7 @@
 				</div>
 
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-1">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Cancelar</Dialog.CloseTrigger>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2 active:scale-95 transition-all"

@@ -380,7 +380,7 @@
 				{#if temVariasUnidades}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-surface"
+						class="btn btn-sm preset-outlined-surface-500"
 						onclick={() => {
 							unidadeEscolhida = null;
 							tipoEscolhido = null;
@@ -412,7 +412,7 @@
 				{#if temVariasUnidades}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-surface"
+						class="btn btn-sm preset-outlined-surface-500"
 						onclick={() => {
 							unidadeEscolhida = null;
 							tipoEscolhido = null;
@@ -463,7 +463,7 @@
 	<div class="mb-4 flex items-center gap-2">
 		<button
 			type="button"
-			class="btn btn-sm preset-outlined-surface"
+			class="btn btn-sm preset-outlined-surface-500"
 			onclick={() => {
 				selecionando = true;
 				tipoEscolhido = null;
@@ -733,7 +733,7 @@
 			<div class="flex justify-end gap-2 pt-1">
 				<button
 					type="button"
-					class="btn preset-outlined-surface text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl"
+					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl"
 					onclick={fecharFdsModal}
 				>
 					Cancelar

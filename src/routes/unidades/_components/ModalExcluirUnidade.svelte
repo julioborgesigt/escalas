@@ -46,7 +46,7 @@
 				já lotados nela.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pending}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={pending}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">

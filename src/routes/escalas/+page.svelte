@@ -498,7 +498,7 @@
 		<div class="flex items-center gap-3">
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-surface"
+				class="btn btn-sm preset-outlined-surface-500"
 				onclick={() => {
 					visao = 'home';
 					goto('/escalas', { replaceState: true, noScroll: true });
@@ -528,7 +528,7 @@
 					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode ser desfeita.
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
 					<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 						<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
 						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={pendingExcluir}>
@@ -554,7 +554,7 @@
 					</p>
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface">Voltar</Dialog.CloseTrigger>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Voltar</Dialog.CloseTrigger>
 					<button type="button" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" onclick={confirmarRevogacao} disabled={pendingRevogar}>
 						{pendingRevogar ? 'Revogando...' : 'Revogar e Editar'}
 					</button>

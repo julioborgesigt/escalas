@@ -675,7 +675,7 @@
 				Esta ação não pode ser desfeita e removerá permanentemente o registro e o arquivo assinado.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface" disabled={loadingService.active}
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={loadingService.active}
 					>Cancelar</Dialog.CloseTrigger
 				>
 				<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">

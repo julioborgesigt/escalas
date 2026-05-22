@@ -432,7 +432,7 @@
 												</button>
 												<button
 													type="button"
-													class="btn btn-sm preset-outlined-surface"
+													class="btn btn-sm preset-outlined-surface-500"
 													onclick={cancelarEdicao}>Cancelar</button
 												>
 											</form>
@@ -486,7 +486,7 @@
 									</button>
 									<button
 										type="button"
-										class="btn btn-sm preset-outlined-surface flex-1"
+										class="btn btn-sm preset-outlined-surface-500 flex-1"
 										onclick={cancelarEdicao}>Cancelar</button
 									>
 								</form>

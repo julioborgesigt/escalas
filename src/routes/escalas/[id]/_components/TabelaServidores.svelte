@@ -726,7 +726,7 @@
 				onPageChange={(e) => (paginaServidor = e.page)}
 				siblingCount={1}
 			>
-				<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior">
+				<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior">
 					<ChevronLeft size={16} />
 				</Pagination.PrevTrigger>
 				<Pagination.Context>
@@ -737,7 +737,7 @@
 									{...p}
 									class="btn btn-sm min-w-[32px] {p.value === paginaServidor
 										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface'}"
+										: 'preset-outlined-surface-500'}"
 								>{p.value}</Pagination.Item>
 							{:else}
 								<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
@@ -745,7 +745,7 @@
 						{/each}
 					{/snippet}
 				</Pagination.Context>
-				<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página">
+				<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página">
 					<ChevronRight size={16} />
 				</Pagination.NextTrigger>
 			</Pagination>

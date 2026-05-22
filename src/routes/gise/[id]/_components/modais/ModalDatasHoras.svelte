@@ -222,7 +222,7 @@
 			</div>
 
 			<div class="flex justify-end gap-2 pt-1">
-				<button type="button" class="btn preset-outlined-surface text-xs sm:text-sm px-4 py-2 rounded-xl" onclick={onClose}>Cancelar</button>
+				<button type="button" class="btn preset-outlined-surface-500 text-xs sm:text-sm px-4 py-2 rounded-xl" onclick={onClose}>Cancelar</button>
 				<form method="POST" action="?/salvarDatasHorarios" use:enhance={onSubmitWrapper} class="contents">
 					<input type="hidden" name="data_inicio" value={dataInicio} />
 					<input type="hidden" name="hora_entrada" value={normalizarHora(horaEntrada) ?? ''} />

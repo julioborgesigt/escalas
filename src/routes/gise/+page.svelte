@@ -509,19 +509,19 @@
 					{ativas.length} escalas ativas — página {paginaAtivas} de {totalPaginasAtivas}
 				</span>
 				<Pagination count={ativas.length} pageSize={ITEMS_ATIVAS} page={paginaAtivas} onPageChange={(e) => (paginaAtivas = e.page)} siblingCount={1}>
-					<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface" aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger>
+					<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger>
 					<Pagination.Context>
 						{#snippet children(pagination)}
 							{#each pagination().pages as p, index (p)}
 								{#if p.type === 'page'}
-									<Pagination.Item {...p} class="btn btn-sm min-w-[32px] {p.value === paginaAtivas ? 'preset-filled-primary-500' : 'preset-outlined-surface'}">{p.value}</Pagination.Item>
+									<Pagination.Item {...p} class="btn btn-sm min-w-[32px] {p.value === paginaAtivas ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}">{p.value}</Pagination.Item>
 								{:else}
 									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
 								{/if}
 							{/each}
 						{/snippet}
 					</Pagination.Context>
-					<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface" aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger>
+					<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger>
 				</Pagination>
 			</div>
 		{/if}

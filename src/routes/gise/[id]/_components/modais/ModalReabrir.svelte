@@ -31,7 +31,7 @@
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
-					class="btn preset-outlined-surface text-sm px-4 py-2 rounded-xl"
+					class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl"
 					onclick={onClose}
 					disabled={pendingCrud}>Cancelar</button
 				>

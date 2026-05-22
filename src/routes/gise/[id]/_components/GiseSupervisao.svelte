@@ -233,7 +233,7 @@
 				</h2>
 			</div>
 
-			<div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+			<div class="flex w-full sm:w-auto flex-wrap items-center justify-end gap-2 sm:gap-3">
 				{#if !editando && !documentoAssinadoInfo?.existe && mostrarBlocoExtraSupervisao && !(mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly)}
 					<span
 						class="inline-flex items-center gap-1.5 rounded-full bg-warning-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-warning-500/20"
@@ -251,7 +251,7 @@
 						onclick={onEditar}
 					>
 						<PenLine size={16} />
-						{!gise.supervisor_id ? 'Definir Supervisão' : 'Editar'}
+						{!gise.supervisor_id ? (isMobile ? 'Definir supervisor' : 'Definir Supervisão') : 'Editar'}
 					</button>
 				{/if}
 			</div>
@@ -418,7 +418,7 @@
 				<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 				<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
 
-				<div class="flex gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60">
+				<div class="flex justify-end gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60">
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold"
@@ -428,7 +428,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-outlined-surface text-sm px-4 py-2 rounded-lg"
+						class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-lg"
 						onclick={onCancelar}
 					>
 						Cancelar
