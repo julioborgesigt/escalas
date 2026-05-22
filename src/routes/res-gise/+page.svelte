@@ -9,6 +9,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './ConfigurarFormulario.svelte';
 	import FormularioServico from './FormularioServico.svelte';
+	import { toaster } from '$lib/toast';
 
 	let { data } = $props();
 	const auth = useAutorizacao();
@@ -207,8 +208,8 @@
 								{escala.assinada ? 'SUPERVISOR ASSINOU' : 'AGUARDANDO ASSINATURA DO SUPERVISOR'}
 							</p>
 
-							{#if escala.equipeRespondida || escala.extraAssinado}
-								<div class="flex flex-wrap gap-1.5">
+							{#if escala.equipeRespondida || escala.extraAssinado || (escala.presenca?.saida_timestamp && !escala.extraAssinado)}
+								<div class="flex flex-row gap-2 w-full sm:w-auto sm:gap-1.5">
 									{#if escala.equipeRespondida}
 										{@render actionButton(
 											'PRODUTIVIDADE',
@@ -221,7 +222,7 @@
 											},
 											false,
 											resGise.baixandoProdutividade === escala.id,
-											'text-[0.6rem] px-3 py-1.5',
+											'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5',
 											'button',
 											'sm'
 										)}
@@ -238,7 +239,26 @@
 											},
 											false,
 											resGise.baixandoExtra === escala.id,
-											'text-[0.6rem] px-3 py-1.5',
+											'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5',
+											'button',
+											'sm'
+										)}
+									{:else if escala.presenca?.saida_timestamp}
+										{@render actionButton(
+											'RELAT. EXTRA',
+											'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+											'surface',
+											'filled',
+											(e: any) => {
+												e.stopPropagation();
+												toaster.create({
+													title: 'Relatório de Extraordinário enviado para assinatura do supervisor. Estará disponível para download após assinado.',
+													type: 'warning'
+												});
+											},
+											false,
+											false,
+											'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5 opacity-60 cursor-pointer',
 											'button',
 											'sm'
 										)}
@@ -246,19 +266,6 @@
 								</div>
 							{/if}
 						</div>
-
-						{#if escala.presenca?.saida_timestamp && !escala.extraAssinado}
-							<div
-								class="mt-2 p-2 bg-surface-100 dark:bg-surface-800 rounded-lg border border-primary-500/20"
-							>
-								<p
-									class="text-[0.6rem] text-primary-600 dark:text-primary-400 font-bold italic text-center leading-tight"
-								>
-									Relatório de Extraordinário enviado para assinatura do supervisor. Estará
-									disponível para download após assinado.
-								</p>
-							</div>
-						{/if}
 					</div>
 				{:else}
 					<p class="text-sm text-surface-500 italic col-span-full px-2">
