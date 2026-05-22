@@ -413,9 +413,7 @@
 <div class="min-w-0 space-y-6">
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
 		<div class="min-w-0">
-			<h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 sm:text-2xl">
-				Escala GISE
-			</h1>
+			<h1 class="h1 text-2xl font-bold">Escala GISE</h1>
 			<div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
 				{#if isAdminGeral}
 					<span

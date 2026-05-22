@@ -289,7 +289,7 @@
 </script>
 
 <svelte:head>
-	<title>Login - Gerenciamento de senha</title>
+	<title>Login | Sistema de Escalas</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center p-4">
@@ -297,7 +297,7 @@
 		class="w-full max-w-sm p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
 	>
 		<div class="text-center mb-6">
-			<h1 class="h1 text-xl font-bold mb-1">Gerenciamento de senha</h1>
+			<h1 class="h1 text-xl font-bold mb-1">Sistema de Escalas</h1>
 			
 		</div>
 
@@ -318,13 +318,12 @@
 					onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
 					class="w-full"
 				>
-					<SegmentedControl.Control class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative w-full">
-						<SegmentedControl.Indicator class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200" />
-						<SegmentedControl.Item value="policial" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
+					<SegmentedControl.Control class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
+						<SegmentedControl.Item value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
 							<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
 						</SegmentedControl.Item>
-						<SegmentedControl.Item value="admin" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
+						<SegmentedControl.Item value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
 							<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />
 						</SegmentedControl.Item>
@@ -465,13 +464,12 @@
 						}}
 						class="w-full mb-4"
 					>
-						<SegmentedControl.Control class="flex items-center rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative w-full">
-							<SegmentedControl.Indicator class="absolute inset-y-1 rounded-md bg-white dark:bg-surface-700 shadow-sm transition-[left,width] duration-200" />
-							<SegmentedControl.Item value="policial" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
+						<SegmentedControl.Control class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
+							<SegmentedControl.Item value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
 								<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
 								<SegmentedControl.ItemHiddenInput />
 							</SegmentedControl.Item>
-							<SegmentedControl.Item value="admin" class="relative z-10 px-3 py-1.5 text-sm font-medium text-surface-500 dark:text-surface-400 data-[state=checked]:text-surface-900 dark:data-[state=checked]:text-surface-50 cursor-pointer select-none transition-colors rounded-md flex-1 text-center">
+							<SegmentedControl.Item value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
 								<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
 								<SegmentedControl.ItemHiddenInput />
 							</SegmentedControl.Item>

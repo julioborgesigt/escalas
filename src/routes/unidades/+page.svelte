@@ -248,7 +248,7 @@
 {/snippet}
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-	<h1 class="h1 text-xl font-bold">Unidades Policiais</h1>
+	<h1 class="h1 text-2xl font-bold">Unidades Policiais</h1>
 	<div class="flex flex-wrap gap-2">
 		<button
 			type="button"

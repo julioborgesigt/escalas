@@ -70,11 +70,7 @@
 <div class="space-y-6">
 	<header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
 		<div>
-			<h1
-				class="text-xl sm:text-2xl md:text-3xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
-			>
-				Relatórios GISE
-			</h1>
+			<h1 class="h1 text-2xl font-bold">Relatórios GISE</h1>
 			<p class="text-sm text-surface-500 font-medium">Gestão de produtividade e relatórios operacionais</p>
 		</div>
 	</header>

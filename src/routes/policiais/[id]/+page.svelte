@@ -78,7 +78,7 @@
 </script>
 
 <div class="flex items-center justify-between mb-6">
-	<h1 class="h1 text-xl font-bold">Editar Policial</h1>
+	<h1 class="h1 text-2xl font-bold">Editar Policial</h1>
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 

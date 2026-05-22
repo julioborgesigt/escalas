@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
-	import { goto, invalidateAll, onNavigate } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
@@ -30,10 +30,9 @@
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 
-	// Mostra abas Escalas e Policiais para: admin, admin_seccional, admin_unidade
+	// Mostra aba Escalas para: admin_seccional, admin_unidade (admin geral não tem mais acesso à aba Arquivo)
 	const showEscalasPoliciais = $derived(
-		usuario?.tipo === 'admin' ||
-			usuario?.papel === 'admin_seccional' ||
+		usuario?.papel === 'admin_seccional' ||
 			usuario?.papel === 'admin_unidade'
 	);
 
@@ -68,6 +67,7 @@
 			: true
 	);
 	let showLogoutConfirm = $state(false);
+	let isLoggingOut = $state(false);
 
 	useScrollLock(() => sidebarOpen);
 
@@ -83,7 +83,7 @@
 	}
 
 	async function logout() {
-		showLogoutConfirm = false;
+		isLoggingOut = true;
 		try {
 			await fetch('/api/auth/logout', { method: 'POST', headers: csrfHeaders() });
 		} catch {
@@ -102,8 +102,16 @@
 			keysToRemove.forEach((k) => localStorage.removeItem(k));
 		}
 
-		await invalidateAll();
-		goto('/login');
+		try {
+			// invalidateAll separado causava duas navegações conflitantes (AbortError na view transition).
+			// goto com invalidateAll:true faz tudo numa única navegação.
+			await goto('/login', { invalidateAll: true });
+		} finally {
+			// O layout raiz persiste entre navegações — resetar aqui garante que o
+			// modal de logout não reapareça ao fazer login novamente.
+			showLogoutConfirm = false;
+			isLoggingOut = false;
+		}
 	}
 
 	function isActive(path: string): boolean {
@@ -576,25 +584,15 @@
 			<!-- User info -->
 			<div class="px-3 py-2 space-y-2">
 				{#if usuario?.nome}
-					<div class="flex items-center gap-2.5">
-						<Avatar
-							style="width: 2.25rem; height: 2.25rem; background: color-mix(in oklab, var(--color-primary-500) 20%, transparent);"
-							class="border border-primary-500/30 shrink-0"
-						>
-							<Avatar.Fallback class="text-[0.7rem] font-black text-primary-700 dark:text-primary-300">
-								{iniciaisUsuario}
-							</Avatar.Fallback>
-						</Avatar>
-						<div class="flex-1 min-w-0">
-							<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight">
-								{usuario.nome}
+					<div class="flex-1 min-w-0">
+						<p class="text-xs font-semibold text-surface-900 dark:text-surface-100 truncate leading-tight">
+							{usuario.nome}
+						</p>
+						{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
+							<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5">
+								{usuario.lotacao}
 							</p>
-							{#if !usuario?.papel && !isSupervisorGise && usuario?.lotacao}
-								<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5">
-									{usuario.lotacao}
-								</p>
-							{/if}
-						</div>
+						{/if}
 					</div>
 				{/if}
 				<div class="flex flex-wrap gap-1">
@@ -650,27 +648,55 @@
 	</aside>
 
 	<!-- Modal de Confirmação de Logout -->
-	<Dialog open={showLogoutConfirm} onOpenChange={(e) => { if (!e.open) showLogoutConfirm = false; }}>
+	<Dialog open={showLogoutConfirm} onOpenChange={(e) => { if (!e.open && !isLoggingOut) showLogoutConfirm = false; }}>
 		<Dialog.Content class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-surface-950/40 backdrop-blur-sm">
 			<div class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6">
 				<div class="flex flex-col items-center text-center space-y-4">
 					<div class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center text-error-600 dark:text-error-400">
-						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-						</svg>
+						{#if isLoggingOut}
+							<!-- Spinner animado durante o logout -->
+							<svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+							</svg>
+						{:else}
+							<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+							</svg>
+						{/if}
 					</div>
 					<div class="space-y-2">
-						<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">Sair do Sistema</Dialog.Title>
+						<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">
+							{isLoggingOut ? 'Encerrando sessão...' : 'Sair do Sistema'}
+						</Dialog.Title>
 						<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400">
-							Deseja realmente encerrar sua sessão?
+							{isLoggingOut ? 'Aguarde, você será redirecionado em instantes.' : 'Deseja realmente encerrar sua sessão?'}
 						</Dialog.Description>
 					</div>
 				</div>
 				<div class="flex flex-col gap-2">
-					<button type="button" class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95" onclick={logout}>
-						Sim, Sair
+					<button
+						type="button"
+						class="btn preset-filled-error-500 py-3 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
+						onclick={logout}
+						disabled={isLoggingOut}
+					>
+						{#if isLoggingOut}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+							</svg>
+							Saindo...
+						{:else}
+							Sim, Sair
+						{/if}
 					</button>
-					<button type="button" class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95" onclick={() => (showLogoutConfirm = false)}>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 py-3 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+						onclick={() => (showLogoutConfirm = false)}
+						disabled={isLoggingOut}
+					>
 						Cancelar
 					</button>
 				</div>

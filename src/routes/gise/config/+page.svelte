@@ -12,16 +12,17 @@
 	<title>Config. GISE | Escalas</title>
 </svelte:head>
 
-<div class="max-w-2xl mx-auto space-y-6">
-	<div class="flex flex-col gap-1">
-		<h1 class="text-xl font-bold text-surface-900 dark:text-surface-50 sm:text-2xl">Configurações GISE</h1>
-		<p class="text-sm text-surface-500 dark:text-surface-400">Vagas padrão por unidade e textos dos relatórios de extra.</p>
+<div class="space-y-6">
+	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
+		<div>
+			<h1 class="h1 text-2xl font-bold">Configurações GISE</h1>
+			<p class="text-sm text-surface-500 mt-0.5">Vagas padrão por unidade e textos dos relatórios de extra.</p>
+		</div>
 	</div>
 
 	<form
 		method="POST"
 		action="?/salvar"
-		class="space-y-8"
 		use:enhance={() => {
 			loading.show('A gravar…');
 			return async ({ result, update }) => {
@@ -38,126 +39,125 @@
 			};
 		}}
 	>
-		<div
-			class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
-		>
-			<h2 class="text-lg font-semibold text-surface-900 dark:text-surface-50">Vagas padrão por unidade</h2>
-			
-			<div class="grid sm:grid-cols-2 gap-6">
-				<div
-					class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-100/50 dark:bg-surface-800/30"
-				>
-					<p class="text-sm font-semibold text-surface-800 dark:text-surface-100">Equipe operacional</p>
-					<div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-						<div class="flex flex-wrap items-center gap-2">
-							<label class="text-sm text-surface-600 dark:text-surface-400" for="op_dpc">DPC</label>
-							<input
-								id="op_dpc"
-								name="op_dpc"
-								type="number"
-								min="0"
-								max="999"
-								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-								value={vagas.operacional.dpc}
-							/>
+		<div class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6">
+			<div class="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
+				<!-- Vagas padrão por unidade -->
+				<div class="space-y-3 md:border-r md:border-surface-200 md:dark:border-surface-700 md:pr-8">
+					<h2 class="text-base font-semibold">Vagas padrão por unidade</h2>
+
+					<div class="space-y-3">
+						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+							<p class="text-sm font-semibold">Equipe operacional</p>
+							<div class="flex items-center gap-4">
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_dpc">DPC</label>
+									<input
+										id="op_dpc"
+										name="op_dpc"
+										type="number"
+										min="0"
+										max="999"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={vagas.operacional.dpc}
+									/>
+								</div>
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_oip">OIP</label>
+									<input
+										id="op_oip"
+										name="op_oip"
+										type="number"
+										min="0"
+										max="999"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={vagas.operacional.oip}
+									/>
+								</div>
+							</div>
 						</div>
-						<div class="flex flex-wrap items-center gap-2">
-							<label class="text-sm text-surface-600 dark:text-surface-400" for="op_oip">OIP</label>
-							<input
-								id="op_oip"
-								name="op_oip"
-								type="number"
-								min="0"
-								max="999"
-								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-								value={vagas.operacional.oip}
-							/>
+
+						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+							<p class="text-sm font-semibold">Equipe SEINT</p>
+							<div class="flex items-center gap-4">
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_dpc">DPC</label>
+									<input
+										id="seint_dpc"
+										name="seint_dpc"
+										type="number"
+										min="0"
+										max="999"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={vagas.seint.dpc}
+									/>
+								</div>
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_oip">OIP</label>
+									<input
+										id="seint_oip"
+										name="seint_oip"
+										type="number"
+										min="0"
+										max="999"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={vagas.seint.oip}
+									/>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
-				<div
-					class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-100/50 dark:bg-surface-800/30"
-				>
-					<p class="text-sm font-semibold text-surface-800 dark:text-surface-100">Equipe SEINT</p>
-					<div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-						<div class="flex flex-wrap items-center gap-2">
-							<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_dpc">DPC</label>
-							<input
-								id="seint_dpc"
-								name="seint_dpc"
-								type="number"
-								min="0"
-								max="999"
-								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-								value={vagas.seint.dpc}
-							/>
-						</div>
-						<div class="flex flex-wrap items-center gap-2">
-							<label class="text-sm text-surface-600 dark:text-surface-400" for="seint_oip">OIP</label>
-							<input
-								id="seint_oip"
-								name="seint_oip"
-								type="number"
-								min="0"
-								max="999"
-								class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-								value={vagas.seint.oip}
-							/>
-						</div>
+
+				<!-- Texto Breve relatório -->
+				<div class="space-y-4 min-w-0">
+					<h2 class="text-base font-semibold">Texto "Breve relatório"</h2>
+
+					<div>
+						<label for="breve_tit" class="block text-sm font-medium mb-1">Título (rótulo)</label>
+						<input
+							id="breve_tit"
+							name="breve_titulo"
+							type="text"
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+							value={data.breveForm.titulo}
+						/>
+					</div>
+					<div>
+						<label for="breve_sec" class="block text-sm font-medium mb-1"
+							>Parágrafo – extra por <strong>seccional</strong></label
+						>
+						<textarea
+							id="breve_sec"
+							name="breve_texto_seccional"
+							rows="4"
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+							value={data.breveForm.textoSeccional}
+						></textarea>
+					</div>
+					<div>
+						<label for="breve_sup" class="block text-sm font-medium mb-1"
+							>Parágrafo – extra de <strong>supervisão</strong></label
+						>
+						<textarea
+							id="breve_sup"
+							name="breve_texto_supervisao"
+							rows="4"
+							class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
+							value={data.breveForm.textoSupervisao}
+						></textarea>
 					</div>
 				</div>
 			</div>
-		</div>
 
-		<div
-			class="card p-4 sm:p-6 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl space-y-4"
-		>
-			<h2 class="text-lg font-semibold text-surface-900 dark:text-surface-50">Texto "Breve relatório"</h2>
-			
-			<div>
-				<label for="breve_tit" class="block text-sm font-medium mb-1">Título (rótulo)</label>
-				<input
-					id="breve_tit"
-					name="breve_titulo"
-					type="text"
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
-					value={data.breveForm.titulo}
-				/>
-			</div>
-			<div>
-				<label for="breve_sec" class="block text-sm font-medium mb-1"
-					>Parágrafo – extra por <strong>seccional</strong></label
+			<div class="flex justify-end border-t border-surface-200 dark:border-surface-800 pt-6">
+				<button
+					type="submit"
+					class="btn preset-filled-primary-500 px-6 py-2 rounded-xl font-semibold"
+					disabled={loading.active}
 				>
-				<textarea
-					id="breve_sec"
-					name="breve_texto_seccional"
-					rows="4"
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
-					value={data.breveForm.textoSeccional}
-				></textarea>
+					{loading.active ? 'A gravar…' : 'Guardar'}
+				</button>
 			</div>
-			<div>
-				<label for="breve_sup" class="block text-sm font-medium mb-1"
-					>Parágrafo – extra de <strong>supervisão</strong></label
-				>
-				<textarea
-					id="breve_sup"
-					name="breve_texto_supervisao"
-					rows="4"
-					class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm min-h-[110px] resize-y"
-					value={data.breveForm.textoSupervisao}
-				></textarea>
-			</div>
-		</div>
-
-		<div class="flex justify-end">
-			<button
-				type="submit"
-				class="btn preset-filled-primary-500 px-6 py-2 rounded-xl font-semibold"
-				disabled={loading.active}
-			>
-				{loading.active ? 'A gravar…' : 'Guardar'}
-			</button>
 		</div>
 	</form>
 </div>

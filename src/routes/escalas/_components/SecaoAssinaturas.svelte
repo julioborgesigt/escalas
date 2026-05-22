@@ -33,7 +33,7 @@
 <div class="flex flex-col gap-6">
 	<div class="flex items-center gap-3">
 		<button type="button" class="btn btn-sm preset-outlined-surface" onclick={onVoltar}>← Voltar</button>
-		<h1 class="h1 text-xl font-bold">Assinaturas Pendentes</h1>
+		<h1 class="h1 text-2xl font-bold">Assinaturas Pendentes</h1>
 		<span class="badge preset-filled-tertiary-500 text-white font-bold text-sm px-2">{escalasParaAssinar.length}</span>
 	</div>
 

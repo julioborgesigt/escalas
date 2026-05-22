@@ -490,11 +490,7 @@
 <div class="space-y-8 pb-12 {selectedCharts.length > 0 ? 'has-selections' : ''}">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
-			<h1
-				class="text-2xl sm:text-4xl font-black text-surface-900 dark:text-surface-50 uppercase tracking-tighter"
-			>
-				Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
-			</h1>
+			<h1 class="h1 text-2xl font-bold">Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE</h1>
 			<p class="text-surface-500 font-medium">
 				Análise filtrada e segmentada dos resultados reais {filterTipo === 'seint'
 					? '(SEINT)'

@@ -27,14 +27,19 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	if (u.tipo !== 'admin' && u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
+	// Admin geral n\u00e3o tem acesso \u00e0 listagem de escalas (aba "Arquivo")
+	if (u.tipo === 'admin') {
+		throw redirect(302, '/');
+	}
+	if (u.papel !== 'admin_seccional' && u.papel !== 'admin_unidade') {
 		throw redirect(302, '/');
 	}
 
 	const db = getDB(platform);
 
 	// Parâmetros de filtro
-	const isAdmin = u.tipo === 'admin';
+	// isAdmin sempre false aqui: o admin geral é redirecionado no guarda acima
+	const isAdmin = false;
 	let lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const mes = url.searchParams.get('mes') ? Number(url.searchParams.get('mes')) : undefined;
 	const ano = url.searchParams.get('ano') ? Number(url.searchParams.get('ano')) : undefined;
@@ -82,8 +87,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 				? and(escalasExistentesBase!, inArray(escalasTable.lotacao, lotacoesPermitidas))
 				: escalasExistentesBase;
 
-	const podeAssinar = u.tipo === 'admin' ||
-		((u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC');
+	const podeAssinar =
+		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
 
 	// OIP admin pode solicitar assinatura (mas não assinar diretamente)
 	const podeOIPSolicitar =

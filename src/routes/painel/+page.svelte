@@ -315,7 +315,7 @@
 {:else}
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
-			<h1 class="h1 text-xl font-bold">Painel de Compliance</h1>
+			<h1 class="h1 text-2xl font-bold">Painel de Compliance</h1>
 			<p class="text-sm text-surface-500 mt-0.5">
 				Controle de envio e assinatura de escalas por unidade
 			</p>

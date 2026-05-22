@@ -499,7 +499,7 @@
 					goto('/escalas', { replaceState: true, noScroll: true });
 				}}>← Voltar</button
 			>
-			<h1 class="h1 text-xl font-bold">Arquivo</h1>
+			<h1 class="h1 text-2xl font-bold">Arquivo</h1>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
 			<button

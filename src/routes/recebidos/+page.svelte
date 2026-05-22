@@ -24,18 +24,20 @@
 	// Filtros com persistência
 	const KEY = 'filtros_recebidos';
 	const defaults = {
-		timeRange: 'todos' as const,
 		seccional: '',
 		unidade: '',
 		data: '',
-		naoLidos: true
+		naoLidos: true,
+		ano: 0,
+		mes: 0
 	};
 	const saved = getSavedFilters(KEY, defaults);
 
-	let filtroTimeRange = $state<'24h' | '48h' | 'semana' | 'mes' | 'todos'>(saved.timeRange);
 	let filtroSeccional = $state(saved.seccional);
 	let filtroUnidade = $state(saved.unidade);
 	let filtroData = $state(saved.data);
+	let filtroAno = $state<number>(saved.ano);
+	let filtroMes = $state<number>(saved.mes);
 	let mostrarApenasNaoVistos = $state(saved.naoLidos);
 
 	// Salvar a cada mudança
@@ -44,11 +46,12 @@
 			localStorage.setItem(
 				KEY,
 				JSON.stringify({
-					timeRange: filtroTimeRange,
 					seccional: filtroSeccional,
 					unidade: filtroUnidade,
 					data: filtroData,
-					naoLidos: mostrarApenasNaoVistos
+					naoLidos: mostrarApenasNaoVistos,
+					ano: filtroAno,
+					mes: filtroMes
 				})
 			);
 		}
@@ -63,16 +66,34 @@
 		seccionais.map((s) => ({ value: s.id, label: s.nome }))
 	);
 
-	const timeRangeOptions = [
-		{ value: 'todos', label: 'Tudo' },
-		{ value: '24h', label: 'Últimas 24h' },
-		{ value: 'semana', label: 'Última Semana' },
-		{ value: 'mes', label: 'Último Mês' }
+	const meses = [
+		{ value: 0, label: 'Todos' },
+		{ value: 1, label: 'Janeiro' },
+		{ value: 2, label: 'Fevereiro' },
+		{ value: 3, label: 'Março' },
+		{ value: 4, label: 'Abril' },
+		{ value: 5, label: 'Maio' },
+		{ value: 6, label: 'Junho' },
+		{ value: 7, label: 'Julho' },
+		{ value: 8, label: 'Agosto' },
+		{ value: 9, label: 'Setembro' },
+		{ value: 10, label: 'Outubro' },
+		{ value: 11, label: 'Novembro' },
+		{ value: 12, label: 'Dezembro' }
 	];
+	const anos = [0, ...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i)];
+
+	const mesesOptions = meses;
+	const anosOptions = $derived(
+		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
+	);
 
 	$effect(() => {
-		if (filtroTimeRange === null) {
-			filtroTimeRange = 'todos';
+		if (filtroAno === null) {
+			filtroAno = 0;
+		}
+		if (filtroMes === null) {
+			filtroMes = 0;
 		}
 		if (filtroSeccional === null) {
 			filtroSeccional = '';
@@ -90,14 +111,15 @@
 			if (filtroData && !e.data_inicio.includes(filtroData)) return false;
 			if (mostrarApenasNaoVistos && e.visto_por_admin) return false;
 
-			if (filtroTimeRange && filtroTimeRange !== 'todos') {
-				const eDate = new Date(e.created_at.replace(' ', 'T'));
-				const now = new Date();
-				const diffMs = now.getTime() - eDate.getTime();
-				const diffDays = diffMs / (1000 * 60 * 60 * 24);
-				if (filtroTimeRange === '24h' && diffDays > 1) return false;
-				if (filtroTimeRange === 'semana' && diffDays > 7) return false;
-				if (filtroTimeRange === 'mes' && diffDays > 30) return false;
+			if (filtroAno && filtroAno !== 0) {
+				const parts = e.data_inicio.split('-');
+				const eAno = parseInt(parts[0], 10);
+				if (eAno !== filtroAno) return false;
+			}
+			if (filtroMes && filtroMes !== 0) {
+				const parts = e.data_inicio.split('-');
+				const eMes = parseInt(parts[1], 10);
+				if (eMes !== filtroMes) return false;
 			}
 
 			return true;
@@ -143,7 +165,7 @@
 	);
 
 	$effect(() => {
-		if (filtroTimeRange || filtroUnidade || filtroData || mostrarApenasNaoVistos) {
+		if (filtroAno || filtroMes || filtroUnidade || filtroData || mostrarApenasNaoVistos) {
 			paginaAtual = 1;
 		}
 	});
@@ -176,7 +198,8 @@
 		filtroSeccional = '';
 		filtroUnidade = '';
 		filtroData = '';
-		filtroTimeRange = 'todos';
+		filtroAno = 0;
+		filtroMes = 0;
 		mostrarApenasNaoVistos = true;
 		recarregar();
 	}
@@ -185,7 +208,8 @@
 		filtroSeccional !== '' ||
 			filtroUnidade !== '' ||
 			filtroData !== '' ||
-			filtroTimeRange !== 'todos' ||
+			filtroAno !== 0 ||
+			filtroMes !== 0 ||
 			mostrarApenasNaoVistos !== true
 	);
 
@@ -218,7 +242,7 @@
 {:else}
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
 		<div>
-			<h1 class="h1 text-xl font-bold">Cx. de Entrada</h1>
+			<h1 class="h1 text-2xl font-bold">Cx. de Entrada</h1>
 			<p class="text-sm text-surface-500 mt-0.5">Acompanhamento de novos envios em tempo real</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
@@ -255,15 +279,6 @@
 	>
 		<div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end w-full">
 			<div class="flex flex-col gap-1 w-full lg:w-48">
-				<span class="label-text text-sm font-semibold">Período de Recebimento</span>
-				<SearchableSelect
-					options={timeRangeOptions}
-					bind:value={filtroTimeRange}
-					placeholder="Tudo"
-				/>
-			</div>
-
-			<div class="flex flex-col gap-1 w-full lg:w-48">
 				<span class="label-text text-sm font-semibold">Seccional</span>
 				<SearchableSelect
 					options={seccionaisOptions}
@@ -272,7 +287,7 @@
 				/>
 			</div>
 
-			<label class="label flex-1 min-w-0">
+			<label class="label w-full lg:w-64">
 				<span class="label-text text-sm font-semibold mb-1">Unidade</span>
 				<div class="relative w-full">
 					<svg
@@ -295,6 +310,24 @@
 					/>
 				</div>
 			</label>
+
+			<div class="flex flex-col gap-1 w-full lg:w-28">
+				<span class="label-text text-sm font-semibold">Ano</span>
+				<SearchableSelect
+					options={anosOptions}
+					bind:value={filtroAno}
+					placeholder="Todos"
+				/>
+			</div>
+
+			<div class="flex flex-col gap-1 w-full lg:w-36">
+				<span class="label-text text-sm font-semibold">Mês</span>
+				<SearchableSelect
+					options={mesesOptions}
+					bind:value={filtroMes}
+					placeholder="Todos"
+				/>
+			</div>
 
 			<div class="flex items-center justify-between sm:justify-start gap-4 pb-2 lg:pb-3 lg:pl-2">
 				<label class="flex items-center gap-2 cursor-pointer select-none">
