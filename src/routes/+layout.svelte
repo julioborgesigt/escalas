@@ -771,15 +771,15 @@
 	}
 	.nav-progress-visible {
 		opacity: 1;
-		background: rgb(var(--color-primary-500) / 0.25);
+		background: color-mix(in oklch, var(--color-primary-500) 25%, transparent);
 	}
 	.nav-progress-bar {
 		height: 100%;
 		width: 40%;
 		background: linear-gradient(
 			90deg,
-			rgb(var(--color-primary-500)),
-			rgb(var(--color-secondary-500))
+			var(--color-primary-500),
+			var(--color-secondary-500)
 		);
 		border-radius: 999px;
 		animation: nav-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
