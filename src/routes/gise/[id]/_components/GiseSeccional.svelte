@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
@@ -39,6 +40,7 @@
 			tipo: 'extraordinario',
 			seccionalNome: string
 		) => void;
+		onFinalizarSuccess?: () => void;
 	}
 
 	let {
@@ -58,7 +60,8 @@
 		recolhida,
 		onToggleRecolher,
 		onAssinarRelatorioManual,
-		onAssinarRelatorioDigital
+		onAssinarRelatorioDigital,
+		onFinalizarSuccess
 	}: Props = $props();
 
 	// Estado de UI (edição inline). Vive aqui porque é mutuamente exclusivo
@@ -92,8 +95,10 @@
 	// CRUD: `pendingCrud`, todos os `use:enhance` handlers, fluxo do modal de
 	// remover seccional e factory `buscarPorCargo` vivem no composable.
 	const actions = useGiseSeccionalActions({
-		onFinalizarSeccionalSuccess: () => {
+		onFinalizarSeccionalSuccess: async () => {
 			modoEdicaoSeccional = false;
+			await invalidateAll();
+			onFinalizarSuccess?.();
 		},
 		onSelecionarUnidadeSuccess: () => {
 			selecionandoUnidadeSlotId = null;

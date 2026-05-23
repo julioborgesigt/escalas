@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidate, replaceState } from '$app/navigation';
+	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
@@ -577,12 +577,15 @@
 							{modoEdicaoGeral}
 							assinaturasRelatorios={data.assinaturasRelatorios}
 							restringirSmartphone={data.restringirSmartphone}
-							recolhida={seccionaisRecolhidas[sec.id] ?? false}
+							recolhida={seccionaisRecolhidas[sec.id] ?? (sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
 							onToggleRecolher={() => toggleRecolherSeccional(sec.id)}
 							onAssinarRelatorioManual={(seccionalId) =>
 								assinatura.abrirAssinaturaRelatorio(seccionalId, 'extraordinario')}
 							onAssinarRelatorioDigital={(seccionalId, tipo, nome) =>
 								abrirAssinaturaRelatorioDigital(seccionalId, tipo, nome)}
+							onFinalizarSuccess={() => {
+								seccionaisRecolhidas[sec.id] = true;
+							}}
 						/>
 					{/if}
 				{/each}
