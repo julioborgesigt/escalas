@@ -345,7 +345,7 @@
 							{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
 						</p>
 					</div>
-				{:else}
+				{:else if resGise.capturandoRubrica}
 					<SignaturePad
 						onConfirm={tipoPresenca === 'entrada' ? resGise.salvarEntrada : resGise.salvarSaida}
 						onCancel={() => (resGise.capturandoRubrica = false)}

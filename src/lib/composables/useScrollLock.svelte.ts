@@ -22,11 +22,17 @@ export function useScrollLock(active: () => boolean) {
 		if (!active()) return;
 
 		if (lockCount === 0) {
-			originalOverflow = document.body.style.overflow;
-			originalPaddingRight = document.body.style.paddingRight;
+			const currentOverflow = document.body.style.overflow;
+			if (currentOverflow === 'hidden') {
+				originalOverflow = '';
+				originalPaddingRight = '';
+			} else {
+				originalOverflow = currentOverflow;
+				originalPaddingRight = document.body.style.paddingRight;
+			}
 			const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 			document.body.style.overflow = 'hidden';
-			if (scrollbarWidth > 0) {
+			if (scrollbarWidth > 0 && currentOverflow !== 'hidden') {
 				document.body.style.paddingRight = `${scrollbarWidth}px`;
 			}
 		}

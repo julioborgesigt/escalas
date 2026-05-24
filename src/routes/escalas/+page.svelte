@@ -738,16 +738,18 @@
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
 				Desenhe sua rubrica no quadro abaixo para assinar este documento.
 			</Dialog.Description>
-			<SignaturePad
-				message="Rubrica do Organizador"
-				onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined) => {
-					await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
-				}}
-				onCancel={() => (dialogAssinaturaTela = false)}
-				exigirFoto={page.data.exigirFotoAssinatura ?? true}
-				exigirGps={page.data.exigirGpsAssinatura ?? true}
-				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			/>
+			{#if dialogAssinaturaTela}
+				<SignaturePad
+					message="Rubrica do Organizador"
+					onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined) => {
+						await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
+					}}
+					onCancel={() => (dialogAssinaturaTela = false)}
+					exigirFoto={page.data.exigirFotoAssinatura ?? true}
+					exigirGps={page.data.exigirGpsAssinatura ?? true}
+					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+				/>
+			{/if}
 		</div>
 	</Dialog.Content>
 </Dialog>

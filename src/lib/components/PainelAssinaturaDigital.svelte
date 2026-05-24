@@ -576,14 +576,16 @@
 				Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade
 				jurídica (nos moldes da assinatura eletrônica).
 			</Dialog.Description>
-			<SignaturePad
-				message="Rubrica do Organizador"
-				onConfirm={assinarSimples}
-				onCancel={() => (assinatura.dialogSignOpen = false)}
-				exigirFoto={page.data.exigirFotoAssinatura ?? true}
-				exigirGps={page.data.exigirGpsAssinatura ?? true}
-				exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
-			/>
+			{#if dialogSignOpen}
+				<SignaturePad
+					message="Rubrica do Organizador"
+					onConfirm={assinarSimples}
+					onCancel={() => (assinatura.dialogSignOpen = false)}
+					exigirFoto={page.data.exigirFotoAssinatura ?? true}
+					exigirGps={page.data.exigirGpsAssinatura ?? true}
+					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+				/>
+			{/if}
 		</div>
 	</Dialog.Content>
 </Dialog>

@@ -40,13 +40,15 @@
 				</Dialog.Description>
 			</div>
 
-			<SignaturePad
-				{onConfirm}
-				{onCancel}
-				{exigirFoto}
-				{exigirGps}
-				{exigirCodigoEmail}
-			/>
+			{#if open}
+				<SignaturePad
+					{onConfirm}
+					{onCancel}
+					{exigirFoto}
+					{exigirGps}
+					{exigirCodigoEmail}
+				/>
+			{/if}
 
 			<p class="text-sm text-surface-400 text-center italic">
 				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
