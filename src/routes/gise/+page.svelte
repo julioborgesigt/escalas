@@ -150,7 +150,14 @@
 				'finalizada'
 			].includes(ativa.status)
 		) {
-			linhas = ['A escala já foi assinada.'];
+			dialogInfo = {
+				titulo: 'Escala Assinada',
+				linhas: [
+					'Esta escala já foi assinada digitalmente.',
+					'Para fazer o download do PDF oficial, clique no botão "Opções" do card desta escala e selecione "Escala PDF".'
+				]
+			};
+			return;
 		} else {
 			linhas = ['A assinatura da escala não está disponível no momento.'];
 		}
