@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { loading } from '$lib/loading.svelte';
+	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
 
 	interface Props {
 		quantidadePendentes: number;
@@ -47,9 +48,51 @@
 	const semAtividade = $derived(quantidadePendentes === 0 && concluidosExtra.length === 0);
 
 	function nomeSeccional(seccionalId: number): string {
-		const s = seccionais?.find((x: any) => x.seccional_id === seccionalId);
+		const s = seccionais?.find((x: any) => x.seccional_id === seccionalId || x.id === seccionalId);
 		return s?.seccional_nome?.trim() || `Seccional #${seccionalId}`;
 	}
+
+	const seccionaisComEquipes = $derived((seccionais ?? []).filter(sec => getMembrosFromSec(sec).length > 0));
+
+	const isAssinado = (sec: any) => concluidosExtra.some(c => c.seccional_id === sec.seccional_id || c.seccional_id === sec.id);
+
+	const seccionaisFaltantes = $derived(seccionaisComEquipes.filter(sec => !isAssinado(sec)));
+	const seccionaisAssinadas = $derived(seccionaisComEquipes.filter(sec => isAssinado(sec)));
+
+	const totalEquipes = $derived(seccionaisComEquipes.length);
+	const totalAssinados = $derived(seccionaisAssinadas.length);
+	const totalProntosNaoAssinados = $derived(seccionaisFaltantes.filter(sec => checkAllSigned(sec)).length);
+
+	const statusLoteInfo = $derived.by(() => {
+		if (totalEquipes > 0 && totalAssinados === totalEquipes) {
+			return {
+				text: 'Todos Assinados',
+				class: 'bg-success-500/15 text-success-700 dark:text-success-400'
+			};
+		}
+		if (totalAssinados > 0 && totalAssinados < totalEquipes) {
+			return {
+				text: 'Assinados (parcial)',
+				class: 'bg-success-500/15 text-success-700 dark:text-success-400'
+			};
+		}
+		if (totalAssinados === 0 && totalProntosNaoAssinados === totalEquipes && totalEquipes > 0) {
+			return {
+				text: 'Todos prontos para ass.',
+				class: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'
+			};
+		}
+		if (totalAssinados === 0 && totalProntosNaoAssinados > 0 && totalProntosNaoAssinados < totalEquipes) {
+			return {
+				text: 'pronto para ass. (parcial)',
+				class: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'
+			};
+		}
+		return {
+			text: 'Aguardando saída equipes',
+			class: 'bg-surface-500/10 text-surface-500 dark:text-surface-400'
+		};
+	});
 </script>
 
 <div class="flex flex-col gap-1.5">
@@ -72,68 +115,54 @@
 			}}
 		>
 			<div
-				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {quantidadePendentes > 0
-					? 'bg-warning-100 dark:bg-warning-900/30'
-					: semAtividade
-						? 'bg-surface-100 dark:bg-surface-800'
-						: 'bg-success-100 dark:bg-success-900/30'}"
+				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+					? 'bg-success-100 dark:bg-success-900/30'
+					: statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'
+						? 'bg-warning-100 dark:bg-warning-900/30'
+						: 'bg-surface-100 dark:bg-surface-800'}"
 			>
 				<svg
-					class="w-3.5 h-3.5 {quantidadePendentes > 0
-						? 'text-warning-600 dark:text-warning-400'
-						: semAtividade
-							? 'text-surface-400 dark:text-surface-500'
-							: 'text-success-600 dark:text-success-400'}"
+					class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+						? 'text-success-600 dark:text-success-400'
+						: statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'
+							? 'text-warning-600 dark:text-warning-400'
+							: 'text-surface-400 dark:text-surface-500'}"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
 				>
-					{#if quantidadePendentes > 0}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-						/>
-					{:else if semAtividade}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-						/>
-					{:else}
+					{#if statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'}
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							stroke-width="2"
 							d="M5 13l4 4L19 7"
 						/>
+					{:else if statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+						/>
+					{:else}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+						/>
 					{/if}
 				</svg>
 			</div>
 			<div class="min-w-0 flex-1">
-				{#if quantidadePendentes > 0}
-					<span
-						class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
-					>
-						{quantidadePendentes} pendente{quantidadePendentes !== 1 ? 's' : ''}
-					</span>
-				{:else if semAtividade}
-					<span
-						class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-500 dark:text-surface-400"
-					>
-						Aguardando escalas
-					</span>
-				{:else}
-					<span
-						class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
-					>
-						Concluído
-					</span>
-				{/if}
+				<span
+					class="inline-flex items-center gap-1 rounded-full {statusLoteInfo.class} px-1.5 py-0.5 text-[0.58rem] font-bold uppercase"
+				>
+					{statusLoteInfo.text}
+				</span>
 				<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">
-					Assinaturas em lote
+					Relatórios de extra — Equipes
 				</p>
 			</div>
 			{#if isMobile}
@@ -161,19 +190,17 @@
 				transition:slide={{ duration: 200 }}
 				class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col gap-2.5"
 			>
-				{#if quantidadePendentes > 0}
-					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-						Assine todos os relatórios extraordinários pendentes de uma só vez.
-					</p>
-				{:else if semAtividade}
-					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-						Nenhuma equipe foi escalada ainda. Os relatórios aparecerão aqui quando as seccionais enviarem suas escalas.
-					</p>
-				{:else}
-					<p class="text-[0.68rem] leading-snug text-success-600 dark:text-success-400 font-medium">
-						Todos os relatórios das equipes já foram assinados.
-					</p>
-				{/if}
+				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+					O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou todos de uma vez.
+				</p>
+				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+					<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
+					{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+				</p>
+				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+					<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>{' '}
+					{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+				</p>
 
 				{#if assinandoLote}
 					<div class="flex flex-col gap-1.5">
