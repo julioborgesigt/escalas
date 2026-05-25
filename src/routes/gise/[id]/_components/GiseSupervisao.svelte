@@ -692,36 +692,40 @@
 															<FileDown size={13} class="shrink-0" />
 															Baixar PDF
 														</a>
-													{:else if isSupervisor}
-														<a
-															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
-															href="/api/gise/{gise.id}/download?format=pdf"
-															target="_blank"
-															title="Conferência (sem assinatura digital)"
-														>
-															<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-															Conferência
-														</a>
-														{#if isMobile}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-																disabled={loading.active || !mostrarPainelAssinaturaEscala}
-																onclick={() => onAbrirAssinaturaEscalaManual()}
+													{:else}
+														{#if isSupervisor || isAdminGeral}
+															<a
+																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
+																href="/api/gise/{gise.id}/download?format=pdf"
+																target="_blank"
+																title="Conferência (sem assinatura digital)"
 															>
 																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-																Tela
-															</button>
-														{:else}
-															<button
-																type="button"
-																class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
-																disabled={loading.active || !mostrarPainelAssinaturaEscala}
-																onclick={() => painelTokenGise?.assinarComSerpro()}
-															>
-																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-																Token
-															</button>
+																Conferência
+															</a>
+														{/if}
+														{#if isSupervisor}
+															{#if isMobile}
+																<button
+																	type="button"
+																	class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																	onclick={() => onAbrirAssinaturaEscalaManual()}
+																>
+																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																	Tela
+																</button>
+															{:else}
+																<button
+																	type="button"
+																	class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
+																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																	onclick={() => painelTokenGise?.assinarComSerpro()}
+																>
+																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																	Token
+																</button>
+															{/if}
 														{/if}
 													{/if}
 												</div>
