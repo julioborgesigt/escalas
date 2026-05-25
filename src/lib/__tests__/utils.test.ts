@@ -34,7 +34,6 @@ describe('formatarTelefone', () => {
 	});
 });
 
-
 describe('limparMatricula', () => {
 	it('remove pontos e hífens', () => {
 		expect(limparMatricula('301.095-1-1')).toBe('30109511');

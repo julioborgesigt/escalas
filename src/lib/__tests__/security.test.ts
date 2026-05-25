@@ -20,7 +20,7 @@ describe('Content-Security-Policy — HTML (gerenciado pelo SvelteKit)', () => {
 		expect(directives['script-src']).not.toContain('unsafe-eval');
 	});
 
-	it("style-src não libera CDNs externos (fontes são self-hosted via @fontsource)", () => {
+	it('style-src não libera CDNs externos (fontes são self-hosted via @fontsource)', () => {
 		const styleSrc = directives['style-src'] ?? [];
 		expect(styleSrc).not.toContain('https://fonts.googleapis.com');
 		expect(styleSrc.every((s) => s === 'self' || s === 'unsafe-inline')).toBe(true);
@@ -32,7 +32,7 @@ describe('Content-Security-Policy — HTML (gerenciado pelo SvelteKit)', () => {
 		expect(fontSrc.every((s) => s === 'self' || s === 'data:')).toBe(true);
 	});
 
-	it("img-src não libera fonts.gstatic (sem dependência externa do Google)", () => {
+	it('img-src não libera fonts.gstatic (sem dependência externa do Google)', () => {
 		expect(directives['img-src']).not.toContain('https://fonts.gstatic.com');
 	});
 

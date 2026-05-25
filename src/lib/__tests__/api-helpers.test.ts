@@ -86,7 +86,11 @@ describe('helpers de erro (badRequest, unauthorized, ...)', () => {
 	it('notFound retorna NOT_FOUND com recurso interpolado', async () => {
 		const { notFound } = await import('$lib/server/api');
 		const body = await notFound('Escala').json();
-		expect(body).toMatchObject({ status: 404, errorType: 'not_found', error: 'Escala não encontrado' });
+		expect(body).toMatchObject({
+			status: 404,
+			errorType: 'not_found',
+			error: 'Escala não encontrado'
+		});
 	});
 
 	it('conflict retorna CONFLICT', async () => {
@@ -132,9 +136,7 @@ describe('buildCSP', () => {
 	});
 
 	it('para não-HTML é a mesma string em dev e prod', () => {
-		expect(buildCSP(false, { isProduction: true })).toBe(
-			buildCSP(false, { isProduction: false })
-		);
+		expect(buildCSP(false, { isProduction: true })).toBe(buildCSP(false, { isProduction: false }));
 	});
 });
 
@@ -247,14 +249,27 @@ describe('calcularDataSaida', () => {
 describe('calcularProximoMesDias — 1x3', () => {
 	it('calcula dias do mês seguinte para rotação 1x3', () => {
 		// Janeiro 2025: 1, 5, 9, 13, 17, 21, 25, 29
-		const jan = ['2025-01-01', '2025-01-05', '2025-01-09', '2025-01-13',
-			'2025-01-17', '2025-01-21', '2025-01-25', '2025-01-29'];
+		const jan = [
+			'2025-01-01',
+			'2025-01-05',
+			'2025-01-09',
+			'2025-01-13',
+			'2025-01-17',
+			'2025-01-21',
+			'2025-01-25',
+			'2025-01-29'
+		];
 		const result = calcularProximoMesDias(jan, 2025, 2);
 		expect(result.rotacao).toBe('1x3');
 		// Fevereiro: 2, 6, 10, 14, 18, 22, 26
 		expect(result.dias).toEqual([
-			'2025-02-02', '2025-02-06', '2025-02-10', '2025-02-14',
-			'2025-02-18', '2025-02-22', '2025-02-26'
+			'2025-02-02',
+			'2025-02-06',
+			'2025-02-10',
+			'2025-02-14',
+			'2025-02-18',
+			'2025-02-22',
+			'2025-02-26'
 		]);
 	});
 
@@ -275,16 +290,28 @@ describe('calcularProximoMesDias — 1x3', () => {
 describe('calcularProximoMesDias — 2x6', () => {
 	it('calcula dias do mês seguinte para rotação 2x6', () => {
 		// Janeiro 2025: pares 1-2, 9-10, 17-18, 25-26
-		const jan = ['2025-01-01', '2025-01-02', '2025-01-09', '2025-01-10',
-			'2025-01-17', '2025-01-18', '2025-01-25', '2025-01-26'];
+		const jan = [
+			'2025-01-01',
+			'2025-01-02',
+			'2025-01-09',
+			'2025-01-10',
+			'2025-01-17',
+			'2025-01-18',
+			'2025-01-25',
+			'2025-01-26'
+		];
 		const result = calcularProximoMesDias(jan, 2025, 2);
 		expect(result.rotacao).toBe('2x6');
 		// Fevereiro: pares 2-3, 10-11, 18-19, 26-27
 		expect(result.dias).toEqual([
-			'2025-02-02', '2025-02-03',
-			'2025-02-10', '2025-02-11',
-			'2025-02-18', '2025-02-19',
-			'2025-02-26', '2025-02-27'
+			'2025-02-02',
+			'2025-02-03',
+			'2025-02-10',
+			'2025-02-11',
+			'2025-02-18',
+			'2025-02-19',
+			'2025-02-26',
+			'2025-02-27'
 		]);
 	});
 });

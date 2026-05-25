@@ -1,6 +1,12 @@
 import { eq, and, gt } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
-import { sessoes, administradores, policiais, doisFatoresTokens, resetSenhaTokens } from './server/schema';
+import {
+	sessoes,
+	administradores,
+	policiais,
+	doisFatoresTokens,
+	resetSenhaTokens
+} from './server/schema';
 import type { Database } from './db';
 import {
 	getLegacyPasswordDeadline,
@@ -181,7 +187,9 @@ export async function verificarSenha(
 	}
 	// Suporte legado: SHA-256 sem salt — DEPRECADO (prazo em `auth.legacy_password_deadline`).
 	// Policiais com hash legado devem fazer login para migrar automaticamente para PBKDF2.
-	const LEGACY_DEADLINE = db ? await getLegacyPasswordDeadline(db) : getLegacyPasswordDeadlineDefault();
+	const LEGACY_DEADLINE = db
+		? await getLegacyPasswordDeadline(db)
+		: getLegacyPasswordDeadlineDefault();
 	if (new Date() > LEGACY_DEADLINE) {
 		// Após o deadline, hash legado não é mais aceito — forçar reset de senha
 		return false;
@@ -306,7 +314,11 @@ export async function validarSessao(
 			? db.select().from(administradores).where(eq(administradores.id, sessao.usuario_id)).get()
 			: Promise.resolve(null),
 		sessao.tipo === 'policial'
-			? db.select().from(policiais).where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1))).get()
+			? db
+					.select()
+					.from(policiais)
+					.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
+					.get()
 			: Promise.resolve(null)
 	]);
 
@@ -356,9 +368,7 @@ export async function invalidarTodasSessoes(
 	tipo: 'policial' | 'admin',
 	usuarioId: number
 ): Promise<void> {
-	await db
-		.delete(sessoes)
-		.where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
+	await db.delete(sessoes).where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
 }
 
 // ---- Autenticação de Dois Fatores ----
@@ -519,10 +529,7 @@ export async function verificarDesafio2FA(
 		return null;
 	}
 
-	await db
-		.update(doisFatoresTokens)
-		.set({ usado: 1 })
-		.where(eq(doisFatoresTokens.id, desafio.id));
+	await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }

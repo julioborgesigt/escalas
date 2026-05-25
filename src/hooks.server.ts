@@ -152,7 +152,11 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	setUser({ id: String(usuario.id), username: usuario.nome });
 
 	// Fluxo de Primeiro Acesso
-	if (usuario.primeiro_acesso && !pathname.startsWith('/alterar-senha') && !pathname.startsWith('/api/auth/')) {
+	if (
+		usuario.primeiro_acesso &&
+		!pathname.startsWith('/alterar-senha') &&
+		!pathname.startsWith('/api/auth/')
+	) {
 		if (pathname.startsWith('/api/')) {
 			return apiError('Altere sua senha antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
@@ -218,7 +222,10 @@ const handleSecurity: Handle = async ({ event, resolve }) => {
 
 	// HSTS
 	if (event.url.protocol === 'https:') {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+		response.headers.set(
+			'Strict-Transport-Security',
+			'max-age=31536000; includeSubDomains; preload'
+		);
 	}
 
 	// Default: respostas autenticadas NUNCA podem ser cacheadas pelo edge ou por
@@ -252,7 +259,13 @@ const handleRequestContext: Handle = async ({ event, resolve }) => {
 };
 
 /** Main Export with sequence middleware */
-export const handle = sequence(handleRequestContext, handleSentry, handleCsrf, handleAuth, handleSecurity);
+export const handle = sequence(
+	handleRequestContext,
+	handleSentry,
+	handleCsrf,
+	handleAuth,
+	handleSecurity
+);
 
 /** Tratamento centralizado de erros inesperados */
 export const handleError: HandleServerError = ({ error, event }) => {
@@ -268,18 +281,14 @@ export const handleError: HandleServerError = ({ error, event }) => {
 	// que SÓ um build local-dev autêntico inclua stack no logger; produção
 	// jamais, mesmo se uma das flags for tampered.
 	const isDevBuild =
-		import.meta.env.DEV &&
-		!import.meta.env.PROD &&
-		import.meta.env.MODE !== 'production';
+		import.meta.env.DEV && !import.meta.env.PROD && import.meta.env.MODE !== 'production';
 
 	logger.error('Erro não tratado', {
 		errorId,
 		path: event.url.pathname,
 		method: event.request.method,
 		message: error instanceof Error ? error.message : String(error),
-		...(isDevBuild && error instanceof Error && error.stack
-			? { stack: error.stack }
-			: {})
+		...(isDevBuild && error instanceof Error && error.stack ? { stack: error.stack } : {})
 	});
 
 	// `path` é sanitizado por `sentryBeforeSend` (mascarando IDs numéricos).

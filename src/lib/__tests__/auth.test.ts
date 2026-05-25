@@ -84,7 +84,9 @@ describe('verificarSenha', () => {
 
 describe('isHashLegado', () => {
 	it('identifica hash SHA-256 como legado', () => {
-		expect(isHashLegado('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f')).toBe(true);
+		expect(isHashLegado('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f')).toBe(
+			true
+		);
 	});
 
 	it('identifica hash PBKDF2 v1 (100k) como legado — força re-hash para v2', () => {
@@ -197,24 +199,24 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 
 	it('aceita reset_policial OU reset_admin no canal de reset', async () => {
 		const dbA = fakeDb(await makeRow('reset_policial'));
-		expect(await verificarDesafio2FA(dbA, 'd1', '123456', ['reset_policial', 'reset_admin']))
-			.toEqual({ tipo: 'reset_policial', usuarioId: 42 });
+		expect(
+			await verificarDesafio2FA(dbA, 'd1', '123456', ['reset_policial', 'reset_admin'])
+		).toEqual({ tipo: 'reset_policial', usuarioId: 42 });
 
 		const dbB = fakeDb(await makeRow('reset_admin'));
-		expect(await verificarDesafio2FA(dbB, 'd1', '123456', ['reset_policial', 'reset_admin']))
-			.toEqual({ tipo: 'reset_admin', usuarioId: 42 });
+		expect(
+			await verificarDesafio2FA(dbB, 'd1', '123456', ['reset_policial', 'reset_admin'])
+		).toEqual({ tipo: 'reset_admin', usuarioId: 42 });
 	});
 
 	it('NOVO canal `verificacao_email` é separado de `assinatura` (I-2)', async () => {
 		// Desafio criado no canal de verificação de e-mail NÃO pode ser
 		// submetido em canal de assinatura (e vice-versa).
 		const dbVerif = fakeDb(await makeRow('verificacao_email'));
-		expect(await verificarDesafio2FA(dbVerif, 'd1', '123456', ['assinatura']))
-			.toBeNull();
+		expect(await verificarDesafio2FA(dbVerif, 'd1', '123456', ['assinatura'])).toBeNull();
 
 		const dbAss = fakeDb(await makeRow('assinatura'));
-		expect(await verificarDesafio2FA(dbAss, 'd1', '123456', ['verificacao_email']))
-			.toBeNull();
+		expect(await verificarDesafio2FA(dbAss, 'd1', '123456', ['verificacao_email'])).toBeNull();
 	});
 
 	it('bindExtra amarra o código ao e-mail (I-1)', async () => {
@@ -223,10 +225,7 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 		// teste precisa ser o hash do `extra\x1fcodigo` esperado.
 		async function sha256HexBound(extra: string, codigo: string): Promise<string> {
 			const enc = new TextEncoder();
-			const buf = await crypto.subtle.digest(
-				'SHA-256',
-				enc.encode(`${extra}\x1f${codigo}`)
-			);
+			const buf = await crypto.subtle.digest('SHA-256', enc.encode(`${extra}\x1f${codigo}`));
 			return Array.from(new Uint8Array(buf))
 				.map((b) => b.toString(16).padStart(2, '0'))
 				.join('');
@@ -245,9 +244,9 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 		const db = fakeDb(row);
 
 		// E-mail correto + código correto → ok.
-		expect(
-			await verificarDesafio2FA(db, 'd1', '123456', ['verificacao_email'], 'a@b.com')
-		).toEqual({ tipo: 'verificacao_email', usuarioId: 42 });
+		expect(await verificarDesafio2FA(db, 'd1', '123456', ['verificacao_email'], 'a@b.com')).toEqual(
+			{ tipo: 'verificacao_email', usuarioId: 42 }
+		);
 
 		// E-mail trocado → null (mesmo código correto, hash diverge).
 		const db2 = fakeDb({

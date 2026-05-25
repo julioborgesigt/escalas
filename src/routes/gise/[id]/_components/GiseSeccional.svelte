@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
 	import type { Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
@@ -95,9 +94,8 @@
 	// CRUD: `pendingCrud`, todos os `use:enhance` handlers, fluxo do modal de
 	// remover seccional e factory `buscarPorCargo` vivem no composable.
 	const actions = useGiseSeccionalActions({
-		onFinalizarSeccionalSuccess: async () => {
+		onFinalizarSeccionalSuccess: () => {
 			modoEdicaoSeccional = false;
-			await invalidateAll();
 			onFinalizarSuccess?.();
 		},
 		onSelecionarUnidadeSuccess: () => {
@@ -627,11 +625,19 @@
 											? 'Cada unidade deve ter pelo menos 1 policial alocado'
 											: ''}
 							>
-								{sec.status === 'preenchida'
-									? 'Finalizar edição'
-									: sec.status === 'retificada'
-										? 'Confirmar retificação'
-										: 'Finalizar envio'}
+								{#if pendingCrud}
+									{sec.status === 'preenchida'
+										? 'Finalizando edição...'
+										: sec.status === 'retificada'
+											? 'Confirmando...'
+											: 'Enviando escala...'}
+								{:else}
+									{sec.status === 'preenchida'
+										? 'Finalizar edição'
+										: sec.status === 'retificada'
+											? 'Confirmar retificação'
+											: 'Finalizar envio'}
+								{/if}
 							</button>
 						</form>
 
