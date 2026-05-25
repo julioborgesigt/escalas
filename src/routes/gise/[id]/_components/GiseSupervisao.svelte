@@ -207,6 +207,10 @@
 			rubSupOk &&
 			(assRelSup || isAdminGeral || isSeccional || isSupervisor)
 	);
+	const downloadExtraSupConferenciaHabilitado = $derived(
+		extraSupervisaoConfigurado &&
+			(isAdminGeral || isSupervisor)
+	);
 	const assinaturaEscalaHabilitada = $derived(!!podeDownload);
 	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
 	const mostrarPainelAssinaturaEscalaReadonly = $derived(
@@ -800,16 +804,19 @@
 												>
 													{#if assRelSup}
 														<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{assRelSup.assinante_nome}</p>
-													{:else if !rubSupOk}
-														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-															{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
-															{:else}
-																{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
-															{/if}
-														</p>
 													{:else}
-														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Disponível para conferência. Aguardando assinatura.</p>
+														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída.</p>
+														{#if !rubSupOk}
+															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+																{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+																	<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+																{:else}
+																	{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
+																{/if}
+															</p>
+														{:else}
+															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Disponível para conferência. Aguardando assinatura.</p>
+														{/if}
 													{/if}
 													<div class="flex items-center gap-1.5 flex-wrap justify-end">
 														{#if assRelSup}
@@ -823,7 +830,7 @@
 															</a>
 														{:else}
 															<a
-																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupHabilitado ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
+																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
 																href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 																target="_blank"
 															>
@@ -831,24 +838,27 @@
 																Conferência
 															</a>
 															{#if isSupervisor && extraSupervisaoConfigurado}
-																<button
-																	type="button"
-																	class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-																	disabled={!assinaturaExtraHabilitada || (!isMobile && restringirSmartphone)}
-																	onclick={() => onAssinarExtraSupervisaoManual?.()}
-																>
-																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-																	Tela
-																</button>
-																<button
-																	type="button"
-																	class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
-																	disabled={!assinaturaExtraHabilitada || isMobile}
-																	onclick={() => onAssinarExtraSupervisaoDigital?.()}
-																>
-																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-																	Token
-																</button>
+																{#if isMobile}
+																	<button
+																		type="button"
+																		class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+																		disabled={!assinaturaExtraHabilitada}
+																		onclick={() => onAssinarExtraSupervisaoManual?.()}
+																	>
+																		<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																		Tela
+																	</button>
+																{:else}
+																	<button
+																		type="button"
+																		class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
+																		disabled={!assinaturaExtraHabilitada}
+																		onclick={() => onAssinarExtraSupervisaoDigital?.()}
+																	>
+																		<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																		Token
+																	</button>
+																{/if}
 															{/if}
 														{/if}
 													</div>
