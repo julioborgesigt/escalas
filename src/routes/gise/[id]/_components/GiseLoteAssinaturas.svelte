@@ -2,6 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import { loading } from '$lib/loading.svelte';
 	import { getMembrosFromSec, checkAllSigned } from '$lib/gise/gise-page-helpers';
+	import { toaster } from '$lib/toast';
 
 	interface Props {
 		quantidadePendentes: number;
@@ -93,6 +94,13 @@
 			class: 'bg-surface-500/10 text-surface-500 dark:text-surface-400'
 		};
 	});
+
+	function mostrarOrientaConferencia() {
+		toaster.warning({
+			title: 'Conferência de Relatório',
+			description: 'Para visualizar o relatório individualmente de cada equipe, por favor, acesse a aba de detalhamento de cada seccional na seção "Seccionais Participantes" logo abaixo.'
+		});
+	}
 </script>
 
 <div class="flex flex-col gap-1.5">
@@ -221,6 +229,14 @@
 					</div>
 				{:else}
 					<div class="flex items-center gap-1.5 flex-wrap justify-end">
+						<button
+							type="button"
+							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1"
+							onclick={mostrarOrientaConferencia}
+						>
+							<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+							Conferência
+						</button>
 						{#if isMobile}
 							<button
 								type="button"
