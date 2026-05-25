@@ -42,6 +42,8 @@
 		seint1_nome?: string | null;
 		seint2_id: number | null;
 		seint2_nome?: string | null;
+		status: string;
+		seccionais?: any[];
 	}
 
 	interface Policial {
@@ -209,6 +211,11 @@
 	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
 	const mostrarPainelAssinaturaEscalaReadonly = $derived(
 		isAdminGeral && !documentoAssinadoInfo?.existe
+	);
+	const seccionaisPendentes = $derived(
+		gise.seccionais?.filter(
+			(s: any) => s.status !== 'preenchida' && s.status !== 'preenchida_retificada'
+		) || []
 	);
 
 	let expandirEscala = $state(false);
@@ -608,11 +615,12 @@
 					</div>
 				</div>
 
-				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection}
+				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
 					{@const mostrarColEscala =
 						!!documentoAssinadoInfo?.existe ||
 						mostrarPainelAssinaturaEscala ||
-						mostrarPainelAssinaturaEscalaReadonly}
+						mostrarPainelAssinaturaEscalaReadonly ||
+						isSupervisor}
 					{@const mostrarColExtra = mostrarBlocoExtraSupervisao}
 					{@const colCount = (mostrarColEscala ? 1 : 0) + (mostrarColExtra ? 1 : 0) + (loteSection ? 1 : 0)}
 					<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
@@ -639,12 +647,16 @@
 													</span>
 													<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Escala assinada digitalmente</p>
 												{:else}
-													{#if !editando}
+													{#if gise.status === 'aguardando_assinatura'}
 														<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400">
-															<Clock size={9} />Pendente
+															<Clock size={9} />ass. Pendente
+														</span>
+													{:else}
+														<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400">
+															<Clock size={9} />em preenchimento
 														</span>
 													{/if}
-													<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 {!editando ? 'mt-0.5' : ''}">Assinatura da escala GISE</p>
+													<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Assinatura da escala GISE</p>
 												{/if}
 											</div>
 											{#if isMobile}
@@ -662,7 +674,13 @@
 												{#if documentoAssinadoInfo?.existe}
 													<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{documentoAssinadoInfo.assinante_nome}</p>
 												{:else}
-													<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Assinar na tela ou com certificado digital (Token A3).</p>
+													<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.</p>
+													{#if gise.status !== 'aguardando_assinatura' && seccionaisPendentes.length > 0}
+														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+															<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
+															{seccionaisPendentes.map((s: any) => s.seccional_nome).join(', ')}
+														</p>
+													{/if}
 												{/if}
 												<div class="flex items-center gap-1.5 flex-wrap justify-end">
 													{#if documentoAssinadoInfo?.existe}
@@ -674,7 +692,7 @@
 															<FileDown size={13} class="shrink-0" />
 															Baixar PDF
 														</a>
-													{:else if mostrarPainelAssinaturaEscala}
+													{:else if isSupervisor}
 														<a
 															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
 															href="/api/gise/{gise.id}/download?format=pdf"
@@ -684,24 +702,27 @@
 															<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
 															Conferência
 														</a>
-														<button
-															type="button"
-															class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-															disabled={loading.active || !assinaturaEscalaHabilitada || (!isMobile && restringirSmartphone)}
-															onclick={() => onAbrirAssinaturaEscalaManual()}
-														>
-															<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-															Tela
-														</button>
-														<button
-															type="button"
-															class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
-															disabled={loading.active || !assinaturaEscalaHabilitada || isMobile}
-															onclick={() => painelTokenGise?.assinarComSerpro()}
-														>
-															<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-															Token
-														</button>
+														{#if isMobile}
+															<button
+																type="button"
+																class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
+																disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																onclick={() => onAbrirAssinaturaEscalaManual()}
+															>
+																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																Tela
+															</button>
+														{:else}
+															<button
+																type="button"
+																class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
+																disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																onclick={() => painelTokenGise?.assinarComSerpro()}
+															>
+																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																Token
+															</button>
+														{/if}
 													{/if}
 												</div>
 											</div>
