@@ -780,14 +780,17 @@
 														<span class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400">
 															<CheckCircle2 size={9} />Assinado
 														</span>
-														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Rel. extra assinado digitalmente</p>
+														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
+													{:else if rubSupOk}
+														<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400">
+															<Clock size={9} />pronto para assinar
+														</span>
+														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
 													{:else}
-														{#if !rubSupOk}
-															<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400">
-																<Clock size={9} />Aguardando rúbricas
-															</span>
-														{/if}
-														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 {!rubSupOk ? 'mt-0.5' : ''}">Relatório de extra — supervisão e apoio</p>
+														<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400">
+															<Clock size={9} />Aguardando rubricas
+														</span>
+														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
 													{/if}
 												</div>
 												{#if isMobile}
