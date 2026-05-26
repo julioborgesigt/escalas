@@ -203,6 +203,28 @@
 		((usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade') &&
 			usuario?.cargo === 'DPC')
 	);
+
+	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	$effect(() => {
+		if (dialogSignOpen) {
+			signatureStep = 'signature';
+		}
+	});
+
+	const signatureTitulo = $derived(
+		signatureStep === 'camera'
+			? 'Prova de Vida'
+			: signatureStep === 'email_code'
+				? 'Confirmação de Identidade'
+				: 'Assinatura Digital em Tela'
+	);
+	const signatureDescricao = $derived(
+		signatureStep === 'camera'
+			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
+			: signatureStep === 'email_code'
+				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+				: 'Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade jurídica (nos moldes da assinatura eletrônica).'
+	);
 </script>
 
 <!-- Diálogo de confirmação de revogação de assinatura -->
@@ -571,10 +593,9 @@
 		<div
 			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
 		>
-			<Dialog.Title class="h3 font-bold mb-2">Assinatura Digital em Tela</Dialog.Title>
+			<Dialog.Title class="h3 font-bold mb-2">{signatureTitulo}</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
-				Desenhe sua rubrica no quadro abaixo para assinar este documento da escala com validade
-				jurídica (nos moldes da assinatura eletrônica).
+				{signatureDescricao}
 			</Dialog.Description>
 			{#if dialogSignOpen}
 				<SignaturePad
@@ -584,6 +605,7 @@
 					exigirFoto={page.data.exigirFotoAssinatura ?? true}
 					exigirGps={page.data.exigirGpsAssinatura ?? true}
 					exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+					bind:step={signatureStep}
 				/>
 			{/if}
 		</div>

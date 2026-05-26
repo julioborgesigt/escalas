@@ -19,7 +19,16 @@
 		message = '',
 		exigirFoto = true,
 		exigirGps = true,
-		exigirCodigoEmail = false
+		exigirCodigoEmail = false,
+		step = $bindable('signature')
+	}: {
+		onConfirm: any;
+		onCancel: any;
+		message?: string;
+		exigirFoto?: boolean;
+		exigirGps?: boolean;
+		exigirCodigoEmail?: boolean;
+		step?: 'signature' | 'camera' | 'email_code';
 	} = $props();
 
 	let canvas: HTMLCanvasElement;
@@ -34,8 +43,6 @@
 	let stream = $state<MediaStream | null>(null);
 	let cameraError = $state<string | null>(null);
 	let capturingImage = $state(false);
-
-	let step = $state<'signature' | 'camera' | 'email_code'>('signature');
 
 	// Face Liveness states
 	let faceDetected = $state(false);

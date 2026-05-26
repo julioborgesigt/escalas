@@ -18,6 +18,12 @@
 	const mobileState = useMobile();
 	const isMobile = $derived(mobileState.isMobile);
 
+	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+	$effect(() => {
+		if (resGise.capturandoRubrica) {
+			signatureStep = 'signature';
+		}
+	});
 
 	function voltarParaLista() {
 		resGise.escalaSelecionada = null;
@@ -321,17 +327,29 @@
 	>
 		{#if resGise.escalaSelecionada}
 			{@const tipoPresenca = !resGise.escalaSelecionada.presenca?.entrada_timestamp ? 'entrada' : 'saida'}
+			{@const titulo = 
+				signatureStep === 'camera'
+					? 'Prova de Vida'
+					: signatureStep === 'email_code'
+						? 'Confirmação de Identidade'
+						: (tipoPresenca === 'entrada' ? 'Confirmação de Entrada' : 'Confirmação de Saída')}
+			{@const descricao = 
+				signatureStep === 'camera'
+					? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
+					: signatureStep === 'email_code'
+						? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+						: (tipoPresenca === 'entrada'
+							? 'Registre sua rubrica para confirmar a entrada no serviço.'
+							: 'Registre sua rubrica para confirmar a saída do serviço.')}
 			<div
 				class="bg-surface-50 dark:bg-surface-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-8 space-y-6 border border-white/10"
 			>
 				<div class="text-center space-y-2">
 					<Dialog.Title class="text-2xl font-bold text-surface-900 dark:text-surface-50">
-						{tipoPresenca === 'entrada' ? 'Confirmação de Entrada' : 'Confirmação de Saída'}
+						{titulo}
 					</Dialog.Title>
 					<Dialog.Description class="text-sm text-surface-500">
-						{tipoPresenca === 'entrada'
-							? 'Registre sua rubrica para confirmar a entrada no serviço.'
-							: 'Registre sua rubrica para confirmar a saída do serviço.'}
+						{descricao}
 					</Dialog.Description>
 				</div>
 
@@ -352,6 +370,7 @@
 						exigirFoto={page.data.exigirFotoAssinatura ?? true}
 						exigirGps={page.data.exigirGpsAssinatura ?? true}
 						exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
+						bind:step={signatureStep}
 					/>
 				{/if}
 

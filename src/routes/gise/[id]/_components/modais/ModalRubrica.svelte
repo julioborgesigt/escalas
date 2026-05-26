@@ -19,6 +19,29 @@
 	}
 
 	let { open, exigirFoto, exigirGps, exigirCodigoEmail, onConfirm, onCancel }: Props = $props();
+
+	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
+
+	$effect(() => {
+		if (open) {
+			signatureStep = 'signature';
+		}
+	});
+
+	const signatureTitulo = $derived(
+		signatureStep === 'camera'
+			? 'Prova de Vida do Supervisor'
+			: signatureStep === 'email_code'
+				? 'Confirmação de Identidade'
+				: 'Rubrica do Supervisor'
+	);
+	const signatureDescricao = $derived(
+		signatureStep === 'camera'
+			? 'Cumpra o desafio de presença na tela para provar que você está ativo.'
+			: signatureStep === 'email_code'
+				? 'Por razões de segurança, insira o código enviado para o seu e-mail funcional.'
+				: 'Desenhe sua rubrica no quadro abaixo para assinar a escala.'
+	);
 </script>
 
 <Dialog
@@ -33,10 +56,10 @@
 		>
 			<div class="text-center space-y-2">
 				<Dialog.Title class="text-xl sm:text-2xl font-bold text-surface-900 dark:text-surface-50">
-					Rubrica do Supervisor
+					{signatureTitulo}
 				</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500">
-					Desenhe sua rubrica no quadro abaixo para assinar a escala.
+					{signatureDescricao}
 				</Dialog.Description>
 			</div>
 
@@ -47,6 +70,7 @@
 					{exigirFoto}
 					{exigirGps}
 					{exigirCodigoEmail}
+					bind:step={signatureStep}
 				/>
 			{/if}
 
