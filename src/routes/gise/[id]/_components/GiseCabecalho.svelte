@@ -159,7 +159,7 @@
 	</div>
 
 	<div class="flex flex-wrap items-center justify-start gap-2 sm:min-w-0 sm:gap-2 xl:max-w-[min(100%,40rem)] xl:justify-end xl:shrink-0">
-		{#if isAdminGeral && podeDownload && (!isMobile || ['pronta_para_finalizar', 'finalizada'].includes(gise.status))}
+		{#if isAdminGeral && podeDownload && gise.status === 'finalizada'}
 			<a
 				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
 				href={`/api/gise/${gise.id}/download?format=xlsx`}

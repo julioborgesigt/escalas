@@ -5,6 +5,7 @@
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { page } from '$app/state';
 
 	let {
 		open = $bindable(false),
@@ -57,6 +58,8 @@
 			calMes = m - 1;
 			modoCriacao = 'completa';
 			clonarDeId = escalas.length > 0 ? escalas[0].id : '';
+			novaHoraEntrada = (page.data.defaultHoraEntrada as string) ?? '08:00';
+			novaHoraSaida = (page.data.defaultHoraSaida as string) ?? '16:00';
 		}
 		prevOpen = open;
 	});

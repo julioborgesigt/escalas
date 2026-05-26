@@ -6,6 +6,7 @@ import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { eq, asc } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
+import { buscarConfiguracao } from '$lib/db/configuracoes';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;
@@ -32,11 +33,13 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	const supervisorId = (!isGeral && !isSeccional && isSupervisor && !isMembro) ? u.id : undefined;
 	const policialId = (!isGeral && !isSeccional) ? u.id : undefined;
-	const [escalas, ativa, seccionaisList, supervisaoExtraUnidadeId] = await Promise.all([
+	const [escalas, ativa, seccionaisList, supervisaoExtraUnidadeId, defaultHoraEntrada, defaultHoraSaida] = await Promise.all([
 		listarGiseEscalas(db, supervisorId, policialId),
 		buscarGiseAtiva(db),
 		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all(),
-		buscarUnidadeIdSupervisaoExtra(db)
+		buscarUnidadeIdSupervisaoExtra(db),
+		buscarConfiguracao(db, 'gise_default_hora_entrada'),
+		buscarConfiguracao(db, 'gise_default_hora_saida')
 	]);
 
 	const isUnidade = isAdminUnidade(u);
@@ -52,7 +55,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		isMembro,
 		seccionaisList,
 		minhaSeccionalId,
-		supervisaoExtraUnidadeId
+		supervisaoExtraUnidadeId,
+		defaultHoraEntrada: defaultHoraEntrada ?? '08:00',
+		defaultHoraSaida: defaultHoraSaida ?? '16:00'
 	};
 };
 
@@ -92,8 +97,13 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const datasJson = data.get('datas_json')?.toString();
-		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
-		const hora_saida = data.get('hora_saida')?.toString() || '16:00';
+
+		const db = getDB(platform);
+		const defaultHoraEntrada = (await buscarConfiguracao(db, 'gise_default_hora_entrada')) ?? '08:00';
+		const defaultHoraSaida = (await buscarConfiguracao(db, 'gise_default_hora_saida')) ?? '16:00';
+
+		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
+		const hora_saida = data.get('hora_saida')?.toString() || defaultHoraSaida;
 		const modo = (data.get('modo')?.toString() || 'completa') as 'completa' | 'clonada' | 'branco';
 		const clonar_de = data.get('clonar_de') ? Number(data.get('clonar_de')) : undefined;
 
@@ -102,8 +112,6 @@ export const actions: Actions = {
 		if (modo === 'clonada' && !clonar_de) {
 			return fail(400, { error: 'Escolha a escala de origem para copiar' });
 		}
-
-		const db = getDB(platform);
 
 		try {
 			let ids: number[];

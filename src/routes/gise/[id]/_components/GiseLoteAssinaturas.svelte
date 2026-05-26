@@ -103,14 +103,14 @@
 	}
 </script>
 
-<div class="flex flex-col gap-1.5">
+<div class="flex flex-col gap-1.5 h-full">
 	<p
 		class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
 	>
 		Assinaturas em lote (equipes)
 	</p>
 	<div
-		class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden"
+		class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col flex-1"
 	>
 		<!-- Header -->
 		<button
@@ -196,38 +196,42 @@
 		{#if !isMobile || expandido}
 			<div
 				transition:slide={{ duration: 200 }}
-				class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col gap-2.5"
+				class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
 			>
-				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-					O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou todos de uma vez.
-				</p>
-				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-					<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
-					{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
-				</p>
-				<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-					<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>{' '}
-					{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
-				</p>
+				<div class="space-y-2">
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou todos de uma vez.
+					</p>
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
+						{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+					</p>
+					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>{' '}
+						{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+					</p>
 
-				{#if assinandoLote}
-					<div class="flex flex-col gap-1.5">
-						<p
-							class="text-[0.6rem] font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
-						>
-							{etapaAssinatura}
-						</p>
-						<div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
-							<div
-								class="bg-warning-500 h-full transition-all duration-500 ease-out"
-								style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
-							></div>
+					{#if assinandoLote}
+						<div class="flex flex-col gap-1.5">
+							<p
+								class="text-[0.6rem] font-bold uppercase tracking-widest text-warning-700 dark:text-warning-400 text-center"
+							>
+								{etapaAssinatura}
+							</p>
+							<div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
+								<div
+									class="bg-warning-500 h-full transition-all duration-500 ease-out"
+									style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
+								></div>
+							</div>
+							<p class="text-[0.6rem] text-surface-400 text-center">
+								{progressoLote.atual} de {progressoLote.total}
+							</p>
 						</div>
-						<p class="text-[0.6rem] text-surface-400 text-center">
-							{progressoLote.atual} de {progressoLote.total}
-						</p>
-					</div>
-				{:else}
+					{/if}
+				</div>
+
+				{#if !assinandoLote}
 					<div class="flex items-center gap-1.5 flex-wrap justify-end">
 						<button
 							type="button"

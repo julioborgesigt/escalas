@@ -630,11 +630,11 @@
 					<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
 						<div class="grid grid-cols-1 gap-3 sm:gap-4 {colCount === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : colCount === 2 ? 'md:grid-cols-2' : ''}">
 							{#if mostrarColEscala}
-								<section class="flex flex-col gap-1.5">
+								<section class="flex flex-col gap-1.5 h-full">
 									<p class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
 										{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
 									</p>
-									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden">
+									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col">
 										<!-- Header: sempre visível, clicável no mobile -->
 										<button
 											type="button"
@@ -673,19 +673,25 @@
 										{#if !isMobile || expandirEscala}
 											<div
 												transition:slide={{ duration: 200 }}
-												class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col gap-2.5"
+												class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
 											>
-												{#if documentoAssinadoInfo?.existe}
-													<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{documentoAssinadoInfo.assinante_nome}</p>
-												{:else}
-													<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.</p>
-													{#if gise.status !== 'aguardando_assinatura' && seccionaisPendentes.length > 0}
+												<div class="space-y-2">
+													{#if documentoAssinadoInfo?.existe}
+														<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{documentoAssinadoInfo.assinante_nome}</p>
+													{:else}
+														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.</p>
 														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 															<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
-															{seccionaisPendentes.map((s: any) => s.seccional_nome).join(', ')}
+															{#if !gise.seccionais || gise.seccionais.length === 0}
+																a escalar
+															{:else if seccionaisPendentes.length === 0}
+																Nenhum
+															{:else}
+																{seccionaisPendentes.map((s: any) => s.seccional_nome).join(', ')}
+															{/if}
 														</p>
 													{/if}
-												{/if}
+												</div>
 												<div class="flex items-center gap-1.5 flex-wrap justify-end">
 													{#if documentoAssinadoInfo?.existe}
 														<a
@@ -756,11 +762,11 @@
 							{/if}
 
 							{#if mostrarBlocoExtraSupervisao}
-								<section class="flex flex-col gap-1.5">
+								<section class="flex flex-col gap-1.5 h-full">
 									<p class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
 										Relatório de extra (Supervisão e apoio)
 									</p>
-									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden">
+									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col">
 										{#if !extraSupervisaoConfigurado}
 											<p class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg m-3 px-3 py-2">
 												O relatório de extra do quadro ainda não está disponível. Peça ao administrador para executar as migrações.
@@ -803,24 +809,26 @@
 											{#if !isMobile || expandirExtra}
 												<div
 													transition:slide={{ duration: 200 }}
-													class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex flex-col gap-2.5"
+													class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
 												>
-													{#if assRelSup}
-														<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{assRelSup.assinante_nome}</p>
-													{:else}
-														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída.</p>
-														{#if !rubSupOk}
-															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-																{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																	<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
-																{:else}
-																	{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
-																{/if}
-															</p>
+													<div class="space-y-2">
+														{#if assRelSup}
+															<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{assRelSup.assinante_nome}</p>
 														{:else}
-															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Disponível para conferência. Aguardando assinatura.</p>
+															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída.</p>
+															{#if !rubSupOk}
+																<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+																	{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+																		<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+																	{:else}
+																		{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
+																	{/if}
+																</p>
+															{:else}
+																<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Disponível para conferência. Aguardando assinatura.</p>
+															{/if}
 														{/if}
-													{/if}
+													</div>
 													<div class="flex items-center gap-1.5 flex-wrap justify-end">
 														{#if assRelSup}
 															<a

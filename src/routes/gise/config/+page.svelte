@@ -105,6 +105,34 @@
 								</div>
 							</div>
 						</div>
+
+						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+							<p class="text-sm font-semibold">Horário padrão da GISE</p>
+							<div class="flex items-center gap-4">
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-16" for="default_hora_entrada">Entrada</label>
+									<input
+										id="default_hora_entrada"
+										name="default_hora_entrada"
+										type="text"
+										placeholder="08:00"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={data.defaultHoraEntrada}
+									/>
+								</div>
+								<div class="flex items-center gap-2">
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-12" for="default_hora_saida">Saída</label>
+									<input
+										id="default_hora_saida"
+										name="default_hora_saida"
+										type="text"
+										placeholder="16:00"
+										class="w-20 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 text-sm"
+										value={data.defaultHoraSaida}
+									/>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 
