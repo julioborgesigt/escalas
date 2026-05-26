@@ -3,7 +3,7 @@ import { untrack } from 'svelte';
 
 	let {
 		emailMascarado = '',
-		totalSeconds = 120,
+		totalSeconds = 60,
 		onReenviar = undefined
 	}: {
 		emailMascarado?: string;

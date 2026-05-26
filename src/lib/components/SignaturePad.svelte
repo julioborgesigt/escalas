@@ -57,7 +57,8 @@
 	let isMoving = $state(false);
 	let lastBox = $state<{ x: number; y: number } | null>(null);
 	let isFlashActive = $state(false);
-	let stableFrames = $state(0); // Contador para evitar flickering
+	let stableFrames = $state(0); // Frames consecutivos abaixo do limiar (histerese p/ entrar em "estável")
+	let movingFrames = $state(0); // Frames consecutivos acima do limiar (histerese p/ entrar em "movendo")
 	let lastErrorCode = $state<string | null>(null); // Erros de captura final
 
 	// Liveness ATIVA (challenge-response) — barra foto/vídeo pré-gravado.
@@ -216,6 +217,7 @@
 				if (!detection) {
 					faceDetected = false;
 					stableFrames = 0;
+					movingFrames = 0;
 					faceStatusMessage = 'Posicione seu rosto na frente da câmera.';
 					isMoving = false;
 					return;
@@ -229,15 +231,27 @@
 					const dx = box.x - lastBox.x;
 					const dy = box.y - lastBox.y;
 					const dist = Math.sqrt(dx * dx + dy * dy);
-					const movedValue = dist > 12;
+					// Limiar RELATIVO ao tamanho do rosto: ~9% da largura do box.
+					// Absoluto em pixels falha quando o usuário se aproxima/afasta
+					// (face grande tolera mais ruído; face pequena, menos).
+					// Floor de 14px evita que rostos muito pequenos disparem com qualquer jitter.
+					const threshold = Math.max(14, box.width * 0.09);
+					const movedValue = dist > threshold;
 
 					if (movedValue) {
-						isMoving = true;
+						movingFrames++;
 						stableFrames = 0;
-						faceStatusMessage = 'Mantenha o celular firme! ✋';
+						// Histerese: só declara "movendo" após 2 frames consecutivos
+						// acima do limiar. Um único frame ruidoso (comum no face-api)
+						// não basta para piscar o alerta.
+						if (movingFrames >= 2) {
+							isMoving = true;
+							faceStatusMessage = 'Mantenha o celular firme! ✋';
+						}
 					} else {
+						movingFrames = 0;
 						stableFrames++;
-						if (stableFrames >= 3) {
+						if (stableFrames >= 2) {
 							isMoving = false;
 							faceStatusMessage = 'Rosto Detectado ✅';
 						}
@@ -678,6 +692,54 @@
 						: 'ring-2 ring-warning-500/30'}"
 				></video>
 
+				<!-- Banner do challenge ativo (liveness) — barra foto/vídeo pré-gravado -->
+				{#if challengeAtual && faceDetected}
+					{@const ok = challengeProgresso?.concluido ?? false}
+					<div
+						class="absolute top-12 left-4 right-4 z-30 px-3 py-2 rounded-xl backdrop-blur-md border-2 transition-all duration-200 pointer-events-auto shadow-lg {ok
+							? 'bg-success-500/20 border-success-400/60 text-success-50'
+							: 'bg-primary-900/70 border-primary-400/60 text-white'}"
+					>
+						<div class="flex items-center justify-between gap-2">
+							<div class="flex-1 min-w-0">
+								<p class="text-[0.6rem] font-black uppercase tracking-widest opacity-80">
+									Desafio de presença
+								</p>
+								<p class="text-sm font-bold leading-tight truncate">
+									{ok ? '✅ Desafio concluído' : challengeAtual.instrucao}
+								</p>
+								{#if !ok && challengeProgresso}
+									<p class="text-[0.65rem] opacity-90 mt-0.5">
+										{challengeProgresso.mensagem}
+									</p>
+								{:else if !ok}
+									<p class="text-[0.65rem] opacity-70 mt-0.5">{challengeAtual.hint}</p>
+								{/if}
+							</div>
+							{#if !ok}
+								<IconTooltip label="Trocar para outro desafio">
+									<button
+										type="button"
+										onclick={trocarChallenge}
+										class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+									>
+										Trocar
+									</button>
+								</IconTooltip>
+							{/if}
+						</div>
+						{#if challengeProgresso && !ok}
+							<!-- Barra de progresso -->
+							<div class="mt-1.5 h-1 bg-white/15 rounded-full overflow-hidden">
+								<div
+									class="h-full bg-primary-300 transition-all duration-200"
+									style="width: {challengeProgresso.progresso * 100}%"
+								></div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+
 				<!-- Efeito de Flash -->
 				{#if isFlashActive}
 					<div
@@ -700,7 +762,7 @@
 
 				{#if lastErrorCode}
 					<div
-						class="absolute inset-x-4 top-12 bg-error-600/90 text-white backdrop-blur-md px-4 py-3 rounded-2xl text-center shadow-xl z-50 animate-bounce"
+						class="absolute inset-x-4 top-2 bg-error-600/95 text-white backdrop-blur-md px-4 py-3 rounded-2xl text-center shadow-xl z-50 animate-bounce"
 					>
 						<p class="text-[0.65rem] font-black uppercase tracking-widest">
 							{lastErrorCode}
@@ -749,54 +811,6 @@
 							>
 								{faceStatusMessage}
 							</p>
-						</div>
-					{/if}
-
-					<!-- Banner do challenge ativo (liveness) — barra foto/vídeo pré-gravado -->
-					{#if challengeAtual && faceDetected}
-						{@const ok = challengeProgresso?.concluido ?? false}
-						<div
-							class="absolute top-3 left-3 right-3 z-10 px-3 py-2 rounded-xl backdrop-blur-md border-2 transition-all duration-200 {ok
-								? 'bg-success-500/20 border-success-400/60 text-success-50'
-								: 'bg-primary-900/70 border-primary-400/60 text-white'}"
-						>
-							<div class="flex items-center justify-between gap-2">
-								<div class="flex-1 min-w-0">
-									<p class="text-[0.6rem] font-black uppercase tracking-widest opacity-80">
-										Desafio de presença
-									</p>
-									<p class="text-sm font-bold leading-tight truncate">
-										{ok ? '✅ Desafio concluído' : challengeAtual.instrucao}
-									</p>
-									{#if !ok && challengeProgresso}
-										<p class="text-[0.65rem] opacity-90 mt-0.5">
-											{challengeProgresso.mensagem}
-										</p>
-									{:else if !ok}
-										<p class="text-[0.65rem] opacity-70 mt-0.5">{challengeAtual.hint}</p>
-									{/if}
-								</div>
-								{#if !ok}
-									<IconTooltip label="Trocar para outro desafio">
-										<button
-											type="button"
-											onclick={trocarChallenge}
-											class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
-										>
-											Trocar
-										</button>
-									</IconTooltip>
-								{/if}
-							</div>
-							{#if challengeProgresso && !ok}
-								<!-- Barra de progresso -->
-								<div class="mt-1.5 h-1 bg-white/15 rounded-full overflow-hidden">
-									<div
-										class="h-full bg-primary-300 transition-all duration-200"
-										style="width: {challengeProgresso.progresso * 100}%"
-									></div>
-								</div>
-							{/if}
 						</div>
 					{/if}
 				</div>
