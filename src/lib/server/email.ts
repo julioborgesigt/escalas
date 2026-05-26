@@ -41,8 +41,13 @@ function getCredenciais(platform: App.Platform | undefined): { user: string; pas
   };
 }
 
-// Pool singleton: nodemailer reusa conexões TCP/TLS entre envios. Recriar o
-// transporter a cada chamada custava ~200ms de handshake por e-mail.
+// Transporter singleton: nodemailer armazena a instância para reuso. Em ambientes
+// serverless (Cloudflare Pages/Workers), o pooling de conexões SMTP ('pool: true')
+// deve ser desabilitado ('pool: false'). Caso contrário, a pausa do isolado V8
+// entre requisições congela os sockets TCP, fazendo com que o Gmail encerre a
+// conexão por timeout. Na requisição seguinte (de um mesmo navegador quente),
+// tentar reusar a conexão travada resulta em falha silenciosa no envio em background.
+// Desabilitar o pool garante uma nova conexão SMTP limpa a cada disparo.
 let cachedTransporter: Transporter | null = null;
 let cachedKey = '';
 
@@ -53,8 +58,6 @@ function getTransporter(user: string, pass: string): Transporter {
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
-    pool: true,
-    maxConnections: 3,
     auth: { user, pass }
   });
   cachedKey = key;
