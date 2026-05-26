@@ -890,10 +890,10 @@
 					</div>
 
 					<!-- Equipes do slot -->
-					<div class="p-3 space-y-2.5">
+					<div class="p-3 flex flex-col md:flex-row gap-3">
 						{#each slot.equipes ?? [] as equipe}
 							<div
-								class="rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
+								class="flex-1 rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
 							>
 								<div
 									class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4"

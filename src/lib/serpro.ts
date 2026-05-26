@@ -564,10 +564,116 @@ function hexParaBase64(hex: string): string {
 }
 
 /**
+ * Exibe um modal dinâmico informando que o Assinador SERPRO deve estar aberto.
+ * Oferece link de download e opção de silenciar o aviso durante a sessão atual.
+ */
+function exibirAvisoSerpro(): Promise<boolean> {
+	return new Promise((resolve) => {
+		// Se já marcou para pular nesta sessão, prossegue direto
+		if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pularAvisoSerpro') === 'true') {
+			resolve(true);
+			return;
+		}
+
+		const modalId = 'serpro-signer-warning-modal';
+		let existing = document.getElementById(modalId);
+		if (existing) {
+			existing.remove();
+		}
+
+		const overlay = document.createElement('div');
+		overlay.id = modalId;
+		overlay.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm';
+
+		overlay.innerHTML = `
+			<div class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-2xl space-y-4 text-surface-900 dark:text-surface-100 font-sans">
+				<div class="flex items-start gap-3">
+					<div class="mt-0.5 shrink-0 rounded-lg p-2 bg-warning-500/10">
+						<svg class="w-5 h-5 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+					</div>
+					<div class="min-w-0 flex-1">
+						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">
+							Assinador SERPRO Necessário
+						</h3>
+					</div>
+				</div>
+
+				<div class="space-y-2.5 text-sm text-surface-600 dark:text-surface-300">
+					<p class="leading-relaxed">
+						Para realizar a assinatura digital no computador, o aplicativo <strong>Assinador SERPRO</strong> deve estar instalado e em execução no seu sistema.
+					</p>
+					<p class="leading-relaxed">
+						Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">Clique aqui para baixar</a>.
+					</p>
+					<p class="font-medium text-warning-600 dark:text-warning-500">
+						Certifique-se de abrir o aplicativo antes de prosseguir.
+					</p>
+				</div>
+
+				<div class="flex items-start gap-2 pt-1">
+					<input type="checkbox" id="serpro-skip-checkbox" class="mt-0.5 w-4 h-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-surface-800 cursor-pointer" />
+					<label for="serpro-skip-checkbox" class="text-xs text-surface-500 dark:text-surface-400 select-none cursor-pointer leading-tight">
+						Não exibir este aviso novamente nesta sessão (reaparece após novo login)
+					</label>
+				</div>
+
+				<div class="flex justify-end gap-3 pt-2">
+					<button
+						type="button"
+						id="serpro-cancel-btn"
+						class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+					>
+						Cancelar
+					</button>
+					<button
+						type="button"
+						id="serpro-confirm-btn"
+						class="btn preset-filled-primary-500 text-white rounded-xl px-4 py-2 text-sm font-bold shadow transition-colors"
+					>
+						Continuar
+					</button>
+				</div>
+			</div>
+		`;
+
+		document.body.appendChild(overlay);
+
+		const confirmBtn = overlay.querySelector('#serpro-confirm-btn');
+		const cancelBtn = overlay.querySelector('#serpro-cancel-btn');
+		const skipCheckbox = overlay.querySelector('#serpro-skip-checkbox') as HTMLInputElement | null;
+
+		const cleanup = () => {
+			overlay.remove();
+		};
+
+		confirmBtn?.addEventListener('click', () => {
+			if (skipCheckbox?.checked && typeof sessionStorage !== 'undefined') {
+				sessionStorage.setItem('pularAvisoSerpro', 'true');
+			}
+			cleanup();
+			resolve(true);
+		});
+
+		cancelBtn?.addEventListener('click', () => {
+			cleanup();
+			resolve(false);
+		});
+	});
+}
+
+/**
  * Cria e conecta um cliente SERPRO.
+ * Exibe um modal de aviso prévio se não foi silenciado nesta sessão do usuário.
  * Lança erro com mensagem amigável se o Assinador não estiver rodando.
  */
 export async function conectarSerpro(): Promise<SerproSignerClient> {
+	const prosseguir = await exibirAvisoSerpro();
+	if (!prosseguir) {
+		throw new Error('Assinatura cancelada pelo usuário.');
+	}
+
 	const client = new SerproSignerClient();
 	await client.connect();
 	return client;

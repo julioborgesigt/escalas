@@ -170,7 +170,7 @@
 
 			<button
 				type="button"
-				class="btn btn-sm w-full {menuExpandidoId === ativa.id
+				class="btn btn-sm w-full md:hidden {menuExpandidoId === ativa.id
 					? 'preset-filled-surface-500 text-white'
 					: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
 				onclick={onToggleMenu}
@@ -178,8 +178,8 @@
 				{menuExpandidoId === ativa.id ? 'Ocultar' : 'Opções'}
 			</button>
 
-			{#if menuExpandidoId === ativa.id}
-				<div class="flex flex-row gap-2 mt-1 w-full" transition:slide={{ duration: 200 }}>
+			{#if isDesktop || menuExpandidoId === ativa.id}
+				<div class="flex flex-row gap-2 mt-1 w-full" transition:slide={{ duration: isDesktop ? 0 : 200 }}>
 					<button
 						type="button"
 						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
