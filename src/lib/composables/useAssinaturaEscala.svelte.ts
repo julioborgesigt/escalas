@@ -145,41 +145,46 @@ export function useAssinaturaEscala({
 	}
 
 	async function assinarComSerpro() {
-		loading.show('Conectando ao SERPRO...');
-		const client = await conectarSerproClient();
+		try {
+			const client = await conectarSerproClient();
+			loading.show('Conectando ao SERPRO...');
 
-		loading.show('Obtendo coordenadas...');
-		gpsCoords = await getCoordinates();
+			loading.show('Obtendo coordenadas...');
+			gpsCoords = await getCoordinates();
 
-		loading.show('Preparando assinatura...');
-		const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
-			method: 'POST',
-			body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
-		});
+			loading.show('Preparando assinatura...');
+			const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
+				method: 'POST',
+				body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
+			});
 
-		loading.show('Assinando com SERPRO...');
-		const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
-		const serproRes = await client.sign(messageDigestBase64);
+			loading.show('Assinando com SERPRO...');
+			const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
+			const serproRes = await client.sign(messageDigestBase64);
 
-		loading.show('Finalizando assinatura...');
-		const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
-			method: 'POST',
-			body: JSON.stringify({
-				preparedPdf: prepData.preparedPdf,
-				serproCms: serproRes.rawSignature,
-				messageDigest: prepData.messageDigest,
-				signingTimeISO: prepData.signingTimeISO,
-				signerName: serproSignerName,
-				signerCpf: serproSignerCpf,
-				verificationHash: prepData.verificationHash,
-				latitude: gpsCoords?.lat,
-				longitude: gpsCoords?.lng
-			})
-		});
+			loading.show('Finalizando assinatura...');
+			const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
+				method: 'POST',
+				body: JSON.stringify({
+					preparedPdf: prepData.preparedPdf,
+					serproCms: serproRes.rawSignature,
+					messageDigest: prepData.messageDigest,
+					signingTimeISO: prepData.signingTimeISO,
+					signerName: serproSignerName,
+					signerCpf: serproSignerCpf,
+					verificationHash: prepData.verificationHash,
+					latitude: gpsCoords?.lat,
+					longitude: gpsCoords?.lng
+				})
+			});
 
-		toaster.success({ title: 'Escala assinada com sucesso!' });
-		onDocumentoAssinado?.(info);
-		loading.hide();
+			toaster.success({ title: 'Escala assinada com sucesso!' });
+			onDocumentoAssinado?.(info);
+		} catch (err: unknown) {
+			toaster.error({ title: 'Erro na assinatura', description: err instanceof Error ? err.message : 'Erro desconhecido' });
+		} finally {
+			loading.hide();
+		}
 	}
 
 	async function assinarSimples(

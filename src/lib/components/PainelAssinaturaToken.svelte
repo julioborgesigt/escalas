@@ -154,9 +154,9 @@
 
 	async function assinarComSerpro() {
 		if (loading.active || disabled) return;
-		loading.show('Conectando ao Assinador SERPRO...');
 		try {
 			const client = serproClient ?? (await conectarSerpro());
+			loading.show('Conectando ao Assinador SERPRO...');
 			serproClient = client;
 
 			await executarAssinatura(async (_signedAttrsHashHex, messageDigestHex) => {

@@ -339,9 +339,9 @@
 		const gise = giseParaAssinar;
 		if (!gise || gise.pendentesExtraIds.length === 0) return;
 		mostrarModalTokenExtra = false;
-		loading.show('Conectando ao Assinador SERPRO...');
 		try {
 			const client = await conectarSerpro();
+			loading.show('Conectando ao Assinador SERPRO...');
 			const signerName = (data as { usuario?: { nome?: string } }).usuario?.nome ?? '';
 			const signerCpf = (data as { usuario?: { cpf?: string } }).usuario?.cpf ?? '';
 			for (let i = 0; i < gise.pendentesExtraIds.length; i++) {
