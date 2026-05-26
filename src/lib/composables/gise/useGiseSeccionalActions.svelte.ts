@@ -48,14 +48,37 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		getHorariosEquipeFormulario
 	} = params;
 
-	let pendingCrud = $state(false);
+	let pendingFinalizarSeccional = $state(false);
+	let pendingSelecionarUnidade = $state(false);
+	let pendingRemoverUnidade = $state(false);
+	let pendingAdicionarEquipe = $state(false);
+	let pendingRemoverEquipe = $state(false);
+	let pendingSalvarSlotsEquipe = $state(false);
+	let pendingSalvarHorariosEquipe = $state(false);
+	let pendingAdicionarMembro = $state(false);
+	let pendingRemoverMembro = $state(false);
+	let pendingAdicionarUnidade = $state(false);
+	let pendingRemoverSeccional = $state(false);
+
 	let dialogRemoverSeccionalAberto = $state(false);
 	let formRemoverSeccionalPendente: HTMLFormElement | null = null;
 
-	const setPending = (p: boolean) => (pendingCrud = p);
+	const pendingCrud = $derived(
+		pendingFinalizarSeccional ||
+		pendingSelecionarUnidade ||
+		pendingRemoverUnidade ||
+		pendingAdicionarEquipe ||
+		pendingRemoverEquipe ||
+		pendingSalvarSlotsEquipe ||
+		pendingSalvarHorariosEquipe ||
+		pendingAdicionarMembro ||
+		pendingRemoverMembro ||
+		pendingAdicionarUnidade ||
+		pendingRemoverSeccional
+	);
 
 	const handleFinalizarSeccional = makeEnhanceHandler<{ gise_status?: string }>({
-		setPending,
+		setPending: (p) => (pendingFinalizarSeccional = p),
 		successTitle: (d) =>
 			d?.gise_status === 'aguardando_assinatura'
 				? 'Todas as seccionais finalizadas!'
@@ -69,39 +92,39 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 	});
 
 	const handleSelecionarUnidade = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingSelecionarUnidade = p),
 		successTitle: 'Unidade selecionada',
 		errorTitle: 'Erro ao selecionar',
 		onSuccess: () => onSelecionarUnidadeSuccess?.()
 	});
 
 	const handleRemoverUnidade = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingRemoverUnidade = p),
 		errorTitle: 'Erro ao remover DP'
 	});
 
 	const handleAdicionarEquipe = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingAdicionarEquipe = p),
 		successTitle: 'Equipe adicionada',
 		errorTitle: 'Erro ao adicionar',
 		onSuccess: () => onAdicionarEquipeSuccess?.()
 	});
 
 	const handleRemoverEquipe = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingRemoverEquipe = p),
 		successTitle: 'Equipe removida',
 		errorTitle: 'Erro ao remover'
 	});
 
 	const handleSalvarSlotsEquipe = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingSalvarSlotsEquipe = p),
 		successTitle: 'Vagas atualizadas',
 		errorTitle: 'Erro ao atualizar',
 		onSuccess: () => onSalvarSlotsEquipeSuccess?.()
 	});
 
 	const handleSalvarHorariosEquipe = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingSalvarHorariosEquipe = p),
 		beforeSubmit: () => {
 			const { entrada, saida } = getHorariosEquipeFormulario();
 			const horas = [entrada, saida].filter(Boolean);
@@ -120,20 +143,20 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 	});
 
 	const handleAdicionarMembro = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingAdicionarMembro = p),
 		successTitle: 'Membro adicionado',
 		errorTitle: 'Erro ao adicionar membro',
 		onSuccess: () => onAdicionarMembroSuccess?.()
 	});
 
 	const handleRemoverMembro = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingRemoverMembro = p),
 		successTitle: 'Membro removido',
 		errorTitle: 'Erro ao remover membro'
 	});
 
 	const handleAdicionarUnidade = makeEnhanceHandler({
-		setPending,
+		setPending: (p) => (pendingAdicionarUnidade = p),
 		successTitle: 'Unidade adicionada',
 		errorTitle: 'Erro ao adicionar unidade',
 		onSuccess: () => onAdicionarUnidadeSuccess?.()
@@ -158,7 +181,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 
 	async function confirmarRemoverSeccional() {
 		if (!formRemoverSeccionalPendente) return;
-		pendingCrud = true;
+		pendingRemoverSeccional = true;
 		const formData = new FormData(formRemoverSeccionalPendente);
 		try {
 			const res = await fetch(formRemoverSeccionalPendente.action, {
@@ -177,7 +200,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		} catch {
 			toaster.error({ title: 'Erro ao remover seccional' });
 		} finally {
-			pendingCrud = false;
+			pendingRemoverSeccional = false;
 			formRemoverSeccionalPendente = null;
 		}
 	}
@@ -209,6 +232,17 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		get pendingCrud() {
 			return pendingCrud;
 		},
+		get pendingFinalizarSeccional() { return pendingFinalizarSeccional; },
+		get pendingSelecionarUnidade() { return pendingSelecionarUnidade; },
+		get pendingRemoverUnidade() { return pendingRemoverUnidade; },
+		get pendingAdicionarEquipe() { return pendingAdicionarEquipe; },
+		get pendingRemoverEquipe() { return pendingRemoverEquipe; },
+		get pendingSalvarSlotsEquipe() { return pendingSalvarSlotsEquipe; },
+		get pendingSalvarHorariosEquipe() { return pendingSalvarHorariosEquipe; },
+		get pendingAdicionarMembro() { return pendingAdicionarMembro; },
+		get pendingRemoverMembro() { return pendingRemoverMembro; },
+		get pendingAdicionarUnidade() { return pendingAdicionarUnidade; },
+		get pendingRemoverSeccional() { return pendingRemoverSeccional; },
 		get dialogRemoverSeccionalAberto() {
 			return dialogRemoverSeccionalAberto;
 		},

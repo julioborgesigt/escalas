@@ -18,6 +18,7 @@
 		assinaturasRelatorios?: any[] | null;
 		seccionais?: any[] | null;
 		supervisaoExtraUnidadeId?: number | null;
+		giseStatus?: string;
 	}
 
 	let {
@@ -32,10 +33,15 @@
 		podeAssinar = true,
 		assinaturasRelatorios = [],
 		seccionais = [],
-		supervisaoExtraUnidadeId = null
+		supervisaoExtraUnidadeId = null,
+		giseStatus = ''
 	}: Props = $props();
 
 	let expandido = $state(false);
+
+	const naoIniciou = $derived(
+		['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(giseStatus ?? '')
+	);
 
 	const concluidosExtra = $derived(
 		(assinaturasRelatorios ?? []).filter(
@@ -204,11 +210,19 @@
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
-						{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+						{#if naoIniciou}
+							Aguardando início
+						{:else}
+							{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+						{/if}
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>{' '}
-						{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+						{#if naoIniciou}
+							Aguardando início
+						{:else}
+							{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+						{/if}
 					</p>
 
 					{#if assinandoLote}

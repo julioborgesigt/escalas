@@ -521,6 +521,7 @@
 							seccionais={gise.seccionais}
 							supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 							podeAssinar={isSupervisor}
+							giseStatus={gise.status}
 						/>
 					{/if}
 				{/snippet}

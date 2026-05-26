@@ -128,6 +128,18 @@
 	});
 
 	const pendingCrud = $derived(actions.pendingCrud);
+	const pendingFinalizar = $derived(actions.pendingFinalizarSeccional);
+	const pendingSelecionarUnidade = $derived(actions.pendingSelecionarUnidade);
+	const pendingAdicionarEquipe = $derived(actions.pendingAdicionarEquipe);
+	const pendingRemoverEquipe = $derived(actions.pendingRemoverEquipe);
+	const pendingSalvarSlotsEquipe = $derived(actions.pendingSalvarSlotsEquipe);
+	const pendingAdicionarUnidade = $derived(actions.pendingAdicionarUnidade);
+	const pendingRemoverUnidade = $derived(actions.pendingRemoverUnidade);
+	const pendingSalvarHorariosEquipe = $derived(actions.pendingSalvarHorariosEquipe);
+	const pendingAdicionarMembro = $derived(actions.pendingAdicionarMembro);
+	const pendingRemoverMembro = $derived(actions.pendingRemoverMembro);
+	const pendingRemoverSeccional = $derived(actions.pendingRemoverSeccional);
+
 	const buscarMembroAdicional = $derived(
 		cargoParaAdicionar ? actions.buscarPorCargo(cargoParaAdicionar) : undefined
 	);
@@ -625,7 +637,7 @@
 											? 'Cada unidade deve ter pelo menos 1 policial alocado'
 											: ''}
 							>
-								{#if pendingCrud}
+								{#if pendingFinalizar}
 									{sec.status === 'preenchida'
 										? 'Finalizando edição...'
 										: sec.status === 'retificada'
@@ -678,40 +690,42 @@
 						class="flex flex-col gap-2 px-4 py-3 border-b border-primary-300/30 dark:border-primary-700/30"
 					>
 						{#if podeEditarCabecalhoUnidade && selecionandoUnidadeSlotId === slot.id}
-							<div class="flex flex-col gap-2 w-full min-w-0">
-								<select
-									bind:value={slotUnidadeId}
-									class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
-								>
-									<option value=""
-										>{slot.nome
-											? 'Selecionar outra unidade...'
-											: 'Selecionar unidade...'}</option
+							<div class="flex flex-col sm:flex-row gap-2 w-full min-w-0 sm:items-center">
+								<div class="w-full flex-1">
+									<select
+										bind:value={slotUnidadeId}
+										class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
 									>
-									{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
-										<option value={d.id}>{d.nome}</option>
-									{/each}
-								</select>
-								<div class="flex gap-2 w-full">
+										<option value=""
+											>{slot.nome
+												? 'Selecionar outra unidade...'
+												: 'Selecionar unidade...'}</option
+										>
+										{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
+											<option value={d.id}>{d.nome}</option>
+										{/each}
+									</select>
+								</div>
+								<div class="w-full sm:w-auto flex gap-2 shrink-0">
 									<form
 										method="POST"
 										action="?/selecionarUnidade"
 										use:enhance={actions.handleSelecionarUnidade}
-										class="flex-1 min-w-0"
+										class="flex-1 sm:flex-initial"
 									>
 										<input type="hidden" name="slotId" value={slot.id} />
 										<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 										<button
 											type="submit"
-											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl w-full active:scale-95 transition-all"
+											class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 active:scale-95 transition-all font-semibold"
 											disabled={!slotUnidadeId || pendingCrud}
 										>
-											{pendingCrud ? 'Salvando...' : 'Confirmar'}
+											{pendingSelecionarUnidade ? 'Salvando...' : 'Confirmar'}
 										</button>
 									</form>
 									<button
 										type="button"
-										class="btn preset-outlined-primary-500 text-sm px-3 py-1.5 rounded-xl flex-1 min-w-0 w-full"
+										class="btn preset-outlined-primary-500 text-sm px-4 py-1.5 rounded-xl flex-1 sm:flex-initial sm:w-auto sm:px-6 font-semibold"
 										onclick={() => {
 											selecionandoUnidadeSlotId = null;
 											slotUnidadeId = '';
@@ -746,7 +760,7 @@
 													d="M6 18L18 6M6 6l12 12"
 												/></svg
 											>
-											Remover DP
+											{pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
 										</button>
 									</form>
 								{/if}
@@ -810,7 +824,7 @@
 													d="M6 18L18 6M6 6l12 12"
 												/></svg
 											>
-											Remover DP
+											{pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
 										</button>
 									</form>
 								{/if}
@@ -865,7 +879,7 @@
 													d="M6 18L18 6M6 6l12 12"
 												/></svg
 											>
-											Remover DP
+											{pendingRemoverUnidade ? 'Removendo...' : 'Remover DP'}
 										</button>
 									</form>
 								{/if}
@@ -910,7 +924,7 @@
 												class="btn btn-sm preset-outlined-error-500 inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap px-2 py-1 text-xs lg:hidden"
 												disabled={pendingCrud}
 											>
-												{pendingCrud ? 'Removendo...' : 'Remover equipe'}
+												{pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
 											</button>
 										{/if}
 									</div>
@@ -960,7 +974,7 @@
 															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
 															disabled={pendingCrud}
 															aria-label="Salvar vagas"
-															title="Confirmar">{pendingCrud ? '…' : '✓'}</button
+															title="Confirmar">{pendingSalvarSlotsEquipe ? '…' : '✓'}</button
 														>
 													</form>
 													<button
@@ -1047,7 +1061,9 @@
 														<button
 															type="submit"
 															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
-															>✓</button
+															disabled={pendingCrud}
+															title="Confirmar"
+															>{pendingSalvarHorariosEquipe ? '…' : '✓'}</button
 														>
 													</form>
 													<button
@@ -1119,7 +1135,7 @@
 												class="btn btn-sm preset-outlined-error-500 hidden w-full items-center justify-center gap-1 whitespace-nowrap lg:inline-flex lg:w-auto"
 												disabled={pendingCrud}
 											>
-												{pendingCrud ? 'Removendo...' : 'Remover equipe'}
+												{pendingRemoverEquipe ? 'Removendo...' : 'Remover equipe'}
 											</button>
 										{/if}
 									</div>
@@ -1164,8 +1180,9 @@
 															class="inline-flex items-center justify-center w-5 h-9 rounded-md border border-error-500/35 bg-error-500/10 text-error-600 hover:bg-error-500/20 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300 transition-colors touch-manipulation -mr-1"
 															aria-label="Remover policial da equipe"
 															title="Remover policial"
+															disabled={pendingCrud}
 														>
-															×
+															{#if pendingRemoverMembro}…{:else}×{/if}
 														</button>
 													</form>
 												{/if}
@@ -1207,7 +1224,7 @@
 														type="submit"
 														class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none active:scale-95 transition-all"
 														disabled={!policialParaAdicionar || pendingCrud}
-														>Adicionar</button
+														>{pendingAdicionarMembro ? 'Adicionando...' : 'Adicionar'}</button
 													>
 													<button
 														type="button"
@@ -1352,7 +1369,7 @@
 											type="submit"
 											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg active:scale-95 transition-all"
 											disabled={pendingCrud}
-											>{pendingCrud ? 'Adicionando...' : 'Adicionar'}</button
+											>{pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
 										>
 									</form>
 									<button
@@ -1431,7 +1448,7 @@
 								type="submit"
 								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl active:scale-95 transition-all"
 								disabled={pendingCrud}
-								>{pendingCrud ? 'Adicionando...' : 'Confirmar'}</button
+								>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
 							>
 						</form>
 						<button
