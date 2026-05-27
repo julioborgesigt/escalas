@@ -763,8 +763,8 @@
 			{#if dialogAssinaturaTela}
 				<SignaturePad
 					message="Rubrica do Organizador"
-					onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined) => {
-						await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId);
+					onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined, livenessChallenge: unknown) => {
+						await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId, livenessChallenge);
 					}}
 					onCancel={() => (dialogAssinaturaTela = false)}
 					exigirFoto={page.data.exigirFotoAssinatura ?? true}

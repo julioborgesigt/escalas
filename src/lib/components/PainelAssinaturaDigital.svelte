@@ -183,7 +183,8 @@
 		gpsLng?: number,
 		selfieBase64?: string | null,
 		codigoValidação?: string,
-		desafioId?: string
+		desafioId?: string,
+		livenessChallenge?: unknown
 	) {
 		assinatura.dialogSignOpen = false;
 		await assinatura.assinarSimples(
@@ -192,7 +193,8 @@
 			gpsLng,
 			selfieBase64,
 			codigoValidação,
-			desafioId
+			desafioId,
+			livenessChallenge
 		);
 	}
 
