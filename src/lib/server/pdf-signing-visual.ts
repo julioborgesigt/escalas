@@ -354,11 +354,14 @@ export async function adicionarPaginaAuditoria(
 			if (s.livenessChallenge) {
 				const lc = s.livenessChallenge;
 				const tipoLabel = lc.tipo === 'blink' ? 'Piscar' : 'Sorrir';
-				const status = lc.cumprido ? '✓' : '✗';
+				// Helvetica padrão do pdf-lib usa WinAnsiEncoding e NÃO codifica
+				// U+2713/U+2717 (✓/✗) nem o travessão U+2014 (—). Usar esses
+				// caracteres faz drawText lançar e o pipeline inteiro retorna 500.
+				const status = lc.cumprido ? 'OK' : 'FALHOU';
 				const tentLabel = lc.tentativas > 1 ? ` (${lc.tentativas} tentativas)` : '';
 				drawP(
 					'Prova de Vida',
-					`${tipoLabel} ${status}${tentLabel} — ${(lc.duracaoMs / 1000).toFixed(1)}s`
+					`${tipoLabel} ${status}${tentLabel} - ${(lc.duracaoMs / 1000).toFixed(1)}s`
 				);
 			}
 

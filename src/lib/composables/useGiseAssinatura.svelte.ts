@@ -151,8 +151,11 @@ export function useGiseAssinatura({
 				toaster.success({ title: 'Escala confirmada com sucesso' });
 				await invalidate('gise:detail');
 			} else {
-				const j = await r.json();
-				toaster.error({ title: j.error || 'Erro ao assinar' });
+				const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
+				toaster.error({
+					title: j.error || 'Erro ao assinar',
+					description: j.errorId ? `Código de rastreamento: ${j.errorId}` : undefined
+				});
 			}
 		} catch {
 			toaster.error({ title: 'Erro de conexão' });

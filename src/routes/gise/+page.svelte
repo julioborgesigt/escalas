@@ -300,8 +300,12 @@
 					toaster.success({ title: 'Escala GISE assinada com sucesso' });
 					await invalidateAll();
 				} else {
-					const j = await r.json().catch(() => ({}));
-					toaster.error({ title: (j as { error?: string }).error || 'Erro ao assinar' });
+					const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
+					const titulo = j.error || 'Erro ao assinar';
+					toaster.error({
+						title: titulo,
+						description: j.errorId ? `Código de rastreamento: ${j.errorId}` : undefined
+					});
 				}
 			} else {
 				for (const seccionalId of gise.pendentesExtraIds) {
@@ -319,7 +323,11 @@
 							livenessChallenge
 						})
 					});
-					if (!r.ok) throw new Error(((await r.json()) as { error?: string }).error ?? 'Erro');
+					if (!r.ok) {
+						const j = (await r.json().catch(() => ({}))) as { error?: string; errorId?: string };
+						const base = j.error ?? 'Erro';
+						throw new Error(j.errorId ? `${base} (#${j.errorId})` : base);
+					}
 				}
 				toaster.success({
 					title: `${gise.pendentesExtraIds.length} relatório(s) de extra assinado(s)`
