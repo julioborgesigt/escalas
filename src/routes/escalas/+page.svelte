@@ -14,7 +14,7 @@
 		useAssinaturaEscala,
 		useMobile
 	} from '$lib/composables';
-	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import SignaturePad, { type SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { page } from '$app/state';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
@@ -763,8 +763,8 @@
 			{#if dialogAssinaturaTela}
 				<SignaturePad
 					message="Rubrica do Organizador"
-					onConfirm={async (rubrica: string, lat: number | undefined, lng: number | undefined, selfie: string | undefined, codigo: string | undefined, desafioId: string | undefined, livenessChallenge: unknown) => {
-						await assinaturaRapida.assinarSimples(rubrica, lat, lng, selfie, codigo, desafioId, livenessChallenge);
+					onConfirm={async (p: SignaturePadConfirmPayload) => {
+						await assinaturaRapida.assinarSimples(p.rubrica, p.lat, p.lng, p.selfie, p.codigoEmail, p.desafioId, p.liveness);
 					}}
 					onCancel={() => (dialogAssinaturaTela = false)}
 					exigirFoto={page.data.exigirFotoAssinatura ?? true}

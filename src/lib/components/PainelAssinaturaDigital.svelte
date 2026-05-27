@@ -3,7 +3,7 @@
 	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
-	import SignaturePad from './SignaturePad.svelte';
+	import SignaturePad, { type SignaturePadConfirmPayload } from './SignaturePad.svelte';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
@@ -177,24 +177,16 @@
 		assinatura.dialogSignOpen = true;
 	}
 
-	async function assinarSimples(
-		rubricBase64: string,
-		gpsLat?: number,
-		gpsLng?: number,
-		selfieBase64?: string | null,
-		codigoValidação?: string,
-		desafioId?: string,
-		livenessChallenge?: unknown
-	) {
+	async function assinarSimples(payload: SignaturePadConfirmPayload) {
 		assinatura.dialogSignOpen = false;
 		await assinatura.assinarSimples(
-			rubricBase64,
-			gpsLat,
-			gpsLng,
-			selfieBase64,
-			codigoValidação,
-			desafioId,
-			livenessChallenge
+			payload.rubrica,
+			payload.lat,
+			payload.lng,
+			payload.selfie,
+			payload.codigoEmail,
+			payload.desafioId,
+			payload.liveness
 		);
 	}
 

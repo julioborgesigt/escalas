@@ -1,3 +1,28 @@
+<script lang="ts" module>
+	// Payload entregue ao callback `onConfirm`. Objeto único (em vez de
+	// argumentos posicionais) evita que consumidores percam silenciosamente
+	// campos novos — adicionar uma chave aqui produz erro de tipo nos
+	// destructurings em todo lugar, ao invés de undefined silencioso.
+	export type SignaturePadLivenessResultado = {
+		tipo: string;
+		cumprido: boolean;
+		tentativas: number;
+		iniciadoEm: string | null;
+		concluidoEm: string | null;
+		duracaoMs: number;
+	};
+
+	export type SignaturePadConfirmPayload = {
+		rubrica: string;
+		lat?: number;
+		lng?: number;
+		selfie: string | null;
+		codigoEmail?: string;
+		desafioId?: string;
+		liveness: SignaturePadLivenessResultado | null;
+	};
+</script>
+
 <script lang="ts">
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
@@ -22,8 +47,8 @@
 		exigirCodigoEmail = false,
 		step = $bindable('signature')
 	}: {
-		onConfirm: any;
-		onCancel: any;
+		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
+		onCancel: () => void;
 		message?: string;
 		exigirFoto?: boolean;
 		exigirGps?: boolean;
@@ -509,7 +534,7 @@
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
-			onConfirm(dataUrl, lat, lng, selfieBase64, undefined, undefined, liveness);
+			onConfirm({ rubrica: dataUrl, lat, lng, selfie: selfieBase64, liveness });
 		}
 	}
 
@@ -548,15 +573,15 @@
 			return;
 		}
 		if (pendingSignature && desafioId) {
-			onConfirm(
-				pendingSignature.dataUrl,
-				pendingSignature.lat,
-				pendingSignature.lng,
-				pendingSignature.selfieBase64,
-				codigoInput,
+			onConfirm({
+				rubrica: pendingSignature.dataUrl,
+				lat: pendingSignature.lat,
+				lng: pendingSignature.lng,
+				selfie: pendingSignature.selfieBase64,
+				codigoEmail: codigoInput,
 				desafioId,
-				montarLivenessResultado()
-			);
+				liveness: montarLivenessResultado()
+			});
 		}
 	}
 

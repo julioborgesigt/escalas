@@ -10,6 +10,7 @@ import type {
 	ResGisePageData
 } from '$lib/types';
 import type { GisePresenca } from '$lib/server/schema';
+import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 
 function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
@@ -198,14 +199,15 @@ export function useResGise(getData: () => ResGisePageData) {
 		};
 	}
 
-	async function salvarEntrada(
-		rubrica: string,
-		latitude?: number,
-		longitude?: number,
-		selfieBase64?: string,
-		codigoEmail?: string,
-		desafioId?: string
-	) {
+	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
+		const {
+			rubrica,
+			lat: latitude,
+			lng: longitude,
+			selfie: selfieBase64,
+			codigoEmail,
+			desafioId
+		} = payload;
 		if (!escalaSelecionada) return;
 		const giseAlvoId = escalaSelecionada.id;
 		loading.show('Confirmando Entrada...');
@@ -262,14 +264,15 @@ export function useResGise(getData: () => ResGisePageData) {
 		return agora >= dataFimPrevista;
 	};
 
-	async function salvarSaida(
-		rubrica: string,
-		latitude?: number,
-		longitude?: number,
-		selfieBase64?: string,
-		codigoEmail?: string,
-		desafioId?: string
-	) {
+	async function salvarSaida(payload: SignaturePadConfirmPayload) {
+		const {
+			rubrica,
+			lat: latitude,
+			lng: longitude,
+			selfie: selfieBase64,
+			codigoEmail,
+			desafioId
+		} = payload;
 		if (!escalaSelecionada) return;
 		const giseAlvoIdSaida = escalaSelecionada.id;
 		loading.show('Confirmando Saída...');

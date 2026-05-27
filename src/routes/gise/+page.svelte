@@ -9,6 +9,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
+	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';
@@ -257,19 +258,20 @@
 		};
 	}
 
-	async function confirmarRubricaGise(
-		rubrica: string,
-		lat?: number,
-		lng?: number,
-		selfie?: string | null,
-		codigo?: string,
-		desafioId?: string,
-		// Resultado do desafio ativo (blink/smile) capturado pelo SignaturePad.
-		// Quando a flag exigirFotoAssinatura esta ligada no servidor, este
-		// campo e OBRIGATORIO — sem ele o endpoint retorna 400 "Comprovacao
-		// de presenca ativa ausente (liveness challenge)".
-		livenessChallenge?: unknown
-	) {
+	async function confirmarRubricaGise(payload: SignaturePadConfirmPayload) {
+		const {
+			rubrica,
+			lat,
+			lng,
+			selfie,
+			codigoEmail: codigo,
+			desafioId,
+			// Resultado do desafio ativo (blink/smile) capturado pelo SignaturePad.
+			// Quando a flag exigirFotoAssinatura esta ligada no servidor, este
+			// campo e OBRIGATORIO — sem ele o endpoint retorna 400 "Comprovacao
+			// de presenca ativa ausente (liveness challenge)".
+			liveness: livenessChallenge
+		} = payload;
 		const gise = giseParaAssinar;
 		if (!gise) return;
 		mostrarRubricaGise = false;

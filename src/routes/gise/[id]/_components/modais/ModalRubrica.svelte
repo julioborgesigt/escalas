@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import SignaturePad, { type SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
@@ -7,14 +7,7 @@
 		exigirFoto: boolean;
 		exigirGps: boolean;
 		exigirCodigoEmail: boolean;
-		onConfirm: (
-			dataUrl: string,
-			lat?: number,
-			lng?: number,
-			selfie?: string | null,
-			codigoValidação?: string,
-			desafioId?: string
-		) => void | Promise<void>;
+		onConfirm: (payload: SignaturePadConfirmPayload) => void | Promise<void>;
 		onCancel: () => void;
 	}
 

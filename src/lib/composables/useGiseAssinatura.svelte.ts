@@ -16,6 +16,7 @@ import { toaster } from '$lib/toast';
 import { loading } from '$lib/loading.svelte';
 import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
+import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 
 export type PendenteExtra = {
 	seccionalId: number;
@@ -90,15 +91,16 @@ export function useGiseAssinatura({
 		showRubricaModal = false;
 	}
 
-	async function confirmarRubrica(
-		dataUrl: string,
-		lat?: number,
-		lng?: number,
-		selfie?: string | null,
-		codigoValidação?: string,
-		desafioId?: string,
-		livenessChallenge?: unknown
-	) {
+	async function confirmarRubrica(payload: SignaturePadConfirmPayload) {
+		const {
+			rubrica: dataUrl,
+			lat,
+			lng,
+			selfie,
+			codigoEmail: codigoValidação,
+			desafioId,
+			liveness: livenessChallenge
+		} = payload;
 		rubricaCapturada = dataUrl;
 		selfieCapturada = selfie ?? null;
 		showRubricaModal = false;
