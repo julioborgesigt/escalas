@@ -201,33 +201,41 @@ export function useAssinaturaEscala({
 		livenessChallenge?: unknown
 	) {
 		loading.show('Assinando...');
-		// Usamos a geolocalizacao já capturada no SignaturePad ou fall-back
-		if (lat && lng) {
-			gpsCoords = { lat, lng };
-		} else {
-			loading.show('Obtendo coordenadas...');
-			gpsCoords = await getCoordinates();
+		try {
+			// Usamos a geolocalizacao já capturada no SignaturePad ou fall-back
+			if (lat && lng) {
+				gpsCoords = { lat, lng };
+			} else {
+				loading.show('Obtendo coordenadas...');
+				gpsCoords = await getCoordinates();
+			}
+
+			loading.show('Assinando...');
+			const info = await apiFetch<any>(`/api/escalas/${escalaId}/assinar-simples`, {
+				method: 'POST',
+				body: JSON.stringify({
+					rubrica,
+					selfieBase64: selfie,
+					latitude: gpsCoords?.lat,
+					longitude: gpsCoords?.lng,
+					codigoValidação,
+					desafioId,
+					livenessChallenge
+				})
+			});
+
+			toaster.success({ title: 'Escala assinada com sucesso!' });
+			onDocumentoAssinado?.(info);
+			rubricaCapturada = null;
+			selfieCapturada = null;
+		} catch (err: unknown) {
+			toaster.error({
+				title: 'Erro ao assinar',
+				description: err instanceof Error ? err.message : 'Erro desconhecido'
+			});
+		} finally {
+			loading.hide();
 		}
-
-		loading.show('Assinando...');
-		const info = await apiFetch<any>(`/api/escalas/${escalaId}/assinar-simples`, {
-			method: 'POST',
-			body: JSON.stringify({
-				rubrica,
-				selfieBase64: selfie,
-				latitude: gpsCoords?.lat,
-				longitude: gpsCoords?.lng,
-				codigoValidação,
-				desafioId,
-				livenessChallenge
-			})
-		});
-
-		toaster.success({ title: 'Escala assinada com sucesso!' });
-		onDocumentoAssinado?.(info);
-		rubricaCapturada = null;
-		selfieCapturada = null;
-		loading.hide();
 	}
 
 	function reset() {

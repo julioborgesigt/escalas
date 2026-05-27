@@ -103,11 +103,16 @@
 	let codigoError = $state<string | null>(null);
 	let emailMascarado = $state('');
 	let desafioId = $state<string | null>(null);
+	// IMPORTANTE: `liveness` precisa ser capturado AQUI (no momento da foto) e não
+	// recalculado em confirmarCodigo. Quando step muda para 'email_code', o
+	// $effect reseta challengeAtual=null — se chamássemos montarLivenessResultado()
+	// depois, devolveria null e o servidor rejeitaria com "liveness ausente".
 	let pendingSignature = $state<{
 		dataUrl: string;
 		lat: number | undefined;
 		lng: number | undefined;
 		selfieBase64: string | null;
+		liveness: SignaturePadLivenessResultado | null;
 	} | null>(null);
 
 	$effect(() => {
@@ -528,9 +533,12 @@
 		lng: number | undefined,
 		selfieBase64: string | null
 	) {
+		// Snapshot do liveness ANTES de qualquer mudança de step. A transição
+		// para 'email_code' dispara o $effect que zera challengeAtual, então
+		// recalcular depois devolve null.
 		const liveness = montarLivenessResultado();
 		if (exigirCodigoEmail) {
-			pendingSignature = { dataUrl, lat, lng, selfieBase64 };
+			pendingSignature = { dataUrl, lat, lng, selfieBase64, liveness };
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
@@ -580,7 +588,7 @@
 				selfie: pendingSignature.selfieBase64,
 				codigoEmail: codigoInput,
 				desafioId,
-				liveness: montarLivenessResultado()
+				liveness: pendingSignature.liveness
 			});
 		}
 	}
