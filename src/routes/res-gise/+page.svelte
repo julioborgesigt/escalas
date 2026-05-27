@@ -3,7 +3,7 @@
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { useAutorizacao, useMobile } from '$lib/composables';
-	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import { useResGise } from './useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -103,30 +103,24 @@
 						<h2 class="text-lg font-bold">Minhas Escalas GISE</h2>
 						
 						<!-- Escolha entre Ativas e Histórico -->
-						<SegmentedControl
+						<Tabs
 							value={resGise.statusFilterUrl || 'ativas'}
 							onValueChange={(e) => resGise.changeStatusFilter(e.value ?? '')}
 							class="w-full sm:w-auto"
 						>
-							<SegmentedControl.Control
+							<Tabs.List
 								class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full sm:w-auto"
 							>
-								<SegmentedControl.Item
+								<Tabs.Trigger
 									value="ativas"
-									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-								>
-									<SegmentedControl.ItemText>Ativas</SegmentedControl.ItemText>
-									<SegmentedControl.ItemHiddenInput />
-								</SegmentedControl.Item>
-								<SegmentedControl.Item
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>Ativas</Tabs.Trigger>
+								<Tabs.Trigger
 									value="finalizadas"
-									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
-								>
-									<SegmentedControl.ItemText>Histórico</SegmentedControl.ItemText>
-									<SegmentedControl.ItemHiddenInput />
-								</SegmentedControl.Item>
-							</SegmentedControl.Control>
-						</SegmentedControl>
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>Histórico</Tabs.Trigger>
+							</Tabs.List>
+						</Tabs>
 					</div>
 
 					<!-- Busca Detalhada (Apenas no Histórico) -->

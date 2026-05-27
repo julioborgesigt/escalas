@@ -7,7 +7,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
-	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	type ActionData = Record<string, unknown> | undefined;
@@ -42,6 +42,10 @@
 	let desafioIdRec = $state('');
 	let codigoRec = $state('');
 	let emailMascaradoRec = $state('');
+
+	const currentRecStep = $derived(
+		recuperacaoEtapa === 'identificador' ? 0 : recuperacaoEtapa === 'codigo' ? 1 : 2
+	);
 
 	// Erro inline de login (fallback para quando JS estiver bloqueado pelo CSP)
 	let loginError = $state<string | null>(null);
@@ -313,22 +317,16 @@
 		{#if !pendente2FA && !primeiroAcesso && !recuperacao}
 			<!-- ===== Formulário de credenciais ===== -->
 			<div class="mb-8">
-				<SegmentedControl
+				<Tabs
 					value={tipo}
 					onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
 					class="w-full"
 				>
-					<SegmentedControl.Control class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-						<SegmentedControl.Item value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
-							<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-						<SegmentedControl.Item value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
-							<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
-							<SegmentedControl.ItemHiddenInput />
-						</SegmentedControl.Item>
-					</SegmentedControl.Control>
-				</SegmentedControl>
+					<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
+						<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
+						<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+					</Tabs.List>
+				</Tabs>
 			</div>
 
 			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
@@ -446,6 +444,26 @@
 			</div>
 		{:else if recuperacao}
 			<!-- ===== Recuperação de senha ===== -->
+			<Steps step={currentRecStep} count={3} class="mb-6">
+				<Steps.List class="flex items-center justify-center gap-2">
+					{#each ['Identificação', 'Código', 'Concluído'] as label, i}
+						<Steps.Item index={i}>
+							<Steps.Trigger
+								tabindex={-1}
+								class="flex items-center gap-2 text-xs font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
+							>
+								<Steps.Indicator
+									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px]"
+								>{i + 1}</Steps.Indicator>
+								<span class="hidden sm:inline">{label}</span>
+							</Steps.Trigger>
+							{#if i < 2}
+								<Steps.Separator class="w-6 sm:w-12 h-px bg-surface-300 dark:bg-surface-700" />
+							{/if}
+						</Steps.Item>
+					{/each}
+				</Steps.List>
+			</Steps>
 			{#if recuperacaoEtapa === 'identificador'}
 				<div class="text-center mb-6">
 					<div class="text-5xl mb-3">🔒</div>
@@ -456,7 +474,7 @@
 				</div>
 
 				<div class="flex flex-col gap-5">
-					<SegmentedControl
+					<Tabs
 						value={tipo}
 						onValueChange={(e) => {
 							tipo = e.value as 'policial' | 'admin';
@@ -464,17 +482,11 @@
 						}}
 						class="w-full mb-4"
 					>
-						<SegmentedControl.Control class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-							<SegmentedControl.Item value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
-								<SegmentedControl.ItemText>Policial</SegmentedControl.ItemText>
-								<SegmentedControl.ItemHiddenInput />
-							</SegmentedControl.Item>
-							<SegmentedControl.Item value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">
-								<SegmentedControl.ItemText>Administrador</SegmentedControl.ItemText>
-								<SegmentedControl.ItemHiddenInput />
-							</SegmentedControl.Item>
-						</SegmentedControl.Control>
-					</SegmentedControl>
+						<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
+							<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
+							<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs>
 
 					<label class="label">
 						<span class="label-text">{tipo === 'policial' ? 'Matrícula' : 'Login'}</span>

@@ -19,7 +19,10 @@
       "Bash(npx wrangler *)",
       "Bash(node -e ' *)",
       "Bash(npm run *)",
-      "Bash(grep -v \"gise\\\\\\\\\\\\\\\\\\\\\\\\[id\\\\\\\\\\\\\\\\\\\\\\\\]\")"
+      "Bash(grep -v \"gise\\\\\\\\\\\\\\\\\\\\\\\\[id\\\\\\\\\\\\\\\\\\\\\\\\]\")",
+      "Bash(findstr /E \"\\(tailwind|vite|svelte\\)\")",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\Pc\\\\Desktop\\\\escalas\" -Filter \"*.config.*\")",
+      "Bash(Select-Object Name)"
     ]
   }
 }

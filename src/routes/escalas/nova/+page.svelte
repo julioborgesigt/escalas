@@ -4,7 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
-	import { Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, Steps } from '@skeletonlabs/skeleton-svelte';
 
 	interface UnidadeRegime {
 		nome: string;
@@ -172,6 +172,20 @@
 	);
 	const isMensal = $derived(tipoEscolhido === 'plantao' || tipoEscolhido === 'expediente');
 
+	const stepsConfig = $derived.by(() => {
+		const cfg: Array<{ key: 'unidade' | 'tipo' | 'detalhes'; label: string }> = [];
+		if (temVariasUnidades) cfg.push({ key: 'unidade', label: 'Unidade' });
+		cfg.push({ key: 'tipo', label: 'Tipo' });
+		cfg.push({ key: 'detalhes', label: 'Detalhes' });
+		return cfg;
+	});
+
+	const currentStep = $derived.by(() => {
+		if (!selecionando) return stepsConfig.findIndex((s) => s.key === 'detalhes');
+		if (temVariasUnidades && !unidadeEscolhida) return stepsConfig.findIndex((s) => s.key === 'unidade');
+		return stepsConfig.findIndex((s) => s.key === 'tipo');
+	});
+
 	// Auto-selecionar para policial com única unidade (não dispara para FDS para evitar loop)
 	$effect(() => {
 		if (!isAdmin && unidadesComRegime.length === 1 && selecionando) {
@@ -337,6 +351,29 @@
 	<h1 class="h1 text-2xl font-bold">Nova Escala</h1>
 	<a href="/escalas" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
+
+{#if unidadesComRegime.length > 0}
+	<Steps step={currentStep} count={stepsConfig.length} class="mb-6">
+		<Steps.List class="flex items-center justify-center gap-2">
+			{#each stepsConfig as s, i (s.key)}
+				<Steps.Item index={i}>
+					<Steps.Trigger
+						tabindex={-1}
+						class="flex items-center gap-2 text-sm font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
+					>
+						<Steps.Indicator
+							class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs"
+						>{i + 1}</Steps.Indicator>
+						<span class="hidden sm:inline">{s.label}</span>
+					</Steps.Trigger>
+					{#if i < stepsConfig.length - 1}
+						<Steps.Separator class="w-8 sm:w-16 h-px bg-surface-300 dark:bg-surface-700" />
+					{/if}
+				</Steps.Item>
+			{/each}
+		</Steps.List>
+	</Steps>
+{/if}
 
 <!-- =========== SELETOR DE REGIME =========== -->
 {#if selecionando}
