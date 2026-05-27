@@ -477,6 +477,12 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 	let y = 26;
 
 	for (const sec of gise.seccionais) {
+		// Pula seccionais cujas equipes estejam todas vazias — caso contrário
+		// o PDF mostra cabeçalho + tabela "(sem membros alocados)" sem valor
+		// informativo. Operadores pediram para omitir totalmente.
+		const equipesComMembros = sec.equipes.filter((e) => e.membros.length > 0);
+		if (equipesComMembros.length === 0) continue;
+
 		if (y > 175) { doc.addPage(); y = 15; }
 
 		doc.setFontSize(11);
@@ -485,7 +491,7 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 		doc.text(`${sec.seccional_nome}${secHora}`, 10, y);
 		y += 4;
 
-		for (const equipe of sec.equipes) {
+		for (const equipe of equipesComMembros) {
 			if (y > 175) { doc.addPage(); y = 15; }
 
 			const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
@@ -506,10 +512,6 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 				formatarData(gise.data_inicio),
 				fmtHoraGise(hSai)
 			]);
-
-			if (tableData.length === 0) {
-				tableData.push(['(sem membros alocados)', '', '', '', '', '', '', '', '']);
-			}
 
 			autoTable(doc, {
 				head: [[{ content: titleLabel, colSpan: 9, styles: { halign: 'center' } }],

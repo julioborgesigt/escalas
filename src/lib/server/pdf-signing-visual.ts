@@ -225,7 +225,6 @@ export async function adicionarPaginaAuditoria(
 	const cNavy = rgb(0.07, 0.14, 0.42);
 	const cText = rgb(0.1, 0.1, 0.15);
 	const cGray = rgb(0.4, 0.4, 0.45);
-	const cLightGray = rgb(0.96, 0.97, 0.98);
 	const cBorder = rgb(0.9, 0.92, 0.95);
 
 	// Agrupar assinantes por nível (Qualificada vs Avançada)
@@ -300,12 +299,18 @@ export async function adicionarPaginaAuditoria(
 		page.drawLine({ start: { x: 40, y: currY - 10 }, end: { x: width - 40, y: currY - 10 }, thickness: 0.5, color: cBorder });
 		currY -= 40;
 
-		// 3 — Seção de Assinaturas do Grupo
+		// 3 — Seção de Assinaturas do Grupo (cartão estruturado).
+		// Layout do cartão:
+		//   [ header navy: badge + nome + data + token ]
+		//   [ grid 2 colunas: 3 evidências cada      ]
+		//   [ rúbrica   |   foto do ato (liveness)   ]   ← só p/ avançada
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
-			const boxH = 145;
+			const isQualified = s.signatureLevel === 'qualificada';
+			// Qualificada não tem rúbrica/foto → cartão mais baixo.
+			const boxH = isQualified ? 130 : 240;
 
-			if (currY - boxH < 60) {
+			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
 				const { height: nh } = page.getSize();
 				page.drawText(`${group.title} (Continuação)`, { x: 40, y: nh - 50, size: 12, font: fontBold, color: cNavy });
@@ -313,86 +318,174 @@ export async function adicionarPaginaAuditoria(
 				currY = nh - 110;
 			}
 
-			page.drawRectangle({ x: 40, y: currY - boxH, width: width - 80, height: boxH, color: cLightGray, borderColor: cBorder, borderWidth: 1 });
+			const boxX = 40;
+			const boxW = width - 80;
 			const boxTop = currY;
+			const boxBottom = boxTop - boxH;
 
-			const isQualified = s.signatureLevel === 'qualificada';
-			const badgeColor = isQualified ? rgb(0.1, 0.3, 0.7) : rgb(0.1, 0.5, 0.2);
-			const badgeBg = isQualified ? rgb(0.9, 0.94, 1.0) : rgb(0.9, 0.98, 0.92);
-			const badgeLabel = isQualified ? 'QUALIFICADA (ICP-BRASIL)' : 'AVANÇADA (TELA/MOBILE)';
+			// Card branco com borda fina (substitui o cinza chapado anterior).
+			page.drawRectangle({
+				x: boxX, y: boxBottom, width: boxW, height: boxH,
+				color: rgb(1, 1, 1), borderColor: cBorder, borderWidth: 1
+			});
 
-			page.drawRectangle({ x: 55, y: boxTop - 25, width: 105, height: 16, color: badgeBg });
-			page.drawText(badgeLabel, { x: 58, y: boxTop - 20, size: 6.5, font: fontBold, color: badgeColor });
+			// --- Header strip ---
+			const headerH = 52;
+			const headerColor = isQualified ? rgb(0.1, 0.3, 0.7) : cNavy;
+			const headerTextSoft = rgb(0.82, 0.87, 1);
+			page.drawRectangle({
+				x: boxX, y: boxTop - headerH, width: boxW, height: headerH, color: headerColor
+			});
 
-			page.drawText(s.signerName.toUpperCase(), { x: 55, y: boxTop - 45, size: 11, font: fontBold, color: cText });
-			const dataAssinatura = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }).format(s.signingTime);
-			page.drawText(`Data e hora da assinatura: ${dataAssinatura}`, { x: 55, y: boxTop - 58, size: 8, font, color: cGray });
-			page.drawText(`Token: ${s.token || s.verificationHash}`, { x: 55, y: boxTop - 70, size: 8, font, color: cGray });
+			const badgeLabel = isQualified ? 'QUALIFICADA · ICP-BRASIL' : 'AVANÇADA · TELA/MOBILE';
+			page.drawText(badgeLabel, {
+				x: boxX + 15, y: boxTop - 14, size: 7, font: fontBold, color: headerTextSoft
+			});
 
-			// E-mail institucional (se disponível)
-			if (s.signerEmail) {
-				page.drawText(`E-mail: ${s.signerEmail}`, { x: 55, y: boxTop - 82, size: 7.5, font, color: cGray });
-			}
+			page.drawText(s.signerName.toUpperCase(), {
+				x: boxX + 15, y: boxTop - 32, size: 12, font: fontBold, color: rgb(1, 1, 1)
+			});
 
-			let authY = s.signerEmail ? boxTop - 100 : boxTop - 95;
-			const drawP = (label: string, val: string) => {
-				page.drawText(label + ':', { x: 55, y: authY, size: 7, font: fontBold, color: cGray });
-				page.drawText(val || 'N/A', { x: 130, y: authY, size: 7, font, color: cText });
-				authY -= 12;
+			const dataAssinatura = new Intl.DateTimeFormat('pt-BR', {
+				dateStyle: 'short', timeStyle: 'medium'
+			}).format(s.signingTime);
+			page.drawText(`Assinado em ${dataAssinatura}`, {
+				x: boxX + 15, y: boxTop - 46, size: 8, font, color: headerTextSoft
+			});
+
+			// Token alinhado à direita no header (truncado p/ caber).
+			const tokenFull = s.token || s.verificationHash;
+			const tokenLabel = `Token  ${tokenFull.length > 28 ? tokenFull.slice(0, 28) + '...' : tokenFull}`;
+			const tokenW = font.widthOfTextAtSize(tokenLabel, 7);
+			page.drawText(tokenLabel, {
+				x: boxX + boxW - 15 - tokenW, y: boxTop - 46, size: 7, font, color: headerTextSoft
+			});
+
+			// --- Grid de evidências (2 colunas, 3 linhas) ---
+			const gridTopY = boxTop - headerH - 18;
+			const colLeftX = boxX + 15;
+			const colRightX = boxX + boxW / 2 + 5;
+			const labelOffset = 78;
+			const rowGap = 18;
+
+			const drawField = (label: string, val: string, x: number, y: number) => {
+				page.drawText(label, { x, y, size: 6.5, font: fontBold, color: cGray });
+				page.drawText(val || 'N/A', {
+					x: x + labelOffset, y, size: 8, font, color: cText
+				});
 			};
 
-			drawP('Identificação', s.signerCpf ? mascararCPF(s.signerCpf) : 'N/A');
-			drawP('IP', s.ip || 'Desconhecido');
-			// User-Agent legível
-			const uaLegivel = parseUserAgent(s.userAgent || '');
-			drawP('Dispositivo', uaLegivel);
-			// Tipo de carimbo de tempo
-			const tipoCarimbo = descreverTipoCarimbo(s.tipoCarimoTempo ?? 'servidor');
-			drawP('Carimbo de Tempo', tipoCarimbo);
-			drawP('Localização', (s.latitude && s.longitude) ? `${s.latitude}, ${s.longitude}` : 'Não capturado');
-			// Liveness challenge (apenas em assinaturas avançadas com selfie).
-			if (s.livenessChallenge) {
-				const lc = s.livenessChallenge;
-				const tipoLabel = lc.tipo === 'blink' ? 'Piscar' : 'Sorrir';
-				// Helvetica padrão do pdf-lib usa WinAnsiEncoding e NÃO codifica
-				// U+2713/U+2717 (✓/✗) nem o travessão U+2014 (—). Usar esses
-				// caracteres faz drawText lançar e o pipeline inteiro retorna 500.
-				const status = lc.cumprido ? 'OK' : 'FALHOU';
-				const tentLabel = lc.tentativas > 1 ? ` (${lc.tentativas} tentativas)` : '';
-				drawP(
-					'Prova de Vida',
-					`${tipoLabel} ${status}${tentLabel} - ${(lc.duracaoMs / 1000).toFixed(1)}s`
-				);
+			const cpfTexto = s.signerCpf ? mascararCPF(s.signerCpf) : 'N/A';
+			const ipTexto = s.ip || 'Desconhecido';
+			const dispositivoTexto = parseUserAgent(s.userAgent || '');
+			const carimboTexto = descreverTipoCarimbo(s.tipoCarimoTempo ?? 'servidor');
+			const localizacaoTexto =
+				s.latitude && s.longitude
+					? `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`
+					: 'Não capturado';
+			const livenessTexto = s.livenessChallenge
+				? `${s.livenessChallenge.tipo === 'blink' ? 'Piscar' : 'Sorrir'} ${
+						s.livenessChallenge.cumprido ? 'OK' : 'FALHOU'
+					}${
+						s.livenessChallenge.tentativas > 1
+							? ` (${s.livenessChallenge.tentativas} tentativas)`
+							: ''
+					} - ${(s.livenessChallenge.duracaoMs / 1000).toFixed(1)}s`
+				: 'Não exigida';
+
+			// Coluna esquerda
+			drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
+			drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
+			drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
+
+			// Coluna direita
+			drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
+			drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
+			drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
+
+			// E-mail abaixo (largura total) se disponível
+			if (s.signerEmail) {
+				drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
 			}
 
+			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
 			if (!isQualified) {
-				const rubW = 90; const rubX = 340; const fotX = 445; const rowY = boxTop - 25;
-				page.drawText('RÚBRICA', { x: rubX, y: rowY, size: 7, font: fontBold, color: cGray });
-				page.drawLine({ start: { x: rubX, y: rowY - 5 }, end: { x: rubX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
+				const sepY = gridTopY - rowGap * (s.signerEmail ? 4 : 3) - 6;
+				page.drawLine({
+					start: { x: boxX + 15, y: sepY },
+					end: { x: boxX + boxW - 15, y: sepY },
+					thickness: 0.5, color: cBorder
+				});
+
+				const evidLabelY = sepY - 14;
+				const rubW = 150, rubH = 60;
+				const fotW = 60, fotH = 80;
+				const rubX = boxX + 25;
+				const fotX = boxX + boxW - 25 - fotW;
+
+				// Rótulos
+				page.drawText('RÚBRICA', {
+					x: rubX, y: evidLabelY, size: 6.5, font: fontBold, color: cGray
+				});
+				page.drawText('FOTO DO ATO (LIVENESS)', {
+					x: fotX, y: evidLabelY, size: 6.5, font: fontBold, color: cGray
+				});
+
+				// Frame rúbrica
+				const rubFrameY = evidLabelY - 6 - rubH;
+				page.drawRectangle({
+					x: rubX, y: rubFrameY, width: rubW, height: rubH,
+					color: rgb(0.99, 0.99, 0.99), borderColor: cBorder, borderWidth: 0.5
+				});
 				if (s.rubricBase64) {
 					try {
-						const img = s.rubricBase64.includes('image/jpeg') ? await pdfDoc.embedJpg(s.rubricBase64) : await pdfDoc.embedPng(s.rubricBase64);
-						const iw = 80; const ih = (img.height / img.width) * iw;
-						page.drawImage(img, { x: rubX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
+						const img = s.rubricBase64.includes('image/jpeg')
+							? await pdfDoc.embedJpg(s.rubricBase64)
+							: await pdfDoc.embedPng(s.rubricBase64);
+						const ratio = img.width / img.height;
+						let iw = rubW - 12;
+						let ih = iw / ratio;
+						if (ih > rubH - 8) { ih = rubH - 8; iw = ih * ratio; }
+						page.drawImage(img, {
+							x: rubX + (rubW - iw) / 2,
+							y: rubFrameY + (rubH - ih) / 2,
+							width: iw, height: ih
+						});
 					} catch (err) {
 						logger.warn('[pdf-signing] incorporar rúbrica no manifesto', { err: String(err) });
 					}
 				}
-				page.drawText('FOTO', { x: fotX, y: rowY, size: 7, font: fontBold, color: cGray });
-				page.drawLine({ start: { x: fotX, y: rowY - 5 }, end: { x: fotX + rubW, y: rowY - 5 }, thickness: 0.5, color: cBorder });
+
+				// Frame foto (3:4)
+				const fotFrameY = evidLabelY - 6 - fotH;
+				page.drawRectangle({
+					x: fotX, y: fotFrameY, width: fotW, height: fotH,
+					color: rgb(0.99, 0.99, 0.99), borderColor: cBorder, borderWidth: 0.5
+				});
 				if (s.selfieBase64) {
 					try {
-						const data = s.selfieBase64.includes(',') ? s.selfieBase64.split(',')[1] : s.selfieBase64;
+						const data = s.selfieBase64.includes(',')
+							? s.selfieBase64.split(',')[1]
+							: s.selfieBase64;
 						const bytes = Buffer.from(data, 'base64');
 						const img = await pdfDoc.embedJpg(bytes);
-						const iw = 80; const ih = (img.height / img.width) * iw;
-						page.drawImage(img, { x: fotX + (rubW - iw) / 2, y: rowY - 10 - ih, width: iw, height: ih });
+						const ratio = img.width / img.height;
+						// "Object cover" — preenche o frame, recorta o excesso.
+						let iw = fotW - 4;
+						let ih = iw / ratio;
+						if (ih < fotH - 4) { ih = fotH - 4; iw = ih * ratio; }
+						page.drawImage(img, {
+							x: fotX + (fotW - iw) / 2,
+							y: fotFrameY + (fotH - ih) / 2,
+							width: iw, height: ih
+						});
 					} catch (err) {
 						logger.warn('[pdf-signing] incorporar selfie no manifesto', { err: String(err) });
 					}
 				}
 			}
-			currY -= boxH + 15;
+
+			currY -= boxH + 18;
 		}
 
 		// Rodapé de Compliance
