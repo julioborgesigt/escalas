@@ -111,7 +111,8 @@ export async function verificarECarimbarAssinatura(
 		cms.certificate,
 		cms.sigAlgOid,
 		cms.signedAttrsAsSet,
-		cms.signatureValue
+		cms.signatureValue,
+		cms.digestAlgOid
 	);
 	if (!rsaOk) {
 		return {

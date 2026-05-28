@@ -24,6 +24,10 @@ import forge from 'node-forge';
 import { logger } from './logger';
 
 // OIDs de algoritmos de assinatura (encontrados em SignerInfo.signatureAlgorithm).
+// rsaEncryption "puro": não embute o digest — o hash vem do digestAlgorithm do
+// SignerInfo. Vários assinadores ICP-Brasil (e o Assinador SERPRO) podem emitir
+// o SignerInfo com este OID em vez do combinado sha256WithRSAEncryption.
+const OID_RSA_ENCRYPTION = '1.2.840.113549.1.1.1';
 const OID_SHA1_RSA = '1.2.840.113549.1.1.5';
 const OID_SHA256_RSA = '1.2.840.113549.1.1.11';
 const OID_SHA384_RSA = '1.2.840.113549.1.1.12';
@@ -56,6 +60,11 @@ export interface VerifyParams {
 	signedAttrsAsSet: forge.asn1.Asn1;
 	/** Bytes brutos do signatureValue (string binária). */
 	signatureValue: string;
+	/**
+	 * OID do `digestAlgorithm` do SignerInfo. Necessário apenas quando
+	 * `sigAlgOid` é `rsaEncryption` (1.1.1), que não embute o digest no OID.
+	 */
+	digestAlgOid?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,8 +101,30 @@ function digestFromSigAlg(sigAlgOid: string): 'SHA-1' | 'SHA-256' | 'SHA-384' | 
 	}
 }
 
+/**
+ * Mapeia o OID do `digestAlgorithm` (digest puro, sem RSA) para o nome
+ * Web Crypto. Usado quando o `signatureAlgorithm` é `rsaEncryption` (1.1.1).
+ */
+function digestFromDigestOid(
+	oid: string | undefined
+): 'SHA-1' | 'SHA-256' | 'SHA-384' | 'SHA-512' | null {
+	switch (oid) {
+		case OID_SHA1:
+			return 'SHA-1';
+		case OID_SHA256:
+			return 'SHA-256';
+		case OID_SHA384:
+			return 'SHA-384';
+		case OID_SHA512:
+			return 'SHA-512';
+		default:
+			return null;
+	}
+}
+
 function familyFromSigAlg(sigAlgOid: string): SignatureFamily | null {
 	if (
+		sigAlgOid === OID_RSA_ENCRYPTION ||
 		sigAlgOid === OID_SHA1_RSA ||
 		sigAlgOid === OID_SHA256_RSA ||
 		sigAlgOid === OID_SHA384_RSA ||
@@ -172,10 +203,18 @@ function ecdsaAsn1ToP1363(signatureValue: string, coordLen: number): Uint8Array 
  */
 export async function verificarAssinaturaCms(params: VerifyParams): Promise<boolean> {
 	const family = familyFromSigAlg(params.sigAlgOid);
-	const hash = digestFromSigAlg(params.sigAlgOid);
+	// Para `rsaEncryption` puro (1.1.1) o OID não embute o digest — derivamos do
+	// `digestAlgorithm` do SignerInfo. Para os OIDs combinados, o digest vem do
+	// próprio sigAlgOid.
+	const hash =
+		digestFromSigAlg(params.sigAlgOid) ??
+		(params.sigAlgOid === OID_RSA_ENCRYPTION
+			? digestFromDigestOid(params.digestAlgOid)
+			: null);
 	if (!family || !hash) {
 		logger.warn('[CRYPTO-VERIFY] OID de signatureAlgorithm não suportado', {
-			oid: params.sigAlgOid
+			oid: params.sigAlgOid,
+			digestOid: params.digestAlgOid
 		});
 		return false;
 	}
@@ -291,6 +330,7 @@ function hashByteLen(hash: 'SHA-1' | 'SHA-256' | 'SHA-384' | 'SHA-512'): number 
 
 // Re-exporta OIDs caso o caller queira referenciar (sem importar a constante interna).
 export const SIGNATURE_OIDS = {
+	RSA_ENCRYPTION: OID_RSA_ENCRYPTION,
 	SHA1_RSA: OID_SHA1_RSA,
 	SHA256_RSA: OID_SHA256_RSA,
 	SHA384_RSA: OID_SHA384_RSA,
