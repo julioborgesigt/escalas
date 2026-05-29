@@ -144,7 +144,7 @@ function parseUAInternal(ua: string): UAResult {
 // Determinação do tipo de carimbo de tempo
 // ---------------------------------------------------------------------------
 
-export type TipoCarimoTempo = 'servidor' | 'act_icp';
+export type TipoCarimoTempo = 'servidor' | 'act_icp' | 'tsa_externa';
 
 /**
  * Determina o tipo de carimbo de tempo com base na resposta do SERPRO.
@@ -166,7 +166,12 @@ export function determinarTipoCarimbo(serproResponse?: Record<string, unknown>):
  * Retorna a descrição legível do tipo de carimbo para exibição no PDF.
  */
 export function descreverTipoCarimbo(tipo: TipoCarimoTempo): string {
-	return tipo === 'act_icp'
-		? 'Carimbo de Tempo (ACT) ICP-Brasil'
-		: 'Data/Hora do Sistema (Servidor)';
+	switch (tipo) {
+		case 'act_icp':
+			return 'Carimbo de Tempo (ACT) ICP-Brasil';
+		case 'tsa_externa':
+			return 'Carimbo de Tempo (TSA externa, não-ICP)';
+		default:
+			return 'Data/Hora do Sistema (Servidor)';
+	}
 }

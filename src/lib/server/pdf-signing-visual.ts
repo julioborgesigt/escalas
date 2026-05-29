@@ -194,7 +194,8 @@ export interface AuditTrailOptions {
 	token?: string;
 	documentName?: string;
 	signatureLevel?: 'avancada' | 'qualificada';
-	/** Tipo do carimbo de tempo: 'servidor' (sistema) ou 'act_icp' (TSA ICP-Brasil) */
+	/** Tipo do carimbo de tempo: 'servidor' (sistema), 'act_icp' (ACT ICP-Brasil)
+	 *  ou 'tsa_externa' (TSA RFC 3161 não-ICP, ex.: DigiCert). */
 	tipoCarimoTempo?: TipoCarimoTempo;
 	/** Resultado do liveness challenge (blink/smile) — registrado para auditoria. */
 	livenessChallenge?: {

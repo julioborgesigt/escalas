@@ -170,10 +170,10 @@ export async function verificarECarimbarAssinatura(
 	let tstAplicadoServerSide = false;
 
 	if (cms.timestampToken) {
-		// (a) — TST veio do cliente.
-		const tst = verificarTimestampToken(cms.timestampToken, cms.signatureValue);
+		// (a) — TST veio do cliente. Verifica assinatura + cadeia e classifica.
+		const tst = await verificarTimestampToken(cms.timestampToken, cms.signatureValue);
 		if (tst) {
-			tipoCarimboTempo = 'act_icp';
+			tipoCarimboTempo = tst.classe === 'icp' ? 'act_icp' : 'tsa_externa';
 			try {
 				tstTokenB64 = forge.util.encode64(forge.asn1.toDer(cms.timestampToken).getBytes());
 			} catch {
@@ -183,7 +183,8 @@ export async function verificarECarimbarAssinatura(
 			return {
 				ok: false,
 				status: 422,
-				error: 'Token TSA presente mas inválido (messageImprint não confere)'
+				error:
+					'Token TSA presente mas inválido (assinatura do carimbo ou messageImprint não conferem)'
 			};
 		}
 	} else if (options.env?.TSA_URL) {
@@ -198,7 +199,10 @@ export async function verificarECarimbarAssinatura(
 				// Reescreve o CMS com o TST anexado e re-embeda no PDF.
 				const novoCmsDer = adicionarTimestampTokenAoCms(extracao.cmsDer, tsa.tstAsn1);
 				signedPdfBytes = embedCmsBytesNoPlaceholder(signedPdfBytes, novoCmsDer);
-				tipoCarimboTempo = 'act_icp';
+				// Classifica o carimbo recém-obtido: 'act_icp' só se a TSA encadear
+				// até a ICP-Brasil; uma TSA pública (ex.: DigiCert) vira 'tsa_externa'.
+				const tstVerif = await verificarTimestampToken(tsa.tstAsn1, cms.signatureValue);
+				tipoCarimboTempo = tstVerif?.classe === 'icp' ? 'act_icp' : 'tsa_externa';
 				tstTokenB64 = forge.util.encode64(
 					Array.from(tsa.tstDer)
 						.map((b) => String.fromCharCode(b))
@@ -219,14 +223,17 @@ export async function verificarECarimbarAssinatura(
 		}
 	}
 
-	if (tipoCarimboTempo === 'servidor' && exigirTsa(options.env)) {
+	if (tipoCarimboTempo !== 'act_icp' && exigirTsa(options.env)) {
 		return {
 			ok: false,
 			status: 422,
 			error:
-				'Assinatura qualificada exige carimbo de tempo ACT/ICP-Brasil (RFC 3161). ' +
-				'Configure TSA_URL para anexar server-side, ou habilite a emissão de ' +
-				'timestampToken no Assinador desktop antes de finalizar.'
+				'Assinatura qualificada exige carimbo de tempo de ACT credenciada ICP-Brasil (RFC 3161). ' +
+				(tipoCarimboTempo === 'tsa_externa'
+					? 'O carimbo presente é de uma TSA externa não-ICP (ex.: DigiCert), que não confere tempestividade oponível a terceiros. '
+					: 'A assinatura tem apenas o horário do servidor. ') +
+				'Aponte TSA_URL para uma ACT ICP-Brasil, ou habilite a emissão de ' +
+				'timestampToken por ACT no Assinador desktop antes de finalizar.'
 		};
 	}
 	if (tstAplicadoServerSide) {

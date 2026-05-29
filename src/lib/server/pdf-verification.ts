@@ -45,7 +45,7 @@ export interface VerificationResult {
 		revogacao: StatusOcsp;
 	};
 	certificado?: VerificationCertificado;
-	timestamp?: { tipo: 'act_icp' | 'servidor'; momento: string };
+	timestamp?: { tipo: 'act_icp' | 'servidor' | 'tsa_externa'; momento: string };
 	/** Sinaliza se o PDF tem DSS Dictionary embarcado (PAdES-LT auto-contido). */
 	padesLt?: { presente: boolean; certCount: number; ocspCount: number; crlCount: number };
 	erros: string[];
@@ -201,6 +201,8 @@ interface CmsParsed {
 	signerInfo: forge.asn1.Asn1;
 	certificate: forge.pki.Certificate;
 	certificateAsn1: forge.asn1.Asn1;
+	/** Todos os certificados embutidos no SignedData (signatário + cadeia). */
+	certificatesAsn1: forge.asn1.Asn1[];
 	signedAttrs: forge.asn1.Asn1; // [0] IMPLICIT — para re-encode em SET
 	signedAttrsAsSet: forge.asn1.Asn1; // mesma coisa, mas com tag SET (0x31)
 	messageDigest: string; // bytes binários
@@ -245,9 +247,12 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		const signerInfo = (signerInfos.value as forge.asn1.Asn1[])[0];
 		if (!signerInfo) return null;
 
-		// Pega o primeiro certificado (signatário).
+		// Pega o primeiro certificado (signatário) e expõe todos para callers
+		// que precisam localizar o cert correto pela assinatura (ex.: TSA, cuja
+		// folha pode não ser a primeira do SET).
 		if (!certsImpl) return null;
-		const certificateAsn1 = (certsImpl.value as forge.asn1.Asn1[])[0];
+		const certificatesAsn1 = certsImpl.value as forge.asn1.Asn1[];
+		const certificateAsn1 = certificatesAsn1[0];
 		const certificate = forge.pki.certificateFromAsn1(certificateAsn1);
 
 		// SignerInfo: version, sid, digestAlgorithm, [0] signedAttrs?, signatureAlgorithm, signature, [1] unsignedAttrs?
@@ -364,6 +369,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			signerInfo,
 			certificate,
 			certificateAsn1,
+			certificatesAsn1,
 			signedAttrs,
 			signedAttrsAsSet,
 			messageDigest,
@@ -470,21 +476,127 @@ export function verificarCadeiaIcpBrasil(
 	}
 }
 
+/** EKU `timeStamping` marcada como crítica (RFC 3161 §2.3 — obrigatória em ACTs). */
+function temEkuTimeStampingCritica(cert: forge.pki.Certificate): boolean {
+	const eku = cert.extensions?.find((e) => e.name === 'extKeyUsage') as
+		| { critical?: boolean; timeStamping?: boolean }
+		| undefined;
+	return !!(eku && eku.critical && eku.timeStamping);
+}
+
 /**
- * Valida o token RFC 3161 contra o messageImprint = hash(signatureValue).
- * Retorna o ISO 8601 do `genTime` se válido, ou `null`.
+ * Valida a cadeia de uma TSA (carimbo de tempo) contra o trust store ICP-Brasil.
+ *
+ * Difere de `verificarCadeiaIcpBrasil` num único ponto: tolera a extensão
+ * `extKeyUsage` (EKU) marcada como CRÍTICA quando contém `timeStamping`. A
+ * RFC 3161 §2.3 EXIGE que a EKU da ACT seja crítica e contenha apenas
+ * id-kp-timeStamping; node-forge, porém, não a reconhece como "suportada" e
+ * abortaria toda a validação com `forge.pki.UnsupportedCertificate`. A
+ * tolerância é estreita — só se aplica a certificados que realmente têm a EKU
+ * timeStamping crítica, de modo que certificados comuns seguem a checagem
+ * padrão de extensões críticas.
  */
-export function verificarTimestampToken(
+function verificarCadeiaTsa(
+	cert: forge.pki.Certificate,
+	dataReferencia?: Date
+): boolean | 'indisponivel' {
+	const ts = loadTrustStore();
+	if (!ts.disponivel) return 'indisponivel';
+	try {
+		return forge.pki.verifyCertificateChain(ts.caStore, [cert], {
+			validityCheckDate: dataReferencia ?? new Date(),
+			verify: (vfd: boolean | string, depth: number, chain: forge.pki.Certificate[]): boolean => {
+				if (vfd === true) return true;
+				// Tolera SOMENTE a EKU timeStamping crítica (esperada em ACTs); qualquer
+				// outra falha de cadeia/extensão é rejeitada normalmente.
+				if (vfd === 'forge.pki.UnsupportedCertificate' && temEkuTimeStampingCritica(chain[depth])) {
+					return true;
+				}
+				return false;
+			}
+		}) as boolean;
+	} catch (e) {
+		logger.info('[PDF-VERIFY] Cadeia TSA inválida', {
+			subject: cert.subject.getField('CN')?.value,
+			error: e instanceof Error ? e.message : String(e)
+		});
+		return false;
+	}
+}
+
+/** Seleciona o algoritmo de digest a partir do OID (default SHA-256). */
+function mdPorOid(oid?: string): forge.md.MessageDigest {
+	switch (oid) {
+		case '2.16.840.1.101.3.4.2.2':
+			return forge.md.sha384.create();
+		case '2.16.840.1.101.3.4.2.3':
+			return forge.md.sha512.create();
+		default:
+			// 2.16.840.1.101.3.4.2.1 (SHA-256) e fallback.
+			return forge.md.sha256.create();
+	}
+}
+
+/** Compara dois byte-strings em tempo ~constante. */
+function bytesIguais(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	return diff === 0;
+}
+
+export interface TstVerificado {
+	/** ISO 8601 do `genTime` do carimbo. */
+	momento: string;
+	/**
+	 * Origem do carimbo, após verificação criptográfica completa:
+	 *
+	 *   - `'icp'`     — a TSA encadeia até uma AC Raiz da ICP-Brasil. Tem
+	 *                   tempestividade oponível a terceiros (art. 10 §1º da
+	 *                   MP 2.200-2/2001, DOC-ICP-15).
+	 *   - `'externa'` — a assinatura do carimbo é válida, mas a TSA NÃO é
+	 *                   ICP-Brasil (ex.: DigiCert) OU o trust store está
+	 *                   indisponível. Carimbo real, porém sem a presunção ICP.
+	 */
+	classe: 'icp' | 'externa';
+}
+
+/**
+ * Verifica criptograficamente um TimeStampToken RFC 3161 e classifica a TSA.
+ *
+ * Um TST é, em si, um CMS SignedData — então reaproveitamos `parseCms` e
+ * `verificarAssinaturaCmsAsync` em vez de reimplementar criptografia. As três
+ * checagens abaixo são TODAS obrigatórias para retornar não-nulo:
+ *
+ *   1. `messageImprint` do TSTInfo == hash(signatureValue) — liga o carimbo
+ *      à NOSSA assinatura (a que estamos verificando).
+ *   2. `messageDigest` assinado == hash(TSTInfo) — garante que a assinatura
+ *      da TSA cobre exatamente o TSTInfo de onde lemos genTime/messageImprint
+ *      (sem isso, um atacante poderia trocar o eContent mantendo a assinatura).
+ *   3. assinatura da TSA sobre os SignedAttributes confere (RSA/ECDSA), usando
+ *      o certificado da própria TSA embutido no token.
+ *
+ * Só então valida a cadeia da TSA no instante do `genTime`, classificando como
+ * `'icp'` (encadeia até ICP-Brasil) ou `'externa'` (válida, mas não-ICP).
+ *
+ * Retorna `null` se QUALQUER checagem cripto (1-3) falhar — o caller deve
+ * tratar como token inválido (rejeitar a finalização / marcar erro na /validar).
+ * Cadeia não-ICP NÃO produz `null`: produz `'externa'`.
+ */
+export async function verificarTimestampToken(
 	tstWrapper: forge.asn1.Asn1,
 	signatureValue: string
-): { momento: string } | null {
+): Promise<TstVerificado | null> {
 	try {
-		// tstWrapper é um ContentInfo (TimeStampToken). Extrai TSTInfo.
-		const ci = tstWrapper.value as forge.asn1.Asn1[];
-		const sdWrap = ci[1];
-		const signedData = (sdWrap.value as forge.asn1.Asn1[])[0];
-		const sd = signedData.value as forge.asn1.Asn1[];
-		// encapContentInfo está em sd[2]: SEQUENCE { OID, [0] EXPLICIT OCTET STRING TSTInfo }
+		// O TST (ContentInfo) é um CMS — reusa o parser do CMS principal.
+		const tstDerStr = forge.asn1.toDer(tstWrapper).getBytes();
+		const tstDer = new Uint8Array(tstDerStr.length);
+		for (let i = 0; i < tstDerStr.length; i++) tstDer[i] = tstDerStr.charCodeAt(i) & 0xff;
+		const parsed = parseCms(tstDer);
+		if (!parsed) return null;
+
+		// encapContentInfo (sd[2]): SEQUENCE { eContentType, [0] EXPLICIT OCTET STRING TSTInfo }
+		const sd = parsed.signedData.value as forge.asn1.Asn1[];
 		const encap = sd[2];
 		const encapChildren = encap.value as forge.asn1.Asn1[];
 		const encapWrap = encapChildren[1];
@@ -492,33 +604,74 @@ export function verificarTimestampToken(
 		const tstInfoDer = tstInfoOctet.value as string;
 		const tstInfo = forge.asn1.fromDer(tstInfoDer);
 		const ti = tstInfo.value as forge.asn1.Asn1[];
+
 		// TSTInfo: version, policy, messageImprint, serialNumber, genTime, ...
+		// messageImprint: SEQUENCE { AlgorithmIdentifier, OCTET STRING hash }
 		const messageImprint = ti[2];
 		const miChildren = messageImprint.value as forge.asn1.Asn1[];
+		let miAlgOid: string | undefined;
+		try {
+			miAlgOid = forge.asn1.derToOid(
+				(miChildren[0].value as forge.asn1.Asn1[])[0].value as string
+			);
+		} catch {
+			/* default SHA-256 */
+		}
 		const miHash = miChildren[1].value as string;
-		// genTime é GeneralizedTime
+
+		// genTime (GeneralizedTime).
 		let genTimeISO: string | null = null;
+		let genTimeDate: Date | undefined;
 		for (let i = 3; i < ti.length; i++) {
 			if (ti[i].type === forge.asn1.Type.GENERALIZEDTIME) {
 				try {
-					genTimeISO = forge.asn1.generalizedTimeToDate(ti[i].value as string).toISOString();
+					genTimeDate = forge.asn1.generalizedTimeToDate(ti[i].value as string);
+					genTimeISO = genTimeDate.toISOString();
 				} catch {
 					/* ignore */
 				}
 				break;
 			}
 		}
+		if (!genTimeISO) return null;
 
-		// messageImprint deve ser hash(signatureValue) — algoritmo do TSP (geralmente SHA-256)
-		const md = forge.md.sha256.create();
-		md.update(signatureValue);
-		const expected = md.digest().getBytes();
-		if (expected.length !== miHash.length) return null;
-		for (let i = 0; i < expected.length; i++) {
-			if (expected.charCodeAt(i) !== miHash.charCodeAt(i)) return null;
+		// (1) messageImprint == hash(signatureValue), no algoritmo do imprint.
+		const mdImprint = mdPorOid(miAlgOid);
+		mdImprint.update(signatureValue);
+		if (!bytesIguais(mdImprint.digest().getBytes(), miHash)) return null;
+
+		// (2) messageDigest assinado == hash(TSTInfo), no digestAlgorithm do SignerInfo.
+		const mdContent = mdPorOid(parsed.digestAlgOid);
+		mdContent.update(tstInfoDer);
+		if (!bytesIguais(mdContent.digest().getBytes(), parsed.messageDigest)) return null;
+
+		// (3) assinatura da TSA — tenta cada cert do token até um validar (a folha
+		//     nem sempre é a primeira do SET de certificados).
+		let tsaCert: forge.pki.Certificate | null = null;
+		for (const certAsn1 of parsed.certificatesAsn1) {
+			let cert: forge.pki.Certificate;
+			try {
+				cert = forge.pki.certificateFromAsn1(certAsn1);
+			} catch {
+				continue;
+			}
+			const ok = await verificarAssinaturaCmsAsync(
+				cert,
+				parsed.sigAlgOid,
+				parsed.signedAttrsAsSet,
+				parsed.signatureValue,
+				parsed.digestAlgOid
+			);
+			if (ok) {
+				tsaCert = cert;
+				break;
+			}
 		}
+		if (!tsaCert) return null;
 
-		return genTimeISO ? { momento: genTimeISO } : null;
+		// Cadeia da TSA no instante do carimbo → classifica ICP vs externa.
+		const cadeia = verificarCadeiaTsa(tsaCert, genTimeDate);
+		return { momento: genTimeISO, classe: cadeia === true ? 'icp' : 'externa' };
 	} catch (e) {
 		logger.warn('[PDF-VERIFY] Falha ao verificar TimeStampToken', {
 			error: e instanceof Error ? e.message : String(e)
@@ -535,7 +688,7 @@ export interface VerifyOptions {
 	/** Snapshot OCSP previamente armazenado (CAdES-LT). */
 	ocspSnapshotB64?: string | null;
 	/** Tipo de carimbo registrado no banco (auditoria adicional). */
-	tipoCarimboTempoArmazenado?: 'servidor' | 'act_icp' | null;
+	tipoCarimboTempoArmazenado?: 'servidor' | 'act_icp' | 'tsa_externa' | null;
 	/**
 	 * `platform.env` para checar `ICP_BRASIL_TRUST_STORE_REQUIRED`. Quando
 	 * essa env está ligada e o trust store está vazio, devolvemos
@@ -623,12 +776,17 @@ export async function verificarAssinaturaCompleta(
 	//    serve de data de referência para validar a validade do certificado no
 	//    instante da assinatura (e não em "agora").
 	if (cms.timestampToken) {
-		const tst = verificarTimestampToken(cms.timestampToken, cms.signatureValue);
+		const tst = await verificarTimestampToken(cms.timestampToken, cms.signatureValue);
 		if (tst) {
-			result.checks.timestampQualificado = true;
-			result.timestamp = { tipo: 'act_icp', momento: tst.momento };
+			// "Qualificado" só quando a TSA encadeia até a ICP-Brasil; um carimbo
+			// de TSA externa (ex.: DigiCert) é válido, porém não-qualificado.
+			result.checks.timestampQualificado = tst.classe === 'icp';
+			result.timestamp = {
+				tipo: tst.classe === 'icp' ? 'act_icp' : 'tsa_externa',
+				momento: tst.momento
+			};
 		} else {
-			erros.push('Token TSA presente mas inválido (messageImprint não confere)');
+			erros.push('Token TSA presente mas inválido (assinatura ou messageImprint não conferem)');
 			result.timestamp = { tipo: 'servidor', momento: cms.signingTimeISO ?? '' };
 		}
 	} else if (cms.signingTimeISO) {
