@@ -3,6 +3,16 @@ compatibility_date = "2026-04-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".svelte-kit/cloudflare"
 
+# Variáveis de ambiente NÃO-secretas, expostas em platform.env no deploy.
+[vars]
+# Time-Stamp Authority RFC 3161 — DigiCert: endpoint público e GRATUITO
+# (sem conta/credencial, SHA-256). Anexa carimbo de tempo às assinaturas,
+# promovendo CAdES-BES -> CAdES-T. NÃO é ACT credenciada ICP-Brasil: a
+# tempestividade tem valor probatório internacional, porém sem a presunção
+# ICP-Brasil. Para peso ICP pleno, troque por uma ACT (ex.: SERPRO) e, se ela
+# exigir, defina TSA_USERNAME/TSA_PASSWORD como secrets (wrangler secret put).
+TSA_URL = "http://timestamp.digicert.com"
+
 [[d1_databases]]
 binding = "escalas_db"
 database_name = "escalas-db"

@@ -207,6 +207,8 @@ interface CmsParsed {
 	signatureValue: string; // bytes binários
 	/** OID do signatureAlgorithm (SignerInfo.signatureAlgorithm). */
 	sigAlgOid: string;
+	/** OID do digestAlgorithm (SignerInfo.digestAlgorithm) — usado p/ rsaEncryption. */
+	digestAlgOid?: string;
 	signingTimeISO?: string;
 	timestampToken?: forge.asn1.Asn1;
 }
@@ -257,7 +259,9 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		let unsignedAttrs: forge.asn1.Asn1 | null = null;
 		let signatureValue: string | null = null;
 		let sigAlgOid = '1.2.840.113549.1.1.11'; // default sha256WithRSAEncryption
+		let digestAlgOid: string | undefined;
 		let sigAlgEncontrado: forge.asn1.Asn1 | null = null;
+		let digestAlgEncontrado: forge.asn1.Asn1 | null = null;
 		for (const f of si) {
 			if (
 				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
@@ -275,10 +279,15 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				f.type === forge.asn1.Type.SEQUENCE &&
 				signatureValue === null
 			) {
-				// Pode ser digestAlgorithm (antes de signedAttrs) ou signatureAlgorithm
-				// (depois). O signatureAlgorithm é o ÚLTIMO SEQUENCE antes do OCTETSTRING
-				// — sobrescrevemos no loop para ficar com ele.
-				sigAlgEncontrado = f;
+				// SEQUENCEs universais do SignerInfo: sid (IssuerAndSerialNumber),
+				// digestAlgorithm (ANTES do signedAttrs [0]) e signatureAlgorithm
+				// (DEPOIS, último antes do OCTETSTRING). Capturamos o último antes
+				// do signedAttrs como digestAlgorithm e o seguinte como signatureAlgorithm.
+				if (signedAttrs === null) {
+					digestAlgEncontrado = f;
+				} else {
+					sigAlgEncontrado = f;
+				}
 			} else if (
 				f.tagClass === forge.asn1.Class.UNIVERSAL &&
 				f.type === forge.asn1.Type.OCTETSTRING
@@ -293,6 +302,14 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				sigAlgOid = forge.asn1.derToOid(oidBytes);
 			} catch {
 				/* mantém default */
+			}
+		}
+		if (digestAlgEncontrado) {
+			try {
+				const oidBytes = (digestAlgEncontrado.value as forge.asn1.Asn1[])[0].value as string;
+				digestAlgOid = forge.asn1.derToOid(oidBytes);
+			} catch {
+				/* digestAlgOid permanece undefined */
 			}
 		}
 
@@ -352,6 +369,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			messageDigest,
 			signatureValue,
 			sigAlgOid,
+			digestAlgOid,
 			signingTimeISO,
 			timestampToken
 		};
@@ -417,13 +435,15 @@ export async function verificarAssinaturaCmsAsync(
 	cert: forge.pki.Certificate,
 	sigAlgOid: string,
 	signedAttrsAsSet: forge.asn1.Asn1,
-	signatureValue: string
+	signatureValue: string,
+	digestAlgOid?: string
 ): Promise<boolean> {
-	return verificarAssinaturaCms({ cert, sigAlgOid, signedAttrsAsSet, signatureValue });
+	return verificarAssinaturaCms({ cert, sigAlgOid, signedAttrsAsSet, signatureValue, digestAlgOid });
 }
 
 export function verificarCadeiaIcpBrasil(
-	cert: forge.pki.Certificate
+	cert: forge.pki.Certificate,
+	dataReferencia?: Date
 ): boolean | 'indisponivel' {
 	const ts = loadTrustStore();
 	if (!ts.disponivel) return 'indisponivel';
@@ -431,7 +451,16 @@ export function verificarCadeiaIcpBrasil(
 		// forge.pki.verifyCertificateChain aceita um array começando pelo end-entity.
 		// Sem intermediárias explícitas no CMS, dependemos de o caStore conter todas as
 		// ACs (raízes + intermediárias) — modelo "trust store completo".
-		return forge.pki.verifyCertificateChain(ts.caStore, [cert]);
+		//
+		// `validityCheckDate`: valida a cadeia no instante do carimbo de tempo
+		// qualificado (quando disponível), não em "agora". Sem isso, a página
+		// /validar passaria a reprovar a cadeia assim que o e-CPF expirasse (A1
+		// ≈ 1 ano, A3 ≈ 3 anos), apesar de a assinatura ter sido feita com o
+		// certificado válido e carimbada por ACT (CAdES-T/PAdES-LT). Fallback
+		// para "agora" quando não há TST disponível.
+		return forge.pki.verifyCertificateChain(ts.caStore, [cert], {
+			validityCheckDate: dataReferencia ?? new Date()
+		});
 	} catch (e) {
 		logger.info('[PDF-VERIFY] Cadeia ICP-Brasil inválida', {
 			subject: cert.subject.getField('CN')?.value,
@@ -583,20 +612,16 @@ export async function verificarAssinaturaCompleta(
 		cms.certificate,
 		cms.sigAlgOid,
 		cms.signedAttrsAsSet,
-		cms.signatureValue
+		cms.signatureValue,
+		cms.digestAlgOid
 	);
 	if (!result.checks.assinaturaRsa) {
 		erros.push('Assinatura criptográfica dos SignedAttributes inválida');
 	}
 
-	// 3. Cadeia ICP-Brasil
-	const cadeia = verificarCadeiaIcpBrasil(cms.certificate);
-	result.checks.cadeiaIcpBrasil = cadeia;
-	if (cadeia === false) {
-		erros.push('Certificado não encadeia até uma AC Raiz da ICP-Brasil reconhecida');
-	}
-
-	// 4. Carimbo de tempo qualificado
+	// 3. Carimbo de tempo qualificado — determinado ANTES da cadeia porque
+	//    serve de data de referência para validar a validade do certificado no
+	//    instante da assinatura (e não em "agora").
 	if (cms.timestampToken) {
 		const tst = verificarTimestampToken(cms.timestampToken, cms.signatureValue);
 		if (tst) {
@@ -610,13 +635,47 @@ export async function verificarAssinaturaCompleta(
 		result.timestamp = { tipo: 'servidor', momento: cms.signingTimeISO };
 	}
 
-	// 5. Revogação (snapshot OCSP)
+	// Data de referência p/ a cadeia: instante do carimbo (TST oponível a
+	// terceiros quando 'act_icp'; signingTime assinado caso contrário). Sem
+	// momento disponível, cai para "agora" dentro de verificarCadeiaIcpBrasil.
+	let dataReferenciaCadeia: Date | undefined;
+	if (result.timestamp?.momento) {
+		const d = new Date(result.timestamp.momento);
+		if (!isNaN(d.getTime())) dataReferenciaCadeia = d;
+	}
+
+	// 4. Cadeia ICP-Brasil — validada na data de referência, preservando a
+	//    validade probatória de longo prazo após a expiração do e-CPF (A1).
+	const cadeia = verificarCadeiaIcpBrasil(cms.certificate, dataReferenciaCadeia);
+	result.checks.cadeiaIcpBrasil = cadeia;
+	if (cadeia === false) {
+		erros.push('Certificado não encadeia até uma AC Raiz da ICP-Brasil reconhecida');
+	}
+
+	// 5. Revogação (snapshot OCSP) — revalida a assinatura do responder contra o
+	//    issuer (defesa anti-MITM também na re-verificação, não só no momento da
+	//    assinatura). Localiza o issuer no trust store pelo CN; sem ele,
+	//    statusDeSnapshot devolve apenas o status (compat com snapshots antigos).
 	if (options.ocspSnapshotB64) {
-		const snap = statusDeSnapshot(options.ocspSnapshotB64);
+		let issuerCert: forge.pki.Certificate | undefined;
+		try {
+			const ts = loadTrustStore();
+			const issuerCN = (cms.certificate.issuer.getField('CN')?.value as string) || '';
+			issuerCert = [...ts.intermediates, ...ts.roots].find(
+				(c) => (c.subject.getField('CN')?.value as string) === issuerCN
+			);
+		} catch {
+			/* sem issuer disponível — segue só com o status do snapshot */
+		}
+		const snap = statusDeSnapshot(options.ocspSnapshotB64, issuerCert);
 		result.checks.revogacao = snap.status;
 		if (snap.status === 'revoked') {
 			erros.push(
 				`Certificado REVOGADO${snap.revokedAt ? ` em ${snap.revokedAt}` : ''} (snapshot OCSP)`
+			);
+		} else if (snap.assinaturaResponder === 'invalida') {
+			erros.push(
+				'Assinatura do responder OCSP não confere no snapshot — status de revogação não confiável (possível adulteração ou MITM).'
 			);
 		}
 	} else {
@@ -658,7 +717,8 @@ export async function verificarAssinaturaCompleta(
 					cmsAnt.certificate,
 					cmsAnt.sigAlgOid,
 					cmsAnt.signedAttrsAsSet,
-					cmsAnt.signatureValue
+					cmsAnt.signatureValue,
+					cmsAnt.digestAlgOid
 				);
 				adicionais.push({
 					ordem: i,
