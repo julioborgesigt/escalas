@@ -4,13 +4,9 @@
  * node-forge no próprio setup (evita dependência de fixtures binários).
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import forge from 'node-forge';
-import {
-	extrairDadosCertificado,
-	formatarDataHora,
-	resolverHashPolitica
-} from '../pdf-signing-prepare';
+import { extrairDadosCertificado, formatarDataHora } from '../pdf-signing-prepare';
 
 /**
  * Gera um CMS PKCS#7 detached signature mínimo, com um certificado cujo CN
@@ -109,36 +105,6 @@ describe('extrairDadosCertificado', () => {
 	it('throws para base64 válido mas DER que não é PKCS#7', () => {
 		// INTEGER mínimo: 02 01 00 → base64
 		expect(() => extrairDadosCertificado('AgEA')).toThrow();
-	});
-});
-
-describe('resolverHashPolitica (sigPolicyHash PA-AD-RB v2.3)', () => {
-	// Hash interno do artefato oficial PA_AD_RB_v2_3.der (signPolicyHash):
-	// SHA-256(DER(signPolicyHashAlg) ‖ DER(signPolicyInfo)).
-	const HASH_OFICIAL = 'b16e88bbf77322a67995b79078778ed3d0ea7c88587b6f6d518b715e8f76a3d5';
-
-	afterEach(() => {
-		delete process.env.PA_AD_RB_HASH_HEX;
-	});
-
-	it('usa o hash oficial embutido por padrão (sem env)', () => {
-		delete process.env.PA_AD_RB_HASH_HEX;
-		expect(resolverHashPolitica()).toBe(HASH_OFICIAL);
-	});
-
-	it('respeita override válido via env (64 hex, normalizado p/ minúsculas)', () => {
-		process.env.PA_AD_RB_HASH_HEX = 'A'.repeat(64);
-		expect(resolverHashPolitica()).toBe('a'.repeat(64));
-	});
-
-	it('rejeita o placeholder de zeros e cai no hash oficial', () => {
-		process.env.PA_AD_RB_HASH_HEX = '0'.repeat(64);
-		expect(resolverHashPolitica()).toBe(HASH_OFICIAL);
-	});
-
-	it('ignora env malformado (não-hex / tamanho errado)', () => {
-		process.env.PA_AD_RB_HASH_HEX = 'nao-eh-hash';
-		expect(resolverHashPolitica()).toBe(HASH_OFICIAL);
 	});
 });
 

@@ -5,6 +5,9 @@ import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
 import { logger } from './logger';
+// Identidade da política (OIDs, hash oficial, resolver) — fonte única
+// compartilhada com a verificação, sem deps pesadas.
+import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './icp-policy';
 
 /**
  * Tamanho do placeholder de assinatura no PDF (bytes binários ⇒ 2× em hex).
@@ -30,75 +33,6 @@ const OID_CONTENT_TYPE = '1.2.840.113549.1.9.3';
 const OID_SIGNING_TIME = '1.2.840.113549.1.9.5';
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
-
-/**
- * OID do atributo `id-aa-ets-sigPolicyId` (RFC 5126 / DOC-ICP-15.03).
- * Aponta para a Política de Assinatura usada — sem este atributo, o
- * Validador ITI marca a assinatura como "Sem política aplicada" mesmo
- * quando todos os outros checks passam.
- */
-const OID_SIG_POLICY_ID = '1.2.840.113549.1.9.16.2.15';
-
-/**
- * OID da PA-AD-RB v2.3 (Política de Assinatura — Assinatura Digital com
- * Referência Básica), definida no DOC-ICP-15.03 da ITI.
- *
- * Esta é a política mínima para assinaturas qualificadas ICP-Brasil sem
- * carimbo de tempo obrigatório embutido. Quando combinada com TSA RFC 3161
- * server-side (TSA_URL), o nível efetivo sobe para AD-RT (com Referência
- * para Tempo).
- *
- * Documento de referência:
- *   https://www.gov.br/iti/pt-br/centrais-de-conteudo/doc-icp-15-03-versao-7-3-pdf
- */
-const OID_PA_AD_RB_V2_3 = '2.16.76.1.7.1.1.2.3';
-/**
- * Hash da Política de Assinatura PA-AD-RB v2.3, usado no `sigPolicyHash` do
- * atributo `id-aa-ets-sigPolicyId`.
- *
- * ⚠️ Cuidado — NÃO é o hash do PDF do DOC-ICP-15.03 (engano comum), NEM o
- * hash do arquivo `.der` da política (esse é o que a LPA usa p/ integridade
- * do artefato). Conforme a Nota Técnica 003/2016-CGNP/ITI, o valor que vai na
- * ASSINATURA é o hash INTERNO da própria PA — o campo `signPolicyHash`
- * embutido no artefato `.der`, que equivale a:
- *
- *   SHA-256( DER(signPolicyHashAlg) ‖ DER(signPolicyInfo) )
- *
- * Valor abaixo extraído do artefato oficial e reproduzido:
- *
- *   curl -O http://politicas.icpbrasil.gov.br/PA_AD_RB_v2_3.der
- *   # 3º elemento do SEQUENCE raiz (OCTET STRING, 32 bytes) = signPolicyHash:
- *   openssl asn1parse -inform DER -in PA_AD_RB_v2_3.der | tail -1
- *
- * Num bump de versão da PA, atualize JUNTOS `OID_PA_AD_RB_V2_3` e este hash
- * (ambos mudam). Para sobrescrever em node/staging sem rebuild, defina
- * `PA_AD_RB_HASH_HEX` (vide `resolverHashPolitica`).
- */
-const HASH_PA_AD_RB_V2_3_HEX =
-	'b16e88bbf77322a67995b79078778ed3d0ea7c88587b6f6d518b715e8f76a3d5';
-
-/** Placeholder histórico (zeros) — sabidamente inválido; rejeitado abaixo. */
-const HASH_PLACEHOLDER_ZEROS = '0'.repeat(64);
-
-/**
- * Resolve o hash da política. Prioriza a env `PA_AD_RB_HASH_HEX` (64 hex), mas
- * REJEITA o placeholder histórico de zeros, caindo no valor oficial embutido —
- * assim nunca emitimos um `sigPolicyHash` sabidamente inválido em produção.
- */
-export function resolverHashPolitica(): string {
-	const env = (typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) || '';
-	const limpo = env.trim().toLowerCase();
-	if (limpo === HASH_PLACEHOLDER_ZEROS) {
-		logger.warn(
-			'[PDF-SIGN] PA_AD_RB_HASH_HEX = zeros (placeholder) ignorado; usando hash oficial PA-AD-RB v2.3.'
-		);
-		return HASH_PA_AD_RB_V2_3_HEX;
-	}
-	if (/^[0-9a-f]{64}$/.test(limpo)) {
-		return limpo;
-	}
-	return HASH_PA_AD_RB_V2_3_HEX;
-}
 
 // ---------------------------------------------------------------------------
 // UTILITÁRIOS DE VALIDAÇÃO E CERTIFICADOS
