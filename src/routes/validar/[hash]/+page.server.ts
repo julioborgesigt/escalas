@@ -128,6 +128,10 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 	const tipoAssin = (docAny.tipo_assinatura as string | undefined) ?? null;
 	const arquivoHashEsperado = (docAny.arquivo_hash as string | undefined) ?? null;
 	const ocspSnapshotB64 = (docAny.ocsp_response_b64 as string | undefined) ?? null;
+	// Marcador do fluxo QUALIFICADO: só o cades-finalizer grava cms_sha256. Assinaturas
+	// avançadas (em tela) não têm CMS embarcado — sua integridade é o hash custodial
+	// (arquivo_hash), não a verificação criptográfica de assinatura.
+	const temCmsAssinado = !!(docAny.cms_sha256 as string | undefined);
 	const ehAvancada = tipoAssin === 'simples' || tipoAssin === null && documento.tipo_doc === 'gise_relatorio';
 
 	let verificacao: VerificationResult | null = null;
@@ -142,7 +146,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 					const h = await calcularHashBuffer(buf);
 					hashConfere = h === arquivoHashEsperado;
 				}
-				if (!ehAvancada && tipoAssin !== 'simples') {
+				if (!ehAvancada && tipoAssin !== 'simples' && temCmsAssinado) {
 					verificacao = await verificarAssinaturaCompleta(buf, {
 						ocspSnapshotB64,
 						env: platform?.env as unknown as Record<string, string | undefined> | undefined
