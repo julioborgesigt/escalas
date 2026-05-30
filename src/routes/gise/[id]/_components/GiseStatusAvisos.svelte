@@ -15,7 +15,7 @@
 		giseEmPreenchimento: boolean;
 	}
 
-	let { isSeccional, isSupervisor, minhaSeccionalRetificada, giseEmPreenchimento }: Props = $props();
+	const { isSeccional, isSupervisor, minhaSeccionalRetificada, giseEmPreenchimento }: Props = $props();
 </script>
 
 {#if isSeccional && minhaSeccionalRetificada}

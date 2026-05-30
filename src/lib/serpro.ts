@@ -576,7 +576,7 @@ function exibirAvisoSerpro(): Promise<boolean> {
 		}
 
 		const modalId = 'serpro-signer-warning-modal';
-		let existing = document.getElementById(modalId);
+		const existing = document.getElementById(modalId);
 		if (existing) {
 			existing.remove();
 		}

@@ -6,7 +6,7 @@
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
 	import { loading } from '$lib/loading.svelte';
 
-	let { data } = $props();
+	const { data } = $props();
 
 	const isAdmin = $derived(data.isAdmin);
 	const isAdminOrSeccional = $derived(data.isAdminOrSeccional);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Progress } from '@skeletonlabs/skeleton-svelte';
 
-	let {
+	const {
 		size = 'sm',
 		class: className = ''
 	}: {

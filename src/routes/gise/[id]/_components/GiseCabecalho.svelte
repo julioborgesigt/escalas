@@ -48,7 +48,7 @@
 		onAbrirBreveRelatorio?: () => void;
 	}
 
-	let {
+	const {
 		gise,
 		statusLabel,
 		statusColor,

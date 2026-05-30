@@ -12,7 +12,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import type { Unidade } from '$lib/types';
 
-	let { data } = $props();
+	const { data } = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
@@ -26,8 +26,8 @@
 		ignorados: false
 	});
 
-	let dados = $derived(data.compliance as ItemCompliance[]);
-	let unidadesDB = $derived(data.unidades as Unidade[]);
+	const dados = $derived(data.compliance as ItemCompliance[]);
+	const unidadesDB = $derived(data.unidades as Unidade[]);
 
 	// Filtros
 	const filtroRegime = 'todos';

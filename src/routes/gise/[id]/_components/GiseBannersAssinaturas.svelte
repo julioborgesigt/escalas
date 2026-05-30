@@ -18,7 +18,7 @@
 		seccionais?: SeccionalNome[] | null;
 	}
 
-	let { assinaturasRelatorios, supervisaoExtraUnidadeId = null, seccionais = null }: Props =
+	const { assinaturasRelatorios, supervisaoExtraUnidadeId = null, seccionais = null }: Props =
 		$props();
 
 	const extraordinariosSeccionais = $derived(

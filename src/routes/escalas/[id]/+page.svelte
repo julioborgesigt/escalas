@@ -13,14 +13,14 @@
 	import ListaFds from './_components/ListaFds.svelte';
 	import TabelaServidores from './_components/TabelaServidores.svelte';
 
-	let { data } = $props();
+	const { data } = $props();
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 	const confirmDialog = useConfirmationDialog<{ itemId: number; nome: string }>();
 
-	let escala = $derived(data.escala);
+	const escala = $derived(data.escala);
 	let finalizadaEm = $state<string | null>(untrack(() => data.escala?.finalizada_em ?? null));
 	$effect(() => {
 		finalizadaEm = data.escala?.finalizada_em ?? null;
@@ -65,7 +65,7 @@
 	const diasEscalaLocal = $derived.by(() => {
 		if (!escala) return [];
 		const days: string[] = [];
-		let current = new Date(escala.data_inicio + 'T00:00:00');
+		const current = new Date(escala.data_inicio + 'T00:00:00');
 		const last = new Date(escala.data_fim + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);

@@ -16,8 +16,8 @@ export interface ChartQuestion {
 }
 
 export function useCharts(getChart: () => any, getData: () => any) {
-	let chartInstances = new Map<number, any>();
-	let canvasElements = $state<Record<number, HTMLCanvasElement>>({});
+	const chartInstances = new Map<number, any>();
+	const canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
 	function destroyStaleCharts(questionIds: Set<number>) {
 		chartInstances.forEach((instance, id) => {
@@ -127,7 +127,7 @@ export function useCharts(getChart: () => any, getData: () => any) {
 						tooltip: {
 							callbacks: {
 								label: (context: TooltipItem<'bar'>) => {
-									let val = context.parsed.y ?? 0;
+									const val = context.parsed.y ?? 0;
 									if (q.specialStore === 'drogasGeral') return `${val.toLocaleString()}g`;
 									return val.toLocaleString();
 								}

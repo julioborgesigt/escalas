@@ -34,8 +34,8 @@ export const load = async ({ locals, platform, url }: any) => {
 		if (!result && !isSupervisorGise && !isSupervisaoGise) throw redirect(302, '/');
 	}
 
-	let minhasEscalas: any[] = [];
-	let listaAdmin: any[] = [];
+	const minhasEscalas: any[] = [];
+	const listaAdmin: any[] = [];
 
 	const effectiveStatus = statusFilter || 'ativas';
 
@@ -133,11 +133,11 @@ export const load = async ({ locals, platform, url }: any) => {
 
 		const giseIds = [...new Set(rawEscalas.map(e => e.id))];
 
-		let presencasMap = new Map<number, any>();
-		let docsAssinadosMap = new Map<number, boolean>();
-		let extrasAssinadosMap = new Map<string, boolean>();
-		let respostasEquipeMap = new Map<string, boolean>();
-		let respostasPolicialMap = new Map<string, boolean>();
+		const presencasMap = new Map<number, any>();
+		const docsAssinadosMap = new Map<number, boolean>();
+		const extrasAssinadosMap = new Map<string, boolean>();
+		const respostasEquipeMap = new Map<string, boolean>();
+		const respostasPolicialMap = new Map<string, boolean>();
 
 		if (giseIds.length > 0) {
 			// 4 queries independentes em paralelo

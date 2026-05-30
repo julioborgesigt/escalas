@@ -6,7 +6,7 @@
 
 	type ResGise = ReturnType<typeof useResGise>;
 
-	let {
+	const {
 		resGise,
 		modeloPadraoOperacional,
 		modeloPadraoSeint

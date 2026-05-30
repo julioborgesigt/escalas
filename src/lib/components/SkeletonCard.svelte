@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { lines = 3, hasFooter = true }: { lines?: number; hasFooter?: boolean } = $props();
+	const { lines = 3, hasFooter = true }: { lines?: number; hasFooter?: boolean } = $props();
 </script>
 
 <div

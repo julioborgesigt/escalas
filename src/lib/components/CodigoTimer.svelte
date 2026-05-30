@@ -1,7 +1,7 @@
 <script lang="ts">
 import { untrack } from 'svelte';
 
-	let {
+	const {
 		emailMascarado = '',
 		totalSeconds = 60,
 		onReenviar = undefined

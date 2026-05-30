@@ -198,7 +198,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	// Carrega solicitações pendentes para OIP e DPC admins — necessário para status correto na lista
 	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number };
-	let solicitacoesMap: Record<number, SolicitacaoInfo> = {};
+	const solicitacoesMap: Record<number, SolicitacaoInfo> = {};
 	const deveCarregarSolicitacoes =
 		!isAdmin && (u.papel === 'admin_seccional' || u.papel === 'admin_unidade');
 	if (deveCarregarSolicitacoes && resultado.escalas.length > 0) {

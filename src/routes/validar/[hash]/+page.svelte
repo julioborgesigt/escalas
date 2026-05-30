@@ -13,7 +13,7 @@
 		longitude?: number;
 	}
 
-	let { data }: { data: any } = $props();
+	const { data }: { data: any } = $props();
 	const documento = $derived(data.documento as DocumentoComAuditoria);
 
 	function formatarDataHora(dateStr: string | null) {

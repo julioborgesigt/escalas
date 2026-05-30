@@ -21,7 +21,7 @@
 		onSubmit: SubmitFunction;
 	}
 
-	let { open, pendingCrud, editaBloqueado, gise, onClose, onSubmit }: Props = $props();
+	const { open, pendingCrud, editaBloqueado, gise, onClose, onSubmit }: Props = $props();
 
 	// Estado do calendário e horários
 	let dataInicio = $state('');

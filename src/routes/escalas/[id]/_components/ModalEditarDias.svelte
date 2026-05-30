@@ -62,7 +62,7 @@
 
 	function getDaysInRange(start: string, end: string): string[] {
 		const days: string[] = [];
-		let current = new Date(start + 'T00:00:00');
+		const current = new Date(start + 'T00:00:00');
 		const last = new Date(end + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);

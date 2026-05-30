@@ -132,8 +132,8 @@
 		}
 	});
 
-	let assinando = $derived(assinatura.assinando);
-	let dialogSignOpen = $derived(assinatura.dialogSignOpen);
+	const assinando = $derived(assinatura.assinando);
+	const dialogSignOpen = $derived(assinatura.dialogSignOpen);
 
 	let dialogRevogacaoAberto = $state(false);
 	let painelAberto = $state(false);

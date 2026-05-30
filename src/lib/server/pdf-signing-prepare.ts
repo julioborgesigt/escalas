@@ -89,7 +89,7 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 		logger.error('[PDF-SIGN] Erro ao extrair dados do certificado', {
 			error: e instanceof Error ? e.message : String(e)
 		});
-		throw new Error('Falha ao processar o certificado digital do Token.');
+		throw new Error('Falha ao processar o certificado digital do Token.', { cause: e });
 	}
 }
 

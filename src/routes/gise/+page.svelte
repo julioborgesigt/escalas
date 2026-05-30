@@ -17,7 +17,7 @@
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
-	let { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
 	const escalas = $derived((data.escalas as any) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);

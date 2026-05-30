@@ -3,7 +3,7 @@
 	import { Progress } from '@skeletonlabs/skeleton-svelte';
 	import { useScrollLock } from '$lib/composables';
 
-	let {
+	const {
 		active = false,
 		message = 'Carregando...',
 		zIndex = 10000,

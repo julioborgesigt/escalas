@@ -10,7 +10,7 @@
 		onSubmit: SubmitFunction;
 	}
 
-	let { open, pendingCrud, onClose, onSubmit }: Props = $props();
+	const { open, pendingCrud, onClose, onSubmit }: Props = $props();
 </script>
 
 <Dialog

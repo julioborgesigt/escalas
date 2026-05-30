@@ -30,7 +30,7 @@
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 
-	let { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });
@@ -138,7 +138,7 @@
 	let showModalBreveRelatorio = $state(false);
 	let showExcluirGiseConfirm = $state(false);
 	let supervisorExpandiuQuadroSeccionais = $state(false);
-	let seccionaisRecolhidas = $state<Record<number, boolean>>({});
+	const seccionaisRecolhidas = $state<Record<number, boolean>>({});
 	const supervisorSomente = $derived(isSupervisor && !isAdminGeral && !isSeccional);
 	const exibirQuadroSeccionais = $derived(!supervisorSomente || supervisorExpandiuQuadroSeccionais);
 

@@ -15,7 +15,7 @@
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	let { data, form } = $props();
+	const { data, form } = $props();
 
 	function handleSalvarPolicial({ formData }: { formData: FormData }) {
 		pendingCadastro = true;

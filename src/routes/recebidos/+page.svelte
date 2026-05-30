@@ -13,13 +13,13 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	let { data } = $props();
+	const { data } = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
 
-	let escalas = $derived(data.escalas as EscalaListagem[]);
-	let unidades = $derived(data.unidades as Unidade[]);
+	const escalas = $derived(data.escalas as EscalaListagem[]);
+	const unidades = $derived(data.unidades as Unidade[]);
 
 	// Filtros com persistência
 	const KEY = 'filtros_recebidos';

@@ -24,13 +24,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 	const db = getDB(platform);
 	const isAdmin = u.tipo === 'admin';
-	let lotacaoParam = url.searchParams.get('lotacao') || undefined;
+	const lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const cargo = url.searchParams.get('cargo') || undefined;
 	const busca = url.searchParams.get('busca') || undefined;
 	const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined;
 
-	let seccional = url.searchParams.get('seccional');
-	let seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
+	const seccional = url.searchParams.get('seccional');
+	const seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
 
 	const [resultado, unidades] = await Promise.all([
 		listarPoliciais(db, lotacaoParam, false, {

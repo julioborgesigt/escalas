@@ -28,7 +28,7 @@
 		onSubmit: SubmitFunction;
 	}
 
-	let { open, gise, global, pendingCrud, onClose, onSubmit }: Props = $props();
+	const { open, gise, global, pendingCrud, onClose, onSubmit }: Props = $props();
 
 	let titulo = $state('');
 	let textoSeccional = $state('');

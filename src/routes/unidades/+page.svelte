@@ -12,13 +12,13 @@
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
 
-	let { data, form } = $props();
+	const { data, form } = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
 	const savedFilters = getSavedFilters('filtros_unidades', { seccional: 'todas', busca: '' });
 
-	let unidades = $derived(data.unidades as Unidade[]);
+	const unidades = $derived(data.unidades as Unidade[]);
 
 	let filtroSeccional = $state<number | 'todas'>(
 		(savedFilters.seccional as unknown as number) || 'todas'

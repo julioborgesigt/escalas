@@ -3,7 +3,7 @@
 	import { slide } from 'svelte/transition';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
-	let {
+	const {
 		ativa,
 		isSupervisor,
 		isDesktop,

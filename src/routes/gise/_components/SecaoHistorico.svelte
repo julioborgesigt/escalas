@@ -10,7 +10,7 @@
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
-	let {
+	const {
 		historico,
 		seccionaisList,
 		isAdminGeral
@@ -148,7 +148,9 @@
 				try {
 					const j = (await res.json()) as { error?: string };
 					if (j?.error) msg = j.error;
-				} catch {}
+				} catch {
+					// corpo não-JSON — mantém a mensagem padrão
+				}
 				toaster.error({ title: msg });
 				return;
 			}

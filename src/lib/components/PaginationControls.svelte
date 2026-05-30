@@ -12,7 +12,7 @@
 		onPageChange?: (pagina: number) => void;
 	}
 
-	let {
+	const {
 		paginaAtual,
 		totalPaginas,
 		totalItens,
