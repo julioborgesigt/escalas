@@ -17,6 +17,7 @@ import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { selarPdfInstitucional } from '$lib/server/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
@@ -118,8 +119,16 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 				: null
 		});
 
-		// arquivo_hash do PDF FINAL — é o que a página /validar reconfere (integridade custodial).
-		const arquivoHash = await calcularHashBuffer(finalPdf);
+		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II): assina o PDF com
+		// a chave da instituição + carimbo de tempo grátis. Sem a chave configurada
+		// (SELO_INSTITUCIONAL_PEM), degrada para o rodapé honesto (finalPdf como está).
+		const selado = await selarPdfInstitucional(finalPdf, finalSignerName, {
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		});
+		const pdfParaSalvar = selado.ok ? selado.pdf : finalPdf;
+
+		// arquivo_hash do PDF FINAL (selado ou não) — é o que a /validar reconfere.
+		const arquivoHash = await calcularHashBuffer(pdfParaSalvar);
 
 		if (!hasR2(platform)) {
 			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
@@ -127,7 +136,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 		const bucket = getR2(platform);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
-		await bucket.put(r2Key, finalPdf, {
+		await bucket.put(r2Key, pdfParaSalvar, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 

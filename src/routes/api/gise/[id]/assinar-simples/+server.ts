@@ -24,6 +24,7 @@ import { validarEvidenciasAvancada } from '$lib/server/signature-service';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { selarPdfInstitucional } from '$lib/server/server-seal';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
@@ -142,7 +143,14 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 				: null
 		});
 
-		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfFinal.slice());
+		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo
+		// grátis. Sem SELO_INSTITUCIONAL_PEM, mantém o rodapé honesto (pdfFinal).
+		const selado = await selarPdfInstitucional(pdfFinal, u.nome, {
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		});
+		const pdfParaSalvar = selado.ok ? selado.pdf : pdfFinal;
+
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
@@ -157,7 +165,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(documentKey, pdfFinal, { contentType: 'application/pdf' });
+			await r2.put(documentKey, pdfParaSalvar, { contentType: 'application/pdf' });
 
 			if (validatedEv.selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
@@ -173,7 +181,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		]);
 
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
-		return new Response(pdfFinal as unknown as BodyInit, {
+		return new Response(pdfParaSalvar as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename)

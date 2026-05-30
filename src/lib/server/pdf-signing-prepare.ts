@@ -692,18 +692,36 @@ export async function prepararPdfParaAssinatura(
 		);
 	}
 
-	// Widget de assinatura digital visível — sobreposto à caixa visual
-	// Ao clicar, o Adobe Acrobat mostra os detalhes do certificado e status
+	// Widget de assinatura visível — sobreposto à caixa ICP. Ao clicar, o Adobe
+	// mostra os detalhes do certificado e o status da assinatura.
+	return finalizarPreparacao(pdfDoc, {
+		reason: 'Assinatura da escala de plantão',
+		name: signerName,
+		widgetRect: [Math.round(boxX), Math.round(boxY), Math.round(boxX + boxW), Math.round(boxY + boxH)]
+	});
+}
+
+/**
+ * Tronco comum da preparação: insere o placeholder de assinatura, recalcula o
+ * /ByteRange real e devolve os SignedAttributes a assinar. Compartilhado entre
+ * `prepararPdfParaAssinatura` (fluxo qualificado, com caixa visual ICP) e
+ * `prepararPdfParaSelo` (selo institucional invisível, fluxo avançado) — fonte
+ * única do cálculo de ByteRange/SignedAttributes, evitando drift de segurança.
+ */
+async function finalizarPreparacao(
+	pdfDoc: PDFDocument,
+	opts: { reason: string; name: string; widgetRect: [number, number, number, number] }
+): Promise<PrepareResult> {
 	pdflibAddPlaceholder({
 		pdfDoc,
-		reason: 'Assinatura da escala de plantão',
+		reason: opts.reason,
 		contactInfo: '',
-		name: signerName,
+		name: opts.name,
 		location: '',
 		signatureLength: SIGNATURE_LENGTH,
 		byteRangePlaceholder: BYTE_RANGE_PLACEHOLDER,
 		subFilter: 'adbe.pkcs7.detached',
-		widgetRect: [Math.round(boxX), Math.round(boxY), Math.round(boxX + boxW), Math.round(boxY + boxH)]
+		widgetRect: opts.widgetRect
 	});
 
 	const savedPdf = await pdfDoc.save();
@@ -768,6 +786,24 @@ export async function prepararPdfParaAssinatura(
 		signingTimeISO: signingTime.toISOString(),
 		dataToSignBase64: dataToSign.toString('base64')
 	};
+}
+
+/**
+ * Prepara um PDF para o SELO INSTITUCIONAL (assinatura avançada, Lei 14.063/2020):
+ * adiciona um campo de assinatura INVISÍVEL (sem caixa visual e sem branding
+ * "ICP-Brasil" — o visual honesto já vem do rodapé/manifesto) e devolve os
+ * SignedAttributes a assinar server-side com a chave da instituição.
+ */
+export async function prepararPdfParaSelo(
+	pdfBytes: Uint8Array,
+	signerName: string
+): Promise<PrepareResult> {
+	const pdfDoc = await PDFDocument.load(pdfBytes);
+	return finalizarPreparacao(pdfDoc, {
+		reason: 'Selo de integridade — Assinatura Eletrônica Avançada (Lei 14.063/2020)',
+		name: signerName,
+		widgetRect: [0, 0, 0, 0]
+	});
 }
 
 /**

@@ -15,6 +15,7 @@ import {
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { selarPdfInstitucional } from '$lib/server/server-seal';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
@@ -173,7 +174,14 @@ export const POST: RequestHandler = async ({
 			signatureLevel: 'avancada'
 		});
 
-		const hashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
+		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo
+		// grátis. Sem SELO_INSTITUCIONAL_PEM, mantém o rodapé honesto (finalPdf).
+		const selado = await selarPdfInstitucional(finalPdf, signerName || u.nome, {
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		});
+		const pdfParaSalvar = selado.ok ? selado.pdf : finalPdf;
+
+		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
@@ -188,7 +196,7 @@ export const POST: RequestHandler = async ({
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(`${prefixBase}_assinada.pdf`, finalPdf, { contentType: 'application/pdf' });
+			await r2.put(`${prefixBase}_assinada.pdf`, pdfParaSalvar, { contentType: 'application/pdf' });
 			if (selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB, chave UUID.
 				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);
