@@ -18,7 +18,8 @@ import {
 	verificarAssinaturaCmsAsync,
 	verificarCadeiaIcpBrasil,
 	verificarIntegridadePdf,
-	verificarTimestampToken
+	verificarTimestampToken,
+	type TstVerificado
 } from './pdf-verification';
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
@@ -38,12 +39,27 @@ import type { TipoCarimoTempo } from './document-utils';
  * Recomendado ligar em produção para garantir tempestividade oponível
  * (DOC-ICP-15 PA-AD-RB v2.3, Decreto 10.278/2020 art. 5º).
  */
-function exigirTsa(env?: Record<string, string | undefined>): boolean {
+export function exigirTsa(env?: Record<string, string | undefined>): boolean {
 	const raw =
 		env?.EXIGIR_TSA_QUALIFICADA ??
 		(typeof process !== 'undefined' ? process.env?.EXIGIR_TSA_QUALIFICADA : undefined);
 	if (!raw) return false;
 	return /^(1|true|yes|on)$/i.test(raw.trim());
+}
+
+/**
+ * Rótulo do carimbo a partir do resultado da verificação do TST.
+ *
+ * `null` (carimbo NÃO verificável) → `'servidor'`: no fluxo de assinatura o TST
+ * vem da ferramenta do próprio signatário (sem adversário), então NÃO bloqueamos
+ * a finalização por um carimbo que não conseguimos verificar — degradamos o
+ * rótulo e seguimos. A porta de rigor é `EXIGIR_TSA_QUALIFICADA` (que só aceita
+ * `act_icp`). Na verificação (/validar), ao contrário, um TST inválido é
+ * sinalizado como erro.
+ */
+export function rotuloDoCarimbo(tst: TstVerificado | null): TipoCarimoTempo {
+	if (!tst) return 'servidor';
+	return tst.classe === 'icp' ? 'act_icp' : 'tsa_externa';
 }
 
 export interface CadesFinalizationResult {
@@ -170,22 +186,20 @@ export async function verificarECarimbarAssinatura(
 	let tstAplicadoServerSide = false;
 
 	if (cms.timestampToken) {
-		// (a) — TST veio do cliente. Verifica assinatura + cadeia e classifica.
+		// (a) — TST veio do cliente. Verifica, classifica e (se não verificável)
+		// degrada para 'servidor' SEM bloquear a finalização — vide rotuloDoCarimbo.
 		const tst = await verificarTimestampToken(cms.timestampToken, cms.signatureValue);
+		tipoCarimboTempo = rotuloDoCarimbo(tst);
 		if (tst) {
-			tipoCarimboTempo = tst.classe === 'icp' ? 'act_icp' : 'tsa_externa';
 			try {
 				tstTokenB64 = forge.util.encode64(forge.asn1.toDer(cms.timestampToken).getBytes());
 			} catch {
 				/* ignore */
 			}
 		} else {
-			return {
-				ok: false,
-				status: 422,
-				error:
-					'Token TSA presente mas inválido (assinatura do carimbo ou messageImprint não conferem)'
-			};
+			logger.warn(
+				'[CADES] TST do cliente não verificável — rebaixado para servidor (sem bloquear).'
+			);
 		}
 	} else if (options.env?.TSA_URL) {
 		// (b) — TSA server-side.
@@ -202,13 +216,19 @@ export async function verificarECarimbarAssinatura(
 				// Classifica o carimbo recém-obtido: 'act_icp' só se a TSA encadear
 				// até a ICP-Brasil; uma TSA pública (ex.: DigiCert) vira 'tsa_externa'.
 				const tstVerif = await verificarTimestampToken(tsa.tstAsn1, cms.signatureValue);
-				tipoCarimboTempo = tstVerif?.classe === 'icp' ? 'act_icp' : 'tsa_externa';
-				tstTokenB64 = forge.util.encode64(
-					Array.from(tsa.tstDer)
-						.map((b) => String.fromCharCode(b))
-						.join('')
-				);
-				tstAplicadoServerSide = true;
+				tipoCarimboTempo = rotuloDoCarimbo(tstVerif);
+				if (tstVerif) {
+					tstTokenB64 = forge.util.encode64(
+						Array.from(tsa.tstDer)
+							.map((b) => String.fromCharCode(b))
+							.join('')
+					);
+					tstAplicadoServerSide = true;
+				} else {
+					logger.warn('[CADES] TST server-side não verificável — mantém servidor.', {
+						url: options.env.TSA_URL
+					});
+				}
 			} catch (e) {
 				logger.warn('[CADES] Falha ao anexar TST server-side ao CMS', {
 					error: e instanceof Error ? e.message : String(e)

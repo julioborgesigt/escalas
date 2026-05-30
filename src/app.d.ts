@@ -56,10 +56,12 @@ declare global {
 		/** Basic auth password para o TSA (se a ACT exigir). */
 		TSA_PASSWORD?: string;
 		/**
-		 * Quando truthy (1/true/yes/on), recusa finalizar a assinatura
-		 * qualificada se NÃO houver TimeStampToken RFC 3161 anexado (do cliente
-		 * ou do TSA_URL). Recomendado em produção para garantir tempestividade
-		 * oponível (DOC-ICP-15, Decreto 10.278/2020).
+		 * Quando truthy (1/true/yes/on), recusa finalizar a assinatura se o
+		 * carimbo de tempo não for de uma ACT credenciada ICP-Brasil verificada
+		 * (tipo `act_icp`). Sem a flag, carimbos não-ICP (ex.: DigiCert) ou a
+		 * ausência/invalidez de carimbo apenas REBAIXAM o rótulo (para
+		 * `tsa_externa`/`servidor`), sem bloquear. Recomendado em produção para
+		 * garantir tempestividade oponível (DOC-ICP-15, Decreto 10.278/2020).
 		 */
 		EXIGIR_TSA_QUALIFICADA?: string;
 		/**
