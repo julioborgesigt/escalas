@@ -1,50 +1,50 @@
 # Parecer Técnico‑Jurídico — Assinaturas Eletrônicas das Escalas
 
-> **Data:** 2026‑05‑30
+> **Data:** 2026‑05‑30 · **Atualização:** cenário **zero‑custo** + componentes já implementados.
 > **Escopo:** fluxos de assinatura **avançada** (em tela) e **qualificada**
 > (token A3) aplicados a escalas mensais (plantão/expediente), escalas GISE e
 > relatórios de extraordinário.
-> **Objetivo declarado pelo cliente:** que **ambos** os fluxos sejam
-> juridicamente incontestáveis.
+> **Objetivo do cliente:** que **ambos** os fluxos sejam juridicamente
+> incontestáveis, **sem custo financeiro** para o projeto.
 >
-> ⚠️ **Natureza deste documento:** análise técnica do código + enquadramento
-> da legislação aplicável, para **apoiar decisão**. **Não é parecer jurídico
-> vinculante.** A adoção definitiva — sobretudo a oponibilidade a terceiros e
-> o termo de aceitação — deve ser validada pela assessoria jurídica da
-> corporação.
+> ⚠️ **Natureza deste documento:** análise técnica do código + enquadramento da
+> legislação aplicável, para **apoiar decisão**. **Não é parecer jurídico
+> vinculante** — a oponibilidade a terceiros e o termo de aceitação devem ser
+> validados pela assessoria jurídica da corporação.
 
 ---
 
 ## 1. Sumário executivo
 
-| Fluxo | Hoje | Pode ser "incontestável"? |
+| Fluxo | Estado | "Incontestável"? |
 |---|---|---|
-| **Qualificada** (token A3 ICP‑Brasil) | Tecnicamente **forte e maduro** | **Sim**, em sentido pleno (presunção legal) — faltam **2 ajustes operacionais**, não código. |
-| **Avançada** (tela: GPS/foto + 2FA) | Modelo **custodial** + **1 defeito grave** na escala mensal | **Sim, na prática** — mas exige mudança de arquitetura (**selo ICP‑Brasil institucional**) + aceitação. A presunção *automática* da lei nunca será dela. |
+| **Qualificada** (token A3 ICP‑Brasil) | Forte e maduro; **zero‑custo para o projeto** (o token é do policial) | **Sim**, em sentido pleno (presunção legal) — faltam 2 ajustes operacionais. |
+| **Avançada** (tela) | **Selo institucional autoassinado IMPLEMENTADO** (custo zero) | **Robusta na prática**; a presunção *automática* da lei nunca será dela. |
 
-**A verdade jurídica que nenhum código altera:** a presunção de
-autenticidade (inversão do ônus da prova) do **art. 10 §1º da MP 2.200‑2/2001**
-é **exclusiva da assinatura qualificada ICP‑Brasil**. A assinatura avançada
-(Lei 14.063/2020 art. 4º II; MP 2.200‑2 art. 10 §2º) só é oponível **"desde
-que admitida pelas partes ou aceita pela pessoa a quem for oposto"**.
+**A verdade jurídica que nenhum código altera:** a presunção de autenticidade
+(inversão do ônus da prova) do **art. 10 §1º da MP 2.200‑2/2001** é **exclusiva
+da assinatura qualificada ICP‑Brasil**. A avançada (Lei 14.063/2020 art. 4º II;
+MP 2.200‑2 §2º) só é oponível **"desde que admitida pelas partes ou aceita pela
+pessoa a quem for oposto"**.
 
-→ Por isso, tornar a avançada "incontestável" **não é trabalho de captar mais
-provas**; é (a) dar ao documento **integridade ICP‑Brasil autoverificável**
-via **selo institucional**, e (b) garantir a **aceitação prévia** de cada
-signatário. É exatamente a arquitetura do **gov.br / SEI**.
+**Decisão de arquitetura (zero‑custo):** já que e‑CNPJ e ACT ICP‑Brasil têm
+custo, a avançada é selada com um **certificado AUTOASSINADO gerado pelo próprio
+projeto** + **carimbo de tempo gratuito** (DigiCert/FreeTSA). Isso torna o PDF um
+**CMS real, autocontido e à prova de adulteração** — o teto alcançável a custo
+zero. É o modelo do **gov.br/SEI** e o mesmo que ZapSign/Clicksign aplicam (com
+a diferença de que elas usam e‑CNPJ ICP — vide [Anexo A](#anexo-a--estudo-de-caso-zapsign)).
 
 ---
 
 ## 2. Modelo atual
 
-- **Simples** — usada apenas para escalas de FDS; **descontinuada**. Fora de escopo.
-- **Avançada** — assinatura **em tela**, com 2FA por e‑mail corporativo
-  (sempre obrigatório) + GPS e/ou foto com *liveness* ativo (piscar/sorrir).
-- **Qualificada** — assinatura com **token A3 ICP‑Brasil** (Web PKI/Lacuna ou
-  Assinador SERPRO).
+- **Simples** — só FDS; **descontinuada**. Fora de escopo.
+- **Avançada** — assinatura **em tela**, 2FA por e‑mail corporativo (sempre) +
+  GPS e/ou foto com *liveness* ativo + **selo institucional autoassinado**.
+- **Qualificada** — **token A3 ICP‑Brasil** (Web PKI/Lacuna ou Assinador SERPRO).
 
-Os **mesmos documentos** podem ser assinados por **qualquer um dos dois
-fluxos**, conforme o dispositivo de acesso.
+Os **mesmos documentos** podem ir por **qualquer um dos dois** fluxos, conforme
+o dispositivo.
 
 ---
 
@@ -52,212 +52,162 @@ fluxos**, conforme o dispositivo de acesso.
 
 | Norma | O que diz | Efeito |
 |---|---|---|
-| **MP 2.200‑2/2001, art. 10 §1º** | Documentos com certificação ICP‑Brasil **presumem‑se verdadeiros** quanto aos signatários (remete ao art. 219 do CC/2002). | **Presunção** *juris tantum* → **inverte o ônus** da prova. Exclusivo da **qualificada**. |
-| **MP 2.200‑2/2001, art. 10 §2º** | Admite outros meios de comprovar autoria/integridade (inclusive certs não‑ICP) **"desde que admitido pelas partes como válido ou aceito pela pessoa a quem for oposto"**. | Base legal da **avançada** — **depende de aceitação**. Sem presunção automática. |
-| **Lei 14.063/2020, art. 4º** | I = simples; II = **avançada**; III = **qualificada**. | Taxonomia oficial. |
-| **Lei 14.063/2020, art. 5º** | Define em quais interações com o ente público cada modalidade é admitida; reserva a **qualificada** para atos de maior impacto. | Pode **exigir qualificada** para certos atos. |
-| **CPC (Lei 13.105/2015), art. 411, II** | Considera‑se autêntico o documento cuja autoria esteja identificada por meio legal de certificação, **inclusive eletrônico**. | Reconhece valor probatório da certificação eletrônica. |
-| **Decreto 10.543/2020** | Níveis de assinatura **gov.br** (bronze/prata/ouro) e seu uso pela Adm. Pública federal. | **Precedente** do modelo "avançada com lastro forte" reconhecida. |
-| **Decreto 10.278/2020** | Para o documento digitalizado ter os **mesmos efeitos do original**, exige assinatura **ICP‑Brasil**. | Reforça a necessidade do **selo ICP** para equivalência ao original. |
+| **MP 2.200‑2/2001, art. 10 §1º** | Documentos com certificação ICP‑Brasil **presumem‑se verdadeiros** quanto aos signatários. | **Presunção** *juris tantum* → **inverte o ônus**. Exclusivo da **qualificada**. |
+| **MP 2.200‑2/2001, art. 10 §2º** | Admite outros meios (inclusive certs **não‑ICP**) **"desde que admitido pelas partes ou aceito pela pessoa a quem for oposto"**. | Base legal da **avançada** + do **selo autoassinado**. |
+| **Lei 14.063/2020, art. 4º e 5º** | Taxonomia (simples/avançada/qualificada) e uso por ente público; reserva a qualificada para atos de maior impacto. | Pode **exigir qualificada** para certos atos. |
+| **STJ (dez/2024)** | A falta de credenciamento ICP‑Brasil **não invalida, por si só**, a assinatura eletrônica. | Sustenta a validade do selo **não‑ICP** + lastro. |
+| **CPC, art. 411, II** | Autêntico o documento com autoria identificada por certificação eletrônica. | Reconhece o valor probatório. |
+| **Decreto 10.543/2020** | Níveis gov.br (avançada com infraestrutura estatal). | **Precedente** do modelo "selo institucional". |
+| **Lei 11.419/2006** | Peticionamento em processo judicial exige assinatura ICP‑Brasil. | Para **atos processuais**, preferir a **qualificada** (token). |
 
-**Conclusão da seção:** "incontestável" no sentido forte (presunção) =
-**qualificada** ou **documento selado em ICP‑Brasil**. A avançada "pura"
-(custodial) é sempre, por definição legal, **contestável** por terceiro que
-não aceitou o método.
+**Conclusão:** presunção forte = **qualificada (token)**. A avançada com selo
+autoassinado é **robusta e autoverificável**, porém sempre **contestável** por
+terceiro que não aceitou o método — é o limite do custo zero.
 
 ---
 
 ## 4. Diagnóstico — fluxo QUALIFICADA (token A3)
 
-**Caminho:** `preparar-assinatura` → assinatura no cliente → `finalizar-assinatura`
-→ `signature-service.ts` → `cades-finalizer.ts`.
-
-Implementação verificada (real, não fachada):
+Implementação verificada e madura (real, não fachada):
 
 | Camada | Status | Referência |
 |---|---|---|
-| Integridade byte‑range × `messageDigest` | ✅ | `pdf-verification.ts:781` |
-| Assinatura SignerInfo: RSA PKCS#1, **RSA‑PSS, ECDSA P‑256/384/521** | ✅ | `crypto-verify.ts` |
-| Cadeia ICP‑Brasil validada **na data do carimbo** | ✅ | `pdf-verification.ts:478` |
-| Trust store: AC Raiz **v5 e v10** autênticas (ITI) + 172 intermediárias | ✅ | `icp-brasil/roots.pem` |
-| Vínculo token↔signatário (CPF do cert = CPF logado, **sem bypass admin**) | ✅ | `signature-service.ts:182` |
-| OCSP (nonce RFC 8954 + verificação da assinatura do responder) | ✅ | `ocsp.ts` |
-| PAdES‑LT (DSS: cadeia + OCSP embarcados) | ✅ | `pades-lt.ts` |
-| Política PA‑AD‑RB v2.3 (hash oficial embutido) | ✅ | `icp-policy.ts:56` |
+| Integridade byte‑range × messageDigest | ✅ | `pdf-verification.ts` |
+| SignerInfo: RSA PKCS#1, **RSA‑PSS, ECDSA P‑256/384/521** | ✅ | `crypto-verify.ts` |
+| Cadeia ICP‑Brasil validada **na data do carimbo** | ✅ | `pdf-verification.ts` |
+| Trust store: AC Raiz **v5 e v10** autênticas + 172 intermediárias | ✅ | `icp-brasil/roots.pem` |
+| Vínculo token↔signatário (CPF, **sem bypass admin**) | ✅ | `signature-service.ts` |
+| OCSP (nonce RFC 8954 + verificação do responder) | ✅ | `ocsp.ts` |
+| PAdES‑LT (DSS embarcado) + política PA‑AD‑RB v2.3 | ✅ | `pades-lt.ts`, `icp-policy.ts` |
 
-### Pendências (operacionais, NÃO código)
+### Pendências (operacionais; algumas têm custo)
+1. **Carimbo de tempo de ACT ICP‑Brasil** (pago) — só necessário para a
+   *tempestividade qualificada* oponível. Sem ele, usa‑se a DigiCert grátis
+   (`tsa_externa`). **Não** ligar `EXIGIR_TSA_QUALIFICADA=1` com a DigiCert.
+2. **`ICP_BRASIL_TRUST_STORE_REQUIRED=1`** em produção (cinto de segurança, grátis).
 
-1. **Carimbo de tempo de ACT ICP‑Brasil.** Hoje `wrangler.toml:14` aponta
-   `TSA_URL = "http://timestamp.digicert.com"` — TSA RFC 3161 real, porém
-   **não‑ICP** → classificada como `tsa_externa` (`cades-finalizer.ts:60`).
-   Para tempestividade qualificada oponível a terceiros, apontar `TSA_URL`
-   para uma **ACT credenciada** (Bry, Soluti, Certisign, AC Safeweb, ou
-   ICP‑EDU se elegível). **Atenção:** ligar `EXIGIR_TSA_QUALIFICADA=1`
-   mantendo a DigiCert faz o sistema **recusar todas as assinaturas**.
-2. **`ICP_BRASIL_TRUST_STORE_REQUIRED=1`** em produção (cinto de segurança
-   contra trust store vazio aceitar cert autoassinado — `cades-finalizer.ts:155`).
-
-> **Veredito:** pronto. Vira "qualificada plena" assim que uma ACT ICP for
-> contratada/configurada e as duas envs forem ligadas.
+> **Veredito:** o caminho zero‑custo para incontestabilidade plena **é o token**.
+> Sempre que houver token, prefira‑o.
 
 ---
 
 ## 5. Diagnóstico — fluxo AVANÇADA (tela)
 
-**Caminho:** `assinar-simples` → `validarEvidenciasAvancada` → estampa
-rubrica + página de auditoria → salva no R2.
+**Lastro coletado (bom):** 2FA por e‑mail, rubrica, selfie com *liveness*
+revalidado no servidor, GPS, IP, User‑Agent, sessão autenticada, log de
+auditoria — no manifesto e em `/validar`.
 
-**Lastro probatório coletado (é bom):** 2FA por e‑mail (sempre), rubrica,
-selfie com *liveness* revalidado no servidor, GPS, IP, User‑Agent, sessão
-autenticada, log de auditoria — tudo no manifesto e em `/validar`.
+### 5.1 🟢 Defeito da escala mensal — **CORRIGIDO**
 
-**Modelo de integridade — custodial, não autocontido:**
-a prova de não‑adulteração é o `arquivo_hash` (banco) comparado ao blob no R2
-(`validar/[hash]/+page.server.ts:141`). Isso detecta corrupção no R2, **mas
-os dois lados são controlados pelo servidor** — não há assinatura
-criptográfica ligando o documento ao signatário. Se o PDF circular fora do
-sistema, um terceiro só consegue confiar nele acessando o portal `/validar`.
+> Antes, a escala mensal em tela estampava **"ASSINATURA DIGITAL — ICP‑BRASIL /
+> MP 2.200‑2"** + um **placeholder PKCS#7 vazio** (Adobe = "assinatura inválida"),
+> contradizendo o manifesto "AVANÇADA". **Corrigido** (commit `78e2f20`): agora
+> usa o rodapé honesto do padrão GISE, grava `arquivo_hash` e a `/validar` só
+> roda verificação CMS quando há assinatura qualificada de fato.
 
-→ Sem assinatura ICP no documento, ele é **avançada** (art. 4º II) — válido,
-mas **contestável** por terceiro que não aceitou o método.
+### 5.2 🟢 Selo institucional autoassinado — **IMPLEMENTADO**
 
-### 5.1 🔴 Defeito grave — escala mensal em tela
+O modelo **custodial** (hash no banco) foi promovido a **CMS autocontido**:
+o servidor sela o PDF da assinatura em tela com um **certificado autoassinado da
+instituição** (commits `e3db89c`, `cf77c89`).
 
-O `assinar-simples` **das escalas mensais** chama
-`prepararPdfParaAssinatura()` — a **mesma função do fluxo qualificado** — e
-salva o resultado **sem nunca preencher o PKCS#7**
-(`src/routes/api/escalas/[id]/assinar-simples/+server.ts:111‑135`).
-
-**Comprovação empírica** (executando a função real do projeto sobre um PDF de
-teste):
-
-```json
-{ "hasTypeSig": true, "hasSigSubfilter": "adbe.pkcs7.detached",
-  "hasByteRange": true, "contentsLenBytes": 8192,
-  "/Contents": "00 00 00 … (placeholder NUNCA preenchido)" }
-```
-
-O PDF resultante contém:
-1. Um **dicionário de assinatura digital real** (`/Type /Sig`,
-   `adbe.pkcs7.detached`, `/ByteRange`) → **Adobe/Foxit exibe um campo de
-   assinatura e o marca como INVÁLIDO** (PKCS#7 só de bytes nulos não parseia).
-2. Carimbo visual escrito **"ASSINATURA DIGITAL — ICP‑BRASIL"** e
-   **"Assinado conforme MP 2.200‑2/2001 — ICP‑Brasil"**
-   (`pdf-signing-prepare.ts:540,672`) — **sem nenhum certificado**.
-3. Página de auditoria que, corretamente, diz **"AVANÇADA · TELA/MOBILE /
-   Lei 14.063/2020"**.
-
-**Por que é grave:** o mesmo documento **se autocontradiz** (selo "ICP‑Brasil"
-no corpo × "avançada/Lei 14.063" no manifesto) e embute uma **assinatura
-digital quebrada**. Numa perícia, isso caracteriza o documento como
-pretensamente qualificado quando não é — munição direta para **invalidá‑lo**.
-**Enfraquece em vez de fortalecer.**
-
-> O fluxo **GISE** simples já faz **certo**: usa `adicionarRodapeSimples()` —
-> rodapé honesto "Confirmado eletronicamente por:", **sem** placeholder e
-> **sem** branding ICP (`pdf-signing-visual.ts:28`). A divergência está só na
-> escala mensal.
+- O PDF vira **CMS real, à prova de adulteração** (qualquer alteração quebra a
+  assinatura, independente do servidor). + carimbo de tempo grátis (`TSA_URL`).
+- A `/validar` **verifica o selo** e exibe "Selo institucional: documento íntegro
+  e à prova de adulteração" (+ "certificado confere com o selo oficial").
+- **Fallback:** sem a chave (`SELO_INSTITUCIONAL_PEM`), degrada para o rodapé honesto.
+- **Limite honesto:** não é ICP‑Brasil → o Adobe mostra "validade desconhecida"
+  e **não** há a presunção do art. 10 §1º. A confiança vem do `/validar` + da
+  publicação do certificado público.
 
 ---
 
-## 6. Caminho recomendado — AVANÇADA incontestável na prática
+## 6. Caminho recomendado — AVANÇADA incontestável a custo zero
 
-A peça central é trocar o modelo **custodial** por um documento **autocontido
-e ICP‑válido**, via:
+**→ Selo institucional AUTOASSINADO (implementado) + carimbo de tempo grátis.**
 
-### → Selo ICP‑Brasil institucional (carimbo de pessoa jurídica), server‑side
-
-O servidor assina cada PDF do fluxo avançado com um **certificado da
-corporação**, anexando carimbo de tempo. Efeitos:
-
-- O documento passa a ter uma **assinatura ICP‑Brasil válida no Adobe**, com
-  **integridade presumida** (MP 2.200‑2 §1º — agora do **documento/instituição**).
-- As evidências do policial (2FA + biometria/liveness + GPS) ficam **dentro**
-  como **manifestação de vontade** do signatário, atestada pela instituição.
-- **Elimina o defeito da §5.1**: o placeholder passa a ser preenchido por uma
-  assinatura **real** → some o "ICP‑Brasil falso".
-- **Reusa o código de CMS já existente** (`buildCmsSignedData`,
-  `embedCmsBytesNoPlaceholder`, TSA, OCSP, DSS).
-
-> **Importante (precisão jurídica):** o selo institucional dá ao **documento**
-> integridade ICP‑Brasil e atesta a **custódia/origem institucional**; ele
-> **não** transforma o ato do policial em assinatura **qualificada pessoal**
-> (isso só o token A3 faz). O ato do policial continua **avançado**, porém
-> agora **lacrado em ICP** e com lastro forte — que é, na prática, o teto
-> alcançável para a avançada e o modelo que o Judiciário já aceita do gov.br.
-
-### 6.1 Decisão de credencial — **e‑CNPJ, não e‑CPF**
+### 6.1 Decisão de credencial
 
 | Opção | Produção? | Por quê |
 |---|---|---|
-| **e‑CNPJ A1 da corporação** (ou cert. de pessoa jurídica/aplicação) | ✅ **Recomendado** | Identifica a **instituição** → o selo significa "a PC‑CE atesta". É o que dá peso jurídico. |
-| **e‑CPF A1 do desenvolvedor** | ❌ **Não** | Imputa **autoria pessoal** ao dev em todos os documentos; **facilita** a contestação ("o dev não assinou minha escala"); provável **violação da DPC** do certificado pessoal; expira anualmente e some com a saída da pessoa. |
-| Qualquer A1 de teste | ⚠️ Só **dev/homologação** | Para validar o pipeline; **nunca** servir documento de produção. |
+| **Autoassinado gerado pelo projeto** | ✅ **Em uso (custo zero)** | CMS real e tamper‑evident; base legal art. 4º II + MP 2.200‑2 §2º + STJ 2024. Custo: Adobe "não confiável" (mitigado por `/validar` + cert público). |
+| **e‑CNPJ A1 da corporação** | 🔜 **Upgrade futuro (pago)** | Mesmo desenho, porém **ICP‑Brasil** → Adobe "válido" + integridade presumida (MP 2.200‑2 §1º). Trocar `SELO_INSTITUCIONAL_PEM` pelo e‑CNPJ ativa sem mudar código. |
+| **e‑CPF do desenvolvedor** | ❌ **Nunca** | Imputa autoria pessoal; facilita a contestação; viola a DPC do cert pessoal. |
 
-**Requisitos do e‑CNPJ A1:** tipo **A1** (chave em arquivo PKCS#12,
-exportável) — A3 (token) **não** serve para assinatura automática
-server‑side. A chave deve ser guardada como **secret** do Cloudflare
-(`wrangler secret put`), nunca no repositório.
+### 6.2 Reforços (grátis)
+- **Termo de aceitação** por cada policial (art. 4º II) — confirmar cobertura de
+  `aceites_termos` e validar texto com o jurídico.
+- **Publicar** `selo-institucional.cert.pem` (fingerprint SHA‑256) para terceiros
+  conferirem o selo fora do sistema.
+
+### 6.3 Upgrades futuros (zero‑custo, com esforço/dependência)
+- **gov.br** (avançada governamental): cada policial assina via conta gov.br
+  prata/ouro. Exige habilitar a API gov.br e contas dos policiais.
+- **ICP‑EDU** (ACT grátis): só órgãos **federais**; PC‑CE é estadual → verificar.
 
 ---
 
-## 7. Plano de implementação (proposto)
+## 7. Plano de implementação — situação
 
-### Fase 0 — Correção imediata do defeito (independe de credencial)
-- Alinhar `escalas/[id]/assinar-simples` ao padrão honesto do GISE:
-  trocar `prepararPdfParaAssinatura` por `adicionarRodapeSimples` **ou**
-  parametrizar o carimbo para "Assinatura Eletrônica Avançada — Lei
-  14.063/2020" no fluxo sem token; remover o placeholder PKCS#7 vazio.
-- **Esforço:** ~2 h. **Risco:** baixo. **Ganho:** remove a vulnerabilidade
-  pericial já hoje.
+| Fase | Item | Status |
+|---|---|---|
+| **0** | Corrigir o defeito da escala mensal (selo ICP falso + placeholder vazio) | ✅ **Feito** (`78e2f20`) |
+| **1** | Selo institucional autoassinado server‑side + TSA grátis + fallback | ✅ **Feito** (`e3db89c`) |
+| **1b** | `/validar` verifica e exibe o selo | ✅ **Feito** (`cf77c89`) |
+| **op** | Gerar a chave + setar `SELO_INSTITUCIONAL_PEM` | ⏳ **Operacional (você)** |
+| **2** | Termo de aceitação revisado pelo jurídico | ⏳ Pendente |
+| **3** | (Qualificada) ACT ICP + envs de hardening | ⏳ Pendente (ACT é paga) |
 
-### Fase 1 — Selo institucional server‑side (avançada)
-1. **Carregar a chave** do e‑CNPJ A1 a partir de secret (PKCS#12 → cert+chave).
-2. **Assinar server‑side** o `signedAttrs` (SHA‑256/RSA) — via Web Crypto
-   (`crypto.subtle.sign`, RSASSA‑PKCS1‑v1_5) ou node‑forge.
-3. **Montar e embutir** o CMS com `buildCmsSignedData` + `embedCmsBytesNoPlaceholder`
-   (código já existe).
-4. **Carimbar tempo** (`tsa.ts`) + **OCSP/DSS** (`cades-finalizer.ts`, `pades-lt.ts`)
-   — reaproveitados.
-5. **Rotular** o documento/`/validar` como "Assinatura avançada do signatário
-   + selo institucional ICP‑Brasil (PC‑CE)".
-- **Esforço:** ~2–3 dias. **Arquivos:** novo `server-seal.ts`, ajustes em
-  `signature-service.ts` e nos 3 endpoints `assinar-simples`/`assinar`.
-
-### Fase 2 — Aceitação / termo (oponibilidade jurídica)
-- Garantir que cada policial **aceite** o termo de uso que estabelece a
-  assinatura avançada como válida entre as partes (art. 4º II / MP 2.200‑2 §2º).
-  O sistema já tem `aceites_termos` com snapshot HTML — confirmar cobertura e
-  versão. Validar texto com o jurídico.
-
-### Fase 3 — Qualificada: pendências operacionais
-- Contratar/configurar **ACT ICP‑Brasil** em `TSA_URL`; ligar
-  `EXIGIR_TSA_QUALIFICADA=1` e `ICP_BRASIL_TRUST_STORE_REQUIRED=1`.
+**Ativação do selo (1×):**
+```bash
+node scripts/gerar-selo-institucional.mjs "Sistema de Escalas - PCCE" "Policia Civil do Ceara"
+# cole o bundle base64 impresso em SELO_INSTITUCIONAL_PEM (Cloudflare Pages / wrangler secret)
+```
+Sem essa env, tudo funciona com o rodapé honesto (sem selo).
 
 ---
 
 ## 8. Decisões em aberto
 
-1. **Credencial do selo:** a corporação consegue um **e‑CNPJ A1** (ou cert.
-   de aplicação PJ)? Em quanto tempo? (Bloqueia a Fase 1 em produção.)
-2. **ACT de carimbo de tempo:** qual provedor ICP (Bry/Soluti/ICP‑EDU…)?
-   (Bloqueia a qualificada plena e o selo institucional com tempestividade.)
-3. **Custódia da chave A1:** quem é o responsável operacional pela rotação
-   anual e pelo secret no Cloudflare?
-4. **Validação jurídica** do termo de aceitação e do enquadramento do selo
-   institucional pela assessoria da corporação.
+1. **Custódia da chave autoassinada:** quem guarda `selo-institucional.key.pem`
+   e administra o secret/rotação (validade 10 anos)?
+2. **Termo de aceitação:** validar texto e cobertura com o jurídico.
+3. **Quando** migrar o selo para **e‑CNPJ ICP** (se/quando houver orçamento) —
+   é só trocar a env, sem mudar código.
+4. **(Qualificada)** contratar **ACT ICP‑Brasil** para tempestividade plena.
+
+---
+
+## Anexo A — Estudo de caso ZapSign
+
+Análise forense de um PDF real assinado na ZapSign (peça enviada pelo cliente),
+**decodificado da estrutura interna** do arquivo:
+
+| Elemento | Achado |
+|---|---|
+| Assinatura | 1 CMS PKCS#7 `adbe.pkcs7.detached` cobrindo o documento via `/ByteRange` |
+| **Quem selou** | **`CN=ZAPSIGN PROCESSAMENTO DE DADOS LTDA`** — **e‑CNPJ** (PJ), `Tipo A3`, emitido por `AC Certisign Múltipla` |
+| Cadeia | 4 certs, completa: ZapSign → AC Certisign Múltipla G7 → AC Certisign G7 → **AC Raiz Brasileira v5** |
+| Longo prazo | **PAdES‑LT** (`/DSS` com `/Certs`, `/OCSPs`, `/CRLs`, `/VRI`) |
+| **NÃO tinha** | ❌ carimbo de tempo de ACT, ❌ `sigPolicyId`, ❌ `signingCertificateV2` |
+
+**Lições (confirmam a arquitetura adotada):**
+1. A robustez vem de **selar o documento com o certificado da plataforma/instituição**
+   — exatamente o nosso selo institucional. A diferença é só o tipo de certificado
+   (eles e‑CNPJ ICP; nós autoassinado por custo zero).
+2. Usa **pessoa jurídica (e‑CNPJ)**, nunca e‑CPF de pessoa — valida a §6.1.
+3. **Podemos ficar melhores no eixo tempo:** aquele PDF **não tinha carimbo de
+   tempo**; o nosso anexa um RFC 3161 grátis quando `TSA_URL` está setado.
 
 ---
 
 ## 9. Referências
 
 - **MP 2.200‑2/2001** — art. 10 §1º (presunção) e §2º (outros meios + aceitação)
-- **Lei 14.063/2020** — art. 4º (taxonomia) e art. 5º (uso por ente público)
-- **CPC (Lei 13.105/2015)** — art. 411, II (autenticidade por certificação eletrônica)
-- **CC/2002** — art. 219 (declarações presumem‑se verdadeiras quanto aos signatários)
-- **Decreto 10.543/2020** — níveis de assinatura gov.br (precedente do modelo)
-- **Decreto 10.278/2020** — digitalização com efeitos de original (exige ICP)
-- **DOC‑ICP‑15.03** — Política de Assinatura ICP‑Brasil (PA‑AD‑RB v2.3)
-- **RFC 3161** (TSA), **RFC 5126** (CAdES), **RFC 5280** (X.509), **RFC 5652**
-  (CMS), **RFC 6960/8954** (OCSP), **ETSI EN 319 142‑1** (PAdES)
-- Arquivos do projeto citados ao longo (caminhos `src/...`)
+- **Lei 14.063/2020** — art. 4º e 5º · **CPC** art. 411, II · **CC/2002** art. 219
+- **STJ** (dez/2024) — credenciamento ICP não é indispensável
+- **Decreto 10.543/2020** (gov.br) · **Decreto 10.278/2020** (digitalização)
+- **Lei 11.419/2006** — processo judicial eletrônico
+- **DOC‑ICP‑15.03** (PA‑AD‑RB v2.3) · **RFC 3161/5126/5280/5652/6960/8954** · **ETSI EN 319 142‑1**
+- Arquivos do projeto: `server-seal.ts`, `pdf-signing-prepare.ts`, `pdf-verification.ts`,
+  `scripts/gerar-selo-institucional.mjs`, `validar/[hash]/+page.*`
