@@ -53,40 +53,51 @@ const OID_SIG_POLICY_ID = '1.2.840.113549.1.9.16.2.15';
  */
 const OID_PA_AD_RB_V2_3 = '2.16.76.1.7.1.1.2.3';
 /**
- * Hash SHA-256 do PDF oficial da PA-AD-RB v2.3 publicada pela ITI.
+ * Hash da Política de Assinatura PA-AD-RB v2.3, usado no `sigPolicyHash` do
+ * atributo `id-aa-ets-sigPolicyId`.
  *
- * **⚠️ ATENÇÃO — valor a confirmar antes de produção:**
- * O hash abaixo é um placeholder. Antes do primeiro deploy de produção:
- *   1. Baixe o PDF oficial: `curl -O https://www.gov.br/iti/pt-br/centrais-de-conteudo/DOCICP1503v73.pdf`
- *   2. Calcule: `openssl dgst -sha256 DOCICP1503v73.pdf`
- *   3. Cole o resultado abaixo (apenas o hex, sem prefixo `SHA256=`).
- *   4. Confirme que o `OID_PA_AD_RB_V2_3` acima ainda corresponde à
- *      versão baixada — a ITI bumps de versão ocasionais alteram ambos.
+ * ⚠️ Cuidado — NÃO é o hash do PDF do DOC-ICP-15.03 (engano comum), NEM o
+ * hash do arquivo `.der` da política (esse é o que a LPA usa p/ integridade
+ * do artefato). Conforme a Nota Técnica 003/2016-CGNP/ITI, o valor que vai na
+ * ASSINATURA é o hash INTERNO da própria PA — o campo `signPolicyHash`
+ * embutido no artefato `.der`, que equivale a:
  *
- * Para sobrescrever via env (útil em staging com mock), defina
- * `PA_AD_RB_HASH_HEX` no Cloudflare Pages. Vide trecho que lê env mais
- * abaixo (`resolverHashPolitica`).
+ *   SHA-256( DER(signPolicyHashAlg) ‖ DER(signPolicyInfo) )
  *
- * Sem este hash exato, o Validador ITI rejeita a referência como
- * "hash da política inválido" — embora os demais checks (cadeia, RSA,
- * OCSP, TSA) continuem válidos. Por isso o atributo é incluído sempre,
- * mas vale ressaltar que o cumprimento PLENO da PA-AD-RB só ocorre
- * após esta validação.
+ * Valor abaixo extraído do artefato oficial e reproduzido:
+ *
+ *   curl -O http://politicas.icpbrasil.gov.br/PA_AD_RB_v2_3.der
+ *   # 3º elemento do SEQUENCE raiz (OCTET STRING, 32 bytes) = signPolicyHash:
+ *   openssl asn1parse -inform DER -in PA_AD_RB_v2_3.der | tail -1
+ *
+ * Num bump de versão da PA, atualize JUNTOS `OID_PA_AD_RB_V2_3` e este hash
+ * (ambos mudam). Para sobrescrever em node/staging sem rebuild, defina
+ * `PA_AD_RB_HASH_HEX` (vide `resolverHashPolitica`).
  */
-const HASH_PA_AD_RB_V2_3_HEX_FALLBACK =
-	'0000000000000000000000000000000000000000000000000000000000000000';
+const HASH_PA_AD_RB_V2_3_HEX =
+	'b16e88bbf77322a67995b79078778ed3d0ea7c88587b6f6d518b715e8f76a3d5';
+
+/** Placeholder histórico (zeros) — sabidamente inválido; rejeitado abaixo. */
+const HASH_PLACEHOLDER_ZEROS = '0'.repeat(64);
 
 /**
- * Resolve o hash da política, dando prioridade à env. Usado para permitir
- * que o operador configure o hash correto sem rebuild do bundle.
+ * Resolve o hash da política. Prioriza a env `PA_AD_RB_HASH_HEX` (64 hex), mas
+ * REJEITA o placeholder histórico de zeros, caindo no valor oficial embutido —
+ * assim nunca emitimos um `sigPolicyHash` sabidamente inválido em produção.
  */
-function resolverHashPolitica(): string {
-	const env =
-		(typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) || '';
-	if (env && /^[0-9a-fA-F]{64}$/.test(env.trim())) {
-		return env.trim().toLowerCase();
+export function resolverHashPolitica(): string {
+	const env = (typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) || '';
+	const limpo = env.trim().toLowerCase();
+	if (limpo === HASH_PLACEHOLDER_ZEROS) {
+		logger.warn(
+			'[PDF-SIGN] PA_AD_RB_HASH_HEX = zeros (placeholder) ignorado; usando hash oficial PA-AD-RB v2.3.'
+		);
+		return HASH_PA_AD_RB_V2_3_HEX;
 	}
-	return HASH_PA_AD_RB_V2_3_HEX_FALLBACK;
+	if (/^[0-9a-f]{64}$/.test(limpo)) {
+		return limpo;
+	}
+	return HASH_PA_AD_RB_V2_3_HEX;
 }
 
 // ---------------------------------------------------------------------------
