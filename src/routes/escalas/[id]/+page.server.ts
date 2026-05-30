@@ -580,7 +580,7 @@ export const actions: Actions = {
 		// Dias atualmente no range da escala
 		function getDaysInRange(start: string, end: string): string[] {
 			const days: string[] = [];
-			let cur = new Date(start + 'T00:00:00');
+			const cur = new Date(start + 'T00:00:00');
 			const last = new Date(end + 'T00:00:00');
 			while (cur <= last) {
 				days.push(cur.toISOString().split('T')[0]);

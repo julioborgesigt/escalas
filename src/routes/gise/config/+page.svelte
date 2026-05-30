@@ -3,7 +3,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { toaster } from '$lib/toast';
 
-	let { data } = $props();
+	const { data } = $props();
 
 	const vagas = $derived(data.vagas);
 </script>

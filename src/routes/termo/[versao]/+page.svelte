@@ -1,6 +1,6 @@
 <script lang="ts">
 	import icon from '$lib/assets/logo.png';
-	let { data }: { data: any } = $props();
+	const { data }: { data: any } = $props();
 </script>
 
 <svelte:head>

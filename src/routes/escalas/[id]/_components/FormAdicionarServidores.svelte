@@ -6,7 +6,7 @@
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 
-	let {
+	const {
 		escala,
 		isFDS,
 		isExpediente,
@@ -82,7 +82,7 @@
 		const datas: string[] = [];
 		const inicio = new Date(escala.data_inicio + 'T00:00:00');
 		const fim = new Date(escala.data_fim + 'T00:00:00');
-		let d = new Date(primeiroPlantao + 'T00:00:00');
+		const d = new Date(primeiroPlantao + 'T00:00:00');
 		if (tipo === '1x3') {
 			while (d <= fim) {
 				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);

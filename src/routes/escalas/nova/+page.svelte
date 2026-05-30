@@ -14,7 +14,7 @@
 		cidade: string;
 	}
 
-	let { data, form } = $props();
+	const { data, form } = $props();
 
 	function handleForm({ formData }: { formData: FormData }) {
 		loading.show('Criando nova escala...');

@@ -11,7 +11,7 @@
 	import FormularioServico from './FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
 
-	let { data } = $props();
+	const { data } = $props();
 	const auth = useAutorizacao();
 	const isAdminGeral = $derived(auth.isAdmin);
 	const resGise = useResGise(() => data);

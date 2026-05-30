@@ -2,7 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import { formatarData } from '$lib/utils';
 
-	let {
+	const {
 		escalasParaAssinar,
 		assinaturaTelaBloqueada,
 		isMobile,

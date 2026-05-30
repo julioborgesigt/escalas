@@ -24,7 +24,7 @@
 	import DialogSolicitarAssinatura from './_components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	let { data, form } = $props();
+	const { data, form } = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

@@ -10,7 +10,7 @@
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { useScrollLock } from '$lib/composables';
 
-	let { children } = $props();
+	const { children } = $props();
 
 	const usuario = $derived(page.data.usuario);
 	const iniciaisUsuario = $derived(
@@ -130,13 +130,17 @@
 		// await tick() flushes Svelte's pending DOM updates (e.g. nav-progress-visible)
 		// BEFORE startViewTransition captures the old-state screenshot. Without this,
 		// the progress bar is still opacity:0 in the snapshot and never appears.
-		return new Promise(async (resolve) => {
-			await tick();
-			document.startViewTransition(async () => {
-				resolve();
-				await navigation.complete;
-			});
-		});
+		// Aguarda tick() ANTES de iniciar a transição; evita o async-executor
+		// (new Promise(async …)), que engoliria eventuais rejeições.
+		return tick().then(
+			() =>
+				new Promise<void>((resolve) => {
+					document.startViewTransition(async () => {
+						resolve();
+						await navigation.complete;
+					});
+				})
+		);
 	});
 </script>
 

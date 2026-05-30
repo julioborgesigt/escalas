@@ -21,7 +21,7 @@
 		giseStatus?: string;
 	}
 
-	let {
+	const {
 		quantidadePendentes,
 		assinandoLote,
 		etapaAssinatura,

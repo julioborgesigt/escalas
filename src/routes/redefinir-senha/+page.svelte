@@ -4,7 +4,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
 	let novaSenha = $state('');
 	let confirmarSenha = $state('');

@@ -1,5 +1,5 @@
 <script lang="ts">
-	let {
+	const {
 		totalPoliciais,
 		totalSelecionados,
 		modoSelecao,

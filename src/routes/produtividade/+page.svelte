@@ -41,7 +41,7 @@
 		}
 	}
 
-	let { data } = $props();
+	const { data } = $props();
 
 	// Filters
 	let filterTipo = $state('operacional');
@@ -55,7 +55,7 @@
 	let filterAno = $state(String(currentYear));
 
 	let mostrarFiltros = $state(false);
-	let filtrosAtivos = $derived(filterSeccional !== '' || filterInicio !== '' || filterFim !== '' || filterAno !== String(currentYear));
+	const filtrosAtivos = $derived(filterSeccional !== '' || filterInicio !== '' || filterFim !== '' || filterAno !== String(currentYear));
 
 	const defaultStart = `${currentYear}-01-01`;
 	const defaultEnd = `${currentYear}-12-31`;
@@ -85,7 +85,7 @@
 	const toggleChartSelection = selection.toggle;
 
 	// Questions mapeadas via utilitário
-	let QUESTIONS = $derived(
+	const QUESTIONS = $derived(
 		mapQuestions(filterTipo === 'seint' ? data.modeloSeint : data.modeloOperacional, filterTipo)
 	);
 
@@ -95,7 +95,7 @@
 	const armasKey = $derived(getArmasKey(data.modeloOperacional));
 
 	// Derived Data
-	let filteredData = $derived(
+	const filteredData = $derived(
 		(data.lista || []).filter((item: ProdutividadeListaItem) => {
 			const date = item.data_inicio;
 			const tipo = (item.equipe_tipo || 'operacional').toLowerCase();
@@ -108,7 +108,7 @@
 	);
 
 	// Parse respostas UMA VEZ — evita JSON.parse duplicado em stats, rankings e charts
-	let parsedData = $derived(
+	const parsedData = $derived(
 		filteredData.map((item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
 			...item,
 			respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
@@ -116,10 +116,10 @@
 	);
 
 	// Stats via utilitário
-	let stats = $derived(calculateStats(parsedData, QUESTIONS, armasKey));
+	const stats = $derived(calculateStats(parsedData, QUESTIONS, armasKey));
 
 	// Rankings via utilitário
-	let rankingPrisoes = $derived(
+	const rankingPrisoes = $derived(
 		calculateRanking(
 			data.seccionais ?? [],
 			parsedData,
@@ -127,7 +127,7 @@
 		)
 	);
 
-	let rankingDrogasPeso = $derived(
+	const rankingDrogasPeso = $derived(
 		calculateRanking(data.seccionais ?? [], parsedData, (res) => {
 			let total = 0;
 			if (res.drogas_detalhe) {
@@ -142,7 +142,7 @@
 		})
 	);
 
-	let rankingArmas = $derived(
+	const rankingArmas = $derived(
 		calculateRanking(data.seccionais ?? [], parsedData, (res) => {
 			let val = 0;
 			if (res[armasKey] === 'Sim' && res.armas_detalhe) {

@@ -11,7 +11,7 @@
 		onCancel: () => void;
 	}
 
-	let { open, exigirFoto, exigirGps, exigirCodigoEmail, onConfirm, onCancel }: Props = $props();
+	const { open, exigirFoto, exigirGps, exigirCodigoEmail, onConfirm, onCancel }: Props = $props();
 
 	let signatureStep = $state<'signature' | 'camera' | 'email_code'>('signature');
 

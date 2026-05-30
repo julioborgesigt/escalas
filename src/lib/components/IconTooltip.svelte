@@ -2,7 +2,7 @@
 	import { Tooltip, Portal } from '@skeletonlabs/skeleton-svelte';
 	import type { Snippet } from 'svelte';
 
-	let {
+	const {
 		label,
 		openDelay = 400,
 		children

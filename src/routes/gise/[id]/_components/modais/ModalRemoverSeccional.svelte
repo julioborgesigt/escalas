@@ -8,7 +8,7 @@
 		onConfirm: () => void | Promise<void>;
 	}
 
-	let { open, pending = false, onOpenChange, onConfirm }: Props = $props();
+	const { open, pending = false, onOpenChange, onConfirm }: Props = $props();
 </script>
 
 <Dialog {open} onOpenChange={(e) => !pending && onOpenChange(e.open)}>

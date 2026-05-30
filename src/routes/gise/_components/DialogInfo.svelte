@@ -7,7 +7,7 @@
 		acao?: { label: string; fn: () => void };
 	};
 
-	let {
+	const {
 		dialogInfo,
 		onClose
 	}: {

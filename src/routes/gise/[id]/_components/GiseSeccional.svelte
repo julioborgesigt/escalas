@@ -42,7 +42,7 @@
 		onFinalizarSuccess?: () => void;
 	}
 
-	let {
+	const {
 		sec,
 		gise,
 		todasUnidades,

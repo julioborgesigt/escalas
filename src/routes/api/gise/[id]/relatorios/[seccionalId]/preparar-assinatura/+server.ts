@@ -140,7 +140,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 					const buf = await obj.arrayBuffer();
 					return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
 				}
-			} catch { }
+			} catch {
+				// objeto opcional (selfie ausente/ilegível) — segue sem ela
+			}
 			return { prId, type, data: undefined };
 		})
 	);

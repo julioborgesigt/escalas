@@ -13,7 +13,7 @@
     destinatario_id?: number;
   };
 
-  let {
+  const {
     escalas,
     podeOIPSolicitar,
     solicitacoesMap,
