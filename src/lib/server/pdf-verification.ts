@@ -715,8 +715,6 @@ export async function verificarTimestampToken(
 export interface VerifyOptions {
 	/** Snapshot OCSP previamente armazenado (CAdES-LT). */
 	ocspSnapshotB64?: string | null;
-	/** Tipo de carimbo registrado no banco (auditoria adicional). */
-	tipoCarimboTempoArmazenado?: 'servidor' | 'act_icp' | 'tsa_externa' | null;
 	/**
 	 * `platform.env` para checar `ICP_BRASIL_TRUST_STORE_REQUIRED`. Quando
 	 * essa env está ligada e o trust store está vazio, devolvemos

@@ -147,22 +147,6 @@ function parseUAInternal(ua: string): UAResult {
 export type TipoCarimoTempo = 'servidor' | 'act_icp' | 'tsa_externa';
 
 /**
- * Determina o tipo de carimbo de tempo com base na resposta do SERPRO.
- *
- * O Assinador SERPRO v4+ pode incluir timestamps TSA (Time Stamp Authority)
- * certificados pela ICP-Brasil campo `timestamp` ou `tsp` na resposta.
- * Se ausente, o horário registrado é apenas do servidor da aplicação.
- */
-export function determinarTipoCarimbo(serproResponse?: Record<string, unknown>): TipoCarimoTempo {
-	if (!serproResponse) return 'servidor';
-	// Verifica presença de campos de timestamp da ICP-Brasil na resposta SERPRO
-	if (serproResponse.timestamp || serproResponse.tsp || serproResponse.timestampToken) {
-		return 'act_icp';
-	}
-	return 'servidor';
-}
-
-/**
  * Retorna a descrição legível do tipo de carimbo para exibição no PDF.
  */
 export function descreverTipoCarimbo(tipo: TipoCarimoTempo): string {
