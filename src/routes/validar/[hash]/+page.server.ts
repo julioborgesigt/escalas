@@ -5,6 +5,7 @@ import { logger } from '$lib/server/logger';
 import { getR2 } from '$lib/server/platform';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { verificarAssinaturaCompleta, type VerificationResult } from '$lib/server/pdf-verification';
+import { verificarSeloInstitucional, type ResultadoVerificacaoSelo } from '$lib/server/server-seal';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, platform, setHeaders }) => {
@@ -136,21 +137,23 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 
 	let verificacao: VerificationResult | null = null;
 	let hashConfere: boolean | null = null;
+	let selo: ResultadoVerificacaoSelo | null = null;
 	try {
 		const r2 = getR2(platform);
 		if (r2 && documento.r2_key) {
 			const obj = await r2.get(documento.r2_key);
 			if (obj) {
 				const buf = new Uint8Array(await obj.arrayBuffer());
+				const env = platform?.env as unknown as Record<string, string | undefined> | undefined;
 				if (arquivoHashEsperado) {
 					const h = await calcularHashBuffer(buf);
 					hashConfere = h === arquivoHashEsperado;
 				}
 				if (!ehAvancada && tipoAssin !== 'simples' && temCmsAssinado) {
-					verificacao = await verificarAssinaturaCompleta(buf, {
-						ocspSnapshotB64,
-						env: platform?.env as unknown as Record<string, string | undefined> | undefined
-					});
+					verificacao = await verificarAssinaturaCompleta(buf, { ocspSnapshotB64, env });
+				} else {
+					// Fluxo avançado: pode haver selo institucional (CMS autoassinado).
+					selo = await verificarSeloInstitucional(buf, env);
 				}
 			}
 		}
@@ -200,6 +203,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		},
 		verificacao,
 		hashConfere,
+		selo,
 		escala: {
 			titulo,
 			cidade,

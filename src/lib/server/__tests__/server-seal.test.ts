@@ -10,7 +10,11 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import forge from 'node-forge';
 import { PDFDocument } from 'pdf-lib';
-import { selarPdfInstitucional, carregarSeloInstitucional } from '../server-seal';
+import {
+	selarPdfInstitucional,
+	carregarSeloInstitucional,
+	verificarSeloInstitucional
+} from '../server-seal';
 import {
 	extrairCmsDoPdf,
 	parseCms,
@@ -107,5 +111,56 @@ describe('selarPdfInstitucional', () => {
 
 	it('bundle inválido → carregarSeloInstitucional devolve null (não lança)', () => {
 		expect(carregarSeloInstitucional({ SELO_INSTITUCIONAL_PEM: 'lixo-nao-base64-!!!' })).toBeNull();
+	});
+});
+
+describe('verificarSeloInstitucional', () => {
+	let bundle: string;
+	beforeAll(() => {
+		bundle = gerarBundleSelo();
+	});
+
+	it('selo íntegro e autêntico quando verificado com a mesma chave', async () => {
+		const r = await selarPdfInstitucional(await pdfMinimo(), 'FULANO', {
+			env: { SELO_INSTITUCIONAL_PEM: bundle }
+		});
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		const v = await verificarSeloInstitucional(r.pdf, { SELO_INSTITUCIONAL_PEM: bundle });
+		expect(v.presente).toBe(true);
+		expect(v.integro).toBe(true);
+		expect(v.autentico).toBe(true);
+		expect(v.cn).toContain('Selo Teste');
+	});
+
+	it('íntegro mas NÃO autêntico quando o servidor tem outra chave', async () => {
+		const r = await selarPdfInstitucional(await pdfMinimo(), 'FULANO', {
+			env: { SELO_INSTITUCIONAL_PEM: bundle }
+		});
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		const outraChave = gerarBundleSelo('Outro Selo Qualquer');
+		const v = await verificarSeloInstitucional(r.pdf, { SELO_INSTITUCIONAL_PEM: outraChave });
+		expect(v.presente).toBe(true);
+		expect(v.integro).toBe(true); // o selo é internamente válido (não adulterado)
+		expect(v.autentico).toBe(false); // mas não é o selo deste servidor
+	});
+
+	it('adulteração → presente mas não íntegro', async () => {
+		const r = await selarPdfInstitucional(await pdfMinimo(), 'FULANO', {
+			env: { SELO_INSTITUCIONAL_PEM: bundle }
+		});
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		const tampered = new Uint8Array(r.pdf);
+		tampered[40] ^= 0xff;
+		const v = await verificarSeloInstitucional(tampered, { SELO_INSTITUCIONAL_PEM: bundle });
+		expect(v.presente).toBe(true);
+		expect(v.integro).toBe(false);
+	});
+
+	it('PDF sem selo (rodapé honesto puro) → presente:false', async () => {
+		const v = await verificarSeloInstitucional(await pdfMinimo(), { SELO_INSTITUCIONAL_PEM: bundle });
+		expect(v.presente).toBe(false);
 	});
 });

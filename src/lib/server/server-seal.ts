@@ -32,7 +32,13 @@ import {
 	finalizarAssinatura,
 	embedCmsBytesNoPlaceholder
 } from './pdf-signing-prepare';
-import { extrairCmsDoPdf } from './pdf-verification';
+import {
+	extrairCmsDoPdf,
+	parseCms,
+	verificarIntegridadePdf,
+	verificarAssinaturaCmsAsync,
+	verificarTimestampToken
+} from './pdf-verification';
 import { solicitarCarimboTempo } from './tsa';
 import { adicionarTimestampTokenAoCms } from './cms-tst';
 import type { TipoCarimoTempo } from './document-utils';
@@ -179,4 +185,77 @@ export async function selarPdfInstitucional(
 		});
 		return { ok: false, motivo: 'erro' };
 	}
+}
+
+export interface ResultadoVerificacaoSelo {
+	/** O PDF contém um CMS (selo) embarcado. */
+	presente: boolean;
+	/** Integridade do byte-range + assinatura RSA conferem (documento não adulterado). */
+	integro: boolean;
+	/** O certificado do selo é EXATAMENTE o desta instituição (bate com a env atual). */
+	autentico: boolean;
+	/** Common Name do certificado que selou. */
+	cn?: string;
+	/** Momento do carimbo de tempo (ou signingTime do selo). */
+	momento?: string;
+	tipoCarimboTempo?: TipoCarimoTempo;
+}
+
+/**
+ * Verifica o selo institucional embarcado num PDF do fluxo avançado (usado pela
+ * página /validar). NÃO valida cadeia ICP-Brasil (o selo é autoassinado de
+ * propósito) — valida (1) integridade do documento, (2) assinatura RSA do selo
+ * e (3) se o certificado bate com o selo configurado neste servidor (autêntico).
+ *
+ * Documento sem CMS (rodapé honesto puro, sem chave configurada) → `presente:false`.
+ */
+export async function verificarSeloInstitucional(
+	pdfBytes: Uint8Array,
+	env?: Record<string, string | undefined>
+): Promise<ResultadoVerificacaoSelo> {
+	const vazio: ResultadoVerificacaoSelo = { presente: false, integro: false, autentico: false };
+	const extra = extrairCmsDoPdf(pdfBytes);
+	if (!extra) return vazio;
+	const cms = parseCms(extra.cmsDer);
+	if (!cms) return vazio;
+
+	const integridade = await verificarIntegridadePdf(extra.bytesAssinados, cms.messageDigest);
+	const rsaOk = await verificarAssinaturaCmsAsync(
+		cms.certificate,
+		cms.sigAlgOid,
+		cms.signedAttrsAsSet,
+		cms.signatureValue,
+		cms.digestAlgOid
+	);
+
+	const cn = (cms.certificate.subject.getField('CN')?.value as string) || undefined;
+
+	// Autenticidade: o certificado embarcado é exatamente o selo configurado aqui?
+	let autentico = false;
+	try {
+		const selo = carregarSeloInstitucional(env);
+		if (selo) {
+			const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cms.certificate)).getBytes();
+			autentico = forge.util.encode64(certDer) === selo.certDerB64;
+		}
+	} catch {
+		/* sem selo configurado neste servidor — segue só com integridade */
+	}
+
+	// Carimbo de tempo (quando o selo recebeu TST RFC 3161).
+	let tipoCarimboTempo: TipoCarimoTempo = 'servidor';
+	let momento = cms.signingTimeISO ?? undefined;
+	if (cms.timestampToken) {
+		try {
+			const tst = await verificarTimestampToken(cms.timestampToken, cms.signatureValue);
+			if (tst) {
+				tipoCarimboTempo = tst.classe === 'icp' ? 'act_icp' : 'tsa_externa';
+				momento = tst.momento;
+			}
+		} catch {
+			/* TST inválido — mantém servidor */
+		}
+	}
+
+	return { presente: true, integro: integridade && rsaOk, autentico, cn, momento, tipoCarimboTempo };
 }
