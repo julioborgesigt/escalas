@@ -5,6 +5,9 @@ import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
 import { logger } from './logger';
+// Identidade da política (OIDs, hash oficial, resolver) — fonte única
+// compartilhada com a verificação, sem deps pesadas.
+import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './icp-policy';
 
 /**
  * Tamanho do placeholder de assinatura no PDF (bytes binários ⇒ 2× em hex).
@@ -30,64 +33,6 @@ const OID_CONTENT_TYPE = '1.2.840.113549.1.9.3';
 const OID_SIGNING_TIME = '1.2.840.113549.1.9.5';
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
-
-/**
- * OID do atributo `id-aa-ets-sigPolicyId` (RFC 5126 / DOC-ICP-15.03).
- * Aponta para a Política de Assinatura usada — sem este atributo, o
- * Validador ITI marca a assinatura como "Sem política aplicada" mesmo
- * quando todos os outros checks passam.
- */
-const OID_SIG_POLICY_ID = '1.2.840.113549.1.9.16.2.15';
-
-/**
- * OID da PA-AD-RB v2.3 (Política de Assinatura — Assinatura Digital com
- * Referência Básica), definida no DOC-ICP-15.03 da ITI.
- *
- * Esta é a política mínima para assinaturas qualificadas ICP-Brasil sem
- * carimbo de tempo obrigatório embutido. Quando combinada com TSA RFC 3161
- * server-side (TSA_URL), o nível efetivo sobe para AD-RT (com Referência
- * para Tempo).
- *
- * Documento de referência:
- *   https://www.gov.br/iti/pt-br/centrais-de-conteudo/doc-icp-15-03-versao-7-3-pdf
- */
-const OID_PA_AD_RB_V2_3 = '2.16.76.1.7.1.1.2.3';
-/**
- * Hash SHA-256 do PDF oficial da PA-AD-RB v2.3 publicada pela ITI.
- *
- * **⚠️ ATENÇÃO — valor a confirmar antes de produção:**
- * O hash abaixo é um placeholder. Antes do primeiro deploy de produção:
- *   1. Baixe o PDF oficial: `curl -O https://www.gov.br/iti/pt-br/centrais-de-conteudo/DOCICP1503v73.pdf`
- *   2. Calcule: `openssl dgst -sha256 DOCICP1503v73.pdf`
- *   3. Cole o resultado abaixo (apenas o hex, sem prefixo `SHA256=`).
- *   4. Confirme que o `OID_PA_AD_RB_V2_3` acima ainda corresponde à
- *      versão baixada — a ITI bumps de versão ocasionais alteram ambos.
- *
- * Para sobrescrever via env (útil em staging com mock), defina
- * `PA_AD_RB_HASH_HEX` no Cloudflare Pages. Vide trecho que lê env mais
- * abaixo (`resolverHashPolitica`).
- *
- * Sem este hash exato, o Validador ITI rejeita a referência como
- * "hash da política inválido" — embora os demais checks (cadeia, RSA,
- * OCSP, TSA) continuem válidos. Por isso o atributo é incluído sempre,
- * mas vale ressaltar que o cumprimento PLENO da PA-AD-RB só ocorre
- * após esta validação.
- */
-const HASH_PA_AD_RB_V2_3_HEX_FALLBACK =
-	'0000000000000000000000000000000000000000000000000000000000000000';
-
-/**
- * Resolve o hash da política, dando prioridade à env. Usado para permitir
- * que o operador configure o hash correto sem rebuild do bundle.
- */
-function resolverHashPolitica(): string {
-	const env =
-		(typeof process !== 'undefined' && process.env?.PA_AD_RB_HASH_HEX) || '';
-	if (env && /^[0-9a-fA-F]{64}$/.test(env.trim())) {
-		return env.trim().toLowerCase();
-	}
-	return HASH_PA_AD_RB_V2_3_HEX_FALLBACK;
-}
 
 // ---------------------------------------------------------------------------
 // UTILITÁRIOS DE VALIDAÇÃO E CERTIFICADOS

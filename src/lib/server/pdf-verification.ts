@@ -19,6 +19,11 @@ import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
 import { verificarAssinaturaCms } from './crypto-verify';
+import {
+	OID_SIG_POLICY_ID,
+	avaliarPoliticaAssinatura,
+	type AvaliacaoPolitica
+} from './icp-policy';
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
@@ -46,6 +51,8 @@ export interface VerificationResult {
 	};
 	certificado?: VerificationCertificado;
 	timestamp?: { tipo: 'act_icp' | 'servidor' | 'tsa_externa'; momento: string };
+	/** Política de assinatura declarada (id-aa-ets-sigPolicyId) — informativo. */
+	politica?: AvaliacaoPolitica;
 	/** Sinaliza se o PDF tem DSS Dictionary embarcado (PAdES-LT auto-contido). */
 	padesLt?: { presente: boolean; certCount: number; ocspCount: number; crlCount: number };
 	erros: string[];
@@ -213,6 +220,10 @@ interface CmsParsed {
 	digestAlgOid?: string;
 	signingTimeISO?: string;
 	timestampToken?: forge.asn1.Asn1;
+	/** OID da política de assinatura declarada (id-aa-ets-sigPolicyId). */
+	sigPolicyOid?: string;
+	/** sigPolicyHash (hex) embutido no atributo de política. */
+	sigPolicyHashHex?: string;
 }
 
 /**
@@ -326,9 +337,11 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			signedAttrs.value as forge.asn1.Asn1[]
 		);
 
-		// Extrai messageDigest e signingTime dos SignedAttributes.
+		// Extrai messageDigest, signingTime e a política dos SignedAttributes.
 		let messageDigest = '';
 		let signingTimeISO: string | undefined;
+		let sigPolicyOid: string | undefined;
+		let sigPolicyHashHex: string | undefined;
 		for (const attr of signedAttrs.value as forge.asn1.Asn1[]) {
 			const filhos = attr.value as forge.asn1.Asn1[];
 			const oidBytes = filhos[0].value as string;
@@ -336,6 +349,19 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			const setVal = filhos[1].value as forge.asn1.Asn1[];
 			if (oid === OID_MESSAGE_DIGEST) {
 				messageDigest = setVal[0].value as string;
+			} else if (oid === OID_SIG_POLICY_ID) {
+				// SignaturePolicyId ::= SEQUENCE {
+				//   sigPolicyId OID,
+				//   sigPolicyHash SEQUENCE { AlgorithmIdentifier, OCTET STRING hash } }
+				try {
+					const spid = setVal[0].value as forge.asn1.Asn1[];
+					sigPolicyOid = forge.asn1.derToOid(spid[0].value as string);
+					const sigHashSeq = spid[1].value as forge.asn1.Asn1[];
+					sigPolicyHashHex = forge.util.bytesToHex(sigHashSeq[1].value as string);
+				} catch {
+					/* atributo presente mas malformado — fica não-conforme */
+					sigPolicyOid = sigPolicyOid ?? 'malformado';
+				}
 			} else if (oid === '1.2.840.113549.1.9.5') {
 				const t = setVal[0];
 				try {
@@ -377,7 +403,9 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			sigAlgOid,
 			digestAlgOid,
 			signingTimeISO,
-			timestampToken
+			timestampToken,
+			sigPolicyOid,
+			sigPolicyHashHex
 		};
 	} catch (e) {
 		logger.warn('[PDF-VERIFY] Falha ao parsear CMS', {
@@ -792,6 +820,12 @@ export async function verificarAssinaturaCompleta(
 	} else if (cms.signingTimeISO) {
 		result.timestamp = { tipo: 'servidor', momento: cms.signingTimeISO };
 	}
+
+	// Política de assinatura (id-aa-ets-sigPolicyId) — informativo: confere se a
+	// referência embutida é a PA-AD-RB v2.3 oficial (OID + sigPolicyHash). Não
+	// entra no `valid` (assinaturas antigas com hash placeholder não devem ser
+	// reprovadas); o cumprimento PLENO é atestado pelo Validador ITI.
+	result.politica = avaliarPoliticaAssinatura(cms.sigPolicyOid, cms.sigPolicyHashHex);
 
 	// Data de referência p/ a cadeia: instante do carimbo (TST oponível a
 	// terceiros quando 'act_icp'; signingTime assinado caso contrário). Sem

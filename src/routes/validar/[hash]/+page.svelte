@@ -191,6 +191,21 @@
 									<span class="text-surface-500"><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span>
 								{/if}
 							</div>
+							<!-- Política de assinatura -->
+							{#if v.politica}
+								<div class="flex items-start gap-2">
+									{#if v.politica.conforme}
+										<span class="text-success-600 font-black shrink-0">✓</span>
+										<span class="text-surface-700 dark:text-surface-300"><strong>Política de assinatura:</strong> {v.politica.nome} (ICP-Brasil).</span>
+									{:else if v.politica.presente}
+										<span class="text-warning-600 font-black shrink-0">⚠</span>
+										<span class="text-surface-500"><strong>Política de assinatura:</strong> declarada, mas o OID/hash não confere com a PA-AD-RB v2.3.</span>
+									{:else}
+										<span class="text-warning-600 font-black shrink-0">⚠</span>
+										<span class="text-surface-500"><strong>Política de assinatura:</strong> não aplicada (sem id-aa-ets-sigPolicyId).</span>
+									{/if}
+								</div>
+							{/if}
 							<!-- Revogação -->
 							<div class="flex items-start gap-2">
 								{#if v.checks.revogacao === 'good'}
