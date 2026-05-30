@@ -257,10 +257,34 @@
 								</div>
 							{/if}
 						{:else if !ehQualificada}
-							<p class="text-[11px] text-surface-500 italic pt-1">
-								Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica
-								conforme Lei 14.063/2020 art. 4º, II.
-							</p>
+							{#if data.selo?.presente}
+								<!-- Selo institucional (CMS autoassinado, não-ICP) -->
+								<div class="flex items-start gap-2">
+									{#if data.selo.integro}
+										<span class="text-success-600 font-black shrink-0">✓</span>
+										<span class="text-surface-700 dark:text-surface-300"><strong>Selo institucional:</strong> documento íntegro e à prova de adulteração{#if data.selo.autentico}, certificado confere com o selo oficial{/if}.</span>
+									{:else}
+										<span class="text-error-600 font-black shrink-0">✕</span>
+										<span class="text-error-700 dark:text-error-400 font-bold">Selo institucional inválido — documento adulterado após a assinatura.</span>
+									{/if}
+								</div>
+								{#if data.selo.tipoCarimboTempo && data.selo.tipoCarimboTempo !== 'servidor'}
+									<div class="flex items-start gap-2">
+										<span class="text-success-600 font-black shrink-0">✓</span>
+										<span class="text-surface-700 dark:text-surface-300"><strong>Carimbo de tempo:</strong> RFC 3161 (TSA externa, não-ICP){#if data.selo.momento}, em {formatarDataHora(data.selo.momento)}{/if}.</span>
+									</div>
+								{/if}
+								<p class="text-[11px] text-surface-500 italic pt-1">
+									Avançada (Lei 14.063/2020 art. 4º, II) com selo criptográfico da
+									instituição. Não é ICP-Brasil — sem a presunção do art. 10 §1º da
+									MP 2.200-2/2001.
+								</p>
+							{:else}
+								<p class="text-[11px] text-surface-500 italic pt-1">
+									Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica
+									conforme Lei 14.063/2020 art. 4º, II.
+								</p>
+							{/if}
 						{/if}
 					</div>
 				</section>

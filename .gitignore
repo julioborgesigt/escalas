@@ -31,6 +31,9 @@ worker-configuration.d.ts
 tsconfig.tsbuildinfo
 bundle-stats.html
 
+# Selo institucional (assinatura avançada) — CHAVE PRIVADA, NUNCA versionar
+selo-institucional.*.pem
+
 # Dumps de banco — NUNCA versionar (contém dados pessoais)
 dump.sql
 *.backup

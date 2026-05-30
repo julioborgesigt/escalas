@@ -15,9 +15,10 @@ import {
 import { validarEvidenciasAvancada } from '$lib/server/signature-service';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
+import { calcularHashBuffer } from '$lib/server/document-utils';
+import { selarPdfInstitucional } from '$lib/server/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { PDFDocument } from 'pdf-lib';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
@@ -67,7 +68,6 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		else result = await Promise.resolve(gerarPdf(escala, policiais));
 
 		const pdfBytes = result.pdf;
-		const sigY = result.finalY;
 
 		const verificationHash = gerarCodigoValidacao();
 		const verificationUrl = `${url.origin}/validar/${verificationHash}`;
@@ -75,12 +75,24 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		const finalSignerName = u.nome;
 		const finalSignerCpf = u.cpf || '';
 
-		// Conta páginas do PDF de conteúdo
-		const origDoc = await PDFDocument.load(pdfBytes);
-		const contentPageIndex = origDoc.getPageCount() - 1;
+		// Assinatura AVANÇADA (Lei 14.063/2020 art. 4º II): rodapé de confirmação
+		// eletrônica + manifesto. NÃO embute placeholder PKCS#7 nem selo "ICP-Brasil"
+		// — não há certificado nesta modalidade. Mesma abordagem honesta do fluxo GISE;
+		// rotular como qualificada/ICP aqui seria enganoso e frágil em perícia.
+		const pdfComRodape = await adicionarRodapeSimples(pdfBytes, finalSignerName, {
+			verificationHash,
+			verificationUrl,
+			rubricBase64: validatedEv.rubrica ?? undefined,
+			ip: ip ?? undefined,
+			latitude: validatedEv.latitude,
+			longitude: validatedEv.longitude
+		});
 
-		// Adicionar folha de auditoria com nível AVANÇADA (Lei 14.063/2020 art. 4º II).
-		const pdfWithAudit = await adicionarPaginaAuditoria(pdfBytes, {
+		// Hash do documento (conteúdo + rodapé) exibido no manifesto.
+		const documentHash = await calcularHashBuffer(pdfComRodape);
+
+		// Folha de auditoria com nível AVANÇADA (Lei 14.063/2020 art. 4º II).
+		const finalPdf = await adicionarPaginaAuditoria(pdfComRodape, {
 			signerName: finalSignerName,
 			signerCpf: finalSignerCpf || undefined,
 			signerEmail: u.email ?? undefined,
@@ -93,6 +105,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			longitude: validatedEv.longitude ?? undefined,
 			selfieBase64: validatedEv.selfieBase64 ?? undefined,
 			rubricBase64: validatedEv.rubrica ?? undefined,
+			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
 			signatureLevel: 'avancada',
@@ -106,23 +119,16 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 				: null
 		});
 
-		const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
+		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II): assina o PDF com
+		// a chave da instituição + carimbo de tempo grátis. Sem a chave configurada
+		// (SELO_INSTITUCIONAL_PEM), degrada para o rodapé honesto (finalPdf como está).
+		const selado = await selarPdfInstitucional(finalPdf, finalSignerName, {
+			env: platform?.env as unknown as Record<string, string | undefined> | undefined
+		});
+		const pdfParaSalvar = selado.ok ? selado.pdf : finalPdf;
 
-		const prepResult = await prepararPdfParaAssinatura(
-			pdfWithAudit,
-			finalSignerName,
-			finalSignerCpf,
-			'right',
-			verificationHash,
-			verificationUrl,
-			boxY_pts,
-			validatedEv.rubrica ?? undefined,
-			undefined,
-			undefined,
-			contentPageIndex
-		);
-
-		const finalPdf = prepResult.preparedPdf;
+		// arquivo_hash do PDF FINAL (selado ou não) — é o que a /validar reconfere.
+		const arquivoHash = await calcularHashBuffer(pdfParaSalvar);
 
 		if (!hasR2(platform)) {
 			return serverError('[assinar-simples] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
@@ -130,7 +136,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 		const bucket = getR2(platform);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
-		await bucket.put(r2Key, finalPdf, {
+		await bucket.put(r2Key, pdfParaSalvar, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
@@ -157,7 +163,8 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			ua || undefined,
 			validatedEv.latitude ?? undefined,
 			validatedEv.longitude ?? undefined,
-			selfieKey
+			selfieKey,
+			arquivoHash
 		);
 
 		await registrarAuditComContexto(db, {
