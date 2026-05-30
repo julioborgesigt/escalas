@@ -183,6 +183,9 @@
 								{#if v.checks.timestampQualificado}
 									<span class="text-success-600 font-black shrink-0">✓</span>
 									<span class="text-surface-700 dark:text-surface-300"><strong>Carimbo de tempo qualificado:</strong> ACT/ICP-Brasil (RFC 3161){#if v.timestamp}, em {formatarDataHora(v.timestamp.momento)}{/if}.</span>
+								{:else if v.timestamp?.tipo === 'tsa_externa'}
+									<span class="text-warning-600 font-black shrink-0">⚠</span>
+									<span class="text-surface-700 dark:text-surface-300"><strong>Carimbo de tempo:</strong> TSA externa não-ICP (RFC 3161){#if v.timestamp}, em {formatarDataHora(v.timestamp.momento)}{/if}. Assinatura do carimbo verificada, mas sem a presunção ICP-Brasil.</span>
 								{:else}
 									<span class="text-warning-600 font-black shrink-0">⚠</span>
 									<span class="text-surface-500"><strong>Carimbo de tempo:</strong> apenas hora do servidor (sem ACT/ICP).</span>

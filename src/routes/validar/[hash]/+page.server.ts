@@ -146,7 +146,11 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 					verificacao = await verificarAssinaturaCompleta(buf, {
 						ocspSnapshotB64,
 						tipoCarimboTempoArmazenado:
-							(docAny.tipo_carimbo_tempo as 'servidor' | 'act_icp' | undefined) ?? null,
+							(docAny.tipo_carimbo_tempo as
+								| 'servidor'
+								| 'act_icp'
+								| 'tsa_externa'
+								| undefined) ?? null,
 						env: platform?.env as unknown as Record<string, string | undefined> | undefined
 					});
 				}
