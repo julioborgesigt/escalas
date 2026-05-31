@@ -15,7 +15,7 @@ import {
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { selarPdfInstitucional } from '$lib/server/server-seal';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
@@ -171,7 +171,8 @@ export const POST: RequestHandler = async ({
 			documentHash,
 			token: crypto.randomUUID(),
 			documentName: `Relatório Extraordinário - GISE ${id}`,
-			signatureLevel: 'avancada'
+			signatureLevel: 'avancada',
+			tipoCarimoTempo: tipoCarimboPrevisto(platform?.env as unknown as Record<string, string | undefined> | undefined)
 		});
 
 		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo

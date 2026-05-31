@@ -419,10 +419,12 @@ export async function adicionarPaginaAuditoria(
 				});
 
 				const evidLabelY = sepY - 14;
-				const rubW = 150, rubH = 60;
+				// Rúbrica com a MESMA altura da foto (80) → frames alinhados (mesmo topo
+				// e base, pois ambos partem de evidLabelY-6). Foto recuada ~20pt à esquerda.
+				const rubW = 150, rubH = 80;
 				const fotW = 60, fotH = 80;
 				const rubX = boxX + 25;
-				const fotX = boxX + boxW - 25 - fotW;
+				const fotX = boxX + boxW - 45 - fotW;
 
 				// Rótulos
 				page.drawText('RÚBRICA', {

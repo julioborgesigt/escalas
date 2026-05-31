@@ -17,7 +17,7 @@ import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/document-utils';
-import { selarPdfInstitucional } from '$lib/server/server-seal';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
@@ -109,6 +109,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
 			signatureLevel: 'avancada',
+			tipoCarimoTempo: tipoCarimboPrevisto(platform?.env as unknown as Record<string, string | undefined> | undefined),
 			livenessChallenge: validatedEv.livenessChallenge
 				? {
 						tipo: validatedEv.livenessChallenge.tipo,
