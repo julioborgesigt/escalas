@@ -25,10 +25,13 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const aceitouTermo = form.get('aceitou_termo') === 'on' || form.get('aceitou_termo') === 'true';
 		const aceitouLgpd = form.get('aceitou_lgpd') === 'on' || form.get('aceitou_lgpd') === 'true';
+		const aceitouAssinatura =
+			form.get('aceitou_assinatura_avancada') === 'on' ||
+			form.get('aceitou_assinatura_avancada') === 'true';
 		const aceitouEmail = form.get('aceitou_uso_email') === 'on' || form.get('aceitou_uso_email') === 'true';
 		const aceitouLocalizacao = form.get('aceitou_uso_localizacao') === 'on' || form.get('aceitou_uso_localizacao') === 'true';
-		if (!aceitouTermo || !aceitouLgpd) {
-			return fail(400, { erro: 'É necessário marcar as duas caixas obrigatórias de aceite.' });
+		if (!aceitouTermo || !aceitouLgpd || !aceitouAssinatura) {
+			return fail(400, { erro: 'É necessário marcar as três caixas obrigatórias de aceite.' });
 		}
 
 		const db = getDB(platform);
@@ -44,6 +47,7 @@ export const actions: Actions = {
 			aceitou_lgpd: aceitouLgpd,
 			aceitou_uso_email: aceitouEmail,
 			aceitou_uso_localizacao: aceitouLocalizacao,
+			aceitou_assinatura_avancada: aceitouAssinatura,
 			ip,
 			user_agent: ua,
 			// Snapshot do HTML servido. Em juizo, reproduzimos o texto exato

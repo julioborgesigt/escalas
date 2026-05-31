@@ -494,6 +494,7 @@ export const aceitesTermos = sqliteTable(
 		aceitou_lgpd: integer('aceitou_lgpd').notNull().default(0),
 		aceitou_uso_email: integer('aceitou_uso_email').notNull().default(0),
 		aceitou_uso_localizacao: integer('aceitou_uso_localizacao').notNull().default(0),
+		aceitou_assinatura_avancada: integer('aceitou_assinatura_avancada').notNull().default(0),
 		ip: text('ip'),
 		user_agent: text('user_agent'),
 		/**
