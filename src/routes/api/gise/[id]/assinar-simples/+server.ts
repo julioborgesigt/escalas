@@ -24,7 +24,7 @@ import { validarEvidenciasAvancada } from '$lib/server/signature-service';
 import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
-import { selarPdfInstitucional } from '$lib/server/server-seal';
+import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
@@ -133,6 +133,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
 			signatureLevel: 'avancada',
+			tipoCarimoTempo: tipoCarimboPrevisto(platform?.env as unknown as Record<string, string | undefined> | undefined),
 			livenessChallenge: validatedEv.livenessChallenge
 				? {
 						tipo: validatedEv.livenessChallenge.tipo,

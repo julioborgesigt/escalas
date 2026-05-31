@@ -96,6 +96,26 @@ export function carregarSeloInstitucional(
 	return selo;
 }
 
+/**
+ * Tipo de carimbo de tempo que o selo VAI aplicar, previsto a partir da config.
+ *
+ * O manifesto (página de auditoria) é desenhado ANTES de `selarPdfInstitucional`
+ * anexar o TST — então, sem isto, ele mostraria sempre "servidor" mesmo quando o
+ * documento final carrega um carimbo RFC 3161. Como o selo só anexa TST quando há
+ * chave (`SELO_INSTITUCIONAL_PEM`) E `TSA_URL`, prevemos:
+ *   - `tsa_externa` quando ambos estão configurados (DigiCert/FreeTSA = não-ICP);
+ *   - `servidor` caso contrário (sem selo ou sem TSA → sem carimbo).
+ *
+ * Em falha pontual da TSA no momento da assinatura, o selo degrada para sem-TST
+ * e o manifesto pode superestimar — a `/validar` (autoritativa) mostra o estado real.
+ */
+export function tipoCarimboPrevisto(env?: Record<string, string | undefined>): TipoCarimoTempo {
+	const tsaUrl =
+		env?.TSA_URL ?? (typeof process !== 'undefined' ? process.env?.TSA_URL : undefined);
+	const temSelo = !!carregarSeloInstitucional(env);
+	return temSelo && !!tsaUrl ? 'tsa_externa' : 'servidor';
+}
+
 export interface ResultadoSelo {
 	ok: true;
 	pdf: Uint8Array;
