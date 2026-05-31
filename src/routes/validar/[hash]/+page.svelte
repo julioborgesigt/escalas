@@ -1,5 +1,4 @@
 <script lang="ts">
-	import icon from '$lib/assets/logo.png';
 	import { formatarData, mascararNome } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -113,7 +112,7 @@
 			{@const ehQualificada = tipoAss === 'webpki' || tipoAss === 'serpro' || (tipoAss === null && v !== null)}
 			<!-- ✅ DOCUMENTO VÁLIDO -->
 			<div class="flex flex-col items-center mb-6 sm:mb-10">
-				<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
+				<img src="/api/validar/logo" alt="Brasão do Estado do Ceará" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
 				<div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full preset-tonal-success flex items-center justify-center mb-3 sm:mb-4">
 					<svg class="w-7 h-7 sm:w-9 sm:h-9 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -353,7 +352,6 @@
 										<div class="min-w-0">
 											<span class="block text-[10px] uppercase font-bold text-surface-400 leading-none mb-1">Assinado por</span>
 											<span class="text-sm font-black text-surface-900 dark:text-white uppercase truncate block">{mascararNome(membro.policial_nome)}</span>
-											<span class="text-[9px] font-bold text-surface-500 uppercase">{membro.policial_cargo} • {membro.policial_matricula}</span>
 										</div>
 									</div>
 									
@@ -464,7 +462,7 @@
 			{@const erroInterno = data.motivo === 'erro_db' || data.motivo === 'erro_consulta'}
 
 			<div class="flex flex-col items-center mb-6 sm:mb-10">
-				<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
+				<img src="/api/validar/logo" alt="Brasão do Estado do Ceará" class="w-14 sm:w-20 mb-3 sm:mb-4 drop-shadow-md" />
 				<div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full {erroInterno ? 'bg-warning-500/10' : 'bg-error-500/10'} flex items-center justify-center mb-3 sm:mb-4">
 					{#if erroInterno}
 						<svg class="w-7 h-7 sm:w-9 sm:h-9 text-warning-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
-	import { goto, onNavigate } from '$app/navigation';
+	import { goto, onNavigate, afterNavigate } from '$app/navigation';
 	import { Toast, Dialog, Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
@@ -142,6 +142,11 @@
 				})
 		);
 	});
+
+	// Fecha o overlay global de carregamento quando QUALQUER navegação termina.
+	// Sem isto, `loading.show()` chamado antes de um goto() (ex.: /validar) ficava
+	// preso, exigindo refresh para ver o resultado já renderizado por baixo.
+	afterNavigate(() => loading.hide());
 </script>
 
 <svelte:head>

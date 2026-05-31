@@ -4,6 +4,7 @@ import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
 import { getR2 } from '$lib/server/platform';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { mascararNome } from '$lib/utils';
 import { verificarAssinaturaCompleta, type VerificationResult } from '$lib/server/pdf-verification';
 import { verificarSeloInstitucional, type ResultadoVerificacaoSelo } from '$lib/server/server-seal';
 import type { PageServerLoad } from './$types';
@@ -79,7 +80,11 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		lotacao = 'Sertão Central / Centro Sul';
 	}
 
-	let membros = [];
+	let membros: Array<{
+		policial_id: number;
+		policial_nome: string;
+		presenca: { entrada_timestamp: string | null; saida_timestamp: string | null } | null;
+	}> = [];
 	if (documento.tipo_doc === 'gise_relatorio' && documento.seccional_id) {
 		try {
 			const todasPresencas = await buscarPresencasGise(db, documento.escala_id);
@@ -112,10 +117,24 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 				membrosSec = await buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id);
 			}
 
-			membros = membrosSec.map((m: any) => ({
-				...m,
-				presenca: presencaMap.get(m.policial_id) || null
-			}));
+			// LGPD (minimização, art. 6º): a página é PÚBLICA. Enviamos só o
+			// necessário para exibir a confirmação de presença — nome (mascarado
+			// no cliente) e horários. NUNCA CPF, GPS, IP ou selfie da presença.
+			membros = membrosSec.map((m) => {
+				const p = presencaMap.get(m.policial_id) as
+					| { entrada_timestamp?: string | null; saida_timestamp?: string | null }
+					| undefined;
+				return {
+					policial_id: m.policial_id,
+					policial_nome: m.policial_nome,
+					presenca: p
+						? {
+								entrada_timestamp: p.entrada_timestamp ?? null,
+								saida_timestamp: p.saida_timestamp ?? null
+							}
+						: null
+				};
+			});
 		} catch (err) {
 			logger.error('[validar] Erro ao buscar assinaturas da equipe', { err: String(err) });
 		}
@@ -162,6 +181,14 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			hash,
 			err: String(err)
 		});
+	}
+
+	// LGPD: o resultado da verificação carrega CPF e nome COMPLETOS do certificado
+	// (uso interno). A página pública mostra só emissor/série/validade, então
+	// removemos o CPF completo e mascaramos o nome antes de serializar ao cliente.
+	if (verificacao?.certificado) {
+		verificacao.certificado.cpf = '';
+		verificacao.certificado.nome = mascararNome(verificacao.certificado.nome);
 	}
 
 	// O documento (R2 blob) é imutável por hash, mas a PÁGINA de validação
