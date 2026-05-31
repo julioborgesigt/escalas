@@ -61,13 +61,12 @@ for (const file of files) {
 		success++;
 	} catch (err) {
 		const stderr = (err as { stderr?: Buffer }).stderr?.toString() || '';
-		// wrangler retorna erro se a migration já foi aplicada (tabela já existe)
-		if (
+		const isAlreadyApplied =
 			stderr.includes('already exists') ||
 			stderr.includes('no changes to apply') ||
-			stderr.includes('duplicate column') ||
-			stderr.includes('SQLITE_ERROR') === false
-		) {
+			stderr.includes('duplicate column');
+
+		if (isAlreadyApplied) {
 			console.log(`  ⏭️  ${file} (já aplicada)`);
 			success++;
 		} else {

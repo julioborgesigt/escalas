@@ -323,8 +323,8 @@
 					class="w-full"
 				>
 					<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-						<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
-						<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+						<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
+						<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
 					</Tabs.List>
 				</Tabs>
 			</div>
@@ -483,8 +483,8 @@
 						class="w-full mb-4"
 					>
 						<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-							<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
-							<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+							<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
+							<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
 						</Tabs.List>
 					</Tabs>
 

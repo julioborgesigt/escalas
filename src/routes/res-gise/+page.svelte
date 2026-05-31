@@ -113,11 +113,11 @@
 							>
 								<Tabs.Trigger
 									value="ativas"
-									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 								>Ativas</Tabs.Trigger>
 								<Tabs.Trigger
 									value="finalizadas"
-									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+									class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 sm:flex-none text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 								>Histórico</Tabs.Trigger>
 							</Tabs.List>
 						</Tabs>
