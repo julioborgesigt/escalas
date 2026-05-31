@@ -18,8 +18,8 @@
  * pela assessoria jurídica da PCCE.
  */
 
-export const VERSAO = '1.1';
-export const VIGENTE_DESDE = '2026-05-15';
+export const VERSAO = '1.2';
+export const VIGENTE_DESDE = '2026-05-30';
 
 export const CONTEUDO_HTML = `
 <h2>Termo de Uso e Política de Privacidade</h2>
@@ -30,19 +30,15 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>1.1.</strong> Este termo é celebrado entre a <strong>Polícia Civil do Estado do Ceará (PCCE)</strong>, por intermédio da área responsável pelo Sistema de Gestão de Escalas (doravante “Sistema”), e o usuário cadastrado, identificado por matrícula funcional e CPF (doravante “Usuário”).</p>
 <p><strong>1.2.</strong> O Sistema tem por objeto o gerenciamento de escalas de plantão, expediente e GISE (Grupo de Intervenção e Suporte Especializado), o registro de presença e a assinatura digital dos documentos correspondentes.</p>
 
-<h3>2. Admissibilidade da assinatura eletrônica</h3>
-<p><strong>2.1.</strong> O Usuário reconhece, nos termos do art. 4º, §1º, da Lei nº 14.063/2020, a admissibilidade das assinaturas eletrônicas geradas pelo Sistema, nas seguintes modalidades:</p>
+<h3>2. Modalidades de assinatura e aceitação expressa</h3>
+<p><strong>2.1.</strong> O Sistema gera assinaturas eletrônicas em duas modalidades, nos termos do art. 4º da Lei nº 14.063/2020:</p>
 <ul>
-	<li><strong>Qualificada:</strong> com certificado digital ICP-Brasil (e-CPF), emitido por Autoridade Certificadora credenciada pela ITI;</li>
-	<li><strong>Avançada:</strong> com biometria (selfie), rubrica gráfica, geolocalização (GPS) e endereço IP;</li>
-	<li><strong>Simples:</strong> com confirmação textual e captura dos metadados de auditoria.</li>
+	<li><strong>Qualificada</strong> — com certificado digital ICP-Brasil (e-CPF, token A1/A3), emitido por Autoridade Certificadora credenciada pela ITI; goza da presunção de autenticidade do art. 10, §1º, da MP nº 2.200-2/2001;</li>
+	<li><strong>Avançada</strong> — utilizada na assinatura em tela, associada ao signatário de maneira unívoca por: (a) autenticação por login e senha; (b) segundo fator obrigatório por código enviado ao e-mail cadastrado (controle exclusivo, art. 4º, II, “b”); (c) rubrica gráfica; (d) quando habilitadas, fotografia (selfie) com prova de vida ativa e geolocalização (GPS); e (e) <strong>selo criptográfico institucional</strong> aplicado pelo Sistema, que torna o documento autocontido e detectável a qualquer alteração posterior (art. 4º, II, “c”).</li>
 </ul>
-<p><strong>2.2.</strong> Tais assinaturas têm valor jurídico equivalente à manuscrita, conforme:</p>
-<ul>
-	<li>art. 10, §1º, da Medida Provisória nº 2.200-2/2001 — para a modalidade qualificada;</li>
-	<li>art. 4º, II e art. 5º, II, da Lei nº 14.063/2020 — para a modalidade avançada.</li>
-</ul>
-<p><strong>2.3.</strong> O Usuário declara compreender que cada ato de assinatura no Sistema constitui manifestação inequívoca de vontade, atestando a autoria, a integridade e a tempestividade do documento assinado.</p>
+<p><strong>2.2.</strong> O <strong>selo institucional</strong> da cláusula 2.1 é gerado com certificado próprio da PCCE, <strong>não emitido pela ICP-Brasil</strong>. Por isso a modalidade avançada <strong>não</strong> goza da presunção do art. 10, §1º, da MP nº 2.200-2/2001 — sua validade decorre da <strong>aceitação expressa</strong> manifestada neste termo (cláusula 2.3), nos termos do art. 4º, II, da Lei nº 14.063/2020 e do art. 10, §2º, da MP nº 2.200-2/2001.</p>
+<p><strong>2.3.</strong> O Usuário <strong>aceita expressamente</strong> a assinatura eletrônica avançada gerada pelo Sistema como <strong>meio válido, hábil e suficiente</strong> de comprovação de autoria, integridade e tempestividade dos documentos que assinar, reconhecendo-a como <strong>equivalente à sua assinatura manuscrita</strong> para todos os fins no âmbito da PCCE, e <strong>compromete-se a não impugná-la exclusivamente em razão de sua natureza eletrônica ou da não utilização de certificado ICP-Brasil</strong>. Ressalva-se o direito de questionar fraude comprovada, vício de consentimento, coação ou adulteração.</p>
+<p><strong>2.4.</strong> O Usuário declara compreender que cada ato de assinatura constitui manifestação inequívoca de vontade e que a guarda exclusiva de suas credenciais (cláusula 4) é condição essencial da validade aqui reconhecida.</p>
 
 <h3>3. Coleta e tratamento de dados pessoais (LGPD)</h3>
 <p><strong>3.1.</strong> Para os fins exclusivos de comprovação e auditoria das assinaturas, com base no art. 7º, V, da Lei nº 13.709/2018 (LGPD), o Usuário <strong>consente</strong> com a coleta, o armazenamento e o tratamento dos seguintes dados:</p>
@@ -53,8 +49,9 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 	<li>Coordenadas geográficas (latitude e longitude, padrão WGS-84);</li>
 	<li>Identificação do dispositivo e navegador (User-Agent);</li>
 	<li>Rubrica gráfica e fotografia (selfie), quando aplicáveis à modalidade;</li>
-	<li>Hash criptográfico (SHA-256) do documento assinado;</li>
-	<li>Data e hora do servidor (UTC) e, quando emitido, carimbo de tempo qualificado da Autoridade de Carimbo do Tempo da ICP-Brasil (ACT-ICP).</li>
+	<li>Resultado do desafio de prova de vida (tipo — piscar/sorrir —, duração e número de tentativas), quando exigida a fotografia;</li>
+	<li>Hash criptográfico (SHA-256) e assinatura criptográfica (CMS/PKCS#7) do documento, incluindo o selo institucional na modalidade avançada;</li>
+	<li>Data e hora do servidor (UTC) e, quando emitido, carimbo de tempo (RFC 3161) de Autoridade de Carimbo do Tempo da ICP-Brasil (ACT-ICP) ou de Autoridade de Carimbo externa.</li>
 </ul>
 <p><strong>3.2.</strong> A finalidade exclusiva do tratamento é a comprovação da autenticidade, integridade e autoria das assinaturas. Os dados são retidos por prazo mínimo de 5 (cinco) anos a contar da data da assinatura, conforme Decreto nº 10.748/2021 e art. 16 da LGPD.</p>
 <p><strong>3.3.</strong> O Usuário poderá exercer os direitos previstos no art. 18 da LGPD (acesso, correção, anonimização, portabilidade, exclusão e oposição) mediante contato com o <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>lgpd@pc.ce.gov.br</strong>, com o assunto “Direitos do Titular – LGPD”. O prazo de resposta é de 15 (quinze) dias úteis, prorrogável por igual período, conforme art. 18, §5º, da LGPD. Informações completas disponíveis em <a href="/termo/dpo">/termo/dpo</a>.</p>
@@ -89,7 +86,8 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 	<li>Verificação criptográfica das assinaturas (CMS/PKCS#7);</li>
 	<li>Validação da cadeia de confiança ICP-Brasil;</li>
 	<li>Consulta a respostas OCSP (revogação) e seu armazenamento carimbado;</li>
-	<li>Padrão PAdES-LT (Long-Term) para arquivamento auto-suficiente.</li>
+	<li>Padrão PAdES-LT (Long-Term) para arquivamento auto-suficiente;</li>
+	<li>Selo criptográfico institucional na modalidade avançada e verificação pública de integridade em <a href="/validar">/validar</a>.</li>
 </ul>
 <p><strong>7.2.</strong> A PCCE não se responsabiliza por assinaturas indevidamente geradas em decorrência de comprometimento de credenciais do Usuário, ressalvada a hipótese de comunicação imediata nos termos da cláusula 4.</p>
 
@@ -101,7 +99,8 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <ul>
 	<li>leu integralmente o presente termo;</li>
 	<li>compreendeu as obrigações e os direitos aqui estabelecidos;</li>
-	<li>concorda livre e expressamente com seus termos.</li>
+	<li>concorda livre e expressamente com seus termos;</li>
+	<li>aceita expressamente a assinatura eletrônica avançada como válida, suficiente e equivalente à manuscrita, nos termos da cláusula 2.3, e compromete-se a não impugná-la apenas por ser eletrônica ou não-ICP.</li>
 </ul>
 `;
 

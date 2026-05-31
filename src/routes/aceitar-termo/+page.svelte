@@ -6,13 +6,14 @@
 
 	let aceitouTermo = $state(false);
 	let aceitouLgpd = $state(false);
+	let aceitouAssinatura = $state(false);
 	let aceitouEmail = $state(false);
 	let aceitouLocalizacao = $state(false);
 	let scrollouAteFim = $state(false);
 	let enviando = $state(false);
 	let termoContainer = $state<HTMLElement>();
 
-	const podeAceitar = $derived(aceitouTermo && aceitouLgpd && scrollouAteFim);
+	const podeAceitar = $derived(aceitouTermo && aceitouLgpd && aceitouAssinatura && scrollouAteFim);
 
 	function onScroll(e: Event) {
 		const el = e.currentTarget as HTMLElement;
@@ -109,6 +110,22 @@
 					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados
 					pela PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com
 					a coleta de IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
+				</span>
+			</label>
+
+			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+				<input
+					type="checkbox"
+					name="aceitou_assinatura_avancada"
+					bind:checked={aceitouAssinatura}
+					disabled={!scrollouAteFim}
+					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
+				/>
+				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
+					<strong>Aceito a assinatura eletrônica avançada</strong> gerada pelo Sistema (login + 2FA por e-mail
+					+ rubrica/biometria + selo institucional) como meio válido e suficiente de comprovação de autoria
+					e integridade, equivalente à minha assinatura manuscrita, conforme a cláusula 2.3 do Termo, e não
+					a impugnarei apenas por ser eletrônica ou não-ICP (art. 4º, II, da Lei nº 14.063/2020).
 				</span>
 			</label>
 

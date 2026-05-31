@@ -21,6 +21,11 @@ export interface RegistrarAceiteInput {
 	aceitou_lgpd: boolean;
 	aceitou_uso_email?: boolean;
 	aceitou_uso_localizacao?: boolean;
+	/**
+	 * Aceite EXPRESSO da assinatura eletrônica avançada (Lei 14.063/2020 art. 4º II).
+	 * Caixa obrigatória dedicada — base da oponibilidade da modalidade avançada.
+	 */
+	aceitou_assinatura_avancada: boolean;
 	ip?: string | null;
 	user_agent?: string | null;
 	/**
@@ -45,6 +50,7 @@ export async function registrarAceite(
 			aceitou_lgpd: input.aceitou_lgpd ? 1 : 0,
 			aceitou_uso_email: input.aceitou_uso_email ? 1 : 0,
 			aceitou_uso_localizacao: input.aceitou_uso_localizacao ? 1 : 0,
+			aceitou_assinatura_avancada: input.aceitou_assinatura_avancada ? 1 : 0,
 			ip: anonimizarIp(input.ip),
 			user_agent: input.user_agent ? parseUserAgent(input.user_agent) : null,
 			conteudo_html_snapshot: input.conteudo_html_snapshot ?? null
