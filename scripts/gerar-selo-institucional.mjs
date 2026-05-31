@@ -70,8 +70,8 @@ writeFileSync('selo-institucional.key.pem', keyPem);
 writeFileSync('selo-institucional.cert.pem', certPem);
 
 console.log('Arquivos gravados:');
-console.log('  selo-institucional.key.pem   (CHAVE PRIVADA — NUNCA comitar)');
-console.log('  selo-institucional.cert.pem  (certificado público)\n');
+console.log('  selo-institucional.key.pem   (CHAVE PRIVADA — NUNCA comitar; guardar em cofre)');
+console.log('  selo-institucional.cert.pem  (certificado PUBLICO — pode ser versionado no repo)\n');
 console.log('Fingerprint SHA-256 do certificado (publique para conferência de terceiros):');
 console.log('  ' + fingerprint + '\n');
 console.log('====================================================================');

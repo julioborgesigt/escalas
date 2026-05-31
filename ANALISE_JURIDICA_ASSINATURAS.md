@@ -137,8 +137,12 @@ instituição** (commits `e3db89c`, `cf77c89`).
 ### 6.2 Reforços (grátis)
 - **Termo de aceitação** por cada policial (art. 4º II) — confirmar cobertura de
   `aceites_termos` e validar texto com o jurídico.
-- **Publicar** `selo-institucional.cert.pem` (fingerprint SHA‑256) para terceiros
-  conferirem o selo fora do sistema.
+- **Certificado público do selo:** versionado no repositório em
+  `selo-institucional.cert.pem` (a **chave privada nunca** é versionada). Permite
+  a terceiros conferir o selo fora do sistema. Fingerprint SHA‑256 **oficial**:
+  ```
+  E9:B5:4D:D8:DB:81:4B:63:5E:82:97:49:D1:07:2A:9F:44:3F:C9:EE:15:33:50:EC:38:BE:36:09:B9:BB:B7:07
+  ```
 
 ### 6.3 Upgrades futuros (zero‑custo, com esforço/dependência)
 - **gov.br** (avançada governamental): cada policial assina via conta gov.br
