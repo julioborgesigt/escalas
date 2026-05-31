@@ -1,5 +1,4 @@
 <script lang="ts">
-	import icon from '$lib/assets/logo.png';
 	import { goto } from '$app/navigation';
 	import { loading } from '$lib/loading.svelte';
 
@@ -27,7 +26,7 @@
 		<div class="flex flex-col items-center mb-10">
 			<div class="relative mb-6">
 				<div class="absolute -inset-1 rounded-full bg-primary-500/20 blur-xl animate-pulse"></div>
-				<img src={icon} alt="Logo PC-CE" class="relative w-20 sm:w-24 drop-shadow-2xl" />
+				<img src="/api/validar/logo" alt="Brasão do Estado do Ceará" class="relative w-20 sm:w-24 drop-shadow-2xl" />
 			</div>
 			<span
 				class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.3em] mb-2"
