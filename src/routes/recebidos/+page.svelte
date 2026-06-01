@@ -10,6 +10,7 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import PaginationControls from '$lib/components/PaginationControls.svelte';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import type { ActionResult } from '@sveltejs/kit';
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
@@ -139,13 +140,13 @@
 	let togglingId = $state<number | null>(null);
 
 	function handleToggleVisto(escala: EscalaListagem) {
-		return function({ formData, cancel }: any) {
+		return function({ formData, cancel }: { formData: FormData; cancel: () => void }) {
 			if (togglingId === escala.id) { cancel(); return; }
 			const novoStatus = !escala.visto_por_admin;
 			formData.set('visto', String(novoStatus));
 			escala.visto_por_admin = novoStatus ? 1 : 0;
 			togglingId = escala.id;
-			return async ({ result, update }: any) => {
+			return async ({ result, update }: { result: ActionResult; update: (opts?: { reset?: boolean }) => Promise<void> }) => {
 				togglingId = null;
 				if (result.type === 'success') {
 					await update({ reset: false });
@@ -215,7 +216,7 @@
 
 	function handleExcluir() {
 		loadingService.show('Removendo escala...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala removida com sucesso', type: 'success' });

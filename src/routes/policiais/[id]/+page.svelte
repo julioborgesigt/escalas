@@ -5,14 +5,15 @@
 	import { toaster } from '$lib/toast';
 	import { formatarTelefone, formatarCPF } from '$lib/utils';
 	import { loading } from '$lib/loading.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data } = $props();
 
 	const isAdmin = $derived(data.isAdmin);
 	const isAdminOrSeccional = $derived(data.isAdminOrSeccional);
 	const isAdminUnidade = $derived(data.isAdminUnidade);
-	const seccionaisParaPapel = $derived(data.unidades.filter((u: any) => u.tipo === 'seccional'));
-	const unidadesParaAdmin = $derived(data.unidades.filter((u: any) => u.tipo !== 'seccional'));
+	const seccionaisParaPapel = $derived(data.unidades.filter((u: { tipo: string }) => u.tipo === 'seccional'));
+	const unidadesParaAdmin = $derived(data.unidades.filter((u: { tipo: string }) => u.tipo !== 'seccional'));
 
 	let nome = $state('');
 	let matricula = $state('');
@@ -33,7 +34,7 @@
 			cargo = data.policial.cargo;
 			cpf = formatarCPF(data.policial.cpf || '');
 			telefone = data.policial.telefone || '';
-			classe = (data.policial as any).classe || '';
+			classe = (data.policial as Record<string, unknown>).classe as string || '';
 			regime = data.policial.regime || 'plantao';
 			lotacao = data.policial.lotacao;
 			email = data.policial.email || '';
@@ -44,7 +45,7 @@
 
 	function handleSalvar({ formData }: { formData: FormData }) {
 		loading.show('Salvando dados do policial...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
@@ -58,7 +59,7 @@
 
 	function handleSalvarPapel({ formData }: { formData: FormData }) {
 		loading.show('Atualizando papel administrativo...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {

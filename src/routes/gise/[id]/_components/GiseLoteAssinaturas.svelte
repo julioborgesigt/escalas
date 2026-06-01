@@ -15,8 +15,8 @@
 		onAssinarDigitalLote: () => void | Promise<void>;
 		podeAssinar?: boolean;
 		// Novas props para exibir assinaturas concluídas
-		assinaturasRelatorios?: any[] | null;
-		seccionais?: any[] | null;
+		assinaturasRelatorios?: { tipo: string; seccional_id: number }[] | null;
+		seccionais?: { seccional_id?: number; id?: number; seccional_nome?: string; [key: string]: unknown }[] | null;
 		supervisaoExtraUnidadeId?: number | null;
 		giseStatus?: string;
 	}
@@ -55,13 +55,13 @@
 	const semAtividade = $derived(quantidadePendentes === 0 && concluidosExtra.length === 0);
 
 	function nomeSeccional(seccionalId: number): string {
-		const s = seccionais?.find((x: any) => x.seccional_id === seccionalId || x.id === seccionalId);
+		const s = seccionais?.find((x) => x.seccional_id === seccionalId || x.id === seccionalId);
 		return s?.seccional_nome?.trim() || `Seccional #${seccionalId}`;
 	}
 
 	const seccionaisComEquipes = $derived((seccionais ?? []).filter(sec => getMembrosFromSec(sec).length > 0));
 
-	const isAssinado = (sec: any) => concluidosExtra.some(c => c.seccional_id === sec.seccional_id || c.seccional_id === sec.id);
+	const isAssinado = (sec: { seccional_id?: number; id?: number }) => concluidosExtra.some(c => c.seccional_id === sec.seccional_id || c.seccional_id === sec.id);
 
 	const seccionaisFaltantes = $derived(seccionaisComEquipes.filter(sec => !isAssinado(sec)));
 	const seccionaisAssinadas = $derived(seccionaisComEquipes.filter(sec => isAssinado(sec)));
@@ -209,7 +209,7 @@
 						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou todos de uma vez.
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
+						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 						{#if naoIniciou}
 							Aguardando início
 						{:else}
@@ -217,7 +217,7 @@
 						{/if}
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>{' '}
+						<span class="text-success-600 dark:text-success-400 font-medium">Assinado de:</span>
 						{#if naoIniciou}
 							Aguardando início
 						{:else}

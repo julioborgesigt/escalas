@@ -167,7 +167,7 @@
 
 	function handlePrimeiroAcesso() {
 		loadingService.show('Processando primeiro acesso...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loadingService.hide();
 			if (result.type === 'success') {
 				primeiroAcessoEnviado = true;

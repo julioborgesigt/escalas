@@ -10,6 +10,7 @@
 	import type { ItemCompliance } from '../api/admin/compliance/+server';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
 	import { loading as loadingService } from '$lib/loading.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { Unidade } from '$lib/types';
 
 	const { data } = $props();
@@ -272,7 +273,7 @@
 
 	function handleExcluirEscala() {
 		loadingService.show('Excluindo escala...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });

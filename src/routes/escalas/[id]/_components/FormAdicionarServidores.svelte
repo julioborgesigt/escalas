@@ -3,6 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { formatarData, proximoDia } from '$lib/utils';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
 
@@ -131,7 +132,7 @@
 			return;
 		}
 		pendingAdd = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingAdd = false;
 			if (result.type === 'success') {
 				onPoliciaisAtualizados(result.data.policiais);
@@ -154,7 +155,7 @@
 			return;
 		}
 		pendingPlantao = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingPlantao = false;
 			if (result.type === 'success') {
 				onPoliciaisAtualizados(result.data.policiais);
@@ -185,7 +186,7 @@
 
 	function handleAdicionarTodos() {
 		pendingAdicionarTodos = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingAdicionarTodos = false;
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;

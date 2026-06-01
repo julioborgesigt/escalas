@@ -14,12 +14,13 @@
 	import { useAutorizacao, getSavedFilters, useConfirmationDialog } from '$lib/composables';
 	import type { Policial, Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data, form } = $props();
 
 	function handleSalvarPolicial({ formData }: { formData: FormData }) {
 		pendingCadastro = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingCadastro = false;
 			if (result.type === 'success') {
 				await invalidateAll();
@@ -51,7 +52,7 @@
 	});
 
 	const unidades = $derived(data.unidades as Unidade[]);
-	const policiais = $derived(data.policiais as any[]);
+	const policiais = $derived(data.policiais as Policial[]);
 
 	// Paginação
 	let paginaAtual = $state(untrack(() => data.pagination.page));
@@ -118,8 +119,8 @@
 	let excluindo = $state(false);
 	let pendingCadastro = $state(false);
 
-	const seccionaisParaPapel = $derived(unidades.filter((u: any) => u.tipo === 'seccional'));
-	const unidadesParaAdmin = $derived(unidades.filter((u: any) => u.tipo !== 'seccional'));
+	const seccionaisParaPapel = $derived(unidades.filter((u) => u.tipo === 'seccional'));
+	const unidadesParaAdmin = $derived(unidades.filter((u) => u.tipo !== 'seccional'));
 
 	$effect(() => {
 		if (cadastroOpen) {
@@ -235,7 +236,7 @@
 
 	function handleExcluir() {
 		excluindo = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				await invalidateAll();
 				toaster.create({

@@ -50,7 +50,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 		detalhes: `Formato: ${format} · Tipo: ${escala.tipo}`
 	});
 
-	const filename = `${escala.titulo.replace(/[\/\\?%*:|"<>]/g, '-')}.${format === 'docx' || format === 'doc' ? 'docx' : format === 'xlsx' || format === 'excel' || format === 'xls' ? 'xlsx' : 'pdf'}`;
+	const filename = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.${format === 'docx' || format === 'doc' ? 'docx' : format === 'xlsx' || format === 'excel' || format === 'xls' ? 'xlsx' : 'pdf'}`;
 
 	try {
 		// ── PDF: servir documento assinado do R2 se existir ──────────────────

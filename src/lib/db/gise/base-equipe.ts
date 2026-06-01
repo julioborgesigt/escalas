@@ -108,12 +108,9 @@ export async function listarMembrosParaBaseEquipe(
 	const out: LinhaBaseEquipeMembro[] = [];
 	for (const v of agregado.values()) {
 		const pres = presMap.get(v.policial_id);
-		let cidade = '';
-		if (painelIds.has(v.policial_id)) {
-			cidade = cidadeLotacaoCache.get(v.lotacao.trim()) ?? '';
-		} else {
-			cidade = v.cidade_slot;
-		}
+		const cidade = painelIds.has(v.policial_id)
+			? (cidadeLotacaoCache.get(v.lotacao.trim()) ?? '')
+			: v.cidade_slot;
 
 		out.push({
 			policial_id: v.policial_id,

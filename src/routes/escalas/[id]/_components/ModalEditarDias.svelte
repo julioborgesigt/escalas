@@ -4,6 +4,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import type { EscalaPolicialComDados } from '$lib/types';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	const MESES = [
 		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -99,7 +100,7 @@
 			return;
 		}
 		pending = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pending = false;
 			if (result.type === 'success') {
 				onsalvo({

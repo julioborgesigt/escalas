@@ -148,14 +148,12 @@ export async function clonarGiseParaData(
 		feriadoNovo
 	);
 
-	let secsParaClonar: any[] = [];
-
-	if (modo === 'clonada') {
-		secsParaClonar = await db.select().from(giseSeccionais).where(eq(giseSeccionais.gise_id, giseId)).all();
-	} else {
-		const todas = await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all();
-		secsParaClonar = todas.map((s) => ({ seccional_id: s.id }));
-	}
+	const secsParaClonar: { seccional_id: number; id?: number }[] =
+		modo === 'clonada'
+			? await db.select().from(giseSeccionais).where(eq(giseSeccionais.gise_id, giseId)).all()
+			: (await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all()).map(
+					(s) => ({ seccional_id: s.id })
+				);
 
 	if (secsParaClonar.length === 0) return novoId;
 
@@ -183,7 +181,7 @@ export async function clonarGiseParaData(
 
 	// Clonar slots e equipes (modo clonada) ou criar slot padrão (modo completa)
 	if (modo === 'clonada') {
-		const oldSecIds = secsParaClonar.filter((s: any) => s.id).map((s: any) => s.id);
+		const oldSecIds = secsParaClonar.filter((s) => s.id).map((s) => s.id as number);
 		if (oldSecIds.length > 0) {
 			// Clona slots de unidade
 			const slotsOriginais = await db

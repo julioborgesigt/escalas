@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
 	import { useConfirmationDialog } from '$lib/composables';
@@ -84,7 +85,7 @@
 		const backup = [...policiaisEscalaLocal];
 		policiaisEscalaLocal = policiaisEscalaLocal.filter((p) => p.id !== itemId);
 		confirmDialog.closeDialog();
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;
 				toaster.create({ title: `${itemNome} removido da escala`, type: 'success' });
@@ -120,7 +121,7 @@
 
 	function handleRemoverTodos() {
 		pendingRemoverTodos = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingRemoverTodos = false;
 			confirmRemoverTodosOpen = false;
 			if (result.type === 'success') {
@@ -137,7 +138,7 @@
 
 	function handleRemoverSelecionados() {
 		pendingRemoverSelecionados = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingRemoverSelecionados = false;
 			confirmRemoverSelecionadosOpen = false;
 			if (result.type === 'success') {

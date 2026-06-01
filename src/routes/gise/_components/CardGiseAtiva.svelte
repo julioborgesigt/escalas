@@ -14,10 +14,10 @@
 		onExtraPdf,
 		onToggleMenu
 	}: {
-		ativa: any;
+		ativa: Record<string, unknown>;
 		isSupervisor: boolean;
 		isDesktop: boolean;
-		usuario: any;
+		usuario: Record<string, unknown>;
 		menuExpandidoId: number | null;
 		onAssEscala: () => void;
 		onAssExtra: () => void;

@@ -8,6 +8,7 @@
 	import type { EscalaListagem, Unidade } from '$lib/types';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 	import {
 		useAutorizacao,
 		getSavedFilters,
@@ -288,7 +289,7 @@
 
 	function handleExcluir() {
 		pendingExcluir = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingExcluir = false;
 			if (result.type === 'success') {
 				toaster.create({ title: `Escala de ${escalaParaExcluir!.titulo} removida`, type: 'success' });
@@ -306,13 +307,13 @@
 
 	let visao = $state<'home' | 'lista' | 'assinaturas'>(
 		untrack(() => {
-			const iv = (data as Record<string, any>).initialView;
+			const iv = (data as Record<string, unknown>).initialView;
 			return iv === 'lista' || iv === 'assinaturas' ? (iv as 'lista' | 'assinaturas') : 'home';
 		})
 	);
 
 	$effect(() => {
-		const iv = (data as any).initialView as string;
+		const iv = (data as Record<string, unknown>).initialView as string;
 		if (iv === 'home' || iv === 'assinaturas') {
 			visao = iv;
 		}

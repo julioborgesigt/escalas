@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { Unidade } from '$lib/types';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	const MESES = [
 		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -25,7 +26,7 @@
 		isAdmin: boolean;
 		lotacaoUsuario: string | null;
 		unidades: Unidade[];
-		escalasExistentes: any[];
+		escalasExistentes: { lotacao: string; tipo: string; mes: number; ano: number }[];
 		oncriado: (id: number) => void;
 		onfechar: () => void;
 	} = $props();
@@ -107,7 +108,7 @@
 		const { mes, ano } = mesSelecionado;
 		const mesPrev = mes === 1 ? 12 : mes - 1;
 		const anoPrev = mes === 1 ? ano - 1 : ano;
-		const existe = (escalasExistentes as any[]).some(
+		const existe = escalasExistentes.some(
 			(e) => e.lotacao === lotacao && e.tipo === tipo && e.mes === mesPrev && e.ano === anoPrev
 		);
 		return { mes: mesPrev, ano: anoPrev, existe };
@@ -146,7 +147,7 @@
 	function mesOcupado(mes: number, ano: number): boolean {
 		const loc = isAdmin ? lotacao : (lotacaoUsuario ?? '');
 		if (!loc || !tipo || tipo === 'fds') return false;
-		return (escalasExistentes as any[]).some(
+		return escalasExistentes.some(
 			(e) => e.lotacao === loc && e.tipo === tipo && e.mes === mes && e.ano === ano
 		);
 	}
@@ -209,14 +210,14 @@
 		if (calMes === 11) { calMes = 0; calAno++; } else calMes++;
 	}
 
-	function handleCriar({ cancel }: any) {
+	function handleCriar({ cancel }: { cancel: () => void }) {
 		if (tipo === 'fds' && fdsDiasOrdenados.length === 0) {
 			toaster.create({ title: 'Selecione pelo menos um dia', type: 'error' });
 			cancel();
 			return;
 		}
 		pendingCriar = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingCriar = false;
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {
@@ -230,7 +231,7 @@
 	}
 	function handleCriarComBase() {
 		pendingComBase = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingComBase = false;
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {

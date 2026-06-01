@@ -140,25 +140,25 @@ export class SerproSignerClient {
 	 * Tenta URLs em sequência até a primeira que funcionar.
 	 */
 	async connect(): Promise<void> {
-		dev && console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
-		dev && console.log('[SERPRO] URLs a tentar:', SERPRO_WS_URLS);
+		if (dev) console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
+		if (dev) console.log('[SERPRO] URLs a tentar:', SERPRO_WS_URLS);
 		const erros: string[] = [];
 
 		for (const url of SERPRO_WS_URLS) {
 			try {
 				await this.tryConnect(url);
-				dev && console.log(`[SERPRO] ✅ Conectado em ${url}`);
-				dev && console.groupEnd();
+				if (dev) console.log(`[SERPRO] ✅ Conectado em ${url}`);
+				if (dev) console.groupEnd();
 				return;
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				erros.push(`${url} → ${msg}`);
-				dev && console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
+				if (dev) console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
 			}
 		}
 
 		console.error('[SERPRO] Todas as tentativas falharam:', erros);
-		dev && console.groupEnd();
+		if (dev) console.groupEnd();
 		throw new Error(
 			'Não foi possível conectar ao Assinador SERPRO. ' +
 			'Verifique se o software está instalado e em execução.\n' +
@@ -168,7 +168,7 @@ export class SerproSignerClient {
 
 	private tryConnect(url: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			dev && console.log(`[SERPRO]   → Tentando ${url} ...`);
+			if (dev) console.log(`[SERPRO]   → Tentando ${url} ...`);
 			let settled = false;
 			const settle = (fn: () => void) => {
 				if (settled) return;
@@ -181,13 +181,13 @@ export class SerproSignerClient {
 
 			// Timeout cobre tanto o onopen quanto a espera pelo hello
 			const timeout = setTimeout(() => {
-				dev && console.warn(`[SERPRO]   ⏱ Timeout (8s) em ${url}`);
+				if (dev) console.warn(`[SERPRO]   ⏱ Timeout (8s) em ${url}`);
 				ws.close();
 				settle(() => reject(new Error(`Timeout ao conectar em ${url}`)));
 			}, 8_000);
 
 			ws.onopen = () => {
-				dev && console.log(`[SERPRO]   ✅ onopen em ${url}`);
+				if (dev) console.log(`[SERPRO]   ✅ onopen em ${url}`);
 				this.ws = ws;
 
 				// O servidor SERPRO não envia mensagem alguma ao conectar —
@@ -201,7 +201,7 @@ export class SerproSignerClient {
 					}
 				};
 				ws.onclose = (ev) => {
-					dev && console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
+					if (dev) console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
 					if (this.pendingReject) {
 						this.pendingReject(new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`));
 						this.clearPending();
@@ -212,12 +212,12 @@ export class SerproSignerClient {
 			};
 
 			ws.onerror = (ev) => {
-				dev && console.warn(`[SERPRO]   ❌ onerror em ${url}`, ev);
+				if (dev) console.warn(`[SERPRO]   ❌ onerror em ${url}`, ev);
 				settle(() => reject(new Error(`onerror em ${url}`)));
 			};
 
 			ws.onclose = (ev) => {
-				dev && console.warn(`[SERPRO]   🔌 onclose em ${url} — code=${ev.code} wasClean=${ev.wasClean} reason="${ev.reason}"`);
+				if (dev) console.warn(`[SERPRO]   🔌 onclose em ${url} — code=${ev.code} wasClean=${ev.wasClean} reason="${ev.reason}"`);
 				settle(() => reject(new Error(`onclose code=${ev.code} em ${url}`)));
 			};
 		});
@@ -252,12 +252,12 @@ export class SerproSignerClient {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			return Promise.reject(new Error('WebSocket não está conectado'));
 		}
-		dev && console.log('[SERPRO] → Enviando comando:', command);
+		if (dev) console.log('[SERPRO] → Enviando comando:', command);
 		return new Promise<T>((resolve, reject) => {
 			this.pendingResolve = (data) => {
 				try {
 					const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-					dev && console.log('[SERPRO]   Resposta parseada:', parsed);
+					if (dev) console.log('[SERPRO]   Resposta parseada:', parsed);
 					if (parsed?.error || parsed?.result === 'ERROR' || parsed?.result === 'FAILURE') {
 						reject(new Error(parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO'));
 					} else {
@@ -323,7 +323,7 @@ export class SerproSignerClient {
 				}
 			}, totalTimeoutMs);
 
-			dev && console.log('[SERPRO] 🔬 Probe:', command);
+			if (dev) console.log('[SERPRO] 🔬 Probe:', command);
 			ws.send(JSON.stringify(command));
 		});
 	}
@@ -340,16 +340,16 @@ export class SerproSignerClient {
 	 * parece ser um ACK genérico — pode vir uma segunda mensagem com os dados reais.
 	 */
 	async listCertificates(): Promise<SerproCertificate[]> {
-		dev && console.group('[SERPRO] Descobrindo protocolo de certificados...');
+		if (dev) console.group('[SERPRO] Descobrindo protocolo de certificados...');
 
 		// Passo 1: listar comandos disponíveis no servidor SERPRO
 		try {
 			const listMsgs = await this.probeMulti({ command: 'list' });
-			dev && console.log('[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
+			if (dev) console.log('[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
 				listMsgs.map(m => { try { return JSON.parse(m); } catch { return m; } })
 			);
 		} catch (e) {
-			dev && console.warn('[SERPRO] 🔬 Comando "list" falhou:', e);
+			if (dev) console.warn('[SERPRO] 🔬 Comando "list" falhou:', e);
 		}
 
 		// Passo 2: testar variações de nome de comando para listar certificados
@@ -367,7 +367,7 @@ export class SerproSignerClient {
 			try {
 				const msgs = await this.probeMulti(cmd);
 				const parsed = msgs.map(m => { try { return JSON.parse(m); } catch { return m; } });
-				dev && console.log(`[SERPRO] 🔬 ${cmd.command} → ${msgs.length} msg(s):`, parsed);
+				if (dev) console.log(`[SERPRO] 🔬 ${cmd.command} → ${msgs.length} msg(s):`, parsed);
 
 				// Verifica TODAS as mensagens recebidas em busca de certificados
 				for (const p of parsed) {
@@ -377,8 +377,8 @@ export class SerproSignerClient {
 						?? (p as Record<string, unknown>).content
 						?? (p as Record<string, unknown>).data;
 					if (Array.isArray(certs) && certs.length > 0) {
-						dev && console.log(`[SERPRO] ✅ "${cmd.command}" retornou ${certs.length} cert(s)`);
-						dev && console.groupEnd();
+						if (dev) console.log(`[SERPRO] ✅ "${cmd.command}" retornou ${certs.length} cert(s)`);
+						if (dev) console.groupEnd();
 						return (certs as Array<{ alias?: string; subjectDN?: string; issuerDN?: string; certificate?: string; thumbprint?: string }>).map(c =>
 							enriquecerCert({
 								alias: c.alias ?? c.thumbprint ?? '',
@@ -390,7 +390,7 @@ export class SerproSignerClient {
 					}
 				}
 			} catch (e) {
-				dev && console.warn(`[SERPRO] 🔬 ${cmd.command} → erro:`, e);
+				if (dev) console.warn(`[SERPRO] 🔬 ${cmd.command} → erro:`, e);
 			}
 		}
 
@@ -400,7 +400,7 @@ export class SerproSignerClient {
 			'A seleção de certificado deve ser feita pela UI nativa do Assinador SERPRO ' +
 			'durante o comando "sign".'
 		);
-		dev && console.groupEnd();
+		if (dev) console.groupEnd();
 		return [];
 	}
 
@@ -420,7 +420,7 @@ export class SerproSignerClient {
 	 */
 	async sign(hashBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
 		const requestId = Date.now();
-		dev && console.log(`[SERPRO] → Enviando sign (hash). Aguardando interação do usuário (${timeoutMs / 1000}s)...`);
+		if (dev) console.log(`[SERPRO] → Enviando sign (hash). Aguardando interação do usuário (${timeoutMs / 1000}s)...`);
 
 		const msgs = await this.probeMulti(
 			{ command: 'sign', type: 'hash', inputData: hashBase64, requestId },
@@ -431,7 +431,7 @@ export class SerproSignerClient {
 		const parsed = msgs.map(m => {
 			try { return JSON.parse(m as string); } catch { return m; }
 		});
-		dev && console.log('[SERPRO] ← Todas as respostas do sign:', parsed);
+		if (dev) console.log('[SERPRO] ← Todas as respostas do sign:', parsed);
 
 		// Procura a mensagem real (ignora ACK genérico com command="")
 		const real = parsed.find((p: unknown) => {
@@ -455,7 +455,7 @@ export class SerproSignerClient {
 		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
 		if (!rawSignature) {
 			const campos = Object.keys(o).join(', ');
-			dev && console.error('[SERPRO] Resposta sem assinatura. Campos disponíveis:', campos, o);
+			if (dev) console.error('[SERPRO] Resposta sem assinatura. Campos disponíveis:', campos, o);
 			throw new Error(
 				`Assinador SERPRO não retornou a assinatura.\n` +
 				`Campos na resposta: ${campos}.\n` +
@@ -466,13 +466,13 @@ export class SerproSignerClient {
 		// O campo 'signature' do SERPRO type:'hash' é um CMS PKCS#7 completo (não assinatura RSA bruta).
 		// O certificado está embutido no CMS — não precisamos extraí-lo separadamente.
 		// rawSignature = o.signature = CMS completo em base64.
-		dev && console.log(`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`);
+		if (dev) console.log(`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`);
 
 		// Extrai o nome do titular do certificado A3 (campo 'by.alias' da resposta SERPRO)
 		const by = o.by as Record<string, unknown> | undefined;
 		const signerAlias = typeof by?.alias === 'string' ? by.alias : undefined;
 		if (signerAlias) {
-			dev && console.log(`[SERPRO] ✅ sign: titular do certificado: ${signerAlias}`);
+			if (dev) console.log(`[SERPRO] ✅ sign: titular do certificado: ${signerAlias}`);
 		}
 
 		return { rawSignature, certificateBase64: undefined, signerAlias, rawMessages: parsed };
@@ -490,7 +490,7 @@ export class SerproSignerClient {
 	 */
 	async signFile(dataBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
 		const requestId = Date.now();
-		dev && console.log(`[SERPRO] → Enviando sign (file, ${Math.round(dataBase64.length * 3 / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`);
+		if (dev) console.log(`[SERPRO] → Enviando sign (file, ${Math.round(dataBase64.length * 3 / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`);
 
 		const msgs = await this.probeMulti(
 			{ command: 'sign', type: 'file', inputData: dataBase64, outputDataType: 'base64', requestId },
@@ -501,7 +501,7 @@ export class SerproSignerClient {
 		const parsed = msgs.map(m => {
 			try { return JSON.parse(m as string); } catch { return m; }
 		});
-		dev && console.log('[SERPRO] ← Todas as respostas do signFile:', parsed);
+		if (dev) console.log('[SERPRO] ← Todas as respostas do signFile:', parsed);
 
 		const real = parsed.find((p: unknown) => {
 			if (typeof p !== 'object' || p === null) return false;
@@ -519,7 +519,7 @@ export class SerproSignerClient {
 			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
 		}
 
-		dev && console.log('[SERPRO] Campos disponíveis na resposta signFile:', Object.keys(o));
+		if (dev) console.log('[SERPRO] Campos disponíveis na resposta signFile:', Object.keys(o));
 
 		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
 		if (!rawSignature) {

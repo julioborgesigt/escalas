@@ -60,7 +60,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 	const { tipo, usuarioId } = resultado;
 
 	// Verificar se o usuário ainda está ativo e buscar primeiro_acesso
-	let primeiroAcesso = false;
+	let primeiroAcesso: boolean;
 	if (tipo === 'admin') {
 		const admin = await db
 			.select()

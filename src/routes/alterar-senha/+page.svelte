@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	let senhaAtual = $state('');
 	let novaSenha = $state('');
@@ -102,7 +103,7 @@
 
 		loading.show('Alterando sua senha...');
 
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			if (result.type === 'success') {
 				goto('/');

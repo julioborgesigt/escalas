@@ -2,6 +2,7 @@
 	import { formatarData, mascararNome } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import type { PageData } from './$types';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -12,7 +13,7 @@
 		longitude?: number;
 	}
 
-	const { data }: { data: any } = $props();
+	const { data }: { data: PageData } = $props();
 	const documento = $derived(data.documento as DocumentoComAuditoria);
 
 	function formatarDataHora(dateStr: string | null) {

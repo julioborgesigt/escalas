@@ -368,16 +368,10 @@ function verificarSignatureBasic(
 	if (!comp) return 'invalida';
 
 	// Selecionar a chave pública do responder.
-	let responderCert: forge.pki.Certificate | null = null;
-	let responderEhDelegate = false;
-	if (comp.responderCerts.length > 0) {
-		// Responder delegado — primeiro cert é o do responder.
-		responderCert = comp.responderCerts[0];
-		responderEhDelegate = true;
-	} else {
-		// Sem cert na resposta: o responder é o próprio issuer.
-		responderCert = issuer;
-	}
+	const responderEhDelegate = comp.responderCerts.length > 0;
+	const responderCert: forge.pki.Certificate = responderEhDelegate
+		? comp.responderCerts[0]
+		: issuer;
 
 	// 1. Validar matemática RSA (suporte só a RSA por enquanto;
 	//    ECDSA em responders OCSP é raro mas existe — TODO).
