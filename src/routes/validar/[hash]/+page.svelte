@@ -344,7 +344,7 @@
 								>
 									<strong>Falhas detectadas:</strong>
 									<ul class="list-disc pl-4 mt-1">
-										{#each v.erros as e}
+										{#each v.erros as e (e)}
 											<li>{e}</li>
 										{/each}
 									</ul>
@@ -489,7 +489,7 @@
 							Confirmações de Presença (Equipe)
 						</h2>
 						<div class="grid grid-cols-1 gap-3">
-							{#each data.membros as membro}
+							{#each data.membros as membro (membro.policial_id)}
 								<div
 									class="p-4 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 								>

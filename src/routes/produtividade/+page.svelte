@@ -656,7 +656,7 @@
 							class="w-full px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 						>
 							<option value="">Todas as Seccionais</option>
-							{#each data.seccionais ?? [] as sec}
+							{#each data.seccionais ?? [] as sec (sec.id)}
 								<option value={sec.id}>{sec.nome}</option>
 							{/each}
 						</select>
@@ -675,7 +675,7 @@
 								bind:value={filterAno}
 								class="w-full lg:w-auto min-w-[120px] px-3 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 							>
-								{#each anos as ano}
+								{#each anos as ano (ano)}
 									<option value={String(ano)}>{ano}</option>
 								{/each}
 								<option value="personalizado">Personalizado</option>

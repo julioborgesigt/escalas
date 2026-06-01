@@ -245,7 +245,7 @@
 			placeholder="Mudar cidade..."
 		/>
 		<datalist id={datalistId}>
-			{#each CIDADES_CEARA as c}
+			{#each CIDADES_CEARA as c (c)}
 				<option value={c}></option>
 			{/each}
 		</datalist>
@@ -363,7 +363,7 @@
 				</thead>
 				<tbody>
 					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _}
+						{#each { length: 8 } as _, i (i)}
 							<tr class="animate-pulse">
 								<td class="px-4 py-3"
 									><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td
@@ -477,7 +477,7 @@
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
 			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _}
+				{#each { length: 5 } as _, i (i)}
 					<SkeletonCard lines={3} hasFooter={false} />
 				{/each}
 			{:else}

@@ -130,7 +130,7 @@
 							<span class="label-text">Seccional Vinculada</span>
 							<select class="select" bind:value={novoSeccionalId}>
 								<option value={null}>Selecione uma Seccional...</option>
-								{#each seccionais as sec}
+								{#each seccionais as sec (sec.id)}
 									<option value={sec.id}>{sec.nome}</option>
 								{/each}
 							</select>
@@ -140,7 +140,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={delegaciaPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
@@ -163,7 +163,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={seccionalPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
