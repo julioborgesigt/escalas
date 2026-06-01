@@ -345,7 +345,7 @@
 			</h3>
 		</div>
 		<div class="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1">
-			{#each ranking as item, idx}
+			{#each ranking as item, idx (item.nome)}
 				<div
 					class="flex items-center gap-4 p-3 rounded-2xl bg-surface-50 dark:bg-white/5 border border-surface-100 dark:border-white/10 group transition-all hover:bg-surface-100 dark:hover:bg-white/10"
 				>
@@ -447,7 +447,7 @@
 			</h3>
 		</div>
 		<div class="space-y-4 flex-1">
-			{#each details as [tipo, valor]}
+			{#each details as [tipo, valor] (tipo)}
 				<div class="space-y-1">
 					<div class="flex justify-between text-[0.6rem] font-black uppercase">
 						<span class="text-surface-500">{tipo}</span>

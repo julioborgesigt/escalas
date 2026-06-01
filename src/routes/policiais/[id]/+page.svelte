@@ -242,7 +242,7 @@
 							bind:value={papelUnidadeId}
 						>
 							<option value={null}>Selecionar...</option>
-							{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u}
+							{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
 								<option value={u.id}>{u.nome}</option>
 							{/each}
 						</select>
