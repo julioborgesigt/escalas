@@ -210,22 +210,19 @@ export async function verificarECarimbarAssinatura(
 				// Reescreve o CMS com o TST anexado e re-embeda no PDF.
 				const novoCmsDer = adicionarTimestampTokenAoCms(extracao.cmsDer, tsa.tstAsn1);
 				signedPdfBytes = embedCmsBytesNoPlaceholder(signedPdfBytes, novoCmsDer);
-				// Classifica o carimbo recém-obtido: 'act_icp' só se a TSA encadear
-				// até a ICP-Brasil; uma TSA pública (ex.: DigiCert) vira 'tsa_externa'.
+				// O TST foi obtido por NÓS da TSA configurada e já está embarcado.
+				// Classifica: 'act_icp' só se a TSA encadear até a ICP-Brasil; caso
+				// contrário (ex.: DigiCert) é 'tsa_externa'. NÃO rebaixa para 'servidor'
+				// — diferente do caminho (a) (TST de cliente, adversarial), aqui sabemos
+				// a origem e o carimbo está presente no documento.
 				const tstVerif = await verificarTimestampToken(tsa.tstAsn1, cms.signatureValue);
-				tipoCarimboTempo = rotuloDoCarimbo(tstVerif);
-				if (tstVerif) {
-					tstTokenB64 = forge.util.encode64(
-						Array.from(tsa.tstDer)
-							.map((b) => String.fromCharCode(b))
-							.join('')
-					);
-					tstAplicadoServerSide = true;
-				} else {
-					logger.warn('[CADES] TST server-side não verificável — mantém servidor.', {
-						url: options.env.TSA_URL
-					});
-				}
+				tipoCarimboTempo = tstVerif?.classe === 'icp' ? 'act_icp' : 'tsa_externa';
+				tstTokenB64 = forge.util.encode64(
+					Array.from(tsa.tstDer)
+						.map((b) => String.fromCharCode(b))
+						.join('')
+				);
+				tstAplicadoServerSide = true;
 			} catch (e) {
 				logger.warn('[CADES] Falha ao anexar TST server-side ao CMS', {
 					error: e instanceof Error ? e.message : String(e)
