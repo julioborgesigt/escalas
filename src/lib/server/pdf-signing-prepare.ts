@@ -10,20 +10,20 @@ import { logger } from './logger';
 import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './icp-policy';
 
 /**
- * Tamanho do placeholder de assinatura no PDF (bytes binários ⇒ 2× em hex).
+ * Tamanho do placeholder de /Contents, em CARACTERES HEX ⇒ capacidade real de
+ * CMS = METADE em bytes. EMPÍRICO: 65536 hex chars = 32 KB de CMS.
  *
- * Calculado para acomodar:
- *   - CMS PKCS#7 SignedData típico (~3 KB com 1 cert ICP-Brasil + signedAttrs)
- *   - + TimeStampToken RFC 3161 anexado como UnsignedAttribute (~5-7 KB)
- *
- * 16 KB dão folga confortável (~5 KB sobrando para cert chains maiores e
- * paddings de algoritmos modernos). Aumentar de novo se o sistema vier a
- * embarcar múltiplas TSAs ou assinaturas long-archive com PoE.
+ * Precisa acomodar o MAIOR caso: CMS qualificado com a CADEIA ICP-Brasil
+ * completa (SERPRO, ~6-7 KB) + TimeStampToken RFC 3161 anexado como
+ * UnsignedAttribute (~5 KB). O valor anterior (16384 hex = apenas 8 KB) bastava
+ * para 1 cert, mas ESTOURAVA ao anexar o TST server-side num CMS com cadeia
+ * completa — fazendo `embedCmsBytesNoPlaceholder` lançar e o carimbo de tempo
+ * cair silenciosamente para 'servidor'. 32 KB dão folga para cadeia + TST + PoE.
  *
  * IMPORTANTE: mudar este valor só afeta NOVOS PDFs preparados. PDFs antigos
  * permanecem com placeholder do tamanho original.
  */
-const SIGNATURE_LENGTH = 16384;
+const SIGNATURE_LENGTH = 65536;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
 
 // OIDs usados na estrutura CMS
