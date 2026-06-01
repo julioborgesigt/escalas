@@ -459,7 +459,7 @@
 
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 6 } as _}
+				{#each { length: 6 } as _, i (i)}
 					<SkeletonCard lines={2} hasFooter={false} />
 				{/each}
 			{:else if historicoPaginado.length === 0}
@@ -503,7 +503,7 @@
 					{/if}
 				</div>
 			{:else}
-				{#each historicoPaginado as escala}
+				{#each historicoPaginado as escala (escala.id)}
 					<div
 						class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all"
 					>
@@ -579,8 +579,8 @@
 												>
 													Produtividade por seccional
 												</p>
-												{#each escala.seccionais ?? [] as sec}
-													{#each sec.tipos ?? ['operacional'] as tipo}
+												{#each escala.seccionais ?? [] as sec (sec.id)}
+													{#each sec.tipos ?? ['operacional'] as tipo (tipo)}
 														<a
 															href="/api/gise/{escala.id}/download?format=produtividade&seccionalId={sec.id}&equipeType={tipo}"
 															download
@@ -635,7 +635,7 @@
 												>
 													Extra por seccional
 												</p>
-												{#each escala.seccionais ?? [] as sec}
+												{#each escala.seccionais ?? [] as sec (sec.id)}
 													<a
 														href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
 														download
