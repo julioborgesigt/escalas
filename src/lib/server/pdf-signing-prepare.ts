@@ -67,8 +67,7 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 		// ICP-Brasil cujo CN não embute o CPF após `:`.
 		let cpf = '';
 		const snField =
-			cert.subject.getField({ type: '2.5.4.5' }) ??
-			cert.subject.getField({ name: 'serialNumber' });
+			cert.subject.getField({ type: '2.5.4.5' }) ?? cert.subject.getField({ name: 'serialNumber' });
 		if (snField) {
 			// No ICP-Brasil, serialNumber pode conter o CPF
 			cpf = String(snField.value).replace(/\D/g, '');
@@ -209,7 +208,9 @@ const _fmtDataHora = new Intl.DateTimeFormat('pt-BR', {
 });
 
 export function formatarDataHora(): string {
-	const parts = Object.fromEntries(_fmtDataHora.formatToParts(new Date()).map(p => [p.type, p.value]));
+	const parts = Object.fromEntries(
+		_fmtDataHora.formatToParts(new Date()).map((p) => [p.type, p.value])
+	);
 	return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
@@ -218,8 +219,12 @@ export function formatarDataHora(): string {
  */
 function sha256AlgorithmIdentifier(): forge.asn1.Asn1 {
 	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-			forge.asn1.oidToDer(OID_SHA256).getBytes()),
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.OID,
+			false,
+			forge.asn1.oidToDer(OID_SHA256).getBytes()
+		),
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
 	]);
 }
@@ -229,8 +234,12 @@ function sha256AlgorithmIdentifier(): forge.asn1.Asn1 {
  */
 function rsaAlgorithmIdentifier(): forge.asn1.Asn1 {
 	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-			forge.asn1.oidToDer(OID_RSA_ENCRYPTION).getBytes()),
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.OID,
+			false,
+			forge.asn1.oidToDer(OID_RSA_ENCRYPTION).getBytes()
+		),
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
 	]);
 }
@@ -296,35 +305,63 @@ function buildSignedAttributes(messageDigest: string, signingTime: Date): forge.
 	return forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
 		// contentType (OID 1.2.840.113549.1.9.3)
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-				forge.asn1.oidToDer(OID_CONTENT_TYPE).getBytes()),
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_CONTENT_TYPE).getBytes()
+			),
 			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
-				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-					forge.asn1.oidToDer(OID_DATA).getBytes())
+				forge.asn1.create(
+					forge.asn1.Class.UNIVERSAL,
+					forge.asn1.Type.OID,
+					false,
+					forge.asn1.oidToDer(OID_DATA).getBytes()
+				)
 			])
 		]),
 		// messageDigest (OID 1.2.840.113549.1.9.4)
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-				forge.asn1.oidToDer(OID_MESSAGE_DIGEST).getBytes()),
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_MESSAGE_DIGEST).getBytes()
+			),
 			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
-				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false,
-					messageDigest)
+				forge.asn1.create(
+					forge.asn1.Class.UNIVERSAL,
+					forge.asn1.Type.OCTETSTRING,
+					false,
+					messageDigest
+				)
 			])
 		]),
 		// signingTime (OID 1.2.840.113549.1.9.5)
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-				forge.asn1.oidToDer(OID_SIGNING_TIME).getBytes()),
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_SIGNING_TIME).getBytes()
+			),
 			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
-				forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.UTCTIME, false,
-					forge.asn1.dateToUtcTime(signingTime))
+				forge.asn1.create(
+					forge.asn1.Class.UNIVERSAL,
+					forge.asn1.Type.UTCTIME,
+					false,
+					forge.asn1.dateToUtcTime(signingTime)
+				)
 			])
 		]),
 		// signaturePolicyId (OID 1.2.840.113549.1.9.16.2.15) — PA-AD-RB v2.3
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-				forge.asn1.oidToDer(OID_SIG_POLICY_ID).getBytes()),
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_SIG_POLICY_ID).getBytes()
+			),
 			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
 				buildSignaturePolicyId()
 			])
@@ -354,15 +391,21 @@ function buildCmsSignedData(
 
 	// Converter SignedAttributes de SET (0x31) para IMPLICIT [0] (0xA0)
 	const signedAttrsImplicit = forge.asn1.create(
-		forge.asn1.Class.CONTEXT_SPECIFIC, 0, true,
+		forge.asn1.Class.CONTEXT_SPECIFIC,
+		0,
+		true,
 		signedAttrs.value as forge.asn1.Asn1[]
 	);
 
 	// SignerInfo
 	const signerInfo = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		// version
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
-			forge.asn1.integerToDer(1).getBytes()),
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.INTEGER,
+			false,
+			forge.asn1.integerToDer(1).getBytes()
+		),
 		// sid: IssuerAndSerialNumber
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 			issuerAsn1,
@@ -375,22 +418,35 @@ function buildCmsSignedData(
 		// signatureAlgorithm
 		rsaAlgorithmIdentifier(),
 		// signature
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, signatureBytes)
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.OCTETSTRING,
+			false,
+			signatureBytes
+		)
 	]);
 
 	// SignedData
 	const signedData = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		// version
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.INTEGER, false,
-			forge.asn1.integerToDer(1).getBytes()),
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.INTEGER,
+			false,
+			forge.asn1.integerToDer(1).getBytes()
+		),
 		// digestAlgorithms
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SET, true, [
 			sha256AlgorithmIdentifier()
 		]),
 		// encapContentInfo (detached = sem conteúdo)
 		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-				forge.asn1.oidToDer(OID_DATA).getBytes())
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_DATA).getBytes()
+			)
 		]),
 		// certificates [0] IMPLICIT
 		forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [certAsn1]),
@@ -399,11 +455,20 @@ function buildCmsSignedData(
 	]);
 
 	// ContentInfo wrapper
-	const contentInfo = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OID, false,
-			forge.asn1.oidToDer(OID_SIGNED_DATA).getBytes()),
-		forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [signedData])
-	]);
+	const contentInfo = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.SEQUENCE,
+		true,
+		[
+			forge.asn1.create(
+				forge.asn1.Class.UNIVERSAL,
+				forge.asn1.Type.OID,
+				false,
+				forge.asn1.oidToDer(OID_SIGNED_DATA).getBytes()
+			),
+			forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 0, true, [signedData])
+		]
+	);
 
 	return forge.asn1.toDer(contentInfo).getBytes();
 }
@@ -452,7 +517,6 @@ export async function prepararPdfParaAssinatura(
 	const boxW = 158;
 	const boxH = 70;
 
-
 	const marginY = customBoxY !== undefined ? customBoxY : 40;
 	const headerH = 9;
 
@@ -460,7 +524,7 @@ export async function prepararPdfParaAssinatura(
 	if (alignment === 'center') {
 		boxX = (width - boxW) / 2;
 	} else {
-		boxX = (width * 0.75) - (boxW / 2);
+		boxX = width * 0.75 - boxW / 2;
 	}
 	const boxY = marginY;
 
@@ -470,7 +534,7 @@ export async function prepararPdfParaAssinatura(
 	const cBg = rgb(0.94, 0.96, 0.99);
 	const cHatch = rgb(0.82, 0.88, 0.96);
 	const cDark = rgb(0.05, 0.08, 0.22);
-	const cGray = rgb(0.40, 0.40, 0.45);
+	const cGray = rgb(0.4, 0.4, 0.45);
 	const cWhite = rgb(1, 1, 1);
 
 	// 1 — Fundo azul claro (DESENHADO ANTES DA RUBRICA PARA NÃO COBRIR)
@@ -484,7 +548,8 @@ export async function prepararPdfParaAssinatura(
 			lastPage.drawLine({
 				start: { x: boxX + i + tStart * boxH, y: boxY + tStart * boxH },
 				end: { x: boxX + i + tEnd * boxH, y: boxY + tEnd * boxH },
-				thickness: 0.18, color: cHatch
+				thickness: 0.18,
+				color: cHatch
 			});
 		}
 	}
@@ -525,7 +590,10 @@ export async function prepararPdfParaAssinatura(
 		// A condição agora garante que o texto INTEIRO caiba dentro da largura (boxX + boxW)
 		for (let gx = boxX + 6; gx + hashWidth < boxX + boxW - 6; gx += ghostStep) {
 			lastPage.drawText(verificationHash, {
-				x: gx, y: ghostY, size: ghostSize, font: fontMono,
+				x: gx,
+				y: ghostY,
+				size: ghostSize,
+				font: fontMono,
 				color: rgb(0.88, 0.91, 0.97)
 			});
 		}
@@ -533,8 +601,11 @@ export async function prepararPdfParaAssinatura(
 
 	// 4 — Faixa de cabeçalho navy
 	lastPage.drawRectangle({
-		x: boxX, y: boxY + boxH - headerH,
-		width: boxW, height: headerH, color: cNavy
+		x: boxX,
+		y: boxY + boxH - headerH,
+		width: boxW,
+		height: headerH,
+		color: cNavy
 	});
 
 	const headerTitle = 'ASSINATURA DIGITAL — ICP-BRASIL — POLÍCIA CIVIL DO CEARÁ';
@@ -544,35 +615,57 @@ export async function prepararPdfParaAssinatura(
 	const titleY = boxY + boxH - headerH + (headerH - headerFontSize) / 2 + 0.3; // Centralização vertical refinada
 
 	// Quadrados laterais de acento
-	lastPage.drawRectangle({ x: boxX + 4, y: boxY + boxH - headerH + 3, width: 3, height: 3, color: cWhite, opacity: 0.5 });
-	lastPage.drawRectangle({ x: boxX + boxW - 7, y: boxY + boxH - headerH + 3, width: 3, height: 3, color: cWhite, opacity: 0.5 });
-
-	lastPage.drawText(headerTitle, {
-		x: titleX, y: titleY,
-		size: headerFontSize, font: fontBold, color: cWhite
+	lastPage.drawRectangle({
+		x: boxX + 4,
+		y: boxY + boxH - headerH + 3,
+		width: 3,
+		height: 3,
+		color: cWhite,
+		opacity: 0.5
+	});
+	lastPage.drawRectangle({
+		x: boxX + boxW - 7,
+		y: boxY + boxH - headerH + 3,
+		width: 3,
+		height: 3,
+		color: cWhite,
+		opacity: 0.5
 	});
 
-
+	lastPage.drawText(headerTitle, {
+		x: titleX,
+		y: titleY,
+		size: headerFontSize,
+		font: fontBold,
+		color: cWhite
+	});
 
 	// 5 — QR Code (com fundo branco, error correction H)
 	const qrSize = 42;
 	const qrX = boxX + boxW - qrSize - 4;
 	const qrYPos = boxY + (boxH - headerH - qrSize) / 2 + 0.5;
 
-
 	if (verificationUrl) {
 		try {
 			const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'H' });
 			const moduleCount = qr.modules.size;
 			const dotSize = qrSize / moduleCount;
-			lastPage.drawRectangle({ x: qrX - 2, y: qrYPos - 2, width: qrSize + 4, height: qrSize + 4, color: cWhite });
+			lastPage.drawRectangle({
+				x: qrX - 2,
+				y: qrYPos - 2,
+				width: qrSize + 4,
+				height: qrSize + 4,
+				color: cWhite
+			});
 			for (let row = 0; row < moduleCount; row++) {
 				for (let col = 0; col < moduleCount; col++) {
 					if (qr.modules.get(row, col)) {
 						lastPage.drawRectangle({
 							x: qrX + col * dotSize,
 							y: qrYPos + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
+							width: dotSize + 0.1,
+							height: dotSize + 0.1,
+							color: cNavy
 						});
 					}
 				}
@@ -588,9 +681,9 @@ export async function prepararPdfParaAssinatura(
 	lastPage.drawLine({
 		start: { x: qrX - 5, y: boxY + 5 },
 		end: { x: qrX - 5, y: boxY + boxH - headerH - 5 },
-		thickness: 0.3, color: cBlue
+		thickness: 0.3,
+		color: cBlue
 	});
-
 
 	// 7 — Conteúdo textual
 	const txtX = boxX + 6;
@@ -600,10 +693,12 @@ export async function prepararPdfParaAssinatura(
 		: '';
 
 	lastPage.drawText('Assinado digitalmente por:', {
-		x: txtX, y: boxY + boxH - headerH - 10,
-		size: 5, font, color: cBlue
+		x: txtX,
+		y: boxY + boxH - headerH - 10,
+		size: 5,
+		font,
+		color: cBlue
 	});
-
 
 	const nomeAssinante = signerName.toUpperCase();
 	const nomeFontSize = 6.2; // Reduzido de 7.2
@@ -625,14 +720,20 @@ export async function prepararPdfParaAssinatura(
 			} else if (!line2) {
 				// Palavra única muito longa
 				line2 = word;
-				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '…', nomeFontSize) > textMaxW) {
+				while (
+					line2.length > 3 &&
+					fontBold.widthOfTextAtSize(line2 + '…', nomeFontSize) > textMaxW
+				) {
 					line2 = line2.slice(0, -1);
 				}
 				line2 += '…';
 				break;
 			} else {
 				// Trunca a segunda linha
-				while (line2.length > 3 && fontBold.widthOfTextAtSize(line2 + '…', nomeFontSize) > textMaxW) {
+				while (
+					line2.length > 3 &&
+					fontBold.widthOfTextAtSize(line2 + '…', nomeFontSize) > textMaxW
+				) {
 					line2 = line2.slice(0, -1);
 				}
 				line2 += '…';
@@ -642,46 +743,69 @@ export async function prepararPdfParaAssinatura(
 	}
 
 	lastPage.drawText(line1, {
-		x: txtX, y: boxY + boxH - headerH - 17,
-		size: nomeFontSize, font: fontBold, color: cDark
+		x: txtX,
+		y: boxY + boxH - headerH - 17,
+		size: nomeFontSize,
+		font: fontBold,
+		color: cDark
 	});
 	if (line2) {
 		lastPage.drawText(line2, {
-			x: txtX, y: boxY + boxH - headerH - 25,
-			size: nomeFontSize, font: fontBold, color: cDark
+			x: txtX,
+			y: boxY + boxH - headerH - 25,
+			size: nomeFontSize,
+			font: fontBold,
+			color: cDark
 		});
 	}
 
 	const infoLine = dataHora; // Removido CPF repetido conforme pedido
 	lastPage.drawText(infoLine, {
-		x: txtX, y: boxY + boxH - headerH - (line2 ? 33 : 25),
-		size: 5.5, font, color: cGray
+		x: txtX,
+		y: boxY + boxH - headerH - (line2 ? 33 : 25),
+		size: 5.5,
+		font,
+		color: cGray
 	});
-
-
-
 
 	// Caixa de destaque do código de verificação
 	if (verificationHash) {
 		const hashLabel = `Cód: ${verificationHash}`;
 		const hashBgW = fontMono.widthOfTextAtSize(hashLabel, 6) + 10;
 		lastPage.drawRectangle({ x: txtX - 2, y: boxY + 12, width: hashBgW, height: 9, color: cNavy });
-		lastPage.drawText(hashLabel, { x: txtX + 3, y: boxY + 15, size: 6, font: fontMono, color: cWhite });
+		lastPage.drawText(hashLabel, {
+			x: txtX + 3,
+			y: boxY + 15,
+			size: 6,
+			font: fontMono,
+			color: cWhite
+		});
 	}
 
 	lastPage.drawText('Assinado conforme MP 2.200-2/2001 — ICP-Brasil', {
-		x: txtX, y: boxY + 4, size: 3.8, font, color: cGray
+		x: txtX,
+		y: boxY + 4,
+		size: 3.8,
+		font,
+		color: cGray
 	});
-
 
 	// 8 — Borda dupla (desenhada por último para ficar sobre tudo)
 	lastPage.drawRectangle({
-		x: boxX + 2, y: boxY + 2, width: boxW - 4, height: boxH - 4,
-		borderColor: cBlue, borderWidth: 0.35
+		x: boxX + 2,
+		y: boxY + 2,
+		width: boxW - 4,
+		height: boxH - 4,
+		borderColor: cBlue,
+		borderWidth: 0.35
 	});
 	lastPage.drawRectangle({
-		x: boxX, y: boxY, width: boxW, height: boxH,
-		borderColor: cNavy, borderWidth: 1.1
+		x: boxX,
+		y: boxY,
+		width: boxW,
+		height: boxH,
+		borderColor: cNavy,
+		borderWidth: 1.1
 	});
 
 	// 9 — Texto de verificação vertical na margem esquerda
@@ -697,7 +821,12 @@ export async function prepararPdfParaAssinatura(
 	return finalizarPreparacao(pdfDoc, {
 		reason: 'Assinatura da escala de plantão',
 		name: signerName,
-		widgetRect: [Math.round(boxX), Math.round(boxY), Math.round(boxX + boxW), Math.round(boxY + boxH)]
+		widgetRect: [
+			Math.round(boxX),
+			Math.round(boxY),
+			Math.round(boxX + boxW),
+			Math.round(boxY + boxH)
+		]
 	});
 }
 
@@ -751,7 +880,8 @@ async function finalizarPreparacao(
 	const byteRangePlaceholderFull = pdfString.substring(bracketStart, bracketEnd + 1);
 	const byteRangeReplacement = `[${br.join(' ')}]`.padEnd(byteRangePlaceholderFull.length, ' ');
 
-	const preparedPdfStr = pdfString.substring(0, bracketStart) +
+	const preparedPdfStr =
+		pdfString.substring(0, bracketStart) +
 		byteRangeReplacement +
 		pdfString.substring(bracketEnd + 1);
 
@@ -915,8 +1045,8 @@ export async function embedSerproCms(
 	if (cmsHex.length > placeholderLength) {
 		throw new Error(
 			`CMS SERPRO muito grande: ${cmsHex.length / 2} bytes — ` +
-			`placeholder suporta ${placeholderLength / 2} bytes. ` +
-			`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
+				`placeholder suporta ${placeholderLength / 2} bytes. ` +
+				`Aumente SIGNATURE_LENGTH em pdf-signing-prepare.ts.`
 		);
 	}
 
@@ -969,7 +1099,9 @@ export async function finalizarAssinatura(
 	const placeholderLength = sigEnd - sigStart - 1;
 
 	if (cmsHex.length > placeholderLength) {
-		throw new Error(`CMS SignedData muito grande: ${cmsHex.length} hex chars, máximo ${placeholderLength}`);
+		throw new Error(
+			`CMS SignedData muito grande: ${cmsHex.length} hex chars, máximo ${placeholderLength}`
+		);
 	}
 
 	const paddedSig = cmsHex.padEnd(placeholderLength, '0');

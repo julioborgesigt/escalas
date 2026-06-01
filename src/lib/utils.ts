@@ -27,7 +27,11 @@ export function normalizarTexto(texto: string): string {
 }
 
 /** Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia. */
-export function calcularDataSaida(dataInicio: string, horaEntrada: string, horaSaida: string): string {
+export function calcularDataSaida(
+	dataInicio: string,
+	horaEntrada: string,
+	horaSaida: string
+): string {
 	const he = parseInt(horaEntrada.split(':')[0] ?? '0', 10);
 	const hs = parseInt(horaSaida.split(':')[0] ?? '0', 10);
 	return hs <= he ? proximoDia(dataInicio) : dataInicio;
@@ -38,7 +42,20 @@ export function calcularDataSaida(dataInicio: string, horaEntrada: string, horaS
  */
 export function formatarDataExtenso(date: Date): string {
 	const d = date.getDate();
-	const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+	const meses = [
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
+	];
 	const m = meses[date.getMonth()];
 	const a = date.getFullYear();
 	return `${String(d).padStart(2, '0')} de ${m} de ${a}`;
@@ -159,4 +176,3 @@ export function mascararCPF(cpf: string | undefined): string {
 	// Exibe apenas os dígitos centrais (4º, 5º e 6º)
 	return `***.${limpo.slice(3, 6)}.***-**`;
 }
-

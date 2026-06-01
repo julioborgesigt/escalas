@@ -18,7 +18,9 @@
 
 <Dialog
 	open={dialogInfo !== null}
-	onOpenChange={(e) => { if (!e.open) onClose(); }}
+	onOpenChange={(e) => {
+		if (!e.open) onClose();
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm"
@@ -71,7 +73,7 @@
 				</div>
 
 				<ul class="space-y-1.5 pl-1">
-					{#each dialogInfo.linhas as linha}
+					{#each dialogInfo.linhas as linha (linha)}
 						<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-300">
 							<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-400"></span>
 							{linha}

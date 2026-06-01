@@ -22,7 +22,11 @@ export const load: PageServerLoad = async ({ url, platform, setHeaders }) => {
 		return { valido: false, erro: 'Este link é inválido ou já foi utilizado.', token };
 	}
 	if (resultado === 'expirado') {
-		return { valido: false, erro: 'Este link expirou. Solicite um novo link de redefinição.', token };
+		return {
+			valido: false,
+			erro: 'Este link expirou. Solicite um novo link de redefinição.',
+			token
+		};
 	}
 
 	return { valido: true, erro: null, token };
@@ -62,10 +66,7 @@ export const actions: Actions = {
 		const { tipo, usuarioId } = resultado;
 
 		// Marcar token como usado ANTES de alterar a senha (previne race condition)
-		await db
-			.update(resetSenhaTokens)
-			.set({ usado: 1 })
-			.where(eq(resetSenhaTokens.token, token));
+		await db.update(resetSenhaTokens).set({ usado: 1 }).where(eq(resetSenhaTokens.token, token));
 
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha);
 
@@ -99,9 +100,7 @@ export const actions: Actions = {
 		}
 
 		// Invalidar todas as sessões do usuário
-		await db
-			.delete(sessoes)
-			.where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
+		await db.delete(sessoes).where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
 
 		// Auditoria
 		await registrarAuditComContexto(db, {

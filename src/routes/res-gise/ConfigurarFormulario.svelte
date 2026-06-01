@@ -36,7 +36,18 @@
 	</svg>
 {/snippet}
 
-{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: ((e: MouseEvent) => void) | undefined, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+{#snippet actionButton(
+	label: string,
+	iconPath?: string,
+	variant = 'primary',
+	type = 'outlined',
+	onclick?: ((e: MouseEvent) => void) | undefined,
+	disabled = false,
+	loadingState = false,
+	classes = '',
+	btnType: 'button' | 'submit' = 'button',
+	size = 'sm'
+)}
 	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
 	<button
 		type={btnType}
@@ -56,22 +67,26 @@
 		class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-6"
 	>
 		<div class="w-full sm:w-auto">
-			<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">
-				Configurar Formulário
-			</h2>
+			<h2 class="text-xl sm:text-2xl font-black uppercase tracking-tight">Configurar Formulário</h2>
 			<p class="text-sm text-surface-500 mt-1">
 				Defina os textos e campos do relatório de produtividade oficial.
 			</p>
 
-			<div class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit">
-				<button type="button"
-					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'operacional'
+			<div
+				class="flex gap-2 mt-4 bg-surface-100 dark:bg-surface-800 p-1 rounded-xl w-full sm:w-fit"
+			>
+				<button
+					type="button"
+					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
+					'operacional'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 						: 'text-surface-500'}"
 					onclick={() => (resGise.configTipo = 'operacional')}>Operacional</button
 				>
-				<button type="button"
-					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo === 'seint'
+				<button
+					type="button"
+					class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all {resGise.configTipo ===
+					'seint'
 						? 'bg-white dark:bg-surface-700 shadow text-primary-600'
 						: 'text-surface-500'}"
 					onclick={() => (resGise.configTipo = 'seint')}>SEINT (Inteligência)</button
@@ -170,9 +185,7 @@
 								<option value="armas_complex">Armas Detalhado (Auto-Listagem)</option>
 								<option value="celulares_complex">Extração Celular (Auto-Listagem)</option>
 								<option value="analise_complex">Análise de Dados (Auto-Listagem)</option>
-								<option value="relatorios_seint_complex"
-									>Relatórios SEINT (Auto-Listagem)</option
-								>
+								<option value="relatorios_seint_complex">Relatórios SEINT (Auto-Listagem)</option>
 								<option value="foragidos_complex">Alvos Foragidos (Auto-Listagem)</option>
 								<option value="operacoes_seint_complex">Operações SEINT (Auto-Listagem)</option>
 								<option value="operacoes_seint_pura">Operações SEINT (Lista Pura)</option>
@@ -182,7 +195,8 @@
 
 					<div class="flex gap-2 shrink-0 self-end md:self-start">
 						{#if p.tipo === 'sim_nao' || p.tipo === 'mandados_maiores' || p.tipo === 'prisoes_maiores' || p.tipo === 'apreensoes_menores' || p.tipo === 'drogas_complex' || p.tipo === 'armas_complex' || p.tipo === 'celulares_complex' || p.tipo === 'analise_complex' || p.tipo === 'relatorios_seint_complex' || p.tipo === 'foragidos_complex' || p.tipo === 'operacoes_seint_complex'}
-							<button type="button"
+							<button
+								type="button"
 								class="p-3 text-primary-500 hover:bg-primary-500/10 rounded-xl transition-all"
 								onclick={() => resGise.adicionarSubPergunta(p)}
 								title="Adicionar Sub-pergunta (se SIM)"
@@ -197,7 +211,8 @@
 								>
 							</button>
 						{/if}
-						<button type="button"
+						<button
+							type="button"
 							class="p-3 text-error-500 hover:bg-error-500/10 rounded-xl transition-all"
 							onclick={() => resGise.removerPergunta(p.id)}
 							aria-label="Remover Pergunta"
@@ -243,8 +258,7 @@
 								<div class="space-y-1">
 									<label
 										for="subqtd-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
-										>Quantidade:</label
+										class="text-[0.6rem] font-bold text-surface-400 uppercase">Quantidade:</label
 									>
 									<input
 										id="subqtd-{p.id}"
@@ -358,10 +372,20 @@
 			<input type="hidden" name="config" value={resGise.configJson} />
 			<input type="hidden" name="tipo" value={resGise.configTipo} />
 
-			<div class="flex-grow p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700">
-				<p class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1">Status da Configuração</p>
+			<div
+				class="flex-grow p-4 bg-surface-100 dark:bg-surface-800 rounded-2xl border border-surface-200 dark:border-surface-700"
+			>
+				<p
+					class="text-xs font-bold text-surface-600 dark:text-surface-400 uppercase tracking-widest mb-1"
+				>
+					Status da Configuração
+				</p>
 				<div class="flex items-center gap-2">
-					<div class="w-2 h-2 rounded-full {loading.active ? 'bg-warning-500 animate-pulse' : 'bg-success-500'}"></div>
+					<div
+						class="w-2 h-2 rounded-full {loading.active
+							? 'bg-warning-500 animate-pulse'
+							: 'bg-success-500'}"
+					></div>
 					<p class="text-[0.65rem] font-bold text-surface-900 dark:text-surface-100">
 						{loading.active ? 'Salvando alterações...' : 'Pronto para salvar'}
 					</p>
@@ -369,7 +393,9 @@
 			</div>
 
 			{@render actionButton(
-				loading.active ? 'Salvando...' : `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
+				loading.active
+					? 'Salvando...'
+					: `Salvar Modelo ${resGise.configTipo === 'seint' ? 'SEINT' : 'Operacional'}`,
 				undefined,
 				'primary',
 				'filled',
@@ -392,14 +418,16 @@
 		>
 			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">
-				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão.
-				Essa ação não pode ser desfeita.
+				As perguntas do modelo <strong>{resGise.configTipo}</strong> serão substituídas pelo padrão. Essa
+				ação não pode ser desfeita.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">
-					Cancelar
-				</Dialog.CloseTrigger>
-				<button type="button" class="btn preset-filled-warning-500" onclick={confirmarRestaurarPadrao}>
+				<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
+				<button
+					type="button"
+					class="btn preset-filled-warning-500"
+					onclick={confirmarRestaurarPadrao}
+				>
 					Restaurar
 				</button>
 			</div>

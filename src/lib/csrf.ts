@@ -11,9 +11,7 @@ export const CSRF_HEADER_NAME = 'x-csrf-token';
 /** Read the CSRF token from the cookie set by the server. */
 export function getCsrfToken(): string {
 	if (typeof document === 'undefined') return '';
-	const match = document.cookie
-		.split('; ')
-		.find((row) => row.startsWith(`${CSRF_COOKIE_NAME}=`));
+	const match = document.cookie.split('; ').find((row) => row.startsWith(`${CSRF_COOKIE_NAME}=`));
 	return match ? match.slice(match.indexOf('=') + 1) : '';
 }
 

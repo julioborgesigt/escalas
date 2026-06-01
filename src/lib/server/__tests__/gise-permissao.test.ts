@@ -35,9 +35,9 @@ function gise(overrides: Partial<GiseEscala> = {}): GiseEscala {
 	} as GiseEscala;
 }
 
-function user(overrides: Partial<NonNullable<App.Locals['usuario']>> = {}): NonNullable<
-	App.Locals['usuario']
-> {
+function user(
+	overrides: Partial<NonNullable<App.Locals['usuario']>> = {}
+): NonNullable<App.Locals['usuario']> {
 	return {
 		id: 1,
 		tipo: 'policial',
@@ -94,7 +94,11 @@ describe('verificarPermissaoGise', () => {
 	it('assessor / seint1 / seint2 podem (sem query de membros)', async () => {
 		for (const role of ['assessor_id', 'seint1_id', 'seint2_id'] as const) {
 			const u = user({ id: 99 });
-			const r = await verificarPermissaoGise(fakeDb, gise({ [role]: 99 } as Partial<GiseEscala>), u);
+			const r = await verificarPermissaoGise(
+				fakeDb,
+				gise({ [role]: 99 } as Partial<GiseEscala>),
+				u
+			);
 			expect(r).toEqual({ permitido: true });
 		}
 	});

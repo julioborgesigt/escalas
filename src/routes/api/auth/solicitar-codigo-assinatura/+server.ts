@@ -19,10 +19,18 @@ export const POST: RequestHandler = async ({ platform, locals }) => {
 		// Recuperar o usuário do DB para confirmar o e-mail
 		let email: string | null = null;
 		if (u.tipo === 'policial') {
-			const row = await db.select({ email: policiais.email }).from(policiais).where(eq(policiais.id, u.id)).get();
+			const row = await db
+				.select({ email: policiais.email })
+				.from(policiais)
+				.where(eq(policiais.id, u.id))
+				.get();
 			email = row?.email ?? null;
 		} else {
-			const row = await db.select({ email: administradores.email }).from(administradores).where(eq(administradores.id, u.id)).get();
+			const row = await db
+				.select({ email: administradores.email })
+				.from(administradores)
+				.where(eq(administradores.id, u.id))
+				.get();
 			email = row?.email ?? null;
 		}
 

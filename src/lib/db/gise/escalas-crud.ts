@@ -91,14 +91,14 @@ export async function atualizarGiseEscala(
 		hora_entrada: string;
 		hora_saida: string;
 		status:
-		| 'em_definicao_supervisor'
-		| 'em_preenchimento'
-		| 'aguardando_assinatura'
-		| 'em_andamento'
-		| 'aguardando_relatorios'
-		| 'aguardando_assinatura_relat'
-		| 'pronta_para_finalizar'
-		| 'finalizada';
+			| 'em_definicao_supervisor'
+			| 'em_preenchimento'
+			| 'aguardando_assinatura'
+			| 'em_andamento'
+			| 'aguardando_relatorios'
+			| 'aguardando_assinatura_relat'
+			| 'pronta_para_finalizar'
+			| 'finalizada';
 		supervisor_id: number | null;
 		assessor_id: number | null;
 		seint1_id: number | null;
@@ -151,21 +151,24 @@ export async function clonarGiseParaData(
 	const secsParaClonar: { seccional_id: number; id?: number }[] =
 		modo === 'clonada'
 			? await db.select().from(giseSeccionais).where(eq(giseSeccionais.gise_id, giseId)).all()
-			: (await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all()).map(
-					(s) => ({ seccional_id: s.id })
-				);
+			: (await db.select().from(unidades).where(eq(unidades.tipo, 'seccional')).all()).map((s) => ({
+					seccional_id: s.id
+				}));
 
 	if (secsParaClonar.length === 0) return novoId;
 
 	// Insert seccionais sequencialmente (D1 não suporta transações aninhadas com batch)
 	const secsInsert: { id: number; seccional_id: number }[] = [];
 	for (const sec of secsParaClonar) {
-		const [inserted] = await db.insert(giseSeccionais).values({
-			gise_id: novoId,
-			seccional_id: sec.seccional_id,
-			unidade_operacional_id: null,
-			status: 'pendente' as const
-		}).returning({ id: giseSeccionais.id, seccional_id: giseSeccionais.seccional_id });
+		const [inserted] = await db
+			.insert(giseSeccionais)
+			.values({
+				gise_id: novoId,
+				seccional_id: sec.seccional_id,
+				unidade_operacional_id: null,
+				status: 'pendente' as const
+			})
+			.returning({ id: giseSeccionais.id, seccional_id: giseSeccionais.seccional_id });
 		secsInsert.push(inserted);
 	}
 
@@ -195,10 +198,13 @@ export async function clonarGiseParaData(
 			for (const slot of slotsOriginais) {
 				const newSecId = secIdMap.get(slot.gise_seccional_id);
 				if (newSecId) {
-					const [newSlot] = await db.insert(giseSeccionalUnidades).values({
-						gise_seccional_id: newSecId,
-						unidade_id: slot.unidade_id
-					}).returning({ id: giseSeccionalUnidades.id });
+					const [newSlot] = await db
+						.insert(giseSeccionalUnidades)
+						.values({
+							gise_seccional_id: newSecId,
+							unidade_id: slot.unidade_id
+						})
+						.returning({ id: giseSeccionalUnidades.id });
 					slotIdMap.set(slot.id, newSlot.id);
 				}
 			}
@@ -212,9 +218,8 @@ export async function clonarGiseParaData(
 			for (const eq_ of equipesOriginais) {
 				const newSecId = secIdMap.get(eq_.gise_seccional_id);
 				if (newSecId) {
-					const newUnidadeId = eq_.gise_unidade_id !== null
-						? (slotIdMap.get(eq_.gise_unidade_id) ?? null)
-						: null;
+					const newUnidadeId =
+						eq_.gise_unidade_id !== null ? (slotIdMap.get(eq_.gise_unidade_id) ?? null) : null;
 					await db.insert(giseEquipes).values({
 						gise_seccional_id: newSecId,
 						gise_unidade_id: newUnidadeId,
@@ -241,10 +246,13 @@ export async function clonarGiseParaData(
 
 		const v = await buscarVagasPadraoEquipesGise(db);
 		for (const secId of secIdsSemSlot) {
-			const [slot] = await db.insert(giseSeccionalUnidades).values({
-				gise_seccional_id: secId,
-				unidade_id: null
-			}).returning({ id: giseSeccionalUnidades.id });
+			const [slot] = await db
+				.insert(giseSeccionalUnidades)
+				.values({
+					gise_seccional_id: secId,
+					unidade_id: null
+				})
+				.returning({ id: giseSeccionalUnidades.id });
 
 			await db.insert(giseEquipes).values([
 				{

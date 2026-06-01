@@ -15,16 +15,9 @@
 export { getDB, getR2, hasR2 } from './db/core';
 export type { Database } from './db/core';
 
-export {
-	registrarAuditComContexto,
-	listarAuditLog
-} from './db/audit';
+export { registrarAuditComContexto, listarAuditLog } from './db/audit';
 
-export {
-	registrarAceite,
-	buscarUltimoAceite,
-	temAceiteVigente
-} from './db/termos';
+export { registrarAceite, buscarUltimoAceite, temAceiteVigente } from './db/termos';
 
 export {
 	salvarConfiguracao,

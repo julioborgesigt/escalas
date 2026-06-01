@@ -12,8 +12,12 @@
 	const isAdmin = $derived(data.isAdmin);
 	const isAdminOrSeccional = $derived(data.isAdminOrSeccional);
 	const isAdminUnidade = $derived(data.isAdminUnidade);
-	const seccionaisParaPapel = $derived(data.unidades.filter((u: { tipo: string }) => u.tipo === 'seccional'));
-	const unidadesParaAdmin = $derived(data.unidades.filter((u: { tipo: string }) => u.tipo !== 'seccional'));
+	const seccionaisParaPapel = $derived(
+		data.unidades.filter((u: { tipo: string }) => u.tipo === 'seccional')
+	);
+	const unidadesParaAdmin = $derived(
+		data.unidades.filter((u: { tipo: string }) => u.tipo !== 'seccional')
+	);
 
 	let nome = $state('');
 	let matricula = $state('');
@@ -34,7 +38,7 @@
 			cargo = data.policial.cargo;
 			cpf = formatarCPF(data.policial.cpf || '');
 			telefone = data.policial.telefone || '';
-			classe = (data.policial as Record<string, unknown>).classe as string || '';
+			classe = ((data.policial as Record<string, unknown>).classe as string) || '';
 			regime = data.policial.regime || 'plantao';
 			lotacao = data.policial.lotacao;
 			email = data.policial.email || '';
@@ -72,9 +76,7 @@
 	}
 
 	const classesDisponiveis = $derived(
-		cargo === 'DPC'
-			? ['1ª', '2ª', '3ª', 'ESPECIAL']
-			: ['A', 'B', 'C', 'D']
+		cargo === 'DPC' ? ['1ª', '2ª', '3ª', 'ESPECIAL'] : ['A', 'B', 'C', 'D']
 	);
 </script>
 
@@ -157,7 +159,7 @@
 				<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Classe</span>
 				<select class="select py-1 px-3 text-sm" name="classe" bind:value={classe} required>
 					<option value="" disabled>-</option>
-					{#each classesDisponiveis as c}
+					{#each classesDisponiveis as c (c)}
 						<option value={c}>{c}</option>
 					{/each}
 					{#if classe && !classesDisponiveis.includes(classe)}
@@ -240,7 +242,7 @@
 							bind:value={papelUnidadeId}
 						>
 							<option value={null}>Selecionar...</option>
-							{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u}
+							{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
 								<option value={u.id}>{u.nome}</option>
 							{/each}
 						</select>

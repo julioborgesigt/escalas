@@ -91,10 +91,7 @@ export function extrairUrlOcsp(cert: forge.pki.Certificate): string | null {
 /**
  * Constrói o CertID (RFC 6960) usando SHA-1 (algoritmo padrão).
  */
-function buildCertId(
-	cert: forge.pki.Certificate,
-	issuer: forge.pki.Certificate
-): forge.asn1.Asn1 {
+function buildCertId(cert: forge.pki.Certificate, issuer: forge.pki.Certificate): forge.asn1.Asn1 {
 	// issuerNameHash = SHA-1(DER do subject do issuer)
 	const issuerSubjectAsn1 = forge.pki.distinguishedNameToAsn1(issuer.subject);
 	const issuerSubjectDer = forge.asn1.toDer(issuerSubjectAsn1).getBytes();
@@ -124,15 +121,11 @@ function buildCertId(
 	let keyBytes: string;
 	if (typeof bitString.value === 'string') {
 		// Primitivo: descarta o primeiro byte (unused bits count).
-		keyBytes = bitString.value.startsWith('\x00')
-			? bitString.value.slice(1)
-			: bitString.value;
+		keyBytes = bitString.value.startsWith('\x00') ? bitString.value.slice(1) : bitString.value;
 	} else {
 		// Construído: re-serializa os filhos para obter os bytes do conteúdo.
 		const children = bitString.value as forge.asn1.Asn1[];
-		keyBytes = children
-			.map((child) => forge.asn1.toDer(child).getBytes())
-			.join('');
+		keyBytes = children.map((child) => forge.asn1.toDer(child).getBytes()).join('');
 	}
 	const md2 = forge.md.sha1.create();
 	md2.update(keyBytes);
@@ -190,9 +183,12 @@ function buildOcspRequestDer(
 	const request = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		certId
 	]);
-	const requestList = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		request
-	]);
+	const requestList = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.SEQUENCE,
+		true,
+		[request]
+	);
 
 	// Nonce de 16 bytes (RFC 8954 recomenda 1..32 octets).
 	const nonce = crypto.getRandomValues(new Uint8Array(16));
@@ -208,46 +204,33 @@ function buildOcspRequestDer(
 		nonceStr
 	);
 	const nonceOctetDer = forge.asn1.toDer(nonceOctet).getBytes();
-	const nonceExt = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.SEQUENCE,
-		true,
-		[
-			forge.asn1.create(
-				forge.asn1.Class.UNIVERSAL,
-				forge.asn1.Type.OID,
-				false,
-				forge.asn1.oidToDer(OID_OCSP_NONCE).getBytes()
-			),
-			forge.asn1.create(
-				forge.asn1.Class.UNIVERSAL,
-				forge.asn1.Type.OCTETSTRING,
-				false,
-				nonceOctetDer
-			)
-		]
-	);
-	const extensions = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.SEQUENCE,
-		true,
-		[nonceExt]
-	);
+	const nonceExt = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.OID,
+			false,
+			forge.asn1.oidToDer(OID_OCSP_NONCE).getBytes()
+		),
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.OCTETSTRING, false, nonceOctetDer)
+	]);
+	const extensions = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		nonceExt
+	]);
 	// [2] EXPLICIT requestExtensions
-	const requestExtensionsWrap = forge.asn1.create(
-		forge.asn1.Class.CONTEXT_SPECIFIC,
-		2,
-		true,
-		[extensions]
-	);
+	const requestExtensionsWrap = forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 2, true, [
+		extensions
+	]);
 
 	const tbsRequest = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
 		requestList,
 		requestExtensionsWrap
 	]);
-	const ocspRequest = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
-		tbsRequest
-	]);
+	const ocspRequest = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.SEQUENCE,
+		true,
+		[tbsRequest]
+	);
 	const der = forge.asn1.toDer(ocspRequest).getBytes();
 
 	const bytes = new Uint8Array(der.length);
@@ -293,10 +276,7 @@ function extrairComponentesBasic(basicAsn1: forge.asn1.Asn1): {
 
 		const responderCerts: forge.pki.Certificate[] = [];
 		for (const f of children.slice(3)) {
-			if (
-				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
-				(f.type as number) === 0
-			) {
+			if (f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && (f.type as number) === 0) {
 				// [0] EXPLICIT SEQUENCE OF Certificate
 				for (const certAsn1 of f.value as forge.asn1.Asn1[]) {
 					try {
@@ -312,10 +292,7 @@ function extrairComponentesBasic(basicAsn1: forge.asn1.Asn1): {
 		let responseExtensions: forge.asn1.Asn1[] | null = null;
 		const tbsChildren = tbs.value as forge.asn1.Asn1[];
 		for (const f of tbsChildren) {
-			if (
-				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
-				(f.type as number) === 1
-			) {
+			if (f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && (f.type as number) === 1) {
 				responseExtensions = (f.value as forge.asn1.Asn1[])[0].value as forge.asn1.Asn1[];
 				break;
 			}
@@ -484,9 +461,7 @@ function parseOcspStatus(responseDer: Uint8Array): {
 	basicAsn1?: forge.asn1.Asn1;
 } {
 	try {
-		const buffer = forge.util.createBuffer(
-			String.fromCharCode(...Array.from(responseDer))
-		);
+		const buffer = forge.util.createBuffer(String.fromCharCode(...Array.from(responseDer)));
 		const asn1 = forge.asn1.fromDer(buffer);
 		const top = asn1.value as forge.asn1.Asn1[];
 		// top[0] = responseStatus (ENUMERATED) — 0 = successful
@@ -620,8 +595,7 @@ export async function consultarOcsp(
 		const parsed = parseOcspStatus(respBuf);
 
 		// Validar assinatura matemática + confiança do responder.
-		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' =
-			'nao_verificada';
+		let assinaturaResponder: 'valida' | 'invalida' | 'nao_verificada' = 'nao_verificada';
 		let nonceEcoadoOk: boolean | undefined;
 		if (parsed.basicAsn1) {
 			assinaturaResponder = verificarSignatureBasic(parsed.basicAsn1, issuer);

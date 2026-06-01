@@ -25,20 +25,20 @@ import { mascararEmail } from './auth-flow';
  * tags `<img>` apontando para tracking ainda passam em muitos clients.
  */
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#x27;');
 }
 
 function getCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
-  const e = platform?.env as Env | undefined;
-  return {
-    user: e?.GMAIL_USER ?? '',
-    pass: e?.GMAIL_APP_PASSWORD ?? ''
-  };
+	const e = platform?.env as Env | undefined;
+	return {
+		user: e?.GMAIL_USER ?? '',
+		pass: e?.GMAIL_APP_PASSWORD ?? ''
+	};
 }
 
 // Transporter singleton: nodemailer armazena a instância para reuso. Em ambientes
@@ -52,40 +52,40 @@ let cachedTransporter: Transporter | null = null;
 let cachedKey = '';
 
 function getTransporter(user: string, pass: string): Transporter {
-  const key = `${user}\0${pass}`;
-  if (cachedTransporter && cachedKey === key) return cachedTransporter;
-  cachedTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
-  cachedKey = key;
-  return cachedTransporter;
+	const key = `${user}\0${pass}`;
+	if (cachedTransporter && cachedKey === key) return cachedTransporter;
+	cachedTransporter = nodemailer.createTransport({
+		host: 'smtp.gmail.com',
+		port: 465,
+		secure: true,
+		auth: { user, pass }
+	});
+	cachedKey = key;
+	return cachedTransporter;
 }
 
 function ensureCredenciais(platform: App.Platform | undefined): { user: string; pass: string } {
-  const { user, pass } = getCredenciais(platform);
-  if (!user || !pass) {
-    throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
-  }
-  return { user, pass };
+	const { user, pass } = getCredenciais(platform);
+	if (!user || !pass) {
+		throw new Error('E-mail não configurado. Defina GMAIL_USER e GMAIL_APP_PASSWORD no ambiente.');
+	}
+	return { user, pass };
 }
 
 export async function enviarSenhaProvisoria(
-  destinatario: string,
-  senhaProvisoria: string,
-  nomeUsuario: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	senhaProvisoria: string,
+	nomeUsuario: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  await transporter.sendMail({
-    from: `"Sistema de Escalas - PCCE" <${user}>`,
-    to: destinatario,
-    subject: 'Senha Provisória — Primeiro Acesso ao Sistema',
-    html: `
+	await transporter.sendMail({
+		from: `"Sistema de Escalas - PCCE" <${user}>`,
+		to: destinatario,
+		subject: 'Senha Provisória — Primeiro Acesso ao Sistema',
+		html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -127,24 +127,24 @@ export async function enviarSenhaProvisoria(
   </table>
 </body>
 </html>`
-  });
+	});
 }
 
 export async function enviarCodigo2FA(
-  destinatario: string,
-  codigo: string,
-  nomeUsuario: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	codigo: string,
+	nomeUsuario: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'Código de Verificação — Acesso ao Sistema',
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'Código de Verificação — Acesso ao Sistema',
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -185,35 +185,35 @@ export async function enviarCodigo2FA(
   </table>
 </body>
 </html>`
-    });
-    logger.info('[email/2fa] Código enviado', {
-      destinatario: mascararEmail(destinatario),
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/2fa] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+		});
+		logger.info('[email/2fa] Código enviado', {
+			destinatario: mascararEmail(destinatario),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/2fa] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 export async function enviarCodigoEmailPessoal(
-  destinatario: string,
-  codigo: string,
-  nomeUsuario: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	codigo: string,
+	nomeUsuario: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'Verificação de E-mail Pessoal — Sistema de Escalas',
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'Verificação de E-mail Pessoal — Sistema de Escalas',
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -255,35 +255,35 @@ export async function enviarCodigoEmailPessoal(
   </table>
 </body>
 </html>`
-    });
-    logger.info('[email/verificacao-pessoal] Código enviado', {
-      destinatario: mascararEmail(destinatario),
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/verificacao-pessoal] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+		});
+		logger.info('[email/verificacao-pessoal] Código enviado', {
+			destinatario: mascararEmail(destinatario),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/verificacao-pessoal] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 export async function enviarCodigoRedefinicaoSenha(
-  destinatario: string,
-  codigo: string,
-  nomeUsuario: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	codigo: string,
+	nomeUsuario: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'Código de Redefinição de Senha — Sistema de Escalas',
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'Código de Redefinição de Senha — Sistema de Escalas',
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -325,35 +325,35 @@ export async function enviarCodigoRedefinicaoSenha(
   </table>
 </body>
 </html>`
-    });
-    logger.info('[email/redefinicao-codigo] Código enviado', {
-      destinatario: mascararEmail(destinatario),
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/redefinicao-codigo] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+		});
+		logger.info('[email/redefinicao-codigo] Código enviado', {
+			destinatario: mascararEmail(destinatario),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/redefinicao-codigo] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 export async function enviarLinkRedefinicaoSenha(
-  destinatario: string,
-  nomeUsuario: string,
-  linkRedefinicao: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	nomeUsuario: string,
+	linkRedefinicao: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'Redefinição de Senha — Sistema de Escalas',
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'Redefinição de Senha — Sistema de Escalas',
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -405,35 +405,35 @@ export async function enviarLinkRedefinicaoSenha(
   </table>
 </body>
 </html>`
-    });
-    logger.info('[email/redefinicao] Link enviado', {
-      destinatario: mascararEmail(destinatario),
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/redefinicao] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+		});
+		logger.info('[email/redefinicao] Link enviado', {
+			destinatario: mascararEmail(destinatario),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/redefinicao] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 export async function enviarLinkPrimeiroAcesso(
-  destinatario: string,
-  nomeUsuario: string,
-  linkPrimeiroAcesso: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	nomeUsuario: string,
+	linkPrimeiroAcesso: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'Primeiro Acesso — Sistema de Escalas',
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'Primeiro Acesso — Sistema de Escalas',
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -484,41 +484,41 @@ export async function enviarLinkPrimeiroAcesso(
   </table>
 </body>
 </html>`
-    });
-    logger.info('[email/primeiro-acesso] Link enviado', {
-      destinatario: mascararEmail(destinatario),
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/primeiro-acesso] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+		});
+		logger.info('[email/primeiro-acesso] Link enviado', {
+			destinatario: mascararEmail(destinatario),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/primeiro-acesso] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 /**
  * Envia a escala de FDS como anexo DOCX para o e-mail de destino (ex: DPI Sul).
  */
 export async function enviarEscalaFDSPorEmail(
-  destinatario: string,
-  tituloEscala: string,
-  nomeRemetente: string,
-  docxBuffer: Uint8Array,
-  nomeArquivo: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	tituloEscala: string,
+	nomeRemetente: string,
+	docxBuffer: Uint8Array,
+	nomeArquivo: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: `Escala de FDS — ${tituloEscala}`,
-      text: `Segue em anexo a Escala de Plantão do Final de Semana.\n\nTítulo: ${tituloEscala}\nEnviado por: ${nomeRemetente}`,
-      html: `
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: `Escala de FDS — ${tituloEscala}`,
+			text: `Segue em anexo a Escala de Plantão do Final de Semana.\n\nTítulo: ${tituloEscala}\nEnviado por: ${nomeRemetente}`,
+			html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -558,59 +558,59 @@ export async function enviarEscalaFDSPorEmail(
   </table>
 </body>
 </html>`,
-      attachments: [
-        {
-          filename: nomeArquivo,
-          content: Buffer.from(docxBuffer),
-          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        }
-      ]
-    });
-    logger.info('[email/fds] Escala enviada', {
-      destinatario: mascararEmail(destinatario),
-      titulo: tituloEscala,
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/fds] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+			attachments: [
+				{
+					filename: nomeArquivo,
+					content: Buffer.from(docxBuffer),
+					contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+				}
+			]
+		});
+		logger.info('[email/fds] Escala enviada', {
+			destinatario: mascararEmail(destinatario),
+			titulo: tituloEscala,
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/fds] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }
 
 /**
  * Aviso ao assessor quando uma seccional finaliza o envio da GISE (texto copiável).
  */
 export async function enviarNotificacaoAssessorGisePreenchimentoSeccional(
-  destinatario: string,
-  nomeAssessor: string,
-  textoPlano: string,
-  platform: App.Platform | undefined
+	destinatario: string,
+	nomeAssessor: string,
+	textoPlano: string,
+	platform: App.Platform | undefined
 ): Promise<void> {
-  const { user, pass } = ensureCredenciais(platform);
-  const transporter = getTransporter(user, pass);
-  const html = montarHtmlEmailNotificacaoAssessorGise(textoPlano);
+	const { user, pass } = ensureCredenciais(platform);
+	const transporter = getTransporter(user, pass);
+	const html = montarHtmlEmailNotificacaoAssessorGise(textoPlano);
 
-  try {
-    const info = await transporter.sendMail({
-      from: `"Sistema de Escalas - PCCE" <${user}>`,
-      to: destinatario,
-      subject: 'GISE — seccional enviou a escala (resumo para WhatsApp)',
-      text: textoPlano,
-      html
-    });
-    logger.info('[email/gise-assessor] Notificação enviada', {
-      destinatario: mascararEmail(destinatario),
-      assessor: nomeAssessor,
-      messageId: info.messageId
-    });
-  } catch (err) {
-    logger.error('[email/gise-assessor] Erro ao enviar', {
-      destinatario: mascararEmail(destinatario),
-      error: err instanceof Error ? err.message : String(err)
-    });
-    throw err;
-  }
+	try {
+		const info = await transporter.sendMail({
+			from: `"Sistema de Escalas - PCCE" <${user}>`,
+			to: destinatario,
+			subject: 'GISE — seccional enviou a escala (resumo para WhatsApp)',
+			text: textoPlano,
+			html
+		});
+		logger.info('[email/gise-assessor] Notificação enviada', {
+			destinatario: mascararEmail(destinatario),
+			assessor: nomeAssessor,
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/gise-assessor] Erro ao enviar', {
+			destinatario: mascararEmail(destinatario),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
 }

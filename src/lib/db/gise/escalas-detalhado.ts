@@ -43,14 +43,16 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 	const escalas = await query.orderBy(desc(giseEscalas.data_inicio), desc(giseEscalas.id)).all();
 	if (escalas.length === 0) return [];
 
-	const escalaIds = escalas.map(e => e.id);
+	const escalaIds = escalas.map((e) => e.id);
 
 	// Batch all related data in parallel instead of N+1 per escala
 	const parallelResults = await Promise.all([
 		db
 			.select({ gise_id: gisePresencas.gise_id })
 			.from(gisePresencas)
-			.where(and(inArray(gisePresencas.gise_id, escalaIds), isNotNull(gisePresencas.saida_timestamp)))
+			.where(
+				and(inArray(gisePresencas.gise_id, escalaIds), isNotNull(gisePresencas.saida_timestamp))
+			)
 			.all(),
 		db
 			.select({ gise_id: giseSeccionais.gise_id, count: sql<number>`count(*)` })
@@ -59,7 +61,10 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 			.groupBy(giseSeccionais.gise_id)
 			.all(),
 		db
-			.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+			.select({
+				gise_id: giseAssinaturasRelatorios.gise_id,
+				seccional_id: giseAssinaturasRelatorios.seccional_id
+			})
 			.from(giseAssinaturasRelatorios)
 			.where(
 				and(
@@ -71,15 +76,21 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		buscarUnidadeIdSupervisaoExtra(db),
 		policialId
 			? db
-				.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
-				.from(giseMembros)
-				.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
-				.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-				.where(and(inArray(giseSeccionais.gise_id, escalaIds), eq(giseMembros.policial_id, policialId)))
-				.all()
+					.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
+					.from(giseMembros)
+					.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+					.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+					.where(
+						and(inArray(giseSeccionais.gise_id, escalaIds), eq(giseMembros.policial_id, policialId))
+					)
+					.all()
 			: Promise.resolve([]),
 		db
-			.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id, nome: unidades.nome })
+			.select({
+				gise_id: giseSeccionais.gise_id,
+				seccional_id: giseSeccionais.seccional_id,
+				nome: unidades.nome
+			})
 			.from(giseSeccionais)
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.where(inArray(giseSeccionais.gise_id, escalaIds))
@@ -150,50 +161,93 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
 		if (e.seint1_id) todosSupIds.add(e.seint1_id);
 		if (e.seint2_id) todosSupIds.add(e.seint2_id);
 	}
-	const supPresRows = todosSupIds.size > 0 ? await db.select().from(gisePresencas).where(and(inArray(gisePresencas.gise_id, escalaIds), inArray(gisePresencas.policial_id, [...todosSupIds]))).all() : [];
-	const supPresMap = new Map<string, { entrada: any, saida: any }>();
+	const supPresRows =
+		todosSupIds.size > 0
+			? await db
+					.select()
+					.from(gisePresencas)
+					.where(
+						and(
+							inArray(gisePresencas.gise_id, escalaIds),
+							inArray(gisePresencas.policial_id, [...todosSupIds])
+						)
+					)
+					.all()
+			: [];
+	const supPresMap = new Map<string, { entrada: any; saida: any }>();
 	for (const p of supPresRows) {
-		supPresMap.set(`${p.gise_id}_${p.policial_id}`, { entrada: p.entrada_timestamp, saida: p.saida_timestamp });
+		supPresMap.set(`${p.gise_id}_${p.policial_id}`, {
+			entrada: p.entrada_timestamp,
+			saida: p.saida_timestamp
+		});
 	}
 
 	// Build lookup maps for O(1) access
-	const saidasSet = new Set((saidasRows as Array<{ gise_id: number }>).map(r => r.gise_id));
-	const secCountMap = new Map((secCountRows as Array<{ gise_id: number; count: number }>).map(r => [r.gise_id, r.count]));
+	const saidasSet = new Set((saidasRows as Array<{ gise_id: number }>).map((r) => r.gise_id));
+	const secCountMap = new Map(
+		(secCountRows as Array<{ gise_id: number; count: number }>).map((r) => [r.gise_id, r.count])
+	);
 	const assExtraMap = new Map<number, Set<number>>();
 	for (const r of assExtraRows as Array<{ gise_id: number; seccional_id: number }>) {
 		if (!assExtraMap.has(r.gise_id)) assExtraMap.set(r.gise_id, new Set());
 		assExtraMap.get(r.gise_id)!.add(r.seccional_id);
 	}
-	const membroSecMap = new Map((membroSecRows as Array<{ gise_id: number; seccional_id: number }>).map(r => [r.gise_id, r.seccional_id]));
+	const membroSecMap = new Map(
+		(membroSecRows as Array<{ gise_id: number; seccional_id: number }>).map((r) => [
+			r.gise_id,
+			r.seccional_id
+		])
+	);
 	const extrasPendIdsMap = new Map<number, number[]>();
 	for (const r of extrasPendIdsRows) {
 		if (!extrasPendIdsMap.has(r.gise_id)) extrasPendIdsMap.set(r.gise_id, []);
 		extrasPendIdsMap.get(r.gise_id)!.push(r.seccional_id);
 	}
-	const secEnvMap = new Map((seccionaisEnviadasRows as Array<{ gise_id: number; count: number }>).map(r => [r.gise_id, r.count]));
+	const secEnvMap = new Map(
+		(seccionaisEnviadasRows as Array<{ gise_id: number; count: number }>).map((r) => [
+			r.gise_id,
+			r.count
+		])
+	);
 	const equipeTypesMap = new Map<string, Set<string>>();
-	for (const row of equipeTypesRows as Array<{ gise_id: number; seccional_id: number; tipo: string }>) {
+	for (const row of equipeTypesRows as Array<{
+		gise_id: number;
+		seccional_id: number;
+		tipo: string;
+	}>) {
 		const key = `${row.gise_id}_${row.seccional_id}`;
 		if (!equipeTypesMap.has(key)) equipeTypesMap.set(key, new Set());
 		equipeTypesMap.get(key)!.add(row.tipo);
 	}
 
 	const seccionaisMap = new Map<number, { id: number; nome: string; tipos: string[] }[]>();
-	for (const row of seccionalIdsRows as Array<{ gise_id: number; seccional_id: number; nome: string }>) {
+	for (const row of seccionalIdsRows as Array<{
+		gise_id: number;
+		seccional_id: number;
+		nome: string;
+	}>) {
 		if (!seccionaisMap.has(row.gise_id)) seccionaisMap.set(row.gise_id, []);
-		const tipos = [...(equipeTypesMap.get(`${row.gise_id}_${row.seccional_id}`) ?? new Set(['operacional']))];
+		const tipos = [
+			...(equipeTypesMap.get(`${row.gise_id}_${row.seccional_id}`) ?? new Set(['operacional']))
+		];
 		seccionaisMap.get(row.gise_id)!.push({ id: row.seccional_id, nome: row.nome, tipos });
 	}
 
-	return escalas.map(e => {
+	return escalas.map((e) => {
 		const signedSecs = assExtraMap.get(e.id) ?? new Set<number>();
 		const pendentes = extrasPendIdsMap.get(e.id) ?? [];
 
 		// Se tem quadro de supervisão e todos os definidos saíram, e ainda não assinou o relatório extra da supervisão, inclui como pendente
 		if (supUid != null) {
-			const supIds = [...new Set([e.supervisor_id, e.assessor_id, e.seint1_id, e.seint2_id].filter((id): id is number => id != null))];
+			const supIds = [
+				...new Set(
+					[e.supervisor_id, e.assessor_id, e.seint1_id, e.seint2_id].filter(
+						(id): id is number => id != null
+					)
+				)
+			];
 			if (supIds.length > 0) {
-				const todosSairam = supIds.every(id => {
+				const todosSairam = supIds.every((id) => {
 					const p = supPresMap.get(`${e.id}_${id}`);
 					return p?.entrada && p?.saida;
 				});
@@ -221,10 +275,7 @@ export async function listarGiseEscalas(db: Database, supervisorId?: number, pol
  * Carrega uma GISE completa com todas as suas seccionais, equipes, membros e presenças.
  * Usa batch loading para evitar N+1 queries.
  */
-export async function buscarGiseDetalhado(
-	db: Database,
-	id: number
-): Promise<GiseDetalhado | null> {
+export async function buscarGiseDetalhado(db: Database, id: number): Promise<GiseDetalhado | null> {
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, id)).get();
 	if (!gise) return null;
 
@@ -232,31 +283,47 @@ export async function buscarGiseDetalhado(
 	const parallelResults = await Promise.all([
 		gise.supervisor_id
 			? db
-				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
-				.from(policiais)
-				.where(eq(policiais.id, gise.supervisor_id))
-				.get()
+					.select({
+						nome: policiais.nome,
+						matricula: policiais.matricula,
+						telefone: policiais.telefone
+					})
+					.from(policiais)
+					.where(eq(policiais.id, gise.supervisor_id))
+					.get()
 			: Promise.resolve(null),
 		gise.assessor_id
 			? db
-				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
-				.from(policiais)
-				.where(eq(policiais.id, gise.assessor_id))
-				.get()
+					.select({
+						nome: policiais.nome,
+						matricula: policiais.matricula,
+						telefone: policiais.telefone
+					})
+					.from(policiais)
+					.where(eq(policiais.id, gise.assessor_id))
+					.get()
 			: Promise.resolve(null),
 		gise.seint1_id
 			? db
-				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
-				.from(policiais)
-				.where(eq(policiais.id, gise.seint1_id))
-				.get()
+					.select({
+						nome: policiais.nome,
+						matricula: policiais.matricula,
+						telefone: policiais.telefone
+					})
+					.from(policiais)
+					.where(eq(policiais.id, gise.seint1_id))
+					.get()
 			: Promise.resolve(null),
 		gise.seint2_id
 			? db
-				.select({ nome: policiais.nome, matricula: policiais.matricula, telefone: policiais.telefone })
-				.from(policiais)
-				.where(eq(policiais.id, gise.seint2_id))
-				.get()
+					.select({
+						nome: policiais.nome,
+						matricula: policiais.matricula,
+						telefone: policiais.telefone
+					})
+					.from(policiais)
+					.where(eq(policiais.id, gise.seint2_id))
+					.get()
 			: Promise.resolve(null),
 		db
 			.select()
@@ -320,7 +387,19 @@ export async function buscarGiseDetalhado(
 			.get()
 	]);
 
-	const [supervisorRow, assessorRow, seint1Row, seint2Row, documento, secsRows, todasEquipes, todosMembros, todasPresencas, todasRespostas, assExtraRow] = parallelResults;
+	const [
+		supervisorRow,
+		assessorRow,
+		seint1Row,
+		seint2Row,
+		documento,
+		secsRows,
+		todasEquipes,
+		todosMembros,
+		todasPresencas,
+		todasRespostas,
+		assExtraRow
+	] = parallelResults;
 
 	// Carrega slots de unidade por seccional (LEFT JOIN: unidade_id pode ser null)
 	let todosSlotsUnidade: Array<{

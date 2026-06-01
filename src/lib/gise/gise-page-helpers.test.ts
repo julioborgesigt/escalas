@@ -58,7 +58,10 @@ describe('gise-page-helpers', () => {
 					id: 1,
 					unidade_id: 1,
 					nome: 'A',
-					equipes: [{ tipo: 'seint' } as GiseEquipeComMembros, { tipo: 'operacional' } as GiseEquipeComMembros]
+					equipes: [
+						{ tipo: 'seint' } as GiseEquipeComMembros,
+						{ tipo: 'operacional' } as GiseEquipeComMembros
+					]
 				}
 			]
 		};

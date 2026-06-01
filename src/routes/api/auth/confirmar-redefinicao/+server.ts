@@ -11,10 +11,7 @@ import { getDB, registrarAuditComContexto } from '$lib/db';
 import { criarTokenRedefinicao, verificarDesafio2FA } from '$lib/auth';
 import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
 import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema';
-import {
-	contarRecoveryAttempts,
-	registrarRecoveryAttempt
-} from '$lib/server/recovery-rate-limit';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { badRequest, rateLimited } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
@@ -57,7 +54,10 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	}
 	await registrarRecoveryAttempt(db, ip, 'confirmar_redefinicao');
 
-	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['reset_policial', 'reset_admin']);
+	const resultado = await verificarDesafio2FA(db, desafioId, codigo, [
+		'reset_policial',
+		'reset_admin'
+	]);
 
 	if (resultado === 'expirado') return badRequest('Código expirado. Solicite um novo código.');
 	if (resultado === 'esgotado') {

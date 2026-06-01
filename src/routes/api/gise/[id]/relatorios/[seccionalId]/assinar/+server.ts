@@ -8,7 +8,11 @@ import {
 	tentarPromoverGiseProntaParaFinalizar
 } from '$lib/db';
 import { getNowBR } from '$lib/utils';
-import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
+import {
+	gerarRelatorioExtraordinarioPdf,
+	gerarRelatorioExtraordinarioSupervisaoPdf,
+	toGisePdfData
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
@@ -67,7 +71,11 @@ export const POST: RequestHandler = async ({
 	const ua = request.headers.get('user-agent') || '';
 
 	// Geração de hash segura e amigável (8 caracteres hex + UUID parcial para integridade)
-	const hash = inputHash || crypto.randomUUID().slice(0, 8).toUpperCase() + '-' + crypto.randomUUID().slice(0, 8).toUpperCase();
+	const hash =
+		inputHash ||
+		crypto.randomUUID().slice(0, 8).toUpperCase() +
+			'-' +
+			crypto.randomUUID().slice(0, 8).toUpperCase();
 
 	const db = getDB(platform);
 
@@ -117,7 +125,7 @@ export const POST: RequestHandler = async ({
 
 		const mockSignature = {
 			assinante_nome: signerName || u.nome,
-			assinante_matricula: u.tipo === 'policial' ? (u.matricula?.trim() || '') : '',
+			assinante_matricula: u.tipo === 'policial' ? u.matricula?.trim() || '' : '',
 			verification_hash: hash,
 			rubrica: rubrica || ''
 		};
@@ -172,7 +180,9 @@ export const POST: RequestHandler = async ({
 			token: crypto.randomUUID(),
 			documentName: `Relatório Extraordinário - GISE ${id}`,
 			signatureLevel: 'avancada',
-			tipoCarimoTempo: tipoCarimboPrevisto(platform?.env as unknown as Record<string, string | undefined> | undefined)
+			tipoCarimoTempo: tipoCarimboPrevisto(
+				platform?.env as unknown as Record<string, string | undefined> | undefined
+			)
 		});
 
 		// Selo institucional (avançada, Lei 14.063/2020 art. 4º II) + carimbo de tempo

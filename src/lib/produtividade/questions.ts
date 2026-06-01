@@ -56,10 +56,7 @@ export interface Question {
 /**
  * Converte o modelo cru de perguntas em perguntas processadas para gráficos.
  */
-export function mapQuestions(
-	modelo: any[] | undefined | null,
-	filterTipo: string
-): Question[] {
+export function mapQuestions(modelo: any[] | undefined | null, filterTipo: string): Question[] {
 	const base = filterTipo === 'seint' ? modelo : modelo;
 	if (!base || base.length === 0) return [];
 

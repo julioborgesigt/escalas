@@ -22,7 +22,13 @@ import {
 	validateBody
 } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	request,
+	getClientAddress
+}) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = requireAuth(locals);
@@ -56,7 +62,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 
 		// Permissão de negócio: apenas supervisor designado ou admin.
 		if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-			return forbidden('Apenas o supervisor designado ou administradores podem finalizar esta escala');
+			return forbidden(
+				'Apenas o supervisor designado ou administradores podem finalizar esta escala'
+			);
 		}
 
 		// Delega ao serviço unificado: validação CPF token vs CPF logado
@@ -82,7 +90,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 		// recalculado a partir do r2_key, mas guardamos para auditoria forense).
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
 		const documentHash = Array.from(new Uint8Array(hashBuffer))
-			.map(b => b.toString(16).padStart(2, '0'))
+			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');

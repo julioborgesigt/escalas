@@ -12,10 +12,7 @@ import { extrairDadosCertificado, formatarDataHora } from '../pdf-signing-prepar
  * Gera um CMS PKCS#7 detached signature mínimo, com um certificado cujo CN
  * pode incluir CPF ":12345678901" (estilo ICP-Brasil). Retorna o CMS em base64.
  */
-function gerarCmsMinimo(opts: {
-	commonName: string;
-	serialNumberSubject?: string;
-}): string {
+function gerarCmsMinimo(opts: { commonName: string; serialNumberSubject?: string }): string {
 	const keys = forge.pki.rsa.generateKeyPair(1024);
 	const cert = forge.pki.createCertificate();
 	cert.publicKey = keys.publicKey;

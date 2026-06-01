@@ -4,6 +4,7 @@
  */
 
 import type { TooltipItem } from 'chart.js';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 export interface ChartQuestion {
 	id: number;
@@ -16,7 +17,7 @@ export interface ChartQuestion {
 }
 
 export function useCharts(getChart: () => any, getData: () => any) {
-	const chartInstances = new Map<number, any>();
+	const chartInstances = new SvelteMap<number, any>();
 	const canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
 	function destroyStaleCharts(questionIds: Set<number>) {
@@ -28,18 +29,14 @@ export function useCharts(getChart: () => any, getData: () => any) {
 		});
 	}
 
-	function updateCharts(
-		questions: ChartQuestion[],
-		list: any[],
-		filterSeccional: string | number
-	) {
+	function updateCharts(questions: ChartQuestion[], list: any[], filterSeccional: string | number) {
 		const Chart = getChart();
 		if (!Chart) return;
 
 		const isShowingAll = !filterSeccional;
 		const labels = isShowingAll
 			? (getData().seccionais ?? []).map((s: any) => s.nome.split(' do ')[0])
-			: Array.from(new Set(list.map((i: any) => i.data_inicio))).sort();
+			: Array.from(new SvelteSet(list.map((i: any) => i.data_inicio))).sort();
 
 		questions.forEach((q) => {
 			const canvas = canvasElements[q.id];
@@ -167,7 +164,9 @@ export function useCharts(getChart: () => any, getData: () => any) {
 	}
 
 	return {
-		get canvasElements() { return canvasElements; },
+		get canvasElements() {
+			return canvasElements;
+		},
 		updateCharts,
 		destroyStaleCharts,
 		destroyAll

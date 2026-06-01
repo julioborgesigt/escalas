@@ -89,10 +89,10 @@ export async function verificarTodosSairam(db: Database, giseId: number): Promis
 		.from(giseMembros)
 		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		.leftJoin(gisePresencas, and(
-			eq(gisePresencas.gise_id, giseId),
-			eq(gisePresencas.policial_id, giseMembros.policial_id)
-		))
+		.leftJoin(
+			gisePresencas,
+			and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, giseMembros.policial_id))
+		)
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
@@ -134,10 +134,16 @@ export async function verificarTodosSairam(db: Database, giseId: number): Promis
  * `pronta_para_finalizar` não depende mais de relatórios de produtividade; é tratada em
  * {@link tentarPromoverGiseProntaParaFinalizar} (documento GISE assinado + relatórios de extra assinados).
  */
-export async function sincronizarStatusGiseAposPresencaRelatorios(db: Database, giseId: number): Promise<void> {
+export async function sincronizarStatusGiseAposPresencaRelatorios(
+	db: Database,
+	giseId: number
+): Promise<void> {
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return;
-	if (!['em_andamento', 'aguardando_relatorios', 'aguardando_assinatura_relat'].includes(gise.status)) return;
+	if (
+		!['em_andamento', 'aguardando_relatorios', 'aguardando_assinatura_relat'].includes(gise.status)
+	)
+		return;
 
 	const [todosEntraram, todosSairam] = await Promise.all([
 		verificarTodosEntraram(db, giseId),
@@ -164,11 +170,18 @@ export async function sincronizarStatusGiseAposPresencaRelatorios(db: Database, 
  * Promove para `pronta_para_finalizar` quando a escala GISE já tem documento assinado
  * e todos os relatórios de extra estão assinados (enquanto em `aguardando_assinatura_relat`).
  */
-export async function tentarPromoverGiseProntaParaFinalizar(db: Database, giseId: number): Promise<void> {
+export async function tentarPromoverGiseProntaParaFinalizar(
+	db: Database,
+	giseId: number
+): Promise<void> {
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise || gise.status !== 'aguardando_assinatura_relat') return;
 
-	const doc = await db.select({ id: giseDocumentos.id }).from(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId)).get();
+	const doc = await db
+		.select({ id: giseDocumentos.id })
+		.from(giseDocumentos)
+		.where(eq(giseDocumentos.gise_id, giseId))
+		.get();
 	if (!doc) return;
 
 	const extrasOk = await verificarTodosRelatoriosExtraAssinados(db, giseId);
@@ -181,7 +194,10 @@ export async function tentarPromoverGiseProntaParaFinalizar(db: Database, giseId
  * Verifica se todas as equipes enviaram seus relatórios de produtividade,
  * além dos relatórios individuais das inteligências (SEINT1 e SEINT2) da supervisão.
  */
-export async function verificarTodosRelatoriosEnviados(db: Database, giseId: number): Promise<boolean> {
+export async function verificarTodosRelatoriosEnviados(
+	db: Database,
+	giseId: number
+): Promise<boolean> {
 	const result = await db
 		.select({
 			total: sql<number>`count(distinct ${giseEquipes.id})`,
@@ -189,10 +205,13 @@ export async function verificarTodosRelatoriosEnviados(db: Database, giseId: num
 		})
 		.from(giseEquipes)
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		.leftJoin(giseRespostasFormulario, and(
-			eq(giseRespostasFormulario.gise_id, giseId),
-			eq(giseRespostasFormulario.equipe_id, giseEquipes.id)
-		))
+		.leftJoin(
+			giseRespostasFormulario,
+			and(
+				eq(giseRespostasFormulario.gise_id, giseId),
+				eq(giseRespostasFormulario.equipe_id, giseEquipes.id)
+			)
+		)
 		.where(eq(giseSeccionais.gise_id, giseId))
 		.get();
 
@@ -202,12 +221,19 @@ export async function verificarTodosRelatoriosEnviados(db: Database, giseId: num
 	// Adiciona validação dos formulários avulsos do SEINT da equipe de supervisão
 	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
 	if (gise) {
-		const seintIds = [...new Set([gise.seint1_id, gise.seint2_id].filter((id): id is number => id != null))];
+		const seintIds = [
+			...new Set([gise.seint1_id, gise.seint2_id].filter((id): id is number => id != null))
+		];
 		if (seintIds.length > 0) {
 			const respostasSups = await db
 				.select({ policial_id: giseRespostasFormulario.policial_id })
 				.from(giseRespostasFormulario)
-				.where(and(eq(giseRespostasFormulario.gise_id, giseId), inArray(giseRespostasFormulario.policial_id, seintIds)))
+				.where(
+					and(
+						eq(giseRespostasFormulario.gise_id, giseId),
+						inArray(giseRespostasFormulario.policial_id, seintIds)
+					)
+				)
 				.all();
 
 			const policiaisComRelatorio = new Set(
@@ -227,7 +253,10 @@ export async function verificarTodosRelatoriosEnviados(db: Database, giseId: num
  * Verifica se todos os relatórios de extra estão assinados (uma por seccional
  * da GISE +, quando houver quadro de supervisão, um relatório adicional do quadro).
  */
-export async function verificarTodosRelatoriosExtraAssinados(db: Database, giseId: number): Promise<boolean> {
+export async function verificarTodosRelatoriosExtraAssinados(
+	db: Database,
+	giseId: number
+): Promise<boolean> {
 	const gise = await buscarGiseEscala(db, giseId);
 	if (!gise) return false;
 

@@ -39,7 +39,10 @@ describe('novoIncidenteSchema', () => {
 	});
 
 	it('REJEITA responsavel_email inválido', () => {
-		const r = novoIncidenteSchema.safeParse({ ...incidenteValido, responsavel_email: 'not-an-email' });
+		const r = novoIncidenteSchema.safeParse({
+			...incidenteValido,
+			responsavel_email: 'not-an-email'
+		});
 		expect(r.success).toBe(false);
 	});
 

@@ -14,10 +14,11 @@ export const policiais = sqliteTable(
 		telefone: text('telefone'),
 		lotacao: text('lotacao').notNull(),
 		ativo: integer('ativo').notNull().default(1),
-		regime: text('regime', { enum: ['plantao', 'expediente'] }).notNull().default('plantao'),
+		regime: text('regime', { enum: ['plantao', 'expediente'] })
+			.notNull()
+			.default('plantao'),
 		classe: text('classe').notNull().default(''),
-		senha: text('senha')
-			.notNull(),
+		senha: text('senha').notNull(),
 		email: text('email'),
 		email_pessoal: text('email_pessoal'),
 		email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
@@ -283,7 +284,11 @@ export const giseSeccionais = sqliteTable(
 			.notNull()
 			.references(() => unidades.id, { onDelete: 'restrict' }),
 		unidade_operacional_id: integer('unidade_operacional_id'),
-		status: text('status', { enum: ['pendente', 'preenchida', 'retificada', 'preenchida_retificada'] }).notNull().default('pendente'),
+		status: text('status', {
+			enum: ['pendente', 'preenchida', 'retificada', 'preenchida_retificada']
+		})
+			.notNull()
+			.default('pendente'),
 		hora_entrada: text('hora_entrada'),
 		hora_saida: text('hora_saida')
 	},
@@ -341,145 +346,167 @@ export const giseSeccionalUnidades = sqliteTable(
 			.notNull()
 			.references(() => giseSeccionais.id, { onDelete: 'cascade' }),
 		// Nullable: slot criado pelo Adm Geral sem unidade pré-definida (Adm Seccional preenche depois)
-		unidade_id: integer('unidade_id')
-			.references(() => unidades.id, { onDelete: 'set null' })
+		unidade_id: integer('unidade_id').references(() => unidades.id, { onDelete: 'set null' })
 	},
-	(table) => [
-		index('idx_gise_sec_unidades').on(table.gise_seccional_id)
-	]
+	(table) => [index('idx_gise_sec_unidades').on(table.gise_seccional_id)]
 );
 
-export const giseDocumentos = sqliteTable('gise_documentos', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gise_id: integer('gise_id')
-		.notNull()
-		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
-	r2_key: text('r2_key').notNull(),
-	assinante_id: integer('assinante_id'),
-	assinante_nome: text('assinante_nome').notNull().default(''),
-	assinante_cpf: text('assinante_cpf').notNull().default(''),
-	assinante_email: text('assinante_email'),
-	verificacao_hash: text('verificacao_hash').unique(),
-	selfie_key: text('selfie_key'),
-	arquivo_hash: text('arquivo_hash'),
-	rubrica: text('rubrica'),
-	ip_address: text('ip_address'),
-	user_agent: text('user_agent'),
-	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-	user_agent_raw: text('user_agent_raw'),
-	latitude: real('latitude'),
-	longitude: real('longitude'),
-	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-	// Metadados CAdES-LT (migração 0012)
-	cert_issuer: text('cert_issuer'),
-	cert_serial: text('cert_serial'),
-	cert_valido_de: text('cert_valido_de'),
-	cert_valido_ate: text('cert_valido_ate'),
-	cms_sha256: text('cms_sha256'),
-	ocsp_response_b64: text('ocsp_response_b64'),
-	ocsp_consultado_em: text('ocsp_consultado_em'),
-	tst_token_b64: text('tst_token_b64'),
-	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
-}, (table) => [
-	unique('uq_gise_documento').on(table.gise_id)
-]);
+export const giseDocumentos = sqliteTable(
+	'gise_documentos',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		r2_key: text('r2_key').notNull(),
+		assinante_id: integer('assinante_id'),
+		assinante_nome: text('assinante_nome').notNull().default(''),
+		assinante_cpf: text('assinante_cpf').notNull().default(''),
+		assinante_email: text('assinante_email'),
+		verificacao_hash: text('verificacao_hash').unique(),
+		selfie_key: text('selfie_key'),
+		arquivo_hash: text('arquivo_hash'),
+		rubrica: text('rubrica'),
+		ip_address: text('ip_address'),
+		user_agent: text('user_agent'),
+		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+		user_agent_raw: text('user_agent_raw'),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+		// Metadados CAdES-LT (migração 0012)
+		cert_issuer: text('cert_issuer'),
+		cert_serial: text('cert_serial'),
+		cert_valido_de: text('cert_valido_de'),
+		cert_valido_ate: text('cert_valido_ate'),
+		cms_sha256: text('cms_sha256'),
+		ocsp_response_b64: text('ocsp_response_b64'),
+		ocsp_consultado_em: text('ocsp_consultado_em'),
+		tst_token_b64: text('tst_token_b64'),
+		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [unique('uq_gise_documento').on(table.gise_id)]
+);
 
 // ---- Resultados GISE ----
 
-export const giseModeloFormulario = sqliteTable('gise_modelo_formulario', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	tipo: text('tipo').notNull().default('operacional'),
-	config: text('config').notNull().default('[]'),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
-}, (table) => [
-	index('idx_gise_modelo_tipo').on(table.tipo)
-]);
+export const giseModeloFormulario = sqliteTable(
+	'gise_modelo_formulario',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		tipo: text('tipo').notNull().default('operacional'),
+		config: text('config').notNull().default('[]'),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_gise_modelo_tipo').on(table.tipo)]
+);
 
-export const giseRespostasFormulario = sqliteTable('gise_respostas_formulario', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gise_id: integer('gise_id')
-		.notNull()
-		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
-	policial_id: integer('policial_id')
-		.notNull()
-		.references(() => policiais.id, { onDelete: 'cascade' }),
-	equipe_id: integer('equipe_id').references(() => giseEquipes.id, { onDelete: 'cascade' }),
-	/** JSON objeto (chaves string); validar no servidor com Zod ao ler/escrever */
-	respostas: text('respostas').notNull().default('{}'),
-	created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
-}, (table) => [
-	unique('uq_gise_resposta_policial').on(table.gise_id, table.policial_id),
-	index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id)
-]);
+export const giseRespostasFormulario = sqliteTable(
+	'gise_respostas_formulario',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		equipe_id: integer('equipe_id').references(() => giseEquipes.id, { onDelete: 'cascade' }),
+		/** JSON objeto (chaves string); validar no servidor com Zod ao ler/escrever */
+		respostas: text('respostas').notNull().default('{}'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		unique('uq_gise_resposta_policial').on(table.gise_id, table.policial_id),
+		index('idx_gise_respostas_equipe').on(table.gise_id, table.equipe_id)
+	]
+);
 
-export const gisePresencas = sqliteTable('gise_presencas', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gise_id: integer('gise_id')
-		.notNull()
-		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
-	policial_id: integer('policial_id')
-		.notNull()
-		.references(() => policiais.id, { onDelete: 'cascade' }),
-	entrada_timestamp: text('entrada_timestamp'),
-	entrada_rubrica: text('entrada_rubrica'),
-	entrada_selfie_key: text('entrada_selfie_key'),
-	saida_timestamp: text('saida_timestamp'),
-	saida_rubrica: text('saida_rubrica'),
-	saida_selfie_key: text('saida_selfie_key'),
-	ip_address: text('ip_address'),
-	user_agent: text('user_agent'),
-	/** Graus decimais (WGS-84); usar real, não integer */
-	latitude: real('latitude'),
-	longitude: real('longitude'),
-	created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
-}, (table) => [
-	unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id),
-	index('idx_gise_presencas_gise').on(table.gise_id)
-]);
+export const gisePresencas = sqliteTable(
+	'gise_presencas',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		policial_id: integer('policial_id')
+			.notNull()
+			.references(() => policiais.id, { onDelete: 'cascade' }),
+		entrada_timestamp: text('entrada_timestamp'),
+		entrada_rubrica: text('entrada_rubrica'),
+		entrada_selfie_key: text('entrada_selfie_key'),
+		saida_timestamp: text('saida_timestamp'),
+		saida_rubrica: text('saida_rubrica'),
+		saida_selfie_key: text('saida_selfie_key'),
+		ip_address: text('ip_address'),
+		user_agent: text('user_agent'),
+		/** Graus decimais (WGS-84); usar real, não integer */
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		unique('uq_gise_presenca_policial').on(table.gise_id, table.policial_id),
+		index('idx_gise_presencas_gise').on(table.gise_id)
+	]
+);
 
-export const giseAssinaturasRelatorios = sqliteTable('gise_assinaturas_relatorios', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	gise_id: integer('gise_id')
-		.notNull()
-		.references(() => giseEscalas.id, { onDelete: 'cascade' }),
-	seccional_id: integer('seccional_id')
-		.notNull()
-		.references(() => unidades.id, { onDelete: 'cascade' }),
-	tipo: text('tipo', { enum: ['extraordinario', 'produtividade'] }).notNull(),
-	assinante_id: integer('assinante_id'),
-	assinante_nome: text('assinante_nome').notNull(),
-	assinante_cpf: text('assinante_cpf'),
-	assinante_email: text('assinante_email'),
-	tipo_assinatura: text('tipo_assinatura', { enum: ['simples', 'webpki', 'serpro'] }).notNull(),
-	rubrica: text('rubrica'),
-	selfie_key: text('selfie_key'),
-	arquivo_hash: text('arquivo_hash'),
-	verification_hash: text('verification_hash').unique(),
-	ip_address: text('ip_address'),
-	user_agent: text('user_agent'),
-	/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
-	user_agent_raw: text('user_agent_raw'),
-	latitude: real('latitude'),
-	longitude: real('longitude'),
-	r2_key: text('r2_key'),
-	tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
-	// Metadados CAdES-LT (migração 0012)
-	cert_issuer: text('cert_issuer'),
-	cert_serial: text('cert_serial'),
-	cert_valido_de: text('cert_valido_de'),
-	cert_valido_ate: text('cert_valido_ate'),
-	cms_sha256: text('cms_sha256'),
-	ocsp_response_b64: text('ocsp_response_b64'),
-	ocsp_consultado_em: text('ocsp_consultado_em'),
-	tst_token_b64: text('tst_token_b64'),
-	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
-}, (table) => [
-	unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
-	index('idx_gise_ass_rel_gise').on(table.gise_id)
-]);
-
+export const giseAssinaturasRelatorios = sqliteTable(
+	'gise_assinaturas_relatorios',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		seccional_id: integer('seccional_id')
+			.notNull()
+			.references(() => unidades.id, { onDelete: 'cascade' }),
+		tipo: text('tipo', { enum: ['extraordinario', 'produtividade'] }).notNull(),
+		assinante_id: integer('assinante_id'),
+		assinante_nome: text('assinante_nome').notNull(),
+		assinante_cpf: text('assinante_cpf'),
+		assinante_email: text('assinante_email'),
+		tipo_assinatura: text('tipo_assinatura', { enum: ['simples', 'webpki', 'serpro'] }).notNull(),
+		rubrica: text('rubrica'),
+		selfie_key: text('selfie_key'),
+		arquivo_hash: text('arquivo_hash'),
+		verification_hash: text('verification_hash').unique(),
+		ip_address: text('ip_address'),
+		user_agent: text('user_agent'),
+		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+		user_agent_raw: text('user_agent_raw'),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		r2_key: text('r2_key'),
+		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+		// Metadados CAdES-LT (migração 0012)
+		cert_issuer: text('cert_issuer'),
+		cert_serial: text('cert_serial'),
+		cert_valido_de: text('cert_valido_de'),
+		cert_valido_ate: text('cert_valido_ate'),
+		cms_sha256: text('cms_sha256'),
+		ocsp_response_b64: text('ocsp_response_b64'),
+		ocsp_consultado_em: text('ocsp_consultado_em'),
+		tst_token_b64: text('tst_token_b64'),
+		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
+		index('idx_gise_ass_rel_gise').on(table.gise_id)
+	]
+);
 
 // ---- Aceites do Termo de Uso e Política de Privacidade ----
 
@@ -503,14 +530,12 @@ export const aceitesTermos = sqliteTable(
 		 * Nullable para compat com registros pré-migração 0026.
 		 */
 		conteudo_html_snapshot: text('conteudo_html_snapshot'),
-		aceitou_em: text('aceitou_em').notNull().default(sql`(datetime('now', '-3 hours'))`)
+		aceitou_em: text('aceitou_em')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
-		index('idx_aceites_termos_usuario').on(
-			table.usuario_tipo,
-			table.usuario_id,
-			table.aceitou_em
-		)
+		index('idx_aceites_termos_usuario').on(table.usuario_tipo, table.usuario_id, table.aceitou_em)
 	]
 );
 
@@ -521,13 +546,24 @@ export const doisFatoresTokens = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		desafio_id: text('desafio_id').notNull().unique(),
-		tipo: text('tipo', { enum: ['policial', 'admin', 'assinatura', 'reset_policial', 'reset_admin', 'verificacao_email'] }).notNull(),
+		tipo: text('tipo', {
+			enum: [
+				'policial',
+				'admin',
+				'assinatura',
+				'reset_policial',
+				'reset_admin',
+				'verificacao_email'
+			]
+		}).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
 		codigo: text('codigo').notNull(),
 		tentativas: integer('tentativas').notNull().default(0),
 		expires_at: text('expires_at').notNull(),
 		usado: integer('usado').notNull().default(0),
-		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [index('idx_2fa_desafio').on(table.desafio_id)]
 );
@@ -543,7 +579,9 @@ export const resetSenhaTokens = sqliteTable(
 		usuario_id: integer('usuario_id').notNull(),
 		expires_at: text('expires_at').notNull(),
 		usado: integer('usado').notNull().default(0),
-		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_reset_senha_token').on(table.token),
@@ -557,19 +595,25 @@ export type ResetSenhaToken = typeof resetSenhaTokens.$inferSelect;
 export const configuracoes = sqliteTable('configuracoes', {
 	chave: text('chave').primaryKey(),
 	valor: text('valor').notNull(),
-	updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+	updated_at: text('updated_at')
+		.notNull()
+		.default(sql`(datetime('now', '-3 hours'))`)
 });
 
 // ---- Rate Limiting ----
 
-export const loginAttempts = sqliteTable('login_attempts', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	ip: text('ip').notNull(),
-	attempted_at: text('attempted_at').notNull().default(sql`(datetime('now'))`),
-	success: integer('success').notNull().default(0)
-}, (table) => [
-	index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)
-]);
+export const loginAttempts = sqliteTable(
+	'login_attempts',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		ip: text('ip').notNull(),
+		attempted_at: text('attempted_at')
+			.notNull()
+			.default(sql`(datetime('now'))`),
+		success: integer('success').notNull().default(0)
+	},
+	(table) => [index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)]
+);
 
 /**
  * Rate-limit dedicado aos fluxos de recuperação de senha e verificação de
@@ -585,7 +629,9 @@ export const recoveryAttempts = sqliteTable(
 		purpose: text('purpose', {
 			enum: ['solicitar_redefinicao', 'confirmar_redefinicao', 'primeiro_acesso']
 		}).notNull(),
-		attempted_at: text('attempted_at').notNull().default(sql`(datetime('now'))`)
+		attempted_at: text('attempted_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
 	},
 	(table) => [
 		index('idx_recovery_attempts_ip_purpose_time').on(table.ip, table.purpose, table.attempted_at)
@@ -603,7 +649,9 @@ export const webhookNonces = sqliteTable(
 	'webhook_nonces',
 	{
 		nonce: text('nonce').primaryKey().notNull(),
-		received_at: text('received_at').notNull().default(sql`(datetime('now'))`)
+		received_at: text('received_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
 	},
 	(table) => [index('idx_webhook_nonces_received_at').on(table.received_at)]
 );
@@ -623,7 +671,9 @@ export const auditLog = sqliteTable(
 		detalhes: text('detalhes'),
 		ip: text('ip'),
 		user_agent: text('user_agent'),
-		created_at: text('created_at').notNull().default(sql`(datetime('now'))`)
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
 	},
 	(table) => [
 		index('idx_audit_usuario').on(table.usuario_id, table.created_at),
@@ -643,13 +693,19 @@ export const lgpdIncidentes = sqliteTable(
 		descricao: text('descricao').notNull(),
 		tipo_incidente: text('tipo_incidente', {
 			enum: ['acesso_nao_autorizado', 'vazamento', 'uso_indevido', 'perda', 'alteracao', 'outro']
-		}).notNull().default('acesso_nao_autorizado'),
+		})
+			.notNull()
+			.default('acesso_nao_autorizado'),
 		data_ocorrencia: text('data_ocorrencia'),
 		data_descoberta: text('data_descoberta').notNull(),
 		dados_afetados: text('dados_afetados').notNull(),
 		usuarios_afetados_estimativa: integer('usuarios_afetados_estimativa'),
-		gravidade: text('gravidade', { enum: ['baixa', 'media', 'alta', 'critica'] }).notNull().default('media'),
-		status: text('status', { enum: ['aberto', 'investigando', 'notificado_anpd', 'encerrado'] }).notNull().default('aberto'),
+		gravidade: text('gravidade', { enum: ['baixa', 'media', 'alta', 'critica'] })
+			.notNull()
+			.default('media'),
+		status: text('status', { enum: ['aberto', 'investigando', 'notificado_anpd', 'encerrado'] })
+			.notNull()
+			.default('aberto'),
 		responsavel_nome: text('responsavel_nome').notNull(),
 		responsavel_email: text('responsavel_email').notNull(),
 		notificado_anpd_em: text('notificado_anpd_em'),
@@ -657,8 +713,12 @@ export const lgpdIncidentes = sqliteTable(
 		medidas_tomadas: text('medidas_tomadas'),
 		created_by_id: integer('created_by_id').notNull(),
 		created_by_nome: text('created_by_nome').notNull(),
-		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
-		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
 		index('idx_lgpd_incidentes_status').on(table.status, table.created_at),
@@ -688,16 +748,26 @@ export const lgpdSolicitacoes = sqliteTable(
 			]
 		}).notNull(),
 		descricao: text('descricao'),
-		status: text('status', { enum: ['pendente', 'em_analise', 'concluida', 'indeferida'] }).notNull().default('pendente'),
+		status: text('status', { enum: ['pendente', 'em_analise', 'concluida', 'indeferida'] })
+			.notNull()
+			.default('pendente'),
 		resposta: text('resposta'),
 		respondido_por_nome: text('respondido_por_nome'),
 		respondido_em: text('respondido_em'),
 		prazo_resposta: text('prazo_resposta').notNull(),
-		created_at: text('created_at').notNull().default(sql`(datetime('now', '-3 hours'))`),
-		updated_at: text('updated_at').notNull().default(sql`(datetime('now', '-3 hours'))`)
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`),
+		updated_at: text('updated_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
 	},
 	(table) => [
-		index('idx_lgpd_sol_solicitante').on(table.solicitante_tipo, table.solicitante_id, table.created_at),
+		index('idx_lgpd_sol_solicitante').on(
+			table.solicitante_tipo,
+			table.solicitante_id,
+			table.created_at
+		),
 		index('idx_lgpd_sol_status').on(table.status, table.prazo_resposta)
 	]
 );

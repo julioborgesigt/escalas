@@ -9,7 +9,7 @@
 		<div class="h-5 w-2/5 rounded-lg bg-surface-300 dark:bg-surface-700"></div>
 		<div class="h-5 w-16 rounded-full bg-surface-200 dark:bg-surface-700"></div>
 	</div>
-	{#each { length: lines } as _}
+	{#each { length: lines } as _, i (i)}
 		<div class="h-4 w-3/4 rounded bg-surface-200 dark:bg-surface-700 mb-2 last:mb-0"></div>
 	{/each}
 	{#if hasFooter}

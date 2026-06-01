@@ -27,13 +27,11 @@ export type PainelToken = {
 	assinarComSerpro: () => Promise<void>;
 } | null;
 
-export type RelatorioSendoAssinado =
-	| {
-			lote?: PendenteExtra[];
-			seccionalId?: number;
-			tipo?: 'extraordinario' | 'produtividade';
-	  }
-	| null;
+export type RelatorioSendoAssinado = {
+	lote?: PendenteExtra[];
+	seccionalId?: number;
+	tipo?: 'extraordinario' | 'produtividade';
+} | null;
 
 export interface UseGiseAssinaturaParams {
 	getGiseId: () => number;
@@ -106,7 +104,15 @@ export function useGiseAssinatura({
 		showRubricaModal = false;
 
 		if (relatorioSendoAssinado) {
-			await executarAssinarRelatorio(dataUrl, lat, lng, selfie, codigoValidação, desafioId, livenessChallenge);
+			await executarAssinarRelatorio(
+				dataUrl,
+				lat,
+				lng,
+				selfie,
+				codigoValidação,
+				desafioId,
+				livenessChallenge
+			);
 			relatorioSendoAssinado = null;
 		} else if (tipoAssinaturaPendente === 'simples') {
 			await executarAssinarSimples(lat, lng, codigoValidação, desafioId, livenessChallenge);
@@ -186,10 +192,7 @@ export function useGiseAssinatura({
 		abrirModalRubrica('simples');
 	}
 
-	function abrirAssinaturaRelatorio(
-		seccionalId: number,
-		tipo: 'extraordinario' | 'produtividade'
-	) {
+	function abrirAssinaturaRelatorio(seccionalId: number, tipo: 'extraordinario' | 'produtividade') {
 		relatorioSendoAssinado = { seccionalId, tipo };
 		abrirModalRubrica('simples');
 	}
@@ -230,9 +233,7 @@ export function useGiseAssinatura({
 					}
 				);
 				if (!prepResp.ok)
-					throw new Error(
-						`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error
-					);
+					throw new Error(`Falha no item ${item.seccionalId}: ` + (await prepResp.json()).error);
 				const prepData = await prepResp.json();
 
 				etapaAssinatura = `Assinando Relatório ${i + 1} de ${pendentesExtra.length}...`;
@@ -310,26 +311,23 @@ export function useGiseAssinatura({
 					const item = lote[i];
 					progressoLote.atual = i + 1;
 					etapaAssinatura = `Assinando ${i + 1} de ${lote.length}...`;
-					const res = await fetch(
-						`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`,
-						{
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								...csrfHeaders()
-							},
-							body: JSON.stringify({
-								tipo: item.tipo,
-								rubrica,
-								latitude,
-								longitude,
-								selfieBase64,
-								codigoValidação,
-								desafioId,
-								livenessChallenge
-							})
-						}
-					);
+					const res = await fetch(`/api/gise/${giseId}/relatorios/${item.seccionalId}/assinar`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							...csrfHeaders()
+						},
+						body: JSON.stringify({
+							tipo: item.tipo,
+							rubrica,
+							latitude,
+							longitude,
+							selfieBase64,
+							codigoValidação,
+							desafioId,
+							livenessChallenge
+						})
+					});
 					if (!res.ok) throw new Error((await res.json()).error);
 				}
 				toaster.success({ title: 'Lote assinado com sucesso!' });

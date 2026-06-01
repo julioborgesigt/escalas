@@ -7,7 +7,13 @@ import type { RequestHandler } from './$types';
 
 const cookieOptions = cookieOptionsLogin;
 
-export const POST: RequestHandler = async ({ platform, request, cookies, url, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	request,
+	cookies,
+	url,
+	getClientAddress
+}) => {
 	const db = getDB(platform);
 	const ip = getClientAddress();
 	const body = await request.json().catch(() => null);
@@ -44,9 +50,11 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		// tentarLogin pode devolver 400 (validação), 401 (credenciais inválidas),
 		// 429 (rate-limit, já tratado acima) ou 500 (interno).
 		const code =
-			result.statusCode === 401 ? ErrorCode.AUTH_REQUIRED
-			: result.statusCode === 500 ? ErrorCode.INTERNAL
-			: ErrorCode.VALIDATION;
+			result.statusCode === 401
+				? ErrorCode.AUTH_REQUIRED
+				: result.statusCode === 500
+					? ErrorCode.INTERNAL
+					: ErrorCode.VALIDATION;
 		return apiError(result.erro, result.statusCode, code);
 	}
 

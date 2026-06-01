@@ -1,6 +1,11 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDB, buscarExigirFotoAssinatura, buscarExigirGpsAssinatura, buscarRestringirSmartphone } from '$lib/db';
+import {
+	getDB,
+	buscarExigirFotoAssinatura,
+	buscarExigirGpsAssinatura,
+	buscarRestringirSmartphone
+} from '$lib/db';
 import {
 	REQUISITOS_SEMPRE_ATIVOS,
 	REQUISITOS_OBRIGATORIOS_AVANCADA,

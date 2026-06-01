@@ -25,8 +25,18 @@ function diasNoMes(y: number, m: number): number {
 }
 
 const MESES_PT = [
-	'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-	'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+	'Janeiro',
+	'Fevereiro',
+	'Março',
+	'Abril',
+	'Maio',
+	'Junho',
+	'Julho',
+	'Agosto',
+	'Setembro',
+	'Outubro',
+	'Novembro',
+	'Dezembro'
 ];
 
 /** Retorna o FDS (Sáb–Dom) da semana corrente */
@@ -67,12 +77,8 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 	const showAll = url.searchParams.get('todos') === '1';
 
 	// ── Mês relevante (apenas 1): próximo se dia >= 20, atual se dia < 20 ──
-	const mesRelAno = diaHoje >= 20
-		? (mesHoje === 12 ? anoHoje + 1 : anoHoje)
-		: anoHoje;
-	const mesRelMes = diaHoje >= 20
-		? (mesHoje === 12 ? 1 : mesHoje + 1)
-		: mesHoje;
+	const mesRelAno = diaHoje >= 20 ? (mesHoje === 12 ? anoHoje + 1 : anoHoje) : anoHoje;
+	const mesRelMes = diaHoje >= 20 ? (mesHoje === 12 ? 1 : mesHoje + 1) : mesHoje;
 
 	let inicioMesRel = toISO(mesRelAno, mesRelMes, 1);
 	let fimMesRel = toISO(mesRelAno, mesRelMes, diasNoMes(mesRelAno, mesRelMes));
@@ -81,10 +87,14 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 		const inicioDate = new Date(hoje);
 		inicioDate.setMonth(hoje.getMonth() - 1);
 		inicioMesRel = toISO(inicioDate.getFullYear(), inicioDate.getMonth() + 1, 1);
-		
+
 		const fimDate = new Date(hoje);
 		fimDate.setMonth(hoje.getMonth() + 1);
-		fimMesRel = toISO(fimDate.getFullYear(), fimDate.getMonth() + 1, diasNoMes(fimDate.getFullYear(), fimDate.getMonth() + 1));
+		fimMesRel = toISO(
+			fimDate.getFullYear(),
+			fimDate.getMonth() + 1,
+			diasNoMes(fimDate.getFullYear(), fimDate.getMonth() + 1)
+		);
 	}
 
 	// ── FDS: apenas semana corrente ──
@@ -144,7 +154,8 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 		// ── EXPEDIENTE ──
 		if (unidade.tem_expediente) {
 			const escala = escalasUnidade.find(
-				(e) => e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel && e.tipo === 'expediente'
+				(e) =>
+					e.data_inicio >= inicioMesRel && e.data_inicio <= fimMesRel && e.tipo === 'expediente'
 			);
 			resultado.push({
 				unidade_nome: unidade.nome,
@@ -159,7 +170,9 @@ export const GET: RequestHandler = async ({ platform, locals, url }) => {
 
 		// ── FDS ──
 		if (unidade.tem_fds) {
-			const escala = escalasUnidade.find((e) => e.data_inicio === fdsHoje.inicio && e.tipo === 'fds');
+			const escala = escalasUnidade.find(
+				(e) => e.data_inicio === fdsHoje.inicio && e.tipo === 'fds'
+			);
 			resultado.push({
 				unidade_nome: unidade.nome,
 				tipo_regime: 'fds',

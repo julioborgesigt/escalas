@@ -1,6 +1,11 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB, registrarAceite, registrarAuditComContexto } from '$lib/db';
-import { CONTEUDO_HTML, VERSAO, VIGENTE_DESDE, calcularHashTermo } from '$lib/server/termo/termo-vigente';
+import {
+	CONTEUDO_HTML,
+	VERSAO,
+	VIGENTE_DESDE,
+	calcularHashTermo
+} from '$lib/server/termo/termo-vigente';
 import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -28,8 +33,11 @@ export const actions: Actions = {
 		const aceitouAssinatura =
 			form.get('aceitou_assinatura_avancada') === 'on' ||
 			form.get('aceitou_assinatura_avancada') === 'true';
-		const aceitouEmail = form.get('aceitou_uso_email') === 'on' || form.get('aceitou_uso_email') === 'true';
-		const aceitouLocalizacao = form.get('aceitou_uso_localizacao') === 'on' || form.get('aceitou_uso_localizacao') === 'true';
+		const aceitouEmail =
+			form.get('aceitou_uso_email') === 'on' || form.get('aceitou_uso_email') === 'true';
+		const aceitouLocalizacao =
+			form.get('aceitou_uso_localizacao') === 'on' ||
+			form.get('aceitou_uso_localizacao') === 'true';
 		if (!aceitouTermo || !aceitouLgpd || !aceitouAssinatura) {
 			return fail(400, { erro: 'É necessário marcar as três caixas obrigatórias de aceite.' });
 		}

@@ -31,7 +31,11 @@
 	>
 		<!-- Conteúdo offsetado pela largura do sidebar (w-60) em desktop, para
 		     ficar visualmente centrado dentro da área de conteúdo principal. -->
-		<div class="absolute inset-0 {offsetSidebar ? 'min-[900px]:left-60' : ''} flex flex-col items-center justify-center">
+		<div
+			class="absolute inset-0 {offsetSidebar
+				? 'min-[900px]:left-60'
+				: ''} flex flex-col items-center justify-center"
+		>
 			<div class="flex flex-col items-center gap-6">
 				<Progress
 					value={null}
@@ -46,10 +50,14 @@
 
 				<!-- Message -->
 				<div class="flex flex-col items-center gap-2 px-4 text-center">
-					<p class="text-surface-900 dark:text-surface-100 font-bold uppercase tracking-[0.2em] text-sm animate-pulse">
+					<p
+						class="text-surface-900 dark:text-surface-100 font-bold uppercase tracking-[0.2em] text-sm animate-pulse"
+					>
 						{message}
 					</p>
-					<p class="text-surface-500 dark:text-surface-400 text-[0.65rem] uppercase font-medium tracking-widest opacity-60">
+					<p
+						class="text-surface-500 dark:text-surface-400 text-[0.65rem] uppercase font-medium tracking-widest opacity-60"
+					>
 						Aguarde um instante
 					</p>
 				</div>

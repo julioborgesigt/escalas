@@ -87,10 +87,8 @@ export const REQUISITOS_OBRIGATORIOS_AVANCADA = [
 	{
 		id: 'segundo_fator_email',
 		flag: 'exigirCodigoEmailAssinatura',
-		descricao:
-			'Confirmação por código numérico enviado ao e-mail cadastrado do signatário (2FA)',
-		baseLegal:
-			'Lei 14.063/2020 art. 4º II "b" — controle exclusivo dos dados de criação'
+		descricao: 'Confirmação por código numérico enviado ao e-mail cadastrado do signatário (2FA)',
+		baseLegal: 'Lei 14.063/2020 art. 4º II "b" — controle exclusivo dos dados de criação'
 	}
 ] as const;
 
@@ -106,24 +104,21 @@ export const REFORCOS_OPCIONAIS = [
 		flag: 'exigirFotoAssinatura',
 		descricao: 'Selfie com detecção facial (prova de presença)',
 		valorProbatorio: 'alto',
-		notas:
-			'Detecta presença de rosto; não compara contra biometria cadastrada (1:1).'
+		notas: 'Detecta presença de rosto; não compara contra biometria cadastrada (1:1).'
 	},
 	{
 		id: 'geolocalizacao',
 		flag: 'exigirGpsAssinatura',
 		descricao: 'Coordenadas GPS reduzidas a ~1 km (LGPD-friendly)',
 		valorProbatorio: 'medio',
-		notas:
-			'Coordenadas com 2 casas decimais; útil para correlacionar com escala de serviço.'
+		notas: 'Coordenadas com 2 casas decimais; útil para correlacionar com escala de serviço.'
 	},
 	{
 		id: 'restricao_dispositivo',
 		flag: 'restringirSmartphone',
 		descricao: 'Bloqueia assinatura em desktop/laptop (apenas smartphone)',
 		valorProbatorio: 'medio',
-		notas:
-			'Reduz risco de assinatura em terminal compartilhado/destravado por terceiro.'
+		notas: 'Reduz risco de assinatura em terminal compartilhado/destravado por terceiro.'
 	}
 ] as const;
 
@@ -152,9 +147,7 @@ export function classificarNivelAssinaturaTela(
 	flags: FlagsParaClassificacao
 ): Extract<NivelAssinatura, 'simples' | 'avancada'> {
 	const f = flags as unknown as Record<string, boolean>;
-	const todosObrigatoriosAtivos = REQUISITOS_OBRIGATORIOS_AVANCADA.every(
-		(r) => f[r.flag] === true
-	);
+	const todosObrigatoriosAtivos = REQUISITOS_OBRIGATORIOS_AVANCADA.every((r) => f[r.flag] === true);
 	return todosObrigatoriosAtivos ? 'avancada' : 'simples';
 }
 

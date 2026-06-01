@@ -49,7 +49,8 @@ export async function listarEscalas(
 		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}` as any);
 	}
 	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}` as any);
-	if (tipo && tipo !== 'todos') conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
+	if (tipo && tipo !== 'todos')
+		conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
 	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}` as any);
 
@@ -57,10 +58,7 @@ export async function listarEscalas(
 	if (opts?.busca) {
 		const buscaEscapada = escapeLike(opts.busca.trim());
 		conditions.push(
-			or(
-				like(escalas.titulo, `%${buscaEscapada}%`),
-				like(escalas.cidade, `%${buscaEscapada}%`)
-			)!
+			or(like(escalas.titulo, `%${buscaEscapada}%`), like(escalas.cidade, `%${buscaEscapada}%`))!
 		);
 	}
 
@@ -117,10 +115,7 @@ export async function listarEscalas(
 	return { escalas: mapeadas, total, page, limit, totalPages };
 }
 
-export async function buscarEscala(
-	db: Database,
-	id: number
-): Promise<schema.Escala | undefined> {
+export async function buscarEscala(db: Database, id: number): Promise<schema.Escala | undefined> {
 	return db.select().from(escalas).where(eq(escalas.id, id)).get();
 }
 
@@ -161,7 +156,8 @@ export async function verificarEscalaExistente(
 	// Range query em vez de substr() para aproveitar índices em data_inicio
 	const mesAno = dataInicio.substring(0, 7);
 	const [ano, mes] = mesAno.split('-').map(Number);
-	const proximoMes = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+	const proximoMes =
+		mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
 
 	return db
 		.select()
@@ -178,12 +174,25 @@ export async function verificarEscalaExistente(
 }
 
 export async function marcarVisto(db: Database, id: number, visto: boolean) {
-	return db.update(escalas).set({ visto_por_admin: visto ? 1 : 0 }).where(eq(escalas.id, id));
+	return db
+		.update(escalas)
+		.set({ visto_por_admin: visto ? 1 : 0 })
+		.where(eq(escalas.id, id));
 }
 
-export async function finalizarEscalaFDS(db: Database, id: number, emailEnvio: string): Promise<void> {
-	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-	await db.update(escalas).set({ finalizada_em: agora, email_envio: emailEnvio }).where(eq(escalas.id, id));
+export async function finalizarEscalaFDS(
+	db: Database,
+	id: number,
+	emailEnvio: string
+): Promise<void> {
+	const agora = new Date(Date.now() - 3 * 60 * 60 * 1000)
+		.toISOString()
+		.replace('T', ' ')
+		.substring(0, 19);
+	await db
+		.update(escalas)
+		.set({ finalizada_em: agora, email_envio: emailEnvio })
+		.where(eq(escalas.id, id));
 }
 
 export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<void> {
@@ -229,7 +238,7 @@ export async function adicionarMultiplasDatasPlantao(
 
 	// Batch insert em vez de loop individual
 	await db.insert(escalaPoliciais).values(
-		datas.map(d => ({
+		datas.map((d) => ({
 			escala_id: escalaId,
 			policial_id: policialId,
 			data_plantao: d.data_plantao,
@@ -253,7 +262,13 @@ export async function atualizarEscalaPolicial(
 ) {
 	return db
 		.update(escalaPoliciais)
-		.set({ data_plantao: dataPlantao, data_saida: dataSaida, hora_entrada: horaEntrada, hora_saida: horaSaida, observacoes })
+		.set({
+			data_plantao: dataPlantao,
+			data_saida: dataSaida,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida,
+			observacoes
+		})
 		.where(eq(escalaPoliciais.id, id));
 }
 
@@ -275,11 +290,7 @@ export async function adicionarTodosPoliciais(
 		.select({ id: policiais.id })
 		.from(policiais)
 		.where(
-			and(
-				eq(policiais.ativo, 1),
-				eq(policiais.lotacao, lotacao),
-				eq(policiais.regime, regime)
-			)
+			and(eq(policiais.ativo, 1), eq(policiais.lotacao, lotacao), eq(policiais.regime, regime))
 		);
 
 	if (candidatos.length === 0) return 0;
@@ -435,7 +446,12 @@ export async function excluirSolicitacaoAssinatura(db: Database, escalaId: numbe
 export async function listarSolicitacoesEscalas(
 	db: Database,
 	escalaIds: number[]
-): Promise<Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>> {
+): Promise<
+	Map<
+		number,
+		{ tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }
+	>
+> {
 	if (escalaIds.length === 0) return new Map();
 
 	// Alias para o join com policiais (destinatário)
@@ -455,7 +471,10 @@ export async function listarSolicitacoesEscalas(
 		.leftJoin(policiais, eq(policiais.id, escalaSolicitacoesAssinatura.destinatario_id))
 		.where(inArray(escalaSolicitacoesAssinatura.escala_id, escalaIds));
 
-	const map = new Map<number, { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }>();
+	const map = new Map<
+		number,
+		{ tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number }
+	>();
 	for (const row of rows) {
 		map.set(row.escala_id, {
 			tipo: row.tipo as 'unidade' | 'respondencia',

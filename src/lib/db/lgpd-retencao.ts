@@ -64,18 +64,18 @@ export async function carregarConfigRetencao(db: Database): Promise<RetencaoConf
 		buscarConfiguracao(db, LGPD_RETENCAO_AUDIT_LOG_ANOS)
 	]);
 	return {
-		sessoesDias:           Number(sessoesDiasStr)    || 30,
-		loginAttemptsDias:     Number(loginDiasStr)      || 90,
-		doisFatoresDias:       Number(doisFatoresDiasStr) || 1,
-		resetTokensDias:       Number(resetDiasStr)       || 7,
-		recoveryAttemptsDias:  Number(recoveryDiasStr)    || 90,
+		sessoesDias: Number(sessoesDiasStr) || 30,
+		loginAttemptsDias: Number(loginDiasStr) || 90,
+		doisFatoresDias: Number(doisFatoresDiasStr) || 1,
+		resetTokensDias: Number(resetDiasStr) || 7,
+		recoveryAttemptsDias: Number(recoveryDiasStr) || 90,
 		// Webhook nonces só precisam viver enquanto a janela de replay (5 min).
 		// Padrão de 7 dias é folga generosa contra clock skew / replays atrasados.
-		webhookNoncesDias:     Number(noncesDiasStr)      || 7,
+		webhookNoncesDias: Number(noncesDiasStr) || 7,
 		// 5 anos é o piso da Lei de Registros Públicos para evidências
 		// administrativas. Pode subir via configuração se a regulação
 		// específica do contratante exigir mais.
-		auditLogAnos:          Number(auditAnosStr)       || 5
+		auditLogAnos: Number(auditAnosStr) || 5
 	};
 }
 
@@ -94,31 +94,34 @@ export async function executarLimpezaRetencao(
 	config: RetencaoConfig
 ): Promise<ResultadoLimpeza> {
 	const auditLogDias = config.auditLogAnos * 365;
-	const [
-		resSessoes,
-		resLogin,
-		res2FA,
-		resReset,
-		resRecovery,
-		resNonces,
-		resAudit
-	] = await Promise.all([
-		db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
-		db.delete(loginAttempts).where(lt(loginAttempts.attempted_at, cutoffISO(config.loginAttemptsDias))),
-		db.delete(doisFatoresTokens).where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
-		db.delete(resetSenhaTokens).where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
-		db.delete(recoveryAttempts).where(lt(recoveryAttempts.attempted_at, cutoffISO(config.recoveryAttemptsDias))),
-		db.delete(webhookNonces).where(lt(webhookNonces.received_at, cutoffISO(config.webhookNoncesDias))),
-		db.delete(auditLog).where(lt(auditLog.created_at, cutoffISO(auditLogDias)))
-	]);
+	const [resSessoes, resLogin, res2FA, resReset, resRecovery, resNonces, resAudit] =
+		await Promise.all([
+			db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
+			db
+				.delete(loginAttempts)
+				.where(lt(loginAttempts.attempted_at, cutoffISO(config.loginAttemptsDias))),
+			db
+				.delete(doisFatoresTokens)
+				.where(lt(doisFatoresTokens.expires_at, cutoffISO(config.doisFatoresDias))),
+			db
+				.delete(resetSenhaTokens)
+				.where(lt(resetSenhaTokens.expires_at, cutoffISO(config.resetTokensDias))),
+			db
+				.delete(recoveryAttempts)
+				.where(lt(recoveryAttempts.attempted_at, cutoffISO(config.recoveryAttemptsDias))),
+			db
+				.delete(webhookNonces)
+				.where(lt(webhookNonces.received_at, cutoffISO(config.webhookNoncesDias))),
+			db.delete(auditLog).where(lt(auditLog.created_at, cutoffISO(auditLogDias)))
+		]);
 
 	return {
-		sessoes:          resSessoes.rowsAffected  ?? 0,
-		loginAttempts:    resLogin.rowsAffected    ?? 0,
-		doisFatores:      res2FA.rowsAffected      ?? 0,
-		resetTokens:      resReset.rowsAffected    ?? 0,
+		sessoes: resSessoes.rowsAffected ?? 0,
+		loginAttempts: resLogin.rowsAffected ?? 0,
+		doisFatores: res2FA.rowsAffected ?? 0,
+		resetTokens: resReset.rowsAffected ?? 0,
 		recoveryAttempts: resRecovery.rowsAffected ?? 0,
-		webhookNonces:    resNonces.rowsAffected   ?? 0,
-		auditLog:         resAudit.rowsAffected    ?? 0
+		webhookNonces: resNonces.rowsAffected ?? 0,
+		auditLog: resAudit.rowsAffected ?? 0
 	};
 }

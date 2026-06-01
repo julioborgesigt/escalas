@@ -33,7 +33,10 @@
 				resetForm();
 				cadastroOpen = false;
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
@@ -181,6 +184,7 @@
 	}
 
 	async function loadLotacoes(query: string, signal: AbortSignal) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({
 			tipo: 'delegacia',
 			limit: '30'
@@ -211,6 +215,7 @@
 	});
 
 	function navegarComFiltros() {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams();
 		if (
 			filtroLotacao &&
@@ -245,7 +250,10 @@
 				});
 				confirmDialog.closeDialog();
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 			excluindo = false;
@@ -499,7 +507,7 @@
 									</span>
 									<select class="select py-1 px-3 text-sm" bind:value={papelUnidadeId}>
 										<option value={null}>Selecionar...</option>
-										{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u}
+										{#each papel === 'admin_seccional' ? seccionaisParaPapel : unidadesParaAdmin as u (u.id)}
 											<option value={u.id}>{u.nome}</option>
 										{/each}
 									</select>
@@ -614,7 +622,7 @@
 					<SegmentedControl.Indicator
 						class="absolute inset-y-1 rounded-md bg-primary-600 dark:bg-primary-500 shadow-sm transition-[left,width] duration-200"
 					/>
-					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label]}
+					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
 						<SegmentedControl.Item
 							value={val}
 							class="relative z-10 flex-1 px-3 py-1.5 text-center text-sm font-bold text-surface-500 dark:text-surface-400 data-[state=checked]:text-white dark:data-[state=checked]:text-white cursor-pointer select-none transition-colors rounded-md"
@@ -697,7 +705,7 @@
 				</thead>
 				<tbody>
 					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-						{#each { length: 8 } as _}
+						{#each { length: 8 } as _, i (i)}
 							<tr class="animate-pulse">
 								<td class="px-4 py-3"
 									><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
@@ -762,7 +770,7 @@
 		<!-- Mobile cards -->
 		<div class="md:hidden space-y-3">
 			{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-				{#each { length: 5 } as _}
+				{#each { length: 5 } as _, i (i)}
 					<SkeletonCard />
 				{/each}
 			{:else}

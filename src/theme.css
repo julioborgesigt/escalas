@@ -1,7 +1,7 @@
 /* Tema High-Tech Command Center - Escalas de Plantão Policial */
 
 [data-theme='policial'] {
-	--text-scaling: 1.0;
+	--text-scaling: 1;
 
 	/* Tipografia base - Inter */
 	--base-font-color: var(--color-surface-950);
@@ -192,7 +192,7 @@
 	--color-error-200: oklch(85% 0.08 15deg);
 	--color-error-300: oklch(76% 0.12 15deg);
 	--color-error-400: oklch(67% 0.16 15deg);
-	--color-error-500: oklch(58% 0.20 15deg);
+	--color-error-500: oklch(58% 0.2 15deg);
 	--color-error-600: oklch(51% 0.18 15deg);
 	--color-error-700: oklch(44% 0.15 15deg);
 	--color-error-800: oklch(36% 0.12 15deg);

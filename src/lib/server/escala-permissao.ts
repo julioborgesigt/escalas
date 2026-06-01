@@ -32,7 +32,10 @@ export async function verificarPermissaoEscala(
 	if (isDpcAdmin) {
 		const temAcesso = await temSolicitacaoParaDpcAdmin(db, escalaId, u.id);
 		if (temAcesso) return { permitido: true };
-		return { permitido: false, motivo: 'Não há solicitação de assinatura direcionada a você para esta escala.' };
+		return {
+			permitido: false,
+			motivo: 'Não há solicitação de assinatura direcionada a você para esta escala.'
+		};
 	}
 
 	return { permitido: false, motivo: 'Sem permissão para acessar esta escala.' };

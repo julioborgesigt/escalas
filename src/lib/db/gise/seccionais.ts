@@ -94,7 +94,11 @@ export async function atualizarGiseSeccional(
 export async function excluirGiseSeccional(db: Database, id: number) {
 	return db.delete(giseSeccionais).where(eq(giseSeccionais.id, id));
 }
-export async function buscarGiseSeccionalMembros(db: Database, giseId: number, seccionalId: number) {
+export async function buscarGiseSeccionalMembros(
+	db: Database,
+	giseId: number,
+	seccionalId: number
+) {
 	return db
 		.select({
 			id: giseMembros.id,
@@ -115,25 +119,32 @@ export async function buscarGiseSeccionalMembros(db: Database, giseId: number, s
  * Revoga as assinaturas de policiais e relatórios de uma seccional específica.
  * Usado quando há alteração na escala que invalida as assinaturas anteriores.
  */
-export async function revogarAssinaturasSeccional(db: Database, giseId: number, seccionalId: number) {
+export async function revogarAssinaturasSeccional(
+	db: Database,
+	giseId: number,
+	seccionalId: number
+) {
 	// 1. Limpar as assinaturas dos relatórios de extra/produtividade do supervisor desta seccional
-	await db.delete(giseAssinaturasRelatorios)
-		.where(and(
-			eq(giseAssinaturasRelatorios.gise_id, giseId),
-			eq(giseAssinaturasRelatorios.seccional_id, seccionalId)
-		));
+	await db
+		.delete(giseAssinaturasRelatorios)
+		.where(
+			and(
+				eq(giseAssinaturasRelatorios.gise_id, giseId),
+				eq(giseAssinaturasRelatorios.seccional_id, seccionalId)
+			)
+		);
 
 	// 2. Localizar todos os policiais vinculados a esta seccional na GISE
 	const membros = await buscarGiseSeccionalMembros(db, giseId, seccionalId);
-	const policialIds = membros.map(m => m.policial_id);
+	const policialIds = membros.map((m) => m.policial_id);
 
 	if (policialIds.length > 0) {
 		// 3. Limpar as assinaturas de entrada/saída (presenças) desses policiais na GISE
-		await db.delete(gisePresencas)
-			.where(and(
-				eq(gisePresencas.gise_id, giseId),
-				inArray(gisePresencas.policial_id, policialIds)
-			));
+		await db
+			.delete(gisePresencas)
+			.where(
+				and(eq(gisePresencas.gise_id, giseId), inArray(gisePresencas.policial_id, policialIds))
+			);
 	}
 
 	// 4. Se a escala do GISE já estiver assinada, revogar também a assinatura principal
@@ -142,12 +153,15 @@ export async function revogarAssinaturasSeccional(db: Database, giseId: number, 
 	await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 
 	// 5. Garantir que o status da escala volte para 'em_preenchimento' para forçar novas assinaturas
-	await db.update(giseEscalas)
+	await db
+		.update(giseEscalas)
 		.set({ status: 'em_preenchimento' })
-		.where(and(
-			eq(giseEscalas.id, giseId),
-			ne(giseEscalas.status, 'finalizada') // Não reabrir se já estiver finalizada (isso é manual)
-		));
+		.where(
+			and(
+				eq(giseEscalas.id, giseId),
+				ne(giseEscalas.status, 'finalizada') // Não reabrir se já estiver finalizada (isso é manual)
+			)
+		);
 }
 export async function adicionarGiseSeccionalUnidade(
 	db: Database,
@@ -195,10 +209,7 @@ export async function atualizarGiseSeccionalUnidade(
 		.where(eq(giseSeccionalUnidades.id, slotId));
 }
 
-export async function removerGiseSeccionalUnidade(
-	db: Database,
-	giseSeccionalUnidadeId: number
-) {
+export async function removerGiseSeccionalUnidade(db: Database, giseSeccionalUnidadeId: number) {
 	return db
 		.delete(giseSeccionalUnidades)
 		.where(eq(giseSeccionalUnidades.id, giseSeccionalUnidadeId));

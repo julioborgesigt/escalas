@@ -121,11 +121,17 @@
 		</h1>
 
 		<div class="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-			<span class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold {statusColor(gise.status)}">
+			<span
+				class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold {statusColor(
+					gise.status
+				)}"
+			>
 				{statusLabel(gise.status)}
 			</span>
 			{#if gise.status === 'finalizada' && gise.planilha_base_equipe_alimentada_em}
-				<IconTooltip label="Dados desta GISE já foram enviados com sucesso para a planilha Base_Equipe.">
+				<IconTooltip
+					label="Dados desta GISE já foram enviados com sucesso para a planilha Base_Equipe."
+				>
 					<span
 						class="max-w-full text-sm px-2.5 py-0.5 rounded-full font-semibold bg-success-500/15 text-success-800 border border-success-500/35 dark:text-success-200 dark:border-success-500/40"
 					>
@@ -133,7 +139,9 @@
 					</span>
 				</IconTooltip>
 			{/if}
-			<span class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
+			<span
+				class="inline-flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400"
+			>
 				<span class="whitespace-nowrap">{gise.hora_entrada}h–{gise.hora_saida}h</span>
 				{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 					<IconTooltip label="Editar Data/Horários">
@@ -158,7 +166,9 @@
 		</div>
 	</div>
 
-	<div class="flex flex-wrap items-center justify-start gap-2 sm:min-w-0 sm:gap-2 xl:max-w-[min(100%,40rem)] xl:justify-end xl:shrink-0">
+	<div
+		class="flex flex-wrap items-center justify-start gap-2 sm:min-w-0 sm:gap-2 xl:max-w-[min(100%,40rem)] xl:justify-end xl:shrink-0"
+	>
 		{#if isAdminGeral && podeDownload && gise.status === 'finalizada'}
 			<a
 				class="btn btn-sm preset-outlined-success-500 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"

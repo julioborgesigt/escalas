@@ -34,8 +34,18 @@
 	let calMes = $state(new Date().getMonth());
 
 	const MESES_CAL = [
-		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-		'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
 	];
 	const DIAS_SEM_CAL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -74,13 +84,21 @@
 	}
 
 	function calMesAnterior() {
-		if (calMes === 0) { calMes = 11; calAno--; }
-		else { calMes--; }
+		if (calMes === 0) {
+			calMes = 11;
+			calAno--;
+		} else {
+			calMes--;
+		}
 	}
 
 	function calMesProximo() {
-		if (calMes === 11) { calMes = 0; calAno++; }
-		else { calMes++; }
+		if (calMes === 11) {
+			calMes = 0;
+			calAno++;
+		} else {
+			calMes++;
+		}
 	}
 
 	$effect(() => {
@@ -113,7 +131,9 @@
 
 <Dialog
 	{open}
-	onOpenChange={(e) => { if (!pendingCrud && !e.open) onClose(); }}
+	onOpenChange={(e) => {
+		if (!pendingCrud && !e.open) onClose();
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -125,37 +145,85 @@
 				<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50">
 					Editar Data e Horários
 				</Dialog.Title>
-				<Dialog.CloseTrigger class="btn btn-sm p-1 opacity-50 hover:opacity-100" aria-label="Fechar">
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+				<Dialog.CloseTrigger
+					class="btn btn-sm p-1 opacity-50 hover:opacity-100"
+					aria-label="Fechar"
+				>
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/></svg
+					>
 				</Dialog.CloseTrigger>
 			</div>
 
 			{#if editaBloqueado}
-				<div class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-3 py-2 text-xs text-warning-700 dark:text-warning-400">
+				<div
+					class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-3 py-2 text-xs text-warning-700 dark:text-warning-400"
+				>
 					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
 				</div>
 			{/if}
 
 			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
-				No calendário: <span class="text-primary-600 dark:text-primary-400 font-medium">1º clique</span> seleciona a data, <span class="text-error-600 dark:text-error-400 font-medium">2º clique</span> marca como feriado.
+				No calendário: <span class="text-primary-600 dark:text-primary-400 font-medium"
+					>1º clique</span
+				>
+				seleciona a data,
+				<span class="text-error-600 dark:text-error-400 font-medium">2º clique</span> marca como feriado.
 			</p>
 
 			<!-- Calendário -->
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40">
+			<div
+				class="rounded-xl border border-surface-200 dark:border-surface-700 p-2 sm:p-2.5 space-y-1 bg-white dark:bg-surface-800/40"
+			>
 				<div class="flex items-center justify-between gap-1.5">
-					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesAnterior} aria-label="Mês anterior">
-						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
+						onclick={calMesAnterior}
+						aria-label="Mês anterior"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 19l-7-7 7-7"
+							/></svg
+						>
 					</button>
-					<p class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center flex-1">{calTitulo}</p>
-					<button type="button" class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0" onclick={calMesProximo} aria-label="Próximo mês">
-						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+					<p
+						class="text-xs sm:text-sm font-semibold text-surface-800 dark:text-surface-100 text-center flex-1"
+					>
+						{calTitulo}
+					</p>
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 p-1.5 rounded-lg shrink-0"
+						onclick={calMesProximo}
+						aria-label="Próximo mês"
+					>
+						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 5l7 7-7 7"
+							/></svg
+						>
 					</button>
 				</div>
-				<div class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5">
-					{#each DIAS_SEM_CAL as ds}<span>{ds}</span>{/each}
+				<div
+					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+				>
+					{#each DIAS_SEM_CAL as ds (ds)}<span>{ds}</span>{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
 							{@const sel = iso === dataInicio}
@@ -173,7 +241,10 @@
 									{ehHoje && !sel ? 'ring-1 ring-surface-400 dark:ring-surface-500' : ''}"
 							>
 								{cell?.day}
-								{#if fer}<span class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[0.45rem] font-bold uppercase text-error-700 dark:text-error-300 leading-none">F</span>{/if}
+								{#if fer}<span
+										class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[0.45rem] font-bold uppercase text-error-700 dark:text-error-300 leading-none"
+										>F</span
+									>{/if}
 							</button>
 						{:else}
 							<div class="h-9"></div>
@@ -183,38 +254,66 @@
 			</div>
 
 			<!-- Exibição da data selecionada -->
-			<div class="flex items-center gap-2 px-3 py-2 rounded-xl border border-primary-400/30 bg-primary-500/5">
+			<div
+				class="flex items-center gap-2 px-3 py-2 rounded-xl border border-primary-400/30 bg-primary-500/5"
+			>
 				<div class="bg-primary-500/10 p-1.5 rounded-lg text-primary-600">
-					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+						><path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+						/></svg
+					>
 				</div>
 				<div class="min-w-0 flex-1">
-					<p class="text-[0.6rem] font-bold uppercase text-primary-600/60 leading-none mb-0.5">Data Selecionada</p>
-					<p class="text-sm font-bold text-primary-700 dark:text-primary-400">{fmtDate(dataInicio)} {feriado ? '(Feriado)' : ''}</p>
+					<p class="text-[0.6rem] font-bold uppercase text-primary-600/60 leading-none mb-0.5">
+						Data Selecionada
+					</p>
+					<p class="text-sm font-bold text-primary-700 dark:text-primary-400">
+						{fmtDate(dataInicio)}
+						{feriado ? '(Feriado)' : ''}
+					</p>
 				</div>
 			</div>
 
 			<!-- Horários -->
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5 bg-white dark:bg-surface-800/40">
-				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">Horários da Escala</p>
+			<div
+				class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5 bg-white dark:bg-surface-800/40"
+			>
+				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+					Horários da Escala
+				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="editHoraEntrada" class="text-[0.65rem] text-surface-500 block mb-0.5">Entrada</label>
+						<label for="editHoraEntrada" class="text-[0.65rem] text-surface-500 block mb-0.5"
+							>Entrada</label
+						>
 						<input
 							id="editHoraEntrada"
 							type="text"
 							placeholder="Ex: 08:00"
 							bind:value={horaEntrada}
-							class="w-full px-2.5 py-1.5 rounded-lg border bg-white dark:bg-surface-800 text-sm {horaEntrada && !validarHora(horaEntrada) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}"
+							class="w-full px-2.5 py-1.5 rounded-lg border bg-white dark:bg-surface-800 text-sm {horaEntrada &&
+							!validarHora(horaEntrada)
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-700'}"
 						/>
 					</div>
 					<div>
-						<label for="editHoraSaida" class="text-[0.65rem] text-surface-500 block mb-0.5">Saída</label>
+						<label for="editHoraSaida" class="text-[0.65rem] text-surface-500 block mb-0.5"
+							>Saída</label
+						>
 						<input
 							id="editHoraSaida"
 							type="text"
 							placeholder="Ex: 16:00"
 							bind:value={horaSaida}
-							class="w-full px-2.5 py-1.5 rounded-lg border bg-white dark:bg-surface-800 text-sm {horaSaida && !validarHora(horaSaida) ? 'border-error-500' : 'border-surface-300 dark:border-surface-700'}"
+							class="w-full px-2.5 py-1.5 rounded-lg border bg-white dark:bg-surface-800 text-sm {horaSaida &&
+							!validarHora(horaSaida)
+								? 'border-error-500'
+								: 'border-surface-300 dark:border-surface-700'}"
 						/>
 					</div>
 				</div>
@@ -222,12 +321,21 @@
 			</div>
 
 			<div class="flex justify-end gap-2 pt-1">
-				<button type="button" class="btn preset-outlined-surface-500 text-xs sm:text-sm px-4 py-2 rounded-xl" onclick={onClose}>Cancelar</button>
-				<form method="POST" action="?/salvarDatasHorarios" use:enhance={onSubmitWrapper} class="contents">
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500 text-xs sm:text-sm px-4 py-2 rounded-xl"
+					onclick={onClose}>Cancelar</button
+				>
+				<form
+					method="POST"
+					action="?/salvarDatasHorarios"
+					use:enhance={onSubmitWrapper}
+					class="contents"
+				>
 					<input type="hidden" name="data_inicio" value={dataInicio} />
 					<input type="hidden" name="hora_entrada" value={normalizarHora(horaEntrada) ?? ''} />
 					<input type="hidden" name="hora_saida" value={normalizarHora(horaSaida) ?? ''} />
-					<input type="hidden" name="feriado" value={feriado ? "true" : "false"} />
+					<input type="hidden" name="feriado" value={feriado ? 'true' : 'false'} />
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all active:scale-95"

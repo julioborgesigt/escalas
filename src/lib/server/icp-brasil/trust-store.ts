@@ -85,7 +85,9 @@ export function loadTrustStore(): TrustStore {
 	const rootsBlocos = extrairBlocosPem(String(rootsPem ?? ''));
 	const intermediatesBlocos = extrairBlocosPem(String(intermediatesPem ?? ''));
 
-	const roots = rootsBlocos.map(parsePemSeguro).filter((c): c is forge.pki.Certificate => c !== null);
+	const roots = rootsBlocos
+		.map(parsePemSeguro)
+		.filter((c): c is forge.pki.Certificate => c !== null);
 	const intermediates = intermediatesBlocos
 		.map(parsePemSeguro)
 		.filter((c): c is forge.pki.Certificate => c !== null);

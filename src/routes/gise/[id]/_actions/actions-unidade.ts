@@ -24,7 +24,8 @@ export const actionsUnidade = {
 		const formData = await request.formData();
 		const slotId = getInt(formData, 'slotId');
 		const unidadeId = getInt(formData, 'unidadeId');
-		if (isNaN(giseId) || isNaN(slotId) || isNaN(unidadeId)) return fail(400, { error: 'IDs inválidos' });
+		if (isNaN(giseId) || isNaN(slotId) || isNaN(unidadeId))
+			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
 
@@ -35,8 +36,12 @@ export const actionsUnidade = {
 			.get();
 		if (!slotInfo) return fail(404, { error: 'Slot não encontrado' });
 
-		const sec = await db.select().from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, slotInfo.gise_seccional_id), eq(giseSeccionais.gise_id, giseId)))
+		const sec = await db
+			.select()
+			.from(giseSeccionais)
+			.where(
+				and(eq(giseSeccionais.id, slotInfo.gise_seccional_id), eq(giseSeccionais.gise_id, giseId))
+			)
 			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
@@ -65,8 +70,11 @@ export const actionsUnidade = {
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
 
 		const db = getDB(platform);
-		const sec = await db.select().from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		const sec = await db
+			.select()
+			.from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
+			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
 		await adicionarGiseSeccionalUnidade(db, secId, unidadeId);
@@ -81,15 +89,21 @@ export const actionsUnidade = {
 		const formData = await request.formData();
 		const secId = getInt(formData, 'secId');
 		const linkId = getInt(formData, 'linkId');
-		if (isNaN(giseId) || isNaN(secId) || isNaN(linkId)) return fail(400, { error: 'IDs inválidos' });
+		if (isNaN(giseId) || isNaN(secId) || isNaN(linkId))
+			return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db.select().from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		const sec = await db
+			.select()
+			.from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
+			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
 		if (linkId === 0) {
-			await db.delete(giseEquipes).where(and(eq(giseEquipes.gise_seccional_id, secId), isNull(giseEquipes.gise_unidade_id)));
+			await db
+				.delete(giseEquipes)
+				.where(and(eq(giseEquipes.gise_seccional_id, secId), isNull(giseEquipes.gise_unidade_id)));
 		} else {
 			await removerGiseSeccionalUnidade(db, linkId);
 		}

@@ -15,8 +15,17 @@
 		onAssinarDigitalLote: () => void | Promise<void>;
 		podeAssinar?: boolean;
 		// Novas props para exibir assinaturas concluídas
-		assinaturasRelatorios?: { tipo: string; seccional_id: number; assinante_nome?: string }[] | null;
-		seccionais?: { seccional_id?: number; id?: number; seccional_nome?: string; unidades?: import('$lib/db/gise').GiseUnidadeSlot[] }[] | null;
+		assinaturasRelatorios?:
+			| { tipo: string; seccional_id: number; assinante_nome?: string }[]
+			| null;
+		seccionais?:
+			| {
+					seccional_id?: number;
+					id?: number;
+					seccional_nome?: string;
+					unidades?: import('$lib/db/gise').GiseUnidadeSlot[];
+			  }[]
+			| null;
 		supervisaoExtraUnidadeId?: number | null;
 		giseStatus?: string;
 	}
@@ -40,7 +49,9 @@
 	let expandido = $state(false);
 
 	const naoIniciou = $derived(
-		['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(giseStatus ?? '')
+		['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
+			giseStatus ?? ''
+		)
 	);
 
 	const concluidosExtra = $derived(
@@ -59,16 +70,21 @@
 		return s?.seccional_nome?.trim() || `Seccional #${seccionalId}`;
 	}
 
-	const seccionaisComEquipes = $derived((seccionais ?? []).filter(sec => getMembrosFromSec(sec).length > 0));
+	const seccionaisComEquipes = $derived(
+		(seccionais ?? []).filter((sec) => getMembrosFromSec(sec).length > 0)
+	);
 
-	const isAssinado = (sec: { seccional_id?: number; id?: number }) => concluidosExtra.some(c => c.seccional_id === sec.seccional_id || c.seccional_id === sec.id);
+	const isAssinado = (sec: { seccional_id?: number; id?: number }) =>
+		concluidosExtra.some((c) => c.seccional_id === sec.seccional_id || c.seccional_id === sec.id);
 
-	const seccionaisFaltantes = $derived(seccionaisComEquipes.filter(sec => !isAssinado(sec)));
-	const seccionaisAssinadas = $derived(seccionaisComEquipes.filter(sec => isAssinado(sec)));
+	const seccionaisFaltantes = $derived(seccionaisComEquipes.filter((sec) => !isAssinado(sec)));
+	const seccionaisAssinadas = $derived(seccionaisComEquipes.filter((sec) => isAssinado(sec)));
 
 	const totalEquipes = $derived(seccionaisComEquipes.length);
 	const totalAssinados = $derived(seccionaisAssinadas.length);
-	const totalProntosNaoAssinados = $derived(seccionaisFaltantes.filter(sec => checkAllSigned(sec)).length);
+	const totalProntosNaoAssinados = $derived(
+		seccionaisFaltantes.filter((sec) => checkAllSigned(sec)).length
+	);
 
 	const statusLoteInfo = $derived.by(() => {
 		if (totalEquipes > 0 && totalAssinados === totalEquipes) {
@@ -89,7 +105,11 @@
 				class: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'
 			};
 		}
-		if (totalAssinados === 0 && totalProntosNaoAssinados > 0 && totalProntosNaoAssinados < totalEquipes) {
+		if (
+			totalAssinados === 0 &&
+			totalProntosNaoAssinados > 0 &&
+			totalProntosNaoAssinados < totalEquipes
+		) {
 			return {
 				text: 'pronto para ass. (parcial)',
 				class: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'
@@ -104,7 +124,8 @@
 	function mostrarOrientaConferencia() {
 		toaster.warning({
 			title: 'Conferência de Relatório',
-			description: 'Para visualizar o relatório individualmente de cada equipe, por favor, acesse a aba de detalhamento de cada seccional na seção "Seccionais Participantes" logo abaixo.'
+			description:
+				'Para visualizar o relatório individualmente de cada equipe, por favor, acesse a aba de detalhamento de cada seccional na seção "Seccionais Participantes" logo abaixo.'
 		});
 	}
 </script>
@@ -129,16 +150,20 @@
 			}}
 		>
 			<div
-				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+				class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
+					'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
 					? 'bg-success-100 dark:bg-success-900/30'
-					: statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'
+					: statusLoteInfo.text === 'Todos prontos para ass.' ||
+						  statusLoteInfo.text === 'pronto para ass. (parcial)'
 						? 'bg-warning-100 dark:bg-warning-900/30'
 						: 'bg-surface-100 dark:bg-surface-800'}"
 			>
 				<svg
-					class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+					class="w-3.5 h-3.5 {statusLoteInfo.text === 'Todos Assinados' ||
+					statusLoteInfo.text === 'Assinados (parcial)'
 						? 'text-success-600 dark:text-success-400'
-						: statusLoteInfo.text === 'Todos prontos para ass.' || statusLoteInfo.text === 'pronto para ass. (parcial)'
+						: statusLoteInfo.text === 'Todos prontos para ass.' ||
+							  statusLoteInfo.text === 'pronto para ass. (parcial)'
 							? 'text-warning-600 dark:text-warning-400'
 							: 'text-surface-400 dark:text-surface-500'}"
 					fill="none"
@@ -206,14 +231,19 @@
 			>
 				<div class="space-y-2">
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou todos de uma vez.
+						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou
+						todos de uma vez.
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 						<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 						{#if naoIniciou}
 							Aguardando início
 						{:else}
-							{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id ?? s.id ?? 0)).join(', ') : 'Nenhum'}
+							{seccionaisFaltantes.length > 0
+								? seccionaisFaltantes
+										.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+										.join(', ')
+								: 'Nenhum'}
 						{/if}
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
@@ -221,7 +251,11 @@
 						{#if naoIniciou}
 							Aguardando início
 						{:else}
-							{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id ?? s.id ?? 0)).join(', ') : 'Nenhum'}
+							{seccionaisAssinadas.length > 0
+								? seccionaisAssinadas
+										.map((s) => nomeSeccional(s.seccional_id ?? s.id ?? 0))
+										.join(', ')
+								: 'Nenhum'}
 						{/if}
 					</p>
 
@@ -232,7 +266,9 @@
 							>
 								{etapaAssinatura}
 							</p>
-							<div class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden">
+							<div
+								class="w-full bg-surface-200 dark:bg-surface-700 rounded-full h-2 overflow-hidden"
+							>
 								<div
 									class="bg-warning-500 h-full transition-all duration-500 ease-out"
 									style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
@@ -252,7 +288,18 @@
 							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1"
 							onclick={mostrarOrientaConferencia}
 						>
-							<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+							<svg
+								class="h-2.5 w-2.5 shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/></svg
+							>
 							Conferência
 						</button>
 						{#if podeAssinar}
@@ -260,11 +307,21 @@
 								<button
 									type="button"
 									class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-									disabled={loading.active ||
-										quantidadePendentes === 0}
+									disabled={loading.active || quantidadePendentes === 0}
 									onclick={onAssinarManualLote}
 								>
-									<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+									<svg
+										class="h-2.5 w-2.5 shrink-0"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+										/></svg
+									>
 									Tela
 								</button>
 							{:else}
@@ -274,7 +331,18 @@
 									disabled={loading.active || quantidadePendentes === 0}
 									onclick={onAssinarDigitalLote}
 								>
-									<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+									<svg
+										class="h-2.5 w-2.5 shrink-0"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+										/></svg
+									>
 									Token
 								</button>
 							{/if}
@@ -291,7 +359,7 @@
 							Relatórios Assinados
 						</p>
 						<div class="flex flex-wrap gap-1.5">
-							{#each concluidosExtra as ass}
+							{#each concluidosExtra as ass (ass.seccional_id)}
 								<div
 									class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-500/5 border border-success-500/10 text-[0.6rem]"
 									title="Assinado por {ass.assinante_nome}"

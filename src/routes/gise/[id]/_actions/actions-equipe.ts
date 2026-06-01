@@ -66,8 +66,11 @@ export const actionsEquipe = {
 		});
 
 		if (!['em_definicao_supervisor', 'em_preenchimento'].includes(gise.status)) {
-			const equipe = await db.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-				.from(giseEquipes).where(eq(giseEquipes.id, eqId)).get();
+			const equipe = await db
+				.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
+				.from(giseEquipes)
+				.where(eq(giseEquipes.id, eqId))
+				.get();
 			if (equipe) {
 				await revogarAssinaturasSeccional(db, giseId, equipe.gise_seccional_id);
 			}
@@ -89,7 +92,8 @@ export const actionsEquipe = {
 		const slotsDpc = parseInt(formData.get('slots_dpc') as string);
 		const slotsOip = parseInt(formData.get('slots_oip') as string);
 
-		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint')) return fail(400, { error: 'Tipo inválido' });
+		if (!tipo || (tipo !== 'operacional' && tipo !== 'seint'))
+			return fail(400, { error: 'Tipo inválido' });
 
 		const unidadeIdRaw = formData.get('unidadeId') as string;
 		const unidadeId = unidadeIdRaw ? parseInt(unidadeIdRaw) : null;
@@ -100,7 +104,9 @@ export const actionsEquipe = {
 		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
 
 		await criarGiseEquipe(
-			db, secId, tipo,
+			db,
+			secId,
+			tipo,
 			isNaN(slotsDpc) ? 0 : slotsDpc,
 			isNaN(slotsOip) ? 0 : slotsOip,
 			unidadeId
@@ -128,8 +134,11 @@ export const actionsEquipe = {
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 		if (gise.status === 'finalizada') return fail(400, { error: 'Escala finalizada' });
 
-		const equipe = await db.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
-			.from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
+		const equipe = await db
+			.select({ gise_seccional_id: giseEquipes.gise_seccional_id })
+			.from(giseEquipes)
+			.where(eq(giseEquipes.id, equipeId))
+			.get();
 
 		await excluirGiseEquipe(db, equipeId);
 

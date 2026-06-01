@@ -61,7 +61,10 @@ export const actions: Actions = {
 
 		if (!result.sucesso && 'pendente2FA' in result) {
 			if (result.setAdminModuloPendingCookie) {
-				cookies.set('admin_modulo_pending', adminModulo, { ...cookieOptions(url), maxAge: 15 * 60 });
+				cookies.set('admin_modulo_pending', adminModulo, {
+					...cookieOptions(url),
+					maxAge: 15 * 60
+				});
 			}
 			const p = result.pendente2FA;
 			return {
@@ -106,13 +109,19 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos' });
 		}
 
-		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
+		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), [
+			'policial',
+			'admin'
+		]);
 
 		if (resultado === 'expirado') {
 			return fail(401, { error: 'Código expirado. Faça login novamente.', expirado: true });
 		}
 		if (resultado === 'esgotado') {
-			return fail(429, { error: 'Muitas tentativas incorretas. Faça login novamente.', esgotado: true });
+			return fail(429, {
+				error: 'Muitas tentativas incorretas. Faça login novamente.',
+				esgotado: true
+			});
 		}
 		if (!resultado) {
 			return fail(401, { error: 'Código inválido. Verifique e tente novamente.' });
@@ -122,7 +131,11 @@ export const actions: Actions = {
 
 		let primeiroAcesso: boolean;
 		if (tipo === 'admin') {
-			const admin = await db.select().from(administradores).where(eq(administradores.id, usuarioId)).get();
+			const admin = await db
+				.select()
+				.from(administradores)
+				.where(eq(administradores.id, usuarioId))
+				.get();
 			if (!admin) return fail(404, { error: 'Usuário não encontrado' });
 			primeiroAcesso = admin.primeiro_acesso === 1;
 		} else {

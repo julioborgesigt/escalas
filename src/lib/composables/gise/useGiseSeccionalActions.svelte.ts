@@ -18,6 +18,7 @@ import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
 import { validarHora } from '$lib/gise/gise-horarios';
+import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 export interface UseGiseSeccionalActionsParams {
 	/** Callbacks de reset chamados pelo composable após cada sucesso de CRUD. */
@@ -65,16 +66,16 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 
 	const pendingCrud = $derived(
 		pendingFinalizarSeccional ||
-		pendingSelecionarUnidade ||
-		pendingRemoverUnidade ||
-		pendingAdicionarEquipe ||
-		pendingRemoverEquipe ||
-		pendingSalvarSlotsEquipe ||
-		pendingSalvarHorariosEquipe ||
-		pendingAdicionarMembro ||
-		pendingRemoverMembro ||
-		pendingAdicionarUnidade ||
-		pendingRemoverSeccional
+			pendingSelecionarUnidade ||
+			pendingRemoverUnidade ||
+			pendingAdicionarEquipe ||
+			pendingRemoverEquipe ||
+			pendingSalvarSlotsEquipe ||
+			pendingSalvarHorariosEquipe ||
+			pendingAdicionarMembro ||
+			pendingRemoverMembro ||
+			pendingAdicionarUnidade ||
+			pendingRemoverSeccional
 	);
 
 	const handleFinalizarSeccional = makeEnhanceHandler<{ gise_status?: string }>({
@@ -211,7 +212,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 	 */
 	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
 		return async (query: string, signal: AbortSignal) => {
-			const params = new URLSearchParams({ cargo, limit: '50' });
+			const params = new SvelteURLSearchParams({ cargo, limit: '50' });
 			if (query) params.set('q', query);
 			const res = await fetch(`/api/policiais/search?${params}`, { signal });
 			if (!res.ok) {
@@ -232,17 +233,39 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		get pendingCrud() {
 			return pendingCrud;
 		},
-		get pendingFinalizarSeccional() { return pendingFinalizarSeccional; },
-		get pendingSelecionarUnidade() { return pendingSelecionarUnidade; },
-		get pendingRemoverUnidade() { return pendingRemoverUnidade; },
-		get pendingAdicionarEquipe() { return pendingAdicionarEquipe; },
-		get pendingRemoverEquipe() { return pendingRemoverEquipe; },
-		get pendingSalvarSlotsEquipe() { return pendingSalvarSlotsEquipe; },
-		get pendingSalvarHorariosEquipe() { return pendingSalvarHorariosEquipe; },
-		get pendingAdicionarMembro() { return pendingAdicionarMembro; },
-		get pendingRemoverMembro() { return pendingRemoverMembro; },
-		get pendingAdicionarUnidade() { return pendingAdicionarUnidade; },
-		get pendingRemoverSeccional() { return pendingRemoverSeccional; },
+		get pendingFinalizarSeccional() {
+			return pendingFinalizarSeccional;
+		},
+		get pendingSelecionarUnidade() {
+			return pendingSelecionarUnidade;
+		},
+		get pendingRemoverUnidade() {
+			return pendingRemoverUnidade;
+		},
+		get pendingAdicionarEquipe() {
+			return pendingAdicionarEquipe;
+		},
+		get pendingRemoverEquipe() {
+			return pendingRemoverEquipe;
+		},
+		get pendingSalvarSlotsEquipe() {
+			return pendingSalvarSlotsEquipe;
+		},
+		get pendingSalvarHorariosEquipe() {
+			return pendingSalvarHorariosEquipe;
+		},
+		get pendingAdicionarMembro() {
+			return pendingAdicionarMembro;
+		},
+		get pendingRemoverMembro() {
+			return pendingRemoverMembro;
+		},
+		get pendingAdicionarUnidade() {
+			return pendingAdicionarUnidade;
+		},
+		get pendingRemoverSeccional() {
+			return pendingRemoverSeccional;
+		},
 		get dialogRemoverSeccionalAberto() {
 			return dialogRemoverSeccionalAberto;
 		},

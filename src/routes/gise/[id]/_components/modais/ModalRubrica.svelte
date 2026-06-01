@@ -1,5 +1,7 @@
 <script lang="ts">
-	import SignaturePad, { type SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
+	import SignaturePad, {
+		type SignaturePadConfirmPayload
+	} from '$lib/components/SignaturePad.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
@@ -39,7 +41,9 @@
 
 <Dialog
 	{open}
-	onOpenChange={(e) => { if (!e.open) onCancel(); }}
+	onOpenChange={(e) => {
+		if (!e.open) onCancel();
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-md overflow-y-auto"

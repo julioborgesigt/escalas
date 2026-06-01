@@ -79,10 +79,28 @@ export function sortExpediente(policiais: EscalaPolicialComDados[]): EscalaPolic
 	});
 }
 
-export const COLS_EXPEDIENTE = ['NOME COMPLETO', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'CLASSE', 'LOTAÇÃO', 'REGIME', 'OBSERVAÇÕES'] as const;
+export const COLS_EXPEDIENTE = [
+	'NOME COMPLETO',
+	'MATRÍCULA',
+	'CARGO',
+	'TELEFONE',
+	'CLASSE',
+	'LOTAÇÃO',
+	'REGIME',
+	'OBSERVAÇÕES'
+] as const;
 
 export function rowExpediente(p: EscalaPolicialComDados): string[] {
-	return [p.nome, p.matricula, p.cargo, p.telefone || '', p.classe || '', p.lotacao, p.regime || '', p.observacoes || ''];
+	return [
+		p.nome,
+		p.matricula,
+		p.cargo,
+		p.telefone || '',
+		p.classe || '',
+		p.lotacao,
+		p.regime || '',
+		p.observacoes || ''
+	];
 }
 
 export function agruparPlantao(policiais: EscalaPolicialComDados[]): Map<string, OficialPlantao[]> {
@@ -130,11 +148,32 @@ export function formatarDias(dias: string[]): string {
 export function formatarMesAno(dateStr: string): string {
 	if (!dateStr) return '';
 	const [year, month] = dateStr.split('-');
-	const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+	const meses = [
+		'JANEIRO',
+		'FEVEREIRO',
+		'MARÇO',
+		'ABRIL',
+		'MAIO',
+		'JUNHO',
+		'JULHO',
+		'AGOSTO',
+		'SETEMBRO',
+		'OUTUBRO',
+		'NOVEMBRO',
+		'DEZEMBRO'
+	];
 	return `${meses[Number(month) - 1]}/${year}`;
 }
 
-export const COLS_PLANTAO = ['NOME', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DIAS', 'OBSERVAÇÕES'] as const;
+export const COLS_PLANTAO = [
+	'NOME',
+	'MATRÍCULA',
+	'CARGO',
+	'TELEFONE',
+	'LOTAÇÃO',
+	'DIAS',
+	'OBSERVAÇÕES'
+] as const;
 
 export function rowPlantao(o: OficialPlantao): string[] {
 	return [o.nome, o.matricula, o.cargo, o.telefone, o.lotacao, formatarDias(o.dias), o.observacoes];

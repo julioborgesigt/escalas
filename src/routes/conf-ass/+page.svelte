@@ -61,7 +61,13 @@
 		(exigirFoto ? 1 : 0) + (exigirGps ? 1 : 0) + (restringirSmartphone ? 1 : 0)
 	);
 	const reforcoNivel = $derived(
-		reforcoScore >= 3 ? 'Máximo' : reforcoScore >= 2 ? 'Médio' : reforcoScore >= 1 ? 'Básico' : 'Mínimo'
+		reforcoScore >= 3
+			? 'Máximo'
+			: reforcoScore >= 2
+				? 'Médio'
+				: reforcoScore >= 1
+					? 'Básico'
+					: 'Mínimo'
 	);
 	const reforcoCor = $derived(
 		reforcoScore >= 3
@@ -111,13 +117,16 @@
 
 		<!-- Sempre ativos -->
 		<details class="text-[11px] mt-3">
-			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+			<summary
+				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
+			>
 				Garantias sempre ativas no sistema ({requisitosSempreAtivos.length})
 			</summary>
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosSempreAtivos as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-success-600 font-black">✓</span> {r.descricao}
+						<span class="text-success-600 font-black">✓</span>
+						{r.descricao}
 						<br />
 						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
@@ -127,13 +136,16 @@
 
 		<!-- Obrigatórios para Avançada -->
 		<details class="text-[11px] mt-2" open>
-			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+			<summary
+				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
+			>
 				Requisitos mínimos para AVANÇADA (bloqueados) ({requisitosObrigatorios.length})
 			</summary>
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosObrigatorios as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-primary-600 font-black">🔒</span> {r.descricao}
+						<span class="text-primary-600 font-black">🔒</span>
+						{r.descricao}
 						<br />
 						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
@@ -143,14 +155,18 @@
 
 		<!-- Reforços opcionais -->
 		<details class="text-[11px] mt-2">
-			<summary class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500">
+			<summary
+				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
+			>
 				Reforços opcionais ({reforcosOpcionais.length}) — não alteram a classificação legal
 			</summary>
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each reforcosOpcionais as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
 						{r.descricao}
-						<span class="text-[9px] uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700">
+						<span
+							class="text-[9px] uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700"
+						>
 							valor {r.valorProbatorio}
 						</span>
 						<br />
@@ -232,13 +248,13 @@
 					</span>
 				</p>
 				<p class="text-xs text-surface-500">
-					Confirmação por código numérico de 6 dígitos no e-mail cadastrado.
-					Este requisito é o que caracteriza a assinatura como
+					Confirmação por código numérico de 6 dígitos no e-mail cadastrado. Este requisito é o que
+					caracteriza a assinatura como
 					<strong>AVANÇADA</strong> nos termos da
 					<strong>Lei 14.063/2020 art. 4º II "b"</strong> (controle exclusivo dos dados de criação).
 					Sem ele, as assinaturas em tela seriam classificadas como
-					<strong>SIMPLES</strong> (art. 4º I), exigindo aceite expresso da contraparte
-					para serem oponíveis (art. 5º I) — por isso não pode ser desligado.
+					<strong>SIMPLES</strong> (art. 4º I), exigindo aceite expresso da contraparte para serem
+					oponíveis (art. 5º I) — por isso não pode ser desligado.
 					<strong class="text-error-500 block mt-1"
 						>Atenção: Os usuários precisam ter e-mail funcional cadastrado no perfil.</strong
 					>
@@ -304,8 +320,7 @@
 						>
 					</div>
 					<span class="text-[10px] text-surface-400 italic">
-						Não alteram a classificação legal (sempre AVANÇADA),
-						apenas o valor probatório em juízo.
+						Não alteram a classificação legal (sempre AVANÇADA), apenas o valor probatório em juízo.
 					</span>
 				</div>
 				<button
@@ -362,7 +377,6 @@
 						</p>
 					</div>
 				{/if}
-
 
 				{#if exigirFoto}
 					<div

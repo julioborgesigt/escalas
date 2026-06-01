@@ -179,7 +179,10 @@ describe('validarReplayProtection', () => {
 	it('aceita timestamp + nonce válidos', async () => {
 		const r = await validarReplayProtection(
 			db,
-			makeReq({ 'X-Webhook-Timestamp': String(Math.floor(NOW / 1000)), 'X-Webhook-Nonce': NONCE_OK }),
+			makeReq({
+				'X-Webhook-Timestamp': String(Math.floor(NOW / 1000)),
+				'X-Webhook-Nonce': NONCE_OK
+			}),
 			{ now: NOW }
 		);
 		expect(r).toEqual({ ok: true });
@@ -189,18 +192,14 @@ describe('validarReplayProtection', () => {
 		const r1 = await validarReplayProtection(db, makeReq({}), { now: NOW });
 		expect(r1).toEqual({ ok: false, reason: 'missing-headers' });
 
-		const r2 = await validarReplayProtection(
-			db,
-			makeReq({ 'X-Webhook-Timestamp': '1' }),
-			{ now: NOW }
-		);
+		const r2 = await validarReplayProtection(db, makeReq({ 'X-Webhook-Timestamp': '1' }), {
+			now: NOW
+		});
 		expect(r2.ok).toBe(false);
 
-		const r3 = await validarReplayProtection(
-			db,
-			makeReq({ 'X-Webhook-Nonce': NONCE_OK }),
-			{ now: NOW }
-		);
+		const r3 = await validarReplayProtection(db, makeReq({ 'X-Webhook-Nonce': NONCE_OK }), {
+			now: NOW
+		});
 		expect(r3.ok).toBe(false);
 	});
 
@@ -216,7 +215,10 @@ describe('validarReplayProtection', () => {
 	it('timestamp em segundos é aceito (10 dígitos = epoch s)', async () => {
 		const r = await validarReplayProtection(
 			db,
-			makeReq({ 'X-Webhook-Timestamp': String(Math.floor(NOW / 1000)), 'X-Webhook-Nonce': NONCE_OK }),
+			makeReq({
+				'X-Webhook-Timestamp': String(Math.floor(NOW / 1000)),
+				'X-Webhook-Nonce': NONCE_OK
+			}),
 			{ now: NOW }
 		);
 		expect(r.ok).toBe(true);

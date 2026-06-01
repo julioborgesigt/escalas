@@ -19,11 +19,7 @@ import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
 import { verificarAssinaturaCms } from './crypto-verify';
-import {
-	OID_SIG_POLICY_ID,
-	avaliarPoliticaAssinatura,
-	type AvaliacaoPolitica
-} from './icp-policy';
+import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } from './icp-policy';
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
@@ -114,11 +110,7 @@ function extrairAssinaturaDeByteRange(
 	let hexStr = '';
 	for (let i = hexInicio; i < hexFim; i++) {
 		const ch = pdfBytes[i];
-		if (
-			(ch >= 0x30 && ch <= 0x39) ||
-			(ch >= 0x41 && ch <= 0x46) ||
-			(ch >= 0x61 && ch <= 0x66)
-		) {
+		if ((ch >= 0x30 && ch <= 0x39) || (ch >= 0x41 && ch <= 0x46) || (ch >= 0x61 && ch <= 0x66)) {
 			hexStr += String.fromCharCode(ch);
 		}
 	}
@@ -247,10 +239,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 		for (const f of sd) {
 			if (f.tagClass === forge.asn1.Class.UNIVERSAL && f.type === forge.asn1.Type.SET) {
 				signerInfos = f;
-			} else if (
-				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
-				(f.type as number) === 0
-			) {
+			} else if (f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && (f.type as number) === 0) {
 				certsImpl = f;
 			}
 		}
@@ -285,10 +274,7 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				Array.isArray(f.value)
 			) {
 				signedAttrs = f;
-			} else if (
-				f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC &&
-				(f.type as number) === 1
-			) {
+			} else if (f.tagClass === forge.asn1.Class.CONTEXT_SPECIFIC && (f.type as number) === 1) {
 				unsignedAttrs = f;
 			} else if (
 				f.tagClass === forge.asn1.Class.UNIVERSAL &&
@@ -423,10 +409,7 @@ export async function verificarIntegridadePdf(
 	bytesAssinados: Uint8Array,
 	expectedDigestBytes: string
 ): Promise<boolean> {
-	const hash = await crypto.subtle.digest(
-		'SHA-256',
-		bytesAssinados as unknown as ArrayBuffer
-	);
+	const hash = await crypto.subtle.digest('SHA-256', bytesAssinados as unknown as ArrayBuffer);
 	const arr = new Uint8Array(hash);
 	if (arr.length !== expectedDigestBytes.length) return false;
 	for (let i = 0; i < arr.length; i++) {
@@ -472,7 +455,13 @@ export async function verificarAssinaturaCmsAsync(
 	signatureValue: string,
 	digestAlgOid?: string
 ): Promise<boolean> {
-	return verificarAssinaturaCms({ cert, sigAlgOid, signedAttrsAsSet, signatureValue, digestAlgOid });
+	return verificarAssinaturaCms({
+		cert,
+		sigAlgOid,
+		signedAttrsAsSet,
+		signatureValue,
+		digestAlgOid
+	});
 }
 
 export function verificarCadeiaIcpBrasil(
@@ -639,9 +628,7 @@ export async function verificarTimestampToken(
 		const miChildren = messageImprint.value as forge.asn1.Asn1[];
 		let miAlgOid: string | undefined;
 		try {
-			miAlgOid = forge.asn1.derToOid(
-				(miChildren[0].value as forge.asn1.Asn1[])[0].value as string
-			);
+			miAlgOid = forge.asn1.derToOid((miChildren[0].value as forge.asn1.Asn1[])[0].value as string);
 		} catch {
 			/* default SHA-256 */
 		}
@@ -938,8 +925,7 @@ export async function verificarAssinaturaCompleta(
 	//   - com ICP_BRASIL_TRUST_STORE_REQUIRED=true: trata como inválido (não
 	//     dá pra afirmar que é qualificada sem validar a cadeia).
 	const cadeiaOk =
-		cadeia === true ||
-		(cadeia === 'indisponivel' && !trustStoreRequerido(options.env));
+		cadeia === true || (cadeia === 'indisponivel' && !trustStoreRequerido(options.env));
 	if (cadeia === 'indisponivel' && trustStoreRequerido(options.env)) {
 		erros.push(
 			'Trust store ICP-Brasil não populado neste servidor — não foi possível validar a cadeia.'

@@ -171,7 +171,12 @@ export async function appendGiseDetalhadoToXlsxWorkbook(
 	}
 
 	for (const sec of gise.seccionais ?? []) {
-		const sheetNm = seccionalSheetName(sec.seccional_nome, gise.id, multiEscala, state.usedWorksheetNames);
+		const sheetNm = seccionalSheetName(
+			sec.seccional_nome,
+			gise.id,
+			multiEscala,
+			state.usedWorksheetNames
+		);
 		const ws = wb.addWorksheet(sheetNm);
 		ws.columns = [
 			{ width: 35 },

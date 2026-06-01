@@ -201,7 +201,7 @@
 			</div>
 		</div>
 		<div class="flex flex-wrap gap-2 justify-end">
-			{#each ['DOCX', 'XLSX', 'PDF'] as format}
+			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
 					class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 no-underline rounded-lg"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
@@ -214,11 +214,7 @@
 				onclick={abrirModalReenviar}
 				disabled={pendingReenviar || pendingReenvioAuto}
 			>
-				{pendingReenvioAuto
-					? 'Reenviando...'
-					: pendingReenviar
-						? 'Enviando...'
-						: 'Reenviar E-mail'}
+				{pendingReenvioAuto ? 'Reenviando...' : pendingReenviar ? 'Enviando...' : 'Reenviar E-mail'}
 			</button>
 			<button
 				type="button"
@@ -319,8 +315,8 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail
-				de destino.
+				A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail de
+				destino.
 			</Dialog.Description>
 			<form method="POST" action="?/reenviarEmail" use:enhance={handleReenviar} class="space-y-4">
 				<label class="label">

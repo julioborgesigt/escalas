@@ -72,20 +72,15 @@ function montarTimeStampReq(signatureValue: string): Uint8Array {
 	let nonceStr = '';
 	for (const b of nonceBytes) nonceStr += String.fromCharCode(b);
 
-	const algSha256 = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.SEQUENCE,
-		true,
-		[
-			forge.asn1.create(
-				forge.asn1.Class.UNIVERSAL,
-				forge.asn1.Type.OID,
-				false,
-				forge.asn1.oidToDer(OID_SHA256).getBytes()
-			),
-			forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
-		]
-	);
+	const algSha256 = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		forge.asn1.create(
+			forge.asn1.Class.UNIVERSAL,
+			forge.asn1.Type.OID,
+			false,
+			forge.asn1.oidToDer(OID_SHA256).getBytes()
+		),
+		forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.NULL, false, '')
+	]);
 
 	const messageImprint = forge.asn1.create(
 		forge.asn1.Class.UNIVERSAL,
@@ -186,8 +181,7 @@ export async function solicitarCarimboTempo(
 	if (config.username && config.password) {
 		// HTTP Basic — funciona em Cloudflare Workers via btoa.
 		const creds = `${config.username}:${config.password}`;
-		const b64 =
-			typeof btoa !== 'undefined' ? btoa(creds) : Buffer.from(creds).toString('base64');
+		const b64 = typeof btoa !== 'undefined' ? btoa(creds) : Buffer.from(creds).toString('base64');
 		headers.Authorization = `Basic ${b64}`;
 	}
 

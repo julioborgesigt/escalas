@@ -46,17 +46,17 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 		if (data.exigirCodigoEmail === false) {
 			return badRequest(
 				'O 2FA por e-mail é requisito legal mínimo para assinatura AVANÇADA ' +
-				'(Lei 14.063/2020 art. 4º II "b") e não pode ser desativado. ' +
-				'Sem ele, as assinaturas em tela seriam classificadas como SIMPLES (art. 4º I), ' +
-				'exigindo aceite expresso da contraparte para serem oponíveis (art. 5º I).'
+					'(Lei 14.063/2020 art. 4º II "b") e não pode ser desativado. ' +
+					'Sem ele, as assinaturas em tela seriam classificadas como SIMPLES (art. 4º I), ' +
+					'exigindo aceite expresso da contraparte para serem oponíveis (art. 5º I).'
 			);
 		}
-		saves.push(
-			salvarConfiguracao(db, 'exigir_codigo_email_assinatura', '1')
-		);
+		saves.push(salvarConfiguracao(db, 'exigir_codigo_email_assinatura', '1'));
 	}
 	if (data.restringirSmartphone !== undefined) {
-		saves.push(salvarConfiguracao(db, 'restringir_smartphone', data.restringirSmartphone ? '1' : '0'));
+		saves.push(
+			salvarConfiguracao(db, 'restringir_smartphone', data.restringirSmartphone ? '1' : '0')
+		);
 	}
 
 	if (saves.length === 0) return badRequest('Nenhum campo válido para salvar');

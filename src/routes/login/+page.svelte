@@ -54,7 +54,9 @@
 	let resetadoParamConsumido = false;
 
 	// Exibe o erro do último attempt — funciona com JS (loginError) e sem JS (page.form)
-	const loginErrorDisplay = $derived(loginError ?? (page.form as { error?: string } | null)?.error ?? null);
+	const loginErrorDisplay = $derived(
+		loginError ?? (page.form as { error?: string } | null)?.error ?? null
+	);
 
 	// Remove `?resetado=1` sem `goto()`: uma navegação cliente extra aqui pode correr com o
 	// `goto` pós-2FA e deixar o layout sem `usuario` (sidebar some, parece sem estilo).
@@ -72,8 +74,16 @@
 		loginError = null;
 		const mat = String(formData.get('matricula') ?? '').trim();
 		const pw = String(formData.get('senha') ?? '');
-		if (!mat) { loginError = 'Matrícula é obrigatória'; cancel(); return; }
-		if (!pw) { loginError = 'Senha é obrigatória'; cancel(); return; }
+		if (!mat) {
+			loginError = 'Matrícula é obrigatória';
+			cancel();
+			return;
+		}
+		if (!pw) {
+			loginError = 'Senha é obrigatória';
+			cancel();
+			return;
+		}
 		loadingService.show('Autenticando...');
 		return async ({ result }: { result: FormResult }) => {
 			try {
@@ -144,7 +154,10 @@
 						return;
 					}
 
-					toaster.create({ title: 'Não foi possível concluir a verificação. Tente novamente.', type: 'error' });
+					toaster.create({
+						title: 'Não foi possível concluir a verificação. Tente novamente.',
+						type: 'error'
+					});
 					return;
 				}
 
@@ -156,9 +169,15 @@
 					return;
 				}
 
-				toaster.create({ title: 'Erro inesperado ao verificar o código. Tente novamente.', type: 'error' });
+				toaster.create({
+					title: 'Erro inesperado ao verificar o código. Tente novamente.',
+					type: 'error'
+				});
 			} catch {
-				toaster.create({ title: 'Não foi possível concluir a verificação. Tente novamente.', type: 'error' });
+				toaster.create({
+					title: 'Não foi possível concluir a verificação. Tente novamente.',
+					type: 'error'
+				});
 			} finally {
 				loadingService.hide();
 			}
@@ -173,7 +192,10 @@
 				primeiroAcessoEnviado = true;
 			} else if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao processar solicitação.'), type: 'error' });
+				toaster.create({
+					title: String(d?.error || 'Erro ao processar solicitação.'),
+					type: 'error'
+				});
 			}
 		};
 	}
@@ -282,7 +304,10 @@
 				desafioIdRec = '';
 				codigoRec = '';
 			} else {
-				toaster.create({ title: String(data?.error || 'Código inválido ou expirado.'), type: 'error' });
+				toaster.create({
+					title: String(data?.error || 'Código inválido ou expirado.'),
+					type: 'error'
+				});
 			}
 		} catch {
 			toaster.create({ title: 'Erro ao validar o código. Tente novamente.', type: 'error' });
@@ -302,12 +327,19 @@
 	>
 		<div class="text-center mb-6">
 			<h1 class="h1 text-xl font-bold mb-1">Sistema de Escalas</h1>
-			
 		</div>
 
 		{#if mostrarBannerResetado && !recuperacao}
-			<div class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-success-500/10 border border-success-500/25 text-success-700 dark:text-success-300 text-sm">
-				<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+			<div
+				class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-success-500/10 border border-success-500/25 text-success-700 dark:text-success-300 text-sm"
+			>
+				<svg
+					class="w-4 h-4 mt-0.5 shrink-0"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					stroke-width="2"
+				>
 					<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
 				</svg>
 				<span>Senha redefinida com sucesso! Faça login com sua nova senha.</span>
@@ -322,27 +354,44 @@
 					onValueChange={(e) => (tipo = e.value as 'policial' | 'admin')}
 					class="w-full"
 				>
-					<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-						<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
-						<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+					<Tabs.List
+						class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full"
+					>
+						<Tabs.Trigger
+							value="policial"
+							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							>Policial</Tabs.Trigger
+						>
+						<Tabs.Trigger
+							value="admin"
+							class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+							>Administrador</Tabs.Trigger
+						>
 					</Tabs.List>
 				</Tabs>
 			</div>
 
-			<form method="POST" action="?/login" use:enhance={handleLogin} class="flex flex-col gap-4 sm:gap-6">
+			<form
+				method="POST"
+				action="?/login"
+				use:enhance={handleLogin}
+				class="flex flex-col gap-4 sm:gap-6"
+			>
 				<input type="hidden" name="tipo" value={tipo} />
 				{#if tipo === 'admin'}
 					<input type="hidden" name="adminModulo" value={adminModulo} />
 					<label class="label">
-						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-500">Módulo de Acesso</span>
+						<span class="label-text text-xs font-semibold uppercase tracking-wider text-surface-500"
+							>Módulo de Acesso</span
+						>
 						<div class="flex gap-2 mt-1">
 							{#each [{ value: 'escalas', label: 'Escalas', icon: '📅' }, { value: 'gise', label: 'GISE', icon: '🛡️' }] as opt (opt.value)}
 								<button
 									type="button"
 									class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
 										{adminModulo === opt.value
-											? 'bg-primary-500/15 border-primary-500/50 text-primary-700 dark:text-primary-400'
-											: 'border-surface-200 dark:border-surface-700 text-surface-500 hover:border-surface-400 dark:hover:border-surface-500'}"
+										? 'bg-primary-500/15 border-primary-500/50 text-primary-700 dark:text-primary-400'
+										: 'border-surface-200 dark:border-surface-700 text-surface-500 hover:border-surface-400 dark:hover:border-surface-500'}"
 									onclick={() => (adminModulo = opt.value as typeof adminModulo)}
 								>
 									<span class="text-base">{opt.icon}</span>
@@ -397,8 +446,18 @@
 						aria-live="assertive"
 						class="flex items-center gap-2 p-3 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
 					>
-						<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						<svg
+							class="w-4 h-4 shrink-0"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
 						</svg>
 						{loginErrorDisplay}
 					</div>
@@ -424,12 +483,17 @@
 						<button
 							type="button"
 							class="shrink-0 text-primary-600 dark:text-primary-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
-							onclick={() => { primeiroAcesso = true; }}
+							onclick={() => {
+								primeiroAcesso = true;
+							}}
 						>
 							Clique aqui
 						</button>
 					</span>
-					<span class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none" aria-hidden="true">·</span>
+					<span
+						class="hidden sm:inline text-surface-300 dark:text-surface-600 select-none"
+						aria-hidden="true">·</span
+					>
 				{/if}
 				<span class="inline-flex flex-nowrap items-baseline gap-1">
 					<span class="shrink-0">Esqueceu a senha?</span>
@@ -446,7 +510,7 @@
 			<!-- ===== Recuperação de senha ===== -->
 			<Steps step={currentRecStep} count={3} class="mb-6">
 				<Steps.List class="flex items-center justify-center gap-2">
-					{#each ['Identificação', 'Código', 'Concluído'] as label, i}
+					{#each ['Identificação', 'Código', 'Concluído'] as label, i (i)}
 						<Steps.Item index={i}>
 							<Steps.Trigger
 								tabindex={-1}
@@ -454,7 +518,8 @@
 							>
 								<Steps.Indicator
 									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px]"
-								>{i + 1}</Steps.Indicator>
+									>{i + 1}</Steps.Indicator
+								>
 								<span class="hidden sm:inline">{label}</span>
 							</Steps.Trigger>
 							{#if i < 2}
@@ -469,7 +534,8 @@
 					<div class="text-5xl mb-3">🔒</div>
 					<p class="font-semibold mb-1">Recuperar senha</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400">
-						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação por e-mail.
+						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação
+						por e-mail.
 					</p>
 				</div>
 
@@ -482,9 +548,19 @@
 						}}
 						class="w-full mb-4"
 					>
-						<Tabs.List class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full">
-							<Tabs.Trigger value="policial" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Policial</Tabs.Trigger>
-							<Tabs.Trigger value="admin" class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200">Administrador</Tabs.Trigger>
+						<Tabs.List
+							class="flex items-center rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1 w-full"
+						>
+							<Tabs.Trigger
+								value="policial"
+								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>Policial</Tabs.Trigger
+							>
+							<Tabs.Trigger
+								value="admin"
+								class="px-3 py-2 text-sm font-semibold rounded-lg flex-1 text-center cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[selected]:bg-primary-500 data-[selected]:text-white data-[selected]:shadow-md data-[selected]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
+								>Administrador</Tabs.Trigger
+							>
 						</Tabs.List>
 					</Tabs>
 
@@ -544,17 +620,24 @@
 						{loadingService.active ? 'Validando...' : 'Confirmar código'}
 					</button>
 
-					<button type="button" class="btn preset-outlined w-full" onclick={voltarParaIdentificadorRec}>
+					<button
+						type="button"
+						class="btn preset-outlined w-full"
+						onclick={voltarParaIdentificadorRec}
+					>
 						← Voltar
 					</button>
 				</div>
 			{:else}
 				<div class="text-center">
 					<div class="text-5xl mb-4">📬</div>
-					<p class="font-semibold mb-2">{recuperacaoResultado === 'link' ? 'Link enviado!' : 'Código enviado!'}</p>
+					<p class="font-semibold mb-2">
+						{recuperacaoResultado === 'link' ? 'Link enviado!' : 'Código enviado!'}
+					</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400 mb-6">
 						{#if recuperacaoResultado === 'link'}
-							Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de senha. Verifique também sua caixa de spam.
+							Dentro de instantes você receberá em seu e-mail funcional um link de redefinição de
+							senha. Verifique também sua caixa de spam.
 						{:else}
 							Você receberá um código de validação em instantes.
 						{/if}
@@ -578,7 +661,12 @@
 						Informe sua matrícula para receber uma senha provisória no e-mail cadastrado.
 					</p>
 				</div>
-				<form method="POST" action="?/solicitarPrimeiroAcesso" use:enhance={handlePrimeiroAcesso} class="flex flex-col gap-5">
+				<form
+					method="POST"
+					action="?/solicitarPrimeiroAcesso"
+					use:enhance={handlePrimeiroAcesso}
+					class="flex flex-col gap-5"
+				>
 					<label class="label">
 						<span class="label-text">Matrícula</span>
 						<input
@@ -626,7 +714,12 @@
 				<p class="font-semibold mb-1">Verificação em dois fatores</p>
 			</div>
 
-			<form method="POST" action="?/verificar2FA" use:enhance={handleVerificar2FA} class="flex flex-col gap-5">
+			<form
+				method="POST"
+				action="?/verificar2FA"
+				use:enhance={handleVerificar2FA}
+				class="flex flex-col gap-5"
+			>
 				<input type="hidden" name="desafioId" value={desafioId} />
 				<label class="label">
 					<span class="label-text text-center block">Código de verificação</span>

@@ -23,8 +23,10 @@ export function horaToMin(h: string): number {
  * Lida com turnos que cruzam a meia-noite (ex: 22:00–06:00).
  */
 export function seOverlapam(e1: string, s1: string, e2: string, s2: string): boolean {
-	const a = horaToMin(e1); let b = horaToMin(s1);
-	const c = horaToMin(e2); let d = horaToMin(s2);
+	const a = horaToMin(e1);
+	let b = horaToMin(s1);
+	const c = horaToMin(e2);
+	let d = horaToMin(s2);
 	if (b <= a) b += 1440;
 	if (d <= c) d += 1440;
 	return (a < d && c < b) || (a < d + 1440 && c + 1440 < b);

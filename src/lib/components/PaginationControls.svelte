@@ -31,10 +31,13 @@
 	}
 </script>
 
-<div class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+<div
+	class="mt-6 pt-6 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4"
+>
 	<p class="text-surface-500 text-xs px-1">
 		Mostrando <strong>{totalItens > 0 ? itensInicio : 0}</strong>–<strong>{itensFim}</strong>
-		de <strong>{totalItens}</strong> {totalItens === 1 ? labelSingular : labelPlural}
+		de <strong>{totalItens}</strong>
+		{totalItens === 1 ? labelSingular : labelPlural}
 	</p>
 
 	{#if totalPaginas > 1}
@@ -45,7 +48,10 @@
 			onPageChange={handlePageChange}
 			siblingCount={1}
 		>
-			<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior">
+			<Pagination.PrevTrigger
+				class="btn btn-sm preset-outlined-surface-500"
+				aria-label="Página anterior"
+			>
 				<ChevronLeft size={16} />
 			</Pagination.PrevTrigger>
 
@@ -68,7 +74,10 @@
 				{/snippet}
 			</Pagination.Context>
 
-			<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página">
+			<Pagination.NextTrigger
+				class="btn btn-sm preset-outlined-surface-500"
+				aria-label="Próxima página"
+			>
 				<ChevronRight size={16} />
 			</Pagination.NextTrigger>
 		</Pagination>

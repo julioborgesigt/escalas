@@ -50,11 +50,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 		);
 	}
 	if (!resultado) {
-		return apiError(
-			'Código inválido. Verifique e tente novamente.',
-			401,
-			ErrorCode.AUTH_REQUIRED
-		);
+		return apiError('Código inválido. Verifique e tente novamente.', 401, ErrorCode.AUTH_REQUIRED);
 	}
 
 	const { tipo, usuarioId } = resultado;
@@ -70,11 +66,7 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 		if (!admin) return notFound('Usuário');
 		primeiroAcesso = admin.primeiro_acesso === 1;
 	} else {
-		const policial = await db
-			.select()
-			.from(policiais)
-			.where(eq(policiais.id, usuarioId))
-			.get();
+		const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 		if (!policial || policial.ativo === 0) {
 			return forbidden('Usuário inativo');
 		}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -66,7 +67,9 @@
 	const diasEscalaLocal = $derived.by(() => {
 		if (!escala) return [];
 		const days: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(escala.data_inicio + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const last = new Date(escala.data_fim + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);
@@ -91,14 +94,17 @@
 				toaster.create({ title: `${itemNome} removido da escala`, type: 'success' });
 			} else {
 				policiaisEscalaLocal = backup;
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
 	}
 
 	let modoSelecao = $state(false);
-	let selecionados = $state(new Set<number>());
+	let selecionados = $state(new SvelteSet<number>());
 	let pendingRemoverTodos = $state(false);
 	let pendingRemoverSelecionados = $state(false);
 	let confirmRemoverTodosOpen = $state(false);
@@ -108,6 +114,7 @@
 	const totalSelecionados = $derived(selecionados.size);
 
 	function toggleSelecionar(id: number) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const novo = new Set(selecionados);
 		if (novo.has(id)) novo.delete(id);
 		else novo.add(id);
@@ -116,6 +123,7 @@
 
 	function cancelarSelecao() {
 		modoSelecao = false;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		selecionados = new Set();
 	}
 
@@ -130,7 +138,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -153,7 +164,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -206,7 +220,9 @@
 
 	<ModalConfirmar bind:open={confirmRemoverTodosOpen} title="Remover Todos?">
 		{#snippet description()}
-			Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong>
+			Tem certeza que deseja remover <strong
+				>todos os {policiaisEscalaLocal.length} servidores</strong
+			>
 			desta escala? Esta ação não pode ser desfeita.
 		{/snippet}
 		{#snippet actions()}
@@ -224,7 +240,9 @@
 
 	<ModalConfirmar bind:open={confirmRemoverSelecionadosOpen} title="Remover Selecionados?">
 		{#snippet description()}
-			Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong>
+			Tem certeza que deseja remover os <strong
+				>{totalSelecionados} servidor(es) selecionado(s)</strong
+			>
 			desta escala?
 		{/snippet}
 		{#snippet actions()}

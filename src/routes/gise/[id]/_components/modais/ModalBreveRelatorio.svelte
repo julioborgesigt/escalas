@@ -47,7 +47,9 @@
 
 <Dialog
 	{open}
-	onOpenChange={(e) => { if (!pendingCrud && !e.open) onClose(); }}
+	onOpenChange={(e) => {
+		if (!pendingCrud && !e.open) onClose();
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -106,7 +108,9 @@
 						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO}
 					></textarea>
 				</div>
-				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-surface-700 shrink-0">
+				<div
+					class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-surface-700 shrink-0"
+				>
 					<button
 						type="button"
 						class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-xl"

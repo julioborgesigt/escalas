@@ -5,7 +5,14 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, getR2, hasR2, buscarGiseDocumento, buscarGiseEscala, reabrirGiseEscala } from '$lib/db';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	buscarGiseDocumento,
+	buscarGiseEscala,
+	reabrirGiseEscala
+} from '$lib/db';
 import {
 	contentDisposition,
 	requireAuth,
@@ -41,7 +48,10 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 	if (!documento) return notFound('Documento assinado');
 
 	if (!hasR2(platform)) {
-		return serverError('[gise/documento-assinado] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
+		return serverError(
+			'[gise/documento-assinado] R2 não configurado',
+			new Error('R2_NOT_CONFIGURED')
+		);
 	}
 
 	const bucket = getR2(platform);

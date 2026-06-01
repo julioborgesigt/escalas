@@ -20,9 +20,7 @@ describe('anonimizarIp — IPv4', () => {
 
 describe('anonimizarIp — IPv6 /64 (I-3)', () => {
 	it('zera 4 últimos grupos em endereço completo', () => {
-		expect(anonimizarIp('2001:0db8:0000:0000:1234:5678:9abc:def0')).toBe(
-			'2001:0db8:0000:0000::'
-		);
+		expect(anonimizarIp('2001:0db8:0000:0000:1234:5678:9abc:def0')).toBe('2001:0db8:0000:0000::');
 	});
 
 	it('expande notação `::` e preserva /64', () => {

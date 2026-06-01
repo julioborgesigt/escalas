@@ -14,7 +14,10 @@ import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 import { registrarAuditComContexto } from '$lib/db/audit';
 
-async function carregarLogoR2(platform: App.Platform | undefined, key: string): Promise<Uint8Array | undefined> {
+async function carregarLogoR2(
+	platform: App.Platform | undefined,
+	key: string
+): Promise<Uint8Array | undefined> {
 	try {
 		const r2 = getR2(platform);
 		if (!r2) return undefined;
@@ -54,7 +57,10 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 	try {
 		// ── PDF: servir documento assinado do R2 se existir ──────────────────
-		if ((format === 'pdf' || format === 'pdf') && (escala.tipo === 'expediente' || escala.tipo === 'plantao')) {
+		if (
+			(format === 'pdf' || format === 'pdf') &&
+			(escala.tipo === 'expediente' || escala.tipo === 'plantao')
+		) {
 			const doc = await buscarDocumentoEscala(db, id);
 			if (doc?.r2_key) {
 				const r2 = getR2(platform);
@@ -71,7 +77,10 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 							});
 						}
 					} catch (e) {
-						logger.warn('[escalas/download] Falha ao buscar PDF assinado do R2', { escala_id: id, error: String(e) });
+						logger.warn('[escalas/download] Falha ao buscar PDF assinado do R2', {
+							escala_id: id,
+							error: String(e)
+						});
 					}
 				}
 			}
@@ -84,12 +93,14 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 		if (format === 'docx' || format === 'doc') {
 			if (escala.tipo === 'plantao') buffer = await exportLib.gerarDocxPlantao(escala, policiais);
-			else if (escala.tipo === 'expediente') buffer = await exportLib.gerarDocxExpediente(escala, policiais);
+			else if (escala.tipo === 'expediente')
+				buffer = await exportLib.gerarDocxExpediente(escala, policiais);
 			else buffer = await exportLib.gerarDocx(escala, policiais);
 			contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 		} else if (format === 'xlsx' || format === 'excel' || format === 'xls') {
 			if (escala.tipo === 'plantao') buffer = await exportLib.gerarXlsxPlantao(escala, policiais);
-			else if (escala.tipo === 'expediente') buffer = await exportLib.gerarXlsxExpediente(escala, policiais);
+			else if (escala.tipo === 'expediente')
+				buffer = await exportLib.gerarXlsxExpediente(escala, policiais);
 			else buffer = await exportLib.gerarXlsx(escala, policiais);
 			contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 		} else {
@@ -97,8 +108,8 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			let result: exportLib.PdfExportResult;
 			if (escala.tipo === 'expediente') {
 				const [logoPolicia, logoCeara] = await Promise.all([
-					carregarLogoR2(platform, 'assets/logogise.jpg'),   // PC Civil (já em uso no GISE)
-					carregarLogoR2(platform, 'assets/logo_ceara.jpg')  // Ceará Gov (fazer upload em R2)
+					carregarLogoR2(platform, 'assets/logogise.jpg'), // PC Civil (já em uso no GISE)
+					carregarLogoR2(platform, 'assets/logo_ceara.jpg') // Ceará Gov (fazer upload em R2)
 				]);
 				result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
 			} else if (escala.tipo === 'plantao') {

@@ -8,10 +8,7 @@
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
-	import {
-		checkAllSigned,
-		filtrarSeccionaisDisponiveis
-	} from '$lib/gise/gise-page-helpers';
+	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas
@@ -85,6 +82,7 @@
 	});
 
 	const nomesSupervisaoPorId = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const m = new Map<number, string>();
 		if (!gise) return m;
 		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
@@ -229,6 +227,7 @@
 	/** Factory de `loadOptions` parametrizado por cargo. Usa AbortSignal para cancelar. */
 	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
 		return async (query: string, signal: AbortSignal) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const params = new URLSearchParams({ cargo, limit: '50' });
 			if (query) params.set('q', query);
 			const res = await fetch(`/api/policiais/search?${params}`, { signal });
@@ -387,7 +386,6 @@
 				gise?.status === 'pronta_para_finalizar' ||
 				gise?.status === 'finalizada')
 	);
-
 </script>
 
 <svelte:head>
@@ -401,7 +399,6 @@
 		<title>Carregando GISE... — Portal de Escalas</title>
 	{/if}
 </svelte:head>
-
 
 <div
 	class="relative min-w-0 transition-all duration-500 {loading.active
@@ -578,7 +575,8 @@
 							{modoEdicaoGeral}
 							assinaturasRelatorios={data.assinaturasRelatorios}
 							restringirSmartphone={data.restringirSmartphone}
-							recolhida={seccionaisRecolhidas[sec.id] ?? (sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
+							recolhida={seccionaisRecolhidas[sec.id] ??
+								(sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
 							onToggleRecolher={() => toggleRecolherSeccional(sec.id)}
 							onAssinarRelatorioManual={(seccionalId) =>
 								assinatura.abrirAssinaturaRelatorio(seccionalId, 'extraordinario')}
@@ -609,7 +607,7 @@
 								class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 							>
 								<option value="">Selecione a seccional...</option>
-								{#each seccionaisDisponiveis as s}
+								{#each seccionaisDisponiveis as s (s.id)}
 									<option value={s.id}>{s.nome}</option>
 								{/each}
 							</select>

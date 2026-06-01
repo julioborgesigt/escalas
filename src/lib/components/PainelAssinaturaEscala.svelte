@@ -36,12 +36,7 @@
 </script>
 
 {#if isFDS}
-	<PainelAssinaturaFDS
-		{escalaId}
-		{policiaisCount}
-		bind:finalizadaEm
-		{emailEnvioInicial}
-	/>
+	<PainelAssinaturaFDS {escalaId} {policiaisCount} bind:finalizadaEm {emailEnvioInicial} />
 {:else}
 	<PainelAssinaturaDigital
 		{escalaId}

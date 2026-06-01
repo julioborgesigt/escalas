@@ -58,15 +58,17 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 		//   - Os 4 supportIds (supervisor/assessor/SEINT1/SEINT2) — para o card de supervisão.
 		//   - Membros já alocados são entregues via `gise.seccionais[].equipes[].membros`
 		//     (já vêm com nome/matrícula em `buscarGiseDetalhado`), nada a fazer.
-		const policiaisPromise: Promise<Array<{
-			id: number;
-			nome: string;
-			matricula: string;
-			cargo: 'DPC' | 'OIP';
-			lotacao: string;
-			email: string | null;
-			email_pessoal: string | null;
-		}>> =
+		const policiaisPromise: Promise<
+			Array<{
+				id: number;
+				nome: string;
+				matricula: string;
+				cargo: 'DPC' | 'OIP';
+				lotacao: string;
+				email: string | null;
+				email_pessoal: string | null;
+			}>
+		> =
 			supportIds.length > 0
 				? db
 						.select({
@@ -83,7 +85,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 						.orderBy(asc(policiais.nome))
 				: Promise.resolve([]);
 
-		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter((x): x is number => x != null);
+		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter(
+			(x): x is number => x != null
+		);
 
 		/** E-mail do assessor já vinculado à GISE (pessoal ou institucional), só para Admin Geral — não depende da lista enxuta nem de `ativo`. */
 		const assessorEmailRowPromise =
@@ -138,7 +142,9 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 
 		const seintSupervisaoComRelatorio = [
 			...new Set(
-				respostasSeintSupervisaoRows.map((r) => r.policial_id).filter((pid): pid is number => pid != null)
+				respostasSeintSupervisaoRows
+					.map((r) => r.policial_id)
+					.filter((pid): pid is number => pid != null)
 			)
 		];
 
@@ -164,7 +170,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			isUnidade: isAdminUnidade(u),
 			isSupervisor,
 			isMembro: u.tipo === 'policial' ? (parentData.isMembroGise ?? false) : false,
-			minhaSeccionalId: (isSeccional || isAdminUnidade(u)) ? u.papel_unidade_id : null,
+			minhaSeccionalId: isSeccional || isAdminUnidade(u) ? u.papel_unidade_id : null,
 			usuarioAtual: u,
 			restringirSmartphone,
 			exigirFotoAssinatura: parentData.exigirFotoAssinatura,

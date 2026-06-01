@@ -63,7 +63,9 @@ export const atualizarIncidenteSchema = z
 		responsavel_nome: z.string().min(3).max(200).optional(),
 		responsavel_email: z.string().email().max(200).optional()
 	})
-	.refine((v) => Object.keys(v).length > 0, { message: 'Informe ao menos um campo para atualizar' });
+	.refine((v) => Object.keys(v).length > 0, {
+		message: 'Informe ao menos um campo para atualizar'
+	});
 export type AtualizarIncidenteInput = z.infer<typeof atualizarIncidenteSchema>;
 
 // ──────────────────────────────────────────────────────────────────────

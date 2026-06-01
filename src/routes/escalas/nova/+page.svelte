@@ -21,7 +21,10 @@
 		loading.show('Criando nova escala...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
+			const d =
+				result.type === 'success' || result.type === 'failure'
+					? (result.data as Record<string, unknown> | undefined)
+					: undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);
@@ -78,9 +81,11 @@
 	}
 
 	function sabadoDaSemana(): Date {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const hoje = new Date();
 		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const sab = new Date(hoje);
 		sab.setDate(hoje.getDate() + offset);
 		return sab;
@@ -183,7 +188,8 @@
 
 	const currentStep = $derived.by(() => {
 		if (!selecionando) return stepsConfig.findIndex((s) => s.key === 'detalhes');
-		if (temVariasUnidades && !unidadeEscolhida) return stepsConfig.findIndex((s) => s.key === 'unidade');
+		if (temVariasUnidades && !unidadeEscolhida)
+			return stepsConfig.findIndex((s) => s.key === 'unidade');
 		return stepsConfig.findIndex((s) => s.key === 'tipo');
 	});
 
@@ -307,6 +313,7 @@
 
 	function abrirFdsModal(unidade: UnidadeRegime) {
 		const sab = sabadoDaSemana();
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const dom = new Date(sab);
 		dom.setDate(sab.getDate() + 1);
 		const fmt = (d: Date) =>
@@ -337,7 +344,10 @@
 		loading.show('Criando escala FDS...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
+			const d =
+				result.type === 'success' || result.type === 'failure'
+					? (result.data as Record<string, unknown> | undefined)
+					: undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);
@@ -364,7 +374,8 @@
 					>
 						<Steps.Indicator
 							class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs"
-						>{i + 1}</Steps.Indicator>
+							>{i + 1}</Steps.Indicator
+						>
 						<span class="hidden sm:inline">{s.label}</span>
 					</Steps.Trigger>
 					{#if i < stepsConfig.length - 1}
@@ -402,7 +413,7 @@
 								{u.nome}
 							</p>
 							<div class="flex gap-1.5 mt-2 flex-wrap">
-								{#each tipos as t}
+								{#each tipos as t (t.tipo)}
 									<span
 										class="text-[10px] font-bold badge bg-surface-200/80 dark:bg-surface-700/80 px-1.5"
 										>{t.icon} {t.label}</span
@@ -430,7 +441,7 @@
 				</h2>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-				{#each tiposDisponiveis(unidadeEscolhida) as t}
+				{#each tiposDisponiveis(unidadeEscolhida) as t (t.tipo)}
 					<button
 						type="button"
 						class="p-5 rounded-2xl border-2 border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500 hover:bg-primary-500/10 transition-all text-center group"
@@ -599,7 +610,9 @@
 <!-- =========== MODAL FDS =========== -->
 <Dialog
 	open={showFdsModal}
-	onOpenChange={(e) => { if (!loading.active) showFdsModal = e.open; }}
+	onOpenChange={(e) => {
+		if (!loading.active) showFdsModal = e.open;
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -608,7 +621,9 @@
 			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
 		>
 			<div>
-				<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">
+				<Dialog.Title
+					class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
+				>
 					Nova Escala — Final de Semana
 				</Dialog.Title>
 				{#if unidadeEscolhida}
@@ -660,12 +675,12 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds}
+					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
 					{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = isoDiaLocal(calAno, calMes, cell.day)}
 							{@const sel = fdsDiasSelecionados.includes(iso)}
@@ -697,7 +712,7 @@
 					<div
 						class="flex flex-nowrap items-stretch gap-1.5 overflow-x-auto max-w-full pb-0.5 [scrollbar-width:thin]"
 					>
-						{#each fdsDiasOrdenados as iso}
+						{#each fdsDiasOrdenados as iso (iso)}
 							<span
 								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
 							>

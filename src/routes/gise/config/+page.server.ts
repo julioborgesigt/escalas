@@ -2,7 +2,10 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getDB, salvarVagasPadraoEquipesGise, buscarVagasPadraoEquipesGise } from '$lib/db';
 import { buscarConfiguracao, salvarConfiguracao } from '$lib/db/configuracoes';
-import { getBreveRelatorioEnvMergido, GISE_BREVE_RELATORIO_CONFIG_KEYS } from '$lib/server/breve-relatorio-env';
+import {
+	getBreveRelatorioEnvMergido,
+	GISE_BREVE_RELATORIO_CONFIG_KEYS
+} from '$lib/server/breve-relatorio-env';
 import {
 	resolveBreveRelatorioTitulo,
 	resolveBreveRelatorioConteudoSeccional,
@@ -66,10 +69,18 @@ export const actions: Actions = {
 		const defaultHoraEntrada = normalizarHora(defaultHoraEntradaRaw.trim());
 		const defaultHoraSaida = normalizarHora(defaultHoraSaidaRaw.trim());
 
-		if (!defaultHoraEntrada || !validarHora(defaultHoraEntrada) || !/^\d{1,2}:\d{2}$/.test(defaultHoraEntrada)) {
+		if (
+			!defaultHoraEntrada ||
+			!validarHora(defaultHoraEntrada) ||
+			!/^\d{1,2}:\d{2}$/.test(defaultHoraEntrada)
+		) {
 			return fail(400, { error: 'Horário de entrada padrão inválido. Use o formato HH:MM.' });
 		}
-		if (!defaultHoraSaida || !validarHora(defaultHoraSaida) || !/^\d{1,2}:\d{2}$/.test(defaultHoraSaida)) {
+		if (
+			!defaultHoraSaida ||
+			!validarHora(defaultHoraSaida) ||
+			!/^\d{1,2}:\d{2}$/.test(defaultHoraSaida)
+		) {
 			return fail(400, { error: 'Horário de saída padrão inválido. Use o formato HH:MM.' });
 		}
 

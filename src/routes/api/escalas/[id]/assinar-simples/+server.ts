@@ -1,6 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarEscala, listarPoliciaisEscala, salvarDocumentoEscala, registrarAuditComContexto, getR2, hasR2 } from '$lib/db';
+import {
+	getDB,
+	buscarEscala,
+	listarPoliciaisEscala,
+	salvarDocumentoEscala,
+	registrarAuditComContexto,
+	getR2,
+	hasR2
+} from '$lib/db';
 import { assinarSimplesSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -21,13 +29,28 @@ import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-s
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	url,
+	request,
+	getClientAddress
+}) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
 	const validated = await validateBody(request, assinarSimplesSchema);
 	if (!validated.ok) return validated.response;
-	const { rubrica, latitude, longitude, selfieBase64, codigoValidação, desafioId, livenessChallenge } = validated.data;
+	const {
+		rubrica,
+		latitude,
+		longitude,
+		selfieBase64,
+		codigoValidação,
+		desafioId,
+		livenessChallenge
+	} = validated.data;
 
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
@@ -63,8 +86,10 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 	try {
 		let result;
-		if (escala.tipo === 'plantao') result = await Promise.resolve(gerarPdfPlantao(escala, policiais));
-		else if (escala.tipo === 'expediente') result = await Promise.resolve(gerarPdfExpediente(escala, policiais));
+		if (escala.tipo === 'plantao')
+			result = await Promise.resolve(gerarPdfPlantao(escala, policiais));
+		else if (escala.tipo === 'expediente')
+			result = await Promise.resolve(gerarPdfExpediente(escala, policiais));
 		else result = await Promise.resolve(gerarPdf(escala, policiais));
 
 		const pdfBytes = result.pdf;
@@ -109,7 +134,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 			token: crypto.randomUUID(),
 			documentName: `Escala de Serviço - ${escala.titulo}`,
 			signatureLevel: 'avancada',
-			tipoCarimoTempo: tipoCarimboPrevisto(platform?.env as unknown as Record<string, string | undefined> | undefined),
+			tipoCarimoTempo: tipoCarimboPrevisto(
+				platform?.env as unknown as Record<string, string | undefined> | undefined
+			),
 			livenessChallenge: validatedEv.livenessChallenge
 				? {
 						tipo: validatedEv.livenessChallenge.tipo,

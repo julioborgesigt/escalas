@@ -86,4 +86,3 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		}
 	);
 };
-

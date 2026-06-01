@@ -81,7 +81,11 @@ export async function verificarConflitoHorarioPolicial(
 
 	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
 	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
-		db, policialId, target.data_inicio, novaEntrada, novaSaida
+		db,
+		policialId,
+		target.data_inicio,
+		novaEntrada,
+		novaSaida
 	);
 	if (!naoGiseCheck.ok) return naoGiseCheck;
 
@@ -176,7 +180,11 @@ export async function verificarConflitoHorarioPorGise(
 
 	// Verifica conflito com escalas não-GISE (plantão/expediente/fds)
 	const naoGiseCheck = await verificarConflitoEscalasNaoGise(
-		db, policialId, gise.data_inicio, gise.hora_entrada, gise.hora_saida
+		db,
+		policialId,
+		gise.data_inicio,
+		gise.hora_entrada,
+		gise.hora_saida
 	);
 	if (!naoGiseCheck.ok) return naoGiseCheck;
 

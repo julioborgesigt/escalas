@@ -31,12 +31,21 @@
 			loading.hide();
 			if (actionResult.type === 'success') {
 				result = actionResult.data as typeof result;
-				toaster.create({ title: `${result?.imported} policial${result?.imported !== 1 ? 'is' : ''} importado${result?.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
+				toaster.create({
+					title: `${result?.imported} policial${result?.imported !== 1 ? 'is' : ''} importado${result?.imported !== 1 ? 's' : ''} com sucesso!`,
+					type: 'success'
+				});
 			} else if (actionResult.type === 'failure') {
 				const d = actionResult.data as Record<string, unknown> | undefined;
-				toaster.create({ title: String(d?.error || 'Erro desconhecido ao processar o arquivo.'), type: 'error' });
+				toaster.create({
+					title: String(d?.error || 'Erro desconhecido ao processar o arquivo.'),
+					type: 'error'
+				});
 			} else {
-				toaster.create({ title: 'Ocorreu um erro no servidor ao processar o arquivo.', type: 'error' });
+				toaster.create({
+					title: 'Ocorreu um erro no servidor ao processar o arquivo.',
+					type: 'error'
+				});
 			}
 		};
 	}
@@ -47,9 +56,13 @@
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
-<div class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20">
+<div
+	class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+>
 	<!-- Format instructions -->
-	<div class="bg-surface-100/50 dark:bg-surface-800 border border-surface-200 dark:border-white/10 rounded-lg p-4 mb-6">
+	<div
+		class="bg-surface-100/50 dark:bg-surface-800 border border-surface-200 dark:border-white/10 rounded-lg p-4 mb-6"
+	>
 		<p class="font-medium text-sm mb-2">Formato esperado da planilha:</p>
 		<div class="table-wrap">
 			<table class="table">
@@ -81,7 +94,10 @@
 			</table>
 		</div>
 		<p class="text-xs text-surface-500 mt-2">
-			* Campos obrigatórios. A primeira linha (cabeçalho) será ignorada. Cargo deve ser <strong>DPC</strong> ou <strong>OIP</strong>.
+			* Campos obrigatórios. A primeira linha (cabeçalho) será ignorada. Cargo deve ser <strong
+				>DPC</strong
+			>
+			ou <strong>OIP</strong>.
 		</p>
 	</div>
 
@@ -131,7 +147,12 @@
 									viewBox="0 0 24 24"
 									stroke="currentColor"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
 								</svg>
 							</Accordion.ItemIndicator>
 						</Accordion.ItemTrigger>
@@ -163,12 +184,29 @@
 		</div>
 	{/if}
 
-	<form method="POST" action="?/upload" use:enhance={handleUpload} enctype="multipart/form-data" class="space-y-4">
+	<form
+		method="POST"
+		action="?/upload"
+		use:enhance={handleUpload}
+		enctype="multipart/form-data"
+		class="space-y-4"
+	>
 		<label class="label">
 			<span class="label-text">Arquivo (.xlsx, .xls, .ods, .csv)</span>
-			<input name="file" class="input" type="file" accept=".xlsx,.xls,.ods,.csv" onchange={onFileChange} required />
+			<input
+				name="file"
+				class="input"
+				type="file"
+				accept=".xlsx,.xls,.ods,.csv"
+				onchange={onFileChange}
+				required
+			/>
 		</label>
-		<button type="submit" class="btn preset-filled-primary-500 flex items-center gap-2" disabled={loading.active || !file}>
+		<button
+			type="submit"
+			class="btn preset-filled-primary-500 flex items-center gap-2"
+			disabled={loading.active || !file}
+		>
 			{loading.active ? 'Importando...' : 'Importar'}
 		</button>
 	</form>

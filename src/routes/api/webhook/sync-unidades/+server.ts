@@ -13,8 +13,15 @@ import { apiError, ErrorCode, unauthorized } from '$lib/server/api';
 type SyncNivel = 'DEPARTAMENTO' | 'SUB_DEPARTAMENTO' | 'SECCIONAL' | 'DELEGACIA';
 
 function parseNivel(item: Record<string, unknown>): SyncNivel | null {
-	const raw = String(item.nivel ?? item.NIVEL ?? '').trim().toUpperCase();
-	if (raw === 'DEPARTAMENTO' || raw === 'SUB_DEPARTAMENTO' || raw === 'SECCIONAL' || raw === 'DELEGACIA') {
+	const raw = String(item.nivel ?? item.NIVEL ?? '')
+		.trim()
+		.toUpperCase();
+	if (
+		raw === 'DEPARTAMENTO' ||
+		raw === 'SUB_DEPARTAMENTO' ||
+		raw === 'SECCIONAL' ||
+		raw === 'DELEGACIA'
+	) {
 		return raw;
 	}
 	return null;
@@ -127,7 +134,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			try {
 				const pai = await buscarUnidadePorNome(db, nomePai);
 				if (!pai || pai.tipo !== 'departamento') {
-					errors.push(`Subdepartamento ${nome}: pai "${nomePai}" não é um departamento cadastrado.`);
+					errors.push(
+						`Subdepartamento ${nome}: pai "${nomePai}" não é um departamento cadastrado.`
+					);
 					continue;
 				}
 				await upsertUnidade(db, {
@@ -184,7 +193,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 
 				const sec = await buscarUnidadePorNome(db, nomeSec);
 				if (!sec || sec.tipo !== 'seccional') {
-					errors.push(`Delegacia ${nomeUni}: seccional "${nomeSec}" não encontrada ou não é seccional.`);
+					errors.push(
+						`Delegacia ${nomeUni}: seccional "${nomeSec}" não encontrada ou não é seccional.`
+					);
 					continue;
 				}
 

@@ -18,8 +18,11 @@
 		seccionais?: SeccionalNome[] | null;
 	}
 
-	const { assinaturasRelatorios, supervisaoExtraUnidadeId = null, seccionais = null }: Props =
-		$props();
+	const {
+		assinaturasRelatorios,
+		supervisaoExtraUnidadeId = null,
+		seccionais = null
+	}: Props = $props();
 
 	const extraordinariosSeccionais = $derived(
 		(assinaturasRelatorios ?? []).filter(
@@ -36,7 +39,7 @@
 </script>
 
 <div class="space-y-3">
-	{#each extraordinariosSeccionais as assRel}
+	{#each extraordinariosSeccionais as assRel (assRel.seccional_id)}
 		<div
 			class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm"
 		>
@@ -58,9 +61,8 @@
 					O relatório de extra da seccional <strong class="text-surface-800 dark:text-surface-100"
 						>{nomeSeccional(assRel.seccional_id)}</strong
 					>
-					foi assinado por <strong class="text-surface-800 dark:text-surface-100"
-						>{assRel.assinante_nome}</strong
-					>.
+					foi assinado por
+					<strong class="text-surface-800 dark:text-surface-100">{assRel.assinante_nome}</strong>.
 				</p>
 			</div>
 		</div>

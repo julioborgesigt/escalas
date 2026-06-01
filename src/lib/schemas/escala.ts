@@ -16,11 +16,19 @@ export const escalaSchema = z.object({
 
 export const escalaPolicialSchema = z.object({
 	policial_id: z.number({ message: 'policial_id é obrigatório' }),
-	data_plantao: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD').optional().or(z.literal('')),
-	datas: z.array(z.object({
-		data_plantao: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD'),
-		data_saida: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD')
-	})).optional(),
+	data_plantao: z
+		.string()
+		.regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD')
+		.optional()
+		.or(z.literal('')),
+	datas: z
+		.array(
+			z.object({
+				data_plantao: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD'),
+				data_saida: z.string().regex(DATA_ISO, 'Data deve estar no formato YYYY-MM-DD')
+			})
+		)
+		.optional(),
 	data_saida: z.string().max(10).default(''),
 	hora_entrada: z.string().max(5).default(''),
 	hora_saida: z.string().max(5).default(''),

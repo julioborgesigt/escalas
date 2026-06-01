@@ -34,17 +34,16 @@ export const actionsMembros = {
 		if (isNaN(equipeId) || isNaN(policialId)) return fail(400, { error: 'Dados inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db.select().from(giseSeccionais)
-			.where(eq(giseSeccionais.id, secId)).get();
+		const sec = await db.select().from(giseSeccionais).where(eq(giseSeccionais.id, secId)).get();
 		if (!sec || sec.gise_id !== giseId) return fail(404, { error: 'Seccional não encontrada' });
 
 		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
 			return fail(403, { error: 'Sem permissão' });
 		}
 
-		const equipe = await db.select().from(giseEquipes)
-			.where(eq(giseEquipes.id, equipeId)).get();
-		if (!equipe || equipe.gise_seccional_id !== secId) return fail(404, { error: 'Equipe não encontrada' });
+		const equipe = await db.select().from(giseEquipes).where(eq(giseEquipes.id, equipeId)).get();
+		if (!equipe || equipe.gise_seccional_id !== secId)
+			return fail(404, { error: 'Equipe não encontrada' });
 
 		const slotCheck = await verificarSlotEquipe(db, equipeId, policialId);
 		if (!slotCheck.ok) return fail(400, { error: slotCheck.motivo });
@@ -80,7 +79,11 @@ export const actionsMembros = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		if (!['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(gise.status)) {
+		if (
+			!['em_definicao_supervisor', 'em_preenchimento', 'aguardando_assinatura'].includes(
+				gise.status
+			)
+		) {
 			return fail(400, { error: 'Escala fechada para edição' });
 		}
 

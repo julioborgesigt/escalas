@@ -95,7 +95,9 @@
 						onValueChange={(e) => (tipoUnidade = e.value as 'delegacia' | 'seccional')}
 						class="w-full"
 					>
-						<SegmentedControl.Label class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+						<SegmentedControl.Label
+							class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+						>
 							Tipo de Unidade
 						</SegmentedControl.Label>
 						<SegmentedControl.Control class="w-full">
@@ -128,7 +130,7 @@
 							<span class="label-text">Seccional Vinculada</span>
 							<select class="select" bind:value={novoSeccionalId}>
 								<option value={null}>Selecione uma Seccional...</option>
-								{#each seccionais as sec}
+								{#each seccionais as sec (sec.id)}
 									<option value={sec.id}>{sec.nome}</option>
 								{/each}
 							</select>
@@ -138,7 +140,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={delegaciaPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
@@ -161,7 +163,7 @@
 								<span class="label-text">Prefixo</span>
 								<select class="select" bind:value={seccionalPrefixo}>
 									<option value="">—</option>
-									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord}
+									{#each Array.from({ length: 99 }, (_, i) => `${i + 1}ª`) as ord (ord)}
 										<option value={ord}>{ord}</option>
 									{/each}
 								</select>
@@ -193,10 +195,7 @@
 						Regimes de Escala:
 					</p>
 					<div class="flex flex-col gap-2.5 sm:flex-row sm:gap-4 mt-1">
-						<Switch
-							checked={novoTemPlantao}
-							onCheckedChange={(e) => (novoTemPlantao = e.checked)}
-						>
+						<Switch checked={novoTemPlantao} onCheckedChange={(e) => (novoTemPlantao = e.checked)}>
 							<Switch.Control>
 								<Switch.Thumb />
 							</Switch.Control>
@@ -213,10 +212,7 @@
 							<Switch.Label>Exped.</Switch.Label>
 							<Switch.HiddenInput />
 						</Switch>
-						<Switch
-							checked={novoTemFds}
-							onCheckedChange={(e) => (novoTemFds = e.checked)}
-						>
+						<Switch checked={novoTemFds} onCheckedChange={(e) => (novoTemFds = e.checked)}>
 							<Switch.Control>
 								<Switch.Thumb />
 							</Switch.Control>
@@ -227,7 +223,8 @@
 				</div>
 
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-1">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Cancelar</Dialog.CloseTrigger
+					>
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 flex items-center gap-2 active:scale-95 transition-all"

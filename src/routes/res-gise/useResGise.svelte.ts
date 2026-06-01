@@ -76,6 +76,7 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	// --- Funções de Navegação e Filtro ---
 	function navigateWithFilters(params: Record<string, string | null>) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const navUrl = new URL(page.url);
 		Object.entries(params).forEach(([key, value]) => {
 			if (value) navUrl.searchParams.set(key, value);
@@ -163,6 +164,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		exibirRelatorio = isAdminGeral || !escala.equipeRespondida;
 		respostas = {};
 
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set('giseId', String(escala.id));
 		if (escala.equipe_id) params.set('equipeId', String(escala.equipe_id));
@@ -245,8 +247,10 @@ export function useResGise(getData: () => ResGisePageData) {
 	const isHorarioLiberado = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {
 		if (isAdminGeral) return true;
 		if (!escala?.horarioPrevisto?.inicio) return true;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const agora = new Date();
 		const [h, min] = escala.horarioPrevisto.inicio.split(':');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const dataInicioPrevista = new Date(
 			escala.data_inicio + 'T' + h.padStart(2, '0') + ':' + (min || '00') + ':00'
 		);
@@ -256,8 +260,10 @@ export function useResGise(getData: () => ResGisePageData) {
 	const isSaidaLiberada = (escala: ResGiseEscalaSelecionavel, isAdminGeral: boolean) => {
 		if (isAdminGeral) return true;
 		if (!escala?.horarioPrevisto?.fim) return true;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const agora = new Date();
 		const [h, min] = escala.horarioPrevisto.fim.split(':');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const dataFimPrevista = new Date(
 			escala.data_inicio + 'T' + h.padStart(2, '0') + ':' + (min || '00') + ':00'
 		);
@@ -307,7 +313,8 @@ export function useResGise(getData: () => ResGisePageData) {
 				const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
 				escalaSelecionada = {
 					...sel,
-					presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
+					// eslint-disable-next-line svelte/prefer-svelte-reactivity
+				presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
 				} as ResGiseEscalaSelecionavel;
 			}
 		} catch (e: unknown) {
@@ -373,28 +380,68 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	return {
 		// Getters
-		get configTipo() { return configTipo; },
-		set configTipo(v) { configTipo = v; },
-		get perguntasConfig() { return perguntasConfig; },
-		set perguntasConfig(v) { perguntasConfig = v; },
-		get escalaSelecionada() { return escalaSelecionada; },
-		set escalaSelecionada(v) { escalaSelecionada = v; },
-		get respostas() { return respostas; },
-		set respostas(v) { respostas = v; },
-		get exibirRelatorio() { return exibirRelatorio; },
-		set exibirRelatorio(v) { exibirRelatorio = v; },
-		get capturandoRubrica() { return capturandoRubrica; },
-		set capturandoRubrica(v) { capturandoRubrica = v; },
-		get baixandoProdutividade() { return loading.active; },
-		get baixandoExtra() { return loading.active; },
+		get configTipo() {
+			return configTipo;
+		},
+		set configTipo(v) {
+			configTipo = v;
+		},
+		get perguntasConfig() {
+			return perguntasConfig;
+		},
+		set perguntasConfig(v) {
+			perguntasConfig = v;
+		},
+		get escalaSelecionada() {
+			return escalaSelecionada;
+		},
+		set escalaSelecionada(v) {
+			escalaSelecionada = v;
+		},
+		get respostas() {
+			return respostas;
+		},
+		set respostas(v) {
+			respostas = v;
+		},
+		get exibirRelatorio() {
+			return exibirRelatorio;
+		},
+		set exibirRelatorio(v) {
+			exibirRelatorio = v;
+		},
+		get capturandoRubrica() {
+			return capturandoRubrica;
+		},
+		set capturandoRubrica(v) {
+			capturandoRubrica = v;
+		},
+		get baixandoProdutividade() {
+			return loading.active;
+		},
+		get baixandoExtra() {
+			return loading.active;
+		},
 
 		// Derived
-		get configJson() { return configJson; },
-		get respostasJson() { return respostasJson; },
-		get perguntasForm() { return perguntasForm; },
-		get statusFilterUrl() { return statusFilterUrl; },
-		get mesFilterUrl() { return mesFilterUrl; },
-		get dataFilterUrl() { return dataFilterUrl; },
+		get configJson() {
+			return configJson;
+		},
+		get respostasJson() {
+			return respostasJson;
+		},
+		get perguntasForm() {
+			return perguntasForm;
+		},
+		get statusFilterUrl() {
+			return statusFilterUrl;
+		},
+		get mesFilterUrl() {
+			return mesFilterUrl;
+		},
+		get dataFilterUrl() {
+			return dataFilterUrl;
+		},
 
 		// Actions
 		changeStatusFilter,

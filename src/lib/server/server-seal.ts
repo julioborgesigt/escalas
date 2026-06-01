@@ -277,5 +277,12 @@ export async function verificarSeloInstitucional(
 		}
 	}
 
-	return { presente: true, integro: integridade && rsaOk, autentico, cn, momento, tipoCarimboTempo };
+	return {
+		presente: true,
+		integro: integridade && rsaOk,
+		autentico,
+		cn,
+		momento,
+		tipoCarimboTempo
+	};
 }

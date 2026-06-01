@@ -8,9 +8,15 @@
 
 export interface R2Bucket {
 	get(key: string): Promise<R2ObjectBody | null>;
-	put(key: string, value: ArrayBuffer | ArrayBufferView | ReadableStream | string | Blob | null, options?: Record<string, unknown>): Promise<unknown>;
+	put(
+		key: string,
+		value: ArrayBuffer | ArrayBufferView | ReadableStream | string | Blob | null,
+		options?: Record<string, unknown>
+	): Promise<unknown>;
 	delete(keys: string | string[]): Promise<void>;
-	list(options?: Record<string, unknown>): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
+	list(
+		options?: Record<string, unknown>
+	): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
 }
 
 export interface R2ObjectBody {

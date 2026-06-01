@@ -18,12 +18,21 @@ function n(v: unknown, fallback: number): number {
 	return fallback;
 }
 
-export function parseVagasEquipesGiseJson(
-	raw: string | null
-): { operacional: { dpc: number; oip: number }; seint: { dpc: number; oip: number } } {
-	if (!raw?.trim()) return { ...VAGAS_EQUIPES_FALLBACK, operacional: { ...VAGAS_EQUIPES_FALLBACK.operacional }, seint: { ...VAGAS_EQUIPES_FALLBACK.seint } };
+export function parseVagasEquipesGiseJson(raw: string | null): {
+	operacional: { dpc: number; oip: number };
+	seint: { dpc: number; oip: number };
+} {
+	if (!raw?.trim())
+		return {
+			...VAGAS_EQUIPES_FALLBACK,
+			operacional: { ...VAGAS_EQUIPES_FALLBACK.operacional },
+			seint: { ...VAGAS_EQUIPES_FALLBACK.seint }
+		};
 	try {
-		const j = JSON.parse(raw) as { op?: { dpc?: unknown; oip?: unknown }; seint?: { dpc?: unknown; oip?: unknown } };
+		const j = JSON.parse(raw) as {
+			op?: { dpc?: unknown; oip?: unknown };
+			seint?: { dpc?: unknown; oip?: unknown };
+		};
 		return {
 			operacional: {
 				dpc: n(j?.op?.dpc, VAGAS_EQUIPES_FALLBACK.operacional.dpc),
@@ -35,7 +44,11 @@ export function parseVagasEquipesGiseJson(
 			}
 		};
 	} catch {
-		return { ...VAGAS_EQUIPES_FALLBACK, operacional: { ...VAGAS_EQUIPES_FALLBACK.operacional }, seint: { ...VAGAS_EQUIPES_FALLBACK.seint } };
+		return {
+			...VAGAS_EQUIPES_FALLBACK,
+			operacional: { ...VAGAS_EQUIPES_FALLBACK.operacional },
+			seint: { ...VAGAS_EQUIPES_FALLBACK.seint }
+		};
 	}
 }
 

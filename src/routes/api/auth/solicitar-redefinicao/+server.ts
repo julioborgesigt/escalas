@@ -22,10 +22,7 @@ import { enviarCodigoRedefinicaoSenha } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth-flow';
-import {
-	contarRecoveryAttempts,
-	registrarRecoveryAttempt
-} from '$lib/server/recovery-rate-limit';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA = 'Você receberá um código de validação em instantes.';

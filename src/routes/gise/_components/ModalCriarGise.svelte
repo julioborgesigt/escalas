@@ -26,11 +26,26 @@
 	let modoCriacao = $state<'completa' | 'clonada' | 'branco'>('completa');
 	let clonarDeId = $state<number | ''>('');
 
-	const MESES_CAL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+	const MESES_CAL = [
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
+	];
 	const DIAS_SEM_CAL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 	const diasModalOrdenados = $derived(
-		Object.keys(diasModal).sort().map((iso) => ({ iso, feriado: diasModal[iso].f }))
+		Object.keys(diasModal)
+			.sort()
+			.map((iso) => ({ iso, feriado: diasModal[iso].f }))
 	);
 	const datasJsonHidden = $derived(
 		JSON.stringify(diasModalOrdenados.map(({ iso, feriado }) => ({ data: iso, feriado })))
@@ -89,11 +104,21 @@
 	}
 
 	function calMesAnterior() {
-		if (calMes === 0) { calMes = 11; calAno--; } else { calMes--; }
+		if (calMes === 0) {
+			calMes = 11;
+			calAno--;
+		} else {
+			calMes--;
+		}
 	}
 
 	function calMesProximo() {
-		if (calMes === 11) { calMes = 0; calAno++; } else { calMes++; }
+		if (calMes === 11) {
+			calMes = 0;
+			calAno++;
+		} else {
+			calMes++;
+		}
 	}
 
 	function validarHora(v: string): boolean {
@@ -136,7 +161,10 @@
 				await invalidateAll();
 				onSuccess(count, primeiroId);
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao criar GISE' });
 			}
 		};
@@ -145,7 +173,9 @@
 
 <Dialog
 	{open}
-	onOpenChange={(e) => { if (!loading.active) open = e.open; }}
+	onOpenChange={(e) => {
+		if (!loading.active) open = e.open;
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -153,7 +183,9 @@
 		<div
 			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
 		>
-			<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">
+			<Dialog.Title
+				class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
+			>
 				Nova Escala GISE
 			</Dialog.Title>
 			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
@@ -209,12 +241,12 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds}
+					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
 					{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
 							{@const sel = iso in diasModal}
@@ -260,7 +292,7 @@
 					<div
 						class="flex flex-nowrap items-stretch gap-1.5 overflow-x-auto max-w-full pb-0.5 [scrollbar-width:thin]"
 					>
-						{#each diasModalOrdenados as { iso, feriado }}
+						{#each diasModalOrdenados as { iso, feriado } (iso)}
 							<span
 								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0
 								{feriado
@@ -396,7 +428,7 @@
 							bind:value={clonarDeId}
 							class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
 						>
-							{#each escalas.slice(0, 10) as esc}
+							{#each escalas.slice(0, 10) as esc (esc.id)}
 								<option value={esc.id}>
 									GISE — {diaSemana(esc.data_inicio)}
 									{fmtDate(esc.data_inicio)} ({esc.status})

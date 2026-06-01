@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 
 	const [lotacoes, todasUnidades] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
-		(isAdm || isSeccional || isUnidade) ? listarUnidades(db) : Promise.resolve([])
+		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([])
 	]);
 
 	return {
@@ -111,13 +111,17 @@ export const actions: Actions = {
 
 	salvarPapel: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode alterar papéis' });
+		if (!u || !u.isSuperAdmin)
+			return fail(403, { error: 'Apenas o Super Administrador pode alterar papéis' });
 
 		const id = Number(params.id);
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
 
 		const formData = await request.formData();
-		const papel = (formData.get('papel')?.toString() || null) as 'admin_seccional' | 'admin_unidade' | null;
+		const papel = (formData.get('papel')?.toString() || null) as
+			| 'admin_seccional'
+			| 'admin_unidade'
+			| null;
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
 		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 

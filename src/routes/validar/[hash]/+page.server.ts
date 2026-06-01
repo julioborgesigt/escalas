@@ -1,4 +1,12 @@
-import { getDB, buscarDocumentoPorHash, buscarEscala, buscarGiseEscala, buscarGiseDetalhado, buscarGiseSeccionalMembros, buscarPresencasGise } from '$lib/db';
+import {
+	getDB,
+	buscarDocumentoPorHash,
+	buscarEscala,
+	buscarGiseEscala,
+	buscarGiseDetalhado,
+	buscarGiseSeccionalMembros,
+	buscarPresencasGise
+} from '$lib/db';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
@@ -40,7 +48,11 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		return { encontrado: false as const, motivo: 'nao_encontrado' };
 	}
 
-	logger.info('[validar] Documento encontrado', { hash, tipo: documento.tipo_doc, id: documento.id });
+	logger.info('[validar] Documento encontrado', {
+		hash,
+		tipo: documento.tipo_doc,
+		id: documento.id
+	});
 
 	let escala;
 	try {
@@ -50,7 +62,10 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			escala = await buscarGiseEscala(db, documento.escala_id);
 		}
 	} catch (err) {
-		logger.error(`[validar] Erro ao buscar escala`, { escala_id: documento.escala_id, err: String(err) });
+		logger.error(`[validar] Erro ao buscar escala`, {
+			escala_id: documento.escala_id,
+			err: String(err)
+		});
 		return { encontrado: false as const, motivo: 'erro_consulta' };
 	}
 
@@ -91,7 +106,11 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			const presencaMap = new Map(todasPresencas.map((p) => [p.policial_id, p]));
 
 			const supExtra = await secIdEhSupervisaoExtra(db, documento.seccional_id);
-			let membrosSec: Array<{ policial_id: number; policial_nome: string; policial_cpf: string | null }> = [];
+			let membrosSec: Array<{
+				policial_id: number;
+				policial_nome: string;
+				policial_cpf: string | null;
+			}> = [];
 			if (supExtra) {
 				const giseDet = await buscarGiseDetalhado(db, documento.escala_id);
 				if (giseDet) {
@@ -114,7 +133,11 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 					});
 				}
 			} else {
-				membrosSec = await buscarGiseSeccionalMembros(db, documento.escala_id, documento.seccional_id);
+				membrosSec = await buscarGiseSeccionalMembros(
+					db,
+					documento.escala_id,
+					documento.seccional_id
+				);
 			}
 
 			// LGPD (minimização, art. 6º): a página é PÚBLICA. Enviamos só o
@@ -152,7 +175,8 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 	// avançadas (em tela) não têm CMS embarcado — sua integridade é o hash custodial
 	// (arquivo_hash), não a verificação criptográfica de assinatura.
 	const temCmsAssinado = !!(docAny.cms_sha256 as string | undefined);
-	const ehAvancada = tipoAssin === 'simples' || tipoAssin === null && documento.tipo_doc === 'gise_relatorio';
+	const ehAvancada =
+		tipoAssin === 'simples' || (tipoAssin === null && documento.tipo_doc === 'gise_relatorio');
 
 	let verificacao: VerificationResult | null = null;
 	let hashConfere: boolean | null = null;

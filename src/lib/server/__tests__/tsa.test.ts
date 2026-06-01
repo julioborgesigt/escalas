@@ -42,12 +42,10 @@ function gerarRespostaSuccessful(): Uint8Array {
 		]
 	);
 
-	const top = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.SEQUENCE,
-		true,
-		[pkiStatusInfo, tst]
-	);
+	const top = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		pkiStatusInfo,
+		tst
+	]);
 	const bin = forge.asn1.toDer(top).getBytes();
 	const out = new Uint8Array(bin.length);
 	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
@@ -69,12 +67,9 @@ function gerarRespostaRejected(): Uint8Array {
 			)
 		]
 	);
-	const top = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.SEQUENCE,
-		true,
-		[pkiStatusInfo]
-	);
+	const top = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+		pkiStatusInfo
+	]);
 	const bin = forge.asn1.toDer(top).getBytes();
 	const out = new Uint8Array(bin.length);
 	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
@@ -85,8 +80,8 @@ describe('solicitarCarimboTempo', () => {
 	beforeEach(() => {
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(async () =>
-				new Response(gerarRespostaSuccessful() as unknown as BodyInit, { status: 200 })
+			vi.fn(
+				async () => new Response(gerarRespostaSuccessful() as unknown as BodyInit, { status: 200 })
 			)
 		);
 	});
@@ -141,7 +136,10 @@ describe('solicitarCarimboTempo', () => {
 	});
 
 	it('devolve ok:false em HTTP não-200', async () => {
-		vi.stubGlobal('fetch', vi.fn(async () => new Response('forbidden', { status: 403 })));
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => new Response('forbidden', { status: 403 }))
+		);
 		const res = await solicitarCarimboTempo('sig', { url: 'http://tsa.example.com' });
 		expect(res.ok).toBe(false);
 		if (!res.ok) expect(res.error).toContain('403');
@@ -150,14 +148,21 @@ describe('solicitarCarimboTempo', () => {
 	it('devolve ok:false quando responder retorna PKIStatus rejeitado', async () => {
 		vi.stubGlobal(
 			'fetch',
-			vi.fn(async () => new Response(gerarRespostaRejected() as unknown as BodyInit, { status: 200 }))
+			vi.fn(
+				async () => new Response(gerarRespostaRejected() as unknown as BodyInit, { status: 200 })
+			)
 		);
 		const res = await solicitarCarimboTempo('sig', { url: 'http://tsa.example.com' });
 		expect(res.ok).toBe(false);
 	});
 
 	it('NÃO lança em erro de rede — devolve ok:false', async () => {
-		vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network down'); }));
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				throw new Error('network down');
+			})
+		);
 		const res = await solicitarCarimboTempo('sig', { url: 'http://tsa.example.com' });
 		expect(res.ok).toBe(false);
 		if (!res.ok) expect(res.error).toContain('network down');

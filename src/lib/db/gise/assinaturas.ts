@@ -109,7 +109,16 @@ export async function salvarAssinaturaRelatorioGise(
 	const lng2 = gps2(data.longitude ?? undefined);
 	return db
 		.insert(giseAssinaturasRelatorios)
-		.values({ ...data, assinante_id: data.assinante_id ?? null, assinante_cpf: data.assinante_cpf ?? '', ip_address: ipAnonimizado, user_agent: uaResumido, user_agent_raw: uaRaw, latitude: lat2, longitude: lng2 })
+		.values({
+			...data,
+			assinante_id: data.assinante_id ?? null,
+			assinante_cpf: data.assinante_cpf ?? '',
+			ip_address: ipAnonimizado,
+			user_agent: uaResumido,
+			user_agent_raw: uaRaw,
+			latitude: lat2,
+			longitude: lng2
+		})
 		.onConflictDoUpdate({
 			target: [
 				giseAssinaturasRelatorios.gise_id,

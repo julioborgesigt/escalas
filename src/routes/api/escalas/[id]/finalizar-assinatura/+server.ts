@@ -10,12 +10,25 @@ import {
 	serverError,
 	validateBody
 } from '$lib/server/api';
-import { getDB, getR2, hasR2, buscarEscala, salvarDocumentoEscala, registrarAuditComContexto } from '$lib/db';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	buscarEscala,
+	salvarDocumentoEscala,
+	registrarAuditComContexto
+} from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	request,
+	getClientAddress
+}) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -71,7 +84,10 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 		}
 
 		if (!hasR2(platform)) {
-			return serverError('[finalizar-assinatura] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
+			return serverError(
+				'[finalizar-assinatura] R2 não configurado',
+				new Error('R2_NOT_CONFIGURED')
+			);
 		}
 
 		const bucket = getR2(platform);

@@ -146,7 +146,10 @@
 			toaster.success({ title: 'PDF assinado com sucesso!' });
 			await onSuccess();
 		} catch (err: unknown) {
-			toaster.error({ title: 'Erro na assinatura', description: err instanceof Error ? err.message : 'Erro desconhecido' });
+			toaster.error({
+				title: 'Erro na assinatura',
+				description: err instanceof Error ? err.message : 'Erro desconhecido'
+			});
 		} finally {
 			loading.hide();
 		}
@@ -166,7 +169,10 @@
 				return { serproCms: result.rawSignature, serproResponse: result };
 			});
 		} catch (err: unknown) {
-			toaster.error({ title: 'Erro no Assinador SERPRO', description: err instanceof Error ? err.message : 'Erro desconhecido' });
+			toaster.error({
+				title: 'Erro no Assinador SERPRO',
+				description: err instanceof Error ? err.message : 'Erro desconhecido'
+			});
 			serproClient?.disconnect();
 			serproClient = null;
 			loading.hide();
@@ -260,13 +266,16 @@
 	<p class="text-[11px] text-surface-500 dark:text-surface-400 italic leading-snug">
 		Ao clicar em <strong>Assinar</strong>, você confirma que leu o documento e que esta assinatura
 		tem valor jurídico equivalente à manuscrita, conforme o
-		<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600">Termo de Uso</a>
+		<a href="/termo/1.0" target="_blank" rel="noopener" class="underline hover:text-primary-600"
+			>Termo de Uso</a
+		>
 		aceito.
 	</p>
 
 	<!-- Botão de Assinatura -->
 	<div class="flex gap-2 items-center flex-wrap">
-		<button type="button"
+		<button
+			type="button"
 			class="btn btn-sm preset-filled-primary-500 font-bold px-4 py-2 rounded-lg shadow-sm hover:scale-[1.02] transition-transform w-full sm:w-auto flex items-center justify-center gap-2"
 			onclick={assinarComSerpro}
 			disabled={loading.active || disabled}
@@ -299,8 +308,8 @@
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
 		<p class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center">
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
-			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de
-			validade jurídica desta assinatura (Lei 14.063/20).
+			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de validade
+			jurídica desta assinatura (Lei 14.063/20).
 		</p>
 	</div>
 </div>

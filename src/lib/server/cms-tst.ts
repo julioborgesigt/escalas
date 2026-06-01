@@ -89,10 +89,7 @@ function localizarSignerInfo(cmsAsn1: forge.asn1.Asn1): {
 	// Por isso usamos o *último* SET, não o primeiro.
 	let signerInfos: forge.asn1.Asn1 | null = null;
 	for (const f of signedData.value as forge.asn1.Asn1[]) {
-		if (
-			f.tagClass === forge.asn1.Class.UNIVERSAL &&
-			(f.type as number) === forge.asn1.Type.SET
-		) {
+		if (f.tagClass === forge.asn1.Class.UNIVERSAL && (f.type as number) === forge.asn1.Type.SET) {
 			signerInfos = f; // sobrescreve para ficar com o último
 		}
 	}

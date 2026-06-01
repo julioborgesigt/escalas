@@ -44,12 +44,7 @@ export type SelfieUploadResult =
 function detectarTipo(bytes: Uint8Array): 'png' | 'jpg' | null {
 	if (bytes.length < 4) return null;
 	// PNG: 89 50 4E 47 0D 0A 1A 0A
-	if (
-		bytes[0] === 0x89 &&
-		bytes[1] === 0x50 &&
-		bytes[2] === 0x4e &&
-		bytes[3] === 0x47
-	) {
+	if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
 		return 'png';
 	}
 	// JPEG: FF D8 FF

@@ -6,30 +6,45 @@
  */
 
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseDetalhado, buscarPresencasGise, buscarGiseSeccionalMembros } from '$lib/db';
-import { prepararAssinaturaSchema } from '$lib/schemas';
 import {
-	requireAuth,
-	badRequest,
-	notFound,
-	forbidden,
-	validateBody
-} from '$lib/server/api';
-import { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, toGisePdfData } from '$lib/server/export';
+	getDB,
+	buscarGiseDetalhado,
+	buscarPresencasGise,
+	buscarGiseSeccionalMembros
+} from '$lib/db';
+import { prepararAssinaturaSchema } from '$lib/schemas';
+import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
+import {
+	gerarRelatorioExtraordinarioPdf,
+	gerarRelatorioExtraordinarioSupervisaoPdf,
+	toGisePdfData
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, type AuditTrailOptions, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
+import {
+	prepararPdfParaAssinatura,
+	adicionarPaginaAuditoria,
+	type AuditTrailOptions,
+	adicionarRodapeUniversal
+} from '$lib/server/pdf-signing';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { json } from '@sveltejs/kit';
 
-export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	url,
+	request,
+	getClientAddress
+}) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
@@ -56,7 +71,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 	// Apenas o supervisor designado ou administradores podem assinar relatórios desta GISE
 	if (u.tipo !== 'admin' && gise.supervisor_id !== u.id) {
-		return forbidden('Apenas o supervisor designado ou administradores podem assinar este relatório.');
+		return forbidden(
+			'Apenas o supervisor designado ou administradores podem assinar este relatório.'
+		);
 	}
 
 	const presencas = await buscarPresencasGise(db, id);
@@ -138,7 +155,11 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 				const obj = await r2!.get(key);
 				if (obj) {
 					const buf = await obj.arrayBuffer();
-					return { prId, type, data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}` };
+					return {
+						prId,
+						type,
+						data: `data:image/jpeg;base64,${Buffer.from(buf).toString('base64')}`
+					};
 				}
 			} catch {
 				// objeto opcional (selfie ausente/ilegível) — segue sem ela
@@ -220,17 +241,17 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	// Conversão de mm (jsPDF) para pts (pdf-lib)
 	const mmToPts = 2.8346;
 	const rubW_pts = 130;
-	const rx_pts = (297 / 2 - (rubW_pts / mmToPts) / 2) * mmToPts; // Centralizado
+	const rx_pts = (297 / 2 - rubW_pts / mmToPts / 2) * mmToPts; // Centralizado
 
 	// A linha de assinatura está em sigY (mm do topo).
 	// Em pdf-lib (pts da base):
 	const sigY_pts = (210 - sigY) * mmToPts;
 
 	// Queremos a rubrica logo acima da linha
-	const ry_pts = sigY_pts + (2 * mmToPts);
+	const ry_pts = sigY_pts + 2 * mmToPts;
 
 	// O carimbo (box azul) deve ficar acima da linha também.
-	const boxY_pts = sigY_pts + (5 * mmToPts);
+	const boxY_pts = sigY_pts + 5 * mmToPts;
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,
@@ -246,7 +267,8 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		contentPageIndex
 	);
 
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } = prepResult;
+	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
+		prepResult;
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
 	return json({

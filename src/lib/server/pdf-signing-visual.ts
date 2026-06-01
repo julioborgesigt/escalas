@@ -58,7 +58,7 @@ export async function adicionarRodapeSimples(
 
 	const cBlack = rgb(0, 0, 0);
 	const cDark = rgb(0.05, 0.08, 0.22);
-	const cGray = rgb(0.40, 0.40, 0.45);
+	const cGray = rgb(0.4, 0.4, 0.45);
 
 	// 1 — QR Code (com fundo branco)
 	const qrSize = 35; // Aumentado para melhor visibilidade
@@ -74,8 +74,10 @@ export async function adicionarRodapeSimples(
 
 			// Fundo branco sutil
 			lastPage.drawRectangle({
-				x: qrX - 2, y: qrY - 2,
-				width: qrSize + 4, height: qrSize + 4,
+				x: qrX - 2,
+				y: qrY - 2,
+				width: qrSize + 4,
+				height: qrSize + 4,
 				color: rgb(1, 1, 1)
 			});
 
@@ -85,7 +87,8 @@ export async function adicionarRodapeSimples(
 						lastPage.drawRectangle({
 							x: qrX + col * dotSize,
 							y: qrY + (moduleCount - row - 1) * dotSize,
-							width: dotSize + 0.1, height: dotSize + 0.1,
+							width: dotSize + 0.1,
+							height: dotSize + 0.1,
 							color: cBlack // Preto puro para máximo contraste
 						});
 					}
@@ -152,14 +155,14 @@ export async function adicionarRodapeSimples(
 
 			// Se houver coordenadas personalizadas, usamos. Senão, colocamos no canto direito
 			const rx = customRubricX !== undefined ? customRubricX : width - marginX - rubW;
-			const ry = customRubricY !== undefined ? customRubricY : qrY - (rubH / 2) + (qrSize / 2);
+			const ry = customRubricY !== undefined ? customRubricY : qrY - rubH / 2 + qrSize / 2;
 
 			lastPage.drawImage(rubricImage, {
 				x: rx,
 				y: ry,
 				width: rubW,
 				height: rubH,
-				opacity: 0.90
+				opacity: 0.9
 			});
 		} catch (err) {
 			logger.error('Erro ao embutir rubrica simples', {
@@ -170,7 +173,6 @@ export async function adicionarRodapeSimples(
 
 	return pdfDoc.save();
 }
-
 
 // ---------------------------------------------------------------------------
 // Página de Auditoria (Audit Trail / Manifesto)
@@ -229,13 +231,13 @@ export async function adicionarPaginaAuditoria(
 	const cBorder = rgb(0.9, 0.92, 0.95);
 
 	// Agrupar assinantes por nível (Qualificada vs Avançada)
-	const qualified = allSigners.filter(s => s.signatureLevel === 'qualificada');
-	const advanced = allSigners.filter(s => s.signatureLevel === 'avancada');
+	const qualified = allSigners.filter((s) => s.signatureLevel === 'qualificada');
+	const advanced = allSigners.filter((s) => s.signatureLevel === 'avancada');
 
 	const groups = [
 		{ title: 'RELATÓRIO DE ASSINATURAS QUALIFICADAS (ICP-BRASIL)', signers: qualified },
 		{ title: 'RELATÓRIO DE ASSINATURAS AVANÇADAS (TELA/MOBILE)', signers: advanced }
-	].filter(g => g.signers.length > 0);
+	].filter((g) => g.signers.length > 0);
 
 	for (const group of groups) {
 		let page = pdfDoc.addPage();
@@ -243,15 +245,36 @@ export async function adicionarPaginaAuditoria(
 
 		// 1 — Topo (Título e Logo tipo ZapSign)
 		page.drawText(group.title, { x: 40, y: height - 50, size: 14, font: fontBold, color: cNavy });
-		const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'medium', timeZone: 'America/Sao_Paulo' }).format(new Date());
-		page.drawText(`Gerado em: ${dataHoraGeral} (Brasília)`, { x: 40, y: height - 65, size: 8, font, color: cGray });
-		page.drawLine({ start: { x: 40, y: height - 80 }, end: { x: width - 40, y: height - 80 }, thickness: 0.5, color: cBorder });
+		const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', {
+			dateStyle: 'long',
+			timeStyle: 'medium',
+			timeZone: 'America/Sao_Paulo'
+		}).format(new Date());
+		page.drawText(`Gerado em: ${dataHoraGeral} (Brasília)`, {
+			x: 40,
+			y: height - 65,
+			size: 8,
+			font,
+			color: cGray
+		});
+		page.drawLine({
+			start: { x: 40, y: height - 80 },
+			end: { x: width - 40, y: height - 80 },
+			thickness: 0.5,
+			color: cBorder
+		});
 
 		// 2 — Informações do Documento (Apenas na primeira página de cada grupo)
 		let currY = height - 105;
 		const drawMetaData = (label: string, value: string, y: number, isBold = false) => {
 			page.drawText(label + ':', { x: 40, y, size: 8, font: fontBold, color: cText });
-			page.drawText(value || 'N/A', { x: 160, y, size: 8.5, font: isBold ? fontBold : font, color: cText });
+			page.drawText(value || 'N/A', {
+				x: 160,
+				y,
+				size: 8.5,
+				font: isBold ? fontBold : font,
+				color: cText
+			});
 			return y - 15;
 		};
 
@@ -260,7 +283,7 @@ export async function adicionarPaginaAuditoria(
 		// Documento: nome pode ser longo — quebra antes de atingir o QR code (x ≈ width-105)
 		{
 			const docName = first.documentName || 'Extraordinário - GISE';
-			const maxW = (width - 105) - 160 - 15; // espaço disponível antes do QR
+			const maxW = width - 105 - 160 - 15; // espaço disponível antes do QR
 			const nameW = font.widthOfTextAtSize(docName, 8.5);
 			page.drawText('Documento:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
 			if (nameW <= maxW) {
@@ -269,7 +292,8 @@ export async function adicionarPaginaAuditoria(
 			} else {
 				// Quebra em palavras até caber na primeira linha
 				const words = docName.split(' ');
-				let line1 = '', line2 = '';
+				let line1 = '',
+					line2 = '';
 				for (const word of words) {
 					const candidate = line1 ? line1 + ' ' + word : word;
 					if (font.widthOfTextAtSize(candidate, 8.5) <= maxW) {
@@ -288,19 +312,42 @@ export async function adicionarPaginaAuditoria(
 		currY = drawMetaData('Identificador', first.verificationHash, currY);
 
 		// Hash SHA-256 — exibir completo em duas linhas quando disponível
-		const hashReal = first.documentHash && first.documentHash !== 'undefined' && first.documentHash !== 'N/A'
-			? first.documentHash
-			: null;
+		const hashReal =
+			first.documentHash && first.documentHash !== 'undefined' && first.documentHash !== 'N/A'
+				? first.documentHash
+				: null;
 		if (hashReal && hashReal.length > 32) {
 			// Linha 1: primeiros 32 chars
-			page.drawText('Hash do Original:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
-			page.drawText(hashReal.slice(0, 32), { x: 160, y: currY, size: 7.5, font: fontMono, color: cText });
+			page.drawText('Hash do Original:', {
+				x: 40,
+				y: currY,
+				size: 8,
+				font: fontBold,
+				color: cText
+			});
+			page.drawText(hashReal.slice(0, 32), {
+				x: 160,
+				y: currY,
+				size: 7.5,
+				font: fontMono,
+				color: cText
+			});
 			currY -= 11;
 			// Linha 2: restante
-			page.drawText(hashReal.slice(32), { x: 160, y: currY, size: 7.5, font: fontMono, color: cText });
+			page.drawText(hashReal.slice(32), {
+				x: 160,
+				y: currY,
+				size: 7.5,
+				font: fontMono,
+				color: cText
+			});
 			currY -= 15;
 		} else {
-			currY = drawMetaData('Hash do Original', hashReal ?? '(calculado no momento da assinatura)', currY);
+			currY = drawMetaData(
+				'Hash do Original',
+				hashReal ?? '(calculado no momento da assinatura)',
+				currY
+			);
 		}
 
 		// QR Code de Validação no canto superior direito
@@ -314,8 +361,11 @@ export async function adicionarPaginaAuditoria(
 					for (let c = 0; c < moduleCount; c++) {
 						if (qr.modules.get(r, c)) {
 							page.drawRectangle({
-								x: (width - 105) + c * dotSize, y: (height - 155) + (moduleCount - r - 1) * dotSize,
-								width: dotSize + 0.1, height: dotSize + 0.1, color: cNavy
+								x: width - 105 + c * dotSize,
+								y: height - 155 + (moduleCount - r - 1) * dotSize,
+								width: dotSize + 0.1,
+								height: dotSize + 0.1,
+								color: cNavy
 							});
 						}
 					}
@@ -325,7 +375,12 @@ export async function adicionarPaginaAuditoria(
 			}
 		}
 
-		page.drawLine({ start: { x: 40, y: currY - 10 }, end: { x: width - 40, y: currY - 10 }, thickness: 0.5, color: cBorder });
+		page.drawLine({
+			start: { x: 40, y: currY - 10 },
+			end: { x: width - 40, y: currY - 10 },
+			thickness: 0.5,
+			color: cBorder
+		});
 		currY -= 40;
 
 		// 3 — Seção de Assinaturas do Grupo (cartão estruturado).
@@ -338,13 +393,24 @@ export async function adicionarPaginaAuditoria(
 			const isQualified = s.signatureLevel === 'qualificada';
 			// Qualificada não tem rúbrica/foto → cartão mais baixo.
 			// Avançada com e-mail ocupa uma linha extra no grid → +22 pts.
-			const boxH = isQualified ? 130 : (s.signerEmail ? 262 : 240);
+			const boxH = isQualified ? 130 : s.signerEmail ? 262 : 240;
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
 				const { height: nh } = page.getSize();
-				page.drawText(`${group.title} (Continuação)`, { x: 40, y: nh - 50, size: 12, font: fontBold, color: cNavy });
-				page.drawLine({ start: { x: 40, y: nh - 80 }, end: { x: width - 40, y: nh - 80 }, thickness: 0.5, color: cBorder });
+				page.drawText(`${group.title} (Continuação)`, {
+					x: 40,
+					y: nh - 50,
+					size: 12,
+					font: fontBold,
+					color: cNavy
+				});
+				page.drawLine({
+					start: { x: 40, y: nh - 80 },
+					end: { x: width - 40, y: nh - 80 },
+					thickness: 0.5,
+					color: cBorder
+				});
 				currY = nh - 110;
 			}
 
@@ -355,8 +421,13 @@ export async function adicionarPaginaAuditoria(
 
 			// Card branco com borda fina (substitui o cinza chapado anterior).
 			page.drawRectangle({
-				x: boxX, y: boxBottom, width: boxW, height: boxH,
-				color: rgb(1, 1, 1), borderColor: cBorder, borderWidth: 1
+				x: boxX,
+				y: boxBottom,
+				width: boxW,
+				height: boxH,
+				color: rgb(1, 1, 1),
+				borderColor: cBorder,
+				borderWidth: 1
 			});
 
 			// --- Header strip ---
@@ -364,23 +435,41 @@ export async function adicionarPaginaAuditoria(
 			const headerColor = isQualified ? rgb(0.1, 0.3, 0.7) : cNavy;
 			const headerTextSoft = rgb(0.82, 0.87, 1);
 			page.drawRectangle({
-				x: boxX, y: boxTop - headerH, width: boxW, height: headerH, color: headerColor
+				x: boxX,
+				y: boxTop - headerH,
+				width: boxW,
+				height: headerH,
+				color: headerColor
 			});
 
 			const badgeLabel = isQualified ? 'QUALIFICADA · ICP-BRASIL' : 'AVANÇADA · TELA/MOBILE';
 			page.drawText(badgeLabel, {
-				x: boxX + 15, y: boxTop - 14, size: 7, font: fontBold, color: headerTextSoft
+				x: boxX + 15,
+				y: boxTop - 14,
+				size: 7,
+				font: fontBold,
+				color: headerTextSoft
 			});
 
 			page.drawText(s.signerName.toUpperCase(), {
-				x: boxX + 15, y: boxTop - 32, size: 12, font: fontBold, color: rgb(1, 1, 1)
+				x: boxX + 15,
+				y: boxTop - 32,
+				size: 12,
+				font: fontBold,
+				color: rgb(1, 1, 1)
 			});
 
 			const dataAssinatura = new Intl.DateTimeFormat('pt-BR', {
-				dateStyle: 'short', timeStyle: 'medium', timeZone: 'America/Sao_Paulo'
+				dateStyle: 'short',
+				timeStyle: 'medium',
+				timeZone: 'America/Sao_Paulo'
 			}).format(s.signingTime);
 			page.drawText(`Assinado em ${dataAssinatura}`, {
-				x: boxX + 15, y: boxTop - 46, size: 8, font, color: headerTextSoft
+				x: boxX + 15,
+				y: boxTop - 46,
+				size: 8,
+				font,
+				color: headerTextSoft
 			});
 
 			// Token alinhado à direita no header (truncado p/ caber).
@@ -388,7 +477,11 @@ export async function adicionarPaginaAuditoria(
 			const tokenLabel = `Token  ${tokenFull.length > 28 ? tokenFull.slice(0, 28) + '...' : tokenFull}`;
 			const tokenW = font.widthOfTextAtSize(tokenLabel, 7);
 			page.drawText(tokenLabel, {
-				x: boxX + boxW - 15 - tokenW, y: boxTop - 46, size: 7, font, color: headerTextSoft
+				x: boxX + boxW - 15 - tokenW,
+				y: boxTop - 46,
+				size: 7,
+				font,
+				color: headerTextSoft
 			});
 
 			// --- Grid de evidências (2 colunas, 3 linhas) ---
@@ -401,7 +494,11 @@ export async function adicionarPaginaAuditoria(
 			const drawField = (label: string, val: string, x: number, y: number) => {
 				page.drawText(label, { x, y, size: 6.5, font: fontBold, color: cGray });
 				page.drawText(val || 'N/A', {
-					x: x + labelOffset, y, size: 8, font, color: cText
+					x: x + labelOffset,
+					y,
+					size: 8,
+					font,
+					color: cText
 				});
 			};
 
@@ -444,30 +541,46 @@ export async function adicionarPaginaAuditoria(
 				page.drawLine({
 					start: { x: boxX + 15, y: sepY },
 					end: { x: boxX + boxW - 15, y: sepY },
-					thickness: 0.5, color: cBorder
+					thickness: 0.5,
+					color: cBorder
 				});
 
 				const evidLabelY = sepY - 14;
 				// Rúbrica com a MESMA altura da foto (80) → frames alinhados (mesmo topo
 				// e base, pois ambos partem de evidLabelY-6). Foto recuada ~20pt à esquerda.
-				const rubW = 150, rubH = 80;
-				const fotW = 60, fotH = 80;
+				const rubW = 150,
+					rubH = 80;
+				const fotW = 60,
+					fotH = 80;
 				const rubX = boxX + 25;
 				const fotX = boxX + boxW - 45 - fotW;
 
 				// Rótulos
 				page.drawText('RÚBRICA', {
-					x: rubX, y: evidLabelY, size: 6.5, font: fontBold, color: cGray
+					x: rubX,
+					y: evidLabelY,
+					size: 6.5,
+					font: fontBold,
+					color: cGray
 				});
 				page.drawText('FOTO DO ATO (LIVENESS)', {
-					x: fotX, y: evidLabelY, size: 6.5, font: fontBold, color: cGray
+					x: fotX,
+					y: evidLabelY,
+					size: 6.5,
+					font: fontBold,
+					color: cGray
 				});
 
 				// Frame rúbrica
 				const rubFrameY = evidLabelY - 6 - rubH;
 				page.drawRectangle({
-					x: rubX, y: rubFrameY, width: rubW, height: rubH,
-					color: rgb(0.99, 0.99, 0.99), borderColor: cBorder, borderWidth: 0.5
+					x: rubX,
+					y: rubFrameY,
+					width: rubW,
+					height: rubH,
+					color: rgb(0.99, 0.99, 0.99),
+					borderColor: cBorder,
+					borderWidth: 0.5
 				});
 				if (s.rubricBase64) {
 					try {
@@ -477,11 +590,15 @@ export async function adicionarPaginaAuditoria(
 						const ratio = img.width / img.height;
 						let iw = rubW - 12;
 						let ih = iw / ratio;
-						if (ih > rubH - 8) { ih = rubH - 8; iw = ih * ratio; }
+						if (ih > rubH - 8) {
+							ih = rubH - 8;
+							iw = ih * ratio;
+						}
 						page.drawImage(img, {
 							x: rubX + (rubW - iw) / 2,
 							y: rubFrameY + (rubH - ih) / 2,
-							width: iw, height: ih
+							width: iw,
+							height: ih
 						});
 					} catch (err) {
 						logger.warn('[pdf-signing] incorporar rúbrica no manifesto', { err: String(err) });
@@ -491,8 +608,13 @@ export async function adicionarPaginaAuditoria(
 				// Frame foto (3:4)
 				const fotFrameY = evidLabelY - 6 - fotH;
 				page.drawRectangle({
-					x: fotX, y: fotFrameY, width: fotW, height: fotH,
-					color: rgb(0.99, 0.99, 0.99), borderColor: cBorder, borderWidth: 0.5
+					x: fotX,
+					y: fotFrameY,
+					width: fotW,
+					height: fotH,
+					color: rgb(0.99, 0.99, 0.99),
+					borderColor: cBorder,
+					borderWidth: 0.5
 				});
 				if (s.selfieBase64) {
 					try {
@@ -505,11 +627,15 @@ export async function adicionarPaginaAuditoria(
 						// "Object cover" — preenche o frame, recorta o excesso.
 						let iw = fotW - 4;
 						let ih = iw / ratio;
-						if (ih < fotH - 4) { ih = fotH - 4; iw = ih * ratio; }
+						if (ih < fotH - 4) {
+							ih = fotH - 4;
+							iw = ih * ratio;
+						}
 						page.drawImage(img, {
 							x: fotX + (fotW - iw) / 2,
 							y: fotFrameY + (fotH - ih) / 2,
-							width: iw, height: ih
+							width: iw,
+							height: ih
 						});
 					} catch (err) {
 						logger.warn('[pdf-signing] incorporar selfie no manifesto', { err: String(err) });
@@ -521,17 +647,41 @@ export async function adicionarPaginaAuditoria(
 		}
 
 		// Rodapé de Compliance
-		const hasQualified = group.signers.some(s => s.signatureLevel === 'qualificada');
+		const hasQualified = group.signers.some((s) => s.signatureLevel === 'qualificada');
 		const footerY = 60;
 		if (hasQualified) {
-			page.drawText('INTEGRIDADE CERTIFICADA - ICP-BRASIL', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
-			page.drawText('Assinaturas eletrônicas têm igual validade legal conforme MP 2.200-2/2001 e Lei 14.063/2020.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
+			page.drawText('INTEGRIDADE CERTIFICADA - ICP-BRASIL', {
+				x: 40,
+				y: footerY + 25,
+				size: 10,
+				font: fontBold,
+				color: cText
+			});
+			page.drawText(
+				'Assinaturas eletrônicas têm igual validade legal conforme MP 2.200-2/2001 e Lei 14.063/2020.',
+				{ x: 40, y: footerY + 12, size: 7, font, color: cGray }
+			);
 		} else {
-			page.drawText('VALIDADE JURÍDICA ASSEGURADA - LEI 14.063/20', { x: 40, y: footerY + 25, size: 10, font: fontBold, color: cText });
-			page.drawText('Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.', { x: 40, y: footerY + 12, size: 7, font, color: cGray });
+			page.drawText('VALIDADE JURÍDICA ASSEGURADA - LEI 14.063/20', {
+				x: 40,
+				y: footerY + 25,
+				size: 10,
+				font: fontBold,
+				color: cText
+			});
+			page.drawText(
+				'Este documento utiliza assinaturas eletrônicas avançadas com plena eficácia probatória.',
+				{ x: 40, y: footerY + 12, size: 7, font, color: cGray }
+			);
 		}
 		const hashTrunc = first.documentHash ? first.documentHash.slice(0, 16) + '...' : '';
-		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, { x: 40, y: footerY, size: 8, font: fontMono, color: cGray });
+		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, {
+			x: 40,
+			y: footerY,
+			size: 8,
+			font: fontMono,
+			color: cGray
+		});
 	}
 
 	return pdfDoc.save();
@@ -574,8 +724,8 @@ export async function adicionarRodapeUniversal(
 	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
 
 	const cNavy = rgb(0.07, 0.14, 0.42);
-	const cGray = rgb(0.55, 0.55, 0.60);
-	const cLightLine = rgb(0.80, 0.85, 0.92);
+	const cGray = rgb(0.55, 0.55, 0.6);
+	const cLightLine = rgb(0.8, 0.85, 0.92);
 
 	const pages = pdfDoc.getPages();
 	// Aplica em todas as páginas, ou apenas nas de conteúdo (exclui folha de auditoria)
@@ -599,14 +749,22 @@ export async function adicionarRodapeUniversal(
 
 		// Hash abreviado (esquerda)
 		page.drawText(`SHA-256: ${hashAbrev}`, {
-			x: 20, y: footerY, size: 5.5, font: fontMono, color: cGray
+			x: 20,
+			y: footerY,
+			size: 5.5,
+			font: fontMono,
+			color: cGray
 		});
 
 		// Base legal (direita)
 		const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
 		const legalW = font.widthOfTextAtSize(legalText, 5.5);
 		page.drawText(legalText, {
-			x: width - legalW - 20, y: footerY, size: 5.5, font, color: cGray
+			x: width - legalW - 20,
+			y: footerY,
+			size: 5.5,
+			font,
+			color: cGray
 		});
 	}
 

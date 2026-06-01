@@ -4,13 +4,24 @@ import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
-import { prepararPdfParaAssinatura, adicionarPaginaAuditoria, adicionarRodapeUniversal } from '$lib/server/pdf-signing';
+import {
+	prepararPdfParaAssinatura,
+	adicionarPaginaAuditoria,
+	adicionarRodapeUniversal
+} from '$lib/server/pdf-signing';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
-export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	url,
+	request,
+	getClientAddress
+}) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -49,7 +60,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
-	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : (u.cpf || '');
+	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
 	const assinanteEmail = u.email ?? undefined;
 
 	// 1. Hash SHA-256 do PDF original (antes de qualquer modificação visual)
@@ -103,7 +114,8 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		contentPageIndex
 	);
 
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } = prepResult;
+	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
+		prepResult;
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
 	return json({
