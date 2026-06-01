@@ -18,7 +18,9 @@
 
 <Dialog
 	open={dialogInfo !== null}
-	onOpenChange={(e) => { if (!e.open) onClose(); }}
+	onOpenChange={(e) => {
+		if (!e.open) onClose();
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm"

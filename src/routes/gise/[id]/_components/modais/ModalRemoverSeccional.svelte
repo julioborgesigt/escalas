@@ -32,7 +32,12 @@
 				>
 					Cancelar
 				</button>
-				<button type="button" class="btn preset-filled-error-500" onclick={onConfirm} disabled={pending}>
+				<button
+					type="button"
+					class="btn preset-filled-error-500"
+					onclick={onConfirm}
+					disabled={pending}
+				>
 					{pending ? 'Removendo...' : 'Remover'}
 				</button>
 			</div>

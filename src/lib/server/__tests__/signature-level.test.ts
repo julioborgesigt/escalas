@@ -98,9 +98,9 @@ describe('signature-level', () => {
 
 	describe('estrutura dos requisitos', () => {
 		it('REQUISITOS_OBRIGATORIOS_AVANCADA contém pelo menos `segundo_fator_email`', () => {
-			expect(
-				REQUISITOS_OBRIGATORIOS_AVANCADA.some((r) => r.id === 'segundo_fator_email')
-			).toBe(true);
+			expect(REQUISITOS_OBRIGATORIOS_AVANCADA.some((r) => r.id === 'segundo_fator_email')).toBe(
+				true
+			);
 		});
 
 		it('todos os obrigatórios referenciam a Lei 14.063 art. 4º II "b"', () => {

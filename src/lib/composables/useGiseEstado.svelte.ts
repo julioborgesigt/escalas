@@ -25,27 +25,31 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const isAdminGeral = $derived(_data.isGeral === true);
 	const isSeccional = $derived(_data.isSeccional === true);
 	const isUnidade = $derived(_data.isUnidade === true);
-	const isSupervisor = $derived(_data.isSupervisor === true || gise?.supervisor_id === _data.usuarioAtual?.id);
+	const isSupervisor = $derived(
+		_data.isSupervisor === true || gise?.supervisor_id === _data.usuarioAtual?.id
+	);
 	const isMembro = $derived(_data.isMembro === true);
 
 	const minhaSeccional = $derived(
-		isSeccional ? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId) : null
+		isSeccional
+			? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId)
+			: null
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
 		gise?.seccionais?.length > 0 &&
-		gise.seccionais.every(
-			(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
-		)
+			gise.seccionais.every(
+				(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+			)
 	);
 
 	const editaBloqueado = $derived(
 		gise?.status === 'aguardando_assinatura' ||
-		gise?.status === 'em_andamento' ||
-		gise?.status === 'aguardando_relatorios' ||
-		gise?.status === 'aguardando_assinatura_relat' ||
-		gise?.status === 'pronta_para_finalizar' ||
-		gise?.status === 'finalizada'
+			gise?.status === 'em_andamento' ||
+			gise?.status === 'aguardando_relatorios' ||
+			gise?.status === 'aguardando_assinatura_relat' ||
+			gise?.status === 'pronta_para_finalizar' ||
+			gise?.status === 'finalizada'
 	);
 
 	const podeDownload = $derived(isAdminGeral || isSeccional || isSupervisor);
@@ -106,21 +110,51 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	});
 
 	return {
-		get gise() { return gise; },
-		get policiais() { return policiais; },
-		get todasUnidades() { return todasUnidades; },
-		get isAdminGeral() { return isAdminGeral; },
-		get isSeccional() { return isSeccional; },
-		get isUnidade() { return isUnidade; },
-		get isSupervisor() { return isSupervisor; },
-		get isMembro() { return isMembro; },
-		get minhaSeccional() { return minhaSeccional; },
-		get minhaSeccionalId() { return minhaSeccionalId; },
-		get todasSeccionaisPreenchidas() { return todasSeccionaisPreenchidas; },
-		get editaBloqueado() { return editaBloqueado; },
-		get podeDownload() { return podeDownload; },
-		get podeEditar() { return podeEditar; },
-		get isMobile() { return isMobile; },
+		get gise() {
+			return gise;
+		},
+		get policiais() {
+			return policiais;
+		},
+		get todasUnidades() {
+			return todasUnidades;
+		},
+		get isAdminGeral() {
+			return isAdminGeral;
+		},
+		get isSeccional() {
+			return isSeccional;
+		},
+		get isUnidade() {
+			return isUnidade;
+		},
+		get isSupervisor() {
+			return isSupervisor;
+		},
+		get isMembro() {
+			return isMembro;
+		},
+		get minhaSeccional() {
+			return minhaSeccional;
+		},
+		get minhaSeccionalId() {
+			return minhaSeccionalId;
+		},
+		get todasSeccionaisPreenchidas() {
+			return todasSeccionaisPreenchidas;
+		},
+		get editaBloqueado() {
+			return editaBloqueado;
+		},
+		get podeDownload() {
+			return podeDownload;
+		},
+		get podeEditar() {
+			return podeEditar;
+		},
+		get isMobile() {
+			return isMobile;
+		},
 		statusLabel,
 		statusColor,
 		fmtDate,

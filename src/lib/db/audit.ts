@@ -67,10 +67,7 @@ interface AuditEntry {
  * Registra uma entrada no log de auditoria.
  * Não lança exceção — falhas são logadas em console para não bloquear o fluxo principal.
  */
-export async function registrarAudit(
-	db: Database,
-	entry: AuditEntry
-): Promise<void> {
+export async function registrarAudit(db: Database, entry: AuditEntry): Promise<void> {
 	try {
 		await db.insert(auditLog).values({
 			usuario_id: entry.usuario_id,
@@ -148,11 +145,7 @@ export function anonimizarIp(ip: string | null | undefined): string | null {
 				const tailParts = tail ? tail.split(':') : [];
 				const zerosFaltando = 8 - headParts.length - tailParts.length;
 				if (zerosFaltando < 0) return null;
-				parts = [
-					...headParts,
-					...Array<string>(zerosFaltando).fill('0'),
-					...tailParts
-				];
+				parts = [...headParts, ...Array<string>(zerosFaltando).fill('0'), ...tailParts];
 			} else {
 				parts = ip.split(':');
 			}

@@ -33,7 +33,10 @@
 				resetForm();
 				cadastroOpen = false;
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
@@ -245,7 +248,10 @@
 				});
 				confirmDialog.closeDialog();
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 			excluindo = false;

@@ -85,7 +85,11 @@ function serializarDss(
  * Serializa uma nova versão do catalog (mesmo objNum do anterior) preservando
  * todas as entradas existentes e acrescentando /DSS.
  */
-function serializarCatalogPatched(catalog: PDFDict, catalogRef: PDFRef, dssNum: number): Uint8Array {
+function serializarCatalogPatched(
+	catalog: PDFDict,
+	catalogRef: PDFRef,
+	dssNum: number
+): Uint8Array {
 	const linhas: string[] = [];
 	for (const [name, val] of catalog.entries()) {
 		// Filtra qualquer /DSS antigo (caso já exista, sobrescrevemos).

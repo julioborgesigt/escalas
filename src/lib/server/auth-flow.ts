@@ -79,7 +79,11 @@ export async function checkRateLimit(
 		.select()
 		.from(loginAttempts)
 		.where(
-			and(eq(loginAttempts.ip, ipNormalized), gt(loginAttempts.attempted_at, desde), eq(loginAttempts.success, 0))
+			and(
+				eq(loginAttempts.ip, ipNormalized),
+				gt(loginAttempts.attempted_at, desde),
+				eq(loginAttempts.success, 0)
+			)
 		)
 		.all();
 	const count = attempts.length;
@@ -218,7 +222,11 @@ export async function tentarLogin({
 			}
 
 			if (!superAdmin) {
-				return { sucesso: false, statusCode: 500, erro: 'Erro ao inicializar super administrador.' };
+				return {
+					sucesso: false,
+					statusCode: 500,
+					erro: 'Erro ao inicializar super administrador.'
+				};
 			}
 
 			await recordAttempt(db, ip, true);
@@ -342,7 +350,11 @@ export async function tentarLogin({
 			};
 		}
 
-		const admin = await db.select().from(administradores).where(eq(administradores.login, matricula)).get();
+		const admin = await db
+			.select()
+			.from(administradores)
+			.where(eq(administradores.login, matricula))
+			.get();
 		if (!admin || !(await verificarSenha(senha, admin.senha, db))) {
 			await recordAttempt(db, ip, false);
 			return {
@@ -355,7 +367,10 @@ export async function tentarLogin({
 
 		if (isHashLegado(admin.senha)) {
 			const novoHash = await hashSenha(senha);
-			await db.update(administradores).set({ senha: novoHash }).where(eq(administradores.id, admin.id));
+			await db
+				.update(administradores)
+				.set({ senha: novoHash })
+				.where(eq(administradores.id, admin.id));
 		}
 
 		await recordAttempt(db, ip, true);
@@ -423,11 +438,13 @@ export async function tentarLogin({
 	if (policial.email && policial.primeiro_acesso !== 1) {
 		const codigo = gerarCodigo2FA();
 		const desafioId = await criarDesafio2FA(db, 'policial', policial.id, codigo);
-		const emailJob = enviarCodigo2FA(policial.email, codigo, policial.nome, platform).catch((err) => {
-			logger.error('[2FA] Falha ao enviar e-mail (policial)', {
-				error: err instanceof Error ? err.message : String(err)
-			});
-		});
+		const emailJob = enviarCodigo2FA(policial.email, codigo, policial.nome, platform).catch(
+			(err) => {
+				logger.error('[2FA] Falha ao enviar e-mail (policial)', {
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
+		);
 		platform?.ctx?.waitUntil(emailJob);
 		return {
 			sucesso: false,
@@ -451,6 +468,10 @@ export async function tentarLogin({
 		nome: policial.nome,
 		primeiroAcesso: policial.primeiro_acesso === 1,
 		role: 'policial',
-		formRedirect: isForm ? (policial.primeiro_acesso === 1 ? '/alterar-senha' : '/escalas') : undefined
+		formRedirect: isForm
+			? policial.primeiro_acesso === 1
+				? '/alterar-senha'
+				: '/escalas'
+			: undefined
 	};
 }

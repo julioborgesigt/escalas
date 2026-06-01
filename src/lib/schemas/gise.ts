@@ -35,8 +35,14 @@ export const giseSignatureSchema = z.object({
 			tipo: z.enum(['blink', 'smile']),
 			cumprido: z.boolean(),
 			tentativas: z.number().int().min(1).max(20),
-			iniciadoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
-			concluidoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
+			iniciadoEm: z
+				.string()
+				.regex(/^\d{4}-\d{2}-\d{2}T/)
+				.nullable(),
+			concluidoEm: z
+				.string()
+				.regex(/^\d{4}-\d{2}-\d{2}T/)
+				.nullable(),
 			duracaoMs: z.number().int().min(0).max(600_000)
 		})
 	)

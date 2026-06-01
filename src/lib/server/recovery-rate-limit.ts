@@ -10,10 +10,7 @@ import { recoveryAttempts } from './schema';
 import type { Database } from '$lib/db';
 import { anonimizarIp } from '$lib/db/audit';
 
-export type RecoveryPurpose =
-	| 'solicitar_redefinicao'
-	| 'confirmar_redefinicao'
-	| 'primeiro_acesso';
+export type RecoveryPurpose = 'solicitar_redefinicao' | 'confirmar_redefinicao' | 'primeiro_acesso';
 
 /**
  * Conta tentativas do IP para um propósito específico dentro da janela.

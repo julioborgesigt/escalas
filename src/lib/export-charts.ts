@@ -70,7 +70,11 @@ function drawFooter(ctx: CanvasRenderingContext2D, width: number) {
 	ctx.textAlign = 'right';
 	ctx.fillStyle = '#94a3b8';
 	ctx.font = 'bold 10px Inter';
-	ctx.fillText('GISE - DASHBOARD DE PRODUTIVIDADE', width - PADDING, CANVAS_HEIGHT + HEADER_HEIGHT + FOOTER_HEIGHT - 15);
+	ctx.fillText(
+		'GISE - DASHBOARD DE PRODUTIVIDADE',
+		width - PADDING,
+		CANVAS_HEIGHT + HEADER_HEIGHT + FOOTER_HEIGHT - 15
+	);
 }
 
 function drawRanking(
@@ -126,7 +130,8 @@ function drawDetail(
 
 		ctx.textAlign = 'right';
 		ctx.fillStyle = color;
-		const displayVal = unit === 'g' && value >= 1000 ? `${(value / 1000).toFixed(1)}kg` : `${value}${unit}`;
+		const displayVal =
+			unit === 'g' && value >= 1000 ? `${(value / 1000).toFixed(1)}kg` : `${value}${unit}`;
 		ctx.fillText(displayVal, CANVAS_WIDTH - PADDING, y);
 		ctx.textAlign = 'left';
 
@@ -158,7 +163,10 @@ function drawDetail(
 /**
  * Virtual chart configs para rankings e detalhamentos
  */
-export const VIRTUAL_CHARTS: Record<string, { label: string; color: string; type: 'ranking' | 'detail' }> = {
+export const VIRTUAL_CHARTS: Record<
+	string,
+	{ label: string; color: string; type: 'ranking' | 'detail' }
+> = {
 	'rank-prisoes': { label: 'Ranking de Prisões (P7)', color: '#f43f5e', type: 'ranking' },
 	'detail-prisoes': { label: 'Detalhamento de Prisões', color: '#f43f5e', type: 'detail' },
 	'rank-drogas': { label: 'Ranking de Drogas (P10)', color: '#ef4444', type: 'ranking' },
@@ -192,7 +200,14 @@ export function exportChartAsPng(
 ): { canvas: HTMLCanvasElement; filename: string } {
 	const { canvas, ctx } = createBaseCanvas();
 
-	drawHeader(ctx, config.label, config.color, payload.seccionalName, payload.periodText, canvas.width);
+	drawHeader(
+		ctx,
+		config.label,
+		config.color,
+		payload.seccionalName,
+		payload.periodText,
+		canvas.width
+	);
 
 	if (config.sourceCanvas) {
 		ctx.drawImage(config.sourceCanvas, PADDING, HEADER_HEIGHT);

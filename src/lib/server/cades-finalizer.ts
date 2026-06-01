@@ -110,10 +110,7 @@ export async function verificarECarimbarAssinatura(
 	}
 
 	// 2. Integridade do byte-range vs messageDigest
-	const integridadeOk = await verificarIntegridadePdf(
-		extracao.bytesAssinados,
-		cms.messageDigest
-	);
+	const integridadeOk = await verificarIntegridadePdf(extracao.bytesAssinados, cms.messageDigest);
 	if (!integridadeOk) {
 		return {
 			ok: false,
@@ -280,8 +277,7 @@ export async function verificarECarimbarAssinatura(
 	let ocspDerParaDss: Uint8Array | null = null;
 	try {
 		const ts = loadTrustStore();
-		const issuerCN =
-			(cms.certificate.issuer.getField('CN')?.value as string) || '';
+		const issuerCN = (cms.certificate.issuer.getField('CN')?.value as string) || '';
 		const issuer = [...ts.intermediates, ...ts.roots].find(
 			(c) => (c.subject.getField('CN')?.value as string) === issuerCN
 		);
@@ -327,12 +323,9 @@ export async function verificarECarimbarAssinatura(
 	// Quando aplicamos TST server-side, reextraímos o CMS do PDF atualizado
 	// para que o hash reflita o conteúdo final (com UnsignedAttribute TST).
 	const cmsDerFinal = tstAplicadoServerSide
-		? extrairCmsDoPdf(signedPdfBytes)?.cmsDer ?? extracao.cmsDer
+		? (extrairCmsDoPdf(signedPdfBytes)?.cmsDer ?? extracao.cmsDer)
 		: extracao.cmsDer;
-	const cmsHashBuf = await crypto.subtle.digest(
-		'SHA-256',
-		cmsDerFinal as unknown as ArrayBuffer
-	);
+	const cmsHashBuf = await crypto.subtle.digest('SHA-256', cmsDerFinal as unknown as ArrayBuffer);
 	const cmsSha256 = Array.from(new Uint8Array(cmsHashBuf))
 		.map((b) => b.toString(16).padStart(2, '0'))
 		.join('');

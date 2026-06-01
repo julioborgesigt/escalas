@@ -27,7 +27,10 @@ function maskNumericIds(path: string): string {
  * `beforeSend` callback: roda em cada evento antes do envio ao Sentry.
  * Remove/mascara PII e parâmetros sensíveis.
  */
-export function sentryBeforeSend(event: SentryErrorEvent, _hint: EventHint): SentryErrorEvent | null {
+export function sentryBeforeSend(
+	event: SentryErrorEvent,
+	_hint: EventHint
+): SentryErrorEvent | null {
 	// 1. Mascarar IDs em URL e transação
 	if (event.request?.url) {
 		try {
@@ -52,9 +55,13 @@ export function sentryBeforeSend(event: SentryErrorEvent, _hint: EventHint): Sen
 		const safeHeaders: Record<string, string> = {};
 		const headers = event.request.headers as Record<string, string>;
 		const denylist = new Set([
-			'cookie', 'set-cookie',
-			'authorization', 'proxy-authorization',
-			'x-csrf-token', 'x-reset-token', 'x-confirm-reset',
+			'cookie',
+			'set-cookie',
+			'authorization',
+			'proxy-authorization',
+			'x-csrf-token',
+			'x-reset-token',
+			'x-confirm-reset',
 			'x-hub-signature-256'
 		]);
 		for (const [k, v] of Object.entries(headers)) {

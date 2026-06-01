@@ -44,12 +44,9 @@ function gerarCertSelfSigned(opts?: { ocspUrl?: string }): {
 				forge.asn1.create(forge.asn1.Class.CONTEXT_SPECIFIC, 6, false, opts.ocspUrl)
 			]
 		);
-		const aia = forge.asn1.create(
-			forge.asn1.Class.UNIVERSAL,
-			forge.asn1.Type.SEQUENCE,
-			true,
-			[accessDesc]
-		);
+		const aia = forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.SEQUENCE, true, [
+			accessDesc
+		]);
 		const aiaDer = forge.asn1.toDer(aia).getBytes();
 		// Cast — a interface oficial tipa `value` como opcional, mas o code path
 		// que preenche outros campos só roda quando há "name" reconhecido. AIA
@@ -126,9 +123,9 @@ describe('consultarOcsp', () => {
 
 	it('retorna unknown quando responder retorna 500', async () => {
 		const { cert, issuer } = gerarCertSelfSigned({ ocspUrl: 'http://ocsp.example.com' });
-		globalThis.fetch = vi.fn().mockResolvedValue(
-			new Response('boom', { status: 500 })
-		) as unknown as typeof fetch;
+		globalThis.fetch = vi
+			.fn()
+			.mockResolvedValue(new Response('boom', { status: 500 })) as unknown as typeof fetch;
 
 		const snap = await consultarOcsp(cert, issuer);
 		expect(snap.status).toBe('unknown');
@@ -138,7 +135,9 @@ describe('consultarOcsp', () => {
 
 	it('retorna unknown quando fetch lança (rede offline / DNS)', async () => {
 		const { cert, issuer } = gerarCertSelfSigned({ ocspUrl: 'http://ocsp.example.com' });
-		globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+		globalThis.fetch = vi
+			.fn()
+			.mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
 
 		const snap = await consultarOcsp(cert, issuer);
 		expect(snap.status).toBe('unknown');

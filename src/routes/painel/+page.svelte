@@ -33,7 +33,9 @@
 	// Filtros
 	const filtroRegime = 'todos';
 	let filtroSeccional = $state<number | 'todas' | ''>(
-		savedFilters.seccional !== undefined ? (savedFilters.seccional as unknown as number | 'todas' | '') : ''
+		savedFilters.seccional !== undefined
+			? (savedFilters.seccional as unknown as number | 'todas' | '')
+			: ''
 	);
 	let filtroUnidade = $state(savedFilters.unidade);
 	// svelte-ignore state_referenced_locally
@@ -156,13 +158,9 @@
 		ignorados: ignorados.size
 	});
 
-	const seccionaisOptions = $derived(
-		seccionais.map((s) => ({ value: s.id, label: s.nome }))
-	);
+	const seccionaisOptions = $derived(seccionais.map((s) => ({ value: s.id, label: s.nome })));
 
-	const unidadesDropdownOptions = $derived(
-		unidadesDropdown.map((u) => ({ value: u, label: u }))
-	);
+	const unidadesDropdownOptions = $derived(unidadesDropdown.map((u) => ({ value: u, label: u })));
 
 	const agrupamentoOptions = [
 		{ value: 'nenhum', label: 'Nenhum' },
@@ -253,7 +251,9 @@
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
 			if (stored) ignorados = new Set(JSON.parse(stored));
-		} catch { /* ignora */ }
+		} catch {
+			/* ignora */
+		}
 		await invalidate(page.url.pathname);
 		loadingService.hide();
 	}
@@ -263,7 +263,7 @@
 		filtroUnidade = '';
 		filtroPendentes = true;
 		mostrarIgnorados = false;
-		
+
 		const hoje = new Date();
 		filtroAno = String(hoje.getFullYear());
 		filtroMes = String(hoje.getMonth() + 1);
@@ -281,7 +281,10 @@
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao excluir escala'), type: 'error' });
 			}
 		};
@@ -301,7 +304,9 @@
 			try {
 				const stored = localStorage.getItem('compliance_ignorados');
 				if (stored) ignorados = new Set(JSON.parse(stored));
-			} catch { /* ignora */ }
+			} catch {
+				/* ignora */
+			}
 		}
 	});
 </script>
@@ -324,7 +329,8 @@
 			</p>
 		</div>
 		<div class="flex gap-2 justify-end w-full sm:w-auto">
-			<button type="button"
+			<button
+				type="button"
 				class="btn btn-sm {temFiltros
 					? 'preset-filled-warning-500'
 					: 'preset-outlined-primary-500 opacity-40'}"
@@ -333,7 +339,12 @@
 			>
 				Limpar filtros
 			</button>
-			<button type="button" class="btn preset-outlined-primary-500 btn-sm" onclick={carregar} disabled={loadingService.active}>
+			<button
+				type="button"
+				class="btn preset-outlined-primary-500 btn-sm"
+				onclick={carregar}
+				disabled={loadingService.active}
+			>
 				{#if loadingService.active}
 					Atualizando...
 				{:else}
@@ -368,7 +379,8 @@
 				<p class="text-2xl font-bold text-error-600 dark:text-error-400">{totais.nao_criada}</p>
 				<p class="text-xs text-surface-500 mt-1 font-medium">🔴 Não Criada</p>
 			</div>
-			<button type="button"
+			<button
+				type="button"
 				class="p-4 rounded-2xl bg-surface-500/10 border border-surface-500/20 text-center cursor-pointer hover:bg-surface-500/20 transition-colors"
 				onclick={() => {
 					mostrarIgnorados = !mostrarIgnorados;
@@ -406,26 +418,19 @@
 
 			<div class="flex flex-col gap-1 w-full lg:w-28">
 				<span class="label-text text-sm font-semibold">Ano</span>
-				<SearchableSelect
-					options={anosOptions}
-					bind:value={filtroAno}
-					placeholder="Todos"
-				/>
+				<SearchableSelect options={anosOptions} bind:value={filtroAno} placeholder="Todos" />
 			</div>
 
 			<div class="flex flex-col gap-1 w-full lg:w-36">
 				<span class="label-text text-sm font-semibold">Mês</span>
-				<SearchableSelect
-					options={mesesOptions}
-					bind:value={filtroMes}
-					placeholder="Todos"
-				/>
+				<SearchableSelect options={mesesOptions} bind:value={filtroMes} placeholder="Todos" />
 			</div>
 		</div>
 
 		{#if mostrarIgnorados}
 			<div class="pt-1 border-t border-surface-100 dark:border-white/5">
-				<button type="button"
+				<button
+					type="button"
 					class="btn btn-sm variant-soft-surface text-xs font-bold"
 					onclick={() => {
 						mostrarIgnorados = false;
@@ -471,12 +476,22 @@
 					>? O status voltará a ser "Não Criada".
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={loadingService.active}
-						>Cancelar</Dialog.CloseTrigger
+					<Dialog.CloseTrigger
+						class="btn preset-outlined-surface-500"
+						disabled={loadingService.active}>Cancelar</Dialog.CloseTrigger
 					>
-					<form method="POST" action="?/excluirEscala" use:enhance={handleExcluirEscala} class="contents">
+					<form
+						method="POST"
+						action="?/excluirEscala"
+						use:enhance={handleExcluirEscala}
+						class="contents"
+					>
 						<input type="hidden" name="escala_id" value={itemParaExcluir?.escala_id} />
-						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={loadingService.active}>
+						<button
+							type="submit"
+							class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+							disabled={loadingService.active}
+						>
 							{loadingService.active ? 'Excluindo...' : 'Confirmar Exclusão'}
 						</button>
 					</form>
@@ -531,105 +546,123 @@
 						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
 							{#each { length: 8 } as _}
 								<tr class="animate-pulse">
-									<td class="px-4 py-3"><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-									<td class="px-4 py-3"><div class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
-									<td class="px-4 py-3"><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-									<td class="px-4 py-3"><div class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
-									<td class="px-4 py-3"><div class="h-8 w-24 rounded-lg bg-surface-200 dark:bg-surface-700"></div></td>
+									<td class="px-4 py-3"
+										><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
+									>
+									<td class="px-4 py-3"
+										><div
+											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
+										></div></td
+									>
+									<td class="px-4 py-3"
+										><div class="h-4 w-28 rounded bg-surface-200 dark:bg-surface-700"></div></td
+									>
+									<td class="px-4 py-3"
+										><div
+											class="h-6 w-20 rounded-full bg-surface-200 dark:bg-surface-700"
+										></div></td
+									>
+									<td class="px-4 py-3"
+										><div class="h-8 w-24 rounded-lg bg-surface-200 dark:bg-surface-700"></div></td
+									>
 								</tr>
 							{/each}
 						{:else}
-						{#each dadosAgrupados as grupo}
-							{#if grupo.titulo}
-								<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
-									<td
-										colspan="5"
-										class="py-1.5 px-4 text-[10px] font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400"
-									>
-										{grupo.titulo}
-									</td>
-								</tr>
-							{/if}
-							{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
-								<tr class={ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}>
-									<td class="font-medium max-w-[305px] truncate">{item.unidade_nome}</td>
-									<td>
-										{#if item.tipo_regime === 'plantao'}
-											<span
-												class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-xs font-bold"
-												>Plantão</span
-											>
-										{:else if item.tipo_regime === 'expediente'}
-											<span
-												class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-xs font-bold"
-												>Expediente</span
-											>
-										{:else}
-											<span
-												class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-xs font-bold"
-												>FDS</span
-											>
-										{/if}
-									</td>
-									<td class="text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap font-mono tabular-nums"
-										>{item.periodo}</td
-									>
-									<td>
-										{#if item.status === 'ok'}
-											<span
-												class="badge preset-filled-success-500 text-white text-xs font-bold px-2"
-												>✅ Em dia</span
-											>
-										{:else if item.status === 'nao_assinada' && item.escala_id}
-											<div class="flex items-center gap-1.5">
-												<a
-													href="/escalas/{item.escala_id}"
-													class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2 hover:bg-warning-500/30 transition-colors pointer-events-auto"
-													>🟡 Não Assinada</a
+							{#each dadosAgrupados as grupo}
+								{#if grupo.titulo}
+									<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
+										<td
+											colspan="5"
+											class="py-1.5 px-4 text-[10px] font-extrabold uppercase tracking-widest text-primary-600 dark:text-primary-400"
+										>
+											{grupo.titulo}
+										</td>
+									</tr>
+								{/if}
+								{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
+									<tr class={ignorados.has(chaveIgnorado(item)) ? 'opacity-50' : ''}>
+										<td class="font-medium max-w-[305px] truncate">{item.unidade_nome}</td>
+										<td>
+											{#if item.tipo_regime === 'plantao'}
+												<span
+													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-xs font-bold"
+													>Plantão</span
 												>
-												<button type="button"
-													class="text-error-500 hover:text-error-600 hover:bg-error-500/10 p-1 rounded-md transition-colors leading-none font-bold"
-													title="Excluir escala"
-													onclick={(e) => {
-														e.preventDefault();
-														itemParaExcluir = item;
-														escalaExcluirOpen = true;
-													}}>✕</button
-												>
-											</div>
-										{:else if item.status === 'nao_assinada'}
-											<span
-												class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2"
-												>🟡 Não Assinada</span
-											>
-										{:else}
-											<span
-												class="badge bg-error-500/15 text-error-700 dark:text-error-300 border border-error-500/30 text-xs font-bold px-2"
-												>🔴 Não Criada</span
-											>
-										{/if}
-									</td>
-									<td>
-										<div class="flex gap-2 justify-start">
-											{#if mostrarIgnorados}
-												<button type="button"
-													class="btn btn-sm preset-outlined-primary-500"
-													onclick={() => restaurarItem(item)}>Restaurar</button
+											{:else if item.tipo_regime === 'expediente'}
+												<span
+													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-xs font-bold"
+													>Expediente</span
 												>
 											{:else}
-												<div class="flex gap-2 items-center">
-													<button type="button"
-														class="btn btn-sm preset-outlined-surface-500 opacity-60 hover:opacity-100"
-														title="Ignorar esta pendência"
-														onclick={() => ignorarItem(item)}>🔕</button
+												<span
+													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-xs font-bold"
+													>FDS</span
+												>
+											{/if}
+										</td>
+										<td
+											class="text-sm text-surface-600 dark:text-surface-300 whitespace-nowrap font-mono tabular-nums"
+											>{item.periodo}</td
+										>
+										<td>
+											{#if item.status === 'ok'}
+												<span
+													class="badge preset-filled-success-500 text-white text-xs font-bold px-2"
+													>✅ Em dia</span
+												>
+											{:else if item.status === 'nao_assinada' && item.escala_id}
+												<div class="flex items-center gap-1.5">
+													<a
+														href="/escalas/{item.escala_id}"
+														class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2 hover:bg-warning-500/30 transition-colors pointer-events-auto"
+														>🟡 Não Assinada</a
+													>
+													<button
+														type="button"
+														class="text-error-500 hover:text-error-600 hover:bg-error-500/10 p-1 rounded-md transition-colors leading-none font-bold"
+														title="Excluir escala"
+														onclick={(e) => {
+															e.preventDefault();
+															itemParaExcluir = item;
+															escalaExcluirOpen = true;
+														}}>✕</button
 													>
 												</div>
+											{:else if item.status === 'nao_assinada'}
+												<span
+													class="badge bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/30 text-xs font-bold px-2"
+													>🟡 Não Assinada</span
+												>
+											{:else}
+												<span
+													class="badge bg-error-500/15 text-error-700 dark:text-error-300 border border-error-500/30 text-xs font-bold px-2"
+													>🔴 Não Criada</span
+												>
 											{/if}
-										</div>
-									</td>
-								</tr>
+										</td>
+										<td>
+											<div class="flex gap-2 justify-start">
+												{#if mostrarIgnorados}
+													<button
+														type="button"
+														class="btn btn-sm preset-outlined-primary-500"
+														onclick={() => restaurarItem(item)}>Restaurar</button
+													>
+												{:else}
+													<div class="flex gap-2 items-center">
+														<button
+															type="button"
+															class="btn btn-sm preset-outlined-surface-500 opacity-60 hover:opacity-100"
+															title="Ignorar esta pendência"
+															onclick={() => ignorarItem(item)}>🔕</button
+														>
+													</div>
+												{/if}
+											</div>
+										</td>
+									</tr>
+								{/each}
 							{/each}
-						{/each}
 						{/if}
 					</tbody>
 				</table>
@@ -642,122 +675,127 @@
 						<SkeletonCard lines={3} hasFooter={false} />
 					{/each}
 				{:else}
-				{#each dadosAgrupados as grupo}
-					{#if grupo.titulo}
-						<div
-							class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg"
-						>
-							{grupo.titulo}
-						</div>
-					{/if}
-
-					<div
-						class="divide-y divide-surface-200 dark:divide-white/5 bg-white/50 dark:bg-surface-900/30 rounded-xl overflow-hidden border border-surface-200 dark:border-white/5 mb-4"
-					>
-						{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
+					{#each dadosAgrupados as grupo}
+						{#if grupo.titulo}
 							<div
-								class="p-4 flex items-center justify-between gap-3 {ignorados.has(
-									chaveIgnorado(item)
-								)
-									? 'opacity-50'
-									: ''}"
+								class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg"
 							>
-								<div class="min-w-0 flex-1">
-									<p class="font-bold text-sm truncate">{item.unidade_nome}</p>
-									<div class="flex items-center gap-2 mt-1.5 flex-wrap">
-										{#if item.tipo_regime === 'plantao'}
-											<span
-												class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
-												>PLANTÃO</span
-											>
-										{:else if item.tipo_regime === 'expediente'}
-											<span
-												class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
-												>EXPEDIENTE</span
-											>
-										{:else}
-											<span
-												class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
-												>FDS</span
-											>
-										{/if}
-										<span class="text-xs text-surface-500 font-medium font-mono tabular-nums">{item.periodo}</span>
-									</div>
-									<div class="mt-2">
-										{#if item.status === 'ok'}
-											<span
-												class="text-xs text-success-600 dark:text-success-400 font-bold flex items-center gap-1"
-											>
-												<svg
-													class="w-3.5 h-3.5"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
-												Em dia
-											</span>
-										{:else if item.status === 'nao_assinada' && item.escala_id}
-											<div class="flex items-center gap-2">
-												<a
-													href="/escalas/{item.escala_id}"
-													class="text-xs text-warning-600 dark:text-warning-400 font-bold hover:underline decoration-warning-500 flex items-center gap-1"
-												>
-													<div class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></div>
-													Não Assinada
-												</a>
-												<button type="button"
-													class="text-error-500 font-black px-1.5 py-0.5 bg-error-500/10 rounded"
-													onclick={(e) => {
-														e.preventDefault();
-														itemParaExcluir = item;
-														escalaExcluirOpen = true;
-													}}>✕</button
-												>
-											</div>
-										{:else if item.status === 'nao_assinada'}
-											<span
-												class="text-xs text-warning-600 dark:text-warning-400 font-bold flex items-center gap-1"
-											>
-												<div class="w-2 h-2 rounded-full bg-warning-500"></div>
-												Não Assinada
-											</span>
-										{:else}
-											<span
-												class="text-xs text-error-600 dark:text-error-400 font-bold flex items-center gap-1"
-											>
-												<div class="w-2 h-2 rounded-full bg-error-500"></div>
-												Não Criada
-											</span>
-										{/if}
-									</div>
-								</div>
-
-								<div class="shrink-0 flex items-center gap-2">
-									{#if mostrarIgnorados}
-										<button type="button"
-											class="btn btn-sm preset-outlined-primary-500 text-xs font-bold"
-											onclick={() => restaurarItem(item)}>Restaurar</button
-										>
-									{:else}
-										<button type="button"
-											class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface-500 flex items-center justify-center rounded-full"
-											title="Ignorar"
-											onclick={() => ignorarItem(item)}
-										>
-											<span class="text-sm">🔕</span>
-										</button>
-									{/if}
-								</div>
+								{grupo.titulo}
 							</div>
-						{/each}
-					</div>
-				{/each}
+						{/if}
+
+						<div
+							class="divide-y divide-surface-200 dark:divide-white/5 bg-white/50 dark:bg-surface-900/30 rounded-xl overflow-hidden border border-surface-200 dark:border-white/5 mb-4"
+						>
+							{#each grupo.itens as item (item.unidade_nome + item.tipo_regime + item.data_inicio)}
+								<div
+									class="p-4 flex items-center justify-between gap-3 {ignorados.has(
+										chaveIgnorado(item)
+									)
+										? 'opacity-50'
+										: ''}"
+								>
+									<div class="min-w-0 flex-1">
+										<p class="font-bold text-sm truncate">{item.unidade_nome}</p>
+										<div class="flex items-center gap-2 mt-1.5 flex-wrap">
+											{#if item.tipo_regime === 'plantao'}
+												<span
+													class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													>PLANTÃO</span
+												>
+											{:else if item.tipo_regime === 'expediente'}
+												<span
+													class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													>EXPEDIENTE</span
+												>
+											{:else}
+												<span
+													class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[9px] font-bold px-1.5 py-0 leading-tight"
+													>FDS</span
+												>
+											{/if}
+											<span class="text-xs text-surface-500 font-medium font-mono tabular-nums"
+												>{item.periodo}</span
+											>
+										</div>
+										<div class="mt-2">
+											{#if item.status === 'ok'}
+												<span
+													class="text-xs text-success-600 dark:text-success-400 font-bold flex items-center gap-1"
+												>
+													<svg
+														class="w-3.5 h-3.5"
+														fill="none"
+														viewBox="0 0 24 24"
+														stroke="currentColor"
+														><path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M5 13l4 4L19 7"
+														/></svg
+													>
+													Em dia
+												</span>
+											{:else if item.status === 'nao_assinada' && item.escala_id}
+												<div class="flex items-center gap-2">
+													<a
+														href="/escalas/{item.escala_id}"
+														class="text-xs text-warning-600 dark:text-warning-400 font-bold hover:underline decoration-warning-500 flex items-center gap-1"
+													>
+														<div class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></div>
+														Não Assinada
+													</a>
+													<button
+														type="button"
+														class="text-error-500 font-black px-1.5 py-0.5 bg-error-500/10 rounded"
+														onclick={(e) => {
+															e.preventDefault();
+															itemParaExcluir = item;
+															escalaExcluirOpen = true;
+														}}>✕</button
+													>
+												</div>
+											{:else if item.status === 'nao_assinada'}
+												<span
+													class="text-xs text-warning-600 dark:text-warning-400 font-bold flex items-center gap-1"
+												>
+													<div class="w-2 h-2 rounded-full bg-warning-500"></div>
+													Não Assinada
+												</span>
+											{:else}
+												<span
+													class="text-xs text-error-600 dark:text-error-400 font-bold flex items-center gap-1"
+												>
+													<div class="w-2 h-2 rounded-full bg-error-500"></div>
+													Não Criada
+												</span>
+											{/if}
+										</div>
+									</div>
+
+									<div class="shrink-0 flex items-center gap-2">
+										{#if mostrarIgnorados}
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-primary-500 text-xs font-bold"
+												onclick={() => restaurarItem(item)}>Restaurar</button
+											>
+										{:else}
+											<button
+												type="button"
+												class="btn btn-sm w-9 h-9 !p-0 preset-outlined-surface-500 flex items-center justify-center rounded-full"
+												title="Ignorar"
+												onclick={() => ignorarItem(item)}
+											>
+												<span class="text-sm">🔕</span>
+											</button>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/each}
 				{/if}
 			</div>
 		{/if}

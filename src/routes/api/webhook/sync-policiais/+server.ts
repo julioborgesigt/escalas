@@ -73,7 +73,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 				if (!item.matricula || String(item.matricula).trim() === '') continue; // Pula linha vazia silenciosamente
 				if (!item.nome || String(item.nome).trim() === '') continue;
 
-				const cargo = String(item.cargo || '').toUpperCase().trim();
+				const cargo = String(item.cargo || '')
+					.toUpperCase()
+					.trim();
 				if (!['DPC', 'OIP'].includes(cargo)) {
 					throw new Error(`Cargo inválido: "${cargo}". Use DPC ou OIP.`);
 				}
@@ -90,7 +92,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 
 				// Ignorando a coluna H (status) a pedido do usuário: todos ficam ativos = 1
 				const statusMap = 1;
-				const regimeMap = (item.regime?.toLowerCase() === 'expediente') ? 'expediente' : 'plantao';
+				const regimeMap = item.regime?.toLowerCase() === 'expediente' ? 'expediente' : 'plantao';
 
 				let papelMap: string | null = null;
 				let papelUnidadeId: number | null = null;
@@ -115,7 +117,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 						if (!unidade) {
 							throw new Error(
 								`Unidade de exercício do papel não encontrada: "${papelUnidadeNome}". ` +
-								'Garanta que a lotação exista em DB_UNIDADES e esteja sincronizada.'
+									'Garanta que a lotação exista em DB_UNIDADES e esteja sincronizada.'
 							);
 						}
 						papelUnidadeId = unidade.id;
@@ -130,17 +132,20 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 						papelUnidadeId = atual.papel_unidade_id ?? null;
 					}
 					// Se o payload TENTOU trocar papel, registra para forense.
-					const payloadTentaTrocar = (item.papel || item.papel_unidade) && (
-						!atual ||
-						(item.papel ?? null) !== (atual.papel ?? null) ||
-						String(item.papel_unidade ?? '') !== (atual.papel_unidade_id == null ? '' : '*')
-					);
+					const payloadTentaTrocar =
+						(item.papel || item.papel_unidade) &&
+						(!atual ||
+							(item.papel ?? null) !== (atual.papel ?? null) ||
+							String(item.papel_unidade ?? '') !== (atual.papel_unidade_id == null ? '' : '*'));
 					if (payloadTentaTrocar) {
-						logger.warn('[sync-policiais] tentativa de alterar papel via webhook ignorada (WEBHOOK_ALLOW_PAPEL_CHANGES off)', {
-							matricula: String(item.matricula),
-							papelTentado: item.papel ?? null,
-							papelUnidadeTentado: item.papel_unidade ?? null
-						});
+						logger.warn(
+							'[sync-policiais] tentativa de alterar papel via webhook ignorada (WEBHOOK_ALLOW_PAPEL_CHANGES off)',
+							{
+								matricula: String(item.matricula),
+								papelTentado: item.papel ?? null,
+								papelUnidadeTentado: item.papel_unidade ?? null
+							}
+						);
 					}
 				}
 
@@ -153,7 +158,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 					classe: String(item.classe || '').trim(),
 					lotacao: lotacaoMap,
 					ativo: statusMap,
-					email: String(item.email || '').toLowerCase().trim(),
+					email: String(item.email || '')
+						.toLowerCase()
+						.trim(),
 					regime: regimeMap,
 					papel: papelMap,
 					papel_unidade_id: papelUnidadeId

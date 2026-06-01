@@ -20,11 +20,11 @@ type PKIInstance = any;
 /**
  * Converte a Promise customizada do Web PKI em uma Promise nativa.
  */
-function toNativePromise<T>(webPkiPromise: { success(cb: (result: T) => void): { fail(cb: (err: unknown) => void): void } }): Promise<T> {
+function toNativePromise<T>(webPkiPromise: {
+	success(cb: (result: T) => void): { fail(cb: (err: unknown) => void): void };
+}): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
-		webPkiPromise
-			.success((result: T) => resolve(result))
-			.fail((ex: unknown) => reject(ex));
+		webPkiPromise.success((result: T) => resolve(result)).fail((ex: unknown) => reject(ex));
 	});
 }
 
@@ -59,9 +59,10 @@ export async function initWebPKI(license?: string): Promise<PKIInstance> {
 			defaultFail: (ex: unknown) => {
 				// O erro "license is required" da Lacuna chega aqui. Reescrevemos
 				// a mensagem para deixar claro para o operador o que fazer.
-				const msg = typeof ex === 'object' && ex !== null && 'userMessage' in ex
-					? String((ex as { userMessage?: unknown }).userMessage)
-					: String(ex);
+				const msg =
+					typeof ex === 'object' && ex !== null && 'userMessage' in ex
+						? String((ex as { userMessage?: unknown }).userMessage)
+						: String(ex);
 				if (/license/i.test(msg)) {
 					reject(
 						new Error(
@@ -81,10 +82,15 @@ export async function initWebPKI(license?: string): Promise<PKIInstance> {
 /**
  * Lista os certificados digitais disponíveis (eToken, A1, etc.)
  */
-export async function listarCertificados(
-	pki: PKIInstance
-): Promise<WebPKICertificate[]> {
-	const certs = await toNativePromise<Array<{ thumbprint: string; subjectName: string; issuerName: string; pkiBrazil?: { cpf?: string } }>>(pki.listCertificates());
+export async function listarCertificados(pki: PKIInstance): Promise<WebPKICertificate[]> {
+	const certs = await toNativePromise<
+		Array<{
+			thumbprint: string;
+			subjectName: string;
+			issuerName: string;
+			pkiBrazil?: { cpf?: string };
+		}>
+	>(pki.listCertificates());
 	return certs.map((c) => ({
 		thumbprint: c.thumbprint,
 		subjectName: c.subjectName,
@@ -96,10 +102,7 @@ export async function listarCertificados(
 /**
  * Lê o conteúdo do certificado DER codificado em Base64.
  */
-export async function lerCertificado(
-	pki: PKIInstance,
-	thumbprint: string
-): Promise<string> {
+export async function lerCertificado(pki: PKIInstance, thumbprint: string): Promise<string> {
 	return toNativePromise<string>(pki.readCertificate({ thumbprint }));
 }
 
@@ -129,9 +132,11 @@ export async function assinarHash(
 	hashHex: string
 ): Promise<string> {
 	const hashBase64 = hexToBase64(hashHex);
-	return toNativePromise<string>(pki.signHash({
-		thumbprint,
-		hash: hashBase64,
-		digestAlgorithm: 'SHA-256'
-	}));
+	return toNativePromise<string>(
+		pki.signHash({
+			thumbprint,
+			hash: hashBase64,
+			digestAlgorithm: 'SHA-256'
+		})
+	);
 }

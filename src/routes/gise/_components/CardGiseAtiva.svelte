@@ -59,13 +59,17 @@
 	);
 	const totalExtras = $derived(ativa.totalSeccionais + (temSupervisao ? 1 : 0));
 	const escalaConcluida = $derived(
-		['em_andamento', 'aguardando_relatorios', 'aguardando_assinatura_relat', 'pronta_para_finalizar', 'finalizada'].includes(ativa.status)
+		[
+			'em_andamento',
+			'aguardando_relatorios',
+			'aguardando_assinatura_relat',
+			'pronta_para_finalizar',
+			'finalizada'
+		].includes(ativa.status)
 	);
 	const jaAssinados = $derived(ativa.assinaturasRelatorioExtra ?? 0);
 	const extraConcluido = $derived(jaAssinados >= totalExtras);
 	const extraParcial = $derived(jaAssinados > 0 && jaAssinados < totalExtras);
-
-
 </script>
 
 <div
@@ -81,7 +85,9 @@
 				Ativa #{ativa.id}
 			</span>
 			<span
-				class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(ativa.status)}"
+				class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {statusColor(
+					ativa.status
+				)}"
 			>
 				{statusLabel(ativa.status)}
 			</span>
@@ -137,7 +143,12 @@
 							</svg>
 						{:else}
 							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/>
 							</svg>
 						{/if}
 						{escalaConcluida ? 'Escala assinada' : 'Ass. Escala'}
@@ -173,7 +184,12 @@
 							</svg>
 						{:else}
 							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/>
 							</svg>
 						{/if}
 						{extraConcluido ? 'Extra assinado' : `Ass. Extra (${jaAssinados}/${totalExtras})`}
@@ -192,7 +208,10 @@
 			</button>
 
 			{#if isDesktop || menuExpandidoId === ativa.id}
-				<div class="flex flex-row gap-2 mt-1 w-full" transition:slide={{ duration: isDesktop ? 0 : 200 }}>
+				<div
+					class="flex flex-row gap-2 mt-1 w-full"
+					transition:slide={{ duration: isDesktop ? 0 : 200 }}
+				>
 					<button
 						type="button"
 						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"

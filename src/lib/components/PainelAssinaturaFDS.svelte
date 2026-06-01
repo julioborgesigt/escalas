@@ -214,11 +214,7 @@
 				onclick={abrirModalReenviar}
 				disabled={pendingReenviar || pendingReenvioAuto}
 			>
-				{pendingReenvioAuto
-					? 'Reenviando...'
-					: pendingReenviar
-						? 'Enviando...'
-						: 'Reenviar E-mail'}
+				{pendingReenvioAuto ? 'Reenviando...' : pendingReenviar ? 'Enviando...' : 'Reenviar E-mail'}
 			</button>
 			<button
 				type="button"
@@ -319,8 +315,8 @@
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Reenviar E-mail</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail
-				de destino.
+				A escala será reenviada como arquivo <strong>.docx</strong>. Confirme ou altere o e-mail de
+				destino.
 			</Dialog.Description>
 			<form method="POST" action="?/reenviarEmail" use:enhance={handleReenviar} class="space-y-4">
 				<label class="label">

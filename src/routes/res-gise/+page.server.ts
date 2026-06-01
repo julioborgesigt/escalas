@@ -1,12 +1,41 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { getDB, getR2, hasR2, buscarGiseModeloFormulario, buscarRespostaGise, salvarRespostaGise, buscarGiseEscala, sincronizarStatusGiseAposPresencaRelatorios, salvarEntradaGise, salvarSaidaGise, salvarGiseModeloFormulario, buscarExigirCodigoEmailAssinatura, buscarRestringirSmartphone, isSupervisaoGiseAtiva, isSupervisorGiseAtiva } from '$lib/db';
+import {
+	getDB,
+	getR2,
+	hasR2,
+	buscarGiseModeloFormulario,
+	buscarRespostaGise,
+	salvarRespostaGise,
+	buscarGiseEscala,
+	sincronizarStatusGiseAposPresencaRelatorios,
+	salvarEntradaGise,
+	salvarSaidaGise,
+	salvarGiseModeloFormulario,
+	buscarExigirCodigoEmailAssinatura,
+	buscarRestringirSmartphone,
+	isSupervisaoGiseAtiva,
+	isSupervisorGiseAtiva
+} from '$lib/db';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
 import { logger } from '$lib/server/logger';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
-import { parseRespostasFormularioJsonLoose, parseRespostasFormularioJsonStrict } from '$lib/schemas/gise-respostas-form';
-import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, gisePresencas, giseDocumentos, unidades, giseAssinaturasRelatorios, giseRespostasFormulario } from '$lib/server/schema';
+import {
+	parseRespostasFormularioJsonLoose,
+	parseRespostasFormularioJsonStrict
+} from '$lib/schemas/gise-respostas-form';
+import {
+	giseEscalas,
+	giseMembros,
+	giseEquipes,
+	giseSeccionais,
+	gisePresencas,
+	giseDocumentos,
+	unidades,
+	giseAssinaturasRelatorios,
+	giseRespostasFormulario
+} from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
 export const load = async ({ locals, platform, url }: any) => {
@@ -23,14 +52,17 @@ export const load = async ({ locals, platform, url }: any) => {
 	const supervisaoExtraUnidadeId = await buscarUnidadeIdSupervisaoExtra(db);
 
 	// Supervisor DPC com GISE ativa (não finalizada) — mesmo critério do menu / cache de papel
-	const isSupervisorGise =
-		u.tipo === 'policial' ? await isSupervisorGiseAtiva(db, u.id) : false;
-	const isSupervisaoGise =
-		u.tipo === 'policial' ? await isSupervisaoGiseAtiva(db, u.id) : false;
+	const isSupervisorGise = u.tipo === 'policial' ? await isSupervisorGiseAtiva(db, u.id) : false;
+	const isSupervisaoGise = u.tipo === 'policial' ? await isSupervisaoGiseAtiva(db, u.id) : false;
 
 	// Admin geral, membros de equipe, supervisor DPC ativo na GISE ou quadro de supervisão (assessor/SEINT)
 	if (u.tipo !== 'admin') {
-		const result = await db.select({ id: giseMembros.id }).from(giseMembros).where(eq(giseMembros.policial_id, u.id)).limit(1).get();
+		const result = await db
+			.select({ id: giseMembros.id })
+			.from(giseMembros)
+			.where(eq(giseMembros.policial_id, u.id))
+			.limit(1)
+			.get();
 		if (!result && !isSupervisorGise && !isSupervisaoGise) throw redirect(302, '/');
 	}
 
@@ -62,11 +94,13 @@ export const load = async ({ locals, platform, url }: any) => {
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.innerJoin(unidades, eq(giseSeccionais.seccional_id, unidades.id))
 			.innerJoin(giseEscalas, eq(giseSeccionais.gise_id, giseEscalas.id))
-			.where(and(
-				eq(giseMembros.policial_id, u.id),
-				mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
-				dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
-			))
+			.where(
+				and(
+					eq(giseMembros.policial_id, u.id),
+					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+				)
+			)
 			.orderBy(desc(giseEscalas.data_inicio))
 			.all();
 
@@ -82,19 +116,22 @@ export const load = async ({ locals, platform, url }: any) => {
 				sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
 				eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
 				eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-				equipe_tipo: sql`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END` as any,
+				equipe_tipo:
+					sql`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END` as any,
 				seccional_id: sql`0`.as('seccional_id'),
 				seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
 			})
 			.from(giseEscalas)
-			.where(and(
-				sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
-				mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
-				dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
-			))
+			.where(
+				and(
+					sql`(${giseEscalas.assessor_id} = ${u.id} OR ${giseEscalas.seint1_id} = ${u.id} OR ${giseEscalas.seint2_id} = ${u.id})`,
+					mesFilter ? like(giseEscalas.data_inicio, `${mesFilter}%`) : sql`1=1`,
+					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
+				)
+			)
 			.all();
 
-		rawEscalas.push(...rawSupervisoes as any);
+		rawEscalas.push(...(rawSupervisoes as any));
 
 		// DPC supervisor da escala: mesma UX de assessor (entrada/saída, sem formulário de produtividade aqui)
 		if (isSupervisorGise) {
@@ -129,9 +166,11 @@ export const load = async ({ locals, platform, url }: any) => {
 		}
 
 		// Ordenar novamente já que fundimos duas listas
-		rawEscalas.sort((a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime());
+		rawEscalas.sort(
+			(a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime()
+		);
 
-		const giseIds = [...new Set(rawEscalas.map(e => e.id))];
+		const giseIds = [...new Set(rawEscalas.map((e) => e.id))];
 
 		const presencasMap = new Map<number, any>();
 		const docsAssinadosMap = new Map<number, boolean>();
@@ -142,14 +181,29 @@ export const load = async ({ locals, platform, url }: any) => {
 		if (giseIds.length > 0) {
 			// 4 queries independentes em paralelo
 			const [presencas, docs, extras, respostas] = await Promise.all([
-				db.select().from(gisePresencas)
-					.where(and(inArray(gisePresencas.gise_id, giseIds), eq(gisePresencas.policial_id, u.id))).all(),
-				db.select({ gise_id: giseDocumentos.gise_id })
+				db
+					.select()
+					.from(gisePresencas)
+					.where(and(inArray(gisePresencas.gise_id, giseIds), eq(gisePresencas.policial_id, u.id)))
+					.all(),
+				db
+					.select({ gise_id: giseDocumentos.gise_id })
 					.from(giseDocumentos)
-					.where(inArray(giseDocumentos.gise_id, giseIds)).all(),
-				db.select({ gise_id: giseAssinaturasRelatorios.gise_id, seccional_id: giseAssinaturasRelatorios.seccional_id })
+					.where(inArray(giseDocumentos.gise_id, giseIds))
+					.all(),
+				db
+					.select({
+						gise_id: giseAssinaturasRelatorios.gise_id,
+						seccional_id: giseAssinaturasRelatorios.seccional_id
+					})
 					.from(giseAssinaturasRelatorios)
-					.where(and(inArray(giseAssinaturasRelatorios.gise_id, giseIds), eq(giseAssinaturasRelatorios.tipo, 'extraordinario'))).all(),
+					.where(
+						and(
+							inArray(giseAssinaturasRelatorios.gise_id, giseIds),
+							eq(giseAssinaturasRelatorios.tipo, 'extraordinario')
+						)
+					)
+					.all(),
 				db
 					.select({
 						gise_id: giseRespostasFormulario.gise_id,
@@ -163,7 +217,9 @@ export const load = async ({ locals, platform, url }: any) => {
 
 			presencas.forEach((p: any) => presencasMap.set(p.gise_id, p));
 			docs.forEach((doc: any) => docsAssinadosMap.set(doc.gise_id, true));
-			extras.forEach((ext: any) => extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true));
+			extras.forEach((ext: any) =>
+				extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true)
+			);
 			respostas.forEach((res: any) => {
 				if (res.equipe_id != null) {
 					respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true);
@@ -213,63 +269,241 @@ export const load = async ({ locals, platform, url }: any) => {
 		{ id: 1, texto: '1. DIGITE A VTR E A PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
 		{ id: 2, texto: '2. DIGITE O KM INCIAL DA VTR', tipo: 'numero', key: 'km_inicial', filhos: [] },
 		{ id: 3, texto: '3. DIGITE O KM FINAL DA VTR', tipo: 'numero', key: 'km_final', filhos: [] },
-		{ id: 4, texto: '4. Houve PROCEDIMENTOS em flagrante realizados?', tipo: 'prisoes_maiores', key: 'procedimentos_flagrante_bool', subtexto_qtd: '4.1 QUANTIDADE:', subtexto_lista: '4.2 INFORMAR NOMES E PROCEDIMENTOS:', filhos: [] },
-		{ id: 5, texto: '5. Houve MANDADOS cumpridos (MAIORES)?', tipo: 'mandados_maiores', key: 'mandados_cumpridos', subtexto_qtd: '5.1 QUANTIDADE:', subtexto_lista: '5.2 INFORMAR NOMES E MANDADOS:', filhos: [] },
-		{ id: 6, texto: '6. Houve APREENSÕES cumpridas (MENORES)?', tipo: 'apreensoes_menores', key: 'apreensoes_cumpridas', subtexto_qtd: '6.1 QUANTIDADE:', subtexto_lista: '6.2 INFORMAR NOMES E PROCESSOS:', filhos: [] },
-		{ id: 7, texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)', tipo: 'select_99', key: 'prisoes_apreensoes_flagrante', filhos: [] },
-		{ id: 8, texto: '8. Houve tentativa de cumprimento de mandado?', tipo: 'sim_nao', key: 'tentativa_mandado', filhos: [] },
-		{ id: 9, texto: '9. Houve mandado de busca e apreensão?', tipo: 'sim_nao', key: 'busca_apreensao', filhos: [] },
-		{ id: 10, texto: '10. Houve apreensão de drogas?', tipo: 'drogas_complex', key: 'apreensoes_drogas', subtexto_tipo: '10.1 TIPO DE DROGA:', subtexto_detalhe: '10.1.1 PESO DA DROGA, POR TIPO:', filhos: [] },
-		{ id: 11, texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?', tipo: 'armas_complex', key: 'apreensoes_armas_bool', subtexto_tipo: '11.1 TIPO DE ARMA:', subtexto_qtd: '11.1.1 QUANTIDADE:', filhos: [] },
+		{
+			id: 4,
+			texto: '4. Houve PROCEDIMENTOS em flagrante realizados?',
+			tipo: 'prisoes_maiores',
+			key: 'procedimentos_flagrante_bool',
+			subtexto_qtd: '4.1 QUANTIDADE:',
+			subtexto_lista: '4.2 INFORMAR NOMES E PROCEDIMENTOS:',
+			filhos: []
+		},
+		{
+			id: 5,
+			texto: '5. Houve MANDADOS cumpridos (MAIORES)?',
+			tipo: 'mandados_maiores',
+			key: 'mandados_cumpridos',
+			subtexto_qtd: '5.1 QUANTIDADE:',
+			subtexto_lista: '5.2 INFORMAR NOMES E MANDADOS:',
+			filhos: []
+		},
+		{
+			id: 6,
+			texto: '6. Houve APREENSÕES cumpridas (MENORES)?',
+			tipo: 'apreensoes_menores',
+			key: 'apreensoes_cumpridas',
+			subtexto_qtd: '6.1 QUANTIDADE:',
+			subtexto_lista: '6.2 INFORMAR NOMES E PROCESSOS:',
+			filhos: []
+		},
+		{
+			id: 7,
+			texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)',
+			tipo: 'select_99',
+			key: 'prisoes_apreensoes_flagrante',
+			filhos: []
+		},
+		{
+			id: 8,
+			texto: '8. Houve tentativa de cumprimento de mandado?',
+			tipo: 'sim_nao',
+			key: 'tentativa_mandado',
+			filhos: []
+		},
+		{
+			id: 9,
+			texto: '9. Houve mandado de busca e apreensão?',
+			tipo: 'sim_nao',
+			key: 'busca_apreensao',
+			filhos: []
+		},
+		{
+			id: 10,
+			texto: '10. Houve apreensão de drogas?',
+			tipo: 'drogas_complex',
+			key: 'apreensoes_drogas',
+			subtexto_tipo: '10.1 TIPO DE DROGA:',
+			subtexto_detalhe: '10.1.1 PESO DA DROGA, POR TIPO:',
+			filhos: []
+		},
+		{
+			id: 11,
+			texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?',
+			tipo: 'armas_complex',
+			key: 'apreensoes_armas_bool',
+			subtexto_tipo: '11.1 TIPO DE ARMA:',
+			subtexto_qtd: '11.1.1 QUANTIDADE:',
+			filhos: []
+		},
 		{ id: 12, texto: '12. Local de Crime', tipo: 'select_99', key: 'local_crime', filhos: [] },
-		{ id: 13, texto: '13. Ordem de Missão Cumprida', tipo: 'select_99', key: 'ordem_missao', filhos: [] },
-		{ id: 14, texto: '14. Levantamento de Alvos', tipo: 'select_99', key: 'levantamento_alvos', filhos: [] },
+		{
+			id: 13,
+			texto: '13. Ordem de Missão Cumprida',
+			tipo: 'select_99',
+			key: 'ordem_missao',
+			filhos: []
+		},
+		{
+			id: 14,
+			texto: '14. Levantamento de Alvos',
+			tipo: 'select_99',
+			key: 'levantamento_alvos',
+			filhos: []
+		},
 		{ id: 15, texto: '15. Oitivas Realizadas', tipo: 'select_99', key: 'oitivas', filhos: [] },
-		{ id: 16, texto: '16. Representação Prisão', tipo: 'select_99', key: 'representacao_prisao', filhos: [] },
-		{ id: 17, texto: '17. Representação Busca', tipo: 'select_99', key: 'representacao_busca', filhos: [] },
+		{
+			id: 16,
+			texto: '16. Representação Prisão',
+			tipo: 'select_99',
+			key: 'representacao_prisao',
+			filhos: []
+		},
+		{
+			id: 17,
+			texto: '17. Representação Busca',
+			tipo: 'select_99',
+			key: 'representacao_busca',
+			filhos: []
+		},
 		{ id: 18, texto: '18. Nº Abordagens', tipo: 'select_99', key: 'abordagens', filhos: [] },
-		{ id: 19, texto: '19. Descreva resumidamente as diligências', tipo: 'textarea', key: 'descricao', filhos: [] },
+		{
+			id: 19,
+			texto: '19. Descreva resumidamente as diligências',
+			tipo: 'textarea',
+			key: 'descricao',
+			filhos: []
+		}
 	];
 
 	const defaultSeintQuestions = [
 		{
-			id: 1, texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?', tipo: 'sim_nao', key: 'extracao_celulares', filhos: [
-				{ id: 101, texto: '1.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'extracao_qtd', filhos: [] },
-				{ id: 102, texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)', tipo: 'textarea', key: 'extracao_lista', filhos: [] }
-			]
-		},
-		{
-			id: 2, texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?', tipo: 'sim_nao', key: 'analise_extracao', filhos: [
-				{ id: 201, texto: '2.1 Quantidade de aparelhos analisados (1 a 99)', tipo: 'numero', key: 'analise_qtd', filhos: [] },
-				{ id: 202, texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)', tipo: 'textarea', key: 'analise_lista', filhos: [] }
-			]
-		},
-		{
-			id: 3, texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?', tipo: 'sim_nao', key: 'producao_relatorios', filhos: [
-				{ id: 301, texto: '3.1 Quantidade de relatórios produzidos (1 a 99)', tipo: 'numero', key: 'relatorios_qtd', filhos: [] },
-				{ id: 302, texto: '3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)', tipo: 'textarea', key: 'relatorios_lista', filhos: [] }
-			]
-		},
-		{
-			id: 4, texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?', tipo: 'sim_nao', key: 'levantamento_foragidos', filhos: [
-				{ id: 401, texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)', tipo: 'numero', key: 'levantamentos_qtd', filhos: [] },
-				{ id: 402, texto: '4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)', tipo: 'textarea', key: 'levantamentos_lista', filhos: [] }
-			]
-		},
-		{
-			id: 5, texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?', tipo: 'sim_nao', key: 'interceptacao_tel', filhos: [
-				{ id: 501, texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)', tipo: 'numero', key: 'interceptacao_qtd', filhos: [] },
+			id: 1,
+			texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?',
+			tipo: 'sim_nao',
+			key: 'extracao_celulares',
+			filhos: [
 				{
-					id: 502, texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?', tipo: 'sim_nao', key: 'operacoes_acompanhamento_bool', filhos: [
-						{ id: 503, texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)', tipo: 'textarea', key: 'operacoes_lista', filhos: [] }
+					id: 101,
+					texto: '1.1 Quantidade de aparelhos analisados (1 a 99)',
+					tipo: 'numero',
+					key: 'extracao_qtd',
+					filhos: []
+				},
+				{
+					id: 102,
+					texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)',
+					tipo: 'textarea',
+					key: 'extracao_lista',
+					filhos: []
+				}
+			]
+		},
+		{
+			id: 2,
+			texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?',
+			tipo: 'sim_nao',
+			key: 'analise_extracao',
+			filhos: [
+				{
+					id: 201,
+					texto: '2.1 Quantidade de aparelhos analisados (1 a 99)',
+					tipo: 'numero',
+					key: 'analise_qtd',
+					filhos: []
+				},
+				{
+					id: 202,
+					texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)',
+					tipo: 'textarea',
+					key: 'analise_lista',
+					filhos: []
+				}
+			]
+		},
+		{
+			id: 3,
+			texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?',
+			tipo: 'sim_nao',
+			key: 'producao_relatorios',
+			filhos: [
+				{
+					id: 301,
+					texto: '3.1 Quantidade de relatórios produzidos (1 a 99)',
+					tipo: 'numero',
+					key: 'relatorios_qtd',
+					filhos: []
+				},
+				{
+					id: 302,
+					texto:
+						'3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)',
+					tipo: 'textarea',
+					key: 'relatorios_lista',
+					filhos: []
+				}
+			]
+		},
+		{
+			id: 4,
+			texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?',
+			tipo: 'sim_nao',
+			key: 'levantamento_foragidos',
+			filhos: [
+				{
+					id: 401,
+					texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)',
+					tipo: 'numero',
+					key: 'levantamentos_qtd',
+					filhos: []
+				},
+				{
+					id: 402,
+					texto:
+						'4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)',
+					tipo: 'textarea',
+					key: 'levantamentos_lista',
+					filhos: []
+				}
+			]
+		},
+		{
+			id: 5,
+			texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?',
+			tipo: 'sim_nao',
+			key: 'interceptacao_tel',
+			filhos: [
+				{
+					id: 501,
+					texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)',
+					tipo: 'numero',
+					key: 'interceptacao_qtd',
+					filhos: []
+				},
+				{
+					id: 502,
+					texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?',
+					tipo: 'sim_nao',
+					key: 'operacoes_acompanhamento_bool',
+					filhos: [
+						{
+							id: 503,
+							texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)',
+							tipo: 'textarea',
+							key: 'operacoes_lista',
+							filhos: []
+						}
 					]
 				}
 			]
 		}
 	];
 
-	const giseIdSelected = url.searchParams.get('giseId') ? parseInt(url.searchParams.get('giseId')!) : null;
-	const equipeIdSelected = url.searchParams.get('equipeId') ? parseInt(url.searchParams.get('equipeId')!) : null;
+	const giseIdSelected = url.searchParams.get('giseId')
+		? parseInt(url.searchParams.get('giseId')!)
+		: null;
+	const equipeIdSelected = url.searchParams.get('equipeId')
+		? parseInt(url.searchParams.get('equipeId')!)
+		: null;
 
 	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone] = await Promise.all([
 		Promise.all([
@@ -277,7 +511,12 @@ export const load = async ({ locals, platform, url }: any) => {
 			buscarGiseModeloFormulario(db, 'seint')
 		]),
 		giseIdSelected && !isNaN(giseIdSelected)
-			? buscarRespostaGise(db, giseIdSelected, u.tipo === 'policial' ? u.id : null, equipeIdSelected ?? undefined)
+			? buscarRespostaGise(
+					db,
+					giseIdSelected,
+					u.tipo === 'policial' ? u.id : null,
+					equipeIdSelected ?? undefined
+				)
 			: Promise.resolve(null),
 		buscarRestringirSmartphone(db)
 	]);
@@ -335,7 +574,9 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const giseId = parseInt(formData.get('giseId') as string);
-		const equipeId = formData.get('equipeId') ? parseInt(formData.get('equipeId') as string) : undefined;
+		const equipeId = formData.get('equipeId')
+			? parseInt(formData.get('equipeId') as string)
+			: undefined;
 		const respostasStr = formData.get('respostas') as string;
 
 		if (isNaN(giseId) || !respostasStr) {
@@ -362,8 +603,12 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const giseId = parseInt(formData.get('giseId') as string);
 		const rubrica = formData.get('rubrica') as string;
-		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
-		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
+		const latitude = formData.get('latitude')
+			? parseFloat(formData.get('latitude') as string)
+			: undefined;
+		const longitude = formData.get('longitude')
+			? parseFloat(formData.get('longitude') as string)
+			: undefined;
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
 		const codigoEmail = formData.get('codigoEmail') as string | null;
 		const desafioId = formData.get('desafioId') as string | null;
@@ -383,10 +628,13 @@ export const actions: Actions = {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
 			}
 			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
-			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
-			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
+			if (result2FA === 'expirado')
+				return fail(400, { error: 'O código de verificação expirou.', giseId });
+			if (result2FA === 'esgotado')
+				return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
 			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
-			if (result2FA.usuarioId !== u.id) return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
+			if (result2FA.usuarioId !== u.id)
+				return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
 		}
 
 		const gise = await buscarGiseEscala(db, giseId);
@@ -415,8 +663,12 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const giseId = parseInt(formData.get('giseId') as string);
 		const rubrica = formData.get('rubrica') as string;
-		const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : undefined;
-		const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : undefined;
+		const latitude = formData.get('latitude')
+			? parseFloat(formData.get('latitude') as string)
+			: undefined;
+		const longitude = formData.get('longitude')
+			? parseFloat(formData.get('longitude') as string)
+			: undefined;
 		const selfieBase64 = formData.get('selfieBase64') as string | null;
 		const codigoEmail = formData.get('codigoEmail') as string | null;
 		const desafioId = formData.get('desafioId') as string | null;
@@ -436,10 +688,13 @@ export const actions: Actions = {
 				return fail(400, { error: 'Código de verificação por e-mail é obrigatório.', giseId });
 			}
 			const result2FA = await verificarDesafio2FA(db, desafioId, codigoEmail, ['assinatura']);
-			if (result2FA === 'expirado') return fail(400, { error: 'O código de verificação expirou.', giseId });
-			if (result2FA === 'esgotado') return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
+			if (result2FA === 'expirado')
+				return fail(400, { error: 'O código de verificação expirou.', giseId });
+			if (result2FA === 'esgotado')
+				return fail(400, { error: 'Muitas tentativas. Solicite um novo código.', giseId });
 			if (!result2FA) return fail(400, { error: 'Código de verificação inválido.', giseId });
-			if (result2FA.usuarioId !== u.id) return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
+			if (result2FA.usuarioId !== u.id)
+				return fail(403, { error: 'Código não pertence ao usuário logado.', giseId });
 		}
 
 		const giseOrig = await buscarGiseEscala(db, giseId);

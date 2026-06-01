@@ -13,10 +13,9 @@ export const GISE_SUPERVISAO_EXTRA_DEPARTAMENTO_NOME = 'Departamento de Polícia
 export const GISE_SUPERVISAO_EXTRA_UNIDADE_NOME = '__GISE_SUPERVISAO_EXTRA__';
 
 /** Papéis do quadro de supervisão que entram no relatório de extra (presenças). */
-export function listarPoliciaisSupervisaoExtra(gise: Pick<
-	GiseDetalhado,
-	'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'
->): Array<{ policial_id: number; papel: string }> {
+export function listarPoliciaisSupervisaoExtra(
+	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>
+): Array<{ policial_id: number; papel: string }> {
 	const out: Array<{ policial_id: number; papel: string }> = [];
 	const seen = new Set<number>();
 	const push = (id: number | null | undefined, papel: string) => {
@@ -32,10 +31,9 @@ export function listarPoliciaisSupervisaoExtra(gise: Pick<
 	return out;
 }
 
-export function quadroSupervisaoExtraExigeRelatorio(gise: Pick<
-	GiseDetalhado,
-	'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'
->): boolean {
+export function quadroSupervisaoExtraExigeRelatorio(
+	gise: Pick<GiseDetalhado, 'supervisor_id' | 'assessor_id' | 'seint1_id' | 'seint2_id'>
+): boolean {
 	return listarPoliciaisSupervisaoExtra(gise).length > 0;
 }
 

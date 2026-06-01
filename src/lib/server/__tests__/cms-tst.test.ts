@@ -70,10 +70,7 @@ function findSignerInfo(cmsDer: Uint8Array): forge.asn1.Asn1 {
 	// pegamos o ÚLTIMO via sobrescrita no loop.
 	let signerInfos: forge.asn1.Asn1 | null = null;
 	for (const f of sd.value as forge.asn1.Asn1[]) {
-		if (
-			f.tagClass === forge.asn1.Class.UNIVERSAL &&
-			(f.type as number) === forge.asn1.Type.SET
-		) {
+		if (f.tagClass === forge.asn1.Class.UNIVERSAL && (f.type as number) === forge.asn1.Type.SET) {
 			signerInfos = f;
 		}
 	}
@@ -140,8 +137,6 @@ describe('adicionarTimestampTokenAoCms', () => {
 		expect(forge.asn1.toDer(signedAttrsNovo!).getBytes()).toBe(
 			forge.asn1.toDer(signedAttrsOriginal!).getBytes()
 		);
-		expect(forge.asn1.toDer(sigNovo!).getBytes()).toBe(
-			forge.asn1.toDer(sigOriginal!).getBytes()
-		);
+		expect(forge.asn1.toDer(sigNovo!).getBytes()).toBe(forge.asn1.toDer(sigOriginal!).getBytes());
 	});
 });

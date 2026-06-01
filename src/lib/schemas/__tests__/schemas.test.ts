@@ -221,12 +221,12 @@ describe('alterarSenhaSchema', () => {
 		// Amostra do conjunto expandido — não tenta cobrir tudo, só garantir
 		// que as categorias chave estão ativas:
 		const amostra = [
-			'Password123',     // top breach com variação capitalizada
-			'Policial2024',    // vocabulário institucional + ano
+			'Password123', // top breach com variação capitalizada
+			'Policial2024', // vocabulário institucional + ano
 			'Delegado2025',
 			'Plantao2024',
 			'Admin2026',
-			'Iloveyou1',       // rockyou clássico
+			'Iloveyou1', // rockyou clássico
 			'Qwerty123',
 			'00000000',
 			'11223344'

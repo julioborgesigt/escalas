@@ -15,7 +15,9 @@
 		useAssinaturaEscala,
 		useMobile
 	} from '$lib/composables';
-	import SignaturePad, { type SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
+	import SignaturePad, {
+		type SignaturePadConfirmPayload
+	} from '$lib/components/SignaturePad.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { page } from '$app/state';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
@@ -34,9 +36,7 @@
 	const papelUnidadeId = $derived(data.papelUnidadeId as number | null);
 
 	const isAdminDPC = $derived(
-		!isAdmin &&
-		(auth.isAdminSeccional || auth.isAdminUnidade) &&
-		page.data.usuario?.cargo === 'DPC'
+		!isAdmin && (auth.isAdminSeccional || auth.isAdminUnidade) && page.data.usuario?.cargo === 'DPC'
 	);
 	const savedFilters = getSavedFilters('filtros_escalas', {
 		lotacao: '',
@@ -202,7 +202,6 @@
 		}
 	});
 
-
 	function buildQueryParamsComFiltros(p: number) {
 		const params = new URLSearchParams();
 		if (filtroLotacao && filtroLotacao !== 'todas') params.set('lotacao', filtroLotacao);
@@ -270,7 +269,11 @@
 		});
 		pendingRevogar = false;
 		if (res.ok) {
-			toaster.create({ title: 'Assinatura revogada', description: 'A escala agora pode ser editada.', type: 'info' });
+			toaster.create({
+				title: 'Assinatura revogada',
+				description: 'A escala agora pode ser editada.',
+				type: 'info'
+			});
 			goto(`/escalas/${id}`);
 		} else {
 			const err = await res.json().catch(() => ({}));
@@ -292,12 +295,18 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingExcluir = false;
 			if (result.type === 'success') {
-				toaster.create({ title: `Escala de ${escalaParaExcluir!.titulo} removida`, type: 'success' });
+				toaster.create({
+					title: `Escala de ${escalaParaExcluir!.titulo} removida`,
+					type: 'success'
+				});
 				dialogOpen = false;
 				escalaParaExcluir = null;
 				await invalidateAll();
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -336,7 +345,11 @@
 	);
 
 	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
-	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number; };
+	type SolicitacaoInfo = {
+		tipo: 'unidade' | 'respondencia';
+		destinatario_nome?: string;
+		destinatario_id?: number;
+	};
 	const solicitacoesMap = $derived((data.solicitacoesMap ?? {}) as Record<number, SolicitacaoInfo>);
 
 	let dialogSolicitar = $state(false);
@@ -359,7 +372,10 @@
 				toaster.create({ title: 'Solicitação cancelada', type: 'success' });
 			} else {
 				const json = await res.json().catch(() => ({}));
-				toaster.create({ title: (json as { error?: string }).error || 'Erro ao cancelar solicitação', type: 'error' });
+				toaster.create({
+					title: (json as { error?: string }).error || 'Erro ao cancelar solicitação',
+					type: 'error'
+				});
 			}
 		} catch {
 			toaster.create({ title: 'Erro de rede ao cancelar solicitação', type: 'error' });
@@ -448,18 +464,27 @@
 					>
 						<div class="relative">
 							<span class="text-4xl">✍️</span>
-							<span class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+							<span
+								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
 								>{escalasParaAssinar.length}</span
 							>
 						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors">Assinaturas Pendentes</span>
-						<span class="text-sm text-surface-500 text-center">Escalas prontas para assinar com sua assinatura digital</span>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+							>Assinaturas Pendentes</span
+						>
+						<span class="text-sm text-surface-500 text-center"
+							>Escalas prontas para assinar com sua assinatura digital</span
+						>
 					</button>
 				{:else}
-					<div class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center">
+					<div
+						class="card p-6 sm:p-8 flex flex-col items-center gap-3 border-2 border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-2xl text-center"
+					>
 						<span class="text-4xl">✅</span>
 						<span class="text-xl font-bold">Nenhuma pendência</span>
-						<span class="text-sm text-surface-500">Não há escalas aguardando sua assinatura no momento.</span>
+						<span class="text-sm text-surface-500"
+							>Não há escalas aguardando sua assinatura no momento.</span
+						>
 					</div>
 				{/if}
 			</div>
@@ -479,20 +504,32 @@
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-primary-500 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<span class="text-4xl">📋</span>
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Nova Escala</span>
-					<span class="text-sm text-surface-500 text-center">Criar uma nova escala de plantão, expediente ou final de semana</span>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+						>Nova Escala</span
+					>
+					<span class="text-sm text-surface-500 text-center"
+						>Criar uma nova escala de plantão, expediente ou final de semana</span
+					>
 				</button>
 				<button
 					type="button"
 					onclick={() => {
 						visao = 'lista';
-						goto(`?${buildQueryParamsComFiltros(1)}`, { replaceState: true, noScroll: true, keepFocus: true });
+						goto(`?${buildQueryParamsComFiltros(1)}`, {
+							replaceState: true,
+							noScroll: true,
+							keepFocus: true
+						});
 					}}
 					class="card p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer hover:shadow-xl transition-shadow border-2 border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-900 rounded-2xl group"
 				>
 					<span class="text-4xl">🗂️</span>
-					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors">Escalas criadas/Arquivo</span>
-					<span class="text-sm text-surface-500 text-center">Consultar e gerenciar as escalas já cadastradas</span>
+					<span class="text-xl font-bold group-hover:text-primary-500 transition-colors"
+						>Escalas criadas/Arquivo</span
+					>
+					<span class="text-sm text-surface-500 text-center"
+						>Consultar e gerenciar as escalas já cadastradas</span
+					>
 				</button>
 				{#if podeAssinar && escalasParaAssinar.length > 0}
 					<button
@@ -505,12 +542,17 @@
 					>
 						<div class="relative">
 							<span class="text-4xl">✍️</span>
-							<span class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
+							<span
+								class="absolute -top-2 -right-4 min-w-[1.4rem] h-[1.4rem] flex items-center justify-center rounded-full bg-tertiary-500 text-white text-xs font-black px-1 shadow"
 								>{escalasParaAssinar.length}</span
 							>
 						</div>
-						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors">Assinaturas Pendentes</span>
-						<span class="text-sm text-surface-500 text-center">Escalas prontas para assinar com sua assinatura digital</span>
+						<span class="text-xl font-bold group-hover:text-tertiary-500 transition-colors"
+							>Assinaturas Pendentes</span
+						>
+						<span class="text-sm text-surface-500 text-center"
+							>Escalas prontas para assinar com sua assinatura digital</span
+						>
 					</button>
 				{/if}
 			</div>
@@ -544,17 +586,28 @@
 	</div>
 
 	<Dialog open={dialogOpen} onOpenChange={(e) => (dialogOpen = e.open)}>
-		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
-			<div class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		>
+			<div
+				class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			>
 				<Dialog.Title class="h3 font-bold mb-2">Excluir Escala?</Dialog.Title>
 				<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
-					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode ser desfeita.
+					Tem certeza que deseja excluir a escala "{escalaParaExcluir?.titulo}"? Esta ação não pode
+					ser desfeita.
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-					<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={pendingExcluir}>Cancelar</Dialog.CloseTrigger>
+					<Dialog.CloseTrigger class="btn preset-outlined-surface-500" disabled={pendingExcluir}
+						>Cancelar</Dialog.CloseTrigger
+					>
 					<form method="POST" action="?/excluir" use:enhance={handleExcluir} class="contents">
 						<input type="hidden" name="escala_id" value={escalaParaExcluir?.id} />
-						<button type="submit" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" disabled={pendingExcluir}>
+						<button
+							type="submit"
+							class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+							disabled={pendingExcluir}
+						>
 							{pendingExcluir ? 'Excluindo...' : 'Excluir'}
 						</button>
 					</form>
@@ -564,21 +617,33 @@
 	</Dialog>
 
 	<Dialog open={dialogRevogarOpen} onOpenChange={(e) => (dialogRevogarOpen = e.open)}>
-		<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
-			<div class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+		<Dialog.Content
+			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+		>
+			<div
+				class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			>
 				<Dialog.Title class="h3 font-bold mb-2">Editar Escala Assinada?</Dialog.Title>
 				<Dialog.Description class="space-y-4 mb-6">
 					<p class="text-surface-600 dark:text-surface-400">
-						Esta escala já possui uma <strong>assinatura digital</strong> válida. Ao editá-la, a assinatura atual será
+						Esta escala já possui uma <strong>assinatura digital</strong> válida. Ao editá-la, a
+						assinatura atual será
 						<span class="text-error-500 font-bold underline">revogada</span> (removida).
 					</p>
 					<p class="text-surface-500 text-sm">
-						Se você deseja apenas visualizar a escala oficial, utilize a opção <strong>Exportar</strong> ou clique no título da escala.
+						Se você deseja apenas visualizar a escala oficial, utilize a opção <strong
+							>Exportar</strong
+						> ou clique no título da escala.
 					</p>
 				</Dialog.Description>
 				<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 					<Dialog.CloseTrigger class="btn preset-outlined-surface-500">Voltar</Dialog.CloseTrigger>
-					<button type="button" class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all" onclick={confirmarRevogacao} disabled={pendingRevogar}>
+					<button
+						type="button"
+						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						onclick={confirmarRevogacao}
+						disabled={pendingRevogar}
+					>
 						{pendingRevogar ? 'Revogando...' : 'Revogar e Editar'}
 					</button>
 				</div>
@@ -605,8 +670,12 @@
 		}}
 	/>
 
-	<div class="p-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-4">
-		<div class="grid grid-cols-12 gap-2 mb-6 p-3 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5 items-end">
+	<div
+		class="p-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-4"
+	>
+		<div
+			class="grid grid-cols-12 gap-2 mb-6 p-3 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5 items-end"
+		>
 			{#if isAdmin}
 				<div class="flex flex-col gap-1 col-span-12 lg:col-span-3">
 					<span class="label-text font-semibold mb-1">Seccional</span>
@@ -638,7 +707,11 @@
 				</div>
 			{/if}
 
-			<div class="flex flex-col gap-1 col-span-12 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-6'}">
+			<div
+				class="flex flex-col gap-1 col-span-12 {isAdmin || isAdminSeccional
+					? 'lg:col-span-2'
+					: 'lg:col-span-6'}"
+			>
 				<span class="label-text font-semibold mb-1">Tipo</span>
 				<SearchableSelect
 					options={tiposOptions}
@@ -648,7 +721,11 @@
 				/>
 			</div>
 
-			<div class="flex flex-col gap-1 col-span-6 {isAdmin || isAdminSeccional ? 'lg:col-span-2' : 'lg:col-span-4'}">
+			<div
+				class="flex flex-col gap-1 col-span-6 {isAdmin || isAdminSeccional
+					? 'lg:col-span-2'
+					: 'lg:col-span-4'}"
+			>
 				<span class="label-text font-semibold mb-1">Mês</span>
 				<SearchableSelect
 					options={mesesOptions}
@@ -715,19 +792,32 @@
 
 <Dialog
 	open={dialogRevogarSolicitacaoOpen}
-	onOpenChange={(e) => { if (!e.open) { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; } }}
+	onOpenChange={(e) => {
+		if (!e.open) {
+			dialogRevogarSolicitacaoOpen = false;
+			escalaAbrirComSolicitacao = null;
+		}
+	}}
 >
-	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
-		<div class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+	>
+		<div
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
 			<Dialog.Title class="h3 font-bold mb-2">Cancelar solicitação?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
-				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a solicitação será cancelada automaticamente.
+				Esta escala possui uma solicitação de assinatura pendente. Ao abri-la para edição, a
+				solicitação será cancelada automaticamente.
 			</Dialog.Description>
 			<div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
 				<button
 					type="button"
 					class="btn preset-outlined-surface-500"
-					onclick={() => { dialogRevogarSolicitacaoOpen = false; escalaAbrirComSolicitacao = null; }}>Voltar</button
+					onclick={() => {
+						dialogRevogarSolicitacaoOpen = false;
+						escalaAbrirComSolicitacao = null;
+					}}>Voltar</button
 				>
 				<button
 					type="button"
@@ -748,15 +838,23 @@
 <DialogSolicitarAssinatura
 	bind:open={dialogSolicitar}
 	escalaId={escalaSolicitandoId}
-	onConfirmado={() => { escalaSolicitandoId = null; }}
+	onConfirmado={() => {
+		escalaSolicitandoId = null;
+	}}
 />
 
 <Dialog
 	open={dialogAssinaturaTela}
-	onOpenChange={(e) => { if (!e.open) dialogAssinaturaTela = false; }}
+	onOpenChange={(e) => {
+		if (!e.open) dialogAssinaturaTela = false;
+	}}
 >
-	<Dialog.Content class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto">
-		<div class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10">
+	<Dialog.Content
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
+	>
+		<div
+			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+		>
 			<Dialog.Title class="h3 font-bold mb-2">{signatureTitulo}</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">
 				{signatureDescricao}
@@ -765,7 +863,15 @@
 				<SignaturePad
 					message="Rubrica do Organizador"
 					onConfirm={async (p: SignaturePadConfirmPayload) => {
-						await assinaturaRapida.assinarSimples(p.rubrica, p.lat, p.lng, p.selfie, p.codigoEmail, p.desafioId, p.liveness);
+						await assinaturaRapida.assinarSimples(
+							p.rubrica,
+							p.lat,
+							p.lng,
+							p.selfie,
+							p.codigoEmail,
+							p.desafioId,
+							p.liveness
+						);
 					}}
 					onCancel={() => (dialogAssinaturaTela = false)}
 					exigirFoto={page.data.exigirFotoAssinatura ?? true}

@@ -9,8 +9,18 @@
  */
 
 export const MESES_PT = [
-	'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
-	'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+	'JANEIRO',
+	'FEVEREIRO',
+	'MARÇO',
+	'ABRIL',
+	'MAIO',
+	'JUNHO',
+	'JULHO',
+	'AGOSTO',
+	'SETEMBRO',
+	'OUTUBRO',
+	'NOVEMBRO',
+	'DEZEMBRO'
 ];
 
 export type Rotacao = '1x3' | '2x6';
@@ -145,7 +155,11 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 }
 
 /** Calcula data_saida de uma entrada dado hora de entrada e saída */
-export function calcularDataSaida(dataPlantao: string, horaEntrada: string, horaSaida: string): string {
+export function calcularDataSaida(
+	dataPlantao: string,
+	horaEntrada: string,
+	horaSaida: string
+): string {
 	const he = Number((horaEntrada || '00').split(':')[0]);
 	const hs = Number((horaSaida || '00').split(':')[0]);
 	if (!horaEntrada && !horaSaida) {

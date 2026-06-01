@@ -57,7 +57,9 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		);
 
 	if ((countResult?.n ?? 0) >= 3) {
-		return rateLimited('Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.');
+		return rateLimited(
+			'Muitas tentativas. Aguarde alguns minutos antes de solicitar um novo código.'
+		);
 	}
 
 	const codigo = gerarCodigo2FA();

@@ -19,7 +19,12 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	if (q) {
 		conditions.push(like(unidades.nome, `%${q}%`));
 	}
-	if (tipo === 'delegacia' || tipo === 'seccional' || tipo === 'departamento' || tipo === 'sub_departamento') {
+	if (
+		tipo === 'delegacia' ||
+		tipo === 'seccional' ||
+		tipo === 'departamento' ||
+		tipo === 'sub_departamento'
+	) {
 		conditions.push(eq(unidades.tipo, tipo));
 	}
 
@@ -44,4 +49,3 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		}
 	);
 };
-

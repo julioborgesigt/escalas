@@ -81,7 +81,7 @@ export async function salvarDocumentoEscala(
 				arquivo_hash: arquivoHash,
 				ip_address: anonimizarIp(ipAddress) ?? undefined,
 				user_agent: userAgent ? parseUserAgent(userAgent) : undefined,
-			user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
+				user_agent_raw: userAgent ? userAgent.slice(0, 1024) : undefined,
 				latitude: gps2(latitude),
 				longitude: gps2(longitude),
 				assinante_email: assinanteEmail ?? null,
@@ -115,11 +115,16 @@ export async function buscarDocumentoPorHash(db: Database, hash: string) {
 	const [esc, gise, rel] = await Promise.all([
 		db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get(),
 		db.select().from(giseDocumentos).where(eq(giseDocumentos.verificacao_hash, hash)).get(),
-		db.select().from(fullSchema.giseAssinaturasRelatorios).where(eq(fullSchema.giseAssinaturasRelatorios.verification_hash, hash)).get()
+		db
+			.select()
+			.from(fullSchema.giseAssinaturasRelatorios)
+			.where(eq(fullSchema.giseAssinaturasRelatorios.verification_hash, hash))
+			.get()
 	]);
 
 	if (esc) return { ...esc, tipo_doc: 'escala' as const };
-	if (gise) return { ...gise, escala_id: gise.gise_id, r2_key: gise.r2_key, tipo_doc: 'gise' as const };
+	if (gise)
+		return { ...gise, escala_id: gise.gise_id, r2_key: gise.r2_key, tipo_doc: 'gise' as const };
 	if (rel) {
 		return {
 			id: rel.id,

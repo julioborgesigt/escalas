@@ -4,12 +4,7 @@
  */
 
 import { toaster } from '$lib/toast';
-import {
-	initWebPKI,
-	listarCertificados,
-	assinarHash,
-	type WebPKICertificate,
-} from '$lib/webpki';
+import { initWebPKI, listarCertificados, assinarHash, type WebPKICertificate } from '$lib/webpki';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
 import { loading } from '$lib/loading.svelte';
@@ -27,10 +22,7 @@ export interface UseAssinaturaParams {
 	onDocumentoAssinado?: (info: any) => void;
 }
 
-export function useAssinaturaEscala({
-	getParams,
-	onDocumentoAssinado
-}: UseAssinaturaParams) {
+export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssinaturaParams) {
 	const escalaId = $derived(getParams().escalaId);
 	const isFDS = $derived(getParams().isFDS);
 	const policiaisCount = $derived(getParams().policiaisCount);
@@ -113,7 +105,12 @@ export function useAssinaturaEscala({
 		});
 
 		loading.show('Assinando com token...');
-		const hash = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
+		const hash = btoa(
+			prepData.messageDigest
+				.match(/.{2}/g)
+				.map((h: string) => String.fromCharCode(parseInt(h, 16)))
+				.join('')
+		);
 		const signature = await assinarHash(pkInstance, certSelecionado, hash);
 
 		loading.show('Finalizando assinatura...');
@@ -159,7 +156,12 @@ export function useAssinaturaEscala({
 			});
 
 			loading.show('Assinando com SERPRO...');
-			const messageDigestBase64 = btoa(prepData.messageDigest.match(/.{2}/g).map((h: string) => String.fromCharCode(parseInt(h, 16))).join(''));
+			const messageDigestBase64 = btoa(
+				prepData.messageDigest
+					.match(/.{2}/g)
+					.map((h: string) => String.fromCharCode(parseInt(h, 16)))
+					.join('')
+			);
 			const serproRes = await client.sign(messageDigestBase64);
 
 			loading.show('Finalizando assinatura...');
@@ -181,7 +183,10 @@ export function useAssinaturaEscala({
 			toaster.success({ title: 'Escala assinada com sucesso!' });
 			onDocumentoAssinado?.(info);
 		} catch (err: unknown) {
-			toaster.error({ title: 'Erro na assinatura', description: err instanceof Error ? err.message : 'Erro desconhecido' });
+			toaster.error({
+				title: 'Erro na assinatura',
+				description: err instanceof Error ? err.message : 'Erro desconhecido'
+			});
 		} finally {
 			loading.hide();
 		}
@@ -247,23 +252,57 @@ export function useAssinaturaEscala({
 	}
 
 	return {
-		get assinando() { return loading.active; },
-		get assinandoSimples() { return loading.active; },
-		get dialogSignOpen() { return dialogSignOpen; },
-		set dialogSignOpen(v: boolean) { dialogSignOpen = v; },
-		get certificados() { return certificados; },
-		get certSelecionado() { return certSelecionado; },
-		set certSelecionado(v: string) { certSelecionado = v; },
-		get lendoCertificados() { return lendoCertificados; },
-		get tentouLerCertificados() { return tentouLerCertificados; },
-		get serproSignerName() { return serproSignerName; },
-		set serproSignerName(v: string) { serproSignerName = v; },
-		get serproSignerCpf() { return serproSignerCpf; },
-		set serproSignerCpf(v: string) { serproSignerCpf = v; },
-		get rubricaCapturada() { return rubricaCapturada; },
-		get selfieCapturada() { return selfieCapturada; },
-		get gpsCoords() { return gpsCoords; },
-		get gpsIndisponivel() { return gpsIndisponivel; },
+		get assinando() {
+			return loading.active;
+		},
+		get assinandoSimples() {
+			return loading.active;
+		},
+		get dialogSignOpen() {
+			return dialogSignOpen;
+		},
+		set dialogSignOpen(v: boolean) {
+			dialogSignOpen = v;
+		},
+		get certificados() {
+			return certificados;
+		},
+		get certSelecionado() {
+			return certSelecionado;
+		},
+		set certSelecionado(v: string) {
+			certSelecionado = v;
+		},
+		get lendoCertificados() {
+			return lendoCertificados;
+		},
+		get tentouLerCertificados() {
+			return tentouLerCertificados;
+		},
+		get serproSignerName() {
+			return serproSignerName;
+		},
+		set serproSignerName(v: string) {
+			serproSignerName = v;
+		},
+		get serproSignerCpf() {
+			return serproSignerCpf;
+		},
+		set serproSignerCpf(v: string) {
+			serproSignerCpf = v;
+		},
+		get rubricaCapturada() {
+			return rubricaCapturada;
+		},
+		get selfieCapturada() {
+			return selfieCapturada;
+		},
+		get gpsCoords() {
+			return gpsCoords;
+		},
+		get gpsIndisponivel() {
+			return gpsIndisponivel;
+		},
 		loadCertificados,
 		onCertSelecionado,
 		assinarComWebPKI,

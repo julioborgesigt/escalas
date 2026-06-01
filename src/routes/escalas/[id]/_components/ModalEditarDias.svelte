@@ -7,8 +7,18 @@
 	import type { ActionResult } from '@sveltejs/kit';
 
 	const MESES = [
-		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-		'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
 	];
 	const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -19,7 +29,11 @@
 	}: {
 		open: boolean;
 		diasIniciais: string[];
-		onsalvo: (result: { data_inicio: string; data_fim: string; policiais: EscalaPolicialComDados[] }) => void;
+		onsalvo: (result: {
+			data_inicio: string;
+			data_fim: string;
+			policiais: EscalaPolicialComDados[];
+		}) => void;
 	} = $props();
 
 	let selecionados = $state<string[]>([]);
@@ -85,12 +99,16 @@
 	}
 
 	function mesAnterior() {
-		if (calMes === 0) { calMes = 11; calAno--; }
-		else calMes--;
+		if (calMes === 0) {
+			calMes = 11;
+			calAno--;
+		} else calMes--;
 	}
 	function mesProximo() {
-		if (calMes === 11) { calMes = 0; calAno++; }
-		else calMes++;
+		if (calMes === 11) {
+			calMes = 0;
+			calAno++;
+		} else calMes++;
 	}
 
 	function handleSalvar({ cancel }: { cancel: () => void }) {
@@ -114,7 +132,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar dias'), type: 'error' });
 			}
 		};
@@ -145,7 +166,8 @@
 						>‹</button
 					>
 					<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">
-						{MESES[calMes]} {calAno}
+						{MESES[calMes]}
+						{calAno}
 					</span>
 					<button
 						type="button"
@@ -186,7 +208,8 @@
 			{#if ordenados.length > 0}
 				<div class="space-y-0.5">
 					<span class="text-[0.65rem] font-semibold text-surface-500">
-						Dias selecionados ({ordenados.length}) — todos os dias entre o primeiro e o último são incluídos
+						Dias selecionados ({ordenados.length}) — todos os dias entre o primeiro e o último são
+						incluídos
 					</span>
 					<div class="flex flex-wrap gap-1.5">
 						{#each ordenados as iso}
@@ -201,7 +224,12 @@
 									onclick={() => toggle(iso)}
 								>
 									<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M6 18L18 6M6 6l12 12"
+										/>
 									</svg>
 								</button>
 							</span>

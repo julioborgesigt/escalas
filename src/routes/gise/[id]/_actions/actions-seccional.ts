@@ -45,11 +45,14 @@ export const actionsSeccional = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const [novaSec] = await db.insert(giseSeccionais).values({
-			gise_id: giseId,
-			seccional_id: seccionalId,
-			status: 'pendente'
-		}).returning({ id: giseSeccionais.id });
+		const [novaSec] = await db
+			.insert(giseSeccionais)
+			.values({
+				gise_id: giseId,
+				seccional_id: seccionalId,
+				status: 'pendente'
+			})
+			.returning({ id: giseSeccionais.id });
 
 		if (novaSec) {
 			await adicionarGiseSeccionalUnidade(db, novaSec.id, null);
@@ -68,7 +71,8 @@ export const actionsSeccional = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db.select({ id: giseSeccionais.id })
+		const sec = await db
+			.select({ id: giseSeccionais.id })
 			.from(giseSeccionais)
 			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
 			.get();
@@ -77,7 +81,8 @@ export const actionsSeccional = {
 		await excluirGiseSeccional(db, secId);
 		await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 
-		const seccionaisRestantes = await db.select({ id: giseSeccionais.id })
+		const seccionaisRestantes = await db
+			.select({ id: giseSeccionais.id })
 			.from(giseSeccionais)
 			.where(eq(giseSeccionais.gise_id, giseId))
 			.all();
@@ -102,8 +107,11 @@ export const actionsSeccional = {
 		if (isNaN(giseId) || isNaN(secId)) return fail(400, { error: 'IDs inválidos' });
 
 		const db = getDB(platform);
-		const sec = await db.select().from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		const sec = await db
+			.select()
+			.from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
+			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
 		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {
@@ -116,12 +124,14 @@ export const actionsSeccional = {
 			.where(eq(giseSeccionalUnidades.gise_seccional_id, secId))
 			.all();
 
-		if (slots.length === 0) return fail(400, { error: 'Adicione ao menos uma unidade antes de finalizar' });
+		if (slots.length === 0)
+			return fail(400, { error: 'Adicione ao menos uma unidade antes de finalizar' });
 
-		const slotSemUnidade = slots.find(s => s.unidade_id === null);
-		if (slotSemUnidade) return fail(400, { error: 'Todos os slots devem ter uma unidade selecionada' });
+		const slotSemUnidade = slots.find((s) => s.unidade_id === null);
+		if (slotSemUnidade)
+			return fail(400, { error: 'Todos os slots devem ter uma unidade selecionada' });
 
-		const slotIds = slots.map(s => s.id);
+		const slotIds = slots.map((s) => s.id);
 		const membrosPorSlot = await db
 			.select({ gise_unidade_id: giseEquipes.gise_unidade_id })
 			.from(giseMembros)
@@ -129,9 +139,10 @@ export const actionsSeccional = {
 			.where(inArray(giseEquipes.gise_unidade_id, slotIds))
 			.all();
 
-		const slotsComMembros = new Set(membrosPorSlot.map(m => m.gise_unidade_id));
-		const slotSemMembro = slots.find(s => !slotsComMembros.has(s.id));
-		if (slotSemMembro) return fail(400, { error: 'Cada unidade deve ter pelo menos 1 policial alocado' });
+		const slotsComMembros = new Set(membrosPorSlot.map((m) => m.gise_unidade_id));
+		const slotSemMembro = slots.find((s) => !slotsComMembros.has(s.id));
+		if (slotSemMembro)
+			return fail(400, { error: 'Cada unidade deve ter pelo menos 1 policial alocado' });
 
 		const novoStatus = sec.status === 'retificada' ? 'preenchida_retificada' : 'preenchida';
 		await atualizarGiseSeccional(db, secId, { status: novoStatus });
@@ -171,7 +182,8 @@ export const actionsSeccional = {
 			.orderBy(asc(unidades.nome));
 
 		if (giseRow?.assessor_id && secComNome?.nome) {
-			let destino = (giseRow.assessor_email_notificacao && giseRow.assessor_email_notificacao.trim()) || '';
+			let destino =
+				(giseRow.assessor_email_notificacao && giseRow.assessor_email_notificacao.trim()) || '';
 			let nomeAssessor = 'Assessor';
 			const polAss = await db
 				.select({
@@ -208,10 +220,13 @@ export const actionsSeccional = {
 					});
 				}
 			} else {
-				logger.warn('[gise/finalizarSeccional] Assessor sem e-mail para notificação; e-mail não enviado.', {
-					giseId,
-					assessor_id: giseRow.assessor_id
-				});
+				logger.warn(
+					'[gise/finalizarSeccional] Assessor sem e-mail para notificação; e-mail não enviado.',
+					{
+						giseId,
+						assessor_id: giseRow.assessor_id
+					}
+				);
 			}
 		}
 
@@ -234,8 +249,11 @@ export const actionsSeccional = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const sec = await db.select().from(giseSeccionais)
-			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId))).get();
+		const sec = await db
+			.select()
+			.from(giseSeccionais)
+			.where(and(eq(giseSeccionais.id, secId), eq(giseSeccionais.gise_id, giseId)))
+			.get();
 		if (!sec) return fail(404, { error: 'Seccional não encontrada' });
 
 		if (isAdminSeccional(u) && u.papel_unidade_id !== sec.seccional_id) {

@@ -3,7 +3,13 @@ import { lgpdIncidentes } from '../server/schema';
 import type { Database } from './core';
 import type { LgpdIncidente } from '../server/schema';
 
-export type TipoIncidente = 'acesso_nao_autorizado' | 'vazamento' | 'uso_indevido' | 'perda' | 'alteracao' | 'outro';
+export type TipoIncidente =
+	| 'acesso_nao_autorizado'
+	| 'vazamento'
+	| 'uso_indevido'
+	| 'perda'
+	| 'alteracao'
+	| 'outro';
 export type GravidadeIncidente = 'baixa' | 'media' | 'alta' | 'critica';
 export type StatusIncidente = 'aberto' | 'investigando' | 'notificado_anpd' | 'encerrado';
 
@@ -74,7 +80,10 @@ export async function listarIncidentes(db: Database): Promise<LgpdIncidente[]> {
 	return db.select().from(lgpdIncidentes).orderBy(desc(lgpdIncidentes.created_at)).all();
 }
 
-export async function buscarIncidente(db: Database, id: number): Promise<LgpdIncidente | undefined> {
+export async function buscarIncidente(
+	db: Database,
+	id: number
+): Promise<LgpdIncidente | undefined> {
 	return db.select().from(lgpdIncidentes).where(eq(lgpdIncidentes.id, id)).get();
 }
 
@@ -94,10 +103,5 @@ export async function atualizarIncidente(
 	if (patch.responsavel_nome !== undefined) sets.responsavel_nome = patch.responsavel_nome;
 	if (patch.responsavel_email !== undefined) sets.responsavel_email = patch.responsavel_email;
 
-	return db
-		.update(lgpdIncidentes)
-		.set(sets)
-		.where(eq(lgpdIncidentes.id, id))
-		.returning()
-		.get();
+	return db.update(lgpdIncidentes).set(sets).where(eq(lgpdIncidentes.id, id)).returning().get();
 }

@@ -41,10 +41,8 @@ export function resolveBreveRelatorioTitulo(
 	global?: BreveRelatorioEnv | null
 ): string {
 	return (
-		primeiroTextoNaoVazio(
-			gise.breve_relatorio_titulo,
-			global?.GISE_BREVE_RELATORIO_TITULO
-		) ?? DEFAULT_BREVE_RELATORIO_TITULO
+		primeiroTextoNaoVazio(gise.breve_relatorio_titulo, global?.GISE_BREVE_RELATORIO_TITULO) ??
+		DEFAULT_BREVE_RELATORIO_TITULO
 	);
 }
 

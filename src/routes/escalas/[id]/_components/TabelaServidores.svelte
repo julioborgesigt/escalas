@@ -130,7 +130,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
 			}
 		};
@@ -238,8 +241,7 @@
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
 														bind:value={editMinutoEntrada}
-														>{#each minutos as m (m)}<option value={m}>{m}m</option
-															>{/each}</select
+														>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 													>
 												</div>
 											</div>
@@ -254,8 +256,7 @@
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
 														bind:value={editMinutoSaida}
-														>{#each minutos as m (m)}<option value={m}>{m}m</option
-															>{/each}</select
+														>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 													>
 												</div>
 											</div>
@@ -348,8 +349,7 @@
 													class="font-medium text-surface-600 dark:text-surface-400"
 													>{formatarHorario(p)}</span
 												>{/if}
-											{#if isExpediente && p.observacoes}<span class="italic"
-													>{p.observacoes}</span
+											{#if isExpediente && p.observacoes}<span class="italic">{p.observacoes}</span
 												>{/if}
 										</div>
 									</div>
@@ -414,27 +414,20 @@
 								<th class="!py-4 !px-4 text-surface-500 font-medium uppercase tracking-tight"
 									>Nome</th
 								>
-								<th
-									class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>Matricula</th
 								>
-								<th
-									class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>Cargo</th
 								>
-								<th
-									class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>Telefone</th
 								>
-								<th class="!py-4 text-surface-500 font-medium uppercase tracking-tight"
-									>Lotação</th
-								>
-								<th
-									class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th class="!py-4 text-surface-500 font-medium uppercase tracking-tight">Lotação</th>
+								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>Data</th
 								>
-								<th
-									class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>{isExpediente ? 'Observações' : 'Horário'}</th
 								>
 								{#if !modoSelecao}
@@ -653,9 +646,7 @@
 										</td>
 										<td class="!py-4 text-center align-middle max-w-[200px]">
 											{#if isExpediente}
-												<span
-													class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic"
-												>
+												<span class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic">
 													{p.observacoes || '—'}
 												</span>
 											{:else}
@@ -713,7 +704,9 @@
 		{/each}
 	</div>
 	{#if totalPaginasServ > 1}
-		<div class="mt-5 pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
+		<div
+			class="mt-5 pt-4 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 px-1"
+		>
 			<span class="text-xs text-surface-500">
 				Exibindo {(paginaServidor - 1) * SERV_POR_PAG + 1}–{Math.min(
 					paginaServidor * SERV_POR_PAG,
@@ -727,7 +720,10 @@
 				onPageChange={(e) => (paginaServidor = e.page)}
 				siblingCount={1}
 			>
-				<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior">
+				<Pagination.PrevTrigger
+					class="btn btn-sm preset-outlined-surface-500"
+					aria-label="Página anterior"
+				>
 					<ChevronLeft size={16} />
 				</Pagination.PrevTrigger>
 				<Pagination.Context>
@@ -738,15 +734,18 @@
 									{...p}
 									class="btn btn-sm min-w-[32px] {p.value === paginaServidor
 										? 'preset-filled-primary-500'
-										: 'preset-outlined-surface-500'}"
-								>{p.value}</Pagination.Item>
+										: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
+								>
 							{:else}
 								<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
 							{/if}
 						{/each}
 					{/snippet}
 				</Pagination.Context>
-				<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página">
+				<Pagination.NextTrigger
+					class="btn btn-sm preset-outlined-surface-500"
+					aria-label="Próxima página"
+				>
 					<ChevronRight size={16} />
 				</Pagination.NextTrigger>
 			</Pagination>

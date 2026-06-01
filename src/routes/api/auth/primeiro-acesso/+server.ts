@@ -12,10 +12,7 @@ import { criarTokenRedefinicao } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
-import {
-	contarRecoveryAttempts,
-	registrarRecoveryAttempt
-} from '$lib/server/recovery-rate-limit';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { badRequest, serverError } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
 
@@ -33,7 +30,8 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	// Resposta genérica para não revelar se a matrícula existe
 	const respostaGenerica = json({
 		ok: true,
-		message: 'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá o link por e-mail.'
+		message:
+			'Se a matrícula estiver cadastrada com e-mail e for primeiro acesso, você receberá o link por e-mail.'
 	});
 
 	// Rate limit em recovery_attempts (isolado de login_attempts).
@@ -75,7 +73,10 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	try {
 		await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);
 	} catch (err) {
-		return serverError(`[primeiro-acesso] Falha ao enviar e-mail (policial_id=${policial.id})`, err);
+		return serverError(
+			`[primeiro-acesso] Falha ao enviar e-mail (policial_id=${policial.id})`,
+			err
+		);
 	}
 
 	return respostaGenerica;

@@ -373,28 +373,68 @@ export function useResGise(getData: () => ResGisePageData) {
 
 	return {
 		// Getters
-		get configTipo() { return configTipo; },
-		set configTipo(v) { configTipo = v; },
-		get perguntasConfig() { return perguntasConfig; },
-		set perguntasConfig(v) { perguntasConfig = v; },
-		get escalaSelecionada() { return escalaSelecionada; },
-		set escalaSelecionada(v) { escalaSelecionada = v; },
-		get respostas() { return respostas; },
-		set respostas(v) { respostas = v; },
-		get exibirRelatorio() { return exibirRelatorio; },
-		set exibirRelatorio(v) { exibirRelatorio = v; },
-		get capturandoRubrica() { return capturandoRubrica; },
-		set capturandoRubrica(v) { capturandoRubrica = v; },
-		get baixandoProdutividade() { return loading.active; },
-		get baixandoExtra() { return loading.active; },
+		get configTipo() {
+			return configTipo;
+		},
+		set configTipo(v) {
+			configTipo = v;
+		},
+		get perguntasConfig() {
+			return perguntasConfig;
+		},
+		set perguntasConfig(v) {
+			perguntasConfig = v;
+		},
+		get escalaSelecionada() {
+			return escalaSelecionada;
+		},
+		set escalaSelecionada(v) {
+			escalaSelecionada = v;
+		},
+		get respostas() {
+			return respostas;
+		},
+		set respostas(v) {
+			respostas = v;
+		},
+		get exibirRelatorio() {
+			return exibirRelatorio;
+		},
+		set exibirRelatorio(v) {
+			exibirRelatorio = v;
+		},
+		get capturandoRubrica() {
+			return capturandoRubrica;
+		},
+		set capturandoRubrica(v) {
+			capturandoRubrica = v;
+		},
+		get baixandoProdutividade() {
+			return loading.active;
+		},
+		get baixandoExtra() {
+			return loading.active;
+		},
 
 		// Derived
-		get configJson() { return configJson; },
-		get respostasJson() { return respostasJson; },
-		get perguntasForm() { return perguntasForm; },
-		get statusFilterUrl() { return statusFilterUrl; },
-		get mesFilterUrl() { return mesFilterUrl; },
-		get dataFilterUrl() { return dataFilterUrl; },
+		get configJson() {
+			return configJson;
+		},
+		get respostasJson() {
+			return respostasJson;
+		},
+		get perguntasForm() {
+			return perguntasForm;
+		},
+		get statusFilterUrl() {
+			return statusFilterUrl;
+		},
+		get mesFilterUrl() {
+			return mesFilterUrl;
+		},
+		get dataFilterUrl() {
+			return dataFilterUrl;
+		},
 
 		// Actions
 		changeStatusFilter,

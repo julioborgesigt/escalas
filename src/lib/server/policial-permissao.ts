@@ -31,9 +31,7 @@ export async function lotacoesAdministradas(
 		const rows = await db
 			.select({ nome: unidades.nome })
 			.from(unidades)
-			.where(
-				or(eq(unidades.id, u.papel_unidade_id), eq(unidades.seccional_id, u.papel_unidade_id))
-			)
+			.where(or(eq(unidades.id, u.papel_unidade_id), eq(unidades.seccional_id, u.papel_unidade_id)))
 			.all();
 		return new Set(rows.map((r) => r.nome));
 	}

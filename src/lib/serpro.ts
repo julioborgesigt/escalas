@@ -73,7 +73,7 @@ const SERPRO_WS_URLS = [
 	'wss://127.0.0.1:65156/signer/',
 	'ws://127.0.0.1:65166/signer/',
 	'ws://127.0.0.1:65156/signer/',
-	'ws://127.0.0.1:65500/signer/',
+	'ws://127.0.0.1:65500/signer/'
 ];
 
 /**
@@ -161,8 +161,8 @@ export class SerproSignerClient {
 		if (dev) console.groupEnd();
 		throw new Error(
 			'Não foi possível conectar ao Assinador SERPRO. ' +
-			'Verifique se o software está instalado e em execução.\n' +
-			'Detalhes no console do navegador (F12).'
+				'Verifique se o software está instalado e em execução.\n' +
+				'Detalhes no console do navegador (F12).'
 		);
 	}
 
@@ -201,9 +201,12 @@ export class SerproSignerClient {
 					}
 				};
 				ws.onclose = (ev) => {
-					if (dev) console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
+					if (dev)
+						console.warn(`[SERPRO] Conexão encerrada — code=${ev.code} reason="${ev.reason}"`);
 					if (this.pendingReject) {
-						this.pendingReject(new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`));
+						this.pendingReject(
+							new Error(`Conexão encerrada pelo Assinador SERPRO (code=${ev.code})`)
+						);
 						this.clearPending();
 					}
 				};
@@ -217,7 +220,10 @@ export class SerproSignerClient {
 			};
 
 			ws.onclose = (ev) => {
-				if (dev) console.warn(`[SERPRO]   🔌 onclose em ${url} — code=${ev.code} wasClean=${ev.wasClean} reason="${ev.reason}"`);
+				if (dev)
+					console.warn(
+						`[SERPRO]   🔌 onclose em ${url} — code=${ev.code} wasClean=${ev.wasClean} reason="${ev.reason}"`
+					);
 				settle(() => reject(new Error(`onclose code=${ev.code} em ${url}`)));
 			};
 		});
@@ -259,7 +265,9 @@ export class SerproSignerClient {
 					const parsed = typeof data === 'string' ? JSON.parse(data) : data;
 					if (dev) console.log('[SERPRO]   Resposta parseada:', parsed);
 					if (parsed?.error || parsed?.result === 'ERROR' || parsed?.result === 'FAILURE') {
-						reject(new Error(parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO'));
+						reject(
+							new Error(parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO')
+						);
 					} else {
 						resolve(parsed as T);
 					}
@@ -285,11 +293,7 @@ export class SerproSignerClient {
 	 * a resposta real (com dados) após interação do usuário.
 	 * Retornar todas as mensagens permite diagnosticar o comportamento correto.
 	 */
-	async probeMulti(
-		command: object,
-		totalTimeoutMs = 8_000,
-		silenceMs = 2_000
-	): Promise<string[]> {
+	async probeMulti(command: object, totalTimeoutMs = 8_000, silenceMs = 2_000): Promise<string[]> {
 		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
 			throw new Error('WebSocket não está conectado');
 		}
@@ -302,7 +306,7 @@ export class SerproSignerClient {
 
 			const done = () => {
 				if (silenceTimer) clearTimeout(silenceTimer);
-				if (totalTimer)   clearTimeout(totalTimer);
+				if (totalTimer) clearTimeout(totalTimer);
 				ws.onmessage = (e) => this.handleMessage(e);
 				resolve(messages);
 			};
@@ -345,41 +349,64 @@ export class SerproSignerClient {
 		// Passo 1: listar comandos disponíveis no servidor SERPRO
 		try {
 			const listMsgs = await this.probeMulti({ command: 'list' });
-			if (dev) console.log('[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
-				listMsgs.map(m => { try { return JSON.parse(m); } catch { return m; } })
-			);
+			if (dev)
+				console.log(
+					'[SERPRO] 🔬 Resposta ao comando "list" (todas as mensagens):',
+					listMsgs.map((m) => {
+						try {
+							return JSON.parse(m);
+						} catch {
+							return m;
+						}
+					})
+				);
 		} catch (e) {
 			if (dev) console.warn('[SERPRO] 🔬 Comando "list" falhou:', e);
 		}
 
 		// Passo 2: testar variações de nome de comando para listar certificados
 		const candidates = [
-			{ command: 'listCertificates',   requestId: 1 },
-			{ command: 'getCertificates',    requestId: 2 },
-			{ command: 'obterCertificados',  requestId: 3 },
+			{ command: 'listCertificates', requestId: 1 },
+			{ command: 'getCertificates', requestId: 2 },
+			{ command: 'obterCertificados', requestId: 3 },
 			{ command: 'listarCertificados', requestId: 4 },
-			{ command: 'certificates',       requestId: 5 },
-			{ command: 'getAliases',         requestId: 6 },
-			{ command: 'aliases',            requestId: 7 },
+			{ command: 'certificates', requestId: 5 },
+			{ command: 'getAliases', requestId: 6 },
+			{ command: 'aliases', requestId: 7 }
 		];
 
 		for (const cmd of candidates) {
 			try {
 				const msgs = await this.probeMulti(cmd);
-				const parsed = msgs.map(m => { try { return JSON.parse(m); } catch { return m; } });
+				const parsed = msgs.map((m) => {
+					try {
+						return JSON.parse(m);
+					} catch {
+						return m;
+					}
+				});
 				if (dev) console.log(`[SERPRO] 🔬 ${cmd.command} → ${msgs.length} msg(s):`, parsed);
 
 				// Verifica TODAS as mensagens recebidas em busca de certificados
 				for (const p of parsed) {
 					if (typeof p !== 'object' || p === null) continue;
-					const certs = (p as Record<string, unknown>).certificates
-						?? (p as Record<string, unknown>).aliases
-						?? (p as Record<string, unknown>).content
-						?? (p as Record<string, unknown>).data;
+					const certs =
+						(p as Record<string, unknown>).certificates ??
+						(p as Record<string, unknown>).aliases ??
+						(p as Record<string, unknown>).content ??
+						(p as Record<string, unknown>).data;
 					if (Array.isArray(certs) && certs.length > 0) {
 						if (dev) console.log(`[SERPRO] ✅ "${cmd.command}" retornou ${certs.length} cert(s)`);
 						if (dev) console.groupEnd();
-						return (certs as Array<{ alias?: string; subjectDN?: string; issuerDN?: string; certificate?: string; thumbprint?: string }>).map(c =>
+						return (
+							certs as Array<{
+								alias?: string;
+								subjectDN?: string;
+								issuerDN?: string;
+								certificate?: string;
+								thumbprint?: string;
+							}>
+						).map((c) =>
 							enriquecerCert({
 								alias: c.alias ?? c.thumbprint ?? '',
 								subjectDN: c.subjectDN ?? '',
@@ -396,9 +423,9 @@ export class SerproSignerClient {
 
 		console.warn(
 			'[SERPRO] ⚠️ Nenhum comando retornou certificados.\n' +
-			'O protocolo SERPRO 4.x pode não suportar listagem programática de certificados.\n' +
-			'A seleção de certificado deve ser feita pela UI nativa do Assinador SERPRO ' +
-			'durante o comando "sign".'
+				'O protocolo SERPRO 4.x pode não suportar listagem programática de certificados.\n' +
+				'A seleção de certificado deve ser feita pela UI nativa do Assinador SERPRO ' +
+				'durante o comando "sign".'
 		);
 		if (dev) console.groupEnd();
 		return [];
@@ -420,7 +447,10 @@ export class SerproSignerClient {
 	 */
 	async sign(hashBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
 		const requestId = Date.now();
-		if (dev) console.log(`[SERPRO] → Enviando sign (hash). Aguardando interação do usuário (${timeoutMs / 1000}s)...`);
+		if (dev)
+			console.log(
+				`[SERPRO] → Enviando sign (hash). Aguardando interação do usuário (${timeoutMs / 1000}s)...`
+			);
 
 		const msgs = await this.probeMulti(
 			{ command: 'sign', type: 'hash', inputData: hashBase64, requestId },
@@ -428,17 +458,22 @@ export class SerproSignerClient {
 			3_000
 		);
 
-		const parsed = msgs.map(m => {
-			try { return JSON.parse(m as string); } catch { return m; }
+		const parsed = msgs.map((m) => {
+			try {
+				return JSON.parse(m as string);
+			} catch {
+				return m;
+			}
 		});
 		if (dev) console.log('[SERPRO] ← Todas as respostas do sign:', parsed);
 
 		// Procura a mensagem real (ignora ACK genérico com command="")
-		const real = parsed.find((p: unknown) => {
-			if (typeof p !== 'object' || p === null) return false;
-			const o = p as Record<string, unknown>;
-			return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
-		}) ?? parsed[parsed.length - 1];
+		const real =
+			parsed.find((p: unknown) => {
+				if (typeof p !== 'object' || p === null) return false;
+				const o = p as Record<string, unknown>;
+				return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+			}) ?? parsed[parsed.length - 1];
 
 		if (!real || typeof real !== 'object') {
 			throw new Error(
@@ -458,15 +493,18 @@ export class SerproSignerClient {
 			if (dev) console.error('[SERPRO] Resposta sem assinatura. Campos disponíveis:', campos, o);
 			throw new Error(
 				`Assinador SERPRO não retornou a assinatura.\n` +
-				`Campos na resposta: ${campos}.\n` +
-				`Resposta completa: ${JSON.stringify(o)}`
+					`Campos na resposta: ${campos}.\n` +
+					`Resposta completa: ${JSON.stringify(o)}`
 			);
 		}
 
 		// O campo 'signature' do SERPRO type:'hash' é um CMS PKCS#7 completo (não assinatura RSA bruta).
 		// O certificado está embutido no CMS — não precisamos extraí-lo separadamente.
 		// rawSignature = o.signature = CMS completo em base64.
-		if (dev) console.log(`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`);
+		if (dev)
+			console.log(
+				`[SERPRO] ✅ sign: CMS PKCS#7 completo recebido (${rawSignature.length} chars base64)`
+			);
 
 		// Extrai o nome do titular do certificado A3 (campo 'by.alias' da resposta SERPRO)
 		const by = o.by as Record<string, unknown> | undefined;
@@ -490,7 +528,10 @@ export class SerproSignerClient {
 	 */
 	async signFile(dataBase64: string, timeoutMs = 120_000): Promise<SerproSignResult> {
 		const requestId = Date.now();
-		if (dev) console.log(`[SERPRO] → Enviando sign (file, ${Math.round(dataBase64.length * 3 / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`);
+		if (dev)
+			console.log(
+				`[SERPRO] → Enviando sign (file, ${Math.round((dataBase64.length * 3) / 4 / 1024)} KB). Aguardando interação (${timeoutMs / 1000}s)...`
+			);
 
 		const msgs = await this.probeMulti(
 			{ command: 'sign', type: 'file', inputData: dataBase64, outputDataType: 'base64', requestId },
@@ -498,19 +539,26 @@ export class SerproSignerClient {
 			3_000
 		);
 
-		const parsed = msgs.map(m => {
-			try { return JSON.parse(m as string); } catch { return m; }
+		const parsed = msgs.map((m) => {
+			try {
+				return JSON.parse(m as string);
+			} catch {
+				return m;
+			}
 		});
 		if (dev) console.log('[SERPRO] ← Todas as respostas do signFile:', parsed);
 
-		const real = parsed.find((p: unknown) => {
-			if (typeof p !== 'object' || p === null) return false;
-			const o = p as Record<string, unknown>;
-			return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
-		}) ?? parsed[parsed.length - 1];
+		const real =
+			parsed.find((p: unknown) => {
+				if (typeof p !== 'object' || p === null) return false;
+				const o = p as Record<string, unknown>;
+				return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+			}) ?? parsed[parsed.length - 1];
 
 		if (!real || typeof real !== 'object') {
-			throw new Error(`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`);
+			throw new Error(
+				`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`
+			);
 		}
 
 		const o = real as Record<string, unknown>;
@@ -525,13 +573,13 @@ export class SerproSignerClient {
 		if (!rawSignature) {
 			throw new Error(
 				`Assinador SERPRO não retornou assinatura.\n` +
-				`Campos: ${Object.keys(o).join(', ')}\nResposta: ${JSON.stringify(o)}`
+					`Campos: ${Object.keys(o).join(', ')}\nResposta: ${JSON.stringify(o)}`
 			);
 		}
 
-		const certificateBase64 = (
-			o.certificate ?? o.signerCertificate ?? o.cert
-		) as string | undefined;
+		const certificateBase64 = (o.certificate ?? o.signerCertificate ?? o.cert) as
+			| string
+			| undefined;
 
 		return { rawSignature, certificateBase64, rawMessages: parsed };
 	}
@@ -570,7 +618,10 @@ function hexParaBase64(hex: string): string {
 function exibirAvisoSerpro(): Promise<boolean> {
 	return new Promise((resolve) => {
 		// Se já marcou para pular nesta sessão, prossegue direto
-		if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pularAvisoSerpro') === 'true') {
+		if (
+			typeof sessionStorage !== 'undefined' &&
+			sessionStorage.getItem('pularAvisoSerpro') === 'true'
+		) {
 			resolve(true);
 			return;
 		}
@@ -583,7 +634,8 @@ function exibirAvisoSerpro(): Promise<boolean> {
 
 		const overlay = document.createElement('div');
 		overlay.id = modalId;
-		overlay.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm';
+		overlay.className =
+			'fixed inset-0 z-[9999] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm';
 
 		overlay.innerHTML = `
 			<div class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-2xl space-y-4 text-surface-900 dark:text-surface-100 font-sans">

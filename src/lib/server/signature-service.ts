@@ -328,8 +328,7 @@ export async function validarEvidenciasAvancada(
 		flagsOverride?: FlagsAssinatura;
 	} = {}
 ): Promise<{ ok: true; validated: ValidatedEvidence } | ServiceFailure> {
-	const flags =
-		options.flagsOverride ?? (await lerFlagsAssinatura(options.platform));
+	const flags = options.flagsOverride ?? (await lerFlagsAssinatura(options.platform));
 
 	// 1. 2FA por e-mail — sempre obrigatório (requisito mínimo Lei 14.063 art. 4º II "b").
 	//    A flag `exigirCodigoEmailAssinatura` é forçada para `true` pelo
@@ -350,12 +349,9 @@ export async function validarEvidenciasAvancada(
 					'Código de verificação por e-mail é obrigatório para esta assinatura (Lei 14.063/2020 art. 4º II).'
 			};
 		}
-		const result2FA = await verificarDesafio2FA(
-			db,
-			evidence.desafioId,
-			evidence.codigoValidação,
-			['assinatura']
-		);
+		const result2FA = await verificarDesafio2FA(db, evidence.desafioId, evidence.codigoValidação, [
+			'assinatura'
+		]);
 		if (result2FA === 'expirado') {
 			return { ok: false, status: 400, error: 'O código de verificação expirou.' };
 		}
@@ -425,8 +421,7 @@ export async function validarEvidenciasAvancada(
 	// 3. GPS — reforço opcional.
 	if (
 		flags.exigirGpsAssinatura &&
-		(typeof evidence.latitude !== 'number' ||
-			typeof evidence.longitude !== 'number')
+		(typeof evidence.latitude !== 'number' || typeof evidence.longitude !== 'number')
 	) {
 		return {
 			ok: false,
@@ -449,10 +444,8 @@ export async function validarEvidenciasAvancada(
 		ok: true,
 		validated: {
 			rubrica: evidence.rubrica,
-			latitude:
-				typeof evidence.latitude === 'number' ? evidence.latitude : null,
-			longitude:
-				typeof evidence.longitude === 'number' ? evidence.longitude : null,
+			latitude: typeof evidence.latitude === 'number' ? evidence.latitude : null,
+			longitude: typeof evidence.longitude === 'number' ? evidence.longitude : null,
 			selfieBase64: evidence.selfieBase64 ?? null,
 			doisFatorOk: !!flags.exigirCodigoEmailAssinatura,
 			livenessChallenge: evidence.livenessChallenge ?? null

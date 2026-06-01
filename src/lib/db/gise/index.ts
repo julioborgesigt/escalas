@@ -33,7 +33,12 @@ export {
 	removerGiseSeccionalUnidade
 } from './seccionais';
 
-export { atualizarGiseEquipe, excluirGiseEquipe, criarGiseEquipe, verificarSlotEquipe } from './equipes';
+export {
+	atualizarGiseEquipe,
+	excluirGiseEquipe,
+	criarGiseEquipe,
+	verificarSlotEquipe
+} from './equipes';
 
 export {
 	adicionarGiseMembro,
@@ -54,11 +59,7 @@ export {
 
 export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';
 
-export {
-	salvarEntradaGise,
-	salvarSaidaGise,
-	buscarPresencasGise
-} from './presencas';
+export { salvarEntradaGise, salvarSaidaGise, buscarPresencasGise } from './presencas';
 
 export { listarMembrosParaBaseEquipe } from './base-equipe';
 export type { LinhaBaseEquipeMembro } from './base-equipe';

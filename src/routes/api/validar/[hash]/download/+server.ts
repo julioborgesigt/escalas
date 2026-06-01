@@ -39,9 +39,10 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 					const resHeaders = new Headers();
 					resHeaders.set('Content-Type', 'application/pdf');
 
-					const filename = documento.tipo_doc === 'gise_relatorio'
-						? `relatorio_${documento.rel_tipo}_${hash}.pdf`
-						: `documento_assinado_${hash}.pdf`;
+					const filename =
+						documento.tipo_doc === 'gise_relatorio'
+							? `relatorio_${documento.rel_tipo}_${hash}.pdf`
+							: `documento_assinado_${hash}.pdf`;
 
 					resHeaders.set('Content-Disposition', contentDisposition(filename));
 					// Documento é imutável por hash — pode ser cacheado agressivamente
@@ -74,8 +75,18 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 	if (documento.tipo_doc === 'gise_relatorio') {
 		logger.info('[validar/download] Re-geração dinâmica de relatório GISE', { hash });
 		try {
-			const { buscarGiseDetalhado, buscarPresencasGise, buscarRespostasProdutividadeSeccional, buscarAssinaturaRelatorioGise } = await import('$lib/db');
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf, gerarRelatorioProdutividadeGisePdf, toGisePdfData } = await import('$lib/server/export');
+			const {
+				buscarGiseDetalhado,
+				buscarPresencasGise,
+				buscarRespostasProdutividadeSeccional,
+				buscarAssinaturaRelatorioGise
+			} = await import('$lib/db');
+			const {
+				gerarRelatorioExtraordinarioPdf,
+				gerarRelatorioExtraordinarioSupervisaoPdf,
+				gerarRelatorioProdutividadeGisePdf,
+				toGisePdfData
+			} = await import('$lib/server/export');
 			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
 			const { secIdEhSupervisaoExtra } = await import('$lib/server/gise-supervisao-extra');
 			const { adicionarRodapeSimples } = await import('$lib/server/pdf-signing');
@@ -94,7 +105,12 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 			const relTipo = documento.rel_tipo;
 
 			// Buscar a assinatura original para garantir que as rubricas/certificação apareçam
-			const reportSignature = await buscarAssinaturaRelatorioGise(db, documento.escala_id, seccionalId, relTipo);
+			const reportSignature = await buscarAssinaturaRelatorioGise(
+				db,
+				documento.escala_id,
+				seccionalId,
+				relTipo
+			);
 
 			let finalPdf: Uint8Array;
 
@@ -120,7 +136,9 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 						);
 				finalPdf = result.pdf;
 			} else {
-				const seccional = gise.seccionais.find((s: any) => s.id === seccionalId || s.seccional_id === seccionalId);
+				const seccional = gise.seccionais.find(
+					(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
+				);
 				if (!seccional) {
 					logger.error('[validar/download] Seccional ausente na GISE', {
 						hash,
@@ -129,7 +147,11 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 					return notFound('Seccional');
 				}
 
-				const respostas = await buscarRespostasProdutividadeSeccional(db, documento.escala_id, seccional.id);
+				const respostas = await buscarRespostasProdutividadeSeccional(
+					db,
+					documento.escala_id,
+					seccional.id
+				);
 				const result = gerarRelatorioProdutividadeGisePdf({ gise, seccional, respostas });
 				finalPdf = result.pdf;
 			}
@@ -137,15 +159,11 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 			// Aplicar o rodapé de certificação estilo GISE (QR Code e Hash)
 			if (reportSignature) {
 				const qrUrl = `${url.origin}/validar/${hash}`;
-				finalPdf = await adicionarRodapeSimples(
-					finalPdf,
-					reportSignature.assinante_nome,
-					{
-						verificationHash: hash,
-						verificationUrl: qrUrl,
-						rubricBase64: reportSignature.rubrica ?? undefined
-					}
-				);
+				finalPdf = await adicionarRodapeSimples(finalPdf, reportSignature.assinante_nome, {
+					verificationHash: hash,
+					verificationUrl: qrUrl,
+					rubricBase64: reportSignature.rubrica ?? undefined
+				});
 			}
 
 			logger.info('[validar/download] Re-geração dinâmica concluída', { hash });
@@ -158,7 +176,10 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 				}
 			});
 		} catch (err) {
-			return serverError(`[validar/download] Falha crítica na geração dinâmica (hash=${hash})`, err);
+			return serverError(
+				`[validar/download] Falha crítica na geração dinâmica (hash=${hash})`,
+				err
+			);
 		}
 	}
 

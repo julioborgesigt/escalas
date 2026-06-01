@@ -27,7 +27,13 @@ import {
 	validateBody
 } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({ platform, params, locals, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	request,
+	getClientAddress
+}) => {
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = requireAuth(locals);
@@ -48,7 +54,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 	const giseAuth = await buscarGiseEscala(db, id);
 	if (!giseAuth) return notFound('GISE');
 	if (u.tipo !== 'admin' && giseAuth.supervisor_id !== u.id) {
-		return forbidden('Apenas o supervisor designado ou administradores podem assinar este relatório');
+		return forbidden(
+			'Apenas o supervisor designado ou administradores podem assinar este relatório'
+		);
 	}
 
 	const validated = await validateBody(request, finalizarAssinaturaGiseSchema);
@@ -93,7 +101,7 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 		// Hash do PDF assinado (para controle no banco).
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
 		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
-			.map(b => b.toString(16).padStart(2, '0'))
+			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		const gise = giseAuth;
@@ -148,6 +156,9 @@ export const POST: RequestHandler = async ({ platform, params, locals, request, 
 			}
 		});
 	} catch (err) {
-		return serverError(`[gise/relatorios/finalizar-assinatura] Falha (gise_id=${id}, seccional_id=${secIdNum})`, err);
+		return serverError(
+			`[gise/relatorios/finalizar-assinatura] Falha (gise_id=${id}, seccional_id=${secIdNum})`,
+			err
+		);
 	}
 };

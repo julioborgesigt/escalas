@@ -21,7 +21,10 @@
 		loading.show('Criando nova escala...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
+			const d =
+				result.type === 'success' || result.type === 'failure'
+					? (result.data as Record<string, unknown> | undefined)
+					: undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);
@@ -183,7 +186,8 @@
 
 	const currentStep = $derived.by(() => {
 		if (!selecionando) return stepsConfig.findIndex((s) => s.key === 'detalhes');
-		if (temVariasUnidades && !unidadeEscolhida) return stepsConfig.findIndex((s) => s.key === 'unidade');
+		if (temVariasUnidades && !unidadeEscolhida)
+			return stepsConfig.findIndex((s) => s.key === 'unidade');
 		return stepsConfig.findIndex((s) => s.key === 'tipo');
 	});
 
@@ -337,7 +341,10 @@
 		loading.show('Criando escala FDS...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
+			const d =
+				result.type === 'success' || result.type === 'failure'
+					? (result.data as Record<string, unknown> | undefined)
+					: undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);
@@ -364,7 +371,8 @@
 					>
 						<Steps.Indicator
 							class="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs"
-						>{i + 1}</Steps.Indicator>
+							>{i + 1}</Steps.Indicator
+						>
 						<span class="hidden sm:inline">{s.label}</span>
 					</Steps.Trigger>
 					{#if i < stepsConfig.length - 1}
@@ -599,7 +607,9 @@
 <!-- =========== MODAL FDS =========== -->
 <Dialog
 	open={showFdsModal}
-	onOpenChange={(e) => { if (!loading.active) showFdsModal = e.open; }}
+	onOpenChange={(e) => {
+		if (!loading.active) showFdsModal = e.open;
+	}}
 >
 	<Dialog.Content
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
@@ -608,7 +618,9 @@
 			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-2.5 max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
 		>
 			<div>
-				<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight">
+				<Dialog.Title
+					class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50 leading-tight"
+				>
 					Nova Escala — Final de Semana
 				</Dialog.Title>
 				{#if unidadeEscolhida}

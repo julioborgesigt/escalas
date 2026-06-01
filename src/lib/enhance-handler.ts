@@ -60,8 +60,7 @@ export function makeEnhanceHandler<D extends ResultData = ResultData>(
 						await invalidate(invalidateKey);
 					}
 					await onSuccess?.(data);
-					const title =
-						typeof successTitle === 'function' ? successTitle(data) : successTitle;
+					const title = typeof successTitle === 'function' ? successTitle(data) : successTitle;
 					if (title) {
 						const description =
 							typeof successDescription === 'function'
@@ -73,8 +72,7 @@ export function makeEnhanceHandler<D extends ResultData = ResultData>(
 						});
 					}
 				} else {
-					const d =
-						'data' in result ? (result.data as ResultData | undefined) : undefined;
+					const d = 'data' in result ? (result.data as ResultData | undefined) : undefined;
 					toaster.error({ title: (d?.error as string) || errorTitle });
 					await onError?.(d);
 				}

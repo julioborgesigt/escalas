@@ -150,9 +150,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		const counts = await Promise.all(
 			tabelas.map(([_, t]) => db.select({ n: count() }).from(t).get())
 		);
-		snapshot = Object.fromEntries(
-			tabelas.map(([nome], i) => [nome, counts[i]?.n ?? 0])
-		);
+		snapshot = Object.fromEntries(tabelas.map(([nome], i) => [nome, counts[i]?.n ?? 0]));
 		logger.warn('[reset-policiais] snapshot pré-deleção', { ip, snapshot });
 	} catch (err) {
 		return serverError(`[reset-policiais] Falha ao gerar snapshot (ip=${ip})`, err);
@@ -186,7 +184,8 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 
 		return json({
 			success: true,
-			message: 'Banco de dados resetado com sucesso (Tabelas operacionais, Policiais e Unidades limpas).',
+			message:
+				'Banco de dados resetado com sucesso (Tabelas operacionais, Policiais e Unidades limpas).',
 			snapshot
 		});
 	} catch (err) {

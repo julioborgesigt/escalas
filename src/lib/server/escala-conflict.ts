@@ -144,7 +144,10 @@ export async function verificarConflitoGlobal(
 		const eHe = g.eq_he ?? g.sec_he ?? g.gise_he;
 		const eHs = g.eq_hs ?? g.sec_hs ?? g.gise_hs;
 		if (eHe && eHs && seOverlapam(he, hs, eHe, eHs)) {
-			return { ok: false, motivo: `Policial já escalado em GISE neste dia no horário ${eHe}–${eHs}` };
+			return {
+				ok: false,
+				motivo: `Policial já escalado em GISE neste dia no horário ${eHe}–${eHs}`
+			};
 		}
 	}
 
@@ -249,7 +252,11 @@ export async function verificarConflitoGlobalBatch(
 
 	// Batch query: GISE supervisores/SEINT
 	const existentesGiseSup = await db
-		.select({ data_inicio: giseEscalas.data_inicio, hora_entrada: giseEscalas.hora_entrada, hora_saida: giseEscalas.hora_saida })
+		.select({
+			data_inicio: giseEscalas.data_inicio,
+			hora_entrada: giseEscalas.hora_entrada,
+			hora_saida: giseEscalas.hora_saida
+		})
 		.from(giseEscalas)
 		.where(
 			and(

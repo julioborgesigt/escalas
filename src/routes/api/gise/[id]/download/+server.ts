@@ -25,7 +25,10 @@ import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
 } from '$lib/server/gise-supervisao-extra';
-import { appendGiseDetalhadoToXlsxWorkbook, createAppendGiseXlsxState } from '$lib/server/gise-xlsx-workbook-append';
+import {
+	appendGiseDetalhadoToXlsxWorkbook,
+	createAppendGiseXlsxState
+} from '$lib/server/gise-xlsx-workbook-append';
 import ExcelJS from 'exceljs';
 
 export const GET: RequestHandler = async ({ locals, params, platform, url }) => {
@@ -72,7 +75,12 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		const r2 = getR2(platform);
 
-		const reportSignature = await buscarAssinaturaRelatorioGise(db, id, seccionalId, 'extraordinario');
+		const reportSignature = await buscarAssinaturaRelatorioGise(
+			db,
+			id,
+			seccionalId,
+			'extraordinario'
+		);
 
 		// 1. Se existir assinatura, baixar do R2 preferencialmente usando a chave do banco
 		if (reportSignature?.verification_hash) {
@@ -106,7 +114,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					return notFound('Relatório assinado no R2');
 				}
 			} catch (e) {
-				return serverError(`[gise/download] Erro ao recuperar arquivo do R2 (gise=${id}, sec=${seccionalId})`, e);
+				return serverError(
+					`[gise/download] Erro ao recuperar arquivo do R2 (gise=${id}, sec=${seccionalId})`,
+					e
+				);
 			}
 		}
 
@@ -121,9 +132,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		try {
 			const presencas = await buscarPresencasGise(db, id);
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
-			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } = await import(
-				'$lib/server/export'
-			);
+			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
+				await import('$lib/server/export');
 			const brEnv = await getBreveRelatorioEnvMergido(db);
 			const result = isSupervisaoExtra
 				? await gerarRelatorioExtraordinarioSupervisaoPdf(
@@ -234,9 +244,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const todasEquipes = (seccional.unidades ?? []).flatMap((u: any) => u.equipes ?? []);
 		const seccionalFiltrada = equipeType
 			? {
-				...seccional,
-				equipes: todasEquipes.filter((eq: any) => eq.tipo === equipeType)
-			}
+					...seccional,
+					equipes: todasEquipes.filter((eq: any) => eq.tipo === equipeType)
+				}
 			: { ...seccional, equipes: todasEquipes };
 
 		const respostas = await buscarRespostasProdutividadeSeccional(db, id, seccional.id);

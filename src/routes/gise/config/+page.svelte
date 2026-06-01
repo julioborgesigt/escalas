@@ -16,7 +16,9 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
 		<div>
 			<h1 class="h1 text-2xl font-bold">Configurações GISE</h1>
-			<p class="text-sm text-surface-500 mt-0.5">Vagas padrão por unidade e textos dos relatórios de extra.</p>
+			<p class="text-sm text-surface-500 mt-0.5">
+				Vagas padrão por unidade e textos dos relatórios de extra.
+			</p>
 		</div>
 	</div>
 
@@ -27,7 +29,11 @@
 			loading.show('A gravar…');
 			return async ({ result, update }) => {
 				loading.hide();
-				if (result.type === 'success' && 'data' in result && (result.data as { success?: boolean })?.success) {
+				if (
+					result.type === 'success' &&
+					'data' in result &&
+					(result.data as { success?: boolean })?.success
+				) {
 					toaster.success({ title: 'Configurações GISE salvas' });
 					await update({ reset: false });
 				} else if (result.type === 'failure' && 'data' in result) {
@@ -39,18 +45,24 @@
 			};
 		}}
 	>
-		<div class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6">
+		<div
+			class="card p-4 sm:p-6 md:p-8 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-xl space-y-6"
+		>
 			<div class="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
 				<!-- Vagas padrão por unidade -->
 				<div class="space-y-3 md:border-r md:border-surface-200 md:dark:border-surface-700 md:pr-8">
 					<h2 class="text-base font-semibold">Vagas padrão por unidade</h2>
 
 					<div class="space-y-3">
-						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+						<div
+							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
+						>
 							<p class="text-sm font-semibold">Equipe operacional</p>
 							<div class="flex items-center gap-4">
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_dpc">DPC</label>
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_dpc"
+										>DPC</label
+									>
 									<input
 										id="op_dpc"
 										name="op_dpc"
@@ -62,7 +74,9 @@
 									/>
 								</div>
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_oip">OIP</label>
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="op_oip"
+										>OIP</label
+									>
 									<input
 										id="op_oip"
 										name="op_oip"
@@ -76,11 +90,15 @@
 							</div>
 						</div>
 
-						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+						<div
+							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
+						>
 							<p class="text-sm font-semibold">Equipe SEINT</p>
 							<div class="flex items-center gap-4">
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_dpc">DPC</label>
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_dpc"
+										>DPC</label
+									>
 									<input
 										id="seint_dpc"
 										name="seint_dpc"
@@ -92,7 +110,9 @@
 									/>
 								</div>
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_oip">OIP</label>
+									<label class="text-sm text-surface-600 dark:text-surface-400 w-8" for="seint_oip"
+										>OIP</label
+									>
 									<input
 										id="seint_oip"
 										name="seint_oip"
@@ -106,11 +126,16 @@
 							</div>
 						</div>
 
-						<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30">
+						<div
+							class="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3 bg-surface-50 dark:bg-surface-800/30"
+						>
 							<p class="text-sm font-semibold">Horário padrão da GISE</p>
 							<div class="flex items-center gap-4">
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-16" for="default_hora_entrada">Entrada</label>
+									<label
+										class="text-sm text-surface-600 dark:text-surface-400 w-16"
+										for="default_hora_entrada">Entrada</label
+									>
 									<input
 										id="default_hora_entrada"
 										name="default_hora_entrada"
@@ -121,7 +146,10 @@
 									/>
 								</div>
 								<div class="flex items-center gap-2">
-									<label class="text-sm text-surface-600 dark:text-surface-400 w-12" for="default_hora_saida">Saída</label>
+									<label
+										class="text-sm text-surface-600 dark:text-surface-400 w-12"
+										for="default_hora_saida">Saída</label
+									>
 									<input
 										id="default_hora_saida"
 										name="default_hora_saida"

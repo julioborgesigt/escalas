@@ -15,15 +15,16 @@
 		giseEmPreenchimento: boolean;
 	}
 
-	const { isSeccional, isSupervisor, minhaSeccionalRetificada, giseEmPreenchimento }: Props = $props();
+	const { isSeccional, isSupervisor, minhaSeccionalRetificada, giseEmPreenchimento }: Props =
+		$props();
 </script>
 
 {#if isSeccional && minhaSeccionalRetificada}
 	<div class="rounded-2xl border border-warning-500/40 bg-warning-500/10 p-4 text-sm">
 		<p class="font-semibold text-warning-700 dark:text-warning-400">⚠️ Seccional Retificada</p>
 		<p class="text-warning-600 dark:text-warning-300 mt-1 text-sm">
-			Você realizou alterações após o envio. A assinatura digital da escala foi revogada.
-			Finalize o envio novamente para prosseguir com a assinatura.
+			Você realizou alterações após o envio. A assinatura digital da escala foi revogada. Finalize o
+			envio novamente para prosseguir com a assinatura.
 		</p>
 	</div>
 {/if}

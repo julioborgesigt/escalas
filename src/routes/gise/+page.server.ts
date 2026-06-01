@@ -1,6 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
-import { getDB, listarGiseEscalas, buscarGiseAtiva, criarGiseEscala, clonarGiseParaData, upsertGiseSeccional } from '$lib/db';
+import {
+	getDB,
+	listarGiseEscalas,
+	buscarGiseAtiva,
+	criarGiseEscala,
+	clonarGiseParaData,
+	upsertGiseSeccional
+} from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
@@ -31,19 +38,31 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		throw redirect(302, '/');
 	}
 
-	const supervisorId = (!isGeral && !isSeccional && isSupervisor && !isMembro) ? u.id : undefined;
-	const policialId = (!isGeral && !isSeccional) ? u.id : undefined;
-	const [escalas, ativa, seccionaisList, supervisaoExtraUnidadeId, defaultHoraEntrada, defaultHoraSaida] = await Promise.all([
+	const supervisorId = !isGeral && !isSeccional && isSupervisor && !isMembro ? u.id : undefined;
+	const policialId = !isGeral && !isSeccional ? u.id : undefined;
+	const [
+		escalas,
+		ativa,
+		seccionaisList,
+		supervisaoExtraUnidadeId,
+		defaultHoraEntrada,
+		defaultHoraSaida
+	] = await Promise.all([
 		listarGiseEscalas(db, supervisorId, policialId),
 		buscarGiseAtiva(db),
-		db.select({ id: unidades.id, nome: unidades.nome }).from(unidades).where(eq(unidades.tipo, 'seccional')).orderBy(asc(unidades.nome)).all(),
+		db
+			.select({ id: unidades.id, nome: unidades.nome })
+			.from(unidades)
+			.where(eq(unidades.tipo, 'seccional'))
+			.orderBy(asc(unidades.nome))
+			.all(),
 		buscarUnidadeIdSupervisaoExtra(db),
 		buscarConfiguracao(db, 'gise_default_hora_entrada'),
 		buscarConfiguracao(db, 'gise_default_hora_saida')
 	]);
 
 	const isUnidade = isAdminUnidade(u);
-	const minhaSeccionalId = (isSeccional || isAdminUnidade(u)) ? u.papel_unidade_id : null;
+	const minhaSeccionalId = isSeccional || isAdminUnidade(u) ? u.papel_unidade_id : null;
 
 	return {
 		escalas,
@@ -63,7 +82,9 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-function parseDatasCriacaoGise(raw: string | undefined): { ok: true; dias: { data: string; feriado: boolean }[] } | { ok: false; error: string } {
+function parseDatasCriacaoGise(
+	raw: string | undefined
+): { ok: true; dias: { data: string; feriado: boolean }[] } | { ok: false; error: string } {
 	if (!raw?.trim()) return { ok: false, error: 'Selecione pelo menos um dia no calendário' };
 	let parsed: unknown;
 	try {
@@ -80,7 +101,8 @@ function parseDatasCriacaoGise(raw: string | undefined): { ok: true; dias: { dat
 		if (!item || typeof item !== 'object') return { ok: false, error: 'Lista de datas inválida' };
 		const data = (item as { data?: unknown }).data;
 		const feriado = !!(item as { feriado?: unknown }).feriado;
-		if (typeof data !== 'string' || !DATA_ISO.test(data)) return { ok: false, error: 'Data inválida na seleção' };
+		if (typeof data !== 'string' || !DATA_ISO.test(data))
+			return { ok: false, error: 'Data inválida na seleção' };
 		if (vistos.has(data)) continue;
 		vistos.add(data);
 		dias.push({ data, feriado });
@@ -93,13 +115,15 @@ function parseDatasCriacaoGise(raw: string | undefined): { ok: true; dias: { dat
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas o Administrador Geral pode criar escalas GISE' });
+		if (!isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Administrador Geral pode criar escalas GISE' });
 
 		const data = await request.formData();
 		const datasJson = data.get('datas_json')?.toString();
 
 		const db = getDB(platform);
-		const defaultHoraEntrada = (await buscarConfiguracao(db, 'gise_default_hora_entrada')) ?? '08:00';
+		const defaultHoraEntrada =
+			(await buscarConfiguracao(db, 'gise_default_hora_entrada')) ?? '08:00';
 		const defaultHoraSaida = (await buscarConfiguracao(db, 'gise_default_hora_saida')) ?? '16:00';
 
 		const hora_entrada = data.get('hora_entrada')?.toString() || defaultHoraEntrada;
@@ -131,19 +155,29 @@ export const actions: Actions = {
 				);
 			} else {
 				// Buscar seccionais uma vez; depois criar todas as escalas + suas seccionais em paralelo
-				const seccionais = await db.select({ id: unidades.id, nome: unidades.nome })
-					.from(unidades).where(eq(unidades.tipo, 'seccional')).all();
+				const seccionais = await db
+					.select({ id: unidades.id, nome: unidades.nome })
+					.from(unidades)
+					.where(eq(unidades.tipo, 'seccional'))
+					.all();
 
 				ids = await Promise.all(
 					parsed.dias.map(async ({ data: d, feriado }) => {
-						const novaId = await criarGiseEscala(db, d, hora_entrada, hora_saida, 'em_definicao_supervisor', feriado);
+						const novaId = await criarGiseEscala(
+							db,
+							d,
+							hora_entrada,
+							hora_saida,
+							'em_definicao_supervisor',
+							feriado
+						);
 						await Promise.all(seccionais.map((sec) => upsertGiseSeccional(db, novaId, sec.id)));
 						return novaId;
 					})
 				);
 			}
 
-			return { success: true, count: ids.length, ids, datas: parsed.dias.map(d => d.data) };
+			return { success: true, count: ids.length, ids, datas: parsed.dias.map((d) => d.data) };
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
 			return fail(500, { error: msg });

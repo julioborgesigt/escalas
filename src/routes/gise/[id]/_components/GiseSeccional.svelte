@@ -234,11 +234,7 @@
 							? 'produtividade SEINT'
 							: 'produtividade operacional'}"
 					>
-						<svg
-							class="w-4 h-4 shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -300,11 +296,7 @@
 							? `Assinado por ${assRel.assinante_nome}`
 							: 'Aguardando assinatura do supervisor (escala)'}
 				>
-					<svg
-						class="w-3.5 h-3.5 shrink-0"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
+					<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 						><path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -349,7 +341,8 @@
 								'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
 								'tertiary',
 								'filled',
-								() => onAssinarRelatorioDigital(sec.seccional_id, 'extraordinario', sec.seccional_nome),
+								() =>
+									onAssinarRelatorioDigital(sec.seccional_id, 'extraordinario', sec.seccional_nome),
 								undefined,
 								false,
 								false,
@@ -379,9 +372,7 @@
 			class="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-left active:scale-[0.99] transition-transform"
 			onclick={onToggleRecolher}
 		>
-			<div
-				class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
-			>
+			<div class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0">
 				<svg
 					class="w-5 h-5 transition-transform duration-300 {recolhida ? '-rotate-90' : ''}"
 					fill="none"
@@ -400,7 +391,9 @@
 				{sec.seccional_nome}
 			</span>
 			{@render statusBadge(sec.status, true)}
-			<div class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2">
+			<div
+				class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2"
+			>
 				<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
 				{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
 					<span
@@ -426,11 +419,7 @@
 						disabled={pendingCrud}
 						title="Excluir seccional desta escala"
 					>
-						<svg
-							class="w-3.5 h-3.5"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -518,53 +507,49 @@
 						<Accordion.ItemContent
 							class="flex flex-col gap-2 border-t border-surface-200/80 px-4 pb-3 pt-2 dark:border-surface-700"
 						>
-						<form
-							method="POST"
-							action="?/removerSeccional"
-							use:enhance={actions.handleRemoverSeccionalForm}
-							class="block w-full"
-						>
-							<input type="hidden" name="secId" value={sec.id} />
-							<button
-								type="submit"
-								class="btn btn-sm preset-outlined-error-500 flex w-full items-center justify-center gap-1 whitespace-nowrap"
-								disabled={pendingCrud}
+							<form
+								method="POST"
+								action="?/removerSeccional"
+								use:enhance={actions.handleRemoverSeccionalForm}
+								class="block w-full"
 							>
-								<svg
-									class="w-3.5 h-3.5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
+								<input type="hidden" name="secId" value={sec.id} />
+								<button
+									type="submit"
+									class="btn btn-sm preset-outlined-error-500 flex w-full items-center justify-center gap-1 whitespace-nowrap"
+									disabled={pendingCrud}
+								>
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+										/></svg
+									>
+									Excluir seccional
+								</button>
+							</form>
+
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1 whitespace-nowrap"
+								onclick={() => {
+									adicionandoSlot = true;
+									novoSlotUnidadeId = '';
+								}}
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 									><path
 										stroke-linecap="round"
 										stroke-linejoin="round"
 										stroke-width="2"
-										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+										d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
 									/></svg
 								>
-								Excluir seccional
+								+ Adicionar + DP(s) nesta Seccional
 							</button>
-						</form>
-
-						<button
-							type="button"
-							class="btn btn-sm preset-outlined-primary-500 w-full flex items-center justify-center gap-1 whitespace-nowrap"
-							onclick={() => {
-								adicionandoSlot = true;
-								novoSlotUnidadeId = '';
-							}}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-								/></svg
-							>
-							+ Adicionar + DP(s) nesta Seccional
-						</button>
-					</Accordion.ItemContent>
+						</Accordion.ItemContent>
 					</Accordion.Item>
 				</Accordion>
 			{/if}
@@ -613,9 +598,7 @@
 								class="text-sm btn preset-filled-success-500 border-2 border-success-600/30 hover:border-success-600 px-4 py-1.5 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold w-full"
 								disabled={pendingCrud ||
 									(sec.unidades ?? []).length === 0 ||
-									(sec.unidades ?? []).some(
-										(s: GiseUnidadeSlot) => s.unidade_id === null
-									) ||
+									(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null) ||
 									(sec.unidades ?? []).some(
 										(s: GiseUnidadeSlot) =>
 											!(s.equipes ?? []).some(
@@ -624,9 +607,7 @@
 									)}
 								title={(sec.unidades ?? []).length === 0
 									? 'Adicione ao menos uma unidade antes de finalizar'
-									: (sec.unidades ?? []).some(
-												(s: GiseUnidadeSlot) => s.unidade_id === null
-										  )
+									: (sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === null)
 										? 'Todos os slots devem ter uma unidade selecionada'
 										: (sec.unidades ?? []).some(
 													(s: GiseUnidadeSlot) =>
@@ -678,9 +659,7 @@
 				{@const podeEditarCabecalhoUnidade =
 					(isSeccional &&
 						sec.seccional_id === minhaSeccionalId &&
-						(modoEdicaoSeccional ||
-							sec.status === 'pendente' ||
-							sec.status === 'retificada')) ||
+						(modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
 					(isAdminGeral && podeEditar && modoEdicaoGeral)}
 				<div
 					class="rounded-xl border border-primary-300/50 dark:border-primary-700/40 bg-primary-500/5 overflow-visible"
@@ -697,9 +676,7 @@
 										class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
 									>
 										<option value=""
-											>{slot.nome
-												? 'Selecionar outra unidade...'
-												: 'Selecionar unidade...'}</option
+											>{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option
 										>
 										{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
 											<option value={d.id}>{d.nome}</option>
@@ -748,11 +725,7 @@
 											class="btn btn-sm preset-outlined-error-500 w-full sm:w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 											disabled={pendingCrud}
 										>
-											<svg
-												class="w-3.5 h-3.5"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
 													stroke-linejoin="round"
@@ -783,11 +756,7 @@
 												slotUnidadeId = slot.unidade_id ?? '';
 											}}
 										>
-											<svg
-												class="w-3 h-3"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+											<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
 													stroke-linejoin="round"
@@ -812,11 +781,7 @@
 											class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 											disabled={pendingCrud}
 										>
-											<svg
-												class="w-3.5 h-3.5"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
 													stroke-linejoin="round"
@@ -839,11 +804,7 @@
 										slotUnidadeId = '';
 									}}
 								>
-									<svg
-										class="w-3.5 h-3.5"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 										><path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -867,11 +828,7 @@
 											class="btn btn-sm preset-outlined-error-500 w-auto text-sm px-2 py-1 rounded-lg flex items-center justify-center gap-1 whitespace-nowrap"
 											disabled={pendingCrud}
 										>
-											<svg
-												class="w-3.5 h-3.5"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+											<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 												><path
 													stroke-linecap="round"
 													stroke-linejoin="round"
@@ -1062,8 +1019,7 @@
 															type="submit"
 															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
 															disabled={pendingCrud}
-															title="Confirmar"
-															>{pendingSalvarHorariosEquipe ? '…' : '✓'}</button
+															title="Confirmar">{pendingSalvarHorariosEquipe ? '…' : '✓'}</button
 														>
 													</form>
 													<button
@@ -1099,15 +1055,9 @@
 														onclick={() => {
 															editandoHorariosEquipeId = equipe.id;
 															editEqHoraEnt =
-																equipe.hora_entrada ??
-																sec.hora_entrada ??
-																gise.hora_entrada ??
-																'';
+																equipe.hora_entrada ?? sec.hora_entrada ?? gise.hora_entrada ?? '';
 															editEqHoraSai =
-																equipe.hora_saida ??
-																sec.hora_saida ??
-																gise.hora_saida ??
-																'';
+																equipe.hora_saida ?? sec.hora_saida ?? gise.hora_saida ?? '';
 														}}
 														title="Editar horários da equipe"
 													>
@@ -1203,11 +1153,7 @@
 										>
 											<input type="hidden" name="secId" value={sec.id} />
 											<input type="hidden" name="equipe_id" value={equipeParaAdicionar} />
-											<input
-												type="hidden"
-												name="policial_id"
-												value={policialParaAdicionar}
-											/>
+											<input type="hidden" name="policial_id" value={policialParaAdicionar} />
 											<div class="flex flex-col sm:flex-row gap-2 sm:items-end">
 												<div class="w-full flex-1 min-w-32">
 													{#key cargoParaAdicionar}
@@ -1393,11 +1339,7 @@
 										novaEquipeOip = 3;
 									}}
 								>
-									<svg
-										class="w-3.5 h-3.5"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
+									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 										><path
 											stroke-linecap="round"
 											stroke-linejoin="round"

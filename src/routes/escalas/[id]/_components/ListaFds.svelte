@@ -117,7 +117,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
 			}
 		};
@@ -199,7 +202,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -287,7 +293,8 @@
 			pendingRepetir = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data?.policiais;
-				const conflitantes = (result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
+				const conflitantes =
+					(result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
 				if (conflitantes.length > 0) {
 					const datas = conflitantes.map((c) => c.data).join(', ');
 					toaster.create({
@@ -306,7 +313,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao repetir'), type: 'error' });
 			}
 		};
@@ -604,31 +614,31 @@
 											</button>
 										</IconTooltip>
 										<IconTooltip label="Repetir em outros dias">
-										<button
-											type="button"
-											aria-label="Repetir em outros dias"
-											class="p-1.5 rounded transition-colors {repetindoId === p.id
-												? 'text-success-600 dark:text-success-400 bg-success-500/10'
-												: 'text-surface-400 hover:text-success-600 hover:bg-success-500/10'}"
-											onclick={() => {
-												editingId = null;
-												openRepetir(p);
-											}}
-										>
-											<svg
-												class="w-3.5 h-3.5"
-												fill="none"
-												viewBox="0 0 24 24"
-												stroke="currentColor"
+											<button
+												type="button"
+												aria-label="Repetir em outros dias"
+												class="p-1.5 rounded transition-colors {repetindoId === p.id
+													? 'text-success-600 dark:text-success-400 bg-success-500/10'
+													: 'text-surface-400 hover:text-success-600 hover:bg-success-500/10'}"
+												onclick={() => {
+													editingId = null;
+													openRepetir(p);
+												}}
 											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-												/>
-											</svg>
-										</button>
+												<svg
+													class="w-3.5 h-3.5"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+													/>
+												</svg>
+											</button>
 										</IconTooltip>
 										<button
 											type="button"
@@ -646,9 +656,7 @@
 							<div
 								class="border-t border-success-200 dark:border-success-500/15 px-4 py-3 bg-success-500/5 dark:bg-success-500/8"
 							>
-								<p
-									class="text-[0.65rem] font-semibold text-success-700 dark:text-success-400 mb-2"
-								>
+								<p class="text-[0.65rem] font-semibold text-success-700 dark:text-success-400 mb-2">
 									Adicionar <span class="uppercase">{p.nome}</span> em outros dias:
 								</p>
 								<form method="POST" action="?/repetir" use:enhance={handleRepetir}>

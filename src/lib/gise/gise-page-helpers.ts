@@ -55,9 +55,7 @@ export function getFaltandoRubrica(sec: GiseSecComMembros): string {
 		(m) => !m.presenca?.entrada_timestamp || !m.presenca?.saida_timestamp
 	);
 	if (faltantes.length === 0) return '';
-	return (
-		'Faltando rubrica de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ')
-	);
+	return 'Faltando rubrica de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ');
 }
 
 export const SECCIONAL_BG_CLASSES: readonly string[] = [

@@ -106,9 +106,8 @@ async function buildHistoricoPdfBuffer(
 					const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
 					const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
 
-					const body: string[][] =
-						equipe.membros?.length ?
-							equipe.membros.map((m) => [
+					const body: string[][] = equipe.membros?.length
+						? equipe.membros.map((m) => [
 								m.policial_nome,
 								m.policial_cargo,
 								m.policial_matricula,
@@ -119,7 +118,7 @@ async function buildHistoricoPdfBuffer(
 								fmtDateGiseXlsx(gise.data_inicio),
 								fmtHoraGiseXlsx(hSai)
 							])
-						:	[['(sem membros alocados)', '', '', '', '', '', '', '', '']];
+						: [['(sem membros alocados)', '', '', '', '', '', '', '', '']];
 
 					y = bumpY(doc, y, 28);
 					doc.setFontSize(8);
@@ -194,7 +193,11 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		if (fromEscala) {
 			seccionalNome = fromEscala;
 		} else {
-			const row = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, seccionalId)).get();
+			const row = await db
+				.select({ nome: unidades.nome })
+				.from(unidades)
+				.where(eq(unidades.id, seccionalId))
+				.get();
 			seccionalNome = row?.nome ?? `Seccional #${seccionalId}`;
 		}
 	}

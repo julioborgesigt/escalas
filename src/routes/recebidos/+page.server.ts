@@ -24,10 +24,20 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	// Busca escalas assinadas (todas, sem filtro de tempo — filtro é client-side)
 	const [resultado, unidadesLista] = await Promise.all([
-		listarEscalas(db, undefined, 'assinada', undefined, undefined, undefined, undefined, undefined, {
-			limit: undefined,
-			page: undefined
-		}),
+		listarEscalas(
+			db,
+			undefined,
+			'assinada',
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				limit: undefined,
+				page: undefined
+			}
+		),
 		listarUnidades(db)
 	]);
 

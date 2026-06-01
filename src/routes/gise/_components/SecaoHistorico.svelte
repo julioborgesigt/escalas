@@ -231,8 +231,6 @@
 		void [filtroSeccional, filtroMesAno, filtroAnoCiclo, filtroNumeroCiclo, filtroData];
 		paginaHistorico = 1;
 	});
-
-
 </script>
 
 {#if isAdminGeral && historico.length > 0}
@@ -248,7 +246,12 @@
 				aria-expanded={mostrarFiltrosHistorico}
 			>
 				<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+					/>
 				</svg>
 				Filtros
 				{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
@@ -262,17 +265,28 @@
 				class="overflow-hidden rounded-2xl border border-surface-200/90 bg-surface-50/80 shadow-sm dark:border-surface-800 dark:bg-surface-900/60"
 				transition:slide={{ duration: 250 }}
 			>
-				<div class="border-b border-surface-200/90 bg-white/60 px-4 py-3 dark:border-surface-800 dark:bg-surface-950/40 sm:px-5">
-					<p class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-400">Filtrar histórico</p>
+				<div
+					class="border-b border-surface-200/90 bg-white/60 px-4 py-3 dark:border-surface-800 dark:bg-surface-950/40 sm:px-5"
+				>
+					<p
+						class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-400"
+					>
+						Filtrar histórico
+					</p>
 				</div>
 
 				<div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
 					<div
-						class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {filtroSeccional !== ''
+						class="flex min-h-0 flex-col gap-2 rounded-xl border p-3.5 shadow-sm transition-all sm:p-4 {filtroSeccional !==
+						''
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
-						<label for="filtro-seccional" class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300">Seccional</label>
+						<label
+							for="filtro-seccional"
+							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							>Seccional</label
+						>
 						<select
 							id="filtro-seccional"
 							bind:value={filtroSeccional}
@@ -290,7 +304,11 @@
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
-						<label for="filtro-mes-ano" class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300">Mês / ano</label>
+						<label
+							for="filtro-mes-ano"
+							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							>Mês / ano</label
+						>
 						<input
 							id="filtro-mes-ano"
 							type="month"
@@ -305,7 +323,10 @@
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
-						<span class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300">Ano / ciclo</span>
+						<span
+							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							>Ano / ciclo</span
+						>
 						<div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[5.5rem_1fr]">
 							<select
 								id="filtro-ano-ciclo"
@@ -337,7 +358,11 @@
 							? 'border-primary-500/45 bg-primary-500/[0.07] ring-1 ring-primary-500/20 dark:bg-primary-500/10'
 							: 'border-surface-200/90 bg-white/90 dark:border-surface-700 dark:bg-surface-900/50'}"
 					>
-						<label for="filtro-data-especifica" class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300">Data específica</label>
+						<label
+							for="filtro-data-especifica"
+							class="text-xs font-bold uppercase tracking-wide text-surface-600 dark:text-surface-300"
+							>Data específica</label
+						>
 						<input
 							id="filtro-data-especifica"
 							type="date"
@@ -348,9 +373,15 @@
 					</div>
 				</div>
 
-				<div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200/90 bg-surface-100/70 px-4 py-3.5 dark:border-surface-800 dark:bg-surface-950/50 sm:px-5">
-					<p class="inline-flex items-center gap-2 rounded-lg border border-surface-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-surface-600 shadow-sm dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300">
-						<span class="font-black tabular-nums text-primary-600 dark:text-primary-400">{historicoFiltrado.length}</span>
+				<div
+					class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200/90 bg-surface-100/70 px-4 py-3.5 dark:border-surface-800 dark:bg-surface-950/50 sm:px-5"
+				>
+					<p
+						class="inline-flex items-center gap-2 rounded-lg border border-surface-200/90 bg-white px-2.5 py-1.5 text-xs font-semibold text-surface-600 shadow-sm dark:border-surface-700 dark:bg-surface-900 dark:text-surface-300"
+					>
+						<span class="font-black tabular-nums text-primary-600 dark:text-primary-400"
+							>{historicoFiltrado.length}</span
+						>
 						<span class="text-surface-500 dark:text-surface-400">resultado(s)</span>
 					</p>
 					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -359,22 +390,40 @@
 								<Popover.Trigger
 									class="inline-flex items-center gap-1.5 rounded-xl border-2 border-primary-500 bg-primary-500/10 px-3.5 py-2 text-xs font-bold text-primary-700 shadow-sm transition-all hover:bg-primary-500/18 dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-200 dark:hover:bg-primary-500/25 disabled:cursor-not-allowed disabled:border-surface-300 disabled:bg-surface-100 disabled:text-surface-400 disabled:shadow-none dark:disabled:border-surface-600 dark:disabled:bg-surface-800 dark:disabled:text-surface-500"
 									disabled={!podeExportarHistorico}
-									title={podeExportarHistorico ? 'Exportar lista filtrada' : 'Selecione mês/ano, ano/ciclo ou data específica para habilitar'}
+									title={podeExportarHistorico
+										? 'Exportar lista filtrada'
+										: 'Selecione mês/ano, ano/ciclo ou data específica para habilitar'}
 								>
 									Baixar
-									<svg class="h-3.5 w-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									<svg
+										class="h-3.5 w-3.5 opacity-80"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										aria-hidden="true"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M19 9l-7 7-7-7"
+										/>
 									</svg>
 								</Popover.Trigger>
 								<Portal>
 									<Popover.Positioner>
-										<Popover.Content class="z-30 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800">
+										<Popover.Content
+											class="z-30 min-w-[11rem] overflow-hidden rounded-xl border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-600 dark:bg-surface-800"
+										>
 											<button
 												type="button"
 												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
 												onclick={() => baixarHistoricoArquivo('xlsx')}
 											>
-												<span class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400">XLSX</span>
+												<span
+													class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400"
+													>XLSX</span
+												>
 												Planilha
 											</button>
 											<button
@@ -382,7 +431,10 @@
 												class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-surface-800 hover:bg-surface-100 dark:text-surface-100 dark:hover:bg-surface-700"
 												onclick={() => baixarHistoricoArquivo('pdf')}
 											>
-												<span class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400">PDF</span>
+												<span
+													class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400"
+													>PDF</span
+												>
 												Documento
 											</button>
 										</Popover.Content>
@@ -410,14 +462,35 @@
 					<SkeletonCard lines={2} hasFooter={false} />
 				{/each}
 			{:else if historicoPaginado.length === 0}
-				<div class="col-span-full rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/50 p-8 text-center flex flex-col items-center justify-center gap-3">
-					<div class="w-12 h-12 rounded-full bg-surface-200/50 dark:bg-surface-800/50 flex items-center justify-center mb-1">
-						<svg class="w-6 h-6 text-surface-400 dark:text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+				<div
+					class="col-span-full rounded-2xl border border-dashed border-surface-300 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-900/50 p-8 text-center flex flex-col items-center justify-center gap-3"
+				>
+					<div
+						class="w-12 h-12 rounded-full bg-surface-200/50 dark:bg-surface-800/50 flex items-center justify-center mb-1"
+					>
+						<svg
+							class="w-6 h-6 text-surface-400 dark:text-surface-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/>
 						</svg>
 					</div>
-					<p class="text-sm font-semibold text-surface-700 dark:text-surface-300">Nenhum resultado encontrado</p>
-					<p class="text-xs text-surface-500 dark:text-surface-400 max-w-xs mx-auto leading-relaxed">Não encontramos escalas para os filtros aplicados. Tente alterar o mês, ano ou seccional.</p>
+					<p class="text-sm font-semibold text-surface-700 dark:text-surface-300">
+						Nenhum resultado encontrado
+					</p>
+					<p
+						class="text-xs text-surface-500 dark:text-surface-400 max-w-xs mx-auto leading-relaxed"
+					>
+						Não encontramos escalas para os filtros aplicados. Tente alterar o mês, ano ou
+						seccional.
+					</p>
 					{#if filtroSeccional !== '' || filtroMesAno || filtroAnoCiclo !== '' || filtroNumeroCiclo !== '' || filtroData}
 						<button
 							type="button"
@@ -430,8 +503,12 @@
 				</div>
 			{:else}
 				{#each historicoPaginado as escala}
-					<div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all">
-						<div class="flex flex-col gap-2 px-3 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-2 sm:px-4">
+					<div
+						class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all"
+					>
+						<div
+							class="flex flex-col gap-2 px-3 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-2 sm:px-4"
+						>
 							<button
 								type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
@@ -442,14 +519,22 @@
 										{diaSemana(escala.data_inicio)}, {fmtDate(escala.data_inicio)}
 										<span class="ml-1 opacity-50 font-normal">#{escala.id}</span>
 									</p>
-									<p class="text-xs text-surface-500 mt-0.5">{escala.hora_entrada} às {escala.hora_saida}</p>
+									<p class="text-xs text-surface-500 mt-0.5">
+										{escala.hora_entrada} às {escala.hora_saida}
+									</p>
 								</div>
-								<span class="text-[0.65rem] sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(escala.status)}">
+								<span
+									class="text-[0.65rem] sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(
+										escala.status
+									)}"
+								>
 									{statusLabel(escala.status)}
 								</span>
 							</button>
 
-							<div class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[400px]:border-t-0 min-[400px]:border-l min-[400px]:pt-0 min-[400px]:pl-2 min-[400px]:ml-1 justify-end">
+							<div
+								class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[400px]:border-t-0 min-[400px]:border-l min-[400px]:pt-0 min-[400px]:pl-2 min-[400px]:ml-1 justify-end"
+							>
 								<a
 									href="/api/gise/{escala.id}/download?format=pdf"
 									download
@@ -459,7 +544,12 @@
 									onclick={(e) => e.stopPropagation()}
 								>
 									<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+										/>
 									</svg>
 								</a>
 
@@ -470,13 +560,24 @@
 										aria-label="Baixar relatório de produtividade"
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+											/>
 										</svg>
 									</Popover.Trigger>
 									<Portal>
 										<Popover.Positioner>
-											<Popover.Content class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
-												<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Produtividade por seccional</p>
+											<Popover.Content
+												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
+											>
+												<p
+													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+												>
+													Produtividade por seccional
+												</p>
 												{#each escala.seccionais ?? [] as sec}
 													{#each sec.tipos ?? ['operacional'] as tipo}
 														<a
@@ -484,10 +585,22 @@
 															download
 															class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 														>
-															<svg class="w-3 h-3 shrink-0 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+															<svg
+																class="w-3 h-3 shrink-0 text-success-500"
+																fill="none"
+																viewBox="0 0 24 24"
+																stroke="currentColor"
+															>
+																<path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+																/>
 															</svg>
-															<span class="truncate">{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span>
+															<span class="truncate"
+																>{sec.nome} — {tipo === 'seint' ? 'SEINT' : 'Operacional'}</span
+															>
 														</a>
 													{/each}
 												{/each}
@@ -503,21 +616,42 @@
 										aria-label="Baixar relatório de extra assinado"
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+											/>
 										</svg>
 									</Popover.Trigger>
 									<Portal>
 										<Popover.Positioner>
-											<Popover.Content class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto">
-												<p class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider">Extra por seccional</p>
+											<Popover.Content
+												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
+											>
+												<p
+													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+												>
+													Extra por seccional
+												</p>
 												{#each escala.seccionais ?? [] as sec}
 													<a
 														href="/api/gise/{escala.id}/download?format=extraordinario&seccionalId={sec.id}"
 														download
 														class="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors touch-manipulation"
 													>
-														<svg class="w-3 h-3 shrink-0 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+														<svg
+															class="w-3 h-3 shrink-0 text-warning-500"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+															/>
 														</svg>
 														<span class="truncate">{sec.nome}</span>
 													</a>
@@ -534,24 +668,43 @@
 		</div>
 
 		{#if totalPaginasHistorico > 1}
-			<div class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+			<div
+				class="mt-3 pt-3 border-t border-surface-200 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3"
+			>
 				<span class="text-xs text-surface-500">
 					{historicoFiltrado.length} resultado(s) — página {paginaHistorico} de {totalPaginasHistorico}
 				</span>
-				<Pagination count={historicoFiltrado.length} pageSize={ITEMS_POR_PAGINA} page={paginaHistorico} onPageChange={(e) => (paginaHistorico = e.page)} siblingCount={1}>
-					<Pagination.PrevTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger>
+				<Pagination
+					count={historicoFiltrado.length}
+					pageSize={ITEMS_POR_PAGINA}
+					page={paginaHistorico}
+					onPageChange={(e) => (paginaHistorico = e.page)}
+					siblingCount={1}
+				>
+					<Pagination.PrevTrigger
+						class="btn btn-sm preset-outlined-surface-500"
+						aria-label="Página anterior"><ChevronLeft size={16} /></Pagination.PrevTrigger
+					>
 					<Pagination.Context>
 						{#snippet children(pagination)}
 							{#each pagination().pages as p, index (p)}
 								{#if p.type === 'page'}
-									<Pagination.Item {...p} class="btn btn-sm min-w-[32px] {p.value === paginaHistorico ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}">{p.value}</Pagination.Item>
+									<Pagination.Item
+										{...p}
+										class="btn btn-sm min-w-[32px] {p.value === paginaHistorico
+											? 'preset-filled-primary-500'
+											: 'preset-outlined-surface-500'}">{p.value}</Pagination.Item
+									>
 								{:else}
 									<Pagination.Ellipsis {index} class="px-1 opacity-50">&#8230;</Pagination.Ellipsis>
 								{/if}
 							{/each}
 						{/snippet}
 					</Pagination.Context>
-					<Pagination.NextTrigger class="btn btn-sm preset-outlined-surface-500" aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger>
+					<Pagination.NextTrigger
+						class="btn btn-sm preset-outlined-surface-500"
+						aria-label="Próxima página"><ChevronRight size={16} /></Pagination.NextTrigger
+					>
 				</Pagination>
 			</div>
 		{/if}

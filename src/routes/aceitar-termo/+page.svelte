@@ -47,11 +47,19 @@
 	<title>Termo de Uso — Escalas PC-CE</title>
 </svelte:head>
 
-<div class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-start p-3 sm:p-6">
-	<div class="w-full max-w-3xl bg-white dark:bg-surface-800 shadow-xl border border-primary-500/20 rounded-2xl sm:rounded-3xl overflow-hidden">
-		<header class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5">
+<div
+	class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-start p-3 sm:p-6"
+>
+	<div
+		class="w-full max-w-3xl bg-white dark:bg-surface-800 shadow-xl border border-primary-500/20 rounded-2xl sm:rounded-3xl overflow-hidden"
+	>
+		<header
+			class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5"
+		>
 			<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-2 drop-shadow-md" />
-			<h1 class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center">
+			<h1
+				class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center"
+			>
 				Termo de Uso e Política de Privacidade
 			</h1>
 			<p class="text-xs text-surface-500 mt-1">
@@ -85,7 +93,11 @@
 				</p>
 			{/if}
 
-			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+			<label
+				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
+					? 'opacity-60 cursor-not-allowed'
+					: ''}"
+			>
 				<input
 					type="checkbox"
 					name="aceitou_termo"
@@ -93,12 +105,18 @@
 					disabled={!scrollouAteFim}
 					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
 				/>
-				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
+				<span
+					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
+				>
 					Li e concordo integralmente com este Termo de Uso e Política de Privacidade.
 				</span>
 			</label>
 
-			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+			<label
+				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
+					? 'opacity-60 cursor-not-allowed'
+					: ''}"
+			>
 				<input
 					type="checkbox"
 					name="aceitou_lgpd"
@@ -106,14 +124,20 @@
 					disabled={!scrollouAteFim}
 					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
 				/>
-				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
-					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados
-					pela PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com
-					a coleta de IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
+				<span
+					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
+				>
+					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados pela
+					PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com a coleta de
+					IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
 				</span>
 			</label>
 
-			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim ? 'opacity-60 cursor-not-allowed' : ''}">
+			<label
+				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
+					? 'opacity-60 cursor-not-allowed'
+					: ''}"
+			>
 				<input
 					type="checkbox"
 					name="aceitou_assinatura_avancada"
@@ -121,37 +145,49 @@
 					disabled={!scrollouAteFim}
 					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
 				/>
-				<span class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
-					<strong>Aceito a assinatura eletrônica avançada</strong> gerada pelo Sistema (login + 2FA por e-mail
-					+ rubrica/biometria + selo institucional) como meio válido e suficiente de comprovação de autoria
-					e integridade, equivalente à minha assinatura manuscrita, conforme a cláusula 2.3 do Termo, e não
-					a impugnarei apenas por ser eletrônica ou não-ICP (art. 4º, II, da Lei nº 14.063/2020).
+				<span
+					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
+				>
+					<strong>Aceito a assinatura eletrônica avançada</strong> gerada pelo Sistema (login + 2FA por
+					e-mail + rubrica/biometria + selo institucional) como meio válido e suficiente de comprovação
+					de autoria e integridade, equivalente à minha assinatura manuscrita, conforme a cláusula 2.3
+					do Termo, e não a impugnarei apenas por ser eletrônica ou não-ICP (art. 4º, II, da Lei nº 14.063/2020).
 				</span>
 			</label>
 
-			<p class="text-[11px] text-surface-500 mt-1">Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):</p>
+			<p class="text-[11px] text-surface-500 mt-1">
+				Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):
+			</p>
 
-			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200">
+			<label
+				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200"
+			>
 				<input
 					type="checkbox"
 					name="aceitou_uso_email"
 					bind:checked={aceitouEmail}
 					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
 				/>
-				<span class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
-					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação ao
-					meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
+				<span
+					class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
+				>
+					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação
+					ao meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
 				</span>
 			</label>
 
-			<label class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200">
+			<label
+				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200"
+			>
 				<input
 					type="checkbox"
 					name="aceitou_uso_localizacao"
 					bind:checked={aceitouLocalizacao}
 					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
 				/>
-				<span class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200">
+				<span
+					class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
+				>
 					<strong>Geolocalização</strong> — Autorizo a captura de coordenadas GPS ao assinar documentos
 					digitalmente, para fins de evidência jurídica (art. 7º, I, LGPD). Precisão reduzida (~1 km).
 				</span>

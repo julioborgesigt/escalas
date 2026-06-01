@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { Combobox, Portal, useListCollection, type ComboboxRootProps } from '@skeletonlabs/skeleton-svelte';
+	import {
+		Combobox,
+		Portal,
+		useListCollection,
+		type ComboboxRootProps
+	} from '@skeletonlabs/skeleton-svelte';
 
 	type Option = { value: unknown; label: string };
 
@@ -159,7 +164,9 @@
 		class="w-full"
 	>
 		<Combobox.Control
-			class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-400/30 transition-colors overflow-hidden {disabled ? 'opacity-60 cursor-not-allowed' : ''}"
+			class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 focus-within:border-primary-400 focus-within:ring-1 focus-within:ring-primary-400/30 transition-colors overflow-hidden {disabled
+				? 'opacity-60 cursor-not-allowed'
+				: ''}"
 		>
 			<Combobox.Input
 				class="flex-1 min-w-0 pl-3 pr-1 py-1.5 text-sm bg-transparent text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 focus:outline-none disabled:cursor-not-allowed"
@@ -182,9 +189,25 @@
 				>
 					{#if asyncLoading}
 						<div class="px-3 py-2 text-sm text-surface-500 flex items-center gap-2">
-							<svg class="animate-spin h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+							<svg
+								class="animate-spin h-4 w-4 text-primary-500"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<circle
+									class="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									stroke-width="4"
+								></circle>
+								<path
+									class="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+								></path>
 							</svg>
 							Buscando...
 						</div>

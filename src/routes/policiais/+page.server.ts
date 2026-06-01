@@ -123,7 +123,18 @@ export const actions: Actions = {
 		if (!parsed.success) {
 			return fail(400, {
 				error: parsed.error.issues[0].message,
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
+				fields: {
+					nome,
+					matricula,
+					cargo: cargoVal,
+					cpf,
+					telefone,
+					classe,
+					regime,
+					lotacao,
+					email,
+					emailPessoal
+				}
 			});
 		}
 
@@ -145,12 +156,34 @@ export const actions: Actions = {
 			if (message.includes('UNIQUE')) {
 				return fail(409, {
 					error: 'Matrícula já cadastrada',
-					fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
+					fields: {
+						nome,
+						matricula,
+						cargo: cargoVal,
+						cpf,
+						telefone,
+						classe,
+						regime,
+						lotacao,
+						email,
+						emailPessoal
+					}
 				});
 			}
 			return fail(500, {
 				error: 'Erro interno ao criar policial',
-				fields: { nome, matricula, cargo: cargoVal, cpf, telefone, classe, regime, lotacao, email, emailPessoal }
+				fields: {
+					nome,
+					matricula,
+					cargo: cargoVal,
+					cpf,
+					telefone,
+					classe,
+					regime,
+					lotacao,
+					email,
+					emailPessoal
+				}
 			});
 		}
 	},
@@ -259,7 +292,8 @@ export const actions: Actions = {
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode excluir policiais' });
+		if (!u.isSuperAdmin)
+			return fail(403, { error: 'Apenas o Super Administrador pode excluir policiais' });
 
 		const data = await request.formData();
 		const policialId = Number(data.get('policial_id'));

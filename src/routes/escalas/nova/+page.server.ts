@@ -1,11 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	getDB,
-	criarEscala,
-	verificarEscalaExistente,
-	listarLotacoes
-} from '$lib/db';
+import { getDB, criarEscala, verificarEscalaExistente, listarLotacoes } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
@@ -22,7 +17,12 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	const [lotacoes, unidadesComRegime] = await Promise.all([
 		isAdmin ? listarLotacoes(db) : [u.lotacao!],
 		u.tipo === 'policial'
-			? db.select().from(unidades).where(eq(unidades.nome, u.lotacao!)).get().then((r) => (r ? [r] : []))
+			? db
+					.select()
+					.from(unidades)
+					.where(eq(unidades.nome, u.lotacao!))
+					.get()
+					.then((r) => (r ? [r] : []))
 			: db
 					.select({
 						nome: unidades.nome,

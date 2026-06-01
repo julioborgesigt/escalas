@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 function encontrarUnidade(nomeNaPlanilha: string, unidades: { nome: string }[]): string {
 	const normalizado = normalizarTexto(nomeNaPlanilha);
-	const encontrada = unidades.find(u => normalizarTexto(u.nome) === normalizado);
+	const encontrada = unidades.find((u) => normalizarTexto(u.nome) === normalizado);
 	return encontrada ? encontrada.nome : '';
 }
 
@@ -93,7 +93,12 @@ export const actions = {
 			});
 		}
 
-		const validMimeTypes = ['text/csv', 'text/plain', 'application/octet-stream', 'application/csv'];
+		const validMimeTypes = [
+			'text/csv',
+			'text/plain',
+			'application/octet-stream',
+			'application/csv'
+		];
 		if (file.type && !validMimeTypes.includes(file.type)) {
 			return fail(400, {
 				error: `Tipo de arquivo inválido. Envie um arquivo CSV válido.`,
@@ -122,7 +127,8 @@ export const actions = {
 
 		if (rows.length <= 1) {
 			return fail(400, {
-				error: 'O arquivo está vazio ou contém apenas o cabeçalho. Adicione dados a partir da linha 2.',
+				error:
+					'O arquivo está vazio ou contém apenas o cabeçalho. Adicione dados a partir da linha 2.',
 				errorType: 'validation'
 			});
 		}

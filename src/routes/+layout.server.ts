@@ -58,7 +58,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	// Licença Lacuna Web PKI — propagada do env para o cliente. Não é segredo;
 	// é um identificador de domínio assinado pela Lacuna. Em ausência, o
 	// fluxo Web PKI falha em produção e usuário deve usar SERPRO.
-	const env = platform?.env as (Env | undefined);
+	const env = platform?.env as Env | undefined;
 	const webPkiLicense = env?.WEBPKI_LICENSE ?? null;
 
 	return {

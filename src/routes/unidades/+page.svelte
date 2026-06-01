@@ -158,7 +158,10 @@
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				cancelarEdicao();
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
 			}
 		};
@@ -217,12 +220,13 @@
 		class="input text-sm w-full"
 		type="text"
 		bind:value={editNome}
-		onkeydown={(e) => { if (e.key === 'Escape') cancelarEdicao(); }}
+		onkeydown={(e) => {
+			if (e.key === 'Escape') cancelarEdicao();
+		}}
 	/>
 	<div class="flex flex-wrap items-center gap-3 text-sm py-2">
 		<label class="flex items-center space-x-1.5"
-			><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span
-				>Plantão</span
+			><input class="checkbox" type="checkbox" bind:checked={editTemPlantao} /><span>Plantão</span
 			></label
 		>
 		<label class="flex items-center space-x-1.5"
@@ -361,9 +365,15 @@
 					{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
 						{#each { length: 8 } as _}
 							<tr class="animate-pulse">
-								<td class="px-4 py-3"><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-6 w-28 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
-								<td class="px-4 py-3"><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700"></div></td>
+								<td class="px-4 py-3"
+									><div class="h-4 w-44 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-6 w-28 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
+								>
+								<td class="px-4 py-3"
+									><div class="h-4 w-24 rounded bg-surface-200 dark:bg-surface-700"></div></td
+								>
 							</tr>
 						{/each}
 					{:else}
@@ -374,7 +384,9 @@
 									style:padding-left={u.depth > 0 ? `${Math.min(u.depth, 8) * 0.75}rem` : null}
 								>
 									{#if u.hasChildren}
-										<div class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"></div>
+										<div
+											class="absolute left-1 top-1/2 bottom-0 w-px bg-surface-400 dark:bg-surface-500"
+										></div>
 									{/if}
 									{#if u.isChild}
 										<div
@@ -382,7 +394,9 @@
 												? 'bottom-1/2'
 												: 'bottom-0'} w-px bg-surface-400 dark:bg-surface-500"
 										></div>
-										<div class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"></div>
+										<div
+											class="absolute left-1 top-1/2 w-4 h-px bg-surface-400 dark:bg-surface-500"
+										></div>
 									{/if}
 									{#if isAdmin && editandoId === u.id}
 										<div class="flex flex-col gap-2">
@@ -508,7 +522,9 @@
 									<div class="flex flex-wrap gap-1.5 mt-1.5 mb-1">
 										{@render badges(u)}
 									</div>
-									<p class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1">
+									<p
+										class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1"
+									>
 										{u.cidade || 'Sem cidade'}
 									</p>
 								</div>

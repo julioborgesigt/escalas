@@ -8,10 +8,7 @@
 	import { useGiseEstado, useGiseAssinatura } from '$lib/composables/gise';
 	import { loading } from '$lib/loading.svelte';
 	import type { Policial, Unidade, GiseAssinaturaRelatorio } from '$lib/server/schema';
-	import {
-		checkAllSigned,
-		filtrarSeccionaisDisponiveis
-	} from '$lib/gise/gise-page-helpers';
+	import { checkAllSigned, filtrarSeccionaisDisponiveis } from '$lib/gise/gise-page-helpers';
 	import {
 		quadroSupervisaoExtraExigeRelatorio,
 		supervisaoExtraRubricasCompletas
@@ -387,7 +384,6 @@
 				gise?.status === 'pronta_para_finalizar' ||
 				gise?.status === 'finalizada')
 	);
-
 </script>
 
 <svelte:head>
@@ -401,7 +397,6 @@
 		<title>Carregando GISE... — Portal de Escalas</title>
 	{/if}
 </svelte:head>
-
 
 <div
 	class="relative min-w-0 transition-all duration-500 {loading.active
@@ -578,7 +573,8 @@
 							{modoEdicaoGeral}
 							assinaturasRelatorios={data.assinaturasRelatorios}
 							restringirSmartphone={data.restringirSmartphone}
-							recolhida={seccionaisRecolhidas[sec.id] ?? (sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
+							recolhida={seccionaisRecolhidas[sec.id] ??
+								(sec.status === 'preenchida' || sec.status === 'preenchida_retificada')}
 							onToggleRecolher={() => toggleRecolherSeccional(sec.id)}
 							onAssinarRelatorioManual={(seccionalId) =>
 								assinatura.abrirAssinaturaRelatorio(seccionalId, 'extraordinario')}

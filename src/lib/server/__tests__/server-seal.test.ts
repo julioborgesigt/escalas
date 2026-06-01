@@ -160,7 +160,9 @@ describe('verificarSeloInstitucional', () => {
 	});
 
 	it('PDF sem selo (rodapé honesto puro) → presente:false', async () => {
-		const v = await verificarSeloInstitucional(await pdfMinimo(), { SELO_INSTITUCIONAL_PEM: bundle });
+		const v = await verificarSeloInstitucional(await pdfMinimo(), {
+			SELO_INSTITUCIONAL_PEM: bundle
+		});
 		expect(v.presente).toBe(false);
 	});
 });

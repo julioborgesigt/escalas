@@ -1,11 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	getDB,
-	listarUnidades,
-	excluirEscala,
-	registrarAuditComContexto
-} from '$lib/db';
+import { getDB, listarUnidades, excluirEscala, registrarAuditComContexto } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 
 // Re-exportar interface do compliance
@@ -21,22 +16,42 @@ export interface ItemCompliance {
 
 // Importar a lógica de compliance existente
 async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemCompliance[]> {
-	const { unidades: unTable, escalas: escTable, escalaDocumentos: docTable } = await import('$lib/server/schema');
+	const {
+		unidades: unTable,
+		escalas: escTable,
+		escalaDocumentos: docTable
+	} = await import('$lib/server/schema');
 	const { getNowBR } = await import('$lib/utils');
 	const { and, eq, gte, lte, inArray, sql } = await import('drizzle-orm');
 
 	function toISO(y: number, m: number, d: number): string {
 		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 	}
-	function diasNoMes(y: number, m: number): number { return new Date(y, m, 0).getDate(); }
-	const MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+	function diasNoMes(y: number, m: number): number {
+		return new Date(y, m, 0).getDate();
+	}
+	const MESES_PT = [
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
+	];
 
 	function obterFdsDoMes(y: number, m: number) {
 		const list = [];
 		const days = diasNoMes(y, m);
 		for (let d = 1; d <= days; d++) {
 			const date = new Date(y, m - 1, d);
-			if (date.getDay() === 6) { // Saturday
+			if (date.getDay() === 6) {
+				// Saturday
 				const sab = new Date(y, m - 1, d);
 				const dom = new Date(y, m - 1, d + 1);
 				list.push({
@@ -87,17 +102,17 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 		if (end > maxDate) maxDate = end;
 	}
 
-	const escalasPeriodo = await db.select().from(escTable)
-		.where(and(
-			gte(escTable.data_inicio, minDate),
-			lte(escTable.data_inicio, maxDate)
-		))
+	const escalasPeriodo = await db
+		.select()
+		.from(escTable)
+		.where(and(gte(escTable.data_inicio, minDate), lte(escTable.data_inicio, maxDate)))
 		.all();
 
 	const escalaIds = escalasPeriodo.map((e: any) => e.id);
-	const docs = escalaIds.length > 0
-		? await db.select().from(docTable).where(inArray(docTable.escala_id, escalaIds)).all()
-		: [];
+	const docs =
+		escalaIds.length > 0
+			? await db.select().from(docTable).where(inArray(docTable.escala_id, escalaIds)).all()
+			: [];
 
 	const docSet = new Set(docs.map((d: any) => d.escala_id));
 	const result: ItemCompliance[] = [];
@@ -111,11 +126,12 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 			if (!unidade.tem_plantao && !unidade.tem_expediente && !unidade.tem_fds) continue;
 
 			if (unidade.tem_plantao) {
-				const esc = escalasPeriodo.find((e: any) => 
-					e.lotacao === unidade.nome && 
-					e.tipo === 'plantao' && 
-					e.data_inicio >= inicioMes && 
-					e.data_inicio <= fimMes
+				const esc = escalasPeriodo.find(
+					(e: any) =>
+						e.lotacao === unidade.nome &&
+						e.tipo === 'plantao' &&
+						e.data_inicio >= inicioMes &&
+						e.data_inicio <= fimMes
 				);
 				if (esc) {
 					result.push({
@@ -140,11 +156,12 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 			}
 
 			if (unidade.tem_expediente) {
-				const esc = escalasPeriodo.find((e: any) => 
-					e.lotacao === unidade.nome && 
-					e.tipo === 'expediente' && 
-					e.data_inicio >= inicioMes && 
-					e.data_inicio <= fimMes
+				const esc = escalasPeriodo.find(
+					(e: any) =>
+						e.lotacao === unidade.nome &&
+						e.tipo === 'expediente' &&
+						e.data_inicio >= inicioMes &&
+						e.data_inicio <= fimMes
 				);
 				if (esc) {
 					result.push({
@@ -170,10 +187,9 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 
 			if (unidade.tem_fds) {
 				for (const fds of fdsList) {
-					const esc = escalasPeriodo.find((e: any) => 
-						e.lotacao === unidade.nome && 
-						e.tipo === 'fds' && 
-						e.data_inicio === fds.inicio
+					const esc = escalasPeriodo.find(
+						(e: any) =>
+							e.lotacao === unidade.nome && e.tipo === 'fds' && e.data_inicio === fds.inicio
 					);
 					if (esc) {
 						result.push({
@@ -209,7 +225,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	if (u.tipo !== 'admin') throw redirect(302, '/');
 
 	const db = getDB(platform);
-	
+
 	const hoje = getNowBR();
 	const anoCorrente = hoje.getFullYear();
 	const mesCorrente = hoje.getMonth() + 1;
@@ -217,8 +233,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const qAno = url.searchParams.get('ano');
 	const qMes = url.searchParams.get('mes');
 
-	const ano = qAno === 'todos' ? 0 : (qAno !== null ? Number(qAno) : anoCorrente);
-	const mes = qMes === 'todos' ? 0 : (qMes !== null ? Number(qMes) : mesCorrente);
+	const ano = qAno === 'todos' ? 0 : qAno !== null ? Number(qAno) : anoCorrente;
+	const mes = qMes === 'todos' ? 0 : qMes !== null ? Number(qMes) : mesCorrente;
 
 	const [compliance, unidadesLista] = await Promise.all([
 		gerarCompliance(db, ano, mes),

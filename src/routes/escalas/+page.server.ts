@@ -14,7 +14,13 @@ import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc } from 'drizzle-orm';
-import { unidades as unidadesTable, escalas as escalasTable, escalaPoliciais, escalaDocumentos, escalaSolicitacoesAssinatura } from '$lib/server/schema';
+import {
+	unidades as unidadesTable,
+	escalas as escalasTable,
+	escalaPoliciais,
+	escalaDocumentos,
+	escalaSolicitacoesAssinatura
+} from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
 	primeiroDiaDoMes,
@@ -94,7 +100,9 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const podeOIPSolicitar =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
 
-	let escalasParaAssinarQuery: ReturnType<typeof db.select> | Promise<never[]> = Promise.resolve([]);
+	let escalasParaAssinarQuery: ReturnType<typeof db.select> | Promise<never[]> = Promise.resolve(
+		[]
+	);
 	if (podeAssinar) {
 		const subqDocs = db.select({ escala_id: escalaDocumentos.escala_id }).from(escalaDocumentos);
 		const baseWhere = and(
@@ -116,11 +124,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 				})
 				.from(escalasTable)
-				.where(and(
-					or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
-					// Admin geral vê apenas as não assinadas nas pendências, para não poluir
-					sql`${escalasTable.id} NOT IN (${subqDocs})` as any
-				))
+				.where(
+					and(
+						or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
+						// Admin geral vê apenas as não assinadas nas pendências, para não poluir
+						sql`${escalasTable.id} NOT IN (${subqDocs})` as any
+					)
+				)
 				.orderBy(desc(escalasTable.created_at))
 				.limit(50) as any;
 		} else {
@@ -137,7 +147,11 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 						eq(escalaSolicitacoesAssinatura.destinatario_id, u.id)
 					)
 				);
-			} else if (u.papel === 'admin_seccional' && lotacoesPermitidas && lotacoesPermitidas.length > 0) {
+			} else if (
+				u.papel === 'admin_seccional' &&
+				lotacoesPermitidas &&
+				lotacoesPermitidas.length > 0
+			) {
 				scopeCondition = or(
 					and(
 						eq(escalaSolicitacoesAssinatura.tipo, 'unidade'),
@@ -166,9 +180,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 					escalaSolicitacoesAssinatura,
 					eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
 				)
-				.where(scopeCondition 
-					? and(or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!, scopeCondition!) 
-					: or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!
+				.where(
+					scopeCondition
+						? and(
+								or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
+								scopeCondition!
+							)
+						: or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!
 				)
 				.orderBy(desc(escalasTable.created_at))
 				.limit(50) as any;
@@ -179,25 +197,32 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		skipLoad
 			? { escalas: [], total: 0, page: 1, limit: 20, totalPages: 1 }
 			: listarEscalas(db, lotacaoParam, undefined, mes, ano, tipo, undefined, undefined, {
-				busca,
-				page,
-				limit: 20,
-				lotacoes: !lotacaoParam ? lotacoesPermitidas : undefined
-			}),
+					busca,
+					page,
+					limit: 20,
+					lotacoes: !lotacaoParam ? lotacoesPermitidas : undefined
+				}),
 		listarUnidades(db),
-		db.select({
-			lotacao: escalasTable.lotacao,
-			tipo: escalasTable.tipo,
-			ano: sql<number>`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer)`,
-			mes: sql<number>`cast(strftime('%m', ${escalasTable.data_inicio}) as integer)`
-		}).from(escalasTable).where(scopeEscalas),
+		db
+			.select({
+				lotacao: escalasTable.lotacao,
+				tipo: escalasTable.tipo,
+				ano: sql<number>`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer)`,
+				mes: sql<number>`cast(strftime('%m', ${escalasTable.data_inicio}) as integer)`
+			})
+			.from(escalasTable)
+			.where(scopeEscalas),
 		escalasParaAssinarQuery
 	]);
 
 	const escalasParaAssinar = escalasParaAssinarRaw;
 
 	// Carrega solicitações pendentes para OIP e DPC admins — necessário para status correto na lista
-	type SolicitacaoInfo = { tipo: 'unidade' | 'respondencia'; destinatario_nome?: string; destinatario_id?: number };
+	type SolicitacaoInfo = {
+		tipo: 'unidade' | 'respondencia';
+		destinatario_nome?: string;
+		destinatario_id?: number;
+	};
 	const solicitacoesMap: Record<number, SolicitacaoInfo> = {};
 	const deveCarregarSolicitacoes =
 		!isAdmin && (u.papel === 'admin_seccional' || u.papel === 'admin_unidade');
@@ -214,7 +239,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	}
 
 	const v = url.searchParams.get('v');
-	const initialView = v === 'assinaturas' ? 'assinaturas' : url.searchParams.toString() ? 'lista' : 'home';
+	const initialView =
+		v === 'assinaturas' ? 'assinaturas' : url.searchParams.toString() ? 'lista' : 'home';
 
 	return {
 		escalas: resultado.escalas,
@@ -241,9 +267,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		podeOIPSolicitar,
 		solicitacoesMap,
 		escalasParaAssinar: escalasParaAssinar as Array<{
-			id: number; titulo: string; cidade: string;
-			data_inicio: string; data_fim: string;
-			tipo: string; lotacao: string;
+			id: number;
+			titulo: string;
+			cidade: string;
+			data_inicio: string;
+			data_fim: string;
+			tipo: string;
+			lotacao: string;
 			is_assinada: boolean;
 		}>
 	};
@@ -409,7 +439,12 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		const escalaPrev = await verificarEscalaExistente(db, lotacao, tipo, primeiroDiaDoMes(anoPrev, mesPrev));
+		const escalaPrev = await verificarEscalaExistente(
+			db,
+			lotacao,
+			tipo,
+			primeiroDiaDoMes(anoPrev, mesPrev)
+		);
 		if (!escalaPrev) {
 			return fail(404, {
 				error: `Não há escala de ${tipo === 'plantao' ? 'Plantão' : 'Expediente'} para ${lotacao} em ${MESES_PT[mesPrev - 1]} ${anoPrev}`
@@ -439,7 +474,7 @@ export const actions: Actions = {
 			const policiaisAtuais = await listarPoliciaisEscala(db, escalaPrev.id);
 			let adicionados = 0;
 			const naoProcessados: Array<{ nome: string; motivo: string }> = [];
-			const linhasParaInserir: typeof escalaPoliciais.$inferInsert[] = [];
+			const linhasParaInserir: (typeof escalaPoliciais.$inferInsert)[] = [];
 
 			if (tipo === 'expediente') {
 				const vistos = new Set<number>();
@@ -473,7 +508,10 @@ export const actions: Actions = {
 				for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {
 					const { dias: novosDias, rotacao } = calcularProximoMesDias(dias, ano, mes);
 					if (novosDias.length === 0) {
-						naoProcessados.push({ nome, motivo: rotacao === null ? 'Rotação não identificada' : 'Nenhum dia calculado' });
+						naoProcessados.push({
+							nome,
+							motivo: rotacao === null ? 'Rotação não identificada' : 'Nenhum dia calculado'
+						});
 						continue;
 					}
 					for (const dia of novosDias) {
@@ -498,16 +536,17 @@ export const actions: Actions = {
 				const BATCH_SIZE = 50;
 				for (let i = 0; i < linhasParaInserir.length; i += BATCH_SIZE) {
 					const chunk = linhasParaInserir.slice(i, i + BATCH_SIZE);
-					await db.batch(
-						chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any
-					);
+					await db.batch(chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any);
 				}
 			}
 
 			return { success: true, id: novaEscalaId, adicionados, nao_processados: naoProcessados };
 		} catch (err) {
 			logger.error('[escalas/criarComBase] Erro interno', {
-				lotacao, tipo, mes, ano,
+				lotacao,
+				tipo,
+				mes,
+				ano,
 				error: err instanceof Error ? err.message : String(err)
 			});
 			return fail(500, { error: 'Erro interno ao criar escala' });

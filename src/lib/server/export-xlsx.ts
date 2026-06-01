@@ -2,25 +2,51 @@ import ExcelJS from 'exceljs';
 import type { Escala, EscalaPolicialComDados } from '../types';
 import { formatarData, formatarDataExtenso } from '../utils';
 import {
-	sepDatas, agruparPorData, formatarDataPlantao, formatarHorario,
-	sortExpediente, COLS_EXPEDIENTE, rowExpediente,
-	agruparPlantao, COLS_PLANTAO, rowPlantao,
+	sepDatas,
+	agruparPorData,
+	formatarDataPlantao,
+	formatarHorario,
+	sortExpediente,
+	COLS_EXPEDIENTE,
+	rowExpediente,
+	agruparPlantao,
+	COLS_PLANTAO,
+	rowPlantao,
 	formatarMesAno
 } from './export-shared';
 
 // ---- XLSX ----
-export async function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
+export async function gerarXlsx(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[]
+): Promise<Uint8Array> {
 	const dias = agruparPorData(policiais);
 	const wb = new ExcelJS.Workbook();
 	const ws = wb.addWorksheet('Escala');
 	ws.columns = [
-		{ width: 35 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 35 }, { width: 22 }, { width: 12 }
+		{ width: 35 },
+		{ width: 15 },
+		{ width: 8 },
+		{ width: 18 },
+		{ width: 35 },
+		{ width: 22 },
+		{ width: 12 }
 	];
-	ws.addRow([`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`]);
+	ws.addRow([
+		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`
+	]);
 	ws.addRow([]);
 
 	for (const dia of dias) {
-		ws.addRow(['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']);
+		ws.addRow([
+			'EQUIPE DE PLANTÃO DA DP',
+			'MATRÍCULA',
+			'CARGO',
+			'TELEFONE',
+			'LOTAÇÃO',
+			'DATA',
+			'HORÁRIO'
+		]);
 		for (const p of dia.policiais) {
 			ws.addRow([
 				p.nome,
@@ -39,25 +65,50 @@ export async function gerarXlsx(escala: Escala, policiais: EscalaPolicialComDado
 }
 
 // ---- XLSX Expediente ----
-export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
+export async function gerarXlsxExpediente(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[]
+): Promise<Uint8Array> {
 	const sorted = sortExpediente(policiais);
 	const wb = new ExcelJS.Workbook();
-	const ws = wb.addWorksheet('Escala', { pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+	const ws = wb.addWorksheet('Escala', {
+		pageSetup: {
+			orientation: 'landscape',
+			paperSize: 9,
+			fitToPage: true,
+			fitToWidth: 1,
+			fitToHeight: 0
+		}
+	});
 	const NCOLS = COLS_EXPEDIENTE.length;
 	const lastCol = String.fromCharCode(64 + NCOLS); // 'H' for 8 cols
 
 	ws.columns = [
-		{ width: 40 }, { width: 18 }, { width: 10 }, { width: 22 },
-		{ width: 12 }, { width: 28 }, { width: 16 }, { width: 35 }
+		{ width: 40 },
+		{ width: 18 },
+		{ width: 10 },
+		{ width: 22 },
+		{ width: 12 },
+		{ width: 28 },
+		{ width: 16 },
+		{ width: 35 }
 	];
 
-	const tealFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a5c57' } };
-	const lightFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } };
+	const tealFill: ExcelJS.Fill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FF1a5c57' }
+	};
+	const lightFill: ExcelJS.Fill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FFF5F5F5' }
+	};
 	const thinBorder: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FF888888' } };
 	const cellBorder = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
 	function applyTeal(row: ExcelJS.Row, bold = true) {
-		row.eachCell({ includeEmpty: true }, cell => {
+		row.eachCell({ includeEmpty: true }, (cell) => {
 			cell.fill = tealFill;
 			cell.font = { bold, color: { argb: 'FFFFFFFF' }, name: 'Arial', size: 10 };
 			cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -66,7 +117,7 @@ export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolic
 	}
 
 	function applyMeta(row: ExcelJS.Row) {
-		row.eachCell({ includeEmpty: true }, cell => {
+		row.eachCell({ includeEmpty: true }, (cell) => {
 			cell.font = { bold: true, name: 'Arial', size: 10 };
 			cell.alignment = { horizontal: 'left', vertical: 'middle' };
 			cell.border = cellBorder;
@@ -109,12 +160,17 @@ export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolic
 		const rData = ws.addRow(rowExpediente(p));
 		rData.eachCell({ includeEmpty: true }, (cell, col) => {
 			cell.font = { name: 'Arial', size: 9 };
-			cell.alignment = { horizontal: (col >= 2 && col <= 5) ? 'center' : 'left', vertical: 'middle', wrapText: true };
+			cell.alignment = {
+				horizontal: col >= 2 && col <= 5 ? 'center' : 'left',
+				vertical: 'middle',
+				wrapText: true
+			};
 			cell.border = cellBorder;
 		});
 	}
 
-	const obsText = 'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
+	const obsText =
+		'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
 	const rObs = ws.addRow([obsText]);
 	ws.mergeCells(`A${rObs.number}:${lastCol}${rObs.number}`);
 	rObs.getCell(1).fill = lightFill;
@@ -124,7 +180,7 @@ export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolic
 	rObs.height = 30;
 
 	ws.addRow([]);
-	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
 	const rData2 = ws.addRow([textoData]);
@@ -135,13 +191,26 @@ export async function gerarXlsxExpediente(escala: Escala, policiais: EscalaPolic
 }
 
 // ---- XLSX Plantão ----
-export async function gerarXlsxPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): Promise<Uint8Array> {
+export async function gerarXlsxPlantao(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[]
+): Promise<Uint8Array> {
 	const equipes = agruparPlantao(policiais);
 	const wb = new ExcelJS.Workbook();
 	const ws = wb.addWorksheet('Escala');
-	ws.columns = [{ width: 40 }, { width: 15 }, { width: 8 }, { width: 18 }, { width: 35 }, { width: 35 }, { width: 30 }];
+	ws.columns = [
+		{ width: 40 },
+		{ width: 15 },
+		{ width: 8 },
+		{ width: 18 },
+		{ width: 35 },
+		{ width: 35 },
+		{ width: 30 }
+	];
 	ws.addRow(['POLÍCIA CIVIL DO ESTADO DO CEARÁ']);
-	ws.addRow([`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`]);
+	ws.addRow([
+		`DELEGACIA: ${escala.cidade.toUpperCase()} — MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`
+	]);
 	ws.addRow([]);
 
 	for (const [equipe, oficiais] of equipes) {

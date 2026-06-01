@@ -295,10 +295,7 @@
 				if (challengeAtual && !challengeProgresso?.concluido) {
 					if (challengeAtual.tipo === 'blink') {
 						const landmarks = detection.landmarks;
-						challengeProgresso = blinkCounter.feed(
-							landmarks.getLeftEye(),
-							landmarks.getRightEye()
-						);
+						challengeProgresso = blinkCounter.feed(landmarks.getLeftEye(), landmarks.getRightEye());
 					} else if (challengeAtual.tipo === 'smile') {
 						const happy = detection.expressions.happy ?? 0;
 						challengeProgresso = smileDetector.feed(happy);
@@ -896,7 +893,12 @@
 						<p class="text-xs font-bold text-error-500 uppercase tracking-wider">{codigoError}</p>
 					{/if}
 
-					<CodigoTimer {emailMascarado} onReenviar={async () => { await enviarOuReenviarCodigo(); }} />
+					<CodigoTimer
+						{emailMascarado}
+						onReenviar={async () => {
+							await enviarOuReenviarCodigo();
+						}}
+					/>
 				</div>
 			</div>
 		{/if}
@@ -920,7 +922,8 @@
 
 	<div class="flex flex-wrap justify-between items-center gap-2 mt-4">
 		{#if step === 'signature'}
-			<button type="button"
+			<button
+				type="button"
 				class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
 				onclick={clear}
 			>
@@ -928,13 +931,15 @@
 			</button>
 
 			<div class="flex items-center gap-2 ml-auto">
-				<button type="button"
+				<button
+					type="button"
 					class="btn preset-outlined-surface-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 					onclick={onCancel}
 				>
 					Cancelar
 				</button>
-				<button type="button"
+				<button
+					type="button"
 					class="btn preset-filled-primary-500 rounded-xl text-[0.65rem] sm:text-xs font-bold uppercase px-3 py-2 sm:px-4 sm:py-2 shadow-sm shadow-primary-500/20 active:scale-95 transition-all w-max"
 					disabled={solicitandoCodigo}
 					onclick={() => (exigirFoto ? (step = 'camera') : confirmarSemFoto())}
@@ -947,7 +952,8 @@
 				</button>
 			</div>
 		{:else if step === 'camera'}
-			<button type="button"
+			<button
+				type="button"
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={() => (step = 'signature')}
 			>
@@ -955,12 +961,18 @@
 			</button>
 
 			{@const challengeOk = !challengeAtual || challengeProgresso?.concluido}
-			<button type="button"
+			<button
+				type="button"
 				class="btn {faceDetected && !isMoving && challengeOk
 					? 'preset-filled-primary-500'
 					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
 				onclick={startCaptureSequence}
-				disabled={capturingLocation || capturingImage || !!cameraError || !stream || !faceDetected || !challengeOk}
+				disabled={capturingLocation ||
+					capturingImage ||
+					!!cameraError ||
+					!stream ||
+					!faceDetected ||
+					!challengeOk}
 			>
 				{#if !faceDetected}
 					Aguardando Rosto...
@@ -975,7 +987,8 @@
 				{/if}
 			</button>
 		{:else if step === 'email_code'}
-			<button type="button"
+			<button
+				type="button"
 				class="btn preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
 				onclick={onCancel}
 				disabled={solicitandoCodigo}
@@ -983,7 +996,8 @@
 				Cancelar
 			</button>
 
-			<button type="button"
+			<button
+				type="button"
 				class="btn preset-filled-primary-500 rounded-xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 active:scale-95 transition-all ml-auto"
 				onclick={confirmarCodigo}
 				disabled={solicitandoCodigo || codigoInput.length !== 6}

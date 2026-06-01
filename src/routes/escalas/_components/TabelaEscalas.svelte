@@ -1,284 +1,516 @@
 <script lang="ts">
-  import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
-  import { slide, fly } from 'svelte/transition';
-  import { page, navigating } from '$app/state';
-  import type { EscalaListagem } from '$lib/types';
-  import { formatarData } from '$lib/utils';
-  import SkeletonCard from '$lib/components/SkeletonCard.svelte';
-  import PaginationControls from '$lib/components/PaginationControls.svelte';
+	import { Popover, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { slide, fly } from 'svelte/transition';
+	import { page, navigating } from '$app/state';
+	import type { EscalaListagem } from '$lib/types';
+	import { formatarData } from '$lib/utils';
+	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import PaginationControls from '$lib/components/PaginationControls.svelte';
 
-  type SolicitacaoInfo = {
-    tipo: 'unidade' | 'respondencia';
-    destinatario_nome?: string;
-    destinatario_id?: number;
-  };
+	type SolicitacaoInfo = {
+		tipo: 'unidade' | 'respondencia';
+		destinatario_nome?: string;
+		destinatario_id?: number;
+	};
 
-  const {
-    escalas,
-    podeOIPSolicitar,
-    solicitacoesMap,
-    skipLoad,
-    paginaAtual,
-    totalPaginas,
-    onSolicitarEdicao,
-    onSolicitarExclusao,
-    onAbrirDialogSolicitar,
-    onCancelarSolicitacao,
-    onNovaEscala,
-    onPageChange
-  }: {
-    escalas: EscalaListagem[];
-    podeOIPSolicitar: boolean;
-    solicitacoesMap: Record<number, SolicitacaoInfo>;
-    skipLoad: boolean;
-    paginaAtual: number;
-    totalPaginas: number;
-    onSolicitarEdicao: (esc: EscalaListagem) => void;
-    onSolicitarExclusao: (id: number, titulo: string) => void;
-    onAbrirDialogSolicitar: (id: number) => void;
-    onCancelarSolicitacao: (id: number) => void;
-    onNovaEscala: () => void;
-    onPageChange: (p: number) => void;
-  } = $props();
+	const {
+		escalas,
+		podeOIPSolicitar,
+		solicitacoesMap,
+		skipLoad,
+		paginaAtual,
+		totalPaginas,
+		onSolicitarEdicao,
+		onSolicitarExclusao,
+		onAbrirDialogSolicitar,
+		onCancelarSolicitacao,
+		onNovaEscala,
+		onPageChange
+	}: {
+		escalas: EscalaListagem[];
+		podeOIPSolicitar: boolean;
+		solicitacoesMap: Record<number, SolicitacaoInfo>;
+		skipLoad: boolean;
+		paginaAtual: number;
+		totalPaginas: number;
+		onSolicitarEdicao: (esc: EscalaListagem) => void;
+		onSolicitarExclusao: (id: number, titulo: string) => void;
+		onAbrirDialogSolicitar: (id: number) => void;
+		onCancelarSolicitacao: (id: number) => void;
+		onNovaEscala: () => void;
+		onPageChange: (p: number) => void;
+	} = $props();
 
-  let menuExpandidoId = $state<number | null>(null);
+	let menuExpandidoId = $state<number | null>(null);
 
-  const ITEMS_POR_PAGINA = 20;
-  const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+	const ITEMS_POR_PAGINA = 20;
+	const MESES_PT = [
+		'Janeiro',
+		'Fevereiro',
+		'Março',
+		'Abril',
+		'Maio',
+		'Junho',
+		'Julho',
+		'Agosto',
+		'Setembro',
+		'Outubro',
+		'Novembro',
+		'Dezembro'
+	];
 </script>
 
 {#if skipLoad}
-    <div class="text-center py-20">
-      <div class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">
-        <svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      </div>
-      <p class="text-surface-600 dark:text-surface-400 text-lg">Escolha uma unidade para exibir os dados.</p>
-    </div>
-  {:else if escalas.length === 0}
-    <div class="text-center py-12 text-surface-500">
-      <p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
-      <button type="button" class="btn preset-filled-primary-500 active:scale-95 transition-all" onclick={onNovaEscala}>Criar Escala</button>
-    </div>
-  {:else}
-    <div class="hidden lg:block table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Título</th>
-            <th>Cidade</th>
-            <th>Período</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-            {#each { length: 8 } as _}
-              <tr class="animate-pulse">
-                <td class="px-4 py-3"><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-                <td class="px-4 py-3"><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-                <td class="px-4 py-3"><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td>
-                <td class="px-4 py-3"><div class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"></div></td>
-                <td class="px-4 py-3"><div class="flex gap-2"><div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div><div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div></div></td>
-              </tr>
-            {/each}
-          {:else}
-            {#each escalas as esc (esc.id)}
-              {@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
-              <tr>
-                <td>
-                  <div class="flex flex-col gap-0.5">
-                    {#if esc.tipo === 'expediente'}
-                      <span class="badge preset-outlined-secondary-500 font-bold text-xs px-2 py-0.5 w-fit">Expediente</span>
-                    {:else if esc.tipo === 'fds'}
-                      <span class="badge preset-outlined-tertiary-500 font-bold text-xs px-2 py-0.5 w-fit">FDS</span>
-                    {:else}
-                      <span class="badge preset-outlined-primary-500 font-bold text-xs px-2 py-0.5 w-fit">Plantão</span>
-                    {/if}
-                    <a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
-                      {esc.tipo !== 'fds' ? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}` : `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
-                    </a>
-                    <span class="text-xs text-surface-500 truncate">{esc.lotacao}</span>
-                  </div>
-                </td>
-                <td>{esc.cidade}</td>
-                <td class="font-mono tabular-nums text-sm">
-                  <div class="flex flex-col leading-snug">
-                    <span>{formatarData(esc.data_inicio)}</span>
-                    <span class="text-surface-400 dark:text-surface-500 text-xs">a</span>
-                    <span>{formatarData(esc.data_fim)}</span>
-                  </div>
-                </td>
-                <td>
-                  {#if esc.is_assinada}
-                    <span class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
-                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                      Assinada
-                    </span>
-                  {:else if esc.tipo === 'fds' && esc.finalizada_em}
-                    <span class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
-                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                      Enviada
-                    </span>
-                  {:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-                    <span class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
-                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                      Ass. Pendente
-                    </span>
-                  {:else}
-                    <span class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm">
-                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                      {esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-                    </span>
-                  {/if}
-                </td>
-                <td>
-                  <div class="flex gap-2 justify-end">
-                    <button type="button" class="btn btn-sm {esc.is_assinada ? 'preset-filled-warning-500' : 'preset-outlined-primary-500'}" onclick={() => onSolicitarEdicao(esc)}>
-                      {esc.is_assinada ? 'Editar' : 'Abrir'}
-                    </button>
-                    <Popover positioning={{ placement: 'bottom-end', offset: { mainAxis: 4 } }}>
-                      <Popover.Trigger class="btn btn-sm preset-outlined-primary-500">Exportar ▾</Popover.Trigger>
-                      <Portal>
-                        <Popover.Positioner class="z-50">
-                          <Popover.Content class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]">
-                            {#if esc.is_assinada}
-                              <a class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline" href={`/api/escalas/${esc.id}/documento-assinado`} target="_blank">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                PDF Oficial
-                              </a>
-                              <hr class="opacity-10 my-1" />
-                            {/if}
-                            <a class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline" href={`/api/escalas/${esc.id}/download?format=docx`} target="_blank">Word (.docx)</a>
-                            <a class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline" href={`/api/escalas/${esc.id}/download?format=excel`} target="_blank">Excel (.xlsx)</a>
-                            <a class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline" href={`/api/escalas/${esc.id}/download?format=pdf`} target="_blank">PDF (.pdf)</a>
-                          </Popover.Content>
-                        </Popover.Positioner>
-                      </Portal>
-                    </Popover>
-                    {#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-                      {#if solicitacoesMap[esc.id]}
-                        <button type="button" class="btn btn-sm preset-outlined-error-500" onclick={() => onCancelarSolicitacao(esc.id)}>Cancelar Ass.</button>
-                      {:else}
-                        <button type="button" class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all" onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Ass.</button>
-                      {/if}
-                    {/if}
-                    <button type="button" class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all" onclick={() => onSolicitarExclusao(esc.id, esc.titulo)}>Excluir</button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          {/if}
-        </tbody>
-      </table>
-    </div>
+	<div class="text-center py-20">
+		<div
+			class="bg-surface-200/50 dark:bg-surface-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50"
+		>
+			<svg class="w-8 h-8 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+				/>
+			</svg>
+		</div>
+		<p class="text-surface-600 dark:text-surface-400 text-lg">
+			Escolha uma unidade para exibir os dados.
+		</p>
+	</div>
+{:else if escalas.length === 0}
+	<div class="text-center py-12 text-surface-500">
+		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
+		<button
+			type="button"
+			class="btn preset-filled-primary-500 active:scale-95 transition-all"
+			onclick={onNovaEscala}>Criar Escala</button
+		>
+	</div>
+{:else}
+	<div class="hidden lg:block table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th>Título</th>
+					<th>Cidade</th>
+					<th>Período</th>
+					<th>Status</th>
+					<th>Ações</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+					{#each { length: 8 } as _}
+						<tr class="animate-pulse">
+							<td class="px-4 py-3"
+								><div class="h-4 w-36 rounded bg-surface-200 dark:bg-surface-700"></div></td
+							>
+							<td class="px-4 py-3"
+								><div class="h-4 w-20 rounded bg-surface-200 dark:bg-surface-700"></div></td
+							>
+							<td class="px-4 py-3"
+								><div class="h-4 w-32 rounded bg-surface-200 dark:bg-surface-700"></div></td
+							>
+							<td class="px-4 py-3"
+								><div class="h-6 w-24 rounded-full bg-surface-200 dark:bg-surface-700"></div></td
+							>
+							<td class="px-4 py-3"
+								><div class="flex gap-2">
+									<div class="h-8 w-14 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+									<div class="h-8 w-18 rounded-lg bg-surface-200 dark:bg-surface-700"></div>
+								</div></td
+							>
+						</tr>
+					{/each}
+				{:else}
+					{#each escalas as esc (esc.id)}
+						{@const dRow = new Date(esc.data_inicio + 'T00:00:00')}
+						<tr>
+							<td>
+								<div class="flex flex-col gap-0.5">
+									{#if esc.tipo === 'expediente'}
+										<span
+											class="badge preset-outlined-secondary-500 font-bold text-xs px-2 py-0.5 w-fit"
+											>Expediente</span
+										>
+									{:else if esc.tipo === 'fds'}
+										<span
+											class="badge preset-outlined-tertiary-500 font-bold text-xs px-2 py-0.5 w-fit"
+											>FDS</span
+										>
+									{:else}
+										<span
+											class="badge preset-outlined-primary-500 font-bold text-xs px-2 py-0.5 w-fit"
+											>Plantão</span
+										>
+									{/if}
+									<a href="/escalas/{esc.id}" class="anchor text-sm font-semibold">
+										{esc.tipo !== 'fds'
+											? `${MESES_PT[dRow.getMonth()]} ${dRow.getFullYear()}`
+											: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+									</a>
+									<span class="text-xs text-surface-500 truncate">{esc.lotacao}</span>
+								</div>
+							</td>
+							<td>{esc.cidade}</td>
+							<td class="font-mono tabular-nums text-sm">
+								<div class="flex flex-col leading-snug">
+									<span>{formatarData(esc.data_inicio)}</span>
+									<span class="text-surface-400 dark:text-surface-500 text-xs">a</span>
+									<span>{formatarData(esc.data_fim)}</span>
+								</div>
+							</td>
+							<td>
+								{#if esc.is_assinada}
+									<span
+										class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/></svg
+										>
+										Assinada
+									</span>
+								{:else if esc.tipo === 'fds' && esc.finalizada_em}
+									<span
+										class="badge preset-filled-success-500 font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/></svg
+										>
+										Enviada
+									</span>
+								{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
+									<span
+										class="badge preset-tonal-warning font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+											/></svg
+										>
+										Ass. Pendente
+									</span>
+								{:else}
+									<span
+										class="badge preset-tonal-surface font-bold px-2 py-1 flex items-center gap-1 w-max shadow-sm"
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+											><path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+											/></svg
+										>
+										{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
+									</span>
+								{/if}
+							</td>
+							<td>
+								<div class="flex gap-2 justify-end">
+									<button
+										type="button"
+										class="btn btn-sm {esc.is_assinada
+											? 'preset-filled-warning-500'
+											: 'preset-outlined-primary-500'}"
+										onclick={() => onSolicitarEdicao(esc)}
+									>
+										{esc.is_assinada ? 'Editar' : 'Abrir'}
+									</button>
+									<Popover positioning={{ placement: 'bottom-end', offset: { mainAxis: 4 } }}>
+										<Popover.Trigger class="btn btn-sm preset-outlined-primary-500"
+											>Exportar ▾</Popover.Trigger
+										>
+										<Portal>
+											<Popover.Positioner class="z-50">
+												<Popover.Content
+													class="card p-1 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/10 shadow-xl flex flex-col min-w-[160px] max-w-[calc(100vw-1rem)]"
+												>
+													{#if esc.is_assinada}
+														<a
+															class="w-full text-left px-4 py-2 text-sm font-bold text-success-600 dark:text-success-400 rounded hover:bg-success-500/10 transition-colors flex items-center gap-2 no-underline"
+															href={`/api/escalas/${esc.id}/documento-assinado`}
+															target="_blank"
+														>
+															<svg
+																class="w-4 h-4"
+																fill="none"
+																viewBox="0 0 24 24"
+																stroke="currentColor"
+																><path
+																	stroke-linecap="round"
+																	stroke-linejoin="round"
+																	stroke-width="2"
+																	d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+																/></svg
+															>
+															PDF Oficial
+														</a>
+														<hr class="opacity-10 my-1" />
+													{/if}
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=docx`}
+														target="_blank">Word (.docx)</a
+													>
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=excel`}
+														target="_blank">Excel (.xlsx)</a
+													>
+													<a
+														class="w-full text-left px-4 py-2 text-sm rounded hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors no-underline"
+														href={`/api/escalas/${esc.id}/download?format=pdf`}
+														target="_blank">PDF (.pdf)</a
+													>
+												</Popover.Content>
+											</Popover.Positioner>
+										</Portal>
+									</Popover>
+									{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
+										{#if solicitacoesMap[esc.id]}
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-error-500"
+												onclick={() => onCancelarSolicitacao(esc.id)}>Cancelar Ass.</button
+											>
+										{:else}
+											<button
+												type="button"
+												class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all"
+												onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
+											>
+										{/if}
+									{/if}
+									<button
+										type="button"
+										class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
+										onclick={() => onSolicitarExclusao(esc.id, esc.titulo)}>Excluir</button
+									>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				{/if}
+			</tbody>
+		</table>
+	</div>
 
-    <div class="lg:hidden space-y-3">
-      {#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-        {#each { length: 5 } as _}
-          <SkeletonCard />
-        {/each}
-      {:else}
-        {#each escalas as esc, i (esc.id)}
-          {@const d = new Date(esc.data_inicio + 'T00:00:00')}
-          <div
-            transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
-            class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
-          >
-            <div class="flex justify-between items-start mb-3 gap-2">
-              <div class="min-w-0 flex-1">
-                {#if esc.tipo === 'expediente'}
-                  <span class="badge preset-outlined-secondary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block">Expediente</span>
-                {:else if esc.tipo === 'fds'}
-                  <span class="badge preset-outlined-tertiary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block">FDS</span>
-                {:else}
-                  <span class="badge preset-outlined-primary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block">Plantão</span>
-                {/if}
-                <a href="/escalas/{esc.id}" class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block">
-                  {esc.tipo !== 'fds' ? `${MESES_PT[d.getMonth()]} ${d.getFullYear()}` : `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
-                </a>
-                <p class="text-xs text-surface-500 dark:text-surface-400 truncate">{esc.lotacao}</p>
-              </div>
-              {#if esc.is_assinada}
-                <span class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm">
-                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  Assinada
-                </span>
-              {:else if esc.tipo === 'fds' && esc.finalizada_em}
-                <span class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm">
-                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  Enviada
-                </span>
-              {:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
-                <span class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm">
-                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                  Ass. Pendente
-                </span>
-              {:else}
-                <span class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm">
-                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  {esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
-                </span>
-              {/if}
-            </div>
-            <div class="space-y-1 mb-3 text-sm">
-              <div class="flex justify-between">
-                <span class="text-surface-500 font-medium">Cidade</span>
-                <span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-surface-500 font-medium">Período</span>
-                <span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums text-xs">{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span>
-              </div>
-              {#if esc.tipo === 'fds'}
-                <div class="flex justify-between">
-                  <span class="text-surface-500 font-medium">Horário</span>
-                  <span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums">{esc.horario}</span>
-                </div>
-              {/if}
-            </div>
-            <div class="pt-3 border-t border-surface-200/60 dark:border-surface-700/50 space-y-2">
-              <div class="flex items-center gap-2">
-                <button type="button" class="btn btn-sm flex-1 {esc.is_assinada ? 'preset-filled-warning-500' : 'preset-outlined-primary-500'} font-bold" onclick={() => onSolicitarEdicao(esc)}>
-                  {esc.is_assinada ? 'Editar' : 'Abrir'}
-                </button>
-                <button type="button" class="btn btn-sm shrink-0 {menuExpandidoId === esc.id ? 'preset-filled-surface-500 text-white' : 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold" onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}>
-                  {menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
-                </button>
-              </div>
-              {#if menuExpandidoId === esc.id}
-                <div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
-                  {#if esc.is_assinada}
-                    <a class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm" href={`/api/escalas/${esc.id}/documento-assinado`} target="_blank">PDF Oficial</a>
-                  {/if}
-                  <a class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm" href={`/api/escalas/${esc.id}/download?format=pdf`} target="_blank">PDF</a>
-                  <a class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm" href={`/api/escalas/${esc.id}/download?format=docx`} target="_blank">Word</a>
-                  <a class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm" href={`/api/escalas/${esc.id}/download?format=excel`} target="_blank">Excel</a>
-                  <button type="button" class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400" onclick={() => { menuExpandidoId = null; onSolicitarExclusao(esc.id, esc.titulo); }}>Excluir</button>
-                </div>
-              {/if}
-              {#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
-                {#if solicitacoesMap[esc.id]}
-                  <button type="button" class="btn btn-sm preset-outlined-error-500 text-xs w-full" onclick={() => onCancelarSolicitacao(esc.id)}>Cancelar Solicitação</button>
-                {:else}
-                  <button type="button" class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all" onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Assinatura</button>
-                {/if}
-              {/if}
-            </div>
-          </div>
-        {/each}
-      {/if}
-    </div>
+	<div class="lg:hidden space-y-3">
+		{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
+			{#each { length: 5 } as _}
+				<SkeletonCard />
+			{/each}
+		{:else}
+			{#each escalas as esc, i (esc.id)}
+				{@const d = new Date(esc.data_inicio + 'T00:00:00')}
+				<div
+					transition:fly={{ y: 8, delay: i * 30, duration: 200 }}
+					class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border border-surface-200 dark:border-white/10 hover:border-primary-500/30 transition-colors"
+				>
+					<div class="flex justify-between items-start mb-3 gap-2">
+						<div class="min-w-0 flex-1">
+							{#if esc.tipo === 'expediente'}
+								<span
+									class="badge preset-outlined-secondary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									>Expediente</span
+								>
+							{:else if esc.tipo === 'fds'}
+								<span
+									class="badge preset-outlined-tertiary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									>FDS</span
+								>
+							{:else}
+								<span
+									class="badge preset-outlined-primary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									>Plantão</span
+								>
+							{/if}
+							<a
+								href="/escalas/{esc.id}"
+								class="font-bold text-sm text-surface-900 dark:text-surface-50 no-underline hover:text-primary-500 dark:hover:text-primary-400 leading-tight block"
+							>
+								{esc.tipo !== 'fds'
+									? `${MESES_PT[d.getMonth()]} ${d.getFullYear()}`
+									: `${formatarData(esc.data_inicio)} a ${formatarData(esc.data_fim)}`}
+							</a>
+							<p class="text-xs text-surface-500 dark:text-surface-400 truncate">{esc.lotacao}</p>
+						</div>
+						{#if esc.is_assinada}
+							<span
+								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+							>
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M5 13l4 4L19 7"
+									/></svg
+								>
+								Assinada
+							</span>
+						{:else if esc.tipo === 'fds' && esc.finalizada_em}
+							<span
+								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+							>
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M5 13l4 4L19 7"
+									/></svg
+								>
+								Enviada
+							</span>
+						{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
+							<span
+								class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+							>
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+									/></svg
+								>
+								Ass. Pendente
+							</span>
+						{:else}
+							<span
+								class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+							>
+								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+									/></svg
+								>
+								{esc.tipo === 'fds' ? 'Pendente' : 'Em preenchimento'}
+							</span>
+						{/if}
+					</div>
+					<div class="space-y-1 mb-3 text-sm">
+						<div class="flex justify-between">
+							<span class="text-surface-500 font-medium">Cidade</span>
+							<span class="text-surface-900 dark:text-surface-100">{esc.cidade}</span>
+						</div>
+						<div class="flex justify-between">
+							<span class="text-surface-500 font-medium">Período</span>
+							<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums text-xs"
+								>{formatarData(esc.data_inicio)} a {formatarData(esc.data_fim)}</span
+							>
+						</div>
+						{#if esc.tipo === 'fds'}
+							<div class="flex justify-between">
+								<span class="text-surface-500 font-medium">Horário</span>
+								<span class="text-surface-900 dark:text-surface-100 font-mono tabular-nums"
+									>{esc.horario}</span
+								>
+							</div>
+						{/if}
+					</div>
+					<div class="pt-3 border-t border-surface-200/60 dark:border-surface-700/50 space-y-2">
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								class="btn btn-sm flex-1 {esc.is_assinada
+									? 'preset-filled-warning-500'
+									: 'preset-outlined-primary-500'} font-bold"
+								onclick={() => onSolicitarEdicao(esc)}
+							>
+								{esc.is_assinada ? 'Editar' : 'Abrir'}
+							</button>
+							<button
+								type="button"
+								class="btn btn-sm shrink-0 {menuExpandidoId === esc.id
+									? 'preset-filled-surface-500 text-white'
+									: 'preset-outlined-surface-500'} text-xs px-3 py-1.5 transition-all font-bold"
+								onclick={() => (menuExpandidoId = menuExpandidoId === esc.id ? null : esc.id)}
+							>
+								{menuExpandidoId === esc.id ? 'Ocultar' : 'PDF(s)'}
+							</button>
+						</div>
+						{#if menuExpandidoId === esc.id}
+							<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
+								{#if esc.is_assinada}
+									<a
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										href={`/api/escalas/${esc.id}/documento-assinado`}
+										target="_blank">PDF Oficial</a
+									>
+								{/if}
+								<a
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									href={`/api/escalas/${esc.id}/download?format=pdf`}
+									target="_blank">PDF</a
+								>
+								<a
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									href={`/api/escalas/${esc.id}/download?format=docx`}
+									target="_blank">Word</a
+								>
+								<a
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									href={`/api/escalas/${esc.id}/download?format=excel`}
+									target="_blank">Excel</a
+								>
+								<button
+									type="button"
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
+									onclick={() => {
+										menuExpandidoId = null;
+										onSolicitarExclusao(esc.id, esc.titulo);
+									}}>Excluir</button
+								>
+							</div>
+						{/if}
+						{#if podeOIPSolicitar && (esc.tipo === 'plantao' || esc.tipo === 'expediente') && !esc.is_assinada}
+							{#if solicitacoesMap[esc.id]}
+								<button
+									type="button"
+									class="btn btn-sm preset-outlined-error-500 text-xs w-full"
+									onclick={() => onCancelarSolicitacao(esc.id)}>Cancelar Solicitação</button
+								>
+							{:else}
+								<button
+									type="button"
+									class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all"
+									onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Assinatura</button
+								>
+							{/if}
+						{/if}
+					</div>
+				</div>
+			{/each}
+		{/if}
+	</div>
 
-    <PaginationControls
-      {paginaAtual}
-      {totalPaginas}
-      totalItens={escalas.length}
-      itensPorPagina={ITEMS_POR_PAGINA}
-      labelSingular="escala"
-      labelPlural="escala(s)"
-      onPageChange={onPageChange}
-    />
-  {/if}
+	<PaginationControls
+		{paginaAtual}
+		{totalPaginas}
+		totalItens={escalas.length}
+		itensPorPagina={ITEMS_POR_PAGINA}
+		labelSingular="escala"
+		labelPlural="escala(s)"
+		{onPageChange}
+	/>
+{/if}

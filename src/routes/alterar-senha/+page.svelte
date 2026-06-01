@@ -73,12 +73,12 @@
 		}
 	}
 
-	const temMinimo    = $derived(novaSenha.length >= 8);
+	const temMinimo = $derived(novaSenha.length >= 8);
 	const temMaiuscula = $derived(/[A-Z]/.test(novaSenha));
 	const temMinuscula = $derived(/[a-z]/.test(novaSenha));
-	const temNumero    = $derived(/[0-9]/.test(novaSenha));
-	const senhaOk      = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
-	const confirmaOk   = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
+	const temNumero = $derived(/[0-9]/.test(novaSenha));
+	const senhaOk = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
+	const confirmaOk = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
 	const emailPessoalOk = $derived(!primeiroAcesso || etapaEmailPessoal === 'verificado');
 	const podeAlterarSenha = $derived(senhaOk && confirmaOk && emailPessoalOk);
 
@@ -99,7 +99,11 @@
 			return;
 		}
 
-		if (!senhaOk) { error = 'A senha não atende aos requisitos mínimos.'; cancel(); return; }
+		if (!senhaOk) {
+			error = 'A senha não atende aos requisitos mínimos.';
+			cancel();
+			return;
+		}
 
 		loading.show('Alterando sua senha...');
 
@@ -121,15 +125,27 @@
 
 <div class="min-h-[80vh] flex items-center justify-center p-4">
 	<div class="w-full max-w-sm">
-
 		<!-- Card -->
-		<div class="p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50">
-
+		<div
+			class="p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
+		>
 			<!-- Icon + Title -->
 			<div class="text-center mb-6">
-				<div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/20 mb-4">
-					<svg class="w-7 h-7 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+				<div
+					class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/20 mb-4"
+				>
+					<svg
+						class="w-7 h-7 text-primary-500"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						stroke-width="1.8"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+						/>
 					</svg>
 				</div>
 				<h1 class="text-xl font-bold">
@@ -144,29 +160,57 @@
 
 			<!-- First-access warning banner -->
 			{#if primeiroAcesso}
-				<div class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-warning-500/10 border border-warning-500/25 text-warning-700 dark:text-warning-300 text-sm">
-					<svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+				<div
+					class="flex items-start gap-2.5 p-3 mb-5 rounded-xl bg-warning-500/10 border border-warning-500/25 text-warning-700 dark:text-warning-300 text-sm"
+				>
+					<svg
+						class="w-4 h-4 mt-0.5 shrink-0"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+						/>
 					</svg>
-					<span>Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma senha para continuar.</span>
+					<span
+						>Este é seu <strong>primeiro acesso</strong>. Confirme seu e-mail pessoal e defina uma
+						senha para continuar.</span
+					>
 				</div>
 			{/if}
 
 			<!-- Seção de e-mail pessoal (apenas no primeiro acesso) -->
 			{#if primeiroAcesso}
-				<div class="mb-5 p-4 rounded-2xl bg-surface-100/80 dark:bg-surface-800/50 border border-surface-200 dark:border-white/5 space-y-3">
+				<div
+					class="mb-5 p-4 rounded-2xl bg-surface-100/80 dark:bg-surface-800/50 border border-surface-200 dark:border-white/5 space-y-3"
+				>
 					<div>
-						<p class="text-xs font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wider mb-0.5">
+						<p
+							class="text-xs font-semibold text-surface-600 dark:text-surface-300 uppercase tracking-wider mb-0.5"
+						>
 							E-mail pessoal obrigatório
 						</p>
 						<p class="text-xs text-surface-500 leading-relaxed">
-							Você deve confirmar seu e-mail pessoal para recuperar sua senha no futuro e continuar o primeiro acesso.
+							Você deve confirmar seu e-mail pessoal para recuperar sua senha no futuro e continuar
+							o primeiro acesso.
 						</p>
 					</div>
 
 					{#if etapaEmailPessoal === 'verificado'}
-						<div class="flex items-center gap-2 text-success-600 dark:text-success-400 text-sm font-medium">
-							<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+						<div
+							class="flex items-center gap-2 text-success-600 dark:text-success-400 text-sm font-medium"
+						>
+							<svg
+								class="w-4 h-4 shrink-0"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="2.5"
+							>
 								<path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
 							</svg>
 							E-mail pessoal verificado com sucesso!
@@ -200,20 +244,21 @@
 								maxlength="6"
 								inputmode="numeric"
 								bind:value={codigoEmailPessoal}
-								oninput={(e) => (codigoEmailPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
+								oninput={(e) =>
+									(codigoEmailPessoal = e.currentTarget.value.replace(/\D/g, '').slice(0, 6))}
 								disabled={loading.active}
 							/>
-							<button
-								type="button"
-								onclick={confirmarCodigoEmailPessoal}
-							>
+							<button type="button" onclick={confirmarCodigoEmailPessoal}>
 								{loading.active ? 'Verificando...' : 'Confirmar'}
 							</button>
 						</div>
 						<button
 							type="button"
 							class="text-xs text-surface-400 hover:text-surface-600 underline underline-offset-2"
-							onclick={() => { etapaEmailPessoal = 'idle'; codigoEmailPessoal = ''; }}
+							onclick={() => {
+								etapaEmailPessoal = 'idle';
+								codigoEmailPessoal = '';
+							}}
 						>
 							Usar outro e-mail
 						</button>
@@ -233,17 +278,33 @@
 
 			<!-- Error message -->
 			{#if error}
-				<div class="flex items-center gap-2 p-3 mb-4 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm">
-					<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+				<div
+					class="flex items-center gap-2 p-3 mb-4 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
+				>
+					<svg
+						class="w-4 h-4 shrink-0"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						/>
 					</svg>
 					{error}
 				</div>
 			{/if}
 
 			<!-- Form -->
-			<form method="POST" action="?/alterar" use:enhance={handleAlterarSenha} class="flex flex-col gap-4">
-
+			<form
+				method="POST"
+				action="?/alterar"
+				use:enhance={handleAlterarSenha}
+				class="flex flex-col gap-4"
+			>
 				{#if !primeiroAcesso}
 					<label class="label">
 						<span class="label-text font-medium">Senha atual</span>
@@ -273,26 +334,51 @@
 				<!-- Requisitos de senha -->
 				<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs px-0.5">
 					{#snippet req(ok: boolean, label: string)}
-						<div class="flex items-center gap-1.5 {ok ? 'text-success-600 dark:text-success-400' : 'text-surface-400'}">
+						<div
+							class="flex items-center gap-1.5 {ok
+								? 'text-success-600 dark:text-success-400'
+								: 'text-surface-400'}"
+						>
 							{#if ok}
-								<svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+								<svg
+									class="w-3.5 h-3.5 shrink-0"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									stroke-width="2.5"
+									><path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="M4.5 12.75l6 6 9-13.5"
+									/></svg
+								>
 							{:else}
-								<svg class="w-3.5 h-3.5 shrink-0 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+								<svg
+									class="w-3.5 h-3.5 shrink-0 opacity-50"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									stroke-width="2"><circle cx="12" cy="12" r="9" /></svg
+								>
 							{/if}
 							{label}
 						</div>
 					{/snippet}
-					{@render req(temMinimo,    'Mínimo 8 caracteres')}
+					{@render req(temMinimo, 'Mínimo 8 caracteres')}
 					{@render req(temMaiuscula, 'Letra maiúscula (A-Z)')}
 					{@render req(temMinuscula, 'Letra minúscula (a-z)')}
-					{@render req(temNumero,    'Pelo menos um número')}
+					{@render req(temNumero, 'Pelo menos um número')}
 				</div>
 
 				<label class="label">
 					<span class="label-text font-medium">Confirmar nova senha</span>
 					<div class="relative">
 						<input
-							class="input {confirmarSenha.length > 0 ? (confirmaOk ? 'border-success-500 focus:ring-success-500' : 'border-error-500 focus:ring-error-500') : ''}"
+							class="input {confirmarSenha.length > 0
+								? confirmaOk
+									? 'border-success-500 focus:ring-success-500'
+									: 'border-error-500 focus:ring-error-500'
+								: ''}"
 							type="password"
 							bind:value={confirmarSenha}
 							placeholder="Confirme a nova senha"
@@ -301,9 +387,31 @@
 						{#if confirmarSenha.length > 0}
 							<div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
 								{#if confirmaOk}
-									<svg class="w-4 h-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+									<svg
+										class="w-4 h-4 text-success-500"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										stroke-width="2.5"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M4.5 12.75l6 6 9-13.5"
+										/></svg
+									>
 								{:else}
-									<svg class="w-4 h-4 text-error-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+									<svg
+										class="w-4 h-4 text-error-500"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										stroke-width="2.5"
+										><path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M6 18L18 6M6 6l12 12"
+										/></svg
+									>
 								{/if}
 							</div>
 						{/if}
@@ -315,11 +423,13 @@
 					class="btn preset-filled-primary-500 w-full py-3 mt-1 font-semibold tracking-wide flex items-center justify-center gap-2"
 					disabled={loading.active || !podeAlterarSenha}
 				>
-					{loading.active ? 'Salvando...' : (primeiroAcesso ? 'Definir senha e continuar' : 'Salvar nova senha')}
+					{loading.active
+						? 'Salvando...'
+						: primeiroAcesso
+							? 'Definir senha e continuar'
+							: 'Salvar nova senha'}
 				</button>
-
 			</form>
 		</div>
-
 	</div>
 </div>

@@ -54,7 +54,9 @@ export function parseUserAgent(ua: string): string {
 		const parts: string[] = [];
 
 		if (parsed.browser) {
-			parts.push(parsed.browserVersion ? `${parsed.browser} ${parsed.browserVersion}` : parsed.browser);
+			parts.push(
+				parsed.browserVersion ? `${parsed.browser} ${parsed.browserVersion}` : parsed.browser
+			);
 		}
 
 		if (parsed.os) {

@@ -38,7 +38,9 @@
 			{/if}
 			{#if !isFDS}
 				<span class="font-bold text-lg sm:text-xl text-surface-900 dark:text-surface-50">
-					{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' })}
+					{new Date(escala.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', {
+						month: 'long'
+					})}
 					{new Date(escala.data_inicio + 'T00:00:00').getFullYear()}
 				</span>
 			{/if}

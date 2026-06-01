@@ -1,12 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import {
-	getDB,
-	listarUnidades,
-	criarUnidade,
-	atualizarUnidade,
-	excluirUnidade
-} from '$lib/db';
+import { getDB, listarUnidades, criarUnidade, atualizarUnidade, excluirUnidade } from '$lib/db';
 import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades, escalas, type Unidade } from '$lib/server/schema';
@@ -31,7 +25,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode cadastrar unidades' });
+		if (!u || !u.isSuperAdmin)
+			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar unidades' });
 
 		const data = await request.formData();
 		const nome = data.get('nome')?.toString() || '';
@@ -74,7 +69,8 @@ export const actions: Actions = {
 
 	editar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode editar unidades' });
+		if (!u || !u.isSuperAdmin)
+			return fail(403, { error: 'Apenas o Super Administrador pode editar unidades' });
 
 		const data = await request.formData();
 		const id = Number(data.get('id'));
@@ -115,7 +111,8 @@ export const actions: Actions = {
 
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Apenas o Super Administrador pode excluir unidades' });
+		if (!u || !u.isSuperAdmin)
+			return fail(403, { error: 'Apenas o Super Administrador pode excluir unidades' });
 
 		const data = await request.formData();
 		const id = Number(data.get('unidade_id'));
@@ -124,7 +121,11 @@ export const actions: Actions = {
 		const db = getDB(platform);
 
 		// Buscar nome da unidade
-		const unidade = await db.select({ nome: unidades.nome }).from(unidades).where(eq(unidades.id, id)).get();
+		const unidade = await db
+			.select({ nome: unidades.nome })
+			.from(unidades)
+			.where(eq(unidades.id, id))
+			.get();
 		if (!unidade) return fail(404, { error: 'Unidade não encontrada' });
 
 		// Verificar se há escalas vinculadas

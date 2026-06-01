@@ -61,12 +61,17 @@ export async function listarSolicitacoesPorUsuario(
 	return db
 		.select()
 		.from(lgpdSolicitacoes)
-		.where(and(eq(lgpdSolicitacoes.solicitante_tipo, tipo), eq(lgpdSolicitacoes.solicitante_id, id)))
+		.where(
+			and(eq(lgpdSolicitacoes.solicitante_tipo, tipo), eq(lgpdSolicitacoes.solicitante_id, id))
+		)
 		.orderBy(desc(lgpdSolicitacoes.created_at))
 		.all();
 }
 
-export async function buscarSolicitacao(db: Database, id: number): Promise<LgpdSolicitacao | undefined> {
+export async function buscarSolicitacao(
+	db: Database,
+	id: number
+): Promise<LgpdSolicitacao | undefined> {
 	return db.select().from(lgpdSolicitacoes).where(eq(lgpdSolicitacoes.id, id)).get();
 }
 

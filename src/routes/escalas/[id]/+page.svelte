@@ -91,7 +91,10 @@
 				toaster.create({ title: `${itemNome} removido da escala`, type: 'success' });
 			} else {
 				policiaisEscalaLocal = backup;
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -130,7 +133,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -153,7 +159,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -206,7 +215,9 @@
 
 	<ModalConfirmar bind:open={confirmRemoverTodosOpen} title="Remover Todos?">
 		{#snippet description()}
-			Tem certeza que deseja remover <strong>todos os {policiaisEscalaLocal.length} servidores</strong>
+			Tem certeza que deseja remover <strong
+				>todos os {policiaisEscalaLocal.length} servidores</strong
+			>
 			desta escala? Esta ação não pode ser desfeita.
 		{/snippet}
 		{#snippet actions()}
@@ -224,7 +235,9 @@
 
 	<ModalConfirmar bind:open={confirmRemoverSelecionadosOpen} title="Remover Selecionados?">
 		{#snippet description()}
-			Tem certeza que deseja remover os <strong>{totalSelecionados} servidor(es) selecionado(s)</strong>
+			Tem certeza que deseja remover os <strong
+				>{totalSelecionados} servidor(es) selecionado(s)</strong
+			>
 			desta escala?
 		{/snippet}
 		{#snippet actions()}

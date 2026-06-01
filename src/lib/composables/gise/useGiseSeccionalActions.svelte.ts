@@ -65,16 +65,16 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 
 	const pendingCrud = $derived(
 		pendingFinalizarSeccional ||
-		pendingSelecionarUnidade ||
-		pendingRemoverUnidade ||
-		pendingAdicionarEquipe ||
-		pendingRemoverEquipe ||
-		pendingSalvarSlotsEquipe ||
-		pendingSalvarHorariosEquipe ||
-		pendingAdicionarMembro ||
-		pendingRemoverMembro ||
-		pendingAdicionarUnidade ||
-		pendingRemoverSeccional
+			pendingSelecionarUnidade ||
+			pendingRemoverUnidade ||
+			pendingAdicionarEquipe ||
+			pendingRemoverEquipe ||
+			pendingSalvarSlotsEquipe ||
+			pendingSalvarHorariosEquipe ||
+			pendingAdicionarMembro ||
+			pendingRemoverMembro ||
+			pendingAdicionarUnidade ||
+			pendingRemoverSeccional
 	);
 
 	const handleFinalizarSeccional = makeEnhanceHandler<{ gise_status?: string }>({
@@ -232,17 +232,39 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		get pendingCrud() {
 			return pendingCrud;
 		},
-		get pendingFinalizarSeccional() { return pendingFinalizarSeccional; },
-		get pendingSelecionarUnidade() { return pendingSelecionarUnidade; },
-		get pendingRemoverUnidade() { return pendingRemoverUnidade; },
-		get pendingAdicionarEquipe() { return pendingAdicionarEquipe; },
-		get pendingRemoverEquipe() { return pendingRemoverEquipe; },
-		get pendingSalvarSlotsEquipe() { return pendingSalvarSlotsEquipe; },
-		get pendingSalvarHorariosEquipe() { return pendingSalvarHorariosEquipe; },
-		get pendingAdicionarMembro() { return pendingAdicionarMembro; },
-		get pendingRemoverMembro() { return pendingRemoverMembro; },
-		get pendingAdicionarUnidade() { return pendingAdicionarUnidade; },
-		get pendingRemoverSeccional() { return pendingRemoverSeccional; },
+		get pendingFinalizarSeccional() {
+			return pendingFinalizarSeccional;
+		},
+		get pendingSelecionarUnidade() {
+			return pendingSelecionarUnidade;
+		},
+		get pendingRemoverUnidade() {
+			return pendingRemoverUnidade;
+		},
+		get pendingAdicionarEquipe() {
+			return pendingAdicionarEquipe;
+		},
+		get pendingRemoverEquipe() {
+			return pendingRemoverEquipe;
+		},
+		get pendingSalvarSlotsEquipe() {
+			return pendingSalvarSlotsEquipe;
+		},
+		get pendingSalvarHorariosEquipe() {
+			return pendingSalvarHorariosEquipe;
+		},
+		get pendingAdicionarMembro() {
+			return pendingAdicionarMembro;
+		},
+		get pendingRemoverMembro() {
+			return pendingRemoverMembro;
+		},
+		get pendingAdicionarUnidade() {
+			return pendingAdicionarUnidade;
+		},
+		get pendingRemoverSeccional() {
+			return pendingRemoverSeccional;
+		},
 		get dialogRemoverSeccionalAberto() {
 			return dialogRemoverSeccionalAberto;
 		},

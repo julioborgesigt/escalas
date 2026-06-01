@@ -27,7 +27,9 @@
 	type ChartJs = (typeof import('chart.js/auto'))['default'];
 
 	type ProdutividadeListaItem = GiseRespostaListagemItem;
-	type ProdutividadeParsedRow = ProdutividadeListaItem & { respostasParsed: Record<string, unknown> };
+	type ProdutividadeParsedRow = ProdutividadeListaItem & {
+		respostasParsed: Record<string, unknown>;
+	};
 
 	// Chart.js loaded lazily to save ~200KB on initial bundle
 	let Chart: ChartJs | null = null;
@@ -55,7 +57,12 @@
 	let filterAno = $state(String(currentYear));
 
 	let mostrarFiltros = $state(false);
-	const filtrosAtivos = $derived(filterSeccional !== '' || filterInicio !== '' || filterFim !== '' || filterAno !== String(currentYear));
+	const filtrosAtivos = $derived(
+		filterSeccional !== '' ||
+			filterInicio !== '' ||
+			filterFim !== '' ||
+			filterAno !== String(currentYear)
+	);
 
 	const defaultStart = `${currentYear}-01-01`;
 	const defaultEnd = `${currentYear}-12-31`;
@@ -109,10 +116,12 @@
 
 	// Parse respostas UMA VEZ — evita JSON.parse duplicado em stats, rankings e charts
 	const parsedData = $derived(
-		filteredData.map((item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
-			...item,
-			respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
-		}))
+		filteredData.map(
+			(item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
+				...item,
+				respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
+			})
+		)
 	);
 
 	// Stats via utilitário
@@ -153,7 +162,10 @@
 	);
 
 	// Charts via composable
-	const charts = useCharts(() => Chart, () => data);
+	const charts = useCharts(
+		() => Chart,
+		() => data
+	);
 	const canvasElements = charts.canvasElements;
 
 	// Destroy all stale chart instances when question set changes
@@ -173,8 +185,7 @@
 	$effect(() => {
 		const list = parsedData;
 		const _filter = filterSeccional; // dep explícita: redesenha ao trocar seccional
-		const allCanvasesReady =
-			QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
+		const allCanvasesReady = QUESTIONS.length > 0 && QUESTIONS.every((q) => !!canvasElements[q.id]);
 		if (list && allCanvasesReady) {
 			void _filter;
 			tick().then(() => updateChartsFn(list));
@@ -291,7 +302,8 @@
 			: 'border-surface-200 dark:border-surface-800 shadow-xl'} rounded-3xl flex flex-col h-full"
 	>
 		<!-- Selection Badge -->
-		<button type="button"
+		<button
+			type="button"
 			onclick={() => toggleChartSelection(id)}
 			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id
@@ -378,7 +390,8 @@
 			: 'border-surface-200 dark:border-surface-800 shadow-sm'} rounded-3xl flex flex-col h-full"
 	>
 		<!-- Selection Badge -->
-		<button type="button"
+		<button
+			type="button"
 			onclick={() => toggleChartSelection(id)}
 			class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 				id
@@ -490,7 +503,9 @@
 <div class="space-y-8 pb-12 {selectedCharts.length > 0 ? 'has-selections' : ''}">
 	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
 		<div class="space-y-1">
-			<h1 class="h1 text-2xl font-bold">Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE</h1>
+			<h1 class="h1 text-2xl font-bold">
+				Produção {filterTipo === 'seint' ? 'Inteligência' : 'Operacional'} GISE
+			</h1>
 			<p class="text-surface-500 font-medium">
 				Análise filtrada e segmentada dos resultados reais {filterTipo === 'seint'
 					? '(SEINT)'
@@ -499,7 +514,8 @@
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			{#if allChartsCount > 0}
-				<button type="button"
+				<button
+					type="button"
 					class="btn text-[0.6rem] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-colors {selectedCharts.length >=
 					allChartsCount
 						? 'bg-surface-900 dark:bg-surface-50 text-white dark:text-surface-950 shadow-lg'
@@ -512,7 +528,8 @@
 				</button>
 			{/if}
 
-			<button type="button"
+			<button
+				type="button"
 				class="btn {selectedCharts.length > 0
 					? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 text-white'
 					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
@@ -538,7 +555,8 @@
 				{/if}
 			</button>
 
-			<button type="button"
+			<button
+				type="button"
 				class="export-btn btn {selectedCharts.length > 0
 					? 'bg-secondary-600 hover:bg-secondary-700 shadow-secondary-500/20 text-white'
 					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
@@ -563,7 +581,10 @@
 
 	<div class="space-y-3">
 		<div class="flex items-center justify-between gap-2">
-			<span class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500">Filtros</span>
+			<span
+				class="text-xs font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500"
+				>Filtros</span
+			>
 			<button
 				type="button"
 				class="inline-flex items-center gap-1.5 rounded-xl border border-surface-300/80 bg-white px-3 py-1.5 text-xs font-semibold text-surface-700 shadow-sm transition-all hover:border-primary-400/50 hover:bg-primary-500/5 dark:border-surface-600/80 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700/80 {mostrarFiltros
@@ -573,7 +594,12 @@
 				aria-expanded={mostrarFiltros}
 			>
 				<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+					/>
 				</svg>
 				Filtros
 				{#if filtrosAtivos}
@@ -590,28 +616,40 @@
 				<div class="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-12 items-end">
 					<!-- 1. Tipo de equipe -->
 					<div class="space-y-1.5 lg:col-span-3">
-						<p class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">1. Tipo de equipe</p>
-						<div class="inline-flex w-full rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80">
+						<p
+							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+						>
+							1. Tipo de equipe
+						</p>
+						<div
+							class="inline-flex w-full rounded-xl border border-surface-200 bg-surface-100 p-0.5 dark:border-surface-700 dark:bg-surface-800/80"
+						>
 							<button
 								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo === 'operacional'
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo ===
+								'operacional'
 									? 'bg-warning-500 text-white shadow-sm'
 									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-								onclick={() => (filterTipo = 'operacional')}
-							>Operacional</button>
+								onclick={() => (filterTipo = 'operacional')}>Operacional</button
+							>
 							<button
 								type="button"
-								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo === 'seint'
+								class="flex-1 rounded-lg py-1.5 text-xs font-bold transition-all {filterTipo ===
+								'seint'
 									? 'bg-tertiary-500 text-white shadow-sm'
 									: 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200'}"
-								onclick={() => (filterTipo = 'seint')}
-							>Inteligência</button>
+								onclick={() => (filterTipo = 'seint')}>Inteligência</button
+							>
 						</div>
 					</div>
 
 					<!-- 2. Seccional -->
 					<div class="space-y-1.5 lg:col-span-3">
-						<label for="f-sec" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">2. Seccional</label>
+						<label
+							for="f-sec"
+							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+							>2. Seccional</label
+						>
 						<select
 							id="f-sec"
 							bind:value={filterSeccional}
@@ -626,7 +664,11 @@
 
 					<!-- 3. Período -->
 					<div class="space-y-1.5 lg:col-span-6">
-						<label for="f-ano" class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block">3. Período</label>
+						<label
+							for="f-ano"
+							class="text-[0.6rem] font-black uppercase tracking-widest text-surface-400 dark:text-surface-500 pl-0.5 block"
+							>3. Período</label
+						>
 						<div class="flex flex-wrap lg:flex-nowrap items-end gap-2">
 							<select
 								id="f-ano"
@@ -642,7 +684,11 @@
 							{#if filterAno === 'personalizado'}
 								<div class="flex items-end gap-2 w-full lg:w-auto">
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
-										<label for="f-ini" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">De</label>
+										<label
+											for="f-ini"
+											class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+											>De</label
+										>
 										<input
 											id="f-ini"
 											type="date"
@@ -652,7 +698,11 @@
 									</div>
 									<span class="text-surface-400 pb-2">—</span>
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
-										<label for="f-fim" class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5">Até</label>
+										<label
+											for="f-fim"
+											class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+											>Até</label
+										>
 										<input
 											id="f-fim"
 											type="date"
@@ -759,7 +809,8 @@
 					? 'selected-for-export border-primary-500 shadow-xl shadow-primary-500/10'
 					: 'border-surface-100 dark:border-surface-800 shadow-sm'} rounded-3xl overflow-hidden flex flex-col md:flex-row gap-4"
 			>
-				<button type="button"
+				<button
+					type="button"
 					onclick={() => toggleChartSelection(q.id)}
 					class="absolute top-2 right-2 md:top-3 md:right-3 w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center transition-all {selectedCharts.includes(
 						q.id

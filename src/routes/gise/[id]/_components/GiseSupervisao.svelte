@@ -208,8 +208,7 @@
 			(assRelSup || isAdminGeral || isSeccional || isSupervisor)
 	);
 	const downloadExtraSupConferenciaHabilitado = $derived(
-		extraSupervisaoConfigurado &&
-			(isAdminGeral || isSupervisor)
+		extraSupervisaoConfigurado && (isAdminGeral || isSupervisor)
 	);
 	const assinaturaEscalaHabilitada = $derived(!!podeDownload);
 	const assinaturaExtraHabilitada = $derived(!!rubSupOk && !!extraSupervisaoConfigurado);
@@ -262,7 +261,11 @@
 						onclick={onEditar}
 					>
 						<PenLine size={16} />
-						{!gise.supervisor_id ? (isMobile ? 'Definir supervisor' : 'Definir Supervisão') : 'Editar'}
+						{!gise.supervisor_id
+							? isMobile
+								? 'Definir supervisor'
+								: 'Definir Supervisão'
+							: 'Editar'}
 					</button>
 				{/if}
 			</div>
@@ -429,7 +432,9 @@
 				<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 				<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
 
-				<div class="flex justify-end gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60">
+				<div
+					class="flex justify-end gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60"
+				>
 					<button
 						type="submit"
 						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold"
@@ -626,46 +631,89 @@
 						mostrarPainelAssinaturaEscalaReadonly ||
 						isSupervisor}
 					{@const mostrarColExtra = mostrarBlocoExtraSupervisao}
-					{@const colCount = (mostrarColEscala ? 1 : 0) + (mostrarColExtra ? 1 : 0) + (loteSection ? 1 : 0)}
+					{@const colCount =
+						(mostrarColEscala ? 1 : 0) + (mostrarColExtra ? 1 : 0) + (loteSection ? 1 : 0)}
 					<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
-						<div class="grid grid-cols-1 gap-3 sm:gap-4 {colCount === 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : colCount === 2 ? 'md:grid-cols-2' : ''}">
+						<div
+							class="grid grid-cols-1 gap-3 sm:gap-4 {colCount === 3
+								? 'sm:grid-cols-2 lg:grid-cols-3'
+								: colCount === 2
+									? 'md:grid-cols-2'
+									: ''}"
+						>
 							{#if mostrarColEscala}
 								<section class="flex flex-col gap-1.5 h-full">
-									<p class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+									<p
+										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+									>
 										{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
 									</p>
-									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col">
+									<div
+										class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col"
+									>
 										<!-- Header: sempre visível, clicável no mobile -->
 										<button
 											type="button"
-											class="flex w-full items-center gap-2 p-3 text-left {isMobile ? 'cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40' : 'pointer-events-none'}"
-											onclick={() => { if (isMobile) expandirEscala = !expandirEscala; }}
+											class="flex w-full items-center gap-2 p-3 text-left {isMobile
+												? 'cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40'
+												: 'pointer-events-none'}"
+											onclick={() => {
+												if (isMobile) expandirEscala = !expandirEscala;
+											}}
 										>
-											<div class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700">
+											<div
+												class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+											>
 												<ShieldCheck size={14} />
 											</div>
 											<div class="min-w-0 flex-1">
 												{#if documentoAssinadoInfo?.existe}
-													<span class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400">
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+													>
 														<CheckCircle2 size={9} />Assinada
 													</span>
-													<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Escala assinada digitalmente</p>
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Escala assinada digitalmente
+													</p>
 												{:else}
 													{#if gise.status === 'aguardando_assinatura'}
-														<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400">
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														>
 															<Clock size={9} />ass. Pendente
 														</span>
 													{:else}
-														<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400">
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														>
 															<Clock size={9} />em preenchimento
 														</span>
 													{/if}
-													<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Assinatura da escala GISE</p>
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Assinatura da escala GISE
+													</p>
 												{/if}
 											</div>
 											{#if isMobile}
-												<svg class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirEscala ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+												<svg
+													class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirEscala
+														? 'rotate-180'
+														: ''}"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M19 9l-7 7-7-7"
+													/>
 												</svg>
 											{/if}
 										</button>
@@ -677,11 +725,24 @@
 											>
 												<div class="space-y-2">
 													{#if documentoAssinadoInfo?.existe}
-														<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{documentoAssinadoInfo.assinante_nome}</p>
+														<p
+															class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
+														>
+															{documentoAssinadoInfo.assinante_nome}
+														</p>
 													{:else}
-														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.</p>
-														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-															<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
+														<p
+															class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+														>
+															O supervisor poderá assinar a escala quando todas as seccionais
+															enviarem a escala.
+														</p>
+														<p
+															class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+														>
+															<span class="text-error-600 dark:text-error-400 font-medium"
+																>Faltando envio de:</span
+															>
 															{#if !gise.seccionais || gise.seccionais.length === 0}
 																a escalar
 															{:else if seccionaisPendentes.length === 0}
@@ -705,12 +766,25 @@
 													{:else}
 														{#if isSupervisor || isAdminGeral}
 															<a
-																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
+																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
+																	? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
+																	: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 																href="/api/gise/{gise.id}/download?format=pdf"
 																target="_blank"
 																title="Conferência (sem assinatura digital)"
 															>
-																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																<svg
+																	class="h-2.5 w-2.5 shrink-0"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/></svg
+																>
 																Conferência
 															</a>
 														{/if}
@@ -722,7 +796,18 @@
 																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
 																	onclick={() => onAbrirAssinaturaEscalaManual()}
 																>
-																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																	<svg
+																		class="h-2.5 w-2.5 shrink-0"
+																		fill="none"
+																		stroke="currentColor"
+																		viewBox="0 0 24 24"
+																		><path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																		/></svg
+																	>
 																	Tela
 																</button>
 															{:else}
@@ -732,7 +817,18 @@
 																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
 																	onclick={() => painelTokenGise?.assinarComSerpro()}
 																>
-																	<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																	<svg
+																		class="h-2.5 w-2.5 shrink-0"
+																		fill="none"
+																		stroke="currentColor"
+																		viewBox="0 0 24 24"
+																		><path
+																			stroke-linecap="round"
+																			stroke-linejoin="round"
+																			stroke-width="2"
+																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																		/></svg
+																	>
 																	Token
 																</button>
 															{/if}
@@ -763,45 +859,88 @@
 
 							{#if mostrarBlocoExtraSupervisao}
 								<section class="flex flex-col gap-1.5 h-full">
-									<p class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+									<p
+										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+									>
 										Relatório de extra (Supervisão e apoio)
 									</p>
-									<div class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col">
+									<div
+										class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col"
+									>
 										{#if !extraSupervisaoConfigurado}
-											<p class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg m-3 px-3 py-2">
-												O relatório de extra do quadro ainda não está disponível. Peça ao administrador para executar as migrações.
+											<p
+												class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg m-3 px-3 py-2"
+											>
+												O relatório de extra do quadro ainda não está disponível. Peça ao
+												administrador para executar as migrações.
 											</p>
 										{:else}
 											<!-- Header -->
 											<button
 												type="button"
-												class="flex w-full items-center gap-2 p-3 text-left {isMobile ? 'cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40' : 'pointer-events-none'}"
-												onclick={() => { if (isMobile) expandirExtra = !expandirExtra; }}
+												class="flex w-full items-center gap-2 p-3 text-left {isMobile
+													? 'cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40'
+													: 'pointer-events-none'}"
+												onclick={() => {
+													if (isMobile) expandirExtra = !expandirExtra;
+												}}
 											>
-												<div class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700">
+												<div
+													class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+												>
 													<ShieldCheck size={14} />
 												</div>
 												<div class="min-w-0 flex-1">
 													{#if assRelSup}
-														<span class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400">
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+														>
 															<CheckCircle2 size={9} />Assinado
 														</span>
-														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
+														<p
+															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+														>
+															Relatório de extra — supervisão e apoio
+														</p>
 													{:else if rubSupOk}
-														<span class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400">
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														>
 															<Clock size={9} />pronto para assinar
 														</span>
-														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
+														<p
+															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+														>
+															Relatório de extra — supervisão e apoio
+														</p>
 													{:else}
-														<span class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400">
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														>
 															<Clock size={9} />Aguardando rubricas
 														</span>
-														<p class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5">Relatório de extra — supervisão e apoio</p>
+														<p
+															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+														>
+															Relatório de extra — supervisão e apoio
+														</p>
 													{/if}
 												</div>
 												{#if isMobile}
-													<svg class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirExtra ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+													<svg
+														class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirExtra
+															? 'rotate-180'
+															: ''}"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M19 9l-7 7-7-7"
+														/>
 													</svg>
 												{/if}
 											</button>
@@ -813,19 +952,36 @@
 												>
 													<div class="space-y-2">
 														{#if assRelSup}
-															<p class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words">{assRelSup.assinante_nome}</p>
+															<p
+																class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
+															>
+																{assRelSup.assinante_nome}
+															</p>
 														{:else}
-															<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída.</p>
+															<p
+																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+															>
+																O supervisor poderá assinar o relatório de extra do quadro de
+																supervisão quando todos os integrantes confirmarem sua saída.
+															</p>
 															{#if !rubSupOk}
-																<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+																<p
+																	class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+																>
 																	{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																		<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+																		<span class="text-error-600 dark:text-error-400 font-medium"
+																			>Faltando rúbrica de:</span
+																		>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
 																	{:else}
 																		{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
 																	{/if}
 																</p>
 															{:else}
-																<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">Disponível para conferência. Aguardando assinatura.</p>
+																<p
+																	class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+																>
+																	Disponível para conferência. Aguardando assinatura.
+																</p>
 															{/if}
 														{/if}
 													</div>
@@ -834,18 +990,33 @@
 															<a
 																href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 																target="_blank"
-																class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado ? 'pointer-events-none opacity-60' : ''}"
+																class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado
+																	? 'pointer-events-none opacity-60'
+																	: ''}"
 															>
 																<FileDown size={13} class="shrink-0" />
 																Baixar PDF
 															</a>
 														{:else}
 															<a
-																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado ? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500' : 'preset-tonal-surface opacity-50 pointer-events-none'}"
+																class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
+																	? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
+																	: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 																href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
 																target="_blank"
 															>
-																<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																<svg
+																	class="h-2.5 w-2.5 shrink-0"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	><path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/></svg
+																>
 																Conferência
 															</a>
 															{#if isSupervisor && extraSupervisaoConfigurado}
@@ -856,7 +1027,18 @@
 																		disabled={!assinaturaExtraHabilitada}
 																		onclick={() => onAssinarExtraSupervisaoManual?.()}
 																	>
-																		<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																		<svg
+																			class="h-2.5 w-2.5 shrink-0"
+																			fill="none"
+																			stroke="currentColor"
+																			viewBox="0 0 24 24"
+																			><path
+																				stroke-linecap="round"
+																				stroke-linejoin="round"
+																				stroke-width="2"
+																				d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																			/></svg
+																		>
 																		Tela
 																	</button>
 																{:else}
@@ -866,7 +1048,18 @@
 																		disabled={!assinaturaExtraHabilitada}
 																		onclick={() => onAssinarExtraSupervisaoDigital?.()}
 																	>
-																		<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+																		<svg
+																			class="h-2.5 w-2.5 shrink-0"
+																			fill="none"
+																			stroke="currentColor"
+																			viewBox="0 0 24 24"
+																			><path
+																				stroke-linecap="round"
+																				stroke-linejoin="round"
+																				stroke-width="2"
+																				d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																			/></svg
+																		>
 																		Token
 																	</button>
 																{/if}

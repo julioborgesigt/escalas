@@ -63,10 +63,7 @@ function isUrlAbrirPlanilhaNoNavegador(u: string): boolean {
  * Se uma ainda for o link errado da planilha (docs.google.com/...) e a outra for script.google.com/.../exec,
  * usa a do Web App — evita ficar preso a valor antigo no wrangler / binding.
  */
-function escolherUrlWebhookAppsScript(
-	dePlatform?: string,
-	dePrivate?: string
-): string | undefined {
+function escolherUrlWebhookAppsScript(dePlatform?: string, dePrivate?: string): string | undefined {
 	const a = dePlatform?.trim();
 	const b = dePrivate?.trim();
 	if (a && isUrlWebAppAppsScript(a)) return a;
@@ -77,7 +74,9 @@ function escolherUrlWebhookAppsScript(
 }
 
 /** URL e secret: mescla `workerEnv` com `$env/dynamic/private`; URL prioriza Web App /exec válido. */
-function resolveBaseEquipeUrls(workerEnv: BaseEquipeEnv | undefined): { url: string; secret: string } | null {
+function resolveBaseEquipeUrls(
+	workerEnv: BaseEquipeEnv | undefined
+): { url: string; secret: string } | null {
 	const url = escolherUrlWebhookAppsScript(
 		workerEnv?.GISE_BASE_EQUIPE_WEBHOOK_URL,
 		envPrivate.GISE_BASE_EQUIPE_WEBHOOK_URL
@@ -89,9 +88,7 @@ function resolveBaseEquipeUrls(workerEnv: BaseEquipeEnv | undefined): { url: str
 	return { url, secret };
 }
 
-export type SyncBaseEquipeResult =
-	| { ok: true; linhas: number }
-	| { ok: false; error: string };
+export type SyncBaseEquipeResult = { ok: true; linhas: number } | { ok: false; error: string };
 
 /** Resposta JSON do próprio SvelteKit (fetch a uma rota do portal), não do Apps Script. */
 function detalheSeRespostaNaoEhPlanilha(
@@ -109,20 +106,20 @@ function detalheSeRespostaNaoEhPlanilha(
 		}
 		return (
 			`O POST foi enviado a uma URL que redireciona para "${loc}". ` +
-				'Use exclusivamente o URL de implantação do Apps Script (script.google.com/macros/.../exec).'
+			'Use exclusivamente o URL de implantação do Apps Script (script.google.com/macros/.../exec).'
 		);
 	}
 	if (parsed.type === 'redirect') {
 		return (
 			'Resposta de redirecionamento em JSON (não é o Web App da planilha). ' +
-				'Corrija GISE_BASE_EQUIPE_WEBHOOK_URL para o link script.google.com/macros/.../exec.'
+			'Corrija GISE_BASE_EQUIPE_WEBHOOK_URL para o link script.google.com/macros/.../exec.'
 		);
 	}
 	// Corpo parece HTML de login (alguns ambientes não serializam redirect em JSON)
 	if (typeof raw === 'string' && /<html[\s>]/i.test(raw) && /login/i.test(raw)) {
 		return (
 			'A URL do webhook parece ser do portal (página de login em HTML). ' +
-				'Configure GISE_BASE_EQUIPE_WEBHOOK_URL com o URL do Apps Script (script.google.com/macros/.../exec).'
+			'Configure GISE_BASE_EQUIPE_WEBHOOK_URL com o URL do Apps Script (script.google.com/macros/.../exec).'
 		);
 	}
 	return null;
@@ -225,10 +222,13 @@ export async function syncGiseBaseEquipeAposFinalizar(
 			planilha_base_equipe_alimentada_em: new Date().toISOString()
 		});
 	} catch (e) {
-		logger.error('[GISE Base_Equipe] Sync OK mas falhou ao gravar planilha_base_equipe_alimentada_em', {
-			giseId,
-			error: e instanceof Error ? e.message : String(e)
-		});
+		logger.error(
+			'[GISE Base_Equipe] Sync OK mas falhou ao gravar planilha_base_equipe_alimentada_em',
+			{
+				giseId,
+				error: e instanceof Error ? e.message : String(e)
+			}
+		);
 	}
 	logger.info('[GISE Base_Equipe] Sync pós-finalizar OK', { giseId, linhas: r.linhas });
 }

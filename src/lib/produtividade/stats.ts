@@ -43,9 +43,9 @@ export function calculateStats(
 		questions.forEach((q) => {
 			const val = res[q.mappedKey || q.key];
 			if (q.isBool) {
-				if (val === 'Sim') s[q.key] = (s[q.key] as number || 0) + 1;
+				if (val === 'Sim') s[q.key] = ((s[q.key] as number) || 0) + 1;
 			} else {
-				s[q.key] = (s[q.key] as number || 0) + (Number(val) || 0);
+				s[q.key] = ((s[q.key] as number) || 0) + (Number(val) || 0);
 			}
 		});
 

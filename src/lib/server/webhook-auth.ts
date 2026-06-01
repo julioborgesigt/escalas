@@ -226,7 +226,8 @@ export function logFaltaReplayHeaders(
 	ctx: Record<string, unknown>,
 	isProduction: boolean
 ): void {
-	const msg = `[${caller}] webhook sem headers de replay protection (X-Webhook-Timestamp/Nonce). ` +
+	const msg =
+		`[${caller}] webhook sem headers de replay protection (X-Webhook-Timestamp/Nonce). ` +
 		'Atualize o sender e ligue WEBHOOK_REPLAY_ENFORCE.';
 	// `import.meta.env.PROD` fica embutido em build-time pelo Vite — o helper
 	// recebe explícito para facilitar teste e para evitar acoplamento ao Vite

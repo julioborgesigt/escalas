@@ -20,10 +20,7 @@ import { enviarEscalaFDSPorEmail } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { eq, and, inArray } from 'drizzle-orm';
 import { escalaPoliciais, escalas as escalasTable } from '$lib/server/schema';
-import {
-	verificarConflitoGlobal,
-	verificarConflitoGlobalBatch
-} from '$lib/server/escala-conflict';
+import { verificarConflitoGlobal, verificarConflitoGlobalBatch } from '$lib/server/escala-conflict';
 import {
 	calcularProximoMesDias,
 	proximoMes,
@@ -92,12 +89,16 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const [escala, policiaisEscala, docInfo] = await Promise.all([
 		buscarEscala(db, escalaId),
 		listarPoliciaisEscala(db, escalaId),
-		buscarDocumentoEscala(db, escalaId).then(d => d ? {
-			existe: true,
-			assinante_nome: d.assinante_nome,
-			assinante_cpf: d.assinante_cpf,
-			data: d.created_at
-		} : { existe: false })
+		buscarDocumentoEscala(db, escalaId).then((d) =>
+			d
+				? {
+						existe: true,
+						assinante_nome: d.assinante_nome,
+						assinante_cpf: d.assinante_cpf,
+						data: d.created_at
+					}
+				: { existe: false }
+		)
 	]);
 
 	if (!escala) throw redirect(302, '/escalas');
@@ -131,7 +132,10 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 		escalaId,
 		podeOIPSolicitar: oipPodeSolicitar,
 		solicitacaoAtual: solicitacaoAtual
-			? { tipo: solicitacaoAtual.tipo, destinatario_id: solicitacaoAtual.destinatario_id ?? undefined }
+			? {
+					tipo: solicitacaoAtual.tipo,
+					destinatario_id: solicitacaoAtual.destinatario_id ?? undefined
+				}
 			: null
 	};
 };
@@ -165,7 +169,14 @@ export const actions: Actions = {
 		const dataSaida = dataSaidaOverride || calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
 
 		// -1 = sem exclusão: verifica TODAS as escalas, inclusive a atual (impede duplicatas)
-		const conflito = await verificarConflitoGlobal(db, policial_id, data_plantao, horaEnt, horaSai, -1);
+		const conflito = await verificarConflitoGlobal(
+			db,
+			policial_id,
+			data_plantao,
+			horaEnt,
+			horaSai,
+			-1
+		);
 		if (!conflito.ok) return fail(409, { error: conflito.motivo });
 
 		try {
@@ -226,11 +237,16 @@ export const actions: Actions = {
 		const conflitosMap = await verificarConflitoGlobalBatch(db, policial_id, datasStr, he, hs, -1);
 
 		const datasLimpas = datas.filter((d) => !conflitosMap.has(d.data_plantao));
-		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({ data, motivo }));
+		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({
+			data,
+			motivo
+		}));
 
 		if (datasLimpas.length === 0) {
 			const primeiro = conflitantes[0];
-			return fail(409, { error: `Choque de horário em todas as datas. Ex: ${primeiro.data} — ${primeiro.motivo}` });
+			return fail(409, {
+				error: `Choque de horário em todas as datas. Ex: ${primeiro.data} — ${primeiro.motivo}`
+			});
 		}
 
 		try {
@@ -256,14 +272,21 @@ export const actions: Actions = {
 
 		const he = escala.hora_entrada || '08:00';
 		const hs = escala.hora_saida || '08:00';
-		const ds = escala.tipo === 'expediente'
-			? escala.data_fim
-			: calcularDataSaidaInicial(escala.data_inicio, he, hs);
+		const ds =
+			escala.tipo === 'expediente'
+				? escala.data_fim
+				: calcularDataSaidaInicial(escala.data_inicio, he, hs);
 
 		try {
 			const quantidade = await adicionarTodosPoliciais(
-				db, escalaId, escala.lotacao, escala.tipo,
-				escala.data_inicio, ds, he, hs
+				db,
+				escalaId,
+				escala.lotacao,
+				escala.tipo,
+				escala.data_inicio,
+				ds,
+				he,
+				hs
 			);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
 			return { success: true, quantidade, policiais };
@@ -297,7 +320,10 @@ export const actions: Actions = {
 		const novaDataFim = ultimoDiaDoMes(novoAno, novoMes);
 
 		const existente = await verificarEscalaExistente(
-			db, escalaAtual.lotacao, escalaAtual.tipo, novaDataInicio
+			db,
+			escalaAtual.lotacao,
+			escalaAtual.tipo,
+			novaDataInicio
 		);
 		if (existente) {
 			return fail(409, {
@@ -329,7 +355,7 @@ export const actions: Actions = {
 			const policiaisAtuais = await listarPoliciaisEscala(db, escalaId);
 			let adicionados = 0;
 			const naoProcessados: Array<{ nome: string; motivo: string }> = [];
-			const linhasParaInserir: typeof escalaPoliciais.$inferInsert[] = [];
+			const linhasParaInserir: (typeof escalaPoliciais.$inferInsert)[] = [];
 
 			if (escalaAtual.tipo === 'expediente') {
 				const policialIdsVistos = new Set<number>();
@@ -403,7 +429,12 @@ export const actions: Actions = {
 				detalhes: `Escala do próximo mês gerada a partir da escala ${escalaId}`
 			});
 
-			return { success: true, escala_id: novaEscalaId, adicionados, nao_processados: naoProcessados };
+			return {
+				success: true,
+				escala_id: novaEscalaId,
+				adicionados,
+				nao_processados: naoProcessados
+			};
 		} catch {
 			return fail(500, { error: 'Erro ao gerar escala do próximo mês' });
 		}
@@ -436,7 +467,12 @@ export const actions: Actions = {
 
 		if (registro && hora_entrada && hora_saida && data_plantao) {
 			const conflito = await verificarConflitoGlobal(
-				db, registro.policial_id, data_plantao, hora_entrada, hora_saida, escalaId
+				db,
+				registro.policial_id,
+				data_plantao,
+				hora_entrada,
+				hora_saida,
+				escalaId
 			);
 			if (!conflito.ok) return fail(409, { error: conflito.motivo });
 		}
@@ -503,14 +539,21 @@ export const actions: Actions = {
 		const datasJson = data.get('datas')?.toString() || '[]';
 
 		let datasStr: string[];
-		try { datasStr = JSON.parse(datasJson); } catch { return fail(400, { error: 'Datas inválidas' }); }
+		try {
+			datasStr = JSON.parse(datasJson);
+		} catch {
+			return fail(400, { error: 'Datas inválidas' });
+		}
 
 		if (isNaN(policial_id) || datasStr.length === 0) {
 			return fail(400, { error: 'Selecione pelo menos uma data' });
 		}
 
 		const todos = await db
-			.select({ policial_id: escalaPoliciais.policial_id, data_plantao: escalaPoliciais.data_plantao })
+			.select({
+				policial_id: escalaPoliciais.policial_id,
+				data_plantao: escalaPoliciais.data_plantao
+			})
 			.from(escalaPoliciais)
 			.where(eq(escalaPoliciais.escala_id, escalaId));
 
@@ -524,7 +567,12 @@ export const actions: Actions = {
 
 		// Verifica conflitos em batch (-1 = sem exclusão; datasDisponiveis já excluiu duplicatas na escala atual)
 		const conflitosMap = await verificarConflitoGlobalBatch(
-			db, policial_id, datasDisponiveis, hora_entrada, hora_saida, -1
+			db,
+			policial_id,
+			datasDisponiveis,
+			hora_entrada,
+			hora_saida,
+			-1
 		);
 
 		const novas = datasDisponiveis
@@ -533,15 +581,28 @@ export const actions: Actions = {
 				data_plantao: d,
 				data_saida: calcularDataSaidaInicial(d, hora_entrada, hora_saida)
 			}));
-		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({ data, motivo }));
+		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({
+			data,
+			motivo
+		}));
 
 		if (novas.length === 0) {
 			const primeiro = conflitantes[0];
-			return fail(409, { error: `Choque de horário em todas as datas. Ex: ${primeiro.data} — ${primeiro.motivo}` });
+			return fail(409, {
+				error: `Choque de horário em todas as datas. Ex: ${primeiro.data} — ${primeiro.motivo}`
+			});
 		}
 
 		try {
-			await adicionarMultiplasDatasPlantao(db, escalaId, policial_id, novas, hora_entrada, hora_saida, equipe);
+			await adicionarMultiplasDatasPlantao(
+				db,
+				escalaId,
+				policial_id,
+				novas,
+				hora_entrada,
+				hora_saida,
+				equipe
+			);
 			const policiais = await listarPoliciaisEscala(db, escalaId);
 			return { success: true, policiais, conflitantes };
 		} catch {
@@ -557,7 +618,8 @@ export const actions: Actions = {
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
-		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+		if (escala.tipo !== 'fds')
+			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 		if (escala.finalizada_em) return fail(400, { error: 'Escala já finalizada' });
 
 		const formData = await request.formData();
@@ -607,10 +669,14 @@ export const actions: Actions = {
 				.all();
 
 			if (comPoliciais.length > 0) {
-				const diasStr = [...new Set(comPoliciais.map((p) => {
-					const [, m, d] = p.data_plantao.split('-');
-					return `${d}/${m}`;
-				}))].join(', ');
+				const diasStr = [
+					...new Set(
+						comPoliciais.map((p) => {
+							const [, m, d] = p.data_plantao.split('-');
+							return `${d}/${m}`;
+						})
+					)
+				].join(', ');
 				return fail(409, {
 					error: `Não é possível remover o(s) dia(s) ${diasStr} — há policiais escalados. Remova-os primeiro e tente novamente.`
 				});
@@ -623,12 +689,19 @@ export const actions: Actions = {
 		const mF = novaDataFim.split('-')[1];
 		const novoTitulo = `ESCALA DE PLANTÃO DO FINAL DE SEMANA - ${escala.lotacao} - ${dS}/${mS} a ${dF}/${mF}`;
 
-		await db.update(escalasTable)
+		await db
+			.update(escalasTable)
 			.set({ data_inicio: novaDataInicio, data_fim: novaDataFim, titulo: novoTitulo })
 			.where(eq(escalasTable.id, escalaId));
 
 		const policiais = await listarPoliciaisEscala(db, escalaId);
-		return { success: true, data_inicio: novaDataInicio, data_fim: novaDataFim, titulo: novoTitulo, policiais };
+		return {
+			success: true,
+			data_inicio: novaDataInicio,
+			data_fim: novaDataFim,
+			titulo: novoTitulo,
+			policiais
+		};
 	},
 
 	finalizar: async ({ request, locals, platform, params }) => {
@@ -639,7 +712,8 @@ export const actions: Actions = {
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
-		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+		if (escala.tipo !== 'fds')
+			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
 		const formData = await request.formData();
 		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
@@ -658,7 +732,14 @@ export const actions: Actions = {
 				await Promise.race([
 					(async () => {
 						const docxBuffer = await exportLib.gerarDocx(escala, policiais);
-						await enviarEscalaFDSPorEmail(emailDestino, escala.titulo, u.nome, docxBuffer, nomeArquivo, platform);
+						await enviarEscalaFDSPorEmail(
+							emailDestino,
+							escala.titulo,
+							u.nome,
+							docxBuffer,
+							nomeArquivo,
+							platform
+						);
 					})(),
 					new Promise<void>((_, reject) =>
 						setTimeout(() => reject(new Error('Timeout (25s)')), 25_000)
@@ -694,7 +775,8 @@ export const actions: Actions = {
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
-		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+		if (escala.tipo !== 'fds')
+			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
 		const formData = await request.formData();
 		const emailDestino = (formData.get('email_destino') as string | null)?.trim() ?? '';
@@ -708,13 +790,23 @@ export const actions: Actions = {
 
 			// Atualiza o e-mail armazenado caso tenha mudado
 			if (emailDestino !== escala.email_envio) {
-				await db.update(escalasTable).set({ email_envio: emailDestino }).where(eq(escalasTable.id, escalaId));
+				await db
+					.update(escalasTable)
+					.set({ email_envio: emailDestino })
+					.where(eq(escalasTable.id, escalaId));
 			}
 
 			await Promise.race([
 				(async () => {
 					const docxBuffer = await exportLib.gerarDocx(escala, policiais);
-					await enviarEscalaFDSPorEmail(emailDestino, escala.titulo, u.nome, docxBuffer, nomeArquivo, platform);
+					await enviarEscalaFDSPorEmail(
+						emailDestino,
+						escala.titulo,
+						u.nome,
+						docxBuffer,
+						nomeArquivo,
+						platform
+					);
 				})(),
 				new Promise<void>((_, reject) =>
 					setTimeout(() => reject(new Error('Timeout (25s)')), 25_000)
@@ -722,9 +814,10 @@ export const actions: Actions = {
 			]);
 			return { success: true, emailDestino };
 		} catch (err) {
-			const msg = err instanceof Error && err.message.startsWith('Timeout')
-				? 'O envio demorou demais. Tente novamente.'
-				: 'Erro ao reenviar e-mail';
+			const msg =
+				err instanceof Error && err.message.startsWith('Timeout')
+					? 'O envio demorou demais. Tente novamente.'
+					: 'Erro ao reenviar e-mail';
 			return fail(500, { error: msg });
 		}
 	},
@@ -737,7 +830,8 @@ export const actions: Actions = {
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
-		if (escala.tipo !== 'fds') return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
+		if (escala.tipo !== 'fds')
+			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
 
 		try {
 			await desfinalizarEscalaFDS(db, escalaId);
@@ -783,12 +877,9 @@ export const actions: Actions = {
 
 		try {
 			const [, policiais] = await db.batch([
-				db.delete(escalaPoliciais).where(
-					and(
-						eq(escalaPoliciais.escala_id, escalaId),
-						inArray(escalaPoliciais.id, ids)
-					)
-				),
+				db
+					.delete(escalaPoliciais)
+					.where(and(eq(escalaPoliciais.escala_id, escalaId), inArray(escalaPoliciais.id, ids))),
 				listarPoliciaisEscalaQuery(db, escalaId)
 			]);
 			return { success: true, policiais, removidos: ids.length };

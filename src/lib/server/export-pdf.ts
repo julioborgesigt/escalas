@@ -10,9 +10,16 @@ import {
 	resolveBreveRelatorioTitulo
 } from '$lib/gise/breve-relatorio';
 import {
-	sepDatas, agruparPorData, formatarDataPlantao, formatarHorario,
-	sortExpediente, COLS_EXPEDIENTE, rowExpediente,
-	agruparPlantao, COLS_PLANTAO, rowPlantao,
+	sepDatas,
+	agruparPorData,
+	formatarDataPlantao,
+	formatarHorario,
+	sortExpediente,
+	COLS_EXPEDIENTE,
+	rowExpediente,
+	agruparPlantao,
+	COLS_PLANTAO,
+	rowPlantao,
 	formatarMesAno
 } from './export-shared';
 
@@ -68,7 +75,12 @@ export interface GisePdfData {
 				policial_telefone: string | null;
 				policial_lotacao: string | null;
 				policial_classe?: string | null;
-				presenca?: { entrada_timestamp?: string | null; saida_timestamp?: string | null; entrada_rubrica?: string | null; saida_rubrica?: string | null } | null;
+				presenca?: {
+					entrada_timestamp?: string | null;
+					saida_timestamp?: string | null;
+					entrada_rubrica?: string | null;
+					saida_rubrica?: string | null;
+				} | null;
 			}>;
 		}>;
 	}>;
@@ -140,18 +152,18 @@ export function toGisePdfData(
 		seint2_nome: gise.seint2_nome,
 		seint2_matricula: gise.seint2_matricula,
 		seint2_telefone: gise.seint2_telefone,
-		seccionais: (gise.seccionais || []).map(sec => {
+		seccionais: (gise.seccionais || []).map((sec) => {
 			const equipesList: GisePdfData['seccionais'][number]['equipes'] = [];
 
-			(sec.unidades || []).forEach(slot => {
-				(slot.equipes || []).forEach(eq => {
+			(sec.unidades || []).forEach((slot) => {
+				(slot.equipes || []).forEach((eq) => {
 					equipesList.push({
 						tipo: eq.tipo,
 						slots_dpc: eq.slots_dpc || 0,
 						slots_oip: eq.slots_oip || 0,
 						hora_entrada: eq.hora_entrada,
 						hora_saida: eq.hora_saida,
-						membros: (eq.membros || []).map(m => ({
+						membros: (eq.membros || []).map((m) => ({
 							policial_id: m.policial_id,
 							policial_nome: m.policial_nome || '—',
 							policial_cargo: m.policial_cargo || '',
@@ -175,29 +187,32 @@ export function toGisePdfData(
 				equipes: equipesList
 			};
 		}),
-		documento: gise.documento ? {
-			rubrica: gise.documento.rubrica,
-			verificacao_hash: gise.documento.verificacao_hash
-		} : null
+		documento: gise.documento
+			? {
+					rubrica: gise.documento.rubrica,
+					verificacao_hash: gise.documento.verificacao_hash
+				}
+			: null
 	};
 }
 
 // ---- PDF ----
 export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
-
 	const dias = agruparPorData(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
 	doc.setFontSize(14);
 	doc.text(
 		`ESCALA PLANTÃO FINAL DE SEMANA ${escala.lotacao.toUpperCase()} ${formatarData(escala.data_inicio)} ${sepDatas(escala.data_inicio, escala.data_fim)} ${formatarData(escala.data_fim)}`,
-		148, 15, { align: 'center' }
+		148,
+		15,
+		{ align: 'center' }
 	);
 
 	let y = 25;
 
 	for (const dia of dias) {
-		const tableData = dia.policiais.map(p => [
+		const tableData = dia.policiais.map((p) => [
 			p.nome,
 			p.matricula,
 			p.cargo,
@@ -208,7 +223,9 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 		]);
 
 		autoTable(doc, {
-			head: [['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']],
+			head: [
+				['EQUIPE DE PLANTÃO DA DP', 'MATRÍCULA', 'CARGO', 'TELEFONE', 'LOTAÇÃO', 'DATA', 'HORÁRIO']
+			],
 			body: tableData,
 			startY: y,
 			theme: 'grid',
@@ -243,7 +260,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
 
-	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
 	doc.text(textoData, margin, sigY);
@@ -251,10 +268,11 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
+		align: 'center'
+	});
 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
-
 }
 
 // ---- PDF Expediente ----
@@ -288,25 +306,77 @@ export async function gerarPdfExpediente(
 	const LIGHT: [number, number, number] = [245, 245, 245];
 	const NCOLS = 8;
 
-	const headTeal = { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold' as const, halign: 'center' as const };
-	const headMeta = { fillColor: WHITE, textColor: BLACK, fontStyle: 'bold' as const, halign: 'left' as const, lineColor: [200, 200, 200] as [number, number, number], lineWidth: 0.2 };
+	const headTeal = {
+		fillColor: TEAL,
+		textColor: WHITE,
+		fontStyle: 'bold' as const,
+		halign: 'center' as const
+	};
+	const headMeta = {
+		fillColor: WHITE,
+		textColor: BLACK,
+		fontStyle: 'bold' as const,
+		halign: 'left' as const,
+		lineColor: [200, 200, 200] as [number, number, number],
+		lineWidth: 0.2
+	};
 
-	const obsText = 'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
+	const obsText =
+		'OBSERVAÇÕES: FÉRIAS (INFORMAR PERÍODO DE INÍCIO/FIM); LICENÇAS (INFORMAR PERÍODO DE INÍCIO/FIM E ANEXAR A DOCUMENTAÇÃO RELACIONADA).';
 
 	autoTable(doc, {
 		head: [
-			[{ content: 'ESCALA DE EXPEDIENTE', colSpan: NCOLS, styles: { ...headTeal, fontSize: 9, cellPadding: 2.5 } }],
-			[{ content: `DELEGACIA: ${escala.lotacao.toUpperCase()}`, colSpan: NCOLS, styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 } }],
-			[{ content: `MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`, colSpan: NCOLS, styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 } }],
-			COLS_EXPEDIENTE.map(c => ({ content: c, styles: { ...headTeal, fontSize: 7, cellPadding: 1.5 } }))
+			[
+				{
+					content: 'ESCALA DE EXPEDIENTE',
+					colSpan: NCOLS,
+					styles: { ...headTeal, fontSize: 9, cellPadding: 2.5 }
+				}
+			],
+			[
+				{
+					content: `DELEGACIA: ${escala.lotacao.toUpperCase()}`,
+					colSpan: NCOLS,
+					styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 }
+				}
+			],
+			[
+				{
+					content: `MÊS/ANO: ${formatarMesAno(escala.data_inicio)}`,
+					colSpan: NCOLS,
+					styles: { ...headMeta, fontSize: 8, cellPadding: 1.5 }
+				}
+			],
+			COLS_EXPEDIENTE.map((c) => ({
+				content: c,
+				styles: { ...headTeal, fontSize: 7, cellPadding: 1.5 }
+			}))
 		],
 		body: [
-			...sorted.map(p => rowExpediente(p)),
-			[{ content: obsText, colSpan: NCOLS, styles: { fontStyle: 'bold' as const, fontSize: 7, fillColor: LIGHT, textColor: BLACK, cellPadding: 2 } }]
+			...sorted.map((p) => rowExpediente(p)),
+			[
+				{
+					content: obsText,
+					colSpan: NCOLS,
+					styles: {
+						fontStyle: 'bold' as const,
+						fontSize: 7,
+						fillColor: LIGHT,
+						textColor: BLACK,
+						cellPadding: 2
+					}
+				}
+			]
 		],
 		startY: y,
 		theme: 'grid',
-		headStyles: { fillColor: TEAL, textColor: WHITE, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+		headStyles: {
+			fillColor: TEAL,
+			textColor: WHITE,
+			fontStyle: 'bold',
+			fontSize: 7,
+			halign: 'center'
+		},
 		bodyStyles: { fontSize: 7, valign: 'middle', halign: 'left' },
 		columnStyles: {
 			0: { cellWidth: 60 },
@@ -323,9 +393,12 @@ export async function gerarPdfExpediente(
 
 	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	let sigY = lastY + 12;
-	if (sigY > 183) { doc.addPage(); sigY = 35; }
+	if (sigY > 183) {
+		doc.addPage();
+		sigY = 35;
+	}
 
-	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
 
@@ -338,10 +411,14 @@ export async function gerarPdfExpediente(
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
+		align: 'center'
+	});
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
-	const hasLogos = (logoPoliciaBytes && logoPoliciaBytes.length > 0) || (logoCearaBytes && logoCearaBytes.length > 0);
+	const hasLogos =
+		(logoPoliciaBytes && logoPoliciaBytes.length > 0) ||
+		(logoCearaBytes && logoCearaBytes.length > 0);
 	if (!hasLogos) return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
 
 	try {
@@ -354,10 +431,18 @@ export async function gerarPdfExpediente(
 		let imgPolicia: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
 		let imgCeara: Awaited<ReturnType<typeof pdfDoc.embedJpg>> | null = null;
 		if (logoPoliciaBytes && logoPoliciaBytes.length > 0) {
-			try { imgPolicia = await pdfDoc.embedJpg(logoPoliciaBytes); } catch { /* logo indisponível */ }
+			try {
+				imgPolicia = await pdfDoc.embedJpg(logoPoliciaBytes);
+			} catch {
+				/* logo indisponível */
+			}
 		}
 		if (logoCearaBytes && logoCearaBytes.length > 0) {
-			try { imgCeara = await pdfDoc.embedJpg(logoCearaBytes); } catch { /* logo indisponível */ }
+			try {
+				imgCeara = await pdfDoc.embedJpg(logoCearaBytes);
+			} catch {
+				/* logo indisponível */
+			}
 		}
 
 		for (const page of pdfDoc.getPages()) {
@@ -388,8 +473,10 @@ export async function gerarPdfExpediente(
 }
 
 // ---- PDF Plantão ----
-export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
-
+export function gerarPdfPlantao(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[]
+): PdfExportResult {
 	const equipes = agruparPlantao(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
@@ -402,7 +489,12 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	y += 5;
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text('DELEGACIA GERAL DA POLÍCIA CIVIL / DEPARTAMENTO DE POLÍCIA JUDICIÁRIA DO INTERIOR SUL', pageWidth / 2, y, { align: 'center' });
+	doc.text(
+		'DELEGACIA GERAL DA POLÍCIA CIVIL / DEPARTAMENTO DE POLÍCIA JUDICIÁRIA DO INTERIOR SUL',
+		pageWidth / 2,
+		y,
+		{ align: 'center' }
+	);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	doc.text(`DELEGACIA: ${escala.lotacao.toUpperCase()}`, margin, y);
@@ -416,13 +508,31 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 
 		autoTable(doc, {
 			head: [
-				[{ content: equipeLabel, colSpan: 7, styles: { halign: 'center', fillColor: [26, 92, 87], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 } }],
+				[
+					{
+						content: equipeLabel,
+						colSpan: 7,
+						styles: {
+							halign: 'center',
+							fillColor: [26, 92, 87],
+							textColor: [255, 255, 255],
+							fontStyle: 'bold',
+							fontSize: 8
+						}
+					}
+				],
 				[...COLS_PLANTAO]
 			],
 			body: rows,
 			startY: y,
 			theme: 'grid',
-			headStyles: { fillColor: [26, 92, 87], textColor: 255, fontSize: 7, fontStyle: 'bold', halign: 'center' },
+			headStyles: {
+				fillColor: [26, 92, 87],
+				textColor: 255,
+				fontSize: 7,
+				fontStyle: 'bold',
+				halign: 'center'
+			},
 			bodyStyles: { fontSize: 7 },
 			columnStyles: {
 				0: { cellWidth: 55 },
@@ -452,7 +562,7 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, sigY - 10);
 
 	doc.setFontSize(9);
-	const localizacao = (escala.cidade && escala.cidade !== escala.lotacao) ? escala.cidade : '';
+	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
 	const dataExtenso = formatarDataExtenso(new Date());
 	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
 	doc.text(textoData, margin, sigY);
@@ -460,20 +570,26 @@ export function gerarPdfPlantao(escala: Escala, policiais: EscalaPolicialComDado
 	const sigCenterX = pageWidth * 0.75;
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
+		align: 'center'
+	});
 
 	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
-
 }
 
 // ---- PDF GISE ----
-export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array): Promise<PdfExportResult> {
+export async function gerarPdfGise(
+	gise: GisePdfData,
+	logoJpgBytes?: Uint8Array
+): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 
 	doc.setFontSize(14);
 	doc.setFont('helvetica', 'bold');
-	doc.text(`Escala GISE SUL para o dia ${formatarData(gise.data_inicio)}`, pageWidth / 2, 14, { align: 'center' });
+	doc.text(`Escala GISE SUL para o dia ${formatarData(gise.data_inicio)}`, pageWidth / 2, 14, {
+		align: 'center'
+	});
 
 	let y = 26;
 
@@ -484,7 +600,10 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 		const equipesComMembros = sec.equipes.filter((e) => e.membros.length > 0);
 		if (equipesComMembros.length === 0) continue;
 
-		if (y > 175) { doc.addPage(); y = 15; }
+		if (y > 175) {
+			doc.addPage();
+			y = 15;
+		}
 
 		doc.setFontSize(11);
 		doc.setFont('helvetica', 'bold');
@@ -493,16 +612,20 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 		y += 4;
 
 		for (const equipe of equipesComMembros) {
-			if (y > 175) { doc.addPage(); y = 15; }
+			if (y > 175) {
+				doc.addPage();
+				y = 15;
+			}
 
 			const hEnt = equipe.hora_entrada || sec.hora_entrada || gise.hora_entrada;
 			const hSai = equipe.hora_saida || sec.hora_saida || gise.hora_saida;
 
-			const titleLabel = equipe.tipo === 'operacional'
-				? `Equipe Operacional - ${sec.unidade_operacional_nome ?? '—'}`
-				: `Equipe SEINT`;
+			const titleLabel =
+				equipe.tipo === 'operacional'
+					? `Equipe Operacional - ${sec.unidade_operacional_nome ?? '—'}`
+					: `Equipe SEINT`;
 
-			const tableData = equipe.membros.map(m => [
+			const tableData = equipe.membros.map((m) => [
 				m.policial_nome,
 				m.policial_cargo,
 				m.policial_matricula,
@@ -515,8 +638,20 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 			]);
 
 			autoTable(doc, {
-				head: [[{ content: titleLabel, colSpan: 9, styles: { halign: 'center' } }],
-				['Nome', 'Cargo', 'Matrícula', 'Telefone', 'Lotação', 'Data de Início', 'Hora de Início', 'Data de Término', 'Hora de Término']],
+				head: [
+					[{ content: titleLabel, colSpan: 9, styles: { halign: 'center' } }],
+					[
+						'Nome',
+						'Cargo',
+						'Matrícula',
+						'Telefone',
+						'Lotação',
+						'Data de Início',
+						'Hora de Início',
+						'Data de Término',
+						'Hora de Término'
+					]
+				],
 				body: tableData,
 				startY: y,
 				theme: 'grid',
@@ -607,12 +742,15 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'bold');
-	doc.text((gise.supervisor_nome || 'Supervisão do GISE').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+	doc.text((gise.supervisor_nome || 'Supervisão do GISE').toUpperCase(), sigCenterX, sigY + 4, {
+		align: 'center'
+	});
 	doc.setFont('helvetica', 'normal');
-	const matSup =
-		(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) || '—';
+	const matSup = (gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) || '—';
 	doc.text(`Matrícula: ${matSup}`, sigCenterX, sigY + 8, { align: 'center' });
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, {
+		align: 'center'
+	});
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
 
@@ -630,7 +768,7 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 			const { height } = page.getSize();
 			page.drawImage(jpgImage, {
 				x: 10 * mmToPt,
-				y: height - (5 * mmToPt) - (14 * mmToPt),
+				y: height - 5 * mmToPt - 14 * mmToPt,
 				width: 45 * mmToPt,
 				height: 14 * mmToPt
 			});
@@ -684,7 +822,11 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 			doc.setFont('helvetica', 'bold');
 			doc.setFillColor(245, 245, 245);
 			doc.rect(margin, y, pageWidth - 2 * margin, 8, 'F');
-			doc.text(`EQUIPE: ${team.tipo === 'operacional' ? 'OPERACIONAL' : 'SEINT'}`, margin + 2, y + 6);
+			doc.text(
+				`EQUIPE: ${team.tipo === 'operacional' ? 'OPERACIONAL' : 'SEINT'}`,
+				margin + 2,
+				y + 6
+			);
 			y += 12;
 
 			const rows = teamResponses.map((r: any) => [r.pergunta, r.resposta]);
@@ -722,7 +864,15 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 }
 
 // ---- PDF Relatório Extraordinário GISE (Seccional) ----
-export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presencas: any[], seccionalId?: number, baseUrl?: string, reportSignature?: any, qrCodeBase64?: string, isPreparando = false): Promise<PdfExportResult> {
+export async function gerarRelatorioExtraordinarioPdf(
+	gise: GisePdfData,
+	presencas: any[],
+	seccionalId?: number,
+	baseUrl?: string,
+	reportSignature?: any,
+	qrCodeBase64?: string,
+	isPreparando = false
+): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
 	const margin = 10;
@@ -735,9 +885,14 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(10);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, { align: 'center' });
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, {
+		align: 'center'
+	});
 	y += 5;
-	const primeiraSec = gise.seccionais.find(s => s.seccional_id === seccionalId)?.seccional_nome || gise.seccionais[0]?.seccional_nome || '';
+	const primeiraSec =
+		gise.seccionais.find((s) => s.seccional_id === seccionalId)?.seccional_nome ||
+		gise.seccionais[0]?.seccional_nome ||
+		'';
 	doc.text(`${primeiraSec.toUpperCase()}`, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
@@ -770,18 +925,23 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	doc.text(splitText, margin + 5, boxY + 7);
 	y += 25;
 
-	const allMembros: Array<GisePdfData['seccionais'][number]['equipes'][number]['membros'][number] & { seccional: string; presencaData: typeof presencas[number] | undefined }> = [];
+	const allMembros: Array<
+		GisePdfData['seccionais'][number]['equipes'][number]['membros'][number] & {
+			seccional: string;
+			presencaData: (typeof presencas)[number] | undefined;
+		}
+	> = [];
 	for (const sec of gise.seccionais) {
 		if (seccionalId && sec.seccional_id !== seccionalId) continue;
 		for (const eq of sec.equipes) {
 			for (const m of eq.membros) {
-				const pres = presencas.find(p => p.policial_id === m.policial_id);
+				const pres = presencas.find((p) => p.policial_id === m.policial_id);
 				allMembros.push({ ...m, seccional: sec.seccional_nome, presencaData: pres });
 			}
 		}
 	}
 
-	const tableData = allMembros.map(m => [
+	const tableData = allMembros.map((m) => [
 		m.policial_nome,
 		m.policial_cargo,
 		m.policial_matricula,
@@ -794,7 +954,19 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	]);
 
 	autoTable(doc, {
-		head: [['NOME COMPLETO', 'CARGO', 'MATRÍCULA', 'CLASSE', 'LOTAÇÃO', 'HORA DE INÍCIO', 'RUBRICA', 'HORA DE SAÍDA', 'RUBRICA']],
+		head: [
+			[
+				'NOME COMPLETO',
+				'CARGO',
+				'MATRÍCULA',
+				'CLASSE',
+				'LOTAÇÃO',
+				'HORA DE INÍCIO',
+				'RUBRICA',
+				'HORA DE SAÍDA',
+				'RUBRICA'
+			]
+		],
 		body: tableData,
 		startY: y,
 		theme: 'grid',
@@ -804,12 +976,13 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		didDrawCell: (data) => {
 			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
 				const rawCell = data.cell.raw as { image?: string; content?: string } | string | null;
-				const imgData = (typeof rawCell === 'object' && rawCell !== null) ? rawCell.image : rawCell;
+				const imgData = typeof rawCell === 'object' && rawCell !== null ? rawCell.image : rawCell;
 
 				// Só tenta inserir se for uma string base64 com prefixo data:image/
 				// Qualquer outro valor (URL, string sem prefixo, null) é ignorado
 				// para evitar o quadrado preto gerado pelo jsPDF quando recebe dados inválidos
-				const isValidBase64Image = typeof imgData === 'string' &&
+				const isValidBase64Image =
+					typeof imgData === 'string' &&
 					imgData.startsWith('data:image/') &&
 					imgData.includes(';base64,') &&
 					imgData.length > 200; // base64 real tem pelo menos 200 caracteres
@@ -848,12 +1021,21 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 	});
 	const lastAutoY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	let sigY = lastAutoY + 40;
-	if (sigY > 185) { doc.addPage(); sigY = 40; }
+	if (sigY > 185) {
+		doc.addPage();
+		sigY = 40;
+	}
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
-	const cidade = gise.seccionais.find((s: any) => s.seccional_id === seccionalId)?.seccional_nome.split('-')[1]?.trim() || 'Iguatu';
-	doc.text(`${cidade}/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, { align: 'right' });
+	const cidade =
+		gise.seccionais
+			.find((s: any) => s.seccional_id === seccionalId)
+			?.seccional_nome.split('-')[1]
+			?.trim() || 'Iguatu';
+	doc.text(`${cidade}/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, {
+		align: 'right'
+	});
 
 	const sigCenterX = pageWidth / 2;
 
@@ -862,7 +1044,9 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
 			doc.setFont('helvetica', 'italic');
 			doc.setFontSize(10);
-			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, { align: 'center' });
+			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, {
+				align: 'center'
+			});
 		}
 	} else {
 		if (reportSignature.rubrica) {
@@ -870,7 +1054,14 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 				const rubW = 65;
 				const rubH = 25;
 				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
-				doc.addImage(reportSignature.rubrica, rubricaFormat, sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
+				doc.addImage(
+					reportSignature.rubrica,
+					rubricaFormat,
+					sigCenterX - rubW / 2,
+					sigY - rubH - 2,
+					rubW,
+					rubH
+				);
 			} catch (e) {
 				console.warn('[relatorio-extra] Erro ao inserir rubrica do supervisor:', e);
 			}
@@ -878,10 +1069,16 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 		doc.setFontSize(8);
 		doc.setFont('helvetica', 'bold');
-		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, {
+			align: 'center'
+		});
 		doc.setFont('helvetica', 'normal');
-		doc.text(`Matrícula: ${reportSignature.assinante_matricula ?? '—'}`, sigCenterX, sigY + 8, { align: 'center' });
-		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
+		doc.text(`Matrícula: ${reportSignature.assinante_matricula ?? '—'}`, sigCenterX, sigY + 8, {
+			align: 'center'
+		});
+		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, {
+			align: 'center'
+		});
 	}
 
 	if (reportSignature && qrCodeBase64) {
@@ -898,11 +1095,23 @@ export async function gerarRelatorioExtraordinarioPdf(gise: GisePdfData, presenc
 			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
 
 			doc.setFont('helvetica', 'normal');
-			const dataH = reportSignature.created_at ? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
-			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 10);
+			const dataH = reportSignature.created_at
+				? new Date(reportSignature.created_at).toLocaleString('pt-BR', {
+						timeZone: 'America/Sao_Paulo'
+					})
+				: '';
+			doc.text(
+				`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`,
+				txtX,
+				qrY + 10
+			);
 
 			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 14);
+			doc.text(
+				`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`,
+				txtX,
+				qrY + 14
+			);
 		} catch (e) {
 			console.warn('[relatorio-extra] Erro ao inserir QR code:', e);
 		}
@@ -936,13 +1145,17 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
 	y += 5;
 	doc.setFontSize(10);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, { align: 'center' });
+	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, {
+		align: 'center'
+	});
 	y += 5;
 	doc.text('SUPERVISÃO GISE — QUADRO DE SUPERVISÃO', pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
 	doc.setFontSize(12);
-	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (SUPERVISÃO)', pageWidth / 2, y, { align: 'center' });
+	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (SUPERVISÃO)', pageWidth / 2, y, {
+		align: 'center'
+	});
 	y += 10;
 
 	const hEnt = gise.hora_entrada;
@@ -997,10 +1210,28 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		});
 	};
 
-	pushSlot(gise.supervisor_id, gise.supervisor_nome, gise.supervisor_matricula, 'DPC', 'Supervisão GISE');
+	pushSlot(
+		gise.supervisor_id,
+		gise.supervisor_nome,
+		gise.supervisor_matricula,
+		'DPC',
+		'Supervisão GISE'
+	);
 	pushSlot(gise.assessor_id, gise.assessor_nome, gise.assessor_matricula, 'OIP', 'Supervisão GISE');
-	pushSlot(gise.seint1_id, gise.seint1_nome, gise.seint1_matricula, 'OIP', 'Supervisão GISE — SEINT');
-	pushSlot(gise.seint2_id, gise.seint2_nome, gise.seint2_matricula, 'OIP', 'Supervisão GISE — SEINT');
+	pushSlot(
+		gise.seint1_id,
+		gise.seint1_nome,
+		gise.seint1_matricula,
+		'OIP',
+		'Supervisão GISE — SEINT'
+	);
+	pushSlot(
+		gise.seint2_id,
+		gise.seint2_nome,
+		gise.seint2_matricula,
+		'OIP',
+		'Supervisão GISE — SEINT'
+	);
 
 	const tableData = slots.map((m) => {
 		const pres = presencas.find((p: any) => p.policial_id === m.policial_id);
@@ -1024,7 +1255,19 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	}
 
 	autoTable(doc, {
-		head: [['NOME COMPLETO', 'CARGO', 'MATRÍCULA', 'CLASSE', 'LOTAÇÃO', 'HORA DE INÍCIO', 'RUBRICA', 'HORA DE SAÍDA', 'RUBRICA']],
+		head: [
+			[
+				'NOME COMPLETO',
+				'CARGO',
+				'MATRÍCULA',
+				'CLASSE',
+				'LOTAÇÃO',
+				'HORA DE INÍCIO',
+				'RUBRICA',
+				'HORA DE SAÍDA',
+				'RUBRICA'
+			]
+		],
 		body: tableData,
 		startY: y,
 		theme: 'grid',
@@ -1079,7 +1322,9 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
-	doc.text(`Fortaleza/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, { align: 'right' });
+	doc.text(`Fortaleza/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, {
+		align: 'right'
+	});
 
 	const sigCenterX = pageWidth / 2;
 
@@ -1088,7 +1333,9 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
 			doc.setFont('helvetica', 'italic');
 			doc.setFontSize(10);
-			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, { align: 'center' });
+			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, {
+				align: 'center'
+			});
 		}
 	} else {
 		if (reportSignature.rubrica) {
@@ -1096,7 +1343,14 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 				const rubW = 65;
 				const rubH = 25;
 				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
-				doc.addImage(reportSignature.rubrica, rubricaFormat, sigCenterX - rubW / 2, sigY - rubH - 2, rubW, rubH);
+				doc.addImage(
+					reportSignature.rubrica,
+					rubricaFormat,
+					sigCenterX - rubW / 2,
+					sigY - rubH - 2,
+					rubW,
+					rubH
+				);
 			} catch {
 				/* ignora */
 			}
@@ -1104,14 +1358,18 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 		doc.setFontSize(8);
 		doc.setFont('helvetica', 'bold');
-		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, { align: 'center' });
+		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, {
+			align: 'center'
+		});
 		doc.setFont('helvetica', 'normal');
 		const matRelSup =
 			(reportSignature.assinante_matricula && String(reportSignature.assinante_matricula).trim()) ||
 			(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) ||
 			'—';
 		doc.text(`Matrícula: ${matRelSup}`, sigCenterX, sigY + 8, { align: 'center' });
-		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, { align: 'center' });
+		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, {
+			align: 'center'
+		});
 	}
 
 	if (reportSignature && qrCodeBase64) {
@@ -1129,12 +1387,22 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 
 			doc.setFont('helvetica', 'normal');
 			const dataH = reportSignature.created_at
-				? new Date(reportSignature.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+				? new Date(reportSignature.created_at).toLocaleString('pt-BR', {
+						timeZone: 'America/Sao_Paulo'
+					})
 				: '';
-			doc.text(`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`, txtX, qrY + 10);
+			doc.text(
+				`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`,
+				txtX,
+				qrY + 10
+			);
 
 			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-			doc.text(`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`, txtX, qrY + 14);
+			doc.text(
+				`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`,
+				txtX,
+				qrY + 14
+			);
 		} catch {
 			/* ignora QR */
 		}

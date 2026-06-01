@@ -68,7 +68,10 @@ const cpfAssinanteSchema = optionalNullable(z.string().trim().max(20));
 const emailAssinanteSchema = optionalNullable(z.string().trim().email('E-mail inválido').max(200));
 
 /** Base64 padrão. */
-const base64Schema = z.string().regex(/^[A-Za-z0-9+/=]+$/, 'Esperado base64').max(20 * 1024 * 1024);
+const base64Schema = z
+	.string()
+	.regex(/^[A-Za-z0-9+/=]+$/, 'Esperado base64')
+	.max(20 * 1024 * 1024);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PREPARAR-ASSINATURA — comum a escalas / gise / gise/relatorios
@@ -155,8 +158,14 @@ const livenessChallengeSchema = optionalNullable(
 		tipo: z.enum(['blink', 'smile']),
 		cumprido: z.boolean(),
 		tentativas: z.number().int().min(1).max(20),
-		iniciadoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
-		concluidoEm: z.string().regex(/^\d{4}-\d{2}-\d{2}T/).nullable(),
+		iniciadoEm: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T/)
+			.nullable(),
+		concluidoEm: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}T/)
+			.nullable(),
 		duracaoMs: z.number().int().min(0).max(600_000)
 	})
 );
@@ -168,13 +177,16 @@ export const assinarSimplesSchema = z.object({
 	selfieBase64: dataUrlImagemSchema,
 	/** Nome do campo é histórico (com cedilha) — manter para não quebrar clientes. */
 	codigoValidação: optionalNullable(z.string().regex(/^\d{4,8}$/, 'Código inválido')),
-	desafioId: optionalNullable(z.string().regex(/^[0-9a-fA-F]+$/, 'desafioId inválido').max(80)),
+	desafioId: optionalNullable(
+		z
+			.string()
+			.regex(/^[0-9a-fA-F]+$/, 'desafioId inválido')
+			.max(80)
+	),
 	livenessChallenge: livenessChallengeSchema
 });
 export type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
-export type LivenessChallengeInput = NonNullable<
-	z.infer<typeof livenessChallengeSchema>
->;
+export type LivenessChallengeInput = NonNullable<z.infer<typeof livenessChallengeSchema>>;
 
 /** @deprecated use `assinarSimplesSchema`. Alias mantido para não quebrar imports. */
 export const assinarSimplesEscalasSchema = assinarSimplesSchema;

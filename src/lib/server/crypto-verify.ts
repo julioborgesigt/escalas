@@ -208,9 +208,7 @@ export async function verificarAssinaturaCms(params: VerifyParams): Promise<bool
 	// próprio sigAlgOid.
 	const hash =
 		digestFromSigAlg(params.sigAlgOid) ??
-		(params.sigAlgOid === OID_RSA_ENCRYPTION
-			? digestFromDigestOid(params.digestAlgOid)
-			: null);
+		(params.sigAlgOid === OID_RSA_ENCRYPTION ? digestFromDigestOid(params.digestAlgOid) : null);
 	if (!family || !hash) {
 		logger.warn('[CRYPTO-VERIFY] OID de signatureAlgorithm não suportado', {
 			oid: params.sigAlgOid,
@@ -283,12 +281,7 @@ export async function verificarAssinaturaCms(params: VerifyParams): Promise<bool
 				false,
 				['verify']
 			);
-			return crypto.subtle.verify(
-				{ name: 'ECDSA', hash: { name: hash } },
-				key,
-				sigBuf,
-				dataBuf
-			);
+			return crypto.subtle.verify({ name: 'ECDSA', hash: { name: hash } }, key, sigBuf, dataBuf);
 		}
 
 		return false;

@@ -18,7 +18,11 @@ import {
 	serverError,
 	validateBody
 } from '$lib/server/api';
-import { gerarPdfGise, toGisePdfData, giseDetalhadoComMatriculaSupervisorSessao } from '$lib/server/export';
+import {
+	gerarPdfGise,
+	toGisePdfData,
+	giseDetalhadoComMatriculaSupervisorSessao
+} from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
 	prepararPdfParaAssinatura,
@@ -30,10 +34,18 @@ import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 
-export const POST: RequestHandler = async ({ platform, params, locals, url, request, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	params,
+	locals,
+	url,
+	request,
+	getClientAddress
+}) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
-	if (u.tipo !== 'policial') return forbidden('Apenas policiais designados como supervisor podem assinar');
+	if (u.tipo !== 'policial')
+		return forbidden('Apenas policiais designados como supervisor podem assinar');
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
@@ -58,7 +70,10 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) {
-		return serverError('[gise/preparar-assinatura] buscarGiseDetalhado retornou null', new Error('GISE_DETALHADO_NULL'));
+		return serverError(
+			'[gise/preparar-assinatura] buscarGiseDetalhado retornou null',
+			new Error('GISE_DETALHADO_NULL')
+		);
 	}
 
 	const r2Logo = getR2(platform);
@@ -67,14 +82,13 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		try {
 			const logoObj = await r2Logo.get('assets/logogise.jpg');
 			if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
-		} catch (e) { /* logo optional */ }
+		} catch (e) {
+			/* logo optional */
+		}
 	}
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 	const brEnv = await getBreveRelatorioEnvMergido(db);
-	const result = await gerarPdfGise(
-		toGisePdfData(gisePdf, brEnv),
-		logoJpgBytes
-	);
+	const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
@@ -136,7 +150,8 @@ export const POST: RequestHandler = async ({ platform, params, locals, url, requ
 		contentPageIndex
 	);
 
-	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } = prepResult;
+	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
+		prepResult;
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
 
 	return json({

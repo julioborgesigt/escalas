@@ -31,7 +31,11 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	const perm = await verificarPermissaoGise(db, gise, u);
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para acessar esta GISE.');
 
-	const doc = await db.select().from(schema.giseDocumentos).where(eq(schema.giseDocumentos.gise_id, id)).get();
+	const doc = await db
+		.select()
+		.from(schema.giseDocumentos)
+		.where(eq(schema.giseDocumentos.gise_id, id))
+		.get();
 
 	if (!doc) {
 		return json({ existe: false });

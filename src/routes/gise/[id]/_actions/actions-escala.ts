@@ -52,14 +52,22 @@ export const actionsEscala = {
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
 		if (supervisorId !== null) {
-			const p = await db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, supervisorId)).get();
+			const p = await db
+				.select({ cargo: policiais.cargo })
+				.from(policiais)
+				.where(eq(policiais.id, supervisorId))
+				.get();
 			if (!p) return fail(404, { error: 'Supervisor não encontrado' });
 			if (p.cargo !== 'DPC') return fail(400, { error: 'Apenas DPC pode ser Supervisor' });
 		}
 
 		const checkOip = async (id: number | null, label: string) => {
 			if (id !== null) {
-				const p = await db.select({ cargo: policiais.cargo }).from(policiais).where(eq(policiais.id, id)).get();
+				const p = await db
+					.select({ cargo: policiais.cargo })
+					.from(policiais)
+					.where(eq(policiais.id, id))
+					.get();
 				if (!p) return fail(404, { error: `${label} não encontrado` });
 				if (p.cargo !== 'OIP') return fail(400, { error: `${label} deve ser OIP` });
 			}
@@ -73,7 +81,9 @@ export const actionsEscala = {
 		const errSeint2 = await checkOip(seint2Id, 'SEINT 2');
 		if (errSeint2) return errSeint2;
 
-		const assessorEmailRaw = ((formData.get('assessor_email_notificacao') as string | null) ?? '').trim();
+		const assessorEmailRaw = (
+			(formData.get('assessor_email_notificacao') as string | null) ?? ''
+		).trim();
 		const confirmarRaw = formData.get('confirmar_email_assessor');
 		const confirmarEmailAssessor = confirmarRaw === '1' || confirmarRaw === 'on';
 		const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assessorEmailRaw);
@@ -86,7 +96,10 @@ export const actionsEscala = {
 				});
 			}
 			if (!assessorEmailRaw) {
-				return fail(400, { error: 'Informe o e-mail do assessor para receber avisos quando as seccionais enviarem a GISE.' });
+				return fail(400, {
+					error:
+						'Informe o e-mail do assessor para receber avisos quando as seccionais enviarem a GISE.'
+				});
 			}
 			if (!emailOk) {
 				return fail(400, { error: 'E-mail do assessor inválido.' });
@@ -140,8 +153,10 @@ export const actionsEscala = {
 
 		const formData = await request.formData();
 		const titulo = (formData.get('breve_relatorio_titulo') as string | null)?.trim() ?? '';
-		const textoSec = (formData.get('breve_relatorio_texto_seccional') as string | null)?.trim() ?? '';
-		const textoSup = (formData.get('breve_relatorio_texto_supervisao') as string | null)?.trim() ?? '';
+		const textoSec =
+			(formData.get('breve_relatorio_texto_seccional') as string | null)?.trim() ?? '';
+		const textoSup =
+			(formData.get('breve_relatorio_texto_supervisao') as string | null)?.trim() ?? '';
 
 		const db = getDB(platform);
 		const gise = await buscarGiseEscala(db, giseId);
@@ -185,10 +200,16 @@ export const actionsEscala = {
 		};
 
 		let deveResetarStatus = false;
-		if ([
-			'aguardando_assinatura', 'em_andamento', 'aguardando_relatorios',
-			'aguardando_assinatura_relat', 'pronta_para_finalizar', 'finalizada'
-		].includes(gise.status)) {
+		if (
+			[
+				'aguardando_assinatura',
+				'em_andamento',
+				'aguardando_relatorios',
+				'aguardando_assinatura_relat',
+				'pronta_para_finalizar',
+				'finalizada'
+			].includes(gise.status)
+		) {
 			await db.delete(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId));
 			updateData.status = 'em_preenchimento';
 			deveResetarStatus = true;
@@ -220,7 +241,8 @@ export const actionsEscala = {
 		const db = getDB(platform);
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
-		if (gise.status !== 'aguardando_assinatura') return fail(400, { error: 'Escala não está aguardando assinatura' });
+		if (gise.status !== 'aguardando_assinatura')
+			return fail(400, { error: 'Escala não está aguardando assinatura' });
 
 		await atualizarGiseEscala(db, giseId, { status: 'em_preenchimento' });
 		return { success: true };
@@ -290,7 +312,13 @@ export const actionsEscala = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const statusValidos = ['em_andamento', 'aguardando_relatorios', 'aguardando_assinatura_relat', 'pronta_para_finalizar', 'finalizada'];
+		const statusValidos = [
+			'em_andamento',
+			'aguardando_relatorios',
+			'aguardando_assinatura_relat',
+			'pronta_para_finalizar',
+			'finalizada'
+		];
 		if (!statusValidos.includes(gise.status)) {
 			return fail(400, { error: 'Status não permite reabrir' });
 		}
@@ -318,17 +346,37 @@ export const actionsEscala = {
 		const fileKeys = new Set<string>();
 
 		const [docs, presencas, assRelat] = await Promise.all([
-			db.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
-				.from(giseDocumentos).where(eq(giseDocumentos.gise_id, giseId)).all(),
-			db.select({ entrada: gisePresencas.entrada_selfie_key, saida: gisePresencas.saida_selfie_key })
-				.from(gisePresencas).where(eq(gisePresencas.gise_id, giseId)).all(),
-			db.select({ selfie: giseAssinaturasRelatorios.selfie_key })
-				.from(giseAssinaturasRelatorios).where(eq(giseAssinaturasRelatorios.gise_id, giseId)).all()
+			db
+				.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
+				.from(giseDocumentos)
+				.where(eq(giseDocumentos.gise_id, giseId))
+				.all(),
+			db
+				.select({
+					entrada: gisePresencas.entrada_selfie_key,
+					saida: gisePresencas.saida_selfie_key
+				})
+				.from(gisePresencas)
+				.where(eq(gisePresencas.gise_id, giseId))
+				.all(),
+			db
+				.select({ selfie: giseAssinaturasRelatorios.selfie_key })
+				.from(giseAssinaturasRelatorios)
+				.where(eq(giseAssinaturasRelatorios.gise_id, giseId))
+				.all()
 		]);
 
-		docs.forEach(d => { if (d.r2) fileKeys.add(d.r2); if (d.selfie) fileKeys.add(d.selfie); });
-		presencas.forEach(p => { if (p.entrada) fileKeys.add(p.entrada); if (p.saida) fileKeys.add(p.saida); });
-		assRelat.forEach(a => { if (a.selfie) fileKeys.add(a.selfie); });
+		docs.forEach((d) => {
+			if (d.r2) fileKeys.add(d.r2);
+			if (d.selfie) fileKeys.add(d.selfie);
+		});
+		presencas.forEach((p) => {
+			if (p.entrada) fileKeys.add(p.entrada);
+			if (p.saida) fileKeys.add(p.saida);
+		});
+		assRelat.forEach((a) => {
+			if (a.selfie) fileKeys.add(a.selfie);
+		});
 
 		const r2 = getR2(platform);
 		if (r2) {
@@ -349,7 +397,7 @@ export const actionsEscala = {
 			}
 
 			if (fileKeys.size > 0) {
-				await Promise.allSettled(Array.from(fileKeys).map(key => r2.delete(key)));
+				await Promise.allSettled(Array.from(fileKeys).map((key) => r2.delete(key)));
 			}
 		}
 

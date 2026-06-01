@@ -35,10 +35,7 @@ function tokenAsn1(): forge.asn1.Asn1 {
 	return forge.asn1.fromDer(forge.util.createBuffer(tokenBin));
 }
 
-function makeStore(
-	caStore: forge.pki.CAStore,
-	roots: forge.pki.Certificate[] = []
-): TrustStore {
+function makeStore(caStore: forge.pki.CAStore, roots: forge.pki.Certificate[] = []): TrustStore {
 	return { disponivel: true, roots, intermediates: [], caStore };
 }
 

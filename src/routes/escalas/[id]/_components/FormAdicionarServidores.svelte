@@ -143,7 +143,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -159,7 +162,8 @@
 			pendingPlantao = false;
 			if (result.type === 'success') {
 				onPoliciaisAtualizados(result.data?.policiais);
-				const conflitantes = (result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
+				const conflitantes =
+					(result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
 				if (conflitantes.length > 0) {
 					const datas = conflitantes.map((c) => c.data).join(', ');
 					toaster.create({
@@ -178,7 +182,10 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -193,17 +200,23 @@
 				onPoliciaisAtualizados(result.data?.policiais);
 				if (Number(d?.quantidade) === 0)
 					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
-				else toaster.create({ title: `${d?.quantidade} servidor(es) adicionado(s)`, type: 'success' });
+				else
+					toaster.create({ title: `${d?.quantidade} servidor(es) adicionado(s)`, type: 'success' });
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
+				const d =
+					result.type === 'failure'
+						? (result.data as Record<string, unknown> | undefined)
+						: undefined;
 				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
 			}
 		};
 	}
 
-	const visivel = $derived(modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual);
+	const visivel = $derived(
+		modoEdicao && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual
+	);
 </script>
 
 {#if visivel && isExpediente}
@@ -220,7 +233,12 @@
 					que ainda não estão na escala.
 				</p>
 			</div>
-			<form method="POST" action="?/adicionarTodos" use:enhance={handleAdicionarTodos} class="contents">
+			<form
+				method="POST"
+				action="?/adicionarTodos"
+				use:enhance={handleAdicionarTodos}
+				class="contents"
+			>
 				<button
 					type="submit"
 					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2 active:scale-95 transition-all"
@@ -300,7 +318,10 @@
 					<div class="flex flex-col gap-1">
 						<span class="label-text text-xs">Hora Entrada</span>
 						<div class="flex gap-1">
-							<select class="select flex-1 h-9 py-0 px-2" name="hora_entrada" bind:value={addHoraEntrada}
+							<select
+								class="select flex-1 h-9 py-0 px-2"
+								name="hora_entrada"
+								bind:value={addHoraEntrada}
 								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 							>
 							<select
@@ -314,7 +335,10 @@
 					<div class="flex flex-col gap-1">
 						<span class="label-text text-xs">Hora Saída</span>
 						<div class="flex gap-1">
-							<select class="select flex-1 h-9 py-0 px-2" name="hora_saida" bind:value={addHoraSaida}
+							<select
+								class="select flex-1 h-9 py-0 px-2"
+								name="hora_saida"
+								bind:value={addHoraSaida}
 								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 							>
 							<select
@@ -449,7 +473,12 @@
 					</label>
 					<label class="label sm:col-span-2">
 						<span class="label-text">Data</span>
-						<select name="data_plantao" class="select h-9 py-0 px-2" bind:value={dataPlantao} required>
+						<select
+							name="data_plantao"
+							class="select h-9 py-0 px-2"
+							bind:value={dataPlantao}
+							required
+						>
 							{#each diasEscalaLocal as d (d)}
 								<option value={d}>{formatarData(d)}</option>
 							{/each}

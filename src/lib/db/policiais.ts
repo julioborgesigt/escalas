@@ -291,7 +291,10 @@ export async function excluirPolicial(db: Database, id: number) {
 }
 
 export async function listarLotacoes(db: Database): Promise<string[]> {
-	const result = await db.select({ nome: unidades.nome }).from(unidades).orderBy(asc(unidades.nome));
+	const result = await db
+		.select({ nome: unidades.nome })
+		.from(unidades)
+		.orderBy(asc(unidades.nome));
 	return result.map((r) => r.nome);
 }
 

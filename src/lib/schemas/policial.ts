@@ -6,7 +6,10 @@ export const policialSchema = z.object({
 	cargo: z.enum(['DPC', 'OIP'], { message: 'Cargo deve ser DPC ou OIP' }),
 	cpf: z
 		.string()
-		.regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido (use 11 dígitos ou formato ###.###.###-##)')
+		.regex(
+			/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/,
+			'CPF inválido (use 11 dígitos ou formato ###.###.###-##)'
+		)
 		.optional()
 		.nullable(),
 	telefone: z.string().max(20).default(''),

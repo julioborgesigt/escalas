@@ -26,7 +26,10 @@ export const actions = {
 		const nova_senha = formData.get('nova_senha')?.toString();
 		const senha_atual = formData.get('senha_atual')?.toString();
 
-		const parsed = alterarSenhaSchema.safeParse({ nova_senha, senha_atual: senha_atual || undefined });
+		const parsed = alterarSenhaSchema.safeParse({
+			nova_senha,
+			senha_atual: senha_atual || undefined
+		});
 		if (!parsed.success) {
 			return fail(400, { error: parsed.error.issues[0].message });
 		}

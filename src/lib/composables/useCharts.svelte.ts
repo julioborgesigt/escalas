@@ -28,11 +28,7 @@ export function useCharts(getChart: () => any, getData: () => any) {
 		});
 	}
 
-	function updateCharts(
-		questions: ChartQuestion[],
-		list: any[],
-		filterSeccional: string | number
-	) {
+	function updateCharts(questions: ChartQuestion[], list: any[], filterSeccional: string | number) {
 		const Chart = getChart();
 		if (!Chart) return;
 
@@ -167,7 +163,9 @@ export function useCharts(getChart: () => any, getData: () => any) {
 	}
 
 	return {
-		get canvasElements() { return canvasElements; },
+		get canvasElements() {
+			return canvasElements;
+		},
 		updateCharts,
 		destroyStaleCharts,
 		destroyAll
