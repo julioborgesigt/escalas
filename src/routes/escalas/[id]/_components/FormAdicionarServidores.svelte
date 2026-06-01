@@ -55,6 +55,7 @@
 
 	async function buscarPoliciaisAsync(q: string, sig: AbortSignal) {
 		if (!cargoBusca) return [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({ cargo: cargoBusca, limit: '50' });
 		if (q) params.set('q', q);
 		const res = await fetch(`/api/policiais/search?${params}`, { signal: sig });
@@ -81,8 +82,11 @@
 	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
 		if (!primeiroPlantao) return [];
 		const datas: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const inicio = new Date(escala.data_inicio + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const fim = new Date(escala.data_fim + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const d = new Date(primeiroPlantao + 'T00:00:00');
 		if (tipo === '1x3') {
 			while (d <= fim) {
@@ -92,6 +96,7 @@
 		} else {
 			while (d <= fim) {
 				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity
 				const d2 = new Date(d);
 				d2.setDate(d2.getDate() + 1);
 				if (d2 <= fim && d2 >= inicio) datas.push(d2.toISOString().split('T')[0]);
@@ -356,7 +361,7 @@
 							Datas calculadas ({datasCalc.length} dias):
 						</p>
 						<div class="flex flex-wrap gap-1.5">
-							{#each datasCalc as d}
+							{#each datasCalc as d (d)}
 								<button
 									type="button"
 									class="px-2 py-1 text-[0.65rem] font-bold rounded-md border transition-all {addDatasSelecionadas.includes(

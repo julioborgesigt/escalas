@@ -45,7 +45,9 @@
 	function getDaysInRange(start: string, end: string) {
 		if (!start || !end) return [];
 		const days = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(start + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const last = new Date(end + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);
@@ -138,6 +140,7 @@
 
 	async function buscarPoliciais(cargo: string, query: string, signal: AbortSignal) {
 		if (!cargo) return [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({ cargo, limit: '50' });
 		if (query) params.set('q', query);
 		const res = await fetch(`/api/policiais/search?${params}`, { signal });
@@ -362,7 +365,7 @@
 
 <!-- =========== FDS: Containers por dia =========== -->
 <div class="space-y-4">
-	{#each diasEscalaLocal as dia}
+	{#each diasEscalaLocal as dia (dia)}
 		{@const diaItems = policiaisEscalaLocal
 			.filter((p) => p.data_plantao === dia)
 			.sort((a, b) => {
@@ -666,7 +669,7 @@
 									<input type="hidden" name="equipe" value={p.equipe || '1'} />
 									<input type="hidden" name="datas" value={repeticaoDatasJson} />
 									<div class="flex flex-wrap gap-1.5 mb-3">
-										{#each diasEscalaLocal as d}
+										{#each diasEscalaLocal as d (d)}
 											{@const jaAdicionado = jaAdicionados.has(d)}
 											<button
 												type="button"

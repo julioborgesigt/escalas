@@ -23,6 +23,7 @@
 		FALTANTE_RUBRICA_SUPER_PREFIX
 	} from '$lib/gise/gise-supervisao-extra';
 	import type { GiseAssinaturaRelatorio } from '$lib/server/schema';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	type PresencaGiseLinha = {
 		policial_id: number;
@@ -173,7 +174,7 @@
 	const stSupervisor = $derived(marcador('supervisor', gise.supervisor_id));
 
 	const nomesSupervisaoPorId = $derived.by(() => {
-		const m = new Map<number, string>();
+		const m = new SvelteMap<number, string>();
 		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
 		if (gise.assessor_id && gise.assessor_nome) m.set(gise.assessor_id, gise.assessor_nome);
 		if (gise.seint1_id && gise.seint1_nome) m.set(gise.seint1_id, gise.seint1_nome);

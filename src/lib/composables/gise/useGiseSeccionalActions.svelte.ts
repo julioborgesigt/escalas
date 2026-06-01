@@ -18,6 +18,7 @@ import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
 import { validarHora } from '$lib/gise/gise-horarios';
+import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 export interface UseGiseSeccionalActionsParams {
 	/** Callbacks de reset chamados pelo composable após cada sucesso de CRUD. */
@@ -211,7 +212,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 	 */
 	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
 		return async (query: string, signal: AbortSignal) => {
-			const params = new URLSearchParams({ cargo, limit: '50' });
+			const params = new SvelteURLSearchParams({ cargo, limit: '50' });
 			if (query) params.set('q', query);
 			const res = await fetch(`/api/policiais/search?${params}`, { signal });
 			if (!res.ok) {

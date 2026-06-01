@@ -2,6 +2,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
+	import { SvelteSet } from 'svelte/reactivity';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { browser } from '$app/environment';
 	import { Dialog, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
@@ -71,7 +72,7 @@
 	const seccionais = $derived(unidadesDB.filter((u) => u.tipo === 'seccional'));
 
 	// Itens ignorados (persistidos no localStorage)
-	let ignorados = $state<Set<string>>(new Set());
+	let ignorados = $state<SvelteSet<string>>(new SvelteSet());
 
 	function chaveIgnorado(item: ItemCompliance): string {
 		return `${item.unidade_nome}|${item.tipo_regime}|${item.data_inicio}`;
@@ -120,6 +121,7 @@
 
 	const dadosAgrupados = $derived.by(() => {
 		const base = [...dadosFiltrados];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const gruposMap = new Map<string, ItemCompliance[]>();
 		for (const item of base) {
 			const chave = item.unidade_nome;
@@ -219,6 +221,7 @@
 		if (filtroMes === null) filtroMes = 'todos';
 
 		if (filtroAno !== data.filtroAno || filtroMes !== data.filtroMes) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const params = new URLSearchParams(page.url.searchParams);
 			params.set('ano', filtroAno);
 			params.set('mes', filtroMes);
@@ -544,7 +547,7 @@
 					</thead>
 					<tbody>
 						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _}
+							{#each { length: 8 } as _, i (i)}
 								<tr class="animate-pulse">
 									<td class="px-4 py-3"
 										><div class="h-4 w-40 rounded bg-surface-200 dark:bg-surface-700"></div></td
@@ -568,7 +571,7 @@
 								</tr>
 							{/each}
 						{:else}
-							{#each dadosAgrupados as grupo}
+							{#each dadosAgrupados as grupo (grupo.titulo)}
 								{#if grupo.titulo}
 									<tr class="bg-surface-200/50 dark:bg-surface-800/50 shadow-inner">
 										<td
@@ -671,11 +674,11 @@
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-2">
 				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _}
+					{#each { length: 5 } as _, i (i)}
 						<SkeletonCard lines={3} hasFooter={false} />
 					{/each}
 				{:else}
-					{#each dadosAgrupados as grupo}
+					{#each dadosAgrupados as grupo (grupo.titulo)}
 						{#if grupo.titulo}
 							<div
 								class="py-2 px-4 bg-surface-100 dark:bg-surface-800/40 text-[10px] font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400 rounded-lg"

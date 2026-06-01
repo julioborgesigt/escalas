@@ -9,6 +9,7 @@
 	import { Popover, Portal, Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	const {
 		historico,
@@ -108,7 +109,7 @@
 	);
 
 	function buildHistoricoExportHref(format: 'xlsx' | 'pdf'): string {
-		const p = new URLSearchParams();
+		const p = new SvelteURLSearchParams();
 		p.set('format', format);
 		if (filtroSeccional !== '') p.set('seccionalId', String(filtroSeccional));
 		if (filtroMesAno) {

@@ -39,7 +39,7 @@
 </script>
 
 <div class="space-y-3">
-	{#each extraordinariosSeccionais as assRel}
+	{#each extraordinariosSeccionais as assRel (assRel.seccional_id)}
 		<div
 			class="rounded-2xl border border-success-500/30 bg-success-500/10 p-5 flex items-start gap-4 shadow-sm"
 		>

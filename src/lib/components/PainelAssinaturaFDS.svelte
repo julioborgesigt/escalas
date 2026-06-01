@@ -201,7 +201,7 @@
 			</div>
 		</div>
 		<div class="flex flex-wrap gap-2 justify-end">
-			{#each ['DOCX', 'XLSX', 'PDF'] as format}
+			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
 					class="btn btn-sm bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 no-underline rounded-lg"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}

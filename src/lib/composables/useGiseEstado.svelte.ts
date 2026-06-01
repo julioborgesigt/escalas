@@ -3,6 +3,8 @@
  * Centraliza permissões, formatação e detecção de dispositivo.
  */
 
+import { SvelteDate } from 'svelte/reactivity';
+
 interface Seccional {
 	seccional_id: number;
 	status: string;
@@ -88,12 +90,12 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 
 	// Helpers de data
 	function fmtDate(iso: string): string {
-		const d = new Date(iso + 'T00:00:00');
+		const d = new SvelteDate(iso + 'T00:00:00');
 		return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 	}
 
 	function diaSemana(iso: string): string {
-		const d = new Date(iso + 'T00:00:00');
+		const d = new SvelteDate(iso + 'T00:00:00');
 		return d.toLocaleDateString('pt-BR', { weekday: 'long' });
 	}
 

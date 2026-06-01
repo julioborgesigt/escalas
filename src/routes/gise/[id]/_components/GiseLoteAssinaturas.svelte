@@ -359,7 +359,7 @@
 							Relatórios Assinados
 						</p>
 						<div class="flex flex-wrap gap-1.5">
-							{#each concluidosExtra as ass}
+							{#each concluidosExtra as ass (ass.seccional_id)}
 								<div
 									class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-500/5 border border-success-500/10 text-[0.6rem]"
 									title="Assinado por {ass.assinante_nome}"

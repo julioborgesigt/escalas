@@ -397,7 +397,7 @@
 					</thead>
 					<tbody>
 						{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-							{#each { length: 8 } as _}
+							{#each { length: 8 } as _, i (i)}
 								<tr class="animate-pulse">
 									<td class="px-4 py-3"
 										><div
@@ -584,7 +584,7 @@
 			<!-- Mobile cards -->
 			<div class="md:hidden space-y-3">
 				{#if navigating?.to && navigating.to.url.pathname === page.url.pathname}
-					{#each { length: 5 } as _}
+					{#each { length: 5 } as _, i (i)}
 						<SkeletonCard />
 					{/each}
 				{:else}

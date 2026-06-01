@@ -82,6 +82,7 @@
 	});
 
 	const nomesSupervisaoPorId = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const m = new Map<number, string>();
 		if (!gise) return m;
 		if (gise.supervisor_id && gise.supervisor_nome) m.set(gise.supervisor_id, gise.supervisor_nome);
@@ -226,6 +227,7 @@
 	/** Factory de `loadOptions` parametrizado por cargo. Usa AbortSignal para cancelar. */
 	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
 		return async (query: string, signal: AbortSignal) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const params = new URLSearchParams({ cargo, limit: '50' });
 			if (query) params.set('q', query);
 			const res = await fetch(`/api/policiais/search?${params}`, { signal });
@@ -605,7 +607,7 @@
 								class="w-full px-3 py-2 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 							>
 								<option value="">Selecione a seccional...</option>
-								{#each seccionaisDisponiveis as s}
+								{#each seccionaisDisponiveis as s (s.id)}
 									<option value={s.id}>{s.nome}</option>
 								{/each}
 							</select>

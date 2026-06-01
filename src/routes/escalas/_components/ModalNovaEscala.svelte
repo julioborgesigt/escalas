@@ -149,9 +149,11 @@
 		return `${d}/${m}`;
 	}
 	function sabadoDaSemanaLocal(): Date {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const hoje = new Date();
 		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const sab = new Date(hoje);
 		sab.setDate(hoje.getDate() + offset);
 		return sab;
@@ -178,6 +180,7 @@
 	function escolherTipo(t: 'plantao' | 'expediente' | 'fds') {
 		if (t === 'fds') {
 			const sab = sabadoDaSemanaLocal();
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const dom = new Date(sab);
 			dom.setDate(sab.getDate() + 1);
 			const fmt = (d: Date) =>

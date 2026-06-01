@@ -155,13 +155,13 @@
 						bind:value={respostas[q.key]}
 					>
 						<option value="">Selecione</option>
-						{#each Array(100) as _, i}
+						{#each Array(100) as _, i (i)}
 							<option value={i}>{i}</option>
 						{/each}
 					</select>
 				{:else if q.tipo === 'sim_nao'}
 					<div class="flex gap-2 sm:gap-4 w-full">
-						{#each ['Sim', 'Não'] as opt}
+						{#each ['Sim', 'Não'] as opt (opt)}
 							<button
 								type="button"
 								class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
@@ -188,7 +188,7 @@
 					<div class="space-y-4">
 						{#if !isPura}
 							<div class="flex gap-2 sm:gap-4 w-full">
-								{#each ['Sim', 'Não'] as opt}
+								{#each ['Sim', 'Não'] as opt (opt)}
 									<button
 										type="button"
 										class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
@@ -242,7 +242,7 @@
 										>
 											{#each Array(99)
 												.fill(0)
-												.map((_, idx) => idx + 1) as n}
+												.map((_, idx) => idx + 1) as n (n)}
 												<option value={n}>{n}</option>
 											{/each}
 										</select>
@@ -254,7 +254,7 @@
 										class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_lista || 'Listagem Detalhada:'}</span
 									>
-									{#each respostas[resKey] || [] as item, i}
+									{#each respostas[resKey] || [] as item, i (i)}
 										{#if q.tipo === 'celulares_complex'}
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
@@ -559,7 +559,7 @@
 				{:else if q.tipo === 'drogas_complex'}
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
-							{#each ['Sim', 'Não'] as opt}
+							{#each ['Sim', 'Não'] as opt (opt)}
 								<button
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
@@ -584,7 +584,7 @@
 										>{q.subtexto_tipo || 'Tipos de Droga Apreendidos:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d}
+										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d (d)}
 											<button
 												type="button"
 												class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(
@@ -613,7 +613,7 @@
 											class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique o Peso Aproximado e a Unidade:'}</span
 										>
-										{#each respostas.drogas_selecionadas as d}
+										{#each respostas.drogas_selecionadas as d (d)}
 											<div
 												class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300"
 											>
@@ -636,7 +636,7 @@
 													<div
 														class="flex p-1 bg-surface-100 dark:bg-surface-800 rounded-xl border border-surface-200 dark:border-surface-700"
 													>
-														{#each ['g', 'kg'] as u}
+														{#each ['g', 'kg'] as u (u)}
 															<button
 																type="button"
 																class="px-3 py-1.5 rounded-lg text-[0.6rem] font-black uppercase transition-all {(respostas.drogas_unidade &&
@@ -663,7 +663,7 @@
 				{:else if q.tipo === 'armas_complex'}
 					<div class="space-y-4">
 						<div class="flex gap-2 sm:gap-4 w-full">
-							{#each ['Sim', 'Não'] as opt}
+							{#each ['Sim', 'Não'] as opt (opt)}
 								<button
 									type="button"
 									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
@@ -688,7 +688,7 @@
 										>{q.subtexto_tipo || 'Tipos de Armas/Munições:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a}
+										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a (a)}
 											<button
 												type="button"
 												class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(
@@ -719,7 +719,7 @@
 											class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique a Quantidade:'}</span
 										>
-										{#each respostas.armas_selecionadas as a}
+										{#each respostas.armas_selecionadas as a (a)}
 											<div
 												class="flex items-center flex-wrap gap-2 sm:gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm animate-in slide-in-from-left-2 duration-300"
 											>
@@ -732,7 +732,7 @@
 													class="flex-1 min-w-0 sm:flex-none sm:w-32 px-3 sm:px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold focus:ring-2 focus:ring-primary-500 transition-all"
 													bind:value={respostas.armas_detalhe[a]}
 												>
-													{#each Array(100) as _, i}
+													{#each Array(100) as _, i (i)}
 														<option value={i}>{i}</option>
 													{/each}
 												</select>

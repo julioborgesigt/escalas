@@ -27,6 +27,7 @@
 
 	function voltarParaLista() {
 		resGise.escalaSelecionada = null;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.delete('giseId');
 		params.delete('equipeId');
@@ -193,13 +194,13 @@
 					</div>
 					{#if navegandoFiltros}
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 px-2">
-							{#each { length: 6 } as _}
+							{#each { length: 6 } as _, i (i)}
 								<SkeletonCard lines={3} hasFooter={false} />
 							{/each}
 						</div>
 					{:else}
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 px-2">
-							{#each data.minhasEscalas as escala}
+							{#each data.minhasEscalas as escala (escala.id)}
 								{@const estaCarregando =
 									!!navegandoParaEscala &&
 									navigating?.to?.url.searchParams.get('giseId') === String(escala.id)}

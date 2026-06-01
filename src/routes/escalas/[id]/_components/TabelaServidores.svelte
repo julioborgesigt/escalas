@@ -80,12 +80,14 @@
 
 	// === Agrupamento ===
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const map = new Map<string, EscalaPolicialComDados[]>();
 		for (const item of items) {
 			const list = map.get(item.data_plantao) || [];
 			list.push(item);
 			map.set(item.data_plantao, list);
 		}
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
 	}
 
@@ -145,7 +147,7 @@
 {:else}
 	<!-- Agrupado por data (plantao/expediente) -->
 	<div class="space-y-12">
-		{#each agruparPorData(policiaisEscalaPaginados) as [dataGrupo, items]}
+		{#each agruparPorData(policiaisEscalaPaginados) as [dataGrupo, items] (dataGrupo)}
 			<div
 				class="card p-0 bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 rounded-2xl shadow-xl overflow-visible"
 			>

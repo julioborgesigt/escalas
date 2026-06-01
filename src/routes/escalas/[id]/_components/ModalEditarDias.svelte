@@ -77,7 +77,9 @@
 
 	function getDaysInRange(start: string, end: string): string[] {
 		const days: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(start + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const last = new Date(end + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);
@@ -87,6 +89,7 @@
 	}
 
 	function toggle(iso: string) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const set = new Set(selecionados);
 		if (set.has(iso)) set.delete(iso);
 		else set.add(iso);
@@ -179,10 +182,10 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM as ds}<span>{ds}</span>{/each}
+					{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each grade as cell}
+					{#each grade as cell, i (i)}
 						{#if cell}
 							{@const iso = isoLocal(calAno, calMes, cell.day)}
 							{@const sel = selecionados.includes(iso)}
@@ -212,7 +215,7 @@
 						incluídos
 					</span>
 					<div class="flex flex-wrap gap-1.5">
-						{#each ordenados as iso}
+						{#each ordenados as iso (iso)}
 							<span
 								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
 							>

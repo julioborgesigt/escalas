@@ -678,7 +678,7 @@
 										<option value=""
 											>{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option
 										>
-										{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d}
+										{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id && s.id !== slot.id)) as d (d.id)}
 											<option value={d.id}>{d.nome}</option>
 										{/each}
 									</select>
@@ -848,7 +848,7 @@
 
 					<!-- Equipes do slot -->
 					<div class="p-3 flex flex-col md:flex-row gap-3">
-						{#each slot.equipes ?? [] as equipe}
+						{#each slot.equipes ?? [] as equipe (equipe.id)}
 							<div
 								class="flex-1 rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
 							>
@@ -1094,7 +1094,7 @@
 								<!-- Membros -->
 								{#if equipe.membros?.length}
 									<div class="space-y-1 mb-2">
-										{#each equipe.membros as m}
+										{#each equipe.membros as m (m.id)}
 											<div
 												class="flex items-center justify-between text-sm px-3 py-1.5 rounded-lg bg-surface-100 dark:bg-surface-800"
 											>
@@ -1373,7 +1373,7 @@
 								class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 							>
 								<option value="">Slot em branco (Adm Seccional preenche depois)</option>
-								{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id)) as d}
+								{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id)) as d (d.id)}
 									<option value={d.id}>{d.nome}</option>
 								{/each}
 							</select>

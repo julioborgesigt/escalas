@@ -203,6 +203,7 @@
 	});
 
 	function buildQueryParamsComFiltros(p: number) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams();
 		if (filtroLotacao && filtroLotacao !== 'todas') params.set('lotacao', filtroLotacao);
 		if (filtroMes) params.set('mes', String(filtroMes));

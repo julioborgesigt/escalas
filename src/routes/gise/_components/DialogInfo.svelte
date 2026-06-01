@@ -73,7 +73,7 @@
 				</div>
 
 				<ul class="space-y-1.5 pl-1">
-					{#each dialogInfo.linhas as linha}
+					{#each dialogInfo.linhas as linha (linha)}
 						<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-300">
 							<span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-400"></span>
 							{linha}

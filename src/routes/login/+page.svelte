@@ -510,7 +510,7 @@
 			<!-- ===== Recuperação de senha ===== -->
 			<Steps step={currentRecStep} count={3} class="mb-6">
 				<Steps.List class="flex items-center justify-center gap-2">
-					{#each ['Identificação', 'Código', 'Concluído'] as label, i}
+					{#each ['Identificação', 'Código', 'Concluído'] as label, i (i)}
 						<Steps.Item index={i}>
 							<Steps.Trigger
 								tabindex={-1}

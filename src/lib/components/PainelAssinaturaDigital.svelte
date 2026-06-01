@@ -569,7 +569,7 @@
 			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
 		>
 		<div class="flex gap-2 flex-wrap">
-			{#each ['DOCX', 'XLSX', 'PDF'] as format}
+			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
 					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}

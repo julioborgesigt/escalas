@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -66,7 +67,9 @@
 	const diasEscalaLocal = $derived.by(() => {
 		if (!escala) return [];
 		const days: string[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(escala.data_inicio + 'T00:00:00');
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const last = new Date(escala.data_fim + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);
@@ -101,7 +104,7 @@
 	}
 
 	let modoSelecao = $state(false);
-	let selecionados = $state(new Set<number>());
+	let selecionados = $state(new SvelteSet<number>());
 	let pendingRemoverTodos = $state(false);
 	let pendingRemoverSelecionados = $state(false);
 	let confirmRemoverTodosOpen = $state(false);
@@ -111,6 +114,7 @@
 	const totalSelecionados = $derived(selecionados.size);
 
 	function toggleSelecionar(id: number) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const novo = new Set(selecionados);
 		if (novo.has(id)) novo.delete(id);
 		else novo.add(id);
@@ -119,6 +123,7 @@
 
 	function cancelarSelecao() {
 		modoSelecao = false;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		selecionados = new Set();
 	}
 

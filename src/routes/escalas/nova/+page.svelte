@@ -81,9 +81,11 @@
 	}
 
 	function sabadoDaSemana(): Date {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const hoje = new Date();
 		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const sab = new Date(hoje);
 		sab.setDate(hoje.getDate() + offset);
 		return sab;
@@ -311,6 +313,7 @@
 
 	function abrirFdsModal(unidade: UnidadeRegime) {
 		const sab = sabadoDaSemana();
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const dom = new Date(sab);
 		dom.setDate(sab.getDate() + 1);
 		const fmt = (d: Date) =>
@@ -410,7 +413,7 @@
 								{u.nome}
 							</p>
 							<div class="flex gap-1.5 mt-2 flex-wrap">
-								{#each tipos as t}
+								{#each tipos as t (t.tipo)}
 									<span
 										class="text-[10px] font-bold badge bg-surface-200/80 dark:bg-surface-700/80 px-1.5"
 										>{t.icon} {t.label}</span
@@ -438,7 +441,7 @@
 				</h2>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-				{#each tiposDisponiveis(unidadeEscolhida) as t}
+				{#each tiposDisponiveis(unidadeEscolhida) as t (t.tipo)}
 					<button
 						type="button"
 						class="p-5 rounded-2xl border-2 border-surface-200 dark:border-white/10 bg-surface-100/60 dark:bg-surface-800/60 hover:border-primary-500 hover:bg-primary-500/10 transition-all text-center group"
@@ -672,12 +675,12 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds}
+					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
 					{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = isoDiaLocal(calAno, calMes, cell.day)}
 							{@const sel = fdsDiasSelecionados.includes(iso)}
@@ -709,7 +712,7 @@
 					<div
 						class="flex flex-nowrap items-stretch gap-1.5 overflow-x-auto max-w-full pb-0.5 [scrollbar-width:thin]"
 					>
-						{#each fdsDiasOrdenados as iso}
+						{#each fdsDiasOrdenados as iso (iso)}
 							<span
 								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100"
 							>

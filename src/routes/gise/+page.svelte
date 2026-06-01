@@ -503,7 +503,7 @@
 			</p>
 			{#if ativas.length > 0}
 				<div class="mt-2 space-y-1">
-					{#each ativas as ativa}
+					{#each ativas as ativa (ativa.id)}
 						<p class="text-xs text-surface-400">
 							Escala vigente: <span class="font-medium"
 								>{diaSemana(ativa.data_inicio)}
@@ -521,7 +521,7 @@
 			Escalas Ativas
 		</h2>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			{#each ativasPaginadas as ativa}
+			{#each ativasPaginadas as ativa (ativa.id)}
 				<CardGiseAtiva
 					{ativa}
 					{isSupervisor}

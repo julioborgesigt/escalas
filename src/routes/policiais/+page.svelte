@@ -184,6 +184,7 @@
 	}
 
 	async function loadLotacoes(query: string, signal: AbortSignal) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({
 			tipo: 'delegacia',
 			limit: '30'
@@ -214,6 +215,7 @@
 	});
 
 	function navegarComFiltros() {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams();
 		if (
 			filtroLotacao &&
