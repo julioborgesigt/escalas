@@ -72,7 +72,7 @@
 	const seccionais = $derived(unidadesDB.filter((u) => u.tipo === 'seccional'));
 
 	// Itens ignorados (persistidos no localStorage)
-	let ignorados = $state<SvelteSet<string>>(new SvelteSet());
+	const ignorados = new SvelteSet<string>();
 
 	function chaveIgnorado(item: ItemCompliance): string {
 		return `${item.unidade_nome}|${item.tipo_regime}|${item.data_inicio}`;
@@ -80,17 +80,14 @@
 
 	function ignorarItem(item: ItemCompliance) {
 		const chave = chaveIgnorado(item);
-		ignorados = new Set([...ignorados, chave]);
-		const arr = [...ignorados];
-		localStorage.setItem('compliance_ignorados', JSON.stringify(arr));
+		ignorados.add(chave);
+		localStorage.setItem('compliance_ignorados', JSON.stringify([...ignorados]));
 	}
 
 	function restaurarItem(item: ItemCompliance) {
 		const chave = chaveIgnorado(item);
-		const novoSet = new Set(ignorados);
-		novoSet.delete(chave);
-		ignorados = novoSet;
-		localStorage.setItem('compliance_ignorados', JSON.stringify([...novoSet]));
+		ignorados.delete(chave);
+		localStorage.setItem('compliance_ignorados', JSON.stringify([...ignorados]));
 	}
 
 	const dadosFiltrados = $derived(
@@ -253,7 +250,7 @@
 		loadingService.show('Atualizando dados de compliance...');
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
-			if (stored) ignorados = new Set(JSON.parse(stored));
+			if (stored) { ignorados.clear(); for (const k of JSON.parse(stored) as string[]) ignorados.add(k); }
 		} catch {
 			/* ignora */
 		}
@@ -306,7 +303,7 @@
 		if (isAdmin && browser) {
 			try {
 				const stored = localStorage.getItem('compliance_ignorados');
-				if (stored) ignorados = new Set(JSON.parse(stored));
+				if (stored) { ignorados.clear(); for (const k of JSON.parse(stored) as string[]) ignorados.add(k); }
 			} catch {
 				/* ignora */
 			}
