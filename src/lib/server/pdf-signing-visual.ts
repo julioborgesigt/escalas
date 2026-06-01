@@ -243,7 +243,7 @@ export async function adicionarPaginaAuditoria(
 
 		// 1 — Topo (Título e Logo tipo ZapSign)
 		page.drawText(group.title, { x: 40, y: height - 50, size: 14, font: fontBold, color: cNavy });
-		const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'medium' }).format(new Date());
+		const dataHoraGeral = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'medium', timeZone: 'America/Sao_Paulo' }).format(new Date());
 		page.drawText(`Gerado em: ${dataHoraGeral} (Brasília)`, { x: 40, y: height - 65, size: 8, font, color: cGray });
 		page.drawLine({ start: { x: 40, y: height - 80 }, end: { x: width - 40, y: height - 80 }, thickness: 0.5, color: cBorder });
 
@@ -256,7 +256,35 @@ export async function adicionarPaginaAuditoria(
 		};
 
 		currY = drawMetaData('Status', 'ASSINADO', currY, true);
-		currY = drawMetaData('Documento', first.documentName || 'Extraordinário - GISE', currY);
+
+		// Documento: nome pode ser longo — quebra antes de atingir o QR code (x ≈ width-105)
+		{
+			const docName = first.documentName || 'Extraordinário - GISE';
+			const maxW = (width - 105) - 160 - 15; // espaço disponível antes do QR
+			const nameW = font.widthOfTextAtSize(docName, 8.5);
+			page.drawText('Documento:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
+			if (nameW <= maxW) {
+				page.drawText(docName, { x: 160, y: currY, size: 8.5, font, color: cText });
+				currY -= 15;
+			} else {
+				// Quebra em palavras até caber na primeira linha
+				const words = docName.split(' ');
+				let line1 = '', line2 = '';
+				for (const word of words) {
+					const candidate = line1 ? line1 + ' ' + word : word;
+					if (font.widthOfTextAtSize(candidate, 8.5) <= maxW) {
+						line1 = candidate;
+					} else {
+						line2 = line2 ? line2 + ' ' + word : word;
+					}
+				}
+				page.drawText(line1, { x: 160, y: currY, size: 8.5, font, color: cText });
+				currY -= 11;
+				page.drawText(line2, { x: 160, y: currY, size: 8.5, font, color: cText });
+				currY -= 15;
+			}
+		}
+
 		currY = drawMetaData('Identificador', first.verificationHash, currY);
 
 		// Hash SHA-256 — exibir completo em duas linhas quando disponível
@@ -309,7 +337,8 @@ export async function adicionarPaginaAuditoria(
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
 			// Qualificada não tem rúbrica/foto → cartão mais baixo.
-			const boxH = isQualified ? 130 : 240;
+			// Avançada com e-mail ocupa uma linha extra no grid → +22 pts.
+			const boxH = isQualified ? 130 : (s.signerEmail ? 262 : 240);
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -348,7 +377,7 @@ export async function adicionarPaginaAuditoria(
 			});
 
 			const dataAssinatura = new Intl.DateTimeFormat('pt-BR', {
-				dateStyle: 'short', timeStyle: 'medium'
+				dateStyle: 'short', timeStyle: 'medium', timeZone: 'America/Sao_Paulo'
 			}).format(s.signingTime);
 			page.drawText(`Assinado em ${dataAssinatura}`, {
 				x: boxX + 15, y: boxTop - 46, size: 8, font, color: headerTextSoft

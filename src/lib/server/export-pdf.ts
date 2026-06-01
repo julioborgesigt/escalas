@@ -334,10 +334,11 @@ export async function gerarPdfExpediente(
 	doc.text(textoData, margin, sigY);
 
 	sigY += 22;
-	doc.line(margin, sigY, margin + 80, sigY);
+	const sigCenterX = PAGE_W * 0.75;
+	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', margin + 40, sigY + 4, { align: 'center' });
+	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, { align: 'center' });
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
 	const hasLogos = (logoPoliciaBytes && logoPoliciaBytes.length > 0) || (logoCearaBytes && logoCearaBytes.length > 0);
