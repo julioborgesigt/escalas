@@ -27,7 +27,7 @@
 				});
 				open = false;
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover DP'), type: 'error' });
 			}
 		};

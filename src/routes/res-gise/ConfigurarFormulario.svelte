@@ -13,8 +13,8 @@
 		modeloPadraoSeint
 	}: {
 		resGise: ResGise;
-		modeloPadraoOperacional: unknown;
-		modeloPadraoSeint: unknown;
+		modeloPadraoOperacional: GiseModeloPerguntaConfig[];
+		modeloPadraoSeint: GiseModeloPerguntaConfig[];
 	} = $props();
 
 	let dialogRestaurarAberto = $state(false);

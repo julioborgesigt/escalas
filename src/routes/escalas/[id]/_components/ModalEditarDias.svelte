@@ -104,9 +104,9 @@
 			pending = false;
 			if (result.type === 'success') {
 				onsalvo({
-					data_inicio: result.data.data_inicio,
-					data_fim: result.data.data_fim,
-					policiais: result.data.policiais
+					data_inicio: result.data?.data_inicio,
+					data_fim: result.data?.data_fim,
+					policiais: result.data?.policiais
 				});
 				open = false;
 				toaster.create({ title: 'Dias da escala atualizados!', type: 'success' });
@@ -114,7 +114,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar dias'), type: 'error' });
 			}
 		};

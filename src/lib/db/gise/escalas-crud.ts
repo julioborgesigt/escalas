@@ -173,8 +173,9 @@ export async function clonarGiseParaData(
 	const secIdMap = new Map<number, number>();
 	if (modo === 'clonada') {
 		for (let i = 0; i < secsParaClonar.length; i++) {
-			if (secsParaClonar[i].id) {
-				secIdMap.set(secsParaClonar[i].id, secsInsert[i].id);
+			const oldId = secsParaClonar[i].id;
+			if (oldId !== undefined) {
+				secIdMap.set(oldId, secsInsert[i].id);
 			}
 		}
 	}

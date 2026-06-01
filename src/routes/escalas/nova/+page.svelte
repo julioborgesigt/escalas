@@ -21,7 +21,7 @@
 		loading.show('Criando nova escala...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = result.data as Record<string, unknown> | undefined;
+			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);
@@ -337,7 +337,7 @@
 		loading.show('Criando escala FDS...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = result.data as Record<string, unknown> | undefined;
+			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
 			if (result.type === 'success' && d?.id) {
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
 				goto(`/escalas/${d.id}`);

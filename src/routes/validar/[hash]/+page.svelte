@@ -304,7 +304,7 @@
 						<div>
 							<span class="block text-[10px] uppercase font-bold text-surface-400">Período</span>
 							<span class="text-base sm:text-lg font-bold text-surface-800 dark:text-white">
-								{formatarData(data.escala.data_inicio)} a {formatarData(data.escala.data_fim)}
+								{formatarData(data.escala.data_inicio)} a {formatarData(data.escala.data_fim ?? '')}
 							</span>
 						</div>
 					</div>

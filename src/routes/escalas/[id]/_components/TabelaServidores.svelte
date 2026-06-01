@@ -124,13 +124,13 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
+				policiaisEscalaLocal = result.data?.policiais;
 				editingId = null;
 				toaster.create({ title: 'Dados salvos', type: 'success' });
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
 			}
 		};

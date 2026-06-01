@@ -136,7 +136,7 @@
 				await invalidateAll();
 				onSuccess(count, primeiroId);
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.error({ title: (d?.error as string) || 'Erro ao criar GISE' });
 			}
 		};

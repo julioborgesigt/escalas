@@ -111,13 +111,13 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
+				policiaisEscalaLocal = result.data?.policiais;
 				editingId = null;
 				toaster.create({ title: 'Dados salvos', type: 'success' });
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
 			}
 		};
@@ -191,7 +191,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingAdd = false;
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
+				policiaisEscalaLocal = result.data?.policiais;
 				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 				fdsAddingDia = null;
 				fdsAddingCargo = null;
@@ -199,7 +199,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -286,8 +286,8 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingRepetir = false;
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
-				const conflitantes = (result.data.conflitantes as { data: string; motivo: string }[]) ?? [];
+				policiaisEscalaLocal = result.data?.policiais;
+				const conflitantes = (result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
 				if (conflitantes.length > 0) {
 					const datas = conflitantes.map((c) => c.data).join(', ');
 					toaster.create({
@@ -306,7 +306,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao repetir'), type: 'error' });
 			}
 		};

@@ -15,7 +15,14 @@
 		seccionaisList,
 		isAdminGeral
 	}: {
-		historico: { data_inicio: string; status: string; seccionais?: { id: number }[] }[];
+		historico: {
+			id: number;
+			data_inicio: string;
+			status: string;
+			hora_entrada?: string;
+			hora_saida?: string;
+			seccionais?: { id: number; tipos?: string[]; nome?: string }[];
+		}[];
 		seccionaisList: { id: number; nome: string }[];
 		isAdminGeral: boolean;
 	} = $props();

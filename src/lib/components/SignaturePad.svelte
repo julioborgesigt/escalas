@@ -228,7 +228,7 @@
 	function startDetectionLoop() {
 		if (faceDetectionInterval) clearInterval(faceDetectionInterval);
 		faceDetectionInterval = setInterval(async () => {
-			if (!videoElement || videoElement.paused || !isFaceModelLoaded) return;
+			if (!videoElement || videoElement.paused || !isFaceModelLoaded || !faceapi) return;
 			try {
 				// Pipeline: detect → landmarks → expressions. Cada etapa só roda
 				// se a anterior achou exatamente 1 rosto, economizando CPU em
@@ -439,7 +439,7 @@
 		lastErrorCode = null;
 		let selfieBase64: string | null = null;
 
-		if (videoElement && stream) {
+		if (videoElement && stream && faceapi) {
 			// VERIFICAÇÃO DE ÚLTIMO MILISSEGUNDO: O rosto ainda está lá?
 			// Isso evita que o usuário "fuja" da câmera no final do countdown
 			const finalDetection = await faceapi.detectAllFaces(

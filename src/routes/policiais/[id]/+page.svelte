@@ -47,12 +47,12 @@
 		loading.show('Salvando dados do policial...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Policial atualizado com sucesso!', type: 'success' });
 				goto('/policiais');
-			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
 	}
@@ -61,12 +61,12 @@
 		loading.show('Atualizando papel administrativo...');
 		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
-			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success') {
 				toaster.create({ title: 'Papel atualizado com sucesso!', type: 'success' });
 				await invalidateAll();
-			} else if (result.type === 'failure' && d?.error) {
-				toaster.create({ title: String(d.error), type: 'error' });
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
 			}
 		};
 	}

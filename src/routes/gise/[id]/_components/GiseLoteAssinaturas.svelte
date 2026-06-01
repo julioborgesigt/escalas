@@ -15,8 +15,8 @@
 		onAssinarDigitalLote: () => void | Promise<void>;
 		podeAssinar?: boolean;
 		// Novas props para exibir assinaturas concluídas
-		assinaturasRelatorios?: { tipo: string; seccional_id: number }[] | null;
-		seccionais?: { seccional_id?: number; id?: number; seccional_nome?: string; [key: string]: unknown }[] | null;
+		assinaturasRelatorios?: { tipo: string; seccional_id: number; assinante_nome?: string }[] | null;
+		seccionais?: { seccional_id?: number; id?: number; seccional_nome?: string; unidades?: import('$lib/db/gise').GiseUnidadeSlot[] }[] | null;
 		supervisaoExtraUnidadeId?: number | null;
 		giseStatus?: string;
 	}
@@ -213,7 +213,7 @@
 						{#if naoIniciou}
 							Aguardando início
 						{:else}
-							{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+							{seccionaisFaltantes.length > 0 ? seccionaisFaltantes.map(s => nomeSeccional(s.seccional_id ?? s.id ?? 0)).join(', ') : 'Nenhum'}
 						{/if}
 					</p>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
@@ -221,7 +221,7 @@
 						{#if naoIniciou}
 							Aguardando início
 						{:else}
-							{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id || s.id)).join(', ') : 'Nenhum'}
+							{seccionaisAssinadas.length > 0 ? seccionaisAssinadas.map(s => nomeSeccional(s.seccional_id ?? s.id ?? 0)).join(', ') : 'Nenhum'}
 						{/if}
 					</p>
 

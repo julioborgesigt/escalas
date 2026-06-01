@@ -87,11 +87,11 @@
 		confirmDialog.closeDialog();
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
+				policiaisEscalaLocal = result.data?.policiais;
 				toaster.create({ title: `${itemNome} removido da escala`, type: 'success' });
 			} else {
 				policiaisEscalaLocal = backup;
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -130,7 +130,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
@@ -142,10 +142,10 @@
 			pendingRemoverSelecionados = false;
 			confirmRemoverSelecionadosOpen = false;
 			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data.policiais;
+				policiaisEscalaLocal = result.data?.policiais;
 				selecionados = new Set();
 				modoSelecao = false;
-				const removidos = result.data.removidos ?? 0;
+				const removidos = result.data?.removidos ?? 0;
 				toaster.create({
 					title: `${removidos} servidor(es) removido(s) da escala`,
 					type: 'success'
@@ -153,7 +153,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};

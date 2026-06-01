@@ -135,7 +135,7 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingAdd = false;
 			if (result.type === 'success') {
-				onPoliciaisAtualizados(result.data.policiais);
+				onPoliciaisAtualizados(result.data?.policiais);
 				toaster.create({ title: 'Policial adicionado à escala', type: 'success' });
 				cargoBusca = '';
 				policialId = '';
@@ -143,7 +143,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -158,8 +158,8 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingPlantao = false;
 			if (result.type === 'success') {
-				onPoliciaisAtualizados(result.data.policiais);
-				const conflitantes = (result.data.conflitantes as { data: string; motivo: string }[]) ?? [];
+				onPoliciaisAtualizados(result.data?.policiais);
+				const conflitantes = (result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
 				if (conflitantes.length > 0) {
 					const datas = conflitantes.map((c) => c.data).join(', ');
 					toaster.create({
@@ -178,7 +178,7 @@
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
 			}
 		};
@@ -189,15 +189,15 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingAdicionarTodos = false;
 			if (result.type === 'success') {
-				const d = result.data as Record<string, unknown>;
-				onPoliciaisAtualizados(result.data.policiais);
-				if (Number(d.quantidade) === 0)
+				const d = result.data as Record<string, unknown> | undefined;
+				onPoliciaisAtualizados(result.data?.policiais);
+				if (Number(d?.quantidade) === 0)
 					toaster.create({ title: 'Todos os servidores já estão na escala', type: 'warning' });
-				else toaster.create({ title: `${d.quantidade} servidor(es) adicionado(s)`, type: 'success' });
+				else toaster.create({ title: `${d?.quantidade} servidor(es) adicionado(s)`, type: 'success' });
 			} else if (result.type === 'error') {
 				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro'), type: 'error' });
 			}
 		};
