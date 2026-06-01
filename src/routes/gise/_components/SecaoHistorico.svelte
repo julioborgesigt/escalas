@@ -294,7 +294,7 @@
 							class="min-h-[2.75rem] w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 						>
 							<option value="">Todas</option>
-							{#each seccionaisList as sec}
+							{#each seccionaisList as sec (sec.id)}
 								<option value={sec.id}>{sec.nome}</option>
 							{/each}
 						</select>
@@ -336,7 +336,7 @@
 								class="min-h-[2.75rem] w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 sm:w-[5.5rem]"
 							>
 								<option value="">Ano</option>
-								{#each anosDisponiveisHistorico as ano}
+								{#each anosDisponiveisHistorico as ano (ano)}
 									<option value={ano}>{ano}</option>
 								{/each}
 							</select>
@@ -347,7 +347,7 @@
 								class="min-h-[2.75rem] min-w-0 w-full cursor-pointer rounded-xl border border-surface-300 bg-white px-2.5 py-2 text-sm font-medium text-surface-800 shadow-sm transition-colors hover:border-primary-400/55 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-45 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100"
 							>
 								<option value="">Ciclo</option>
-								{#each CICLOS as c}
+								{#each CICLOS as c (c.n)}
 									<option value={c.n}>{c.label}</option>
 								{/each}
 							</select>

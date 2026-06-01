@@ -241,12 +241,12 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds}
+					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
 					{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
 							{@const sel = iso in diasModal}
@@ -292,7 +292,7 @@
 					<div
 						class="flex flex-nowrap items-stretch gap-1.5 overflow-x-auto max-w-full pb-0.5 [scrollbar-width:thin]"
 					>
-						{#each diasModalOrdenados as { iso, feriado }}
+						{#each diasModalOrdenados as { iso, feriado } (iso)}
 							<span
 								class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0
 								{feriado
@@ -428,7 +428,7 @@
 							bind:value={clonarDeId}
 							class="w-full px-2.5 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs sm:text-sm"
 						>
-							{#each escalas.slice(0, 10) as esc}
+							{#each escalas.slice(0, 10) as esc (esc.id)}
 								<option value={esc.id}>
 									GISE — {diaSemana(esc.data_inicio)}
 									{fmtDate(esc.data_inicio)} ({esc.status})

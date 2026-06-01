@@ -220,10 +220,10 @@
 				<div
 					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
 				>
-					{#each DIAS_SEM_CAL as ds}<span>{ds}</span>{/each}
+					{#each DIAS_SEM_CAL as ds (ds)}<span>{ds}</span>{/each}
 				</div>
 				<div class="grid grid-cols-7 gap-0.5">
-					{#each gradeCalendario as cell}
+					{#each gradeCalendario as cell, i (i)}
 						{#if cell}
 							{@const iso = cell ? isoDiaLocal(calAno, calMes, cell.day) : ''}
 							{@const sel = iso === dataInicio}
