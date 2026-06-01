@@ -63,9 +63,7 @@ export const POST: RequestHandler = async ({
 	if (!validated.ok) return validated.response;
 	const {
 		preparedPdf,
-		rawSignature,
 		serproCms,
-		certificateBase64,
 		messageDigest,
 		signingTimeISO,
 		verificationHash,
@@ -83,8 +81,6 @@ export const POST: RequestHandler = async ({
 			{
 				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
 				serproCms,
-				rawSignature,
-				certificateBase64,
 				messageDigestHex: messageDigest,
 				signingTimeISO
 			},
@@ -95,8 +91,7 @@ export const POST: RequestHandler = async ({
 			return apiError(result.error, result.status, code);
 		}
 
-		// Tipo de assinatura (compat com campo tipo_assinatura na tabela).
-		const type: 'webpki' | 'serpro' = serproCms ? 'serpro' : 'webpki';
+		const type = 'serpro' as const;
 
 		// Hash do PDF assinado (para controle no banco).
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());

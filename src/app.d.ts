@@ -64,17 +64,6 @@ declare global {
 		 * garantir tempestividade oponível (DOC-ICP-15, Decreto 10.278/2020).
 		 */
 		EXIGIR_TSA_QUALIFICADA?: string;
-		/**
-		 * Chave de licença comercial do Lacuna Web PKI para uso em produção
-		 * (qualquer domínio que não seja localhost). Sem ela, o fluxo Web PKI
-		 * falha com erro de licença em produção — recomenda-se fallback para
-		 * SERPRO na UI.
-		 *
-		 * Esta chave é EXPOSTA ao cliente via `+layout.server.ts` — não é
-		 * segredo, é assinada pelo emissor da Lacuna como identificador
-		 * de domínio. NÃO use como credencial.
-		 */
-		WEBPKI_LICENSE?: string;
 	}
 
 	namespace App {

@@ -1,16 +1,14 @@
 /**
- * Hook de assinatura de escala (WebPKI, SERPRO, simples).
+ * Hook de assinatura de escala (SERPRO, simples).
  * Centraliza toda a lógica de assinatura para reutilização.
  */
 
 import { toaster } from '$lib/toast';
-import { initWebPKI, listarCertificados, assinarHash, type WebPKICertificate } from '$lib/webpki';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
 import { loading } from '$lib/loading.svelte';
 import { apiFetch } from '$lib/api-fetch';
 import { logger } from '$lib/logger';
-import { page } from '$app/state';
 
 export interface UseAssinaturaParams {
 	getParams: () => {
@@ -29,13 +27,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 	const usuario = $derived(getParams().usuario);
 	// Estados de assinatura
 	let dialogSignOpen = $state(false);
-
-	// WebPKI
-	let certificados = $state<WebPKICertificate[]>([]);
-	let certSelecionado = $state('');
-	let lendoCertificados = $state(false);
-	let tentouLerCertificados = $state(false);
-	let pkInstance = $state<any>(null);
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
@@ -68,70 +59,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			logger.warn('[AssinaturaEscala] geolocation indisponível', { err: String(err) });
 			return null;
 		}
-	}
-
-	async function loadCertificados() {
-		lendoCertificados = true;
-		tentouLerCertificados = true;
-		try {
-			if (!pkInstance) {
-				// Licença Lacuna propagada do server via +layout.server.ts.
-				// `null` em dev/localhost (gratuito) ou ausência de config; ambos
-				// os casos retornam undefined para initWebPKI (legado).
-				const lic = (page.data?.webPkiLicense as string | null | undefined) ?? undefined;
-				pkInstance = await initWebPKI(lic);
-			}
-			certificados = await listarCertificados(pkInstance);
-		} catch (err) {
-			logger.warn('[AssinaturaEscala] listar certificados Web PKI', { err: String(err) });
-			certificados = [];
-		} finally {
-			lendoCertificados = false;
-		}
-	}
-
-	function onCertSelecionado(alias: string) {
-		certSelecionado = alias;
-	}
-
-	async function assinarComWebPKI() {
-		loading.show('Obtendo coordenadas...');
-		gpsCoords = await getCoordinates();
-
-		loading.show('Preparando assinatura...');
-		const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
-			method: 'POST',
-			body: JSON.stringify({ signerName: '', signerCpf: '' })
-		});
-
-		loading.show('Assinando com token...');
-		const hash = btoa(
-			prepData.messageDigest
-				.match(/.{2}/g)
-				.map((h: string) => String.fromCharCode(parseInt(h, 16)))
-				.join('')
-		);
-		const signature = await assinarHash(pkInstance, certSelecionado, hash);
-
-		loading.show('Finalizando assinatura...');
-		const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
-			method: 'POST',
-			body: JSON.stringify({
-				preparedPdf: prepData.preparedPdf,
-				serproCms: signature,
-				messageDigest: prepData.messageDigest,
-				signingTimeISO: prepData.signingTimeISO,
-				signerName: serproSignerName,
-				signerCpf: serproSignerCpf,
-				verificationHash: prepData.verificationHash,
-				latitude: gpsCoords?.lat,
-				longitude: gpsCoords?.lng
-			})
-		});
-
-		toaster.success({ title: 'Escala assinada com sucesso!' });
-		onDocumentoAssinado?.(info);
-		loading.hide();
 	}
 
 	async function conectarSerproClient() {
@@ -264,21 +191,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		set dialogSignOpen(v: boolean) {
 			dialogSignOpen = v;
 		},
-		get certificados() {
-			return certificados;
-		},
-		get certSelecionado() {
-			return certSelecionado;
-		},
-		set certSelecionado(v: string) {
-			certSelecionado = v;
-		},
-		get lendoCertificados() {
-			return lendoCertificados;
-		},
-		get tentouLerCertificados() {
-			return tentouLerCertificados;
-		},
 		get serproSignerName() {
 			return serproSignerName;
 		},
@@ -303,9 +215,6 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		get gpsIndisponivel() {
 			return gpsIndisponivel;
 		},
-		loadCertificados,
-		onCertSelecionado,
-		assinarComWebPKI,
 		conectarSerproClient,
 		assinarComSerpro,
 		assinarSimples,

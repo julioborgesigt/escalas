@@ -29,9 +29,8 @@
  *      3 fluxos (escala mensal, GISE diária, relatório extra).
  */
 
-import forge from 'node-forge';
 import { logger } from './logger';
-import { extrairDadosCertificado, embedSerproCms, finalizarAssinatura } from './pdf-signing';
+import { extrairDadosCertificado, embedSerproCms } from './pdf-signing';
 import {
 	verificarECarimbarAssinatura,
 	type CadesFinalizationResult,
@@ -60,21 +59,11 @@ export interface SignatureUser {
 	email?: string | null;
 }
 
-/**
- * Entrada para o fluxo qualificado. Os endpoints atuais usam dois
- * dialetos de nomes (`signature/certificate/messageDigestHex` em escalas;
- * `rawSignature/certificateBase64/messageDigest` em gise) — adaptamos no
- * ponto de chamada para este formato canônico.
- */
 export interface QualifiedInput {
 	preparedPdf: Uint8Array;
-	/** CMS PKCS#7 completo retornado pelo Assinador SERPRO. Preferido quando presente. */
+	/** CMS PKCS#7 completo retornado pelo Assinador SERPRO. */
 	serproCms?: string | null;
-	/** Bytes da assinatura RSA bruta (Web PKI Lacuna). */
-	rawSignature?: string | null;
-	/** Certificado DER base64 do signatário (Web PKI). */
-	certificateBase64?: string | null;
-	/** Hex do message-digest do PDF (Web PKI). */
+	/** Hex do message-digest do PDF (opcional — usado na verificação). */
 	messageDigestHex?: string | null;
 	/** ISO 8601 do `signingTime` registrado em prepararPdfParaAssinatura. */
 	signingTimeISO?: string | null;
@@ -140,22 +129,6 @@ function extrairDadosToken(input: QualifiedInput): { nome: string; cpf: string }
 	try {
 		if (input.serproCms) {
 			return extrairDadosCertificado(input.serproCms);
-		}
-		if (input.certificateBase64) {
-			const der = forge.util.decode64(input.certificateBase64);
-			const cert = forge.pki.certificateFromAsn1(forge.asn1.fromDer(der));
-			const cn = (cert.subject.getField('CN')?.value as string) || '';
-			// Padrão ICP-Brasil: CPF no atributo serialNumber (OID 2.5.4.5).
-			let cpf = '';
-			const sn =
-				cert.subject.getField({ type: '2.5.4.5' }) ??
-				cert.subject.getField({ name: 'serialNumber' });
-			if (sn) cpf = String(sn.value).replace(/\D/g, '');
-			if (!cpf && cn.includes(':')) {
-				cpf = cn.split(':').pop()?.replace(/\D/g, '') || '';
-			}
-			if (cpf.length > 11) cpf = cpf.slice(-11);
-			return { nome: cn.split(':')[0].trim(), cpf };
 		}
 		return null;
 	} catch (e) {
@@ -233,20 +206,12 @@ export async function finalizarAssinaturaQualificada(
 	input: QualifiedInput,
 	options: { platform?: App.Platform } = {}
 ): Promise<QualifiedFinalization | ServiceFailure> {
-	// 1. Determinar dialeto e validar campos mínimos.
-	const temSerpro = !!input.serproCms;
-	const temWebPki =
-		!!input.rawSignature &&
-		!!input.certificateBase64 &&
-		!!input.messageDigestHex &&
-		!!input.signingTimeISO;
-
-	if (!temSerpro && !temWebPki) {
+	// 1. Validar campo mínimo (apenas SERPRO é suportado).
+	if (!input.serproCms) {
 		return {
 			ok: false,
 			status: 400,
-			error:
-				'Forneça `serproCms` OU os 4 campos do fluxo Web PKI (rawSignature, certificateBase64, messageDigestHex, signingTimeISO).'
+			error: 'Forneça o campo `serproCms` retornado pelo Assinador SERPRO.'
 		};
 	}
 
@@ -260,21 +225,10 @@ export async function finalizarAssinaturaQualificada(
 	// 3. Embutir CMS no PDF preparado.
 	let signedPdf: Uint8Array;
 	try {
-		if (temSerpro) {
-			signedPdf = await embedSerproCms(input.preparedPdf, input.serproCms!);
-		} else {
-			signedPdf = await finalizarAssinatura(
-				input.preparedPdf,
-				input.rawSignature!,
-				input.certificateBase64!,
-				input.messageDigestHex!,
-				input.signingTimeISO!
-			);
-		}
+		signedPdf = await embedSerproCms(input.preparedPdf, input.serproCms);
 	} catch (e) {
-		logger.error('[signature-service] Falha ao embutir CMS', {
-			error: e instanceof Error ? e.message : String(e),
-			modalidade: temSerpro ? 'serpro' : 'webpki'
+		logger.error('[signature-service] Falha ao embutir CMS SERPRO', {
+			error: e instanceof Error ? e.message : String(e)
 		});
 		return {
 			ok: false,
