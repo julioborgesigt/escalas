@@ -104,7 +104,8 @@
 	}
 
 	let modoSelecao = $state(false);
-	const selecionados = new SvelteSet<number>();
+	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+	let selecionados = $state(new SvelteSet<number>());
 	let pendingRemoverTodos = $state(false);
 	let pendingRemoverSelecionados = $state(false);
 	let confirmRemoverTodosOpen = $state(false);
