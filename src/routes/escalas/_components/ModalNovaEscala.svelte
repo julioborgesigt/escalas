@@ -26,7 +26,7 @@
 		isAdmin: boolean;
 		lotacaoUsuario: string | null;
 		unidades: Unidade[];
-		escalasExistentes: { lotacao: string; tipo: string; mes: number; ano: number }[];
+		escalasExistentes: { lotacao: string; tipo: string | null; mes: number; ano: number }[];
 		oncriado: (id: number) => void;
 		onfechar: () => void;
 	} = $props();
@@ -219,7 +219,7 @@
 		pendingCriar = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingCriar = false;
-			const d = result.data as Record<string, unknown> | undefined;
+			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
 			if (result.type === 'success' && d?.id) {
 				open = false;
 				toaster.create({ title: 'Escala criada com sucesso', type: 'success' });
@@ -233,7 +233,7 @@
 		pendingComBase = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingComBase = false;
-			const d = result.data as Record<string, unknown> | undefined;
+			const d = (result.type === 'success' || result.type === 'failure') ? result.data as Record<string, unknown> | undefined : undefined;
 			if (result.type === 'success' && d?.id) {
 				const adicionados = (d.adicionados as number) ?? 0;
 				const naoProcessados = (d.nao_processados as Array<{ nome: string }>) ?? [];

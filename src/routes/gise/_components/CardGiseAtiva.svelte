@@ -14,10 +14,23 @@
 		onExtraPdf,
 		onToggleMenu
 	}: {
-		ativa: Record<string, unknown>;
+		ativa: {
+			id: number;
+			status: string;
+			data_inicio: string;
+			hora_entrada: string;
+			hora_saida: string;
+			totalSeccionais: number;
+			extrasPendentes: number;
+			assinaturasRelatorioExtra?: number;
+			supervisor_id?: number | null;
+			assessor_id?: number | null;
+			seint1_id?: number | null;
+			seint2_id?: number | null;
+		};
 		isSupervisor: boolean;
 		isDesktop: boolean;
-		usuario: Record<string, unknown>;
+		usuario: { id?: number | null } | null;
 		menuExpandidoId: number | null;
 		onAssEscala: () => void;
 		onAssExtra: () => void;

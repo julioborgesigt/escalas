@@ -17,9 +17,28 @@
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
+	type GiseEscala = {
+		id: number;
+		status: string;
+		data_inicio: string;
+		hora_entrada: string;
+		hora_saida: string;
+		totalSeccionais: number;
+		seccionaisEnviadas: number;
+		extrasPendentes: number;
+		extrasPendentesIds: number[];
+		assinaturasRelatorioExtra?: number;
+		supervisor_id?: number | null;
+		assessor_id?: number | null;
+		seint1_id?: number | null;
+		seint2_id?: number | null;
+		temSaidaConfirmada?: boolean;
+		seccionais?: { id: number; tipos?: string[]; nome?: string }[];
+	};
+
 	const { data }: { data: PageData } = $props();
 
-	const escalas = $derived((data.escalas as Record<string, unknown>[]) ?? []);
+	const escalas = $derived((data.escalas as GiseEscala[]) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);
 	const isSeccional = $derived(!!data.isSeccional);
 	const isUnidade = $derived(!!data.isUnidade);

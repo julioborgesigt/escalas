@@ -158,7 +158,7 @@
 				toaster.create({ title: 'Unidade atualizada com sucesso!', type: 'success' });
 				cancelarEdicao();
 			} else {
-				const d = result.data as Record<string, unknown> | undefined;
+				const d = result.type === 'failure' ? result.data as Record<string, unknown> | undefined : undefined;
 				toaster.create({ title: String(d?.error || 'Erro ao atualizar unidade'), type: 'error' });
 			}
 		};
