@@ -6,6 +6,7 @@
 	import { loading } from '$lib/loading.svelte';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	let {
 		open = $bindable(false),
@@ -13,7 +14,7 @@
 		onSuccess
 	}: {
 		open: boolean;
-		escalas: any[];
+		escalas: { id: number; data_inicio: string; status: string }[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
 
@@ -104,7 +105,7 @@
 		return new Date().toISOString().slice(0, 10);
 	}
 
-	function handleCriarGise({ cancel }: any) {
+	function handleCriarGise({ cancel }: { cancel: () => void }) {
 		if (diasModalOrdenados.length === 0) {
 			toaster.error({ title: 'Selecione pelo menos um dia' });
 			cancel();
@@ -121,7 +122,7 @@
 			return;
 		}
 		loading.show('Criando escala(s) GISE...');
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			if (result.type === 'success') {
 				const d = result.data as Record<string, unknown>;

@@ -1,8 +1,10 @@
 <script lang="ts">
-	let { respostas = $bindable(), modelo = [] } = $props<{ respostas: any, modelo: any[] }>();
+	import type { GiseModeloPerguntaConfig } from '$lib/types';
+
+	let { respostas = $bindable(), modelo = [] } = $props<{ respostas: Record<string, unknown>, modelo: GiseModeloPerguntaConfig[] }>();
 
 
-	function handleSimNao(key: string, val: string, q: any) {
+	function handleSimNao(key: string, val: string, q: GiseModeloPerguntaConfig) {
 		respostas[key] = val;
 		// Inicializações automáticas para tipos sistêmicos
 		if (val === 'Sim') {
@@ -51,7 +53,7 @@
 
 	// Inicialização Automática para tipos "Pura"
 	$effect(() => {
-		function explore(qs: any[]) {
+		function explore(qs: GiseModeloPerguntaConfig[]) {
 			qs.forEach(q => {
 				if (q.tipo === 'operacoes_seint_pura') {
 					if (respostas.operacoes_seint_qtd === undefined) {
@@ -67,7 +69,7 @@
 </script>
 
 <div class="space-y-6">
-	{#snippet renderCampo(q: any, level = 0)}
+	{#snippet renderCampo(q: GiseModeloPerguntaConfig, level = 0)}
 		{@const resKey = q.tipo === 'mandados_maiores' ? 'mandados_lista' : (q.tipo === 'prisoes_maiores' ? 'prisoes_lista' : (q.tipo === 'apreensoes_menores' ? 'apreensoes_lista' : (q.tipo === 'celulares_complex' ? 'celulares_lista' : (q.tipo === 'analise_complex' ? 'analise_lista' : (q.tipo === 'relatorios_seint_complex' ? 'relatorios_seint_lista' : (q.tipo === 'foragidos_complex' ? 'foragidos_lista' : (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura' ? 'operacoes_seint_lista' : 'operacoes_seint_lista')))))))}
 		{@const resQtdKey = q.tipo === 'mandados_maiores' ? 'mandados_qtd' : (q.tipo === 'prisoes_maiores' ? 'prisoes_qtd' : (q.tipo === 'apreensoes_menores' ? 'apreensoes_qtd' : (q.tipo === 'celulares_complex' ? 'celulares_qtd' : (q.tipo === 'analise_complex' ? 'analise_qtd' : (q.tipo === 'relatorios_seint_complex' ? 'relatorios_seint_qtd' : (q.tipo === 'foragidos_complex' ? 'foragidos_qtd' : (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura' ? 'operacoes_seint_qtd' : 'operacoes_seint_qtd')))))))}
 		
@@ -153,12 +155,12 @@
 											onchange={(e) => {
 												const n = Number((e.currentTarget as HTMLSelectElement).value);
 												if (!respostas[resKey]) respostas[resKey] = [];
-												let defaultItem = { nome: '', mandado: '' };
-												if (q.tipo === 'celulares_complex') defaultItem = { modelo: '', n_proc: '', delegacia: '', situacao: '' } as any;
-												else if (q.tipo === 'analise_complex') defaultItem = { tamanho: '', modelo: '', n_proc: '', delegacia: '' } as any;
-												else if (q.tipo === 'relatorios_seint_complex') defaultItem = { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' } as any;
-												else if (q.tipo === 'foragidos_complex') defaultItem = { nome: '', proc_vinc: '', delegacia: '', resultado: '' } as any;
-												else if (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura') defaultItem = { nome: '', delegacia: '' } as any;
+												let defaultItem: Record<string, string> = { nome: '', mandado: '' };
+												if (q.tipo === 'celulares_complex') defaultItem = { modelo: '', n_proc: '', delegacia: '', situacao: '' };
+												else if (q.tipo === 'analise_complex') defaultItem = { tamanho: '', modelo: '', n_proc: '', delegacia: '' };
+												else if (q.tipo === 'relatorios_seint_complex') defaultItem = { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' };
+												else if (q.tipo === 'foragidos_complex') defaultItem = { nome: '', proc_vinc: '', delegacia: '', resultado: '' };
+												else if (q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura') defaultItem = { nome: '', delegacia: '' };
 												
 												respostas[resKey] = Array(n).fill(0).map((_, idx) => (respostas[resKey] || [])[idx] || { ...defaultItem });
 											}}

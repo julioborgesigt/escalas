@@ -3,6 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { formatarData, calcularDataSaida } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
@@ -120,7 +121,7 @@
 
 	function handleEditar() {
 		pendingEditar = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;

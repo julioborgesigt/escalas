@@ -3,6 +3,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	let file = $state<File | null>(null);
 	let result = $state<{
@@ -26,10 +27,10 @@
 		loading.show('Enviando e processando planilha...');
 		result = null;
 
-		return async ({ result: actionResult }: { result: any }) => {
+		return async ({ result: actionResult }: { result: ActionResult }) => {
 			loading.hide();
 			if (actionResult.type === 'success') {
-				result = actionResult.data as any;
+				result = actionResult.data as typeof result;
 				toaster.create({ title: `${result?.imported} policial${result?.imported !== 1 ? 'is' : ''} importado${result?.imported !== 1 ? 's' : ''} com sucesso!`, type: 'success' });
 			} else if (actionResult.type === 'failure') {
 				const d = actionResult.data as Record<string, unknown> | undefined;

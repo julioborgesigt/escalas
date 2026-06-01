@@ -601,7 +601,6 @@ export async function gerarPdfGise(gise: GisePdfData, logoJpgBytes?: Uint8Array)
 		const nameX = 10 + doc.getTextWidth('Inteligência: ');
 		doc.setFont('helvetica', 'normal');
 		doc.text(`${gise.seint2_nome} - ${gise.seint2_telefone || '—'}`, nameX, contactY);
-		contactY += 4;
 	}
 
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);

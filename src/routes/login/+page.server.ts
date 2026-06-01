@@ -120,7 +120,7 @@ export const actions: Actions = {
 
 		const { tipo, usuarioId } = resultado;
 
-		let primeiroAcesso = false;
+		let primeiroAcesso: boolean;
 		if (tipo === 'admin') {
 			const admin = await db.select().from(administradores).where(eq(administradores.id, usuarioId)).get();
 			if (!admin) return fail(404, { error: 'Usuário não encontrado' });

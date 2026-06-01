@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { loading } from '$lib/loading.svelte';
 	import type { PageData } from './$types';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	const { data }: { data: PageData } = $props();
 
@@ -25,7 +26,7 @@
 			return;
 		}
 		loading.show('Salvando nova senha...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			if (result.type === 'failure') {
 				const d = result.data as Record<string, unknown> | undefined;

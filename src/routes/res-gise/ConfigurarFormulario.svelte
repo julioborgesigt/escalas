@@ -3,6 +3,7 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { loading } from '$lib/loading.svelte';
 	import type { useResGise } from './useResGise.svelte';
+	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
 	type ResGise = ReturnType<typeof useResGise>;
 
@@ -12,8 +13,8 @@
 		modeloPadraoSeint
 	}: {
 		resGise: ResGise;
-		modeloPadraoOperacional: any;
-		modeloPadraoSeint: any;
+		modeloPadraoOperacional: unknown;
+		modeloPadraoSeint: unknown;
 	} = $props();
 
 	let dialogRestaurarAberto = $state(false);
@@ -35,7 +36,7 @@
 	</svg>
 {/snippet}
 
-{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: ((e: MouseEvent) => void) | undefined, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
 	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
 	<button
 		type={btnType}
@@ -103,7 +104,7 @@
 	</div>
 
 	<div class="grid grid-cols-1 gap-4">
-		{#snippet renderItem(p: any, level = 0)}
+		{#snippet renderItem(p: GiseModeloPerguntaConfig, level = 0)}
 			<div
 				class="group p-3 sm:p-5 bg-surface-50 dark:bg-surface-950/40 rounded-2xl border border-surface-200 dark:border-surface-800 transition-all hover:border-primary-500/50 hover:shadow-lg"
 				style="margin-left: clamp(0px, {level * 1.5}vw, {level * 2}rem)"

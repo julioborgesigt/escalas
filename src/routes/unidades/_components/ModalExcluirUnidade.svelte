@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	let {
 		open = $bindable(false),
@@ -16,7 +17,7 @@
 
 	function handleExcluir() {
 		pending = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pending = false;
 			if (result.type === 'success') {
 				await invalidateAll();

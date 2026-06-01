@@ -6,6 +6,7 @@
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import type { Unidade } from '$lib/types';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	let {
 		open = $bindable(false),
@@ -49,7 +50,7 @@
 
 	function handleCadastro() {
 		pending = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pending = false;
 			if (result.type === 'success') {
 				await invalidateAll();

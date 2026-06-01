@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarData, calcularDataSaida } from '$lib/utils';
+	import type { ActionResult } from '@sveltejs/kit';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import ModalEditarDias from './ModalEditarDias.svelte';
@@ -107,7 +108,7 @@
 
 	function handleEditar() {
 		pendingEditar = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;
@@ -187,7 +188,7 @@
 			return;
 		}
 		pendingAdd = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingAdd = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;
@@ -282,7 +283,7 @@
 			return;
 		}
 		pendingRepetir = true;
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingRepetir = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data.policiais;

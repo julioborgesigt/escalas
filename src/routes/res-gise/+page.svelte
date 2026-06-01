@@ -57,7 +57,7 @@
 	</svg>
 {/snippet}
 
-{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: any, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
+{#snippet actionButton(label: string, iconPath?: string, variant = 'primary', type = 'outlined', onclick?: ((e: MouseEvent) => void) | undefined, disabled = false, loadingState = false, classes = '', btnType: 'button' | 'submit' = 'button', size = 'sm')}
 	{@const baseClass = `btn btn-${size} preset-${type}-${variant}-500 rounded-xl font-bold whitespace-nowrap transition-all flex items-center justify-center gap-2 ${classes}`}
 	<button
 		type={btnType}
@@ -216,7 +216,7 @@
 											'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
 											'success',
 											'filled',
-											(e: any) => {
+											(e: MouseEvent) => {
 												e.stopPropagation();
 												resGise.baixarRelatorio(escala);
 											},
@@ -233,7 +233,7 @@
 											'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 											'warning',
 											'filled',
-											(e: any) => {
+											(e: MouseEvent) => {
 												e.stopPropagation();
 												resGise.baixarRelatorioExtra(escala);
 											},
@@ -249,7 +249,7 @@
 											'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 											'surface',
 											'filled',
-											(e: any) => {
+											(e: MouseEvent) => {
 												e.stopPropagation();
 												toaster.create({
 													title: 'Relatório de Extraordinário enviado para assinatura do supervisor. Estará disponível para download após assinado.',

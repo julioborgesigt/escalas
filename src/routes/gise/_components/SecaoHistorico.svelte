@@ -15,8 +15,8 @@
 		seccionaisList,
 		isAdminGeral
 	}: {
-		historico: any[];
-		seccionaisList: any[];
+		historico: { data_inicio: string; status: string; seccionais?: { id: number }[] }[];
+		seccionaisList: { id: number; nome: string }[];
 		isAdminGeral: boolean;
 	} = $props();
 
@@ -51,7 +51,7 @@
 	const ITEMS_POR_PAGINA = 5;
 
 	const anosDisponiveisHistorico = $derived(
-		([...new Set(historico.map((e: any) => Number((e.data_inicio as string).slice(0, 4))))] as number[]).sort(
+		([...new Set(historico.map((e) => Number(e.data_inicio.slice(0, 4))))] as number[]).sort(
 			(a, b) => b - a
 		)
 	);
@@ -64,10 +64,10 @@
 	}
 
 	const historicoFiltrado = $derived(
-		historico.filter((e: any) => {
+		historico.filter((e) => {
 			if (
 				filtroSeccional !== '' &&
-				!(e.seccionais ?? []).some((sec: any) => sec.id === Number(filtroSeccional))
+				!(e.seccionais ?? []).some((sec) => sec.id === Number(filtroSeccional))
 			)
 				return false;
 			if (filtroData) {
@@ -221,11 +221,7 @@
 	);
 
 	$effect(() => {
-		filtroSeccional;
-		filtroMesAno;
-		filtroAnoCiclo;
-		filtroNumeroCiclo;
-		filtroData;
+		void [filtroSeccional, filtroMesAno, filtroAnoCiclo, filtroNumeroCiclo, filtroData];
 		paginaHistorico = 1;
 	});
 

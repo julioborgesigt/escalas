@@ -9,6 +9,7 @@
 	import type { Unidade } from '$lib/types';
 	import { CIDADES_CEARA } from '$lib/constants/cidades';
 	import { useAutorizacao, getSavedFilters } from '$lib/composables';
+	import type { ActionResult } from '@sveltejs/kit';
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
 
@@ -150,7 +151,7 @@
 
 	function handleEditar() {
 		pendingEditar = true;
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			pendingEditar = false;
 			if (result.type === 'success') {
 				await invalidateAll();

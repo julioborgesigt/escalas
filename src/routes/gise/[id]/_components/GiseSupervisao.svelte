@@ -43,7 +43,7 @@
 		seint2_id: number | null;
 		seint2_nome?: string | null;
 		status: string;
-		seccionais?: any[];
+		seccionais?: { status: string; seccional_nome: string }[];
 	}
 
 	interface Policial {
@@ -218,7 +218,7 @@
 	);
 	const seccionaisPendentes = $derived(
 		gise.seccionais?.filter(
-			(s: any) => s.status !== 'preenchida' && s.status !== 'preenchida_retificada'
+			(s) => s.status !== 'preenchida' && s.status !== 'preenchida_retificada'
 		) || []
 	);
 
@@ -681,13 +681,13 @@
 													{:else}
 														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.</p>
 														<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-															<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>{' '}
+															<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
 															{#if !gise.seccionais || gise.seccionais.length === 0}
 																a escalar
 															{:else if seccionaisPendentes.length === 0}
 																Nenhum
 															{:else}
-																{seccionaisPendentes.map((s: any) => s.seccional_nome).join(', ')}
+																{seccionaisPendentes.map((s) => s.seccional_nome).join(', ')}
 															{/if}
 														</p>
 													{/if}
@@ -819,7 +819,7 @@
 															{#if !rubSupOk}
 																<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 																	{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																		<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{' '}{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+																		<span class="text-error-600 dark:text-error-400 font-medium">Faltando rúbrica de:</span>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
 																	{:else}
 																		{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
 																	{/if}

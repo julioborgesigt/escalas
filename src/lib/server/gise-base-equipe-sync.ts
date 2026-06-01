@@ -141,7 +141,7 @@ async function postLinhasParaPlanilha(
 		signal: AbortSignal.timeout(25_000)
 	});
 	const text = await res.text();
-	let parsed: Record<string, unknown> = {};
+	let parsed: Record<string, unknown>;
 	try {
 		parsed = JSON.parse(text) as Record<string, unknown>;
 	} catch {

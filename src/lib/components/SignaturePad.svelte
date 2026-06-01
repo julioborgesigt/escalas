@@ -36,7 +36,7 @@
 		type ChallengeDefinicao,
 		type ChallengeProgresso
 	} from '$lib/liveness-challenge';
-	let faceapi: any = $state(null);
+	let faceapi: typeof import('@vladmandic/face-api') | null = $state(null);
 
 	let {
 		onConfirm,

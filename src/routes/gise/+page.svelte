@@ -19,16 +19,16 @@
 
 	const { data }: { data: PageData } = $props();
 
-	const escalas = $derived((data.escalas as any) ?? []);
+	const escalas = $derived((data.escalas as Record<string, unknown>[]) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);
 	const isSeccional = $derived(!!data.isSeccional);
 	const isUnidade = $derived(!!data.isUnidade);
 	const isSupervisor = $derived(!!data.isSupervisor);
 	const isMembro = $derived(!!data.isMembro);
 
-	const ativas = $derived(escalas.filter((e: any) => e.status !== 'finalizada'));
+	const ativas = $derived(escalas.filter((e) => e.status !== 'finalizada'));
 	const historico = $derived(
-		isAdminGeral ? escalas.filter((e: any) => e.status === 'finalizada') : []
+		isAdminGeral ? escalas.filter((e) => e.status === 'finalizada') : []
 	);
 
 	const seccionaisList = $derived(data.seccionaisList ?? []);

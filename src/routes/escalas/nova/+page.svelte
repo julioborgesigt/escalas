@@ -5,6 +5,7 @@
 	import { toaster } from '$lib/toast';
 	import { loading } from '$lib/loading.svelte';
 	import { Dialog, Steps } from '@skeletonlabs/skeleton-svelte';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	interface UnidadeRegime {
 		nome: string;
@@ -18,7 +19,7 @@
 
 	function handleForm({ formData }: { formData: FormData }) {
 		loading.show('Criando nova escala...');
-		return async ({ result }: { result: any }) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {
@@ -327,14 +328,14 @@
 		tipoEscolhido = null;
 	}
 
-	function handleFdsCriar({ cancel }: any) {
+	function handleFdsCriar({ cancel }: { cancel: () => void }) {
 		if (fdsDiasOrdenados.length === 0) {
 			toaster.create({ title: 'Selecione pelo menos um dia', type: 'error' });
 			cancel();
 			return;
 		}
 		loading.show('Criando escala FDS...');
-		return async ({ result }: any) => {
+		return async ({ result }: { result: ActionResult }) => {
 			loading.hide();
 			const d = result.data as Record<string, unknown> | undefined;
 			if (result.type === 'success' && d?.id) {

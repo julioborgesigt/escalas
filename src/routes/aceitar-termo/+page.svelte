@@ -2,7 +2,7 @@
 	import icon from '$lib/assets/logo.png';
 	import { enhance } from '$app/forms';
 
-	const { data, form }: { data: any; form: any } = $props();
+	const { data, form } = $props();
 
 	let aceitouTermo = $state(false);
 	let aceitouLgpd = $state(false);
