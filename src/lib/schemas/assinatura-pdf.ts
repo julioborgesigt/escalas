@@ -47,12 +47,18 @@ const pdfBase64Schema = z
 	.min(100, 'PDF inválido')
 	.max(10 * 1024 * 1024, 'PDF muito grande (máx 10 MB)');
 
-/** Hash hexadecimal (verification hash, document hash, message digest). */
+/** Hash hexadecimal (document hash, message digest). */
 const hashHexSchema = z
 	.string()
 	.regex(/^[0-9a-fA-F]+$/, 'Hash deve ser hexadecimal')
 	.min(8)
 	.max(128);
+
+/** Código de verificação gerado por gerarCodigoValidacao(): formato "XXXX-XXXX". */
+const codigoVerificacaoSchema = z
+	.string()
+	.regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/, 'Código de verificação inválido')
+	.max(9);
 
 /** ISO 8601 timestamp string. */
 const isoTimestampSchema = z
@@ -92,12 +98,10 @@ export type PrepararAssinaturaInput = z.infer<typeof prepararAssinaturaSchema>;
 
 export const finalizarAssinaturaEscalasSchema = z.object({
 	preparedPdf: pdfBase64Schema,
-	signature: optionalNullable(base64Schema),
-	certificate: optionalNullable(base64Schema),
 	serproCms: optionalNullable(base64Schema),
 	/** SERPRO devolve um JSON arbitrário; só guardamos para tipo de carimbo de tempo. */
 	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
-	verificationHash: hashHexSchema,
+	verificationHash: codigoVerificacaoSchema,
 	signingTimeISO: optionalNullable(isoTimestampSchema),
 	messageDigestHex: optionalNullable(hashHexSchema),
 	documentHash: optionalNullable(hashHexSchema),
@@ -115,15 +119,13 @@ export type FinalizarAssinaturaEscalasInput = z.infer<typeof finalizarAssinatura
 
 export const finalizarAssinaturaGiseSchema = z.object({
 	preparedPdf: pdfBase64Schema,
-	rawSignature: optionalNullable(base64Schema),
-	certificateBase64: optionalNullable(base64Schema),
 	serproCms: optionalNullable(base64Schema),
 	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
 	messageDigest: optionalNullable(hashHexSchema),
 	signingTimeISO: optionalNullable(isoTimestampSchema),
 	signerName: nomeAssinanteSchema,
 	signerCpf: cpfAssinanteSchema,
-	verificationHash: hashHexSchema,
+	verificationHash: codigoVerificacaoSchema,
 	documentHash: optionalNullable(hashHexSchema),
 	assinanteEmail: emailAssinanteSchema,
 	rubrica: dataUrlImagemSchema,

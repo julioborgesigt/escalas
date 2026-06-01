@@ -44,9 +44,7 @@ export const POST: RequestHandler = async ({
 	if (!validated.ok) return validated.response;
 	const {
 		preparedPdf,
-		rawSignature,
 		serproCms,
-		certificateBase64,
 		messageDigest,
 		signingTimeISO,
 		verificationHash,
@@ -74,8 +72,6 @@ export const POST: RequestHandler = async ({
 			{
 				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
 				serproCms,
-				rawSignature,
-				certificateBase64,
 				messageDigestHex: messageDigest,
 				signingTimeISO
 			},
