@@ -250,7 +250,10 @@
 		loadingService.show('Atualizando dados de compliance...');
 		try {
 			const stored = localStorage.getItem('compliance_ignorados');
-			if (stored) { ignorados.clear(); for (const k of JSON.parse(stored) as string[]) ignorados.add(k); }
+			if (stored) {
+				ignorados.clear();
+				for (const k of JSON.parse(stored) as string[]) ignorados.add(k);
+			}
 		} catch {
 			/* ignora */
 		}
@@ -303,7 +306,10 @@
 		if (isAdmin && browser) {
 			try {
 				const stored = localStorage.getItem('compliance_ignorados');
-				if (stored) { ignorados.clear(); for (const k of JSON.parse(stored) as string[]) ignorados.add(k); }
+				if (stored) {
+					ignorados.clear();
+					for (const k of JSON.parse(stored) as string[]) ignorados.add(k);
+				}
 			} catch {
 				/* ignora */
 			}

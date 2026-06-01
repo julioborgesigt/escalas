@@ -314,7 +314,7 @@ export function useResGise(getData: () => ResGisePageData) {
 				escalaSelecionada = {
 					...sel,
 					// eslint-disable-next-line svelte/prefer-svelte-reactivity
-				presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
+					presenca: { ...prev, saida_timestamp: new Date().toISOString() } as GisePresenca
 				} as ResGiseEscalaSelecionavel;
 			}
 		} catch (e: unknown) {

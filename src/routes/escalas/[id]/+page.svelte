@@ -104,7 +104,7 @@
 	}
 
 	let modoSelecao = $state(false);
-	let selecionados = $state(new SvelteSet<number>());
+	const selecionados = new SvelteSet<number>();
 	let pendingRemoverTodos = $state(false);
 	let pendingRemoverSelecionados = $state(false);
 	let confirmRemoverTodosOpen = $state(false);
@@ -114,17 +114,13 @@
 	const totalSelecionados = $derived(selecionados.size);
 
 	function toggleSelecionar(id: number) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const novo = new Set(selecionados);
-		if (novo.has(id)) novo.delete(id);
-		else novo.add(id);
-		selecionados = novo;
+		if (selecionados.has(id)) selecionados.delete(id);
+		else selecionados.add(id);
 	}
 
 	function cancelarSelecao() {
 		modoSelecao = false;
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		selecionados = new Set();
+		selecionados.clear();
 	}
 
 	function handleRemoverTodos() {
@@ -154,7 +150,7 @@
 			confirmRemoverSelecionadosOpen = false;
 			if (result.type === 'success') {
 				policiaisEscalaLocal = result.data?.policiais;
-				selecionados = new Set();
+				selecionados.clear();
 				modoSelecao = false;
 				const removidos = result.data?.removidos ?? 0;
 				toaster.create({
@@ -292,7 +288,8 @@
 			{modoSelecao}
 			{pendingRemoverSelecionados}
 			onSelecionarTodos={() => {
-				selecionados = new Set(policiaisEscalaLocal.map((p) => p.id));
+				selecionados.clear();
+				for (const p of policiaisEscalaLocal) selecionados.add(p.id);
 			}}
 			onRemoverSelecionados={() => (confirmRemoverSelecionadosOpen = true)}
 			onRemoverTodos={() => (confirmRemoverTodosOpen = true)}
