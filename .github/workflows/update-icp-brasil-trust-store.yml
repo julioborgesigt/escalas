@@ -43,7 +43,7 @@ jobs:
       - name: Abrir PR
         id: pr
         if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: |
             chore(icp-brasil): atualiza trust store
