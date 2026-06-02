@@ -11,19 +11,23 @@ import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './ic
 
 /**
  * Tamanho do placeholder de /Contents, em CARACTERES HEX ⇒ capacidade real de
- * CMS = METADE em bytes. EMPÍRICO: 65536 hex chars = 32 KB de CMS.
+ * CMS = METADE em bytes. 32768 hex chars = 16 KB de CMS.
  *
- * Precisa acomodar o MAIOR caso: CMS qualificado com a CADEIA ICP-Brasil
- * completa (SERPRO, ~6-7 KB) + TimeStampToken RFC 3161 anexado como
- * UnsignedAttribute (~5 KB). O valor anterior (16384 hex = apenas 8 KB) bastava
- * para 1 cert, mas ESTOURAVA ao anexar o TST server-side num CMS com cadeia
- * completa — fazendo `embedCmsBytesNoPlaceholder` lançar e o carimbo de tempo
- * cair silenciosamente para 'servidor'. 32 KB dão folga para cadeia + TST + PoE.
+ * Casos a acomodar:
+ *   - Qualificada (SERPRO): CMS com a cadeia ICP-Brasil (~6-8 KB). NÃO anexamos
+ *     TST server-side a ele (re-codificar o CMS BER do SERPRO invalida a
+ *     assinatura — vide cades-finalizer e embedSerproCms), então não há TST a somar.
+ *   - Avançada (selo institucional autoassinado): CMS de 1 cert (~2 KB) +
+ *     TimeStampToken RFC 3161 (~5 KB), pois esse CMS é gerado por nós em DER e
+ *     pode ser re-serializado com segurança.
+ *
+ * 16 KB dão folga confortável para ambos. (NÃO usar 8 KB: a avançada+TST fica no
+ * limite; NÃO precisar de 32 KB: o SERPRO não recebe TST server-side.)
  *
  * IMPORTANTE: mudar este valor só afeta NOVOS PDFs preparados. PDFs antigos
  * permanecem com placeholder do tamanho original.
  */
-const SIGNATURE_LENGTH = 65536;
+const SIGNATURE_LENGTH = 32768;
 const BYTE_RANGE_PLACEHOLDER = '********** ********** **********';
 
 // OIDs usados na estrutura CMS
