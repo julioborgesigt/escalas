@@ -715,7 +715,7 @@
 		seccionalId={relatorioDigitalInfo.seccionalId}
 		seccionalNome={relatorioDigitalInfo.seccionalNome}
 		signerEmail={data.usuarioAtual?.email ?? undefined}
-		disabled={loading.active}
+		disabled={false}
 		bind:control={assinatura.painelTokenRelatorio}
 		bind:signerName={assinatura.relatorioSignerName}
 		bind:signerCpf={assinatura.relatorioSignerCpf}
