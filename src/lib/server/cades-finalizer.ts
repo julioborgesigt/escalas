@@ -350,7 +350,16 @@ export async function verificarECarimbarAssinatura(
 
 		const ocspsDer = ocspDerParaDss ? [ocspDerParaDss] : [];
 
-		if (certsDer.length > 0 || ocspsDer.length > 0) {
+		// PAdES-LT (DSS via incremental update) DESABILITADO por padrão: o incremental
+		// update estava gerando um PDF que o Adobe recusa abrir ("problema ao ler este
+		// documento (43)") no fluxo qualificado (token). A revogação OCSP permanece
+		// salva no banco (metadata.ocsp_response_b64), então a página /validar valida
+		// normalmente — apenas o PDF deixa de ser self-contained (PAdES-LT). Reabilitar
+		// com EMBED_PADES_LT_DSS=1 após corrigir/validar o aplicarDss.
+		const dssHabilitado = /^(1|true|yes|on)$/i.test(
+			(options.env?.EMBED_PADES_LT_DSS ?? '').trim()
+		);
+		if (dssHabilitado && (certsDer.length > 0 || ocspsDer.length > 0)) {
 			pdfFinal = await aplicarDss(signedPdfBytes, {
 				certs: certsDer,
 				ocsps: ocspsDer,
