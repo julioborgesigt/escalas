@@ -794,7 +794,7 @@
 																<button
 																	type="button"
 																	class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																	disabled={!mostrarPainelAssinaturaEscala}
 																	onclick={() => onAbrirAssinaturaEscalaManual()}
 																>
 																	<svg
@@ -815,7 +815,7 @@
 																<button
 																	type="button"
 																	class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1"
-																	disabled={loading.active || !mostrarPainelAssinaturaEscala}
+																	disabled={!mostrarPainelAssinaturaEscala}
 																	onclick={() => painelTokenGise?.assinarComSerpro()}
 																>
 																	<svg
@@ -850,7 +850,7 @@
 												finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
 												nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
 												extraPayload={{ rubrica: rubricaCapturada }}
-												disabled={loading.active}
+												disabled={false}
 												onSuccess={onAssinaturaEscalaDigitalSuccess}
 											/>
 										</div>

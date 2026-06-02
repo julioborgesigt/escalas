@@ -45,6 +45,9 @@
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
+	// Guard LOCAL de reentrância (duplo-clique). NÃO usar o loading GLOBAL no guard:
+	// um overlay preso em qualquer parte do app bloquearia o token silenciosamente.
+	let assinando = $state(false);
 
 	// ---- Fluxo SERPRO ----
 
@@ -156,7 +159,18 @@
 	}
 
 	async function assinarComSerpro() {
-		if (loading.active || disabled) return;
+		// Reentrância (duplo-clique): silencioso, OK.
+		if (assinando) return;
+		// Se o pai desabilitou (operação em andamento), dá FEEDBACK em vez de
+		// retornar mudo — assim o usuário vê o motivo em vez de "nada acontece".
+		if (disabled) {
+			toaster.error({
+				title: 'Assinatura indisponível no momento',
+				description: 'Aguarde a operação anterior concluir e tente novamente.'
+			});
+			return;
+		}
+		assinando = true;
 		try {
 			const client = serproClient ?? (await conectarSerpro());
 			loading.show('Conectando ao Assinador SERPRO...');
@@ -177,6 +191,7 @@
 			serproClient = null;
 			loading.hide();
 		} finally {
+			assinando = false;
 			serproClient?.disconnect();
 			serproClient = null;
 		}

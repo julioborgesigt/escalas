@@ -448,8 +448,15 @@
 							<button
 								type="button"
 								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
-								disabled={loading.active}
-								onclick={() => painelTokenControl?.assinarComSerpro()}>Assinar</button
+								disabled={assinando}
+								onclick={() => {
+									if (painelTokenControl) painelTokenControl.assinarComSerpro();
+									else
+										toaster.error({
+											title: 'Painel de assinatura não inicializado',
+											description: 'Recarregue a página (F5) e tente novamente.'
+										});
+								}}>Assinar</button
 							>
 						{:else}
 							<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0"
