@@ -157,7 +157,14 @@ export async function aplicarDss(signedPdf: Uint8Array, data: DssData): Promise<
 	const rootRef = trailer.Root as PDFRef | undefined;
 	if (!rootRef) throw new Error('Trailer sem /Root — PDF não rastreável');
 
-	const sizeOriginal = ctx.largestObjectNumber + 1; // próximo número livre
+	// IMPORTANTE: pdf-lib SUBNOTIFICA `largestObjectNumber`. Quando ele salva com
+	// object streams (padrão), cria objetos extras que ocupam os MAIORES números do
+	// arquivo: o(s) ObjStm (container dos objetos comprimidos — catalog, páginas…) e
+	// o XRef stream. Esses containers NÃO entram em `largestObjectNumber` ao recarregar.
+	// Numerar a partir de `largestObjectNumber + 1` colide com eles → sobrescrevemos o
+	// ObjStm → os objetos comprimidos somem → Adobe recusa abrir ("problema ao ler este
+	// documento (43)"). Derivamos o próximo número do /Size REAL declarado no arquivo.
+	const sizeOriginal = descobrirProximoObjeto(signedPdf, ctx.largestObjectNumber);
 	const catalog = ctx.lookup(rootRef) as PDFDict | undefined;
 	if (!catalog) throw new Error('Catalog (Root) não encontrado');
 
@@ -217,7 +224,104 @@ export async function aplicarDss(signedPdf: Uint8Array, data: DssData): Promise<
 	partes.push(TE.encode(trailerTxt));
 
 	// 6. Concatenar tudo: PDF original + incremental.
-	return concatBytes([signedPdf, ...partes]);
+	const resultado = concatBytes([signedPdf, ...partes]);
+
+	// 7. Auto-verificação estrutural (rede de segurança). Adobe é mais rígido que o
+	// pdf-lib — então NUNCA devolvemos um incremental update inconsistente. Se qualquer
+	// invariante falhar (colisão de objeto, offset de xref errado, DSS irrecuperável),
+	// caímos de volta no PDF assinado original (sem PAdES-LT). Pior caso = PDF sem DSS,
+	// jamais um PDF quebrado.
+	const verif = await verificarIncremental(
+		resultado,
+		signedPdf,
+		[...certNums, ...ocspNums, ...crlNums, dssNum],
+		entradasXref,
+		novoXrefOffset
+	);
+	if (!verif.ok) {
+		logger.warn('[PAdES-LT] Incremental update reprovado na auto-verificação — DSS não embarcado', {
+			motivo: verif.motivo
+		});
+		return signedPdf;
+	}
+
+	return resultado;
+}
+
+/**
+ * Descobre o próximo número de objeto livre e SEGURO para um incremental update.
+ *
+ * Não confiamos só em `largestObjectNumber` do pdf-lib porque ele não conta os
+ * objetos ObjStm/XRef-stream fisicamente presentes no arquivo. Tomamos o teto entre:
+ *   - `largestObjectNumber + 1` (visão lógica do pdf-lib),
+ *   - o maior `/Size` declarado em qualquer trailer/XRef dict (autoritativo por spec:
+ *     /Size = maior número de objeto + 1), e
+ *   - o maior cabeçalho `N G obj` fisicamente presente + 1.
+ *
+ * Superestimar é inócuo (gera no máximo lacunas legais na numeração); subestimar
+ * causa colisão e corrompe o PDF — por isso pegamos sempre o MAIOR.
+ */
+function descobrirProximoObjeto(pdfBytes: Uint8Array, largestObjectNumber: number): number {
+	const txt = new TextDecoder('latin1').decode(pdfBytes);
+	let maxNum = largestObjectNumber;
+	for (const m of txt.matchAll(/(?:^|[\r\n])\s*(\d+)\s+\d+\s+obj\b/g)) {
+		const n = parseInt(m[1], 10);
+		if (Number.isFinite(n) && n > maxNum) maxNum = n;
+	}
+	let maxSize = 0;
+	for (const m of txt.matchAll(/\/Size\s+(\d+)/g)) {
+		const n = parseInt(m[1], 10);
+		if (Number.isFinite(n) && n > maxSize) maxSize = n;
+	}
+	return Math.max(largestObjectNumber + 1, maxNum + 1, maxSize);
+}
+
+/**
+ * Rede de segurança: revalida o incremental update gerado por `aplicarDss` antes
+ * de devolvê-lo. Latin1 preserva a relação 1 byte = 1 char, então índices de string
+ * equivalem a offsets de byte.
+ */
+async function verificarIncremental(
+	output: Uint8Array,
+	signedOriginal: Uint8Array,
+	novosNums: number[],
+	entradas: { num: number; offset: number }[],
+	xrefOffset: number
+): Promise<{ ok: true } | { ok: false; motivo: string }> {
+	const decOut = new TextDecoder('latin1').decode(output);
+	const decOrig = new TextDecoder('latin1').decode(signedOriginal);
+
+	// (a) Guard de colisão: nenhum número novo pode já existir no PDF assinado.
+	for (const n of novosNums) {
+		if (new RegExp(`(?:^|[\\r\\n])\\s*${n}\\s+\\d+\\s+obj\\b`).test(decOrig)) {
+			return { ok: false, motivo: `colisão: objeto ${n} já existe no PDF assinado` };
+		}
+	}
+	// (b) Guard de offset: cada offset da nova xref aponta exatamente para "N G obj".
+	for (const { num, offset } of entradas) {
+		if (offset < 0 || offset >= output.length) {
+			return { ok: false, motivo: `offset ${offset} do objeto ${num} fora do arquivo` };
+		}
+		const trecho = decOut.slice(offset, offset + 24);
+		if (!new RegExp(`^${num}\\s+\\d+\\s+obj\\b`).test(trecho)) {
+			return {
+				ok: false,
+				motivo: `offset ${offset} não inicia "${num} .. obj" (achou ${JSON.stringify(trecho.slice(0, 12))})`
+			};
+		}
+	}
+	// (c) startxref aponta para a palavra-chave "xref".
+	if (xrefOffset < 0 || xrefOffset >= output.length || decOut.slice(xrefOffset, xrefOffset + 4) !== 'xref') {
+		return { ok: false, motivo: `startxref (${xrefOffset}) não aponta para "xref"` };
+	}
+	// (d) Round-trip: o PDF reabre e expõe o DSS recém-embarcado.
+	try {
+		const dss = await detectarDss(output);
+		if (!dss.presente) return { ok: false, motivo: 'DSS ausente após incremental update' };
+	} catch (e) {
+		return { ok: false, motivo: `reparse falhou: ${e instanceof Error ? e.message : String(e)}` };
+	}
+	return { ok: true };
 }
 
 /**
