@@ -24,9 +24,6 @@ import {
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { aplicarDss } from './pades-lt';
-import { solicitarCarimboTempo } from './tsa';
-import { adicionarTimestampTokenAoCms } from './cms-tst';
-import { embedCmsBytesNoPlaceholder } from './pdf-signing-prepare';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
 
@@ -180,7 +177,9 @@ export async function verificarECarimbarAssinatura(
 	//       em erro 422 (sem TST não há tempestividade oponível).
 	let tipoCarimboTempo: TipoCarimoTempo = 'servidor';
 	let tstTokenB64: string | undefined;
-	let tstAplicadoServerSide = false;
+	// Sempre false no fluxo qualificado: o carimbo server-side foi removido por
+	// corromper o CMS do SERPRO (vide nota abaixo). Mantido para os ramos de metadados.
+	const tstAplicadoServerSide = false;
 
 	if (cms.timestampToken) {
 		// (a) — TST veio do cliente. Verifica, classifica e (se não verificável)
@@ -198,44 +197,16 @@ export async function verificarECarimbarAssinatura(
 				'[CADES] TST do cliente não verificável — rebaixado para servidor (sem bloquear).'
 			);
 		}
-	} else if (options.env?.TSA_URL) {
-		// (b) — TSA server-side.
-		const tsa = await solicitarCarimboTempo(cms.signatureValue, {
-			url: options.env.TSA_URL,
-			username: options.env.TSA_USERNAME,
-			password: options.env.TSA_PASSWORD
-		});
-		if (tsa.ok) {
-			try {
-				// Reescreve o CMS com o TST anexado e re-embeda no PDF.
-				const novoCmsDer = adicionarTimestampTokenAoCms(extracao.cmsDer, tsa.tstAsn1);
-				signedPdfBytes = embedCmsBytesNoPlaceholder(signedPdfBytes, novoCmsDer);
-				// O TST foi obtido por NÓS da TSA configurada e já está embarcado.
-				// Classifica: 'act_icp' só se a TSA encadear até a ICP-Brasil; caso
-				// contrário (ex.: DigiCert) é 'tsa_externa'. NÃO rebaixa para 'servidor'
-				// — diferente do caminho (a) (TST de cliente, adversarial), aqui sabemos
-				// a origem e o carimbo está presente no documento.
-				const tstVerif = await verificarTimestampToken(tsa.tstAsn1, cms.signatureValue);
-				tipoCarimboTempo = tstVerif?.classe === 'icp' ? 'act_icp' : 'tsa_externa';
-				tstTokenB64 = forge.util.encode64(
-					Array.from(tsa.tstDer)
-						.map((b) => String.fromCharCode(b))
-						.join('')
-				);
-				tstAplicadoServerSide = true;
-			} catch (e) {
-				logger.warn('[CADES] Falha ao anexar TST server-side ao CMS', {
-					error: e instanceof Error ? e.message : String(e)
-				});
-				// Não bloqueia — segue para a checagem de EXIGIR_TSA_QUALIFICADA.
-			}
-		} else {
-			logger.warn('[CADES] TSA server-side falhou — seguindo sem TST', {
-				url: options.env.TSA_URL,
-				error: tsa.error
-			});
-		}
 	}
+
+	// Carimbo de tempo server-side (TSA) é DELIBERADAMENTE ausente no fluxo
+	// qualificado. Anexá-lo exigiria re-serializar o CMS (adicionarTimestampTokenAoCms
+	// usa forge.asn1.toDer), o que ALTERA os bytes do SignerInfo do SERPRO (BER) e
+	// INVALIDA a assinatura — o mesmo motivo pelo qual embedSerproCms embute o CMS
+	// SEM re-codificar. O resultado seria um PDF corrompido ("erro ao abrir").
+	// Quando tempestividade qualificada for necessária, o carimbo deve ser emitido
+	// pelo PRÓPRIO Assinador (ACT no SERPRO desktop): chega como cms.timestampToken
+	// e é tratado no caminho (a) acima, sem re-codificar o CMS.
 
 	if (tipoCarimboTempo !== 'act_icp' && exigirTsa(options.env)) {
 		return {
