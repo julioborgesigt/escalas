@@ -612,15 +612,16 @@ function hexParaBase64(hex: string): string {
 }
 
 /**
- * Exibe um modal dinâmico informando que o Assinador SERPRO deve estar aberto.
- * Oferece link de download e opção de silenciar o aviso durante a sessão atual.
+ * Exibe um modal de aviso sobre o Assinador SERPRO.
+ * @param sessionKey - Chave no sessionStorage para "não mostrar novamente"
+ * @param titulo - Título do modal
+ * @param corpo - HTML do corpo do modal (parágrafos)
  */
-function exibirAvisoSerpro(): Promise<boolean> {
+function exibirAvisoSerproModal(sessionKey: string, titulo: string, corpo: string): Promise<boolean> {
 	return new Promise((resolve) => {
-		// Se já marcou para pular nesta sessão, prossegue direto
 		if (
 			typeof sessionStorage !== 'undefined' &&
-			sessionStorage.getItem('pularAvisoSerpro') === 'true'
+			sessionStorage.getItem(sessionKey) === 'true'
 		) {
 			resolve(true);
 			return;
@@ -628,9 +629,7 @@ function exibirAvisoSerpro(): Promise<boolean> {
 
 		const modalId = 'serpro-signer-warning-modal';
 		const existing = document.getElementById(modalId);
-		if (existing) {
-			existing.remove();
-		}
+		if (existing) existing.remove();
 
 		const overlay = document.createElement('div');
 		overlay.id = modalId;
@@ -647,27 +646,19 @@ function exibirAvisoSerpro(): Promise<boolean> {
 					</div>
 					<div class="min-w-0 flex-1">
 						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">
-							Assinador SERPRO Necessário
+							${titulo}
 						</h3>
 					</div>
 				</div>
 
 				<div class="space-y-2.5 text-sm text-surface-600 dark:text-surface-300">
-					<p class="leading-relaxed">
-						Para realizar a assinatura digital no computador, o aplicativo <strong>Assinador SERPRO</strong> deve estar instalado e em execução no seu sistema.
-					</p>
-					<p class="leading-relaxed">
-						Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">Clique aqui para baixar</a>.
-					</p>
-					<p class="font-medium text-warning-600 dark:text-warning-500">
-						Certifique-se de abrir o aplicativo antes de prosseguir.
-					</p>
+					${corpo}
 				</div>
 
 				<div class="flex items-start gap-2 pt-1">
 					<input type="checkbox" id="serpro-skip-checkbox" class="mt-0.5 w-4 h-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-surface-800 cursor-pointer" />
 					<label for="serpro-skip-checkbox" class="text-xs text-surface-500 dark:text-surface-400 select-none cursor-pointer leading-tight">
-						Não exibir este aviso novamente nesta sessão (reaparece após novo login)
+						Não exibir este aviso novamente nesta sessão
 					</label>
 				</div>
 
@@ -696,13 +687,11 @@ function exibirAvisoSerpro(): Promise<boolean> {
 		const cancelBtn = overlay.querySelector('#serpro-cancel-btn');
 		const skipCheckbox = overlay.querySelector('#serpro-skip-checkbox') as HTMLInputElement | null;
 
-		const cleanup = () => {
-			overlay.remove();
-		};
+		const cleanup = () => overlay.remove();
 
 		confirmBtn?.addEventListener('click', () => {
 			if (skipCheckbox?.checked && typeof sessionStorage !== 'undefined') {
-				sessionStorage.setItem('pularAvisoSerpro', 'true');
+				sessionStorage.setItem(sessionKey, 'true');
 			}
 			cleanup();
 			resolve(true);
@@ -716,6 +705,44 @@ function exibirAvisoSerpro(): Promise<boolean> {
 }
 
 /**
+ * Aviso padrão para assinatura de documentos.
+ */
+function exibirAvisoSerpro(): Promise<boolean> {
+	return exibirAvisoSerproModal(
+		'pularAvisoSerpro',
+		'Assinador SERPRO Necessário',
+		`<p class="leading-relaxed">
+			Para realizar a assinatura digital no computador, o aplicativo <strong>Assinador SERPRO</strong> deve estar instalado e em execução no seu sistema.
+		</p>
+		<p class="leading-relaxed">
+			Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">Clique aqui para baixar</a>.
+		</p>
+		<p class="font-medium text-warning-600 dark:text-warning-500">
+			Certifique-se de abrir o aplicativo antes de prosseguir.
+		</p>`
+	);
+}
+
+/**
+ * Aviso específico para login com Token A3.
+ */
+function exibirAvisoSerproLogin(): Promise<boolean> {
+	return exibirAvisoSerproModal(
+		'pularAvisoSerproLogin',
+		'Login com Token A3',
+		`<p class="leading-relaxed">
+			Para entrar com seu certificado digital, o aplicativo <strong>Assinador SERPRO</strong> precisa estar instalado e em execução no seu computador.
+		</p>
+		<p class="leading-relaxed">
+			Ele será usado para confirmar sua identidade por meio do Token A3, sem necessidade de senha. Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">clique aqui para baixar</a>.
+		</p>
+		<p class="font-medium text-warning-600 dark:text-warning-500">
+			Abra o Assinador SERPRO antes de continuar.
+		</p>`
+	);
+}
+
+/**
  * Cria e conecta um cliente SERPRO.
  * Exibe um modal de aviso prévio se não foi silenciado nesta sessão do usuário.
  * Lança erro com mensagem amigável se o Assinador não estiver rodando.
@@ -724,6 +751,33 @@ export async function conectarSerpro(): Promise<SerproSignerClient> {
 	const prosseguir = await exibirAvisoSerpro();
 	if (!prosseguir) {
 		throw new Error('Assinatura cancelada pelo usuário.');
+	}
+
+	const client = new SerproSignerClient();
+	await client.connect();
+	return client;
+}
+
+/**
+ * Conecta ao SERPRO para uso no fluxo de login com Token A3.
+ *
+ * Estratégia:
+ * 1. Tenta conectar silenciosamente (sem modal) — caso o SERPRO já esteja aberto.
+ * 2. Se falhar, exibe modal com instruções de login e tenta novamente após confirmação.
+ */
+export async function conectarSerproParaLogin(): Promise<SerproSignerClient> {
+	// Tenta conexão silenciosa primeiro
+	const silentClient = new SerproSignerClient();
+	try {
+		await silentClient.connect();
+		return silentClient; // SERPRO já estava aberto — pula o modal
+	} catch {
+		// SERPRO não está rodando — exibir aviso de login
+	}
+
+	const prosseguir = await exibirAvisoSerproLogin();
+	if (!prosseguir) {
+		throw new Error('Autenticação cancelada pelo usuário.');
 	}
 
 	const client = new SerproSignerClient();

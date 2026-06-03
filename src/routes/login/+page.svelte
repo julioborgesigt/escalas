@@ -8,7 +8,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { conectarSerpro } from '$lib/serpro';
+	import { conectarSerproParaLogin } from '$lib/serpro';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	type ActionData = Record<string, unknown> | undefined;
@@ -226,13 +226,12 @@
 	}
 
 	async function fazerLoginComCertificado() {
-		let serproClient: Awaited<ReturnType<typeof conectarSerpro>> | null = null;
+		let serproClient: Awaited<ReturnType<typeof conectarSerproParaLogin>> | null = null;
 		try {
 			// 1. Conectar ao SERPRO PRIMEIRO — sem loading overlay, para o modal de
-			//    aviso do SERPRO (exibirAvisoSerpro) não ficar bloqueado pelo overlay.
-			//    Padrão idêntico ao usado em PainelAssinaturaToken.svelte.
-			serproClient = await conectarSerpro();
-			loadingService.show('Gerando desafio de autenticação...');
+			//    aviso não ficar bloqueado pelo overlay. Tenta conexão silenciosa antes
+			//    de exibir o aviso (pula o modal se SERPRO já estiver aberto).
+			serproClient = await conectarSerproParaLogin();
 
 			// 2. Gerar desafio no servidor
 			const iniciarResp = await fetch('/api/auth/certificado/iniciar', {
