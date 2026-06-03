@@ -129,6 +129,8 @@ function berToDer(ber: Buffer): Buffer {
 	}
 
 	function parseElement(): Buffer {
+		if (pos + 1 >= ber.length)
+			throw new Error(`BER: cabeçalho truncado (pos ${pos}/${ber.length})`);
 		const tag = ber[pos++];
 		const isConstructed = (tag & 0x20) !== 0;
 
@@ -143,6 +145,8 @@ function berToDer(ber: Buffer): Buffer {
 			len = lb;
 		} else {
 			const n = lb & 0x7f;
+			if (pos + n > ber.length)
+				throw new Error(`BER: bytes de comprimento excedem o buffer (pos ${pos} + ${n} > ${ber.length})`);
 			len = 0;
 			for (let i = 0; i < n; i++) len = (len << 8) | ber[pos++];
 		}
@@ -153,10 +157,16 @@ function berToDer(ber: Buffer): Buffer {
 			if (indefinite) {
 				// Primitivo com comprimento indefinido (raro) — ler até 00 00
 				const bytes: number[] = [];
-				while (!(ber[pos] === 0 && ber[pos + 1] === 0)) bytes.push(ber[pos++]);
+				while (!(ber[pos] === 0 && ber[pos + 1] === 0)) {
+					if (pos >= ber.length)
+						throw new Error(`BER: EOC ausente em primitivo (pos ${pos}/${ber.length})`);
+					bytes.push(ber[pos++]);
+				}
 				pos += 2;
 				value = Buffer.from(bytes);
 			} else {
+				if (pos + len > ber.length)
+					throw new Error(`BER: valor primitivo excede o buffer (pos ${pos} + len ${len} > ${ber.length})`);
 				value = Buffer.from(ber.subarray(pos, pos + len));
 				pos += len;
 			}
@@ -167,12 +177,16 @@ function berToDer(ber: Buffer): Buffer {
 			if (indefinite) {
 				// Comprimento indefinido: ler filhos até 00 00
 				while (!(ber[pos] === 0 && ber[pos + 1] === 0)) {
+					if (pos >= ber.length)
+						throw new Error(`BER: EOC ausente em construído (pos ${pos}/${ber.length})`);
 					children.push(parseElement());
 				}
 				pos += 2; // consumir 00 00
 			} else {
 				// Comprimento definido: ler exatamente len bytes de filhos
 				const end = pos + len;
+				if (end > ber.length)
+					throw new Error(`BER: filhos excedem o buffer (end ${end} > ${ber.length})`);
 				while (pos < end) children.push(parseElement());
 			}
 			const content = Buffer.concat(children);
@@ -190,8 +204,15 @@ function berToDer(ber: Buffer): Buffer {
 		}
 		return der;
 	} catch (e) {
-		logger.warn('[PDF] Falha ao converter CMS BER→DER — usando original', {
-			error: e instanceof Error ? e.message : String(e)
+		// Fallback ruim: o CMS segue em BER (lengths indefinidos) e o Adobe/strict
+		// parser tende a rejeitar ("Estrutura CMS embarcada está malformada"). O log
+		// abaixo aponta EXATAMENTE onde a conversão tropeçou — fundamental para
+		// estender o conversor a estruturas BER que ainda não cobrimos.
+		logger.warn('[PDF] Falha ao converter CMS BER→DER — usando original (Adobe pode rejeitar)', {
+			error: e instanceof Error ? e.message : String(e),
+			posFalha: pos,
+			berLen: ber.length,
+			contextoHex: ber.subarray(Math.max(0, pos - 8), Math.min(ber.length, pos + 8)).toString('hex')
 		});
 		return ber;
 	}
