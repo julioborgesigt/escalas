@@ -553,7 +553,8 @@ export const doisFatoresTokens = sqliteTable(
 				'assinatura',
 				'reset_policial',
 				'reset_admin',
-				'verificacao_email'
+				'verificacao_email',
+				'login_certificado'
 			]
 		}).notNull(),
 		usuario_id: integer('usuario_id').notNull(),
