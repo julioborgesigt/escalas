@@ -350,14 +350,25 @@ export async function verificarECarimbarAssinatura(
 
 		const ocspsDer = ocspDerParaDss ? [ocspDerParaDss] : [];
 
-		// PAdES-LT (DSS via incremental update) REABILITADO por padrão. A causa-raiz do
-		// "erro 43" do Adobe era colisão de número de objeto: pdf-lib subnotifica
-		// `largestObjectNumber` (ignora os containers ObjStm/XRef-stream que ele cria no
-		// save), então o DSS sobrescrevia o ObjStm e os objetos comprimidos sumiam.
-		// `aplicarDss` agora deriva o próximo número do /Size REAL e faz auto-verificação:
-		// se o incremental update destoar, devolve o PDF assinado original (sem DSS) —
-		// nunca um PDF quebrado. Kill-switch: EMBED_PADES_LT_DSS=0/false/off desativa.
-		const dssHabilitado = !/^(0|false|no|off)$/i.test(
+		// PAdES-LT (DSS via incremental update) DESABILITADO por padrão.
+		//
+		// A correção de colisão de número de objeto (pades-lt.ts deriva o próximo número
+		// do /Size REAL + auto-verificação) eliminou o "erro 43": o incremental update
+		// agora é estruturalmente válido (qpdf limpo). PORÉM o Adobe ainda marca a
+		// assinatura como INVÁLIDA quando o DSS é anexado.
+		//
+		// Causa: nossas assinaturas usam SubFilter `adbe.pkcs7.detached` (Adobe legado),
+		// não `ETSI.CAdES.detached` (PAdES). O Adobe NÃO reconhece um DSS anexado a uma
+		// assinatura de aprovação legada como LTV — ele enxerga a revisão pós-assinatura
+		// como MODIFICAÇÃO do documento e invalida a assinatura (verificado em PDF real:
+		// cripto íntegra — messageDigest e RSA conferem — mas Adobe diz "inválida").
+		//
+		// A validade jurídica NÃO depende do DSS: a assinatura é qualificada ICP-Brasil
+		// (e-CPF A3) e a página /validar valida server-side com o snapshot OCSP do banco.
+		// O DSS só agregaria LTV self-contained no Adobe — o que, neste tipo de assinatura,
+		// sai pela culatra. Reabilitar só após migrar para PAdES (ETSI.CAdES.detached) e
+		// validar no Adobe. Opt-in: EMBED_PADES_LT_DSS=1/true/on.
+		const dssHabilitado = /^(1|true|yes|on)$/i.test(
 			(options.env?.EMBED_PADES_LT_DSS ?? '').trim()
 		);
 		if (dssHabilitado && (certsDer.length > 0 || ocspsDer.length > 0)) {
