@@ -228,7 +228,7 @@ export const POST: RequestHandler = async ({
 		token: crypto.randomUUID(),
 		documentName: `Relatório Extraordinário - GISE ${id}`,
 		signatureLevel: 'qualificada',
-		tipoCarimoTempo: platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor'
+		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)?.TSA_URL ? 'tsa_externa' : 'servidor'
 	});
 
 	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria
