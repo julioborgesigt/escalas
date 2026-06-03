@@ -8,6 +8,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import CodigoTimer from '$lib/components/CodigoTimer.svelte';
 	import { Steps, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { conectarSerpro } from '$lib/serpro';
 	import type { ActionResult } from '@sveltejs/kit';
 
 	type ActionData = Record<string, unknown> | undefined;
@@ -222,6 +223,66 @@
 		pendente2FA = false;
 		desafioId = '';
 		codigo2FA = '';
+	}
+
+	async function fazerLoginComCertificado() {
+		loadingService.show('Iniciando autenticação com Token A3...');
+		let serproClient: Awaited<ReturnType<typeof conectarSerpro>> | null = null;
+		try {
+			// 1. Gerar desafio no servidor
+			const iniciarResp = await fetch('/api/auth/certificado/iniciar', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({})
+			});
+			if (!iniciarResp.ok) {
+				const d = await iniciarResp.json().catch(() => ({}));
+				throw new Error((d as { error?: string }).error || 'Erro ao iniciar autenticação com certificado.');
+			}
+			const { desafioId: did, nonce } = (await iniciarResp.json()) as {
+				desafioId: string;
+				nonce: string;
+			};
+
+			// 2. Converter nonce hex → bytes → base64 para o Assinador SERPRO
+			const nonceBytes = new Uint8Array((nonce as string).match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+			const nonceBase64 = btoa(String.fromCharCode(...nonceBytes));
+
+			// 3. Conectar ao Assinador SERPRO e assinar o nonce
+			loadingService.show('Aguardando assinatura no Token A3...');
+			serproClient = await conectarSerpro();
+			const resultado = await serproClient.signFile(nonceBase64);
+			serproClient.disconnect();
+			serproClient = null;
+
+			// 4. Verificar no servidor
+			loadingService.show('Verificando certificado...');
+			const verificarResp = await fetch('/api/auth/certificado/verificar', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ desafioId: did, cmsBase64: resultado.rawSignature })
+			});
+			const data = (await verificarResp.json().catch(() => ({}))) as {
+				error?: string;
+				success?: boolean;
+				primeiro_acesso?: boolean;
+				nome?: string;
+			};
+			if (!verificarResp.ok) {
+				throw new Error(data.error || 'Certificado inválido ou CPF não encontrado.');
+			}
+
+			// 5. Redirecionar
+			const dest = data.primeiro_acesso ? '/alterar-senha' : '/escalas';
+			await navegarAposLogin(dest, true);
+		} catch (err: unknown) {
+			const msg = err instanceof Error ? err.message : 'Erro ao autenticar com Token A3.';
+			loginError = msg;
+			toaster.create({ title: msg, type: 'error' });
+		} finally {
+			serproClient?.disconnect();
+			loadingService.hide();
+		}
 	}
 
 	function voltarParaLogin() {
@@ -471,6 +532,25 @@
 					{loadingService.active ? 'Entrando...' : 'Entrar'}
 				</button>
 			</form>
+
+			{#if tipo === 'policial'}
+				<div class="flex items-center gap-3 my-4">
+					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+					<span class="text-xs text-surface-400 shrink-0">ou</span>
+					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
+				</div>
+				<button
+					type="button"
+					class="btn preset-outlined-surface-500 w-full py-3 flex items-center justify-center gap-2 text-sm"
+					disabled={loadingService.active}
+					onclick={fazerLoginComCertificado}
+				>
+					<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+					</svg>
+					Entrar com Token A3 (SERPRO)
+				</button>
+			{/if}
 
 			<div
 				class="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs text-surface-500 text-center"

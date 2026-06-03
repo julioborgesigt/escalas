@@ -38,7 +38,10 @@ export type TipoDesafio2FA =
 	// Verificação de e-mail pessoal (I-2 da auditoria): canal próprio, separado
 	// de `assinatura`. Antes os dois compartilhavam o mesmo tipo, abrindo
 	// confused-deputy se um caminho futuro aceitasse um sem o outro.
-	| 'verificacao_email';
+	| 'verificacao_email'
+	// Desafio gerado para autenticação via Token A3 ICP-Brasil.
+	// usuario_id = 0 até o CPF ser resolvido; codigo = hash do nonce.
+	| 'login_certificado';
 
 /** Retorna true se o usuário possui poder de Admin Geral */
 export function isAdminGeral(u: UsuarioLogado | null): boolean {
