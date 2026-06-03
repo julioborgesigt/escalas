@@ -226,10 +226,15 @@
 	}
 
 	async function fazerLoginComCertificado() {
-		loadingService.show('Iniciando autenticação com Token A3...');
 		let serproClient: Awaited<ReturnType<typeof conectarSerpro>> | null = null;
 		try {
-			// 1. Gerar desafio no servidor
+			// 1. Conectar ao SERPRO PRIMEIRO — sem loading overlay, para o modal de
+			//    aviso do SERPRO (exibirAvisoSerpro) não ficar bloqueado pelo overlay.
+			//    Padrão idêntico ao usado em PainelAssinaturaToken.svelte.
+			serproClient = await conectarSerpro();
+			loadingService.show('Gerando desafio de autenticação...');
+
+			// 2. Gerar desafio no servidor
 			const iniciarResp = await fetch('/api/auth/certificado/iniciar', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
@@ -237,21 +242,22 @@
 			});
 			if (!iniciarResp.ok) {
 				const d = await iniciarResp.json().catch(() => ({}));
-				throw new Error((d as { error?: string }).error || 'Erro ao iniciar autenticação com certificado.');
+				throw new Error(
+					(d as { error?: string }).error || 'Erro ao iniciar autenticação com certificado.'
+				);
 			}
 			const { desafioId: did, nonce } = (await iniciarResp.json()) as {
 				desafioId: string;
 				nonce: string;
 			};
 
-			// 2. Converter nonce hex → bytes → base64 para o Assinador SERPRO
-			const nonceBytes = new Uint8Array((nonce as string).match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-			const nonceBase64 = btoa(String.fromCharCode(...nonceBytes));
+			// 3. Computar SHA-256 do nonce e assinar via type:'hash' (igual à assinatura de documentos)
+			const nonceBytes = new Uint8Array(nonce.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+			const hashBuffer = await crypto.subtle.digest('SHA-256', nonceBytes);
+			const hashBase64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
 
-			// 3. Conectar ao Assinador SERPRO e assinar o nonce
 			loadingService.show('Aguardando assinatura no Token A3...');
-			serproClient = await conectarSerpro();
-			const resultado = await serproClient.signFile(nonceBase64);
+			const resultado = await serproClient.sign(hashBase64);
 			serproClient.disconnect();
 			serproClient = null;
 
