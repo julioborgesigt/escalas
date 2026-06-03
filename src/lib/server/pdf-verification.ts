@@ -243,14 +243,23 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				certsImpl = f;
 			}
 		}
-		if (!signerInfos) return null;
+		if (!signerInfos) {
+			logger.warn('[PDF-VERIFY] CMS sem signerInfos (SET universal ausente no SignedData)');
+			return null;
+		}
 		const signerInfo = (signerInfos.value as forge.asn1.Asn1[])[0];
-		if (!signerInfo) return null;
+		if (!signerInfo) {
+			logger.warn('[PDF-VERIFY] CMS com signerInfos vazio');
+			return null;
+		}
 
 		// Pega o primeiro certificado (signatário) e expõe todos para callers
 		// que precisam localizar o cert correto pela assinatura (ex.: TSA, cuja
 		// folha pode não ser a primeira do SET).
-		if (!certsImpl) return null;
+		if (!certsImpl) {
+			logger.warn('[PDF-VERIFY] CMS sem certificados [0] IMPLICIT no SignedData');
+			return null;
+		}
 		const certificatesAsn1 = certsImpl.value as forge.asn1.Asn1[];
 		const certificateAsn1 = certificatesAsn1[0];
 		const certificate = forge.pki.certificateFromAsn1(certificateAsn1);
@@ -297,7 +306,13 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 				signatureValue = f.value as string;
 			}
 		}
-		if (!signedAttrs || !signatureValue) return null;
+		if (!signedAttrs || !signatureValue) {
+			logger.warn('[PDF-VERIFY] CMS sem signedAttrs ([0]) ou signatureValue (OCTET STRING) no SignerInfo', {
+				temSignedAttrs: !!signedAttrs,
+				temSignatureValue: !!signatureValue
+			});
+			return null;
+		}
 		if (sigAlgEncontrado) {
 			try {
 				const oidBytes = (sigAlgEncontrado.value as forge.asn1.Asn1[])[0].value as string;
