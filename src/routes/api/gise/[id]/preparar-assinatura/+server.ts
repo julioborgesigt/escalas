@@ -129,7 +129,7 @@ export const POST: RequestHandler = async ({
 		documentName: `Escala de Serviço GISE - ${gise.data_inicio}`,
 		signatureLevel: 'qualificada',
 		documentHash,
-		tipoCarimoTempo: platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor'
+		tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)?.TSA_URL ? 'tsa_externa' : 'servidor'
 	});
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
