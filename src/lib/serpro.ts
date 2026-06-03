@@ -138,27 +138,36 @@ export class SerproSignerClient {
 	/**
 	 * Conecta ao Assinador SERPRO local.
 	 * Tenta URLs em sequência até a primeira que funcionar.
+	 *
+	 * @param timeoutPerUrlMs - Timeout em ms por URL (padrão 8 s; use valores menores para sondagem rápida)
+	 * @param silent          - Se true, suprime logs de console (para sondagem silenciosa)
 	 */
-	async connect(): Promise<void> {
-		if (dev) console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
-		if (dev) console.log('[SERPRO] URLs a tentar:', SERPRO_WS_URLS);
+	async connect(timeoutPerUrlMs = 8_000, silent = false): Promise<void> {
+		if (!silent) {
+			if (dev) console.group('[SERPRO] Iniciando tentativas de conexão WebSocket');
+			if (dev) console.log('[SERPRO] URLs a tentar:', SERPRO_WS_URLS);
+		}
 		const erros: string[] = [];
 
 		for (const url of SERPRO_WS_URLS) {
 			try {
-				await this.tryConnect(url);
-				if (dev) console.log(`[SERPRO] ✅ Conectado em ${url}`);
-				if (dev) console.groupEnd();
+				await this.tryConnect(url, timeoutPerUrlMs);
+				if (!silent) {
+					if (dev) console.log(`[SERPRO] ✅ Conectado em ${url}`);
+					if (dev) console.groupEnd();
+				}
 				return;
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				erros.push(`${url} → ${msg}`);
-				if (dev) console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
+				if (!silent && dev) console.warn(`[SERPRO] ❌ Falhou: ${url} — ${msg}`);
 			}
 		}
 
-		console.error('[SERPRO] Todas as tentativas falharam:', erros);
-		if (dev) console.groupEnd();
+		if (!silent) {
+			console.error('[SERPRO] Todas as tentativas falharam:', erros);
+			if (dev) console.groupEnd();
+		}
 		throw new Error(
 			'Não foi possível conectar ao Assinador SERPRO. ' +
 				'Verifique se o software está instalado e em execução.\n' +
@@ -166,7 +175,7 @@ export class SerproSignerClient {
 		);
 	}
 
-	private tryConnect(url: string): Promise<void> {
+	private tryConnect(url: string, timeoutMs = 8_000): Promise<void> {
 		return new Promise((resolve, reject) => {
 			if (dev) console.log(`[SERPRO]   → Tentando ${url} ...`);
 			let settled = false;
@@ -181,10 +190,10 @@ export class SerproSignerClient {
 
 			// Timeout cobre tanto o onopen quanto a espera pelo hello
 			const timeout = setTimeout(() => {
-				if (dev) console.warn(`[SERPRO]   ⏱ Timeout (8s) em ${url}`);
+				if (dev) console.warn(`[SERPRO]   ⏱ Timeout (${timeoutMs}ms) em ${url}`);
 				ws.close();
 				settle(() => reject(new Error(`Timeout ao conectar em ${url}`)));
-			}, 8_000);
+			}, timeoutMs);
 
 			ws.onopen = () => {
 				if (dev) console.log(`[SERPRO]   ✅ onopen em ${url}`);
@@ -666,7 +675,7 @@ function exibirAvisoSerproModal(sessionKey: string, titulo: string, corpo: strin
 					<button
 						type="button"
 						id="serpro-cancel-btn"
-						class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+						class="btn preset-outlined-surface-500 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
 					>
 						Cancelar
 					</button>
@@ -762,18 +771,26 @@ export async function conectarSerpro(): Promise<SerproSignerClient> {
  * Conecta ao SERPRO para uso no fluxo de login com Token A3.
  *
  * Estratégia:
- * 1. Tenta conectar silenciosamente (sem modal) — caso o SERPRO já esteja aberto.
- * 2. Se falhar, exibe modal com instruções de login e tenta novamente após confirmação.
+ * 1. Tenta conectar silenciosamente com timeout curto (~1 s/URL) — caso o SERPRO já esteja aberto.
+ * 2. Se falhar, chama `onBeforeModal` (ex.: esconder loading overlay) e exibe o aviso de login.
+ * 3. Após confirmação do usuário, tenta novamente com timeout normal.
+ *
+ * @param onBeforeModal - Chamado imediatamente antes de exibir o modal (use para esconder loaders).
  */
-export async function conectarSerproParaLogin(): Promise<SerproSignerClient> {
-	// Tenta conexão silenciosa primeiro
+export async function conectarSerproParaLogin(
+	onBeforeModal?: () => void
+): Promise<SerproSignerClient> {
+	// Sondagem silenciosa: 1 s por URL evita espera longa quando SERPRO não está aberto.
+	// Conexões a portas fechadas falham em ms; o timeout só importa para URLs que ficam penduradas.
 	const silentClient = new SerproSignerClient();
 	try {
-		await silentClient.connect();
+		await silentClient.connect(1_000, true);
 		return silentClient; // SERPRO já estava aberto — pula o modal
 	} catch {
 		// SERPRO não está rodando — exibir aviso de login
 	}
+
+	onBeforeModal?.();
 
 	const prosseguir = await exibirAvisoSerproLogin();
 	if (!prosseguir) {

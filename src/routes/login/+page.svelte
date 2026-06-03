@@ -228,10 +228,10 @@
 	async function fazerLoginComCertificado() {
 		let serproClient: Awaited<ReturnType<typeof conectarSerproParaLogin>> | null = null;
 		try {
-			// 1. Conectar ao SERPRO PRIMEIRO — sem loading overlay, para o modal de
-			//    aviso não ficar bloqueado pelo overlay. Tenta conexão silenciosa antes
-			//    de exibir o aviso (pula o modal se SERPRO já estiver aberto).
-			serproClient = await conectarSerproParaLogin();
+			// 1. Conectar ao SERPRO PRIMEIRO — sem loading overlay sobre o modal.
+			//    Mostra feedback durante a sondagem silenciosa; esconde antes do modal aparecer.
+			loadingService.show('Conectando ao Assinador SERPRO...');
+			serproClient = await conectarSerproParaLogin(() => loadingService.hide());
 
 			// 2. Gerar desafio no servidor
 			const iniciarResp = await fetch('/api/auth/certificado/iniciar', {
@@ -255,7 +255,7 @@
 			const hashBuffer = await crypto.subtle.digest('SHA-256', nonceBytes);
 			const hashBase64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
 
-			loadingService.show('Aguardando assinatura no Token A3...');
+			loadingService.show('Aguardando PIN no Token A3...');
 			const resultado = await serproClient.sign(hashBase64);
 			serproClient.disconnect();
 			serproClient = null;
