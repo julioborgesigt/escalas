@@ -24,6 +24,9 @@ import {
 import { consultarOcsp } from './ocsp';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { aplicarDss } from './pades-lt';
+import { solicitarCarimboTempo } from './tsa';
+import { adicionarTimestampTokenAoCms } from './cms-tst';
+import { embedCmsBytesNoPlaceholder } from './pdf-signing-prepare';
 import type { AssinaturaCadesMetadata } from '$lib/db/documentos';
 import type { TipoCarimoTempo } from './document-utils';
 
@@ -177,9 +180,10 @@ export async function verificarECarimbarAssinatura(
 	//       em erro 422 (sem TST não há tempestividade oponível).
 	let tipoCarimboTempo: TipoCarimoTempo = 'servidor';
 	let tstTokenB64: string | undefined;
-	// Sempre false no fluxo qualificado: o carimbo server-side foi removido por
-	// corromper o CMS do SERPRO (vide nota abaixo). Mantido para os ramos de metadados.
-	const tstAplicadoServerSide = false;
+	let tstAplicadoServerSide = false;
+	// PDF e CMS "correntes" — atualizados se anexarmos um TST server-side (path b).
+	let pdfComTst = signedPdfBytes;
+	let cmsDerComTst = extracao.cmsDer;
 
 	if (cms.timestampToken) {
 		// (a) — TST veio do cliente. Verifica, classifica e (se não verificável)
@@ -199,14 +203,53 @@ export async function verificarECarimbarAssinatura(
 		}
 	}
 
-	// Carimbo de tempo server-side (TSA) é DELIBERADAMENTE ausente no fluxo
-	// qualificado. Anexá-lo exigiria re-serializar o CMS (adicionarTimestampTokenAoCms
-	// usa forge.asn1.toDer), o que ALTERA os bytes do SignerInfo do SERPRO (BER) e
-	// INVALIDA a assinatura — o mesmo motivo pelo qual embedSerproCms embute o CMS
-	// SEM re-codificar. O resultado seria um PDF corrompido ("erro ao abrir").
-	// Quando tempestividade qualificada for necessária, o carimbo deve ser emitido
-	// pelo PRÓPRIO Assinador (ACT no SERPRO desktop): chega como cms.timestampToken
-	// e é tratado no caminho (a) acima, sem re-codificar o CMS.
+	// (b) Sem TST do cliente + `TSA_URL` configurada: solicitamos um carimbo de tempo
+	// RFC 3161 (ex.: DigiCert grátis) e o anexamos como UnsignedAttribute, promovendo
+	// CAdES-BES → CAdES-T. É BEST-EFFORT: qualquer falha (rede, TSA fora, placeholder
+	// cheio) mantém a assinatura SEM TST — nunca a quebra.
+	//
+	// Por que é seguro (verificado em PDF real do token, e-CPF SERPRO):
+	//   - O TST vive DENTRO do /Contents (no gap do ByteRange) — não altera os bytes
+	//     assinados nem adiciona revisão pós-assinatura. Logo NÃO dispara o "documento
+	//     modificado" do Adobe (diferente do DSS), e o ByteRange continua idêntico.
+	//   - adicionarTimestampTokenAoCms só ACRESCENTA unsignedAttrs; a assinatura RSA é
+	//     sobre os signedAttrs (intactos). Testado: forge round-trip do CMS do SERPRO é
+	//     byte-idêntico e integridade + RSA continuam válidos após o re-embed.
+	//
+	// Observação jurídica: DigiCert/FreeTSA NÃO são ACT credenciada ICP-Brasil, então
+	// isto é 'tsa_externa' (atestação de tempo de terceiro confiável, não carimbo
+	// qualificado). Ainda assim é muito superior ao relógio do signatário.
+	const tsaUrl = options.env?.TSA_URL;
+	if (!cms.timestampToken && tsaUrl) {
+		try {
+			const tsa = await solicitarCarimboTempo(cms.signatureValue, {
+				url: tsaUrl,
+				username: options.env?.TSA_USERNAME,
+				password: options.env?.TSA_PASSWORD
+			});
+			if (tsa.ok) {
+				const novoCmsDer = adicionarTimestampTokenAoCms(extracao.cmsDer, tsa.tstAsn1);
+				pdfComTst = embedCmsBytesNoPlaceholder(signedPdfBytes, novoCmsDer);
+				cmsDerComTst = novoCmsDer;
+				tstAplicadoServerSide = true;
+				tipoCarimboTempo = 'tsa_externa';
+				try {
+					tstTokenB64 = forge.util.encode64(forge.asn1.toDer(tsa.tstAsn1).getBytes());
+				} catch {
+					/* metadado opcional */
+				}
+			} else {
+				logger.warn('[CADES] TSA falhou — assinatura mantida sem carimbo de tempo', {
+					url: tsaUrl,
+					error: tsa.error
+				});
+			}
+		} catch (e) {
+			logger.warn('[CADES] Erro ao anexar carimbo de tempo — assinatura mantida sem TST', {
+				error: e instanceof Error ? e.message : String(e)
+			});
+		}
+	}
 
 	if (tipoCarimboTempo !== 'act_icp' && exigirTsa(options.env)) {
 		return {
@@ -290,9 +333,9 @@ export async function verificarECarimbarAssinatura(
 	// 7. Hash SHA-256 do CMS para detecção de adulteração do registro no banco.
 	// Quando aplicamos TST server-side, reextraímos o CMS do PDF atualizado
 	// para que o hash reflita o conteúdo final (com UnsignedAttribute TST).
-	const cmsDerFinal = tstAplicadoServerSide
-		? (extrairCmsDoPdf(signedPdfBytes)?.cmsDer ?? extracao.cmsDer)
-		: extracao.cmsDer;
+	// Quando anexamos TST server-side, o hash precisa refletir o CMS final (com o
+	// UnsignedAttribute TST) — já o temos em memória em `cmsDerComTst`.
+	const cmsDerFinal = cmsDerComTst;
 	const cmsHashBuf = await crypto.subtle.digest('SHA-256', cmsDerFinal as unknown as ArrayBuffer);
 	const cmsSha256 = Array.from(new Uint8Array(cmsHashBuf))
 		.map((b) => b.toString(16).padStart(2, '0'))
@@ -321,7 +364,8 @@ export async function verificarECarimbarAssinatura(
 
 	// 9. PAdES-LT: embarcar DSS (cadeia + OCSP) no PDF.
 	// Falha de DSS NÃO invalida a assinatura — CAdES-LT no banco é fallback.
-	let pdfFinal = signedPdfBytes;
+	// Partimos do PDF corrente (já com TST, se anexado no path b).
+	let pdfFinal = pdfComTst;
 	let padesLt = false;
 	try {
 		const certsDer: Uint8Array[] = [];
@@ -372,7 +416,7 @@ export async function verificarECarimbarAssinatura(
 			(options.env?.EMBED_PADES_LT_DSS ?? '').trim()
 		);
 		if (dssHabilitado && (certsDer.length > 0 || ocspsDer.length > 0)) {
-			pdfFinal = await aplicarDss(signedPdfBytes, {
+			pdfFinal = await aplicarDss(pdfComTst, {
 				certs: certsDer,
 				ocsps: ocspsDer,
 				crls: []
@@ -383,7 +427,7 @@ export async function verificarECarimbarAssinatura(
 		logger.warn('[CADES] Falha ao aplicar DSS — PDF salvo sem PAdES-LT', {
 			error: e instanceof Error ? e.message : String(e)
 		});
-		pdfFinal = signedPdfBytes;
+		pdfFinal = pdfComTst;
 		padesLt = false;
 	}
 
