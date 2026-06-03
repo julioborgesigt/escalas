@@ -93,7 +93,7 @@ export const POST: RequestHandler = async ({
 		token: crypto.randomUUID(),
 		documentName: `Escala de Serviço - ${escala.titulo}`,
 		signatureLevel: 'qualificada',
-		tipoCarimoTempo: 'servidor'
+		tipoCarimoTempo: platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor'
 	});
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
