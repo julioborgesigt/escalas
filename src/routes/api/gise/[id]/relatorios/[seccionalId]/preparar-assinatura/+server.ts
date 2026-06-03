@@ -228,7 +228,7 @@ export const POST: RequestHandler = async ({
 		token: crypto.randomUUID(),
 		documentName: `Relatório Extraordinário - GISE ${id}`,
 		signatureLevel: 'qualificada',
-		tipoCarimoTempo: 'servidor' // Será atualizado no finalizar se for SERPRO com ICP
+		tipoCarimoTempo: platform?.env?.TSA_URL ? 'tsa_externa' : 'servidor'
 	});
 
 	// Conta páginas do PDF de conteúdo antes de adicionar a folha de auditoria
