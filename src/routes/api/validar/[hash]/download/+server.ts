@@ -1,14 +1,47 @@
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { getR2 } from '$lib/server/platform';
-import { contentDisposition, badRequest, notFound, serverError } from '$lib/server/api';
+import { contentDisposition, badRequest, notFound, rateLimited, serverError } from '$lib/server/api';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ platform, params, url }) => {
+// Throttle do download público por IP — anti-enumeração do hash de validação
+// (~40 bits). Folgado para validadores legítimos (auditoria, juízo), fatal para
+// varredura automatizada. Estado em D1 (serverless-safe, persiste entre isolates).
+const VALIDAR_DOWNLOAD_MAX = 60;
+const VALIDAR_DOWNLOAD_WINDOW_MIN = 10;
+
+export const GET: RequestHandler = async ({ platform, params, url, getClientAddress }) => {
 	const db = getDB(platform);
 	const hash = params.hash;
 
 	if (!hash) return badRequest('Código de verificação ausente');
+
+	// Este endpoint é PÚBLICO e serve o PDF assinado ÍNTEGRO, que contém dados
+	// pessoais (nome, e no manifesto de auditoria CPF/IP/GPS do assinante). Sem
+	// teto por IP, um atacante varreria o espaço de hashes colhendo PDFs com PII.
+	// Fail-open em erro do mecanismo: indisponibilidade do rate-limit não pode
+	// derrubar a validação pública.
+	const ip = getClientAddress();
+	try {
+		const { blocked } = await contarRecoveryAttempts(
+			db,
+			ip,
+			'validar_download',
+			VALIDAR_DOWNLOAD_WINDOW_MIN,
+			VALIDAR_DOWNLOAD_MAX
+		);
+		if (blocked) {
+			logger.warn('[validar/download] Rate-limit excedido', { hash });
+			return rateLimited('Muitas validações a partir deste IP. Tente novamente em alguns minutos.');
+		}
+		await registrarRecoveryAttempt(db, ip, 'validar_download');
+	} catch (err) {
+		logger.error('[validar/download] Falha no rate-limit (fail-open)', {
+			hash,
+			error: err instanceof Error ? err.message : String(err)
+		});
+	}
 
 	logger.info('[validar/download] Iniciando', { hash });
 
@@ -45,10 +78,13 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 							: `documento_assinado_${hash}.pdf`;
 
 					resHeaders.set('Content-Disposition', contentDisposition(filename));
-					// Documento é imutável por hash — pode ser cacheado agressivamente
-					// pelo edge/CDN e pelo navegador. Reduz leituras no R2 em hits
-					// repetidos (validação pública da mesma URL).
-					resHeaders.set('Cache-Control', 'public, max-age=86400, immutable');
+					// PII sensível (nome/CPF/IP/GPS no manifesto): NUNCA cachear em
+					// CDN/edge nem em proxies compartilhados — isso espalharia o PDF a
+					// qualquer um E contornaria o rate-limit (hits servidos do cache não
+					// chegam à origem, logo não contam). `private, no-store` mantém o
+					// controle no servidor; o custo é reler do R2, aceitável no baixo
+					// volume de validação.
+					resHeaders.set('Cache-Control', 'private, no-store');
 					return new Response(arrayBuffer, {
 						headers: resHeaders,
 						status: 200
@@ -172,7 +208,8 @@ export const GET: RequestHandler = async ({ platform, params, url }) => {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),
-					'Cache-Control': 'no-cache'
+					// PII no relatório: não cachear em CDN/proxies compartilhados.
+					'Cache-Control': 'private, no-store'
 				}
 			});
 		} catch (err) {

@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
 import { gerarToken } from '$lib/auth';
 import { doisFatoresTokens } from '$lib/server/schema';
-import { badRequest, rateLimited } from '$lib/server/api';
+import { rateLimited } from '$lib/server/api';
 import { checkRateLimit } from '$lib/server/auth-flow';
 import type { RequestHandler } from './$types';
 
@@ -19,11 +19,20 @@ export const POST: RequestHandler = async ({ platform, getClientAddress }) => {
 	}
 
 	const desafioId = gerarToken();
-	// Nonce aleatório que o frontend enviará ao Assinador SERPRO para assinar.
-	// Armazenado com hash SHA-256 para consistência com o restante da tabela.
+	// Nonce aleatório (hex de 32 bytes) que o frontend envia ao Assinador SERPRO.
 	const nonce = gerarToken();
-	const nonceHash = await crypto.subtle
-		.digest('SHA-256', new TextEncoder().encode(nonce))
+
+	// O cliente decodifica o nonce hex em bytes e assina `SHA-256(bytes)` via
+	// type:'hash' — logo o `messageDigest` do CMS resultante É exatamente esse
+	// digest. Guardamos esse MESMO valor (e NÃO o hash da string hex) para que
+	// `/verificar` possa conferir que a assinatura cobre o nonce DESTE desafio.
+	// É o vínculo que, junto com a verificação da assinatura, fecha o bypass:
+	// sem ele, verificar a assinatura sozinha não prova nada (o atacante poderia
+	// assinar qualquer conteúdo). Deve permanecer idêntico ao cálculo no cliente
+	// (src/routes/login/+page.svelte → fazerLoginComCertificado).
+	const nonceBytes = Uint8Array.from(nonce.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+	const expectedDigestHex = await crypto.subtle
+		.digest('SHA-256', nonceBytes)
 		.then((buf) =>
 			Array.from(new Uint8Array(buf))
 				.map((b) => b.toString(16).padStart(2, '0'))
@@ -36,7 +45,7 @@ export const POST: RequestHandler = async ({ platform, getClientAddress }) => {
 		desafio_id: desafioId,
 		tipo: 'login_certificado',
 		usuario_id: 0, // usuário ainda não identificado
-		codigo: nonceHash,
+		codigo: expectedDigestHex,
 		expires_at: expiresAt
 	});
 

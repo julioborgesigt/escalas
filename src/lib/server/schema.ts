@@ -627,8 +627,22 @@ export const recoveryAttempts = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		ip: text('ip').notNull(),
+		// `recovery_attempts` é, no nível do banco, um log genérico (ip, purpose,
+		// attempted_at) — a coluna purpose NÃO tem CHECK (ver migration 0022), o
+		// `enum` abaixo é só tipagem. Além dos fluxos de recuperação, reusamos a
+		// mesma tabela para throttle por IP de endpoints sensíveis sem sessão
+		// (download público de validação, verificação/reenvio de 2FA), cada um
+		// isolado pelo seu purpose — um flood de um não infla o contador do outro
+		// nem o de login/reset. Não requer migration (coluna purpose é TEXT livre).
 		purpose: text('purpose', {
-			enum: ['solicitar_redefinicao', 'confirmar_redefinicao', 'primeiro_acesso']
+			enum: [
+				'solicitar_redefinicao',
+				'confirmar_redefinicao',
+				'primeiro_acesso',
+				'validar_download',
+				'verificar_2fa',
+				'reenviar_codigo'
+			]
 		}).notNull(),
 		attempted_at: text('attempted_at')
 			.notNull()

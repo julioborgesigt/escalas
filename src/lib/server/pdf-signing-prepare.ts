@@ -55,45 +55,61 @@ export function extrairDadosCertificado(cmsBase64: string): { nome: string; cpf:
 		const cert = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates[0];
 		if (!cert) throw new Error('Certificado não encontrado no CMS');
 
-		// CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
-		const cnField = cert.subject.getField('CN');
-		const commonName = cnField ? String(cnField.value) : '';
-
-		// Tenta extrair o nome (parte antes dos dois pontos)
-		const nome = commonName.split(':')[0].trim();
-
-		// Tenta pegar o CPF do atributo serialNumber do subject (OID 2.5.4.5).
-		//
-		// Bug corrigido: `getField('serialNumber')` em node-forge é traduzido como
-		// `{shortName: 'serialNumber'}` — e o atributo serialNumber NÃO tem
-		// shortName na tabela OID do forge (só `name`). Antes, o lookup sempre
-		// retornava null e o CPF caía no fallback do CN, que falha para certs
-		// ICP-Brasil cujo CN não embute o CPF após `:`.
-		let cpf = '';
-		const snField =
-			cert.subject.getField({ type: '2.5.4.5' }) ?? cert.subject.getField({ name: 'serialNumber' });
-		if (snField) {
-			// No ICP-Brasil, serialNumber pode conter o CPF
-			cpf = String(snField.value).replace(/\D/g, '');
-		}
-
-		// Fallback: se não achou no serialNumber, tenta no CN (comum em e-CPF)
-		if (!cpf && commonName.includes(':')) {
-			cpf = commonName.split(':').pop()?.replace(/\D/g, '') || '';
-		}
-
-		// Se o CPF extraído for muito longo (ex: contém outros dados), pega os últimos 11
-		if (cpf.length > 11) {
-			cpf = cpf.slice(-11);
-		}
-
-		return { nome, cpf };
+		return extrairDadosDoCertificado(cert);
 	} catch (e) {
 		logger.error('[PDF-SIGN] Erro ao extrair dados do certificado', {
 			error: e instanceof Error ? e.message : String(e)
 		});
 		throw new Error('Falha ao processar o certificado digital do Token.', { cause: e });
 	}
+}
+
+/**
+ * Extrai Nome e CPF de um certificado ICP-Brasil já parseado (forge).
+ *
+ * Separado de `extrairDadosCertificado` para que callers que já têm o
+ * certificado parseado reusem a MESMA lógica sem reparsear o CMS — em especial
+ * o login por Token A3, que verifica criptograficamente a assinatura ANTES de
+ * confiar na identidade do subject (a extração tem de incidir sobre exatamente
+ * o certificado cuja assinatura foi validada).
+ */
+export function extrairDadosDoCertificado(cert: forge.pki.Certificate): {
+	nome: string;
+	cpf: string;
+} {
+	// CN (Common Name) - Ex: "JOÃO DA SILVA:12345678901" ou apenas "JOÃO DA SILVA"
+	const cnField = cert.subject.getField('CN');
+	const commonName = cnField ? String(cnField.value) : '';
+
+	// Tenta extrair o nome (parte antes dos dois pontos)
+	const nome = commonName.split(':')[0].trim();
+
+	// Tenta pegar o CPF do atributo serialNumber do subject (OID 2.5.4.5).
+	//
+	// Bug corrigido: `getField('serialNumber')` em node-forge é traduzido como
+	// `{shortName: 'serialNumber'}` — e o atributo serialNumber NÃO tem
+	// shortName na tabela OID do forge (só `name`). Antes, o lookup sempre
+	// retornava null e o CPF caía no fallback do CN, que falha para certs
+	// ICP-Brasil cujo CN não embute o CPF após `:`.
+	let cpf = '';
+	const snField =
+		cert.subject.getField({ type: '2.5.4.5' }) ?? cert.subject.getField({ name: 'serialNumber' });
+	if (snField) {
+		// No ICP-Brasil, serialNumber pode conter o CPF
+		cpf = String(snField.value).replace(/\D/g, '');
+	}
+
+	// Fallback: se não achou no serialNumber, tenta no CN (comum em e-CPF)
+	if (!cpf && commonName.includes(':')) {
+		cpf = commonName.split(':').pop()?.replace(/\D/g, '') || '';
+	}
+
+	// Se o CPF extraído for muito longo (ex: contém outros dados), pega os últimos 11
+	if (cpf.length > 11) {
+		cpf = cpf.slice(-11);
+	}
+
+	return { nome, cpf };
 }
 
 // ---------------------------------------------------------------------------

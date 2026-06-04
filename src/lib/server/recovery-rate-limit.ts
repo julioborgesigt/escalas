@@ -10,7 +10,15 @@ import { recoveryAttempts } from './schema';
 import type { Database } from '$lib/db';
 import { anonimizarIp } from '$lib/db/audit';
 
-export type RecoveryPurpose = 'solicitar_redefinicao' | 'confirmar_redefinicao' | 'primeiro_acesso';
+export type RecoveryPurpose =
+	| 'solicitar_redefinicao'
+	| 'confirmar_redefinicao'
+	| 'primeiro_acesso'
+	// Reuso da mesma tabela genérica (ip, purpose, attempted_at) para throttle por
+	// IP de endpoints sensíveis sem sessão — isolados por purpose (ver schema.ts):
+	| 'validar_download' // download público de /validar
+	| 'verificar_2fa' // brute-force do código 2FA no login
+	| 'reenviar_codigo'; // reenvio de 2FA (reset do contador + e-mail bombing)
 
 /**
  * Conta tentativas do IP para um propósito específico dentro da janela.
