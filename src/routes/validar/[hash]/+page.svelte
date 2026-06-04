@@ -513,31 +513,53 @@
 					>
 						Documento Original
 					</h2>
-					<p class="text-sm text-surface-700 dark:text-surface-300 mb-3 sm:mb-4">
-						Faça o download do documento digital assinado e compare com o documento impresso que
-						você possui. As informações devem ser idênticas.
-					</p>
-					<button
-						type="button"
-						onclick={handleDownload}
-						disabled={baixando}
-						class="btn preset-filled-primary-500 w-full sm:w-auto font-bold rounded-xl text-sm touch-manipulation flex items-center justify-center gap-2"
-					>
-						{#if baixando}
-							<Spinner size="md" class="text-white" />
-							<span>PROCESSANDO...</span>
-						{:else}
+					{#if data.autenticado}
+						<p class="text-sm text-surface-700 dark:text-surface-300 mb-3 sm:mb-4">
+							Faça o download do documento digital assinado e compare com o documento impresso que
+							você possui. As informações devem ser idênticas.
+						</p>
+						<button
+							type="button"
+							onclick={handleDownload}
+							disabled={baixando}
+							class="btn preset-filled-primary-500 w-full sm:w-auto font-bold rounded-xl text-sm touch-manipulation flex items-center justify-center gap-2"
+						>
+							{#if baixando}
+								<Spinner size="md" class="text-white" />
+								<span>PROCESSANDO...</span>
+							{:else}
+								<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+									/>
+								</svg>
+								<span>Baixar Documento Assinado (PDF)</span>
+							{/if}
+						</button>
+					{:else}
+						<p class="text-sm text-surface-700 dark:text-surface-300 mb-3 sm:mb-4">
+							A autenticidade deste documento já está comprovada acima — assinante, data,
+							certificado e hash. O <strong>documento assinado na íntegra</strong> contém dados
+							restritos e está disponível apenas para usuários autenticados.
+						</p>
+						<a
+							href="/login"
+							class="btn preset-filled-primary-500 w-full sm:w-auto font-bold rounded-xl text-sm touch-manipulation inline-flex items-center justify-center gap-2"
+						>
 							<svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
 									stroke-width="2"
-									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+									d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
 								/>
 							</svg>
-							<span>Baixar Documento Assinado (PDF)</span>
-						{/if}
-					</button>
+							<span>Faça login para baixar o documento</span>
+						</a>
+					{/if}
 				</section>
 
 				<!-- Instrução de Comparação -->

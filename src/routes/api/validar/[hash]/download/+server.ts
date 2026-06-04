@@ -1,27 +1,41 @@
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
+import { validarSessao } from '$lib/auth';
 import { getR2 } from '$lib/server/platform';
-import { contentDisposition, badRequest, notFound, rateLimited, serverError } from '$lib/server/api';
+import {
+	contentDisposition,
+	badRequest,
+	notFound,
+	unauthorized,
+	rateLimited,
+	serverError
+} from '$lib/server/api';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
-// Throttle do download público por IP — anti-enumeração do hash de validação
-// (~40 bits). Folgado para validadores legítimos (auditoria, juízo), fatal para
-// varredura automatizada. Estado em D1 (serverless-safe, persiste entre isolates).
+// Rate-limit do download por IP — defesa em profundidade contra enumeração do
+// hash (~40 bits) por um usuário autenticado. Estado em D1 (serverless-safe).
 const VALIDAR_DOWNLOAD_MAX = 60;
 const VALIDAR_DOWNLOAD_WINDOW_MIN = 10;
 
-export const GET: RequestHandler = async ({ platform, params, url, getClientAddress }) => {
+export const GET: RequestHandler = async ({ platform, params, url, cookies, getClientAddress }) => {
 	const db = getDB(platform);
 	const hash = params.hash;
 
 	if (!hash) return badRequest('Código de verificação ausente');
 
-	// Este endpoint é PÚBLICO e serve o PDF assinado ÍNTEGRO, que contém dados
-	// pessoais (nome, e no manifesto de auditoria CPF/IP/GPS do assinante). Sem
-	// teto por IP, um atacante varreria o espaço de hashes colhendo PDFs com PII.
-	// Fail-open em erro do mecanismo: indisponibilidade do rate-limit não pode
-	// derrubar a validação pública.
+	// O PDF assinado ÍNTEGRO contém o manifesto forense (CPF, IP, GPS, selfie) e
+	// fica RESTRITO a usuários autenticados. A página /validar continua pública e
+	// prova a autenticidade (assinante, data, certificado, hash) sem expor o
+	// forense. Validamos a sessão manualmente: a rota está no allowlist público do
+	// hook (para manter a página e /api/validar/logo públicos), então
+	// `locals.usuario` não é populado aqui.
+	const usuario = await validarSessao(db, cookies.get('session_token'), platform).catch(() => null);
+	if (!usuario) {
+		return unauthorized('Faça login para baixar o documento assinado na íntegra.');
+	}
+
+	// Mesmo autenticado, limita varredura do hash por IP. Fail-open em erro.
 	const ip = getClientAddress();
 	try {
 		const { blocked } = await contarRecoveryAttempts(
