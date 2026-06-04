@@ -3,17 +3,9 @@ import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { criarSessao } from '$lib/auth';
 import { doisFatoresTokens, policiais } from '$lib/server/schema';
-import {
-	badRequest,
-	unauthorized,
-	forbidden,
-	rateLimited,
-	serverError,
-	ErrorCode,
-	apiError
-} from '$lib/server/api';
+import { badRequest, unauthorized, rateLimited, ErrorCode, apiError } from '$lib/server/api';
 import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-flow';
-import { extrairDadosCertificado } from '$lib/server/pdf-signing';
+import { verificarRespostaDesafioCertificado } from '$lib/server/cert-login';
 import { loadTrustStore } from '$lib/server/icp-brasil/trust-store';
 import { limparCPF } from '$lib/utils';
 import { logger } from '$lib/server/logger';
@@ -58,76 +50,70 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 		return apiError('Desafio expirado. Tente novamente.', 401, ErrorCode.AUTH_REQUIRED);
 	}
 
-	// Extrair CPF e nome do certificado no CMS
-	let nome: string;
-	let cpf: string;
-	try {
-		({ nome, cpf } = extrairDadosCertificado(cmsBase64));
-	} catch (err) {
+	// Verificação criptográfica do desafio — fecha o bypass crítico. Confirma
+	// (1) que o CMS tem assinatura válida sobre os SignedAttributes (prova de
+	// posse da chave privada do Token A3) e (2) que o conteúdo assinado é o hash
+	// do nonce DESTE desafio. `desafio.codigo` guarda exatamente o messageDigest
+	// esperado (ver /iniciar). A identidade só é lida do certificado DEPOIS.
+	const verif = await verificarRespostaDesafioCertificado(cmsBase64, desafio.codigo);
+	if (!verif.ok) {
 		await recordAttempt(db, ip, false);
-		logger.warn('[cert-login] Falha ao extrair dados do certificado', {
-			error: err instanceof Error ? err.message : String(err)
-		});
-		return badRequest('Não foi possível processar o certificado digital. Verifique o Token A3.');
+		logger.warn('[cert-login] Verificação do desafio falhou', { motivo: verif.motivo });
+		return apiError(
+			'Não foi possível validar a assinatura do certificado. Refaça o login com o Token A3.',
+			401,
+			ErrorCode.AUTH_REQUIRED
+		);
 	}
 
-	const cpfLimpo = limparCPF(cpf);
+	const cpfLimpo = limparCPF(verif.cpf);
 	if (cpfLimpo.length !== 11) {
 		await recordAttempt(db, ip, false);
 		return badRequest('CPF não encontrado no certificado ou formato inválido.');
 	}
 
-	// Validar cadeia ICP-Brasil (se trust store disponível)
-	const trustStore = loadTrustStore();
-	if (trustStore.disponivel) {
-		try {
-			const der = forge.util.decode64(cmsBase64);
-			const asn1 = forge.asn1.fromDer(der);
-			const p7 = forge.pkcs7.messageFromAsn1(asn1);
-			const certs = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates;
-
-			if (certs.length > 0) {
-				forge.pki.verifyCertificateChain(trustStore.caStore, certs);
-			}
-		} catch (err) {
-			const env = platform?.env as Record<string, string | undefined> | undefined;
-			const strictMode =
-				env?.ICP_BRASIL_TRUST_STORE_REQUIRED &&
-				/^(1|true|yes|on)$/i.test(env.ICP_BRASIL_TRUST_STORE_REQUIRED.trim());
-
-			if (strictMode) {
-				await recordAttempt(db, ip, false);
-				logger.warn('[cert-login] Cadeia ICP-Brasil inválida (modo estrito)', {
-					cpf: cpfLimpo.slice(0, 3) + '***',
-					error: err instanceof Error ? err.message : String(err)
-				});
-				return apiError(
-					'Certificado não pertence a uma cadeia ICP-Brasil válida.',
-					422,
-					ErrorCode.VALIDATION
-				);
-			}
-			logger.warn('[cert-login] Cadeia ICP-Brasil indisponível ou inválida (modo permissivo)', {
-				error: err instanceof Error ? err.message : String(err)
-			});
-		}
+	// Validade temporal do certificado (datas) — mensagem clara antes da cadeia.
+	const agora = new Date();
+	if (agora < verif.certificado.validity.notBefore || agora > verif.certificado.validity.notAfter) {
+		await recordAttempt(db, ip, false);
+		return badRequest('Certificado digital expirado ou ainda não válido.');
 	}
 
-	// Verificar validade do certificado (datas)
+	// Cadeia ICP-Brasil — OBRIGATÓRIA (fail-closed). É o que garante que o CPF
+	// do subject pertence ao titular: uma AC ICP-Brasil só emite e-CPF após
+	// validar a identidade. Sem isto, um certificado autoassinado com o CPF da
+	// vítima (assinado com a chave do atacante) passaria pelos checks de
+	// assinatura e nonce. Por isso aqui NÃO há mais "modo permissivo".
+	const trustStore = loadTrustStore();
+	if (!trustStore.disponivel) {
+		await recordAttempt(db, ip, false);
+		logger.error(
+			'[cert-login] Trust store ICP-Brasil indisponível — login por certificado bloqueado'
+		);
+		return apiError(
+			'Login por certificado indisponível no momento. Use matrícula e senha.',
+			503,
+			ErrorCode.UPSTREAM
+		);
+	}
 	try {
 		const der = forge.util.decode64(cmsBase64);
 		const asn1 = forge.asn1.fromDer(der);
 		const p7 = forge.pkcs7.messageFromAsn1(asn1);
-		const cert = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates[0];
-		if (cert) {
-			const now = new Date();
-			if (now < cert.validity.notBefore || now > cert.validity.notAfter) {
-				await recordAttempt(db, ip, false);
-				return badRequest('Certificado digital expirado ou ainda não válido.');
-			}
-		}
-	} catch {
-		// Não bloquear se falhar a leitura da validade — a extração do CPF já funcionou
+		const certs = (p7 as unknown as { certificates: forge.pki.Certificate[] }).certificates;
+		// Lança se a cadeia não terminar numa raiz/intermediária confiável.
+		forge.pki.verifyCertificateChain(trustStore.caStore, certs);
+	} catch (err) {
+		await recordAttempt(db, ip, false);
+		logger.warn('[cert-login] Cadeia ICP-Brasil inválida', {
+			cpf: cpfLimpo.slice(0, 3) + '***',
+			error: err instanceof Error ? err.message : String(err)
+		});
+		return apiError(
+			'Certificado não pertence a uma cadeia ICP-Brasil válida.',
+			422,
+			ErrorCode.VALIDATION
+		);
 	}
 
 	// Buscar policial pelo CPF
