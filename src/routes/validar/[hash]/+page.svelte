@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatarData, mascararNome } from '$lib/utils';
+	import { formatarData } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import type { PageData } from './$types';
@@ -9,8 +9,6 @@
 		assinante_cpf?: string; // já mascarado pelo servidor (LGPD)
 		created_at: string;
 		tipo: string;
-		latitude?: number;
-		longitude?: number;
 	}
 
 	const { data }: { data: PageData } = $props();
@@ -459,7 +457,7 @@
 								>
 								<span
 									class="text-lg sm:text-xl font-black text-surface-900 dark:text-white uppercase leading-none break-words"
-									>{mascararNome(documento.assinante_nome)}</span
+									>{documento.assinante_nome}</span
 								>
 								{#if documento.assinante_cpf}
 									<span class="block text-xs text-surface-500 mt-1"
@@ -482,72 +480,26 @@
 					</div>
 				</section>
 
-				<!-- Assinaturas da Equipe (GISE) -->
-				{#if data.membros && data.membros.length > 0}
+				<!-- Confirmações de Presença (Equipe) — agregado (LGPD: sem roster nominal) -->
+				{#if data.equipeResumo && data.equipeResumo.total > 0}
 					<section class="space-y-3">
 						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest px-1">
 							Confirmações de Presença (Equipe)
 						</h2>
-						<div class="grid grid-cols-1 gap-3">
-							{#each data.membros as membro (membro.policial_id)}
-								<div
-									class="p-4 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
+						<div
+							class="p-4 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
+						>
+							<p class="text-sm text-surface-700 dark:text-surface-300">
+								<strong class="text-surface-900 dark:text-white"
+									>{data.equipeResumo.confirmados}</strong
 								>
-									<div class="flex items-center gap-3 mb-3">
-										<div
-											class="w-8 h-8 rounded-full bg-primary-500/10 flex items-center justify-center text-primary-500 shrink-0"
-										>
-											<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-												/>
-											</svg>
-										</div>
-										<div class="min-w-0">
-											<span
-												class="block text-[10px] uppercase font-bold text-surface-400 leading-none mb-1"
-												>Assinado por</span
-											>
-											<span
-												class="text-sm font-black text-surface-900 dark:text-white uppercase truncate block"
-												>{mascararNome(membro.policial_nome)}</span
-											>
-										</div>
-									</div>
-
-									<div
-										class="grid grid-cols-2 gap-4 pt-3 border-t border-surface-200 dark:border-white/5"
-									>
-										<div class="flex flex-col">
-											<span class="text-[8px] uppercase font-black text-surface-400 mb-0.5"
-												>Entrada</span
-											>
-											{#if membro.presenca?.entrada_timestamp}
-												<span class="text-[10px] font-bold text-success-600 dark:text-success-400">
-													{formatarDataHora(membro.presenca.entrada_timestamp)}
-												</span>
-											{:else}
-												<span class="text-[10px] italic text-surface-400">Pendente</span>
-											{/if}
-										</div>
-										<div class="flex flex-col">
-											<span class="text-[8px] uppercase font-black text-surface-400 mb-0.5"
-												>Saída</span
-											>
-											{#if membro.presenca?.saida_timestamp}
-												<span class="text-[10px] font-bold text-success-600 dark:text-success-400">
-													{formatarDataHora(membro.presenca.saida_timestamp)}
-												</span>
-											{:else}
-												<span class="text-[10px] italic text-surface-400">Pendente</span>
-											{/if}
-										</div>
-									</div>
-								</div>
-							{/each}
+								de
+								<strong class="text-surface-900 dark:text-white">{data.equipeResumo.total}</strong>
+								integrantes confirmaram presença.
+							</p>
+							<p class="text-[10px] text-surface-400 mt-1.5">
+								Nomes e horários individuais são restritos e não exibidos na validação pública.
+							</p>
 						</div>
 					</section>
 				{/if}

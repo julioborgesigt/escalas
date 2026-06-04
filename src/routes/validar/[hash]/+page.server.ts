@@ -95,11 +95,10 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		lotacao = 'Sertão Central / Centro Sul';
 	}
 
-	let membros: Array<{
-		policial_id: number;
-		policial_nome: string;
-		presenca: { entrada_timestamp: string | null; saida_timestamp: string | null } | null;
-	}> = [];
+	// LGPD (art. 6º): a página de validação é PÚBLICA e prova só a AUTENTICIDADE
+	// do documento. O roster nominal da equipe (quem confirmou presença e quando)
+	// é detalhe operacional — não sai do servidor. Enviamos apenas o agregado.
+	let equipeResumo: { total: number; confirmados: number } | null = null;
 	if (documento.tipo_doc === 'gise_relatorio' && documento.seccional_id) {
 		try {
 			const todasPresencas = await buscarPresencasGise(db, documento.escala_id);
@@ -140,24 +139,14 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 				);
 			}
 
-			// LGPD (minimização, art. 6º): a página é PÚBLICA. Enviamos só o
-			// necessário para exibir a confirmação de presença — nome (mascarado
-			// no cliente) e horários. NUNCA CPF, GPS, IP ou selfie da presença.
-			membros = membrosSec.map((m) => {
-				const p = presencaMap.get(m.policial_id) as
-					| { entrada_timestamp?: string | null; saida_timestamp?: string | null }
-					| undefined;
-				return {
-					policial_id: m.policial_id,
-					policial_nome: m.policial_nome,
-					presenca: p
-						? {
-								entrada_timestamp: p.entrada_timestamp ?? null,
-								saida_timestamp: p.saida_timestamp ?? null
-							}
-						: null
-				};
-			});
+			// Agregado de confirmações — sem nomes nem horários individuais, que
+			// permitiriam rastrear quem estava onde e quando.
+			const confirmados = membrosSec.filter(
+				(m) =>
+					!!(presencaMap.get(m.policial_id) as { entrada_timestamp?: string | null } | undefined)
+						?.entrada_timestamp
+			).length;
+			equipeResumo = { total: membrosSec.length, confirmados };
 		} catch (err) {
 			logger.error('[validar] Erro ao buscar assinaturas da equipe', { err: String(err) });
 		}
@@ -226,27 +215,21 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		'Cache-Control': 'public, max-age=60, must-revalidate, stale-while-revalidate=300'
 	});
 
-	// Mascarar dados pessoais antes de serializar para o cliente.
-	// CPF: manter apenas 3 primeiros + 2 últimos dígitos (ex: 123.***.***-01).
-	// IP, user-agent e coordenadas precisas são omitidos — não necessários para
-	// validação pública e permitem rastreamento individual (LGPD art. 6º e 46).
+	// Minimização antes de serializar ao cliente (LGPD art. 6º e 46).
+	// CPF: 3 primeiros + 2 últimos dígitos (ex: 123.***.***-01). Nome do
+	// assinante: mascarado. IP, user-agent e GPS: omitidos — desnecessários para
+	// validação pública e permitem rastreamento individual.
 	const cpfMascarado = documento.assinante_cpf
 		? documento.assinante_cpf.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
 		: null;
-	const latReduzida =
-		documento.latitude != null ? Math.round(documento.latitude * 100) / 100 : null;
-	const lngReduzida =
-		documento.longitude != null ? Math.round(documento.longitude * 100) / 100 : null;
 
 	return {
 		encontrado: true as const,
 		documento: {
-			assinante_nome: documento.assinante_nome,
+			assinante_nome: mascararNome(documento.assinante_nome),
 			assinante_cpf: cpfMascarado,
 			created_at: documento.created_at,
 			tipo: documento.tipo_doc,
-			latitude: latReduzida,
-			longitude: lngReduzida,
 			tipo_assinatura: tipoAssin,
 			cert_issuer: (docAny.cert_issuer as string | undefined) ?? null,
 			cert_valido_ate: (docAny.cert_valido_ate as string | undefined) ?? null,
@@ -262,7 +245,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			data_fim,
 			lotacao
 		},
-		membros,
+		equipeResumo,
 		hash
 	};
 };
