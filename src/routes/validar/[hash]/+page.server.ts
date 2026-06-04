@@ -13,11 +13,12 @@ import { logger } from '$lib/server/logger';
 import { getR2 } from '$lib/server/platform';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { mascararNome } from '$lib/utils';
+import { validarSessao } from '$lib/auth';
 import { verificarAssinaturaCompleta, type VerificationResult } from '$lib/server/pdf-verification';
 import { verificarSeloInstitucional, type ResultadoVerificacaoSelo } from '$lib/server/server-seal';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, platform, setHeaders }) => {
+export const load: PageServerLoad = async ({ params, platform, setHeaders, cookies }) => {
 	const hash = params.hash;
 
 	logger.info('[validar] Iniciando validação', { hash });
@@ -223,6 +224,13 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 		? documento.assinante_cpf.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
 		: null;
 
+	// Visitante autenticado? Só então a página mostra o botão de download do PDF
+	// íntegro (restrito). A permissão de fato é checada no endpoint de download;
+	// aqui é só para a UI.
+	const autenticado = !!(await validarSessao(db, cookies.get('session_token'), platform).catch(
+		() => null
+	));
+
 	return {
 		encontrado: true as const,
 		documento: {
@@ -246,6 +254,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders }) => 
 			lotacao
 		},
 		equipeResumo,
+		autenticado,
 		hash
 	};
 };
