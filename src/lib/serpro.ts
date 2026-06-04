@@ -481,16 +481,26 @@ export class SerproSignerClient {
 			parsed.find((p: unknown) => {
 				if (typeof p !== 'object' || p === null) return false;
 				const o = p as Record<string, unknown>;
-				return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+				return (
+					o.outputData !== undefined ||
+					o.signature !== undefined ||
+					o.actionCanceled === true ||
+					typeof o.error === 'string'
+				);
 			}) ?? parsed[parsed.length - 1];
 
 		if (!real || typeof real !== 'object') {
+			if (dev) console.error('[SERPRO] Nenhuma resposta válida. Mensagens:', parsed);
 			throw new Error(
-				`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`
+				'O Assinador SERPRO não retornou resposta. Verifique se o aplicativo está em execução.'
 			);
 		}
 
 		const o = real as Record<string, unknown>;
+
+		if (typeof o.error === 'string' || o.result === 'ERROR' || o.result === 'FAILURE') {
+			throw new Error(interpretarErroSerpro(o));
+		}
 
 		if (o.actionCanceled === true) {
 			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
@@ -498,12 +508,9 @@ export class SerproSignerClient {
 
 		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
 		if (!rawSignature) {
-			const campos = Object.keys(o).join(', ');
-			if (dev) console.error('[SERPRO] Resposta sem assinatura. Campos disponíveis:', campos, o);
+			if (dev) console.error('[SERPRO] Resposta sem assinatura:', Object.keys(o), o);
 			throw new Error(
-				`Assinador SERPRO não retornou a assinatura.\n` +
-					`Campos na resposta: ${campos}.\n` +
-					`Resposta completa: ${JSON.stringify(o)}`
+				'O Assinador SERPRO não retornou a assinatura. Verifique se o Token A3 está conectado e tente novamente.'
 			);
 		}
 
@@ -561,16 +568,26 @@ export class SerproSignerClient {
 			parsed.find((p: unknown) => {
 				if (typeof p !== 'object' || p === null) return false;
 				const o = p as Record<string, unknown>;
-				return o.outputData !== undefined || o.signature !== undefined || o.actionCanceled === true;
+				return (
+					o.outputData !== undefined ||
+					o.signature !== undefined ||
+					o.actionCanceled === true ||
+					typeof o.error === 'string'
+				);
 			}) ?? parsed[parsed.length - 1];
 
 		if (!real || typeof real !== 'object') {
+			if (dev) console.error('[SERPRO] Nenhuma resposta válida. Mensagens:', parsed);
 			throw new Error(
-				`Assinador SERPRO não retornou resposta válida.\nMensagens: ${JSON.stringify(parsed)}`
+				'O Assinador SERPRO não retornou resposta. Verifique se o aplicativo está em execução.'
 			);
 		}
 
 		const o = real as Record<string, unknown>;
+
+		if (typeof o.error === 'string' || o.result === 'ERROR' || o.result === 'FAILURE') {
+			throw new Error(interpretarErroSerpro(o));
+		}
 
 		if (o.actionCanceled === true) {
 			throw new Error('Assinatura cancelada pelo usuário no Assinador SERPRO');
@@ -580,9 +597,9 @@ export class SerproSignerClient {
 
 		const rawSignature = (o.outputData ?? o.signature) as string | undefined;
 		if (!rawSignature) {
+			if (dev) console.error('[SERPRO] Resposta sem assinatura:', Object.keys(o), o);
 			throw new Error(
-				`Assinador SERPRO não retornou assinatura.\n` +
-					`Campos: ${Object.keys(o).join(', ')}\nResposta: ${JSON.stringify(o)}`
+				'O Assinador SERPRO não retornou a assinatura. Verifique se o Token A3 está conectado e tente novamente.'
 			);
 		}
 
@@ -609,6 +626,33 @@ export class SerproSignerClient {
 // ─────────────────────────────────────────────────────────────────────────────
 // Funções utilitárias para uso no componente Svelte
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mapeia erros técnicos do Assinador SERPRO para mensagens amigáveis em português.
+ * Usado por sign() e signFile() quando a resposta contém um campo `error`.
+ */
+function interpretarErroSerpro(o: Record<string, unknown>): string {
+	const raw = String((o.error ?? o.causedBy ?? o.message) ?? '');
+	const lower = raw.toLowerCase();
+
+	if (
+		lower.includes('token') ||
+		lower.includes('conectado') ||
+		lower.includes('computador') ||
+		lower.includes('acess')
+	) {
+		return 'Token A3 não localizado. Verifique se o Token está inserido na porta USB e que o driver do leitor de cartão está instalado.';
+	}
+	if (lower.includes('pin') || lower.includes('bloqueado')) {
+		return 'PIN incorreto ou Token A3 bloqueado. Verifique o PIN e tente novamente.';
+	}
+	if (lower.includes('certificado') && (lower.includes('expir') || lower.includes('valid'))) {
+		return 'Certificado digital expirado. Entre em contato com a AC emissora para renovação.';
+	}
+	return raw
+		? `Erro no Assinador SERPRO: ${raw}`
+		: 'Erro no Assinador SERPRO. Verifique se o Token A3 está conectado e tente novamente.';
+}
 
 /**
  * Converte uma string hexadecimal em Base64.
