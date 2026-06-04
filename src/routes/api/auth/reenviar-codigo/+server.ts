@@ -8,9 +8,11 @@
  * Só aceita desafios do tipo 'policial' ou 'admin' — não permite reenvio de
  * assinatura, reset ou verificação de e-mail pessoal por esta rota.
  *
- * Rate-limit: o próprio desafioId é a prova de autenticidade (quem não passou
- * pela tela de login não tem um desafio válido). Cada resend invalida o desafio
- * anterior, limitando a janela de abuso naturalmente.
+ * Rate-limit: além de o desafioId ser a prova de autenticidade e de cada resend
+ * invalidar o anterior, há teto por IP (recovery_attempts/'reenviar_codigo').
+ * Cada reenvio dispara um e-mail ao usuário e cria um novo desafio (resetando o
+ * contador de tentativas do 2FA), então sem teto seria vetor de e-mail bombing
+ * e de reset infinito do brute-force do código.
  */
 import { json } from '@sveltejs/kit';
 import { eq, and, gt } from 'drizzle-orm';
@@ -20,12 +22,34 @@ import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth-flow';
-import { badRequest, serverError } from '$lib/server/api';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { badRequest, rateLimited, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, platform }) => {
+// Teto por IP do reenvio de 2FA: cada reenvio envia e-mail e reseta o contador
+// de tentativas do código. 5/15min é folgado para problemas de entrega de e-mail.
+const REENVIAR_MAX = 5;
+const REENVIAR_WINDOW_MIN = 15;
+
+export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
 	try {
 		const db = getDB(platform);
+		const ip = getClientAddress();
+
+		try {
+			const { blocked } = await contarRecoveryAttempts(
+				db,
+				ip,
+				'reenviar_codigo',
+				REENVIAR_WINDOW_MIN,
+				REENVIAR_MAX
+			);
+			if (blocked) return rateLimited('Muitos reenvios. Aguarde alguns minutos.');
+		} catch (err) {
+			logger.error('[reenviar-codigo] Falha no rate-limit (fail-open)', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
 
 		const body = await request.json().catch(() => null);
 		if (!body || typeof body !== 'object') return badRequest('Body inválido');
@@ -72,6 +96,16 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		if (!email) return badRequest('E-mail não encontrado. Contate o administrador.');
+
+		// Conta este reenvio para o teto por IP (só após confirmar que há e-mail a
+		// enviar). Fail-open: erro de registro não impede o reenvio.
+		try {
+			await registrarRecoveryAttempt(db, ip, 'reenviar_codigo');
+		} catch (err) {
+			logger.error('[reenviar-codigo] Falha ao registrar tentativa (fail-open)', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
 
 		// Invalida o desafio antigo e cria um novo
 		await db

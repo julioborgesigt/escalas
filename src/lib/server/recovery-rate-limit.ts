@@ -14,9 +14,11 @@ export type RecoveryPurpose =
 	| 'solicitar_redefinicao'
 	| 'confirmar_redefinicao'
 	| 'primeiro_acesso'
-	// Reuso da mesma tabela genérica (ip, purpose, attempted_at) para o throttle
-	// do download público de /validar — isolado por purpose (ver schema.ts).
-	| 'validar_download';
+	// Reuso da mesma tabela genérica (ip, purpose, attempted_at) para throttle por
+	// IP de endpoints sensíveis sem sessão — isolados por purpose (ver schema.ts):
+	| 'validar_download' // download público de /validar
+	| 'verificar_2fa' // brute-force do código 2FA no login
+	| 'reenviar_codigo'; // reenvio de 2FA (reset do contador + e-mail bombing)
 
 /**
  * Conta tentativas do IP para um propósito específico dentro da janela.

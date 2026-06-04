@@ -11,10 +11,38 @@ import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { cookieOptions } from '$lib/server/auth-flow';
-import { apiError, ErrorCode, badRequest, notFound, forbidden } from '$lib/server/api';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { apiError, ErrorCode, badRequest, notFound, forbidden, rateLimited } from '$lib/server/api';
+import { logger } from '$lib/server/logger';
 
-export const POST = async ({ platform, request, cookies, url }: RequestEvent) => {
+// Throttle por IP do brute-force do código 2FA. O contador de 5 tentativas por
+// desafio (em verificarDesafio2FA) é resetável via /reenviar-codigo (novo
+// desafio, novo código), então sem este teto por IP o atacante recicla desafios
+// indefinidamente. 10/15min é folgado para erros de digitação legítimos.
+const VERIFICAR_2FA_MAX = 10;
+const VERIFICAR_2FA_WINDOW_MIN = 15;
+
+export const POST = async ({ platform, request, cookies, url, getClientAddress }: RequestEvent) => {
 	const db = getDB(platform);
+	const ip = getClientAddress();
+
+	try {
+		const { blocked } = await contarRecoveryAttempts(
+			db,
+			ip,
+			'verificar_2fa',
+			VERIFICAR_2FA_WINDOW_MIN,
+			VERIFICAR_2FA_MAX
+		);
+		if (blocked) {
+			return rateLimited('Muitas tentativas. Faça login novamente em alguns minutos.');
+		}
+	} catch (err) {
+		logger.error('[verificar-2fa] Falha no rate-limit (fail-open)', {
+			error: err instanceof Error ? err.message : String(err)
+		});
+	}
+
 	const body = await request.json().catch(() => ({}));
 	const { desafioId, codigo } = body;
 
@@ -23,6 +51,19 @@ export const POST = async ({ platform, request, cookies, url }: RequestEvent) =>
 	}
 
 	const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
+
+	// Registra a tentativa malsucedida (código errado/expirado/esgotado) para o
+	// teto por IP acima. Sucesso não conta. Fail-open: erro de registro não
+	// pode quebrar o login.
+	if (resultado === 'expirado' || resultado === 'esgotado' || !resultado) {
+		try {
+			await registrarRecoveryAttempt(db, ip, 'verificar_2fa');
+		} catch (err) {
+			logger.error('[verificar-2fa] Falha ao registrar tentativa (fail-open)', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
 
 	if (resultado === 'expirado') {
 		// Mantém status 401 + flag legada `expirado` para o front diferenciar
