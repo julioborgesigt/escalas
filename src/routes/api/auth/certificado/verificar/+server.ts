@@ -3,7 +3,8 @@ import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { criarSessao } from '$lib/auth';
 import { doisFatoresTokens, policiais } from '$lib/server/schema';
-import { badRequest, unauthorized, rateLimited, ErrorCode, apiError } from '$lib/server/api';
+import { badRequest, unauthorized, rateLimited, ErrorCode, apiError, validateBody } from '$lib/server/api';
+import { certificadoVerificarSchema } from '$lib/schemas';
 import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-flow';
 import { verificarRespostaDesafioCertificado } from '$lib/server/cert-login';
 import { loadTrustStore } from '$lib/server/icp-brasil/trust-store';
@@ -16,12 +17,9 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	const db = getDB(platform);
 	const ip = getClientAddress();
 
-	const body = await request.json().catch(() => null);
-	if (!body || typeof body !== 'object') return badRequest('Body JSON inválido');
-
-	const { desafioId, cmsBase64 } = body as Record<string, unknown>;
-	if (typeof desafioId !== 'string' || !desafioId) return badRequest('desafioId inválido');
-	if (typeof cmsBase64 !== 'string' || !cmsBase64) return badRequest('cmsBase64 inválido');
+	const v = await validateBody(request, certificadoVerificarSchema);
+	if (!v.ok) return v.response;
+	const { desafioId, cmsBase64 } = v.data;
 
 	// Rate limit compartilhado com o fluxo normal de login
 	const rateLimit = await checkRateLimit(db, ip);

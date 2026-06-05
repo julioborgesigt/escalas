@@ -14,7 +14,8 @@ import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
 import { mascararEmail } from '$lib/server/auth-flow';
 import { doisFatoresTokens } from '$lib/server/schema';
-import { requireAuth, badRequest, rateLimited, serverError } from '$lib/server/api';
+import { requireAuth, badRequest, rateLimited, serverError, validateBody } from '$lib/server/api';
+import { solicitarVerificacaoEmailSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,10 +24,11 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const body = await request.json().catch(() => null);
-	const email: string = body?.email?.trim() ?? '';
+	const v = await validateBody(request, solicitarVerificacaoEmailSchema);
+	if (!v.ok) return v.response;
+	const email = v.data.email;
 
-	if (!email || !EMAIL_REGEX.test(email)) return badRequest('E-mail inválido');
+	if (!EMAIL_REGEX.test(email)) return badRequest('E-mail inválido');
 
 	// E-mail pessoal deve ser diferente do e-mail institucional
 	if (u.email && email.toLowerCase() === u.email.toLowerCase()) {

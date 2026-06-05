@@ -1,9 +1,51 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-	matricula: z.string().min(1, 'Matrícula é obrigatória'),
-	senha: z.string().min(1, 'Senha é obrigatória'),
+	matricula: z.string().min(1, 'Matrícula é obrigatória').max(32, 'Matrícula muito longa'),
+	senha: z.string().min(1, 'Senha é obrigatória').max(128, 'Senha muito longa'),
 	tipo: z.enum(['policial', 'admin']).default('policial')
+});
+
+// ---- Endpoints de autenticação: validação Zod + caps de tamanho ----
+// Cumpre a diretriz do CLAUDE.md (sempre Zod/validateBody) e fecha DoS-leve:
+// sem cap, um body de vários MB era processado/hasheado antes de falhar. Os
+// limites são folgados para uso legítimo.
+
+const desafioIdField = z.string().trim().min(1, 'Desafio inválido').max(128, 'Desafio inválido');
+const codigoField = z.coerce.string().trim().min(1, 'Código inválido').max(16, 'Código inválido');
+const emailField = z.string().trim().min(1, 'E-mail inválido').max(254, 'E-mail inválido');
+
+export const verificar2faSchema = z.object({ desafioId: desafioIdField, codigo: codigoField });
+
+export const reenviarCodigoSchema = z.object({ desafioId: desafioIdField });
+
+export const primeiroAcessoSchema = z.object({
+	matricula: z.string().trim().min(1, 'Matrícula inválida.').max(32, 'Matrícula inválida.')
+});
+
+export const solicitarRedefinicaoSchema = z.object({
+	identificador: z.string().trim().min(1).max(64),
+	tipo: z.enum(['policial', 'admin'])
+});
+
+export const confirmarRedefinicaoSchema = z.object({
+	desafioId: desafioIdField,
+	codigo: codigoField
+});
+
+export const solicitarVerificacaoEmailSchema = z.object({ email: emailField });
+
+export const confirmarVerificacaoEmailSchema = z.object({
+	desafioId: desafioIdField,
+	codigo: codigoField,
+	email: emailField
+});
+
+export const certificadoVerificarSchema = z.object({
+	desafioId: desafioIdField,
+	// CMS PKCS#7 em base64 — a folha do SERPRO fica ~8-11 KB; cap generoso
+	// bloqueia payloads multi-MB que custariam parsing ASN.1 caro.
+	cmsBase64: z.string().trim().min(1, 'cmsBase64 inválido').max(50_000, 'Certificado muito grande')
 });
 
 /**

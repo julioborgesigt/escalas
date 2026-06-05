@@ -12,7 +12,8 @@ import { criarTokenRedefinicao, verificarDesafio2FA } from '$lib/auth';
 import { enviarLinkRedefinicaoSenha } from '$lib/server/email';
 import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
-import { badRequest, rateLimited } from '$lib/server/api';
+import { badRequest, rateLimited, validateBody } from '$lib/server/api';
+import { confirmarRedefinicaoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA =
@@ -33,11 +34,9 @@ type UsuarioReset = {
 };
 
 export const POST: RequestHandler = async ({ request, platform, url, getClientAddress }) => {
-	const body = await request.json().catch(() => null);
-	const desafioId = String(body?.desafioId ?? '').trim();
-	const codigo = String(body?.codigo ?? '').trim();
-
-	if (!desafioId || !codigo) return badRequest('Dados inválidos');
+	const v = await validateBody(request, confirmarRedefinicaoSchema);
+	if (!v.ok) return v.response;
+	const { desafioId, codigo } = v.data;
 
 	const db = getDB(platform);
 	const ip = getClientAddress();

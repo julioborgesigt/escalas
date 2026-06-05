@@ -23,6 +23,7 @@ import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth-flow';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { solicitarRedefinicaoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA = 'Você receberá um código de validação em instantes.';
@@ -57,15 +58,17 @@ function respostaDummy(identificadorMascaradoPromise: Promise<string>) {
 
 export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
 	const body = await request.json().catch(() => null);
-	const identificador: string = String(body?.identificador ?? '').trim();
-	const tipo: string = String(body?.tipo ?? '').trim();
 	const ip = getClientAddress();
 
-	// Identificador inválido / tipo inválido → resposta dummy para não vazar
-	// que esses campos estão errados (atacante poderia enumerar tipos).
-	if (!identificador || !['policial', 'admin'].includes(tipo)) {
-		return respostaDummy(emailDummyMascarado(identificador || 'invalid'));
+	// Valida com Zod (caps de tamanho). Em falha, devolve a MESMA resposta dummy —
+	// não revela se o erro foi identificador ausente/grande ou tipo inválido
+	// (preserva a anti-enumeração).
+	const parsed = solicitarRedefinicaoSchema.safeParse(body);
+	if (!parsed.success) {
+		const idRaw = String((body as { identificador?: unknown } | null)?.identificador ?? '').trim();
+		return respostaDummy(emailDummyMascarado(idRaw || 'invalid'));
 	}
+	const { identificador, tipo } = parsed.data;
 
 	try {
 		const db = getDB(platform);

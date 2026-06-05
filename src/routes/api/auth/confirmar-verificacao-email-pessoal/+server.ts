@@ -12,7 +12,8 @@ import { eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
-import { requireAuth, badRequest, forbidden, rateLimited } from '$lib/server/api';
+import { requireAuth, badRequest, forbidden, rateLimited, validateBody } from '$lib/server/api';
+import { confirmarVerificacaoEmailSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,14 +22,11 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
-	const body = await request.json().catch(() => null);
-	const desafioId: string = body?.desafioId ?? '';
-	const codigo: string = String(body?.codigo ?? '');
-	const email: string = body?.email?.trim() ?? '';
+	const v = await validateBody(request, confirmarVerificacaoEmailSchema);
+	if (!v.ok) return v.response;
+	const { desafioId, codigo, email } = v.data;
 
-	if (!desafioId || !codigo || !email || !EMAIL_REGEX.test(email)) {
-		return badRequest('Dados inválidos');
-	}
+	if (!EMAIL_REGEX.test(email)) return badRequest('E-mail inválido');
 
 	const db = getDB(platform);
 	const emailNormalizado = email.toLowerCase();

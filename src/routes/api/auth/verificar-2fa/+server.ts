@@ -12,7 +12,8 @@ import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { cookieOptions } from '$lib/server/auth-flow';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
-import { apiError, ErrorCode, badRequest, notFound, forbidden, rateLimited } from '$lib/server/api';
+import { apiError, ErrorCode, notFound, forbidden, rateLimited, validateBody } from '$lib/server/api';
+import { verificar2faSchema } from '$lib/schemas';
 import { logger } from '$lib/server/logger';
 
 // Throttle por IP do brute-force do código 2FA. O contador de 5 tentativas por
@@ -43,14 +44,11 @@ export const POST = async ({ platform, request, cookies, url, getClientAddress }
 		});
 	}
 
-	const body = await request.json().catch(() => ({}));
-	const { desafioId, codigo } = body;
+	const v = await validateBody(request, verificar2faSchema);
+	if (!v.ok) return v.response;
+	const { desafioId, codigo } = v.data;
 
-	if (!desafioId || !codigo) {
-		return badRequest('Dados inválidos');
-	}
-
-	const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), ['policial', 'admin']);
+	const resultado = await verificarDesafio2FA(db, desafioId, codigo, ['policial', 'admin']);
 
 	// Registra a tentativa malsucedida (código errado/expirado/esgotado) para o
 	// teto por IP acima. Sucesso não conta. Fail-open: erro de registro não
