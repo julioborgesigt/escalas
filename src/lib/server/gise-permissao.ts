@@ -1,7 +1,38 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { giseEquipes, giseMembros, giseSeccionais } from './schema';
 import type { GiseEscala } from './schema';
 import type { Database } from '$lib/db';
+
+/**
+ * Um admin seccional/unidade PARTICIPA de uma GISE quando a unidade que ele
+ * administra (`papel_unidade_id`) é uma das seccionais (ou unidades
+ * operacionais) que compõem a GISE. É o que escopa o acesso por participação
+ * (Opção B): em vez de "todo admin vê toda GISE", o admin só acessa as GISEs em
+ * que a sua seccional está envolvida. Espelha a regra que a UI já usa para
+ * liberar EDIÇÃO por seccional (`sec.seccional_id === papel_unidade_id`).
+ */
+export async function adminParticipaDaGise(
+	db: Database,
+	giseId: number,
+	papelUnidadeId: number | null | undefined
+): Promise<boolean> {
+	if (papelUnidadeId == null) return false;
+	const row = await db
+		.select({ id: giseSeccionais.id })
+		.from(giseSeccionais)
+		.where(
+			and(
+				eq(giseSeccionais.gise_id, giseId),
+				or(
+					eq(giseSeccionais.seccional_id, papelUnidadeId),
+					eq(giseSeccionais.unidade_operacional_id, papelUnidadeId)
+				)
+			)
+		)
+		.limit(1)
+		.get();
+	return !!row;
+}
 
 /**
  * Verifica se o usuário tem permissão de leitura/download sobre uma escala
@@ -10,25 +41,32 @@ import type { Database } from '$lib/db';
  *
  * Regras:
  *  - Admin geral → sempre permitido
- *  - Admin seccional/unidade → sempre permitido (visibilidade administrativa)
+ *  - Admin seccional/unidade → permitido SE administra uma seccional/unidade
+ *    desta GISE (escopo por participação — Opção B; antes era irrestrito)
  *  - Quadro de supervisão da própria GISE (supervisor, assessor, seint1,
  *    seint2) → permitido
  *  - Membro de qualquer equipe desta GISE → permitido
  *  - Demais (incluindo policial de outra unidade) → negado
  *
  * O caller deve passar a entidade `giseEscala` já carregada (`buscarGiseEscala`),
- * para não duplicar query. A checagem de membro só dispara uma query extra a
- * `gise_membros` quando o usuário NÃO é admin nem quadro de supervisão.
+ * para não duplicar query. As checagens de participação e de membro só disparam
+ * query quando necessário.
  */
 export async function verificarPermissaoGise(
 	db: Database,
 	gise: GiseEscala,
 	u: NonNullable<App.Locals['usuario']>
 ): Promise<{ permitido: boolean; motivo?: string }> {
-	// Admin geral / seccional / unidade: acesso irrestrito a downloads GISE.
+	// Admin geral: acesso irrestrito a downloads GISE.
 	if (u.tipo === 'admin') return { permitido: true };
+
+	// Admin seccional/unidade: escopo por PARTICIPAÇÃO (Opção B). Só acessa GISEs
+	// que incluem a seccional/unidade que ele administra — não toda e qualquer.
 	if (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') {
-		return { permitido: true };
+		if (await adminParticipaDaGise(db, gise.id, u.papel_unidade_id)) {
+			return { permitido: true };
+		}
+		return { permitido: false, motivo: 'Esta GISE não inclui a sua seccional.' };
 	}
 
 	// Quadro de supervisão da própria GISE: supervisor, assessor, SEINT1, SEINT2.

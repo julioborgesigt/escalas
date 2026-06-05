@@ -10,6 +10,7 @@ import {
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
+import { adminParticipaDaGise } from '$lib/server/gise-permissao';
 import { logger } from '$lib/server/logger';
 import { unidades, policiais, giseRespostasFormulario } from '$lib/server/schema';
 import { eq, asc, inArray, and, isNull } from 'drizzle-orm';
@@ -36,7 +37,11 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	const parentData = await parent();
 	const isSupervisor = u.tipo === 'policial' ? (parentData.isSupervisorGise ?? false) : false;
 
-	if (!isGeral && !isSeccional && !isSupervisor) {
+	// Escopo por participação (Opção B): admin seccional só abre GISEs que
+	// incluem a seccional que ele administra — não qualquer GISE.
+	const isSeccionalParticipante =
+		isSeccional && (await adminParticipaDaGise(db, id, u.papel_unidade_id));
+	if (!isGeral && !isSeccionalParticipante && !isSupervisor) {
 		throw redirect(302, '/');
 	}
 
