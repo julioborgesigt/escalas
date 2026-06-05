@@ -72,9 +72,17 @@ for (const file of files) {
 			stderr.includes('already exists') ||
 			stderr.includes('no changes to apply') ||
 			stderr.includes('duplicate column');
+		// Migrações puramente documentais (só comentários, sem DDL — ex.: 0004,
+		// que apenas registra novos valores de enum numa coluna TEXT) fazem o
+		// `d1 execute` reclamar "did not contain a statement". É no-op, não erro;
+		// o caminho nativo (`wrangler d1 migrations apply`, no CI) também as ignora.
+		const isNoOp = stderr.includes('did not contain a statement');
 
 		if (isAlreadyApplied) {
 			console.log(`  ⏭️  ${file} (já aplicada)`);
+			success++;
+		} else if (isNoOp) {
+			console.log(`  ⏭️  ${file} (documental, sem DDL — no-op)`);
 			success++;
 		} else {
 			console.error(`  ❌ ${file}: ${stderr.slice(0, 200)}`);
