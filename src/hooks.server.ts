@@ -118,6 +118,19 @@ const handleCsrf: Handle = async ({ event, resolve }) => {
 		}
 	}
 
+	// Defesa em profundidade contra forced-login / session-fixation nas rotas de
+	// auth: `/api/auth/login` é isento do token CSRF (não há sessão/token ainda),
+	// então um POST cross-site de uma página atacante poderia logar a vítima na
+	// conta do atacante. Um POST de outra origem carrega o `Origin` dela; aqui
+	// recusamos quando ele está presente e não bate com a nossa origem. Webhooks
+	// (`/api/webhook`, origem externa legítima com auth própria) NÃO entram aqui.
+	if (pathname.startsWith('/api/auth/') && STATE_CHANGING_METHODS.has(event.request.method)) {
+		const origin = event.request.headers.get('origin');
+		if (origin !== null && origin !== event.url.origin) {
+			return apiError('Origem não permitida', 403, ErrorCode.CSRF);
+		}
+	}
+
 	return resolve(event);
 };
 
