@@ -1,0 +1,38 @@
+name: Limpeza de retenção (LGPD)
+
+# O Cloudflare Pages não tem cron triggers nativos. Este workflow agendado chama
+# o endpoint token-authenticated de limpeza, purgando diariamente sessões,
+# tokens 2FA/reset, tentativas de login/recovery e nonces expirados (e o
+# audit_log além do prazo configurado). A lógica e os prazos ficam no app
+# (executarLimpezaRetencao / configurações de retenção).
+#
+# Secrets necessários (Settings → Secrets and variables → Actions):
+#   - APP_BASE_URL : URL pública de produção, ex.: https://escalas.pages.dev
+#   - SYNC_TOKEN   : mesmo valor configurado no ambiente do app (Bearer)
+
+on:
+  schedule:
+    # 04:17 UTC ≈ 01:17 America/Fortaleza. Horário "quebrado" para fugir do
+    # pico de :00 nos agendadores do GitHub.
+    - cron: '17 4 * * *'
+  workflow_dispatch: {} # permite disparo manual pela aba Actions
+
+jobs:
+  limpeza:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar limpeza de retenção
+        run: |
+          if [ -z "${{ secrets.APP_BASE_URL }}" ] || [ -z "${{ secrets.SYNC_TOKEN }}" ]; then
+            echo "::error::Defina os secrets APP_BASE_URL e SYNC_TOKEN."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
+            -X POST "${{ secrets.APP_BASE_URL }}/api/webhook/limpeza-retencao" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+          echo "HTTP $code"
+          cat /tmp/resp.json || true
+          echo ""
+          test "$code" = "200"
