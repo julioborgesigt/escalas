@@ -611,9 +611,16 @@ export const loginAttempts = sqliteTable(
 		attempted_at: text('attempted_at')
 			.notNull()
 			.default(sql`(datetime('now'))`),
-		success: integer('success').notNull().default(0)
+		success: integer('success').notNull().default(0),
+		// Hash do identificador da conta (tipo:matricula) — throttle por conta
+		// (account lockout) sem gravar a matrícula em texto. Nullable: fluxos que
+		// não identificam a conta (ex.: login por certificado) gravam NULL.
+		identifier: text('identifier')
 	},
-	(table) => [index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at)]
+	(table) => [
+		index('idx_login_attempts_ip_time').on(table.ip, table.attempted_at),
+		index('idx_login_attempts_identifier_time').on(table.identifier, table.attempted_at)
+	]
 );
 
 /**
