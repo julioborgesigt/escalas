@@ -68,9 +68,9 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 
 - Binding `escalas_docs` em [`wrangler.toml`](wrangler.toml) — documentos e artefatos de assinatura dependem deste bucket.
 
-## ⚠️ Separação staging vs produção (PENDENTE)
+## Separação staging vs produção
 
-> **Risco aberto identificado pela auditoria.** Hoje `wrangler.toml` declara **um único** `[[d1_databases]]` e **um único** `[[r2_buckets]]`. O workflow faz `pages deploy --branch=staging` para PRs/staging, mas **as bindings apontam para o mesmo banco de produção**. Consequência: qualquer deploy em staging escreve no D1 real; rodar `npm run db:migrate:prod` da branch errada destrói dados de produção.
+> **Status: scaffold no repositório; resta a ação de infra do operador.** O `wrangler.toml` já separa os ambientes — as bindings de **produção** ficam no top-level (inalteradas) e a seção **`[env.preview]`** aponta o ambiente de preview/staging do Cloudflare Pages para um D1/R2 **dedicado** (`escalas-db-staging` / `escalas-docs-staging`). O `scripts/migrate.ts` ganhou o alvo `--staging` (`npm run db:migrate:staging`). **Produção não é afetada** (lê as bindings top-level, idênticas às anteriores). Enquanto o `database_id` de staging for o placeholder `<STAGING_DATABASE_ID>`, os deploys de **preview** falham ao bindar — proposital (fail-safe): melhor o preview quebrar do que escrever em produção. Os passos abaixo são o que falta do operador. O bloco TOML de exemplo é ilustrativo; **a configuração real e atual está no próprio `wrangler.toml`**.
 
 ### Como separar (recomendado antes do go-live)
 
@@ -125,11 +125,51 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 
 7. **Validar**: deploy de teste para staging, conferir no Cloudflare Dashboard que o tráfego escreve no `escalas-db-staging`, não no `escalas-db`.
 
-### Mitigações enquanto a separação não é feita
+### Defesas já no código
 
-- Bloqueio temporário do script: NÃO rodar `npm run db:migrate:prod` da branch staging.
-- ✅ **Implementado**: `scripts/migrate.ts` exige `--yes` explícito quando `--remote` (use `npm run db:migrate:prod -- --yes`). Sem o flag o script aborta antes de tocar no D1.
-- Comunicar a equipe que **toda escrita feita em staging persiste em produção**.
+- ✅ `wrangler.toml` com `[env.preview]` dedicado (produção top-level inalterada).
+- ✅ `scripts/migrate.ts --staging` + `npm run db:migrate:staging`; só **produção remota** exige `-- --yes` (aborta antes de tocar no D1 sem confirmação).
+- Até o operador concluir os passos acima, um deploy de **preview** sem o `database_id` de staging preenchido **falha ao bindar** — não escreve em produção.
+
+## Backup, restauração e rollback (D1 + R2)
+
+Sistema com valor jurídico (assinaturas) exige plano de recuperação. Resumo dos mecanismos e procedimentos.
+
+### D1 — backup lógico (export)
+
+Export periódico do banco inteiro (esquema + dados) para um arquivo SQL:
+
+```bash
+# Produção
+npx wrangler d1 export escalas-db --remote --output=backup-$(date +%F).sql
+# Staging
+npx wrangler d1 export escalas-db-staging --remote --output=backup-staging-$(date +%F).sql
+```
+
+Guarde o `.sql` em local seguro e **privado** — contém dados pessoais; trate como o `dump.sql` (que é git-ignored). Cadência recomendada: **diária**, automatizável por um GitHub Action agendado (mesmo molde de `cleanup-retencao.yml`) que grave o artefato num storage com retenção. Restaurar para um banco novo/vazio: `npx wrangler d1 execute <db-destino> --remote --file=backup-AAAA-MM-DD.sql`.
+
+### D1 — Time Travel (point-in-time recovery, ~30 dias)
+
+O D1 mantém recuperação para qualquer ponto dos últimos ~30 dias, sem backup manual — útil para reverter migração ruim ou DELETE acidental:
+
+```bash
+npx wrangler d1 time-travel info escalas-db --remote
+npx wrangler d1 time-travel restore escalas-db --remote --timestamp="2026-06-05T12:00:00Z"
+```
+
+> Time Travel **substitui** o estado atual pelo do instante escolhido — faça um `export` **antes** de restaurar, para não perder dados gravados depois do ponto.
+
+### R2 — documentos assinados
+
+Os PDFs/artefatos são **imutáveis por hash** (a chave deriva do conteúdo), então não há sobrescrita; o risco é **perda** (deleção). O R2 não tem PITR nativo — opções: ativar **versionamento/lock** no bucket (Dashboard → R2 → bucket → Settings) e/ou um job periódico que liste e copie os objetos para um bucket de backup. Como o `arquivo_hash` de cada documento está no D1, o backup do D1 permite **detectar objetos R2 ausentes**.
+
+### Rollback de um deploy ruim (Cloudflare Pages)
+
+O Pages mantém o histórico de deployments. Para reverter **código** instantaneamente (sem rebuild): Dashboard → Pages → projeto → Deployments → no último deployment bom, **"Rollback to this deployment"**. Não afeta D1/R2 (dados).
+
+### Rollback de uma migração ruim
+
+Migrações não têm "down" automático. Para reverter: (1) `wrangler d1 time-travel restore` para o instante **antes** da migração; ou (2) aplicar uma migração corretiva nova (preferível para mudanças pequenas). Rode **sempre** a migração em staging primeiro (`npm run db:migrate:staging`).
 
 ## Modelos do face-api (assets estáticos)
 

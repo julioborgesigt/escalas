@@ -21,4 +21,38 @@ migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "escalas_docs"
-bucket_name = "escalas-docs"    
+bucket_name = "escalas-docs"
+
+# ─────────────────────────────────────────────────────────────────────────
+# Ambiente PREVIEW (staging + deployments de PR).
+#
+# As bindings de PRODUÇÃO ficam no top-level acima e permanecem INALTERADAS.
+# Esta seção sobrescreve APENAS o ambiente "preview" do Cloudflare Pages, para
+# que deploys que NÃO são de produção (ex.: `wrangler pages deploy --branch=staging`)
+# escrevam num D1/R2 DEDICADO ao staging, nunca no banco de produção.
+#
+# AÇÃO DO OPERADOR (uma vez, antes de confiar no staging):
+#   1) wrangler d1 create escalas-db-staging
+#      wrangler r2 bucket create escalas-docs-staging
+#   2) Cole o database_id retornado abaixo, no lugar de <STAGING_DATABASE_ID>.
+#   3) Aplique as migrations no staging:  npm run db:migrate:staging
+#   4) Deploy de teste em staging e confirme no Dashboard (Pages → deployment
+#      de preview → bindings) que o tráfego escreve em escalas-db-staging. Se o
+#      Pages não aplicar esta seção automaticamente, configure as bindings de
+#      PREVIEW pelo Dashboard (Settings → Functions → D1/R2 → Preview).
+#
+# Enquanto <STAGING_DATABASE_ID> for o placeholder, os deploys de preview FALHAM
+# ao bindar — isso é PROPOSITAL (fail-safe): melhor o preview quebrar do que
+# escrever em produção. Ver DEPLOY.md → "Separação staging vs produção".
+[env.preview.vars]
+TSA_URL = "http://timestamp.digicert.com"
+
+[[env.preview.d1_databases]]
+binding = "escalas_db"
+database_name = "escalas-db-staging"
+database_id = "<STAGING_DATABASE_ID>"
+migrations_dir = "migrations"
+
+[[env.preview.r2_buckets]]
+binding = "escalas_docs"
+bucket_name = "escalas-docs-staging"
