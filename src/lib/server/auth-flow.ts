@@ -2,7 +2,7 @@
  * Fluxo único de login (matrícula/senha/tipo) — formulário (+page.server) e API JSON.
  * Rate limit, auditoria, migração de hash legado e 2FA permanecem alinhados entre os canais.
  */
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, sql, count } from 'drizzle-orm';
 import { registrarAuditComContexto } from '$lib/db';
 import {
 	hashSenha,
@@ -24,6 +24,13 @@ import { anonimizarIp } from '$lib/db/audit';
 
 export const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_WINDOW_MINUTES = 15;
+// Throttle por CONTA (account lockout) — complementa o por-IP, fechando o
+// brute-force distribuído (vários IPs contra UMA matrícula). Teto mais alto que
+// o por-IP (agrega vários IPs) e janela curta auto-expirável: o impacto de DoS
+// (travar uma conta de propósito) fica limitado a ACCOUNT_WINDOW_MINUTES e se
+// cura sozinho. Contas com 2FA por e-mail têm proteção adicional.
+export const ACCOUNT_MAX_ATTEMPTS = 10;
+export const ACCOUNT_WINDOW_MINUTES = 15;
 
 export function mascararEmail(email: string): string {
 	const at = email.indexOf('@');
@@ -93,8 +100,52 @@ export async function checkRateLimit(
 	};
 }
 
-export async function recordAttempt(db: Database, ip: string, success: boolean): Promise<void> {
-	await db.insert(loginAttempts).values({ ip: anonimizarIp(ip) ?? ip, success: success ? 1 : 0 });
+export async function recordAttempt(
+	db: Database,
+	ip: string,
+	success: boolean,
+	identifier?: string
+): Promise<void> {
+	await db.insert(loginAttempts).values({
+		ip: anonimizarIp(ip) ?? ip,
+		success: success ? 1 : 0,
+		identifier: identifier ?? null
+	});
+}
+
+/**
+ * Hash do identificador da conta (`tipo:matricula`, normalizado) para contar
+ * tentativas por conta SEM gravar a matrícula em texto no log de tentativas.
+ */
+export async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
+	const data = new TextEncoder().encode(`${tipo}:${matricula.trim().toLowerCase()}`);
+	const buf = await crypto.subtle.digest('SHA-256', data);
+	return Array.from(new Uint8Array(buf))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+/**
+ * Conta tentativas FALHAS para a conta (por hash do identificador) na janela.
+ * Complementa `checkRateLimit` (por IP): pega brute-force distribuído por
+ * múltiplos IPs contra a mesma conta.
+ */
+export async function checkAccountRateLimit(
+	db: Database,
+	identifierHash: string
+): Promise<{ blocked: boolean }> {
+	const desde = sql.raw(`datetime('now', '-${ACCOUNT_WINDOW_MINUTES} minutes')`);
+	const [row] = await db
+		.select({ n: count() })
+		.from(loginAttempts)
+		.where(
+			and(
+				eq(loginAttempts.identifier, identifierHash),
+				gt(loginAttempts.attempted_at, desde),
+				eq(loginAttempts.success, 0)
+			)
+		);
+	return { blocked: (row?.n ?? 0) >= ACCOUNT_MAX_ATTEMPTS };
 }
 
 /** Alias legado — mesmo que `cookieOptions`. */
@@ -173,6 +224,21 @@ export async function tentarLogin({
 		};
 	}
 
+	// Throttle por CONTA (account lockout): pega brute-force distribuído por
+	// vários IPs contra a mesma matrícula — o limite por IP acima não cobre isso.
+	// Mesma mensagem 429 do limite por IP (não revela se o bloqueio é de IP ou de
+	// conta) e aplica-se uniformemente, inclusive a matrículas inexistentes (toda
+	// falha grava o identifier), então não vira oráculo de enumeração.
+	const identHash = await hashIdentificadorLogin(tipo, matricula);
+	const accountLimit = await checkAccountRateLimit(db, identHash);
+	if (accountLimit.blocked) {
+		return {
+			sucesso: false,
+			statusCode: 429,
+			erro: `Muitas tentativas de login. Tente novamente em ${ACCOUNT_WINDOW_MINUTES} minutos.`
+		};
+	}
+
 	const adminModulo: AdminModulo = formAdminModulo ?? 'ambas';
 	const isForm = formAdminModulo !== undefined;
 	const _env = platform?.env as Env | undefined;
@@ -183,7 +249,7 @@ export async function tentarLogin({
 
 		if (superLogin && superSenha && matricula === superLogin) {
 			if (!compararSegredoUtf8TimingSafe(senha, superSenha)) {
-				await recordAttempt(db, ip, false);
+				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
 					acao: 'falha_login',
@@ -229,7 +295,7 @@ export async function tentarLogin({
 				};
 			}
 
-			await recordAttempt(db, ip, true);
+			await recordAttempt(db, ip, true, identHash);
 
 			// O bootstrap por env tem poder de root. Por padrão loga direto (sem
 			// 2FA) — break-glass que funciona mesmo com e-mail fora do ar. Se
@@ -312,7 +378,7 @@ export async function tentarLogin({
 						'e use o fluxo de redefinição de senha por e-mail.',
 					{ ip }
 				);
-				await recordAttempt(db, ip, false);
+				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
 					acao: 'falha_login',
@@ -336,7 +402,7 @@ export async function tentarLogin({
 			);
 
 			if (!compararSegredoUtf8TimingSafe(senha, envSenha)) {
-				await recordAttempt(db, ip, false);
+				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
 					acao: 'falha_login',
@@ -372,7 +438,7 @@ export async function tentarLogin({
 				return { sucesso: false, statusCode: 500, erro: 'Erro ao inicializar administrador.' };
 			}
 
-			await recordAttempt(db, ip, true);
+			await recordAttempt(db, ip, true, identHash);
 			const token = await criarSessao(db, 'admin', envAdmin.id);
 			return {
 				sucesso: true,
@@ -392,7 +458,7 @@ export async function tentarLogin({
 			.where(eq(administradores.login, matricula))
 			.get();
 		if (!admin || !(await verificarSenha(senha, admin.senha, db))) {
-			await recordAttempt(db, ip, false);
+			await recordAttempt(db, ip, false, identHash);
 			return {
 				sucesso: false,
 				statusCode: 401,
@@ -409,7 +475,7 @@ export async function tentarLogin({
 				.where(eq(administradores.id, admin.id));
 		}
 
-		await recordAttempt(db, ip, true);
+		await recordAttempt(db, ip, true, identHash);
 
 		if (admin.email && admin.primeiro_acesso !== 1) {
 			const codigo = gerarCodigo2FA();
@@ -455,7 +521,7 @@ export async function tentarLogin({
 		.get();
 
 	if (!policial || !(await verificarSenha(senha, policial.senha, db))) {
-		await recordAttempt(db, ip, false);
+		await recordAttempt(db, ip, false, identHash);
 		return {
 			sucesso: false,
 			statusCode: 401,
@@ -469,7 +535,7 @@ export async function tentarLogin({
 		await db.update(policiais).set({ senha: novoHash }).where(eq(policiais.id, policial.id));
 	}
 
-	await recordAttempt(db, ip, true);
+	await recordAttempt(db, ip, true, identHash);
 
 	if (policial.email && policial.primeiro_acesso !== 1) {
 		const codigo = gerarCodigo2FA();

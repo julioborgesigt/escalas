@@ -14,6 +14,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"db:migrate": "npx tsx scripts/migrate.ts",
+		"db:migrate:staging": "npx tsx scripts/migrate.ts --remote --staging",
 		"db:migrate:prod": "npx tsx scripts/migrate.ts --remote",
 		"users:set-default-password": "npx tsx scripts/set-default-password-all-users.ts --yes",
 		"users:set-default-password:prod": "npx tsx scripts/set-default-password-all-users.ts --remote --yes",
