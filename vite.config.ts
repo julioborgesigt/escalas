@@ -18,7 +18,7 @@ export default defineConfig({
 						if (id.includes('pdf-lib') || id.includes('jspdf') || id.includes('@signpdf')) return 'pdf';
 						if (id.includes('docx') || id.includes('exceljs')) return 'office';
 						if (id.includes('chart.js')) return 'charts';
-						if (id.includes('node-forge') || id.includes('web-pki')) return 'crypto';
+						if (id.includes('node-forge')) return 'crypto';
 						if (id.includes('@skeletonlabs') || id.includes('@zag-js')) return 'skeleton';
 						if (id.includes('lucide-svelte') || id.includes('lucide')) return 'lucide';
 						return 'vendor';

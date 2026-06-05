@@ -230,6 +230,42 @@ export async function tentarLogin({
 			}
 
 			await recordAttempt(db, ip, true);
+
+			// O bootstrap por env tem poder de root. Por padrão loga direto (sem
+			// 2FA) — break-glass que funciona mesmo com e-mail fora do ar. Se
+			// SUPER_ADMIN_EMAIL estiver configurado, exigimos o 2º fator também na
+			// conta root, fechando o bypass de 2FA do bootstrap.
+			const superEmail = _env?.SUPER_ADMIN_EMAIL?.trim() ?? '';
+			if (superEmail) {
+				const codigo = gerarCodigo2FA();
+				const desafioId = await criarDesafio2FA(db, 'admin', superAdmin.id, codigo);
+				const emailJob = enviarCodigo2FA(superEmail, codigo, superAdmin.nome, platform).catch(
+					(err) => {
+						logger.error('[2FA] Falha ao enviar e-mail (super admin)', {
+							error: err instanceof Error ? err.message : String(err)
+						});
+					}
+				);
+				platform?.ctx?.waitUntil(emailJob);
+				return {
+					sucesso: false,
+					statusCode: 200,
+					pendente2FA: {
+						desafioId,
+						nome: superAdmin.nome,
+						primeiroAcesso: false,
+						emailMascarado: mascararEmail(superEmail),
+						tipoUsuario2FA: 'admin'
+					},
+					setAdminModuloPendingCookie: isForm
+				};
+			}
+
+			logger.warn(
+				'[security] Login do Super Admin via bootstrap env SEM 2FA (break-glass). ' +
+					'Configure SUPER_ADMIN_EMAIL para exigir segundo fator nesta conta root.',
+				{ ip }
+			);
 			const token = await criarSessao(db, 'admin', superAdmin.id);
 			return {
 				sucesso: true,

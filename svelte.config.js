@@ -60,7 +60,9 @@ const config = {
 				'font-src': ['self', 'data:'],
 				// O tipo `Source[]` do SvelteKit não enxerga URLs `wss://` como
 				// strings válidas, embora aceite em runtime — daí o cast.
-				'connect-src': /** @type {any[]} */ (['self', ...SERPRO_WS]),
+				// `*.sentry.io` libera o beacon do Sentry do cliente (hooks.client.ts);
+				// sem isto a CSP bloquearia silenciosamente o envio de erros.
+				'connect-src': /** @type {any[]} */ (['self', 'https://*.sentry.io', ...SERPRO_WS]),
 				'frame-src': ['none'],
 				'object-src': ['none'],
 				'base-uri': ['self'],

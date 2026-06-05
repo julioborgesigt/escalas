@@ -13,7 +13,8 @@ import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { policiais } from '$lib/server/schema';
 import { and, eq } from 'drizzle-orm';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
-import { badRequest, serverError } from '$lib/server/api';
+import { serverError, validateBody } from '$lib/server/api';
+import { primeiroAcessoSchema } from '$lib/schemas';
 import { logger } from '$lib/server/logger';
 
 const MAX_TENTATIVAS_IP = 5;
@@ -22,10 +23,9 @@ const JANELA_IP_MINUTOS = 15;
 export const POST: RequestHandler = async ({ platform, request, url, getClientAddress }) => {
 	const db = getDB(platform);
 	const ip = getClientAddress();
-	const body = await request.json().catch(() => ({}));
-	const { matricula } = body;
-
-	if (!matricula || typeof matricula !== 'string') return badRequest('Matrícula inválida.');
+	const v = await validateBody(request, primeiroAcessoSchema);
+	if (!v.ok) return v.response;
+	const { matricula } = v.data;
 
 	// Resposta genérica para não revelar se a matrícula existe
 	const respostaGenerica = json({

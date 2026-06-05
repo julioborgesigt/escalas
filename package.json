@@ -60,6 +60,7 @@
 	"dependencies": {
 		"@fontsource/inter": "^5.2.8",
 		"@fontsource/outfit": "^5.2.8",
+		"@sentry/browser": "^10.56.0",
 		"@sentry/cloudflare": "^10.55.0",
 		"@signpdf/placeholder-pdf-lib": "^3.3.0",
 		"@signpdf/signpdf": "^3.3.0",
@@ -82,7 +83,6 @@
 		"pdf-lib": "^1.17.1",
 		"qrcode": "^1.5.4",
 		"tailwindcss": "^4.2.2",
-		"web-pki": "^2.18.0",
 		"zod": "^4.4.3"
 	}
 }

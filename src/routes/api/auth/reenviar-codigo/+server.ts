@@ -23,7 +23,8 @@ import { logger } from '$lib/server/logger';
 import { administradores, policiais, doisFatoresTokens } from '$lib/server/schema';
 import { mascararEmail } from '$lib/server/auth-flow';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
-import { badRequest, rateLimited, serverError } from '$lib/server/api';
+import { badRequest, rateLimited, serverError, validateBody } from '$lib/server/api';
+import { reenviarCodigoSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
 // Teto por IP do reenvio de 2FA: cada reenvio envia e-mail e reseta o contador
@@ -51,10 +52,9 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 			});
 		}
 
-		const body = await request.json().catch(() => null);
-		if (!body || typeof body !== 'object') return badRequest('Body inválido');
-		const { desafioId } = body as Record<string, unknown>;
-		if (!desafioId || typeof desafioId !== 'string') return badRequest('desafioId inválido');
+		const v = await validateBody(request, reenviarCodigoSchema);
+		if (!v.ok) return v.response;
+		const { desafioId } = v.data;
 
 		// Busca desafio original (deve existir, ser policial/admin, não expirado, não usado)
 		const agora = new Date().toISOString();

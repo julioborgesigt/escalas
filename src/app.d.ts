@@ -29,6 +29,12 @@ declare global {
 		ADMIN_GERAL_SENHA?: string;
 		SUPER_ADMIN_LOGIN?: string;
 		SUPER_ADMIN_SENHA?: string;
+		/**
+		 * Opcional. Quando definido, o login do Super Admin via bootstrap por env
+		 * passa a exigir 2FA por e-mail (código enviado a este endereço) — fecha o
+		 * bypass de 2FA da conta root. Sem ele, mantém o login direto (break-glass).
+		 */
+		SUPER_ADMIN_EMAIL?: string;
 		/** Web App URL do Google Apps Script que grava na aba Base_Equipe (POST JSON). */
 		GISE_BASE_EQUIPE_WEBHOOK_URL?: string;
 		/** Segredo compartilhado com ScriptProperties BASE_EQUIPE_SECRET na planilha. */

@@ -5,7 +5,20 @@ export {
 	type EscalaInput,
 	type EscalaPolicialInput
 } from './escala';
-export { loginSchema, alterarSenhaSchema, type LoginInput, type AlterarSenhaInput } from './auth';
+export {
+	loginSchema,
+	alterarSenhaSchema,
+	verificar2faSchema,
+	reenviarCodigoSchema,
+	primeiroAcessoSchema,
+	solicitarRedefinicaoSchema,
+	confirmarRedefinicaoSchema,
+	solicitarVerificacaoEmailSchema,
+	confirmarVerificacaoEmailSchema,
+	certificadoVerificarSchema,
+	type LoginInput,
+	type AlterarSenhaInput
+} from './auth';
 export { unidadeSchema, type UnidadeInput } from './unidade';
 export {
 	giseSignatureSchema,
