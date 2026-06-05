@@ -48,11 +48,11 @@ bucket_name = "escalas-docs"
 TSA_URL = "http://timestamp.digicert.com"
 
 [[env.preview.d1_databases]]
-binding = "escalas_db"
+binding = "escalas_db_staging"
 database_name = "escalas-db-staging"
-database_id = "<STAGING_DATABASE_ID>"
+database_id = "c4da26fa-a92a-4553-9869-e53474ec4948"
 migrations_dir = "migrations"
 
 [[env.preview.r2_buckets]]
-binding = "escalas_docs"
+binding = "escalas_docs_staging"
 bucket_name = "escalas-docs-staging"
