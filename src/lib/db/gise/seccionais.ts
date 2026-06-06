@@ -1,4 +1,4 @@
-import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
+import { eq, and, ne, inArray } from 'drizzle-orm';
 import { buscarVagasPadraoEquipesGise } from './vagas-padrao';
 import {
 	giseEscalas,
@@ -7,14 +7,10 @@ import {
 	giseMembros,
 	giseDocumentos,
 	gisePresencas,
-	giseModeloFormulario,
-	giseRespostasFormulario,
 	giseAssinaturasRelatorios,
 	giseSeccionalUnidades,
-	policiais,
-	unidades
+	policiais
 } from '../../server/schema';
-import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 
 export async function upsertGiseSeccional(

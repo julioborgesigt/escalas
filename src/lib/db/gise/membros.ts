@@ -1,20 +1,12 @@
-import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
+import { eq, and, or, ne } from 'drizzle-orm';
 import { verificarConflitoEscalasNaoGise } from '../../server/escala-conflict';
 import {
 	giseEscalas,
 	giseSeccionais,
 	giseEquipes,
 	giseMembros,
-	giseDocumentos,
-	gisePresencas,
-	giseModeloFormulario,
-	giseRespostasFormulario,
-	giseAssinaturasRelatorios,
-	giseSeccionalUnidades,
-	policiais,
 	unidades
 } from '../../server/schema';
-import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { seOverlapam } from '../../gise/gise-horarios';
 

@@ -1,19 +1,5 @@
-import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
-import {
-	giseEscalas,
-	giseSeccionais,
-	giseEquipes,
-	giseMembros,
-	giseDocumentos,
-	gisePresencas,
-	giseModeloFormulario,
-	giseRespostasFormulario,
-	giseAssinaturasRelatorios,
-	giseSeccionalUnidades,
-	policiais,
-	unidades
-} from '../../server/schema';
-import type * as schema from '../../server/schema';
+import { eq, and } from 'drizzle-orm';
+import { giseEquipes, giseMembros, policiais } from '../../server/schema';
 import type { Database } from '../core';
 
 export async function atualizarGiseEquipe(
