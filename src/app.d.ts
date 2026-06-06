@@ -13,8 +13,8 @@ declare global {
 		 * Manter offline e rodar manualmente a partir de máquina conhecida.
 		 */
 		RESET_TOKEN?: string;
-		GMAIL_USER?: string;
-		GMAIL_APP_PASSWORD?: string;
+		RESEND_API_KEY?: string;
+		RESEND_FROM_EMAIL?: string;
 		/**
 		 * DSN do Sentry. Quando vazio/ausente, o SDK é inicializado em modo no-op
 		 * (útil em dev/local). Configure em produção para receber 5xx do worker.
