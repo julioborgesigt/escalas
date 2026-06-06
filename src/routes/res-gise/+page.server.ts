@@ -42,7 +42,6 @@ export const load = async ({ locals, platform, url }: any) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	const isAdminGeral = u.tipo === 'admin';
 	const statusFilter = url.searchParams.get('status') || ''; // 'ativas' ou 'finalizadas'
 	const mesFilter = url.searchParams.get('mes') || ''; // YYYY-MM
 	const dataFilter = url.searchParams.get('data') || ''; // YYYY-MM-DD
@@ -568,7 +567,7 @@ export const load = async ({ locals, platform, url }: any) => {
 };
 
 export const actions: Actions = {
-	salvarResposta: async ({ request, locals, platform, url }) => {
+	salvarResposta: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 

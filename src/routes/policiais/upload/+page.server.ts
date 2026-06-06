@@ -222,7 +222,7 @@ export const actions = {
 						});
 					}
 				}
-			} catch (e: unknown) {
+			} catch {
 				errors.push({
 					row: rowNum,
 					nome,

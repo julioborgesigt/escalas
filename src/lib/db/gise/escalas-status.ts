@@ -1,4 +1,4 @@
-import { eq, and, or, sql, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,

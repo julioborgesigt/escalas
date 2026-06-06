@@ -10,7 +10,7 @@
  * - Mudança de papel (RBAC)
  */
 
-import { desc, eq, and, like, sql } from 'drizzle-orm';
+import { desc, eq, and, sql } from 'drizzle-orm';
 import { auditLog } from '../server/schema';
 import type { Database } from './core';
 import type { AuditLog } from '../server/schema';

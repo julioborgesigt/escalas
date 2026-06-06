@@ -654,15 +654,6 @@ function interpretarErroSerpro(o: Record<string, unknown>): string {
 		: 'Erro no Assinador SERPRO. Verifique se o Token A3 está conectado e tente novamente.';
 }
 
-/**
- * Converte uma string hexadecimal em Base64.
- */
-function hexParaBase64(hex: string): string {
-	const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
-	let bin = '';
-	for (const b of bytes) bin += String.fromCharCode(b);
-	return btoa(bin);
-}
 
 /**
  * Exibe um modal de aviso sobre o Assinador SERPRO.

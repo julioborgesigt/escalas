@@ -24,7 +24,6 @@ import {
 	giseEscalas
 } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { getInt } from './shared';
 
 type Event = RequestEvent<{ id: string }>;
 

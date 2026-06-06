@@ -31,8 +31,8 @@ jobs:
       # antes do svelte-check, senão ele falha por falta de tipos gerados.
       - run: npx svelte-kit sync
 
-      # Lint — gate de NÃO-REGRESSÃO (ratchet). Há dívida pré-existente (543
-      # warnings, majoritariamente em .svelte, onde `eslint --fix` não aplica os
+      # Lint — gate de NÃO-REGRESSÃO (ratchet). Há dívida pré-existente
+      # (warnings majoritariamente em .svelte, onde `eslint --fix` não aplica os
       # core-rules). Em vez de bloquear tudo (`lint:strict`/max-warnings 0,
       # inviável hoje) ou ignorar (`continue-on-error`, deixa a dívida CRESCER),
       # `lint:ci` fixa um TETO: qualquer PR que ADICIONE warning falha o CI.

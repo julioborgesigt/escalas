@@ -43,8 +43,7 @@ const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 const OID_SHA384 = '2.16.840.1.101.3.4.2.2';
 const OID_SHA512 = '2.16.840.1.101.3.4.2.3';
 
-// Identificador da família de curva ECDSA (subjectPublicKeyInfo.algorithm.parameters).
-const OID_EC_PUBLIC_KEY = '1.2.840.10045.2.1';
+// Identificadores de curva ECDSA (subjectPublicKeyInfo.algorithm.parameters).
 const OID_PRIME256V1 = '1.2.840.10045.3.1.7'; // P-256
 const OID_SECP384R1 = '1.3.132.0.34'; // P-384
 const OID_SECP521R1 = '1.3.132.0.35'; // P-521

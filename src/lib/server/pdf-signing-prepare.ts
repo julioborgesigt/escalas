@@ -1,5 +1,4 @@
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
-import type { PDFPage } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
@@ -729,9 +728,6 @@ export async function prepararPdfParaAssinatura(
 	// 7 — Conteúdo textual
 	const txtX = boxX + 6;
 	const textMaxW = qrX - boxX - 12;
-	const cpfFormatado = signerCpf
-		? `CPF: ***.${signerCpf.slice(3, 6)}.${signerCpf.slice(6, 9)}-**`
-		: '';
 
 	lastPage.drawText('Assinado digitalmente por:', {
 		x: txtX,

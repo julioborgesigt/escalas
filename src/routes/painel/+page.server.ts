@@ -22,7 +22,7 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 		escalaDocumentos: docTable
 	} = await import('$lib/server/schema');
 	const { getNowBR } = await import('$lib/utils');
-	const { and, eq, gte, lte, inArray, sql } = await import('drizzle-orm');
+	const { and, gte, lte, inArray } = await import('drizzle-orm');
 
 	function toISO(y: number, m: number, d: number): string {
 		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -69,7 +69,6 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 
 	const hoje = getNowBR();
 	const anoAtual = hoje.getFullYear();
-	const mesAtual = hoje.getMonth() + 1;
 
 	// Determine which (year, month) combinations to evaluate
 	const periodos: { ano: number; mes: number }[] = [];

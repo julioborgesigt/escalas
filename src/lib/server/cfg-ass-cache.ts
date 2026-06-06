@@ -65,7 +65,7 @@ export async function lerFlagsAssinatura(
 	}
 
 	const db = getDB(platform);
-	const [foto, gps, _codigoBanco, smartphone] = await Promise.all([
+	const [foto, gps, , smartphone] = await Promise.all([
 		buscarExigirFotoAssinatura(db),
 		buscarExigirGpsAssinatura(db),
 		buscarExigirCodigoEmailAssinatura(db),

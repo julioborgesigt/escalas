@@ -11,7 +11,7 @@ import {
 	registrarAuditComContexto
 } from '$lib/db';
 import { policialSchema } from '$lib/schemas/policial';
-import { isAdminGeral, isAnyAdmin } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {

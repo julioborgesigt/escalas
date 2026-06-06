@@ -23,7 +23,6 @@ import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } 
 
 // OIDs reaproveitados de pdf-signing.ts
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
-const OID_TST_INFO = '1.2.840.113549.1.9.16.1.4';
 const OID_SIGNATURE_TIME_STAMP_TOKEN = '1.2.840.113549.1.9.16.2.14';
 
 export interface VerificationCertificado {
@@ -185,14 +184,6 @@ function uint8ToBinaryString(b: Uint8Array): string {
 	let s = '';
 	for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
 	return s;
-}
-
-function findChild(node: forge.asn1.Asn1, tagClass: number, type: number): forge.asn1.Asn1 | null {
-	if (!Array.isArray(node.value)) return null;
-	for (const child of node.value as forge.asn1.Asn1[]) {
-		if (child.tagClass === tagClass && (child.type as number) === type) return child;
-	}
-	return null;
 }
 
 interface CmsParsed {
