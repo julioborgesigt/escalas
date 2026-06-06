@@ -15,7 +15,12 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
-import { validarWebhookSync } from '$lib/server/webhook-auth';
+import {
+	validarWebhookSync,
+	validarReplayProtection,
+	replayEnforceLigado,
+	logFaltaReplayHeaders
+} from '$lib/server/webhook-auth';
 import { logger } from '$lib/server/logger';
 import { unauthorized } from '$lib/server/api';
 
@@ -32,6 +37,19 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 	}
 
 	const db = getDB(platform);
+
+	// Replay protection: evita abusos de chamadas repetitivas de limpeza
+	const replay = await validarReplayProtection(db, request);
+	if (!replay.ok) {
+		const ctx = { ip: getClientAddress(), reason: replay.reason };
+		if (replay.reason === 'missing-headers' && !replayEnforceLigado(env)) {
+			logFaltaReplayHeaders('limpeza-retencao', ctx, import.meta.env.PROD);
+		} else {
+			logger.warn('[limpeza-retencao] replay protection rejeitou', ctx);
+			return unauthorized();
+		}
+	}
+
 	const config = await carregarConfigRetencao(db);
 	const resultado = await executarLimpezaRetencao(db, config);
 

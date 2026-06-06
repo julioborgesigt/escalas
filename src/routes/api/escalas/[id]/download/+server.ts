@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
 
-	registrarAuditComContexto(db, {
+	await registrarAuditComContexto(db, {
 		usuario: u,
 		acao: 'exportar_escala',
 		entidade: 'escala',

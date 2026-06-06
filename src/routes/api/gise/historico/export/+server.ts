@@ -180,7 +180,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		return notFound('Escala finalizada para o filtro informado');
 	}
 
-	registrarAuditComContexto(db, {
+	await registrarAuditComContexto(db, {
 		usuario: u,
 		acao: 'exportar_gise',
 		entidade: 'gise_historico',

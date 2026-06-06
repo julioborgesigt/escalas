@@ -57,7 +57,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		return forbidden(perm.motivo ?? 'Sem permissão para acessar downloads desta escala GISE.');
 	}
 
-	registrarAuditComContexto(db, {
+	await registrarAuditComContexto(db, {
 		usuario: u,
 		acao: 'exportar_gise',
 		entidade: 'gise',
