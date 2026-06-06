@@ -38,8 +38,15 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		throw redirect(302, '/');
 	}
 
-	const supervisorId = !isGeral && !isSeccional && isSupervisor && !isMembro ? u.id : undefined;
-	const policialId = !isGeral && !isSeccional ? u.id : undefined;
+	const isUnidade = isAdminUnidade(u);
+	// Escopo da lista (Opção B): admin geral vê todas; os demais veem a UNIÃO das
+	// GISEs a que têm vínculo — participação da própria seccional (admin
+	// seccional/unidade) E/OU GISEs onde são quadro de supervisão/membro
+	// (qualquer policial — inclui um admin seccional que supervisiona GISE de
+	// outra seccional, evitando regressão).
+	const seccionalParticipanteId =
+		!isGeral && (isSeccional || isUnidade) ? (u.papel_unidade_id ?? undefined) : undefined;
+	const policialId = !isGeral && u.tipo === 'policial' ? u.id : undefined;
 	const [
 		escalas,
 		ativa,
@@ -48,7 +55,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		defaultHoraEntrada,
 		defaultHoraSaida
 	] = await Promise.all([
-		listarGiseEscalas(db, supervisorId, policialId),
+		listarGiseEscalas(db, undefined, policialId, seccionalParticipanteId),
 		buscarGiseAtiva(db),
 		db
 			.select({ id: unidades.id, nome: unidades.nome })
@@ -61,8 +68,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 		buscarConfiguracao(db, 'gise_default_hora_saida')
 	]);
 
-	const isUnidade = isAdminUnidade(u);
-	const minhaSeccionalId = isSeccional || isAdminUnidade(u) ? u.papel_unidade_id : null;
+	const minhaSeccionalId = isSeccional || isUnidade ? u.papel_unidade_id : null;
 
 	return {
 		escalas,
