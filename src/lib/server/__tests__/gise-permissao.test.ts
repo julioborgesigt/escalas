@@ -71,17 +71,36 @@ describe('verificarPermissaoGise', () => {
 		expect(getSpy).not.toHaveBeenCalled();
 	});
 
-	it('admin seccional pode mesmo sem ser do quadro', async () => {
-		const u = user({ papel: 'admin_seccional' });
+	it('admin seccional PARTICIPANTE (sua seccional está na GISE) pode', async () => {
+		membroResult = { id: 1 }; // EXISTS em gise_seccionais retorna linha
+		const u = user({ papel: 'admin_seccional', papel_unidade_id: 50 });
 		const r = await verificarPermissaoGise(fakeDb, gise(), u);
 		expect(r).toEqual({ permitido: true });
+	});
+
+	it('admin seccional NÃO participante (seccional fora da GISE) NÃO pode', async () => {
+		membroResult = undefined; // nenhuma gise_seccional bate
+		const u = user({ papel: 'admin_seccional', papel_unidade_id: 77 });
+		const r = await verificarPermissaoGise(fakeDb, gise(), u);
+		expect(r.permitido).toBe(false);
+		expect(r.motivo).toMatch(/seccional/i);
+	});
+
+	it('admin seccional sem papel_unidade_id NÃO pode (sem query)', async () => {
+		const u = user({ papel: 'admin_seccional', papel_unidade_id: null });
+		const r = await verificarPermissaoGise(fakeDb, gise(), u);
+		expect(r.permitido).toBe(false);
 		expect(getSpy).not.toHaveBeenCalled();
 	});
 
-	it('admin unidade pode mesmo sem ser do quadro', async () => {
-		const u = user({ papel: 'admin_unidade' });
-		const r = await verificarPermissaoGise(fakeDb, gise(), u);
-		expect(r).toEqual({ permitido: true });
+	it('admin unidade participante pode; não-participante não', async () => {
+		membroResult = { id: 2 };
+		const uPart = user({ papel: 'admin_unidade', papel_unidade_id: 60 });
+		expect(await verificarPermissaoGise(fakeDb, gise(), uPart)).toEqual({ permitido: true });
+
+		membroResult = undefined;
+		const uNao = user({ papel: 'admin_unidade', papel_unidade_id: 61 });
+		expect((await verificarPermissaoGise(fakeDb, gise(), uNao)).permitido).toBe(false);
 	});
 
 	it('supervisor designado pode (sem query de membros)', async () => {

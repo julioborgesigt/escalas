@@ -31,11 +31,15 @@ jobs:
       # antes do svelte-check, senão ele falha por falta de tipos gerados.
       - run: npx svelte-kit sync
 
-      # Lint e format têm dívida técnica pré-existente (Sprint 3 do plano de
-      # remediação). Rodam mas não bloqueiam o build para não travar fixes
-      # urgentes. Use `npm run lint:strict` localmente para o gate apertado.
-      - run: npm run lint
-        continue-on-error: true
+      # Lint — gate de NÃO-REGRESSÃO (ratchet). Há dívida pré-existente (543
+      # warnings, majoritariamente em .svelte, onde `eslint --fix` não aplica os
+      # core-rules). Em vez de bloquear tudo (`lint:strict`/max-warnings 0,
+      # inviável hoje) ou ignorar (`continue-on-error`, deixa a dívida CRESCER),
+      # `lint:ci` fixa um TETO: qualquer PR que ADICIONE warning falha o CI.
+      # Conforme a dívida for paga, baixe o número em `lint:ci` (package.json)
+      # até chegar a 0 e então trocar por `lint:strict`.
+      - run: npm run lint:ci
+      # Format ainda é advisory (dívida separada — rode `npm run format`).
       - run: npm run format:check
         continue-on-error: true
 

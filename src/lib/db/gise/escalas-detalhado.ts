@@ -1,4 +1,4 @@
-import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql } from 'drizzle-orm';
+import { eq, and, or, ne, isNotNull, desc, asc, inArray, sql, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -17,27 +17,48 @@ import { logger } from '../../server/logger';
 import type { GiseDetalhado, GiseUnidadeSlot } from './types';
 import { buscarUnidadeIdSupervisaoExtra } from '../../server/gise-supervisao-extra';
 
-export async function listarGiseEscalas(db: Database, supervisorId?: number, policialId?: number) {
+export async function listarGiseEscalas(
+	db: Database,
+	supervisorId?: number,
+	policialId?: number,
+	seccionalParticipanteId?: number
+) {
 	let query = db.select().from(giseEscalas).$dynamic();
 
+	// União de vínculos: cada filtro fornecido vira uma condição OR. Sem nenhum
+	// filtro (todos undefined) → sem WHERE → todas as GISEs (uso do admin geral
+	// e do export administrativo).
+	const conds: SQL[] = [];
 	if (supervisorId) {
-		query = query.where(eq(giseEscalas.supervisor_id, supervisorId));
-	} else if (policialId) {
-		// Busca escalas onde o policial é supervisor OU membro
-		query = query.where(
-			or(
-				eq(giseEscalas.supervisor_id, policialId),
-				eq(giseEscalas.assessor_id, policialId),
-				eq(giseEscalas.seint1_id, policialId),
-				eq(giseEscalas.seint2_id, policialId),
-				sql`EXISTS (
-					SELECT 1 FROM ${giseMembros} m
-					JOIN ${giseEquipes} eq ON m.equipe_id = eq.id
-					JOIN ${giseSeccionais} s ON eq.gise_seccional_id = s.id
-					WHERE s.gise_id = ${giseEscalas.id} AND m.policial_id = ${policialId}
-				)`
-			)
+		conds.push(eq(giseEscalas.supervisor_id, supervisorId));
+	}
+	if (policialId) {
+		// GISEs onde o policial é quadro de supervisão OU membro de equipe.
+		conds.push(
+			eq(giseEscalas.supervisor_id, policialId),
+			eq(giseEscalas.assessor_id, policialId),
+			eq(giseEscalas.seint1_id, policialId),
+			eq(giseEscalas.seint2_id, policialId),
+			sql`EXISTS (
+				SELECT 1 FROM ${giseMembros} m
+				JOIN ${giseEquipes} eq ON m.equipe_id = eq.id
+				JOIN ${giseSeccionais} s ON eq.gise_seccional_id = s.id
+				WHERE s.gise_id = ${giseEscalas.id} AND m.policial_id = ${policialId}
+			)`
 		);
+	}
+	if (seccionalParticipanteId) {
+		// GISEs que incluem a seccional/unidade administrada (escopo Opção B).
+		conds.push(
+			sql`EXISTS (
+				SELECT 1 FROM ${giseSeccionais} s
+				WHERE s.gise_id = ${giseEscalas.id}
+					AND (s.seccional_id = ${seccionalParticipanteId} OR s.unidade_operacional_id = ${seccionalParticipanteId})
+			)`
+		);
+	}
+	if (conds.length > 0) {
+		query = query.where(or(...conds));
 	}
 
 	const escalas = await query.orderBy(desc(giseEscalas.data_inicio), desc(giseEscalas.id)).all();
