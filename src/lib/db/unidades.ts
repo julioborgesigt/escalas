@@ -1,4 +1,4 @@
-import { eq, asc, sql } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { unidades, policiais, escalas } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';

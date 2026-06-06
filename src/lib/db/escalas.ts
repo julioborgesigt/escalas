@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray, like, isNull } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,

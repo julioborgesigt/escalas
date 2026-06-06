@@ -12,8 +12,6 @@ import {
 	hasR2,
 	registrarAuditComContexto
 } from '$lib/db';
-import { eq } from 'drizzle-orm';
-import { unidades, escalas } from '$lib/server/schema';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const u = locals.usuario;

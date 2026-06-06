@@ -12,7 +12,6 @@
 import forge from 'node-forge';
 import { logger } from './logger';
 
-const OID_OCSP_BASIC = '1.3.6.1.5.5.7.48.1.1';
 const OID_OCSP_AIA = '1.3.6.1.5.5.7.48.1';
 const OID_OCSP_NONCE = '1.3.6.1.5.5.7.48.1.2';
 const OID_SHA1 = '1.3.14.3.2.26';

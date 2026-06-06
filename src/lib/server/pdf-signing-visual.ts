@@ -35,19 +35,15 @@ export async function adicionarRodapeSimples(
 		verificationUrl,
 		rubricBase64,
 		customRubricX,
-		customRubricY,
-		ip,
-		latitude,
-		longitude
+		customRubricY
 	} = options;
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-	const fontMono = await pdfDoc.embedFont(StandardFonts.CourierBold);
 
 	const pages = pdfDoc.getPages();
 	const lastPage = pages[pages.length - 1];
-	const { width, height: pageHeight } = lastPage.getSize();
+	const { width } = lastPage.getSize();
 
 	// --- Posicionamento simplificado (conversão mm para pontos) ---
 	const mmToPts = 2.8346;
@@ -717,13 +713,12 @@ export async function adicionarRodapeUniversal(
 	pdfBytes: Uint8Array,
 	options: RodapeUniversalOptions
 ): Promise<Uint8Array> {
-	const { documentHash, verificationUrl, verificationHash, contentPageCount } = options;
+	const { documentHash, contentPageCount } = options;
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
 
-	const cNavy = rgb(0.07, 0.14, 0.42);
 	const cGray = rgb(0.55, 0.55, 0.6);
 	const cLightLine = rgb(0.8, 0.85, 0.92);
 
@@ -732,7 +727,6 @@ export async function adicionarRodapeUniversal(
 	const lastContentIdx = contentPageCount !== undefined ? contentPageCount - 1 : pages.length - 1;
 
 	const hashAbrev = documentHash ? documentHash.slice(0, 16) + '...' + documentHash.slice(-8) : '';
-	const urlLimpa = verificationUrl.replace('https://', '');
 
 	for (let i = 0; i <= lastContentIdx; i++) {
 		const page = pages[i];

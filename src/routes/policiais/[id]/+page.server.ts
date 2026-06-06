@@ -9,7 +9,7 @@ import {
 	promoverPolicial
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
-import { isAdminGeral, isAdminSeccional, isAdminUnidade, isAnyAdmin } from '$lib/auth';
+import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {

@@ -105,7 +105,7 @@ export const POST: RequestHandler = async ({
 			try {
 				const logoObj = await r2Logo.get('assets/logo_gise.jpg');
 				if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
-			} catch (e) {
+			} catch {
 				/* logo optional */
 			}
 		}
