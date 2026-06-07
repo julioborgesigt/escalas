@@ -847,7 +847,7 @@
 					</div>
 
 					<!-- Equipes do slot -->
-					<div class="p-3 flex flex-col md:flex-row gap-3">
+					<div class="px-3 pt-3 flex flex-col md:flex-row gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}">
 						{#each slot.equipes ?? [] as equipe (equipe.id)}
 							<div
 								class="flex-1 rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
@@ -1239,12 +1239,14 @@
 								{/if}
 							</div>
 						{/each}
+					</div>
 
-						<!-- Admin Geral: adicionar equipe a este slot -->
-						{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+					<!-- Admin Geral: adicionar equipe a este slot -->
+					{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+						<div class="px-3 pb-3 flex justify-start">
 							{#if adicionandoEquipe && adicionandoEquipeSlotId === slot.id}
 								<div
-									class="flex flex-wrap gap-2 items-end mt-2 p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600"
+									class="flex flex-wrap gap-2 items-end p-3 rounded-xl border border-dashed border-surface-300 dark:border-surface-600 w-full sm:w-auto"
 								>
 									<div>
 										<label
@@ -1330,7 +1332,7 @@
 							{:else}
 								<button
 									type="button"
-									class="btn btn-sm preset-outlined-success-500 w-auto flex items-center justify-center gap-1 whitespace-nowrap mt-1 self-start"
+									class="btn btn-sm preset-outlined-success-500 w-auto flex items-center justify-center gap-1 whitespace-nowrap mt-1"
 									onclick={() => {
 										adicionandoEquipe = true;
 										adicionandoEquipeSlotId = slot.id;
@@ -1350,8 +1352,8 @@
 									+ Adicionar + equipe(s)
 								</button>
 							{/if}
-						{/if}
-					</div>
+						</div>
+					{/if}
 				</div>
 			{/each}
 
