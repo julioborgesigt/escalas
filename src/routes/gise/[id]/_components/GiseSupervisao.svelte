@@ -454,12 +454,12 @@
 			</form>
 		{:else}
 			<div
-				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-50/50 dark:bg-surface-800/40 border border-surface-200/60 dark:border-surface-700/60 backdrop-blur-sm"
+				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-100/70 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800/80 backdrop-blur-sm"
 			>
 				<div class="space-y-2.5 sm:space-y-4">
 					<div class="flex items-start gap-2.5 sm:gap-4">
 						<div
-							class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
+							class="mt-1 flex-shrink-0 w-10 h-10 rounded-full bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 flex items-center justify-center text-primary-600 dark:text-primary-400 shadow-sm"
 						>
 							<UserRound size={20} />
 						</div>
@@ -495,7 +495,7 @@
 						{#if gise.assessor_id}
 							{@const stAss = marcador('assessor', gise.assessor_id)}
 							<div
-								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-white/60 dark:bg-surface-900/40 border border-surface-100 dark:border-surface-700/50"
+								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200"
 							>
 								<div class="flex items-center gap-2.5 min-w-0">
 									<div class="text-surface-400 dark:text-surface-500 shrink-0">
@@ -540,7 +540,7 @@
 						{#if gise.seint1_id}
 							{@const stS1 = marcador('seint', gise.seint1_id)}
 							<div
-								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/10 dark:border-secondary-500/20"
+								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
 							>
 								<div class="flex items-center gap-2.5 min-w-0">
 									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
@@ -583,7 +583,7 @@
 						{#if gise.seint2_id}
 							{@const stS2 = marcador('seint', gise.seint2_id)}
 							<div
-								class="flex items-center justify-between gap-2 p-2 px-3 rounded-lg bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/10 dark:border-secondary-500/20"
+								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
 							>
 								<div class="flex items-center gap-2.5 min-w-0">
 									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
@@ -650,7 +650,7 @@
 										{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
 									</p>
 									<div
-										class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col"
+										class="flex-1 rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
 									>
 										<!-- Header: sempre visível, clicável no mobile -->
 										<button
@@ -866,7 +866,7 @@
 										Relatório de extra (Supervisão e apoio)
 									</p>
 									<div
-										class="flex-1 rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col"
+										class="flex-1 rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
 									>
 										{#if !extraSupervisaoConfigurado}
 											<p

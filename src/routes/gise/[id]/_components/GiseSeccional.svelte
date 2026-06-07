@@ -662,7 +662,7 @@
 						(modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
 					(isAdminGeral && podeEditar && modoEdicaoGeral)}
 				<div
-					class="rounded-xl border border-primary-300/50 dark:border-primary-700/40 bg-primary-500/5 overflow-visible"
+					class="rounded-xl border border-primary-300 dark:border-primary-700/40 bg-primary-500/10 dark:bg-primary-500/5 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)]"
 				>
 					<!-- Cabeçalho do slot -->
 					<div
@@ -850,7 +850,7 @@
 					<div class="px-3 pt-3 grid grid-cols-1 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''} gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}">
 						{#each slot.equipes ?? [] as equipe (equipe.id)}
 							<div
-								class="flex-1 rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
+								class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 p-3 sm:p-4 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"
 							>
 								<div
 									class="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4"

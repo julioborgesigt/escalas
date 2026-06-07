@@ -137,7 +137,7 @@
 		Assinaturas em lote (equipes)
 	</p>
 	<div
-		class="rounded-xl border border-surface-200/80 dark:border-surface-700/80 bg-white/70 dark:bg-surface-900/50 overflow-hidden flex flex-col flex-1"
+		class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col flex-1 shadow-sm hover:shadow-md transition-shadow duration-300"
 	>
 		<!-- Header -->
 		<button
