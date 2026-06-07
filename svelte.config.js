@@ -22,7 +22,7 @@ const config = {
 		adapter: adapter(),
 
 		/**
-		 * CSP gerenciada pelo SvelteKit para respostas HTML.
+		 * CSP gerenciada pelo SvelteKit para respostas HTML...
 		 * `mode: 'auto'` adiciona automaticamente nonces (SSR) ou hashes (prerender)
 		 * para os inline scripts/styles que o próprio framework emite na hidratação,
 		 * permitindo que `script-src` seja `'self'` (sem `'unsafe-inline'`) — fecha
