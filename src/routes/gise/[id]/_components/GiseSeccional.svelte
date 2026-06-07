@@ -847,7 +847,7 @@
 					</div>
 
 					<!-- Equipes do slot -->
-					<div class="px-3 pt-3 flex flex-col md:flex-row gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}">
+					<div class="px-3 pt-3 grid grid-cols-1 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''} gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}">
 						{#each slot.equipes ?? [] as equipe (equipe.id)}
 							<div
 								class="flex-1 rounded-xl border border-surface-300 dark:border-surface-600 p-3 sm:p-4 bg-surface-50 dark:bg-surface-900/80 shadow-sm"
