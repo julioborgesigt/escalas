@@ -59,16 +59,16 @@ export function getFaltandoRubrica(sec: GiseSecComMembros): string {
 }
 
 export const SECCIONAL_BG_CLASSES: readonly string[] = [
-	'bg-blue-100/65 dark:bg-blue-900/15',
-	'bg-emerald-100/65 dark:bg-emerald-900/15',
-	'bg-indigo-100/65 dark:bg-indigo-900/15',
-	'bg-violet-100/65 dark:bg-violet-900/15',
-	'bg-amber-100/65 dark:bg-amber-900/15',
-	'bg-rose-100/65 dark:bg-rose-900/15',
-	'bg-cyan-100/65 dark:bg-cyan-900/15',
-	'bg-teal-100/65 dark:bg-teal-900/15',
-	'bg-sky-100/65 dark:bg-sky-900/15',
-	'bg-slate-200/65 dark:bg-slate-800/20'
+	'bg-blue-100 dark:bg-blue-900/25',
+	'bg-emerald-100 dark:bg-emerald-900/25',
+	'bg-indigo-100 dark:bg-indigo-900/25',
+	'bg-violet-100 dark:bg-violet-900/25',
+	'bg-amber-100 dark:bg-amber-900/25',
+	'bg-rose-100 dark:bg-rose-900/25',
+	'bg-cyan-100 dark:bg-cyan-900/25',
+	'bg-teal-100 dark:bg-teal-900/25',
+	'bg-sky-100 dark:bg-sky-900/25',
+	'bg-slate-200 dark:bg-slate-800/30'
 ];
 
 export function getSeccionalColorClass(seccionalId: number): string {

@@ -360,7 +360,7 @@
 	{/if}
 {/snippet}
 
-<div class="rounded-2xl border border-surface-200 dark:border-surface-800 mb-4 overflow-visible">
+<div class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 mb-4 overflow-visible {getSeccionalColorClass(sec.seccional_id)} shadow-sm">
 	<!-- Cabeçalho da seccional -->
 	<div
 		class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
