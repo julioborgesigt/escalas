@@ -360,12 +360,10 @@
 	{/if}
 {/snippet}
 
-<div class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 mb-4 overflow-visible {getSeccionalColorClass(sec.seccional_id)} shadow-sm">
+<div class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden {getSeccionalColorClass(sec.seccional_id)} shadow-sm hover:shadow-md transition-shadow duration-300">
 	<!-- Cabeçalho da seccional -->
 	<div
-		class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {getSeccionalColorClass(
-			sec.seccional_id
-		)} {recolhida ? 'rounded-2xl shadow-sm' : 'rounded-t-2xl'}"
+		class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {recolhida ? '' : 'border-b border-surface-200/40 dark:border-surface-700/40'}"
 	>
 		<button
 			type="button"
@@ -438,9 +436,7 @@
 		{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
 			<Accordion
 				collapsible
-				class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
-					sec.seccional_id
-				)}"
+				class="border-b border-surface-200 dark:border-surface-700 sm:hidden"
 			>
 				<Accordion.Item value="downloads">
 					<Accordion.ItemTrigger
@@ -477,9 +473,7 @@
 			{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 				<Accordion
 					collapsible
-					class="border-b border-surface-200 dark:border-surface-700 sm:hidden {getSeccionalColorClass(
-						sec.seccional_id
-					)}"
+					class="border-b border-surface-200 dark:border-surface-700 sm:hidden"
 				>
 					<Accordion.Item value="opcoes">
 						<Accordion.ItemTrigger
@@ -557,9 +551,7 @@
 
 		<!-- Ações Seccional & Downloads -->
 		<div
-			class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-4 px-4 sm:px-5 pb-3 {getSeccionalColorClass(
-				sec.seccional_id
-			)} border-b border-surface-200 dark:border-surface-700"
+			class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-4 px-4 sm:px-5 pb-3 border-b border-surface-200 dark:border-surface-700"
 		>
 			{#if podeDownload}
 				<div class="max-sm:hidden w-full min-w-0">
