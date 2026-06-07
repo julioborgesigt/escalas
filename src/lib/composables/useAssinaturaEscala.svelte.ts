@@ -3,6 +3,7 @@
  * Centraliza toda a lógica de assinatura para reutilização.
  */
 
+import { untrack } from 'svelte';
 import { toaster } from '$lib/toast';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { UsuarioLogado } from '$lib/auth';
@@ -30,8 +31,18 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 
 	// SERPRO
 	let serproClient = $state<SerproSignerClient | null>(null);
-	let serproSignerName = $state(usuario?.nome ?? '');
+	let serproSignerName = $state('');
 	let serproSignerCpf = $state('');
+
+	$effect(() => {
+		if (usuario?.nome) {
+			untrack(() => {
+				if (!serproSignerName) {
+					serproSignerName = usuario.nome;
+				}
+			});
+		}
+	});
 
 	// Rubrica/Selfie/GPS
 	let rubricaCapturada = $state<string | null>(null);
