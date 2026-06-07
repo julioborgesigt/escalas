@@ -200,7 +200,7 @@
 						</div>
 					{:else}
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 px-2">
-							{#each data.minhasEscalas as escala (escala.id)}
+							{#each data.minhasEscalas as escala (`${escala.id}_${escala.equipe_id}_${escala.equipe_tipo}`)}
 								{@const estaCarregando =
 									!!navegandoParaEscala &&
 									navigating?.to?.url.searchParams.get('giseId') === String(escala.id)}
