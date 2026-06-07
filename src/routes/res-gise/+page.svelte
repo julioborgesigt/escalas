@@ -253,7 +253,7 @@
 
 										{#if escala.equipeRespondida || escala.extraAssinado || (escala.presenca?.saida_timestamp && !escala.extraAssinado)}
 											<div class="flex flex-row gap-2 w-full sm:w-auto sm:gap-1.5">
-												{#if escala.equipeRespondida}
+												{#if escala.equipeRespondida && escala.seccional_id !== 0}
 													{@render actionButton(
 														'PRODUTIVIDADE',
 														'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',

@@ -230,7 +230,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	if (format === 'produtividade') {
-		if (!seccionalId) return badRequest('Seccional é obrigatória');
+		if (seccionalId === undefined || seccionalId === null) return badRequest('Seccional é obrigatória');
 
 		const { buscarRespostasProdutividadeSeccional } = await import('$lib/db');
 		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export');
