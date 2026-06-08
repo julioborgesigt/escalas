@@ -14,7 +14,8 @@
 		CheckCircle2,
 		Clock,
 		PenLine,
-		X
+		X,
+		Check
 	} from 'lucide-svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -327,8 +328,8 @@
 								>DPC Supervisão</span
 							>
 							{#if editandoPapel === 'supervisor'}
-								<div class="flex flex-wrap items-center gap-2 mt-1">
-									<div class="w-full sm:max-w-md">
+								<div class="flex items-center gap-1.5 mt-1 w-full">
+									<div class="flex-1 sm:max-w-md">
 										<SearchableSelect
 											id="supId"
 											bind:value={supervisorId}
@@ -340,20 +341,22 @@
 											class="w-full"
 										/>
 									</div>
-									<div class="flex items-center gap-1.5">
+									<div class="flex items-center gap-0.5 shrink-0">
 										<button
 											type="submit"
-											class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+											class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
 											disabled={pendingCrud}
+											title="Salvar"
 										>
-											{pendingCrud ? 'Salvando...' : 'Salvar'}
+											<Check size={18} />
 										</button>
 										<button
 											type="button"
-											class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+											class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
 											onclick={cancelarEdicao}
+											title="Cancelar"
 										>
-											Cancelar
+											<X size={18} />
 										</button>
 									</div>
 								</div>
@@ -423,17 +426,37 @@
 											>Assessor</span
 										>
 										{#if editandoPapel === 'assessor'}
-											<div class="w-full mt-1">
-												<SearchableSelect
-													id="assessorId"
-													bind:value={assessorId}
-													loadOptions={buscarOips}
-													selectedOption={selectedFromPoliciais(assessorId)}
-													placeholder="Pesquisar Assessor..."
-													minSearchChars={2}
-													showTrigger={false}
-													class="w-full"
-												/>
+											<div class="flex items-center gap-1.5 mt-1 w-full">
+												<div class="flex-1">
+													<SearchableSelect
+														id="assessorId"
+														bind:value={assessorId}
+														loadOptions={buscarOips}
+														selectedOption={selectedFromPoliciais(assessorId)}
+														placeholder="Pesquisar Assessor..."
+														minSearchChars={2}
+														showTrigger={false}
+														class="w-full"
+													/>
+												</div>
+												<div class="flex items-center gap-0.5 shrink-0">
+													<button
+														type="submit"
+														class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+														disabled={pendingCrud}
+														title="Salvar"
+													>
+														<Check size={18} />
+													</button>
+													<button
+														type="button"
+														class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+														onclick={cancelarEdicao}
+														title="Cancelar"
+													>
+														<X size={18} />
+													</button>
+												</div>
 											</div>
 										{:else}
 											<div class="flex items-center gap-2">
@@ -529,22 +552,7 @@
 										</label>
 									</div>
 								{/if}
-								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
-									<button
-										type="submit"
-										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
-										disabled={pendingCrud}
-									>
-										{pendingCrud ? 'Salvando...' : 'Salvar'}
-									</button>
-									<button
-										type="button"
-										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
-										onclick={cancelarEdicao}
-									>
-										Cancelar
-									</button>
-								</div>
+
 							{/if}
 						</div>
 
@@ -562,17 +570,37 @@
 										>NUIP OIP</span
 									>
 									{#if editandoPapel === 'seint1'}
-										<div class="w-full mt-1">
-											<SearchableSelect
-												id="seint1Id"
-												bind:value={seint1Id}
-												loadOptions={buscarOips}
-												selectedOption={selectedFromPoliciais(seint1Id)}
-												placeholder="Pesquisar NUIP OIP..."
-												minSearchChars={2}
-												showTrigger={false}
-												class="w-full"
-											/>
+										<div class="flex items-center gap-1.5 mt-1 w-full">
+											<div class="flex-1">
+												<SearchableSelect
+													id="seint1Id"
+													bind:value={seint1Id}
+													loadOptions={buscarOips}
+													selectedOption={selectedFromPoliciais(seint1Id)}
+													placeholder="Pesquisar NUIP OIP..."
+													minSearchChars={2}
+													showTrigger={false}
+													class="w-full"
+												/>
+											</div>
+											<div class="flex items-center gap-0.5 shrink-0">
+												<button
+													type="submit"
+													class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+													disabled={pendingCrud}
+													title="Salvar"
+												>
+													<Check size={18} />
+												</button>
+												<button
+													type="button"
+													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+													onclick={cancelarEdicao}
+													title="Cancelar"
+												>
+													<X size={18} />
+												</button>
+											</div>
 										</div>
 									{:else}
 										<div class="flex items-center gap-2">
@@ -630,24 +658,7 @@
 								</div>
 							{/if}
 
-							{#if editandoPapel === 'seint1'}
-								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
-									<button
-										type="submit"
-										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
-										disabled={pendingCrud}
-									>
-										{pendingCrud ? 'Salvando...' : 'Salvar'}
-									</button>
-									<button
-										type="button"
-										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
-										onclick={cancelarEdicao}
-									>
-										Cancelar
-									</button>
-								</div>
-							{/if}
+
 						</div>
 
 						<!-- NUIP OIP 2 -->
@@ -664,17 +675,37 @@
 										>NUIP OIP</span
 									>
 									{#if editandoPapel === 'seint2'}
-										<div class="w-full mt-1">
-											<SearchableSelect
-												id="seint2Id"
-												bind:value={seint2Id}
-												loadOptions={buscarOips}
-												selectedOption={selectedFromPoliciais(seint2Id)}
-												placeholder="Pesquisar NUIP OIP..."
-												minSearchChars={2}
-												showTrigger={false}
-												class="w-full"
-											/>
+										<div class="flex items-center gap-1.5 mt-1 w-full">
+											<div class="flex-1">
+												<SearchableSelect
+													id="seint2Id"
+													bind:value={seint2Id}
+													loadOptions={buscarOips}
+													selectedOption={selectedFromPoliciais(seint2Id)}
+													placeholder="Pesquisar NUIP OIP..."
+													minSearchChars={2}
+													showTrigger={false}
+													class="w-full"
+												/>
+											</div>
+											<div class="flex items-center gap-0.5 shrink-0">
+												<button
+													type="submit"
+													class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+													disabled={pendingCrud}
+													title="Salvar"
+												>
+													<Check size={18} />
+												</button>
+												<button
+													type="button"
+													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+													onclick={cancelarEdicao}
+													title="Cancelar"
+												>
+													<X size={18} />
+												</button>
+											</div>
 										</div>
 									{:else}
 										<div class="flex items-center gap-2">
@@ -732,24 +763,7 @@
 								</div>
 							{/if}
 
-							{#if editandoPapel === 'seint2'}
-								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
-									<button
-										type="submit"
-										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
-										disabled={pendingCrud}
-									>
-										{pendingCrud ? 'Salvando...' : 'Salvar'}
-									</button>
-									<button
-										type="button"
-										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
-										onclick={cancelarEdicao}
-									>
-										Cancelar
-									</button>
-								</div>
-							{/if}
+
 						</div>
 					</div>
 
@@ -761,6 +775,12 @@
 			<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
 			<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 			<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+			{#if editandoPapel !== 'assessor'}
+				<input type="hidden" name="assessor_email_notificacao" value={assessorEmailNotificacao ?? ''} />
+				{#if assessorId != null}
+					<input type="hidden" name="confirmar_email_assessor" value="1" />
+				{/if}
+			{/if}
 		</form>
 				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
 					{@const mostrarColEscala =
