@@ -70,7 +70,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
 
 	// Para o PDF de uma escala assinada decidimos cedo quem recebe o quê:
-	// Admin Geral/Super → blob forense do R2 (com manifesto); demais → cópia de
+	// Super Admin → blob forense do R2 (com manifesto); demais → cópia de
 	// conferência (regenerada, sem manifesto). Registramos a distinção na auditoria.
 	const querPdfAssinavel =
 		format === 'pdf' && (escala.tipo === 'expediente' || escala.tipo === 'plantao');
@@ -96,7 +96,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 		// ── PDF de escala assinada ───────────────────────────────────────────
 		if (querPdfAssinavel && docAssinado?.r2_key) {
 			if (privilegiado) {
-				// Admin Geral/Super: blob forense íntegro (com manifesto) do R2.
+				// Super Admin: blob forense íntegro (com manifesto) do R2.
 				const r2 = getR2(platform);
 				if (r2) {
 					try {

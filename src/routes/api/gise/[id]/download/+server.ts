@@ -83,7 +83,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			'extraordinario'
 		);
 
-		// 1. Se existir assinatura: Admin Geral/Super recebem o blob forense íntegro
+		// 1. Se existir assinatura: o Super Admin recebe o blob forense íntegro
 		//    do R2 (com manifesto); os demais recebem a cópia de conferência regenerada.
 		if (reportSignature?.verification_hash) {
 			if (podeBaixarForense(u)) {
@@ -223,7 +223,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	if (format === 'pdf') {
 		const docGise = gise.documento;
 
-		// Admin Geral/Super com documento assinado: blob forense íntegro (com manifesto) do R2.
+		// Super Admin com documento assinado: blob forense íntegro (com manifesto) do R2.
 		if (docGise?.r2_key && podeBaixarForense(u)) {
 			const r2 = getR2(platform);
 			if (r2) {
