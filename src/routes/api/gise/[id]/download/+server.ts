@@ -253,15 +253,16 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const { gerarPdfGise } = await import('$lib/server/export');
 		const r2Logo = getR2(platform);
 		let logoBytes: Uint8Array | undefined;
+		let logoCearaBytes: Uint8Array | undefined;
 		if (r2Logo) {
 			try {
-				const logoObj = await r2Logo.get('assets/logogise.jpg');
-				if (logoObj) {
-					logoBytes = new Uint8Array(await logoObj.arrayBuffer());
-					logger.debug('[gise/download] Logo carregada do R2', { bytes: logoBytes.length });
-				} else {
-					logger.warn('[gise/download] Logo ausente no R2 (assets/logogise.jpg)');
-				}
+				const [logoObj, cearaObj] = await Promise.all([
+					r2Logo.get('assets/logogise.jpg'),
+					r2Logo.get('assets/logo_ceara.jpg')
+				]);
+				if (logoObj) logoBytes = new Uint8Array(await logoObj.arrayBuffer());
+				else logger.warn('[gise/download] Logo ausente no R2 (assets/logogise.jpg)');
+				if (cearaObj) logoCearaBytes = new Uint8Array(await cearaObj.arrayBuffer());
 			} catch (e) {
 				logger.error('[gise/download] Erro ao buscar logo do R2', {
 					error: e instanceof Error ? e.message : String(e)
@@ -271,7 +272,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			logger.warn('[gise/download] R2 binding indisponível');
 		}
 		const brForPdf = await getBreveRelatorioEnvMergido(db);
-		const result = await gerarPdfGise(toGisePdfData(gise, brForPdf), logoBytes);
+		const result = await gerarPdfGise(toGisePdfData(gise, brForPdf), logoBytes, logoCearaBytes);
 
 		// Documento assinado + usuário não privilegiado → cópia de conferência
 		// (rascunho + rodapé/QR para /validar, sem manifesto forense).
@@ -281,8 +282,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				pdfRascunho: result.pdf,
 				assinanteNome: docGise.assinante_nome,
 				verificationHash: hash,
-				verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined,
-				rubricBase64: docGise.rubrica ?? undefined
+				verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
 			});
 			return new Response(buffer as unknown as BodyInit, {
 				headers: {

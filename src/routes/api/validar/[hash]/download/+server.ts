@@ -137,13 +137,10 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		}
 		if (documento.tipo_doc === 'gise') {
 			const { buscarGiseDetalhado } = await import('$lib/db');
-			const { gerarPdfGise, toGisePdfData } = await import('$lib/server/export');
-			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
+			const { gerarRascunhoGisePdf } = await import('$lib/server/conferencia-pdf');
 			const gise = await buscarGiseDetalhado(db, documento.escala_id);
 			if (!gise) return notFound('GISE');
-			const logoBytes = await carregarLogoConferencia(platform, 'assets/logogise.jpg');
-			const brEnv = await getBreveRelatorioEnvMergido(db);
-			const rascunho = (await gerarPdfGise(toGisePdfData(gise, brEnv), logoBytes)).pdf;
+			const rascunho = await gerarRascunhoGisePdf(db, gise, platform);
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,
 				assinanteNome: documento.assinante_nome,

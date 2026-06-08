@@ -78,17 +78,22 @@ export const POST: RequestHandler = async ({
 
 	const r2Logo = getR2(platform);
 	let logoJpgBytes: Uint8Array | undefined;
+	let logoCearaBytes: Uint8Array | undefined;
 	if (r2Logo) {
 		try {
-			const logoObj = await r2Logo.get('assets/logogise.jpg');
+			const [logoObj, cearaObj] = await Promise.all([
+				r2Logo.get('assets/logogise.jpg'),
+				r2Logo.get('assets/logo_ceara.jpg')
+			]);
 			if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
+			if (cearaObj) logoCearaBytes = new Uint8Array(await cearaObj.arrayBuffer());
 		} catch {
 			/* logo optional */
 		}
 	}
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 	const brEnv = await getBreveRelatorioEnvMergido(db);
-	const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes);
+	const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes, logoCearaBytes);
 	const pdfBytes = result.pdf;
 	const sigY = result.finalY;
 
