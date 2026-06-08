@@ -283,6 +283,7 @@ export async function listarGiseEscalas(
 			temSaidaConfirmada: saidasSet.has(e.id),
 			totalSeccionais: secCountMap.get(e.id) ?? 0,
 			assinaturasRelatorioExtra: signedSecs.size,
+			assinaturasRelatorioExtraIds: Array.from(signedSecs),
 			policialSeccionalId: membroSecMap.get(e.id) ?? null,
 			seccionais: seccionaisMap.get(e.id) ?? [],
 			extrasPendentesIds: pendentes,

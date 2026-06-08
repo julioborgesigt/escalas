@@ -11,6 +11,7 @@
 		menuExpandidoId,
 		onAssEscala,
 		onAssExtra,
+		onEscalaPdf,
 		onExtraPdf,
 		onToggleMenu
 	}: {
@@ -34,6 +35,7 @@
 		menuExpandidoId: number | null;
 		onAssEscala: () => void;
 		onAssExtra: () => void;
+		onEscalaPdf: () => void;
 		onExtraPdf: () => void;
 		onToggleMenu: () => void;
 	} = $props();
@@ -219,13 +221,13 @@
 					>
 						Acessar GISE
 					</button>
-					<a
-						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-						href="/api/gise/{ativa.id}/download?format=pdf"
-						target="_blank"
+					<button
+						type="button"
+						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+						onclick={onEscalaPdf}
 					>
 						Escala PDF
-					</a>
+					</button>
 					<button
 						type="button"
 						class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"

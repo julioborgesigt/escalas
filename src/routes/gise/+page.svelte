@@ -14,6 +14,7 @@
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';
 	import ModalCriarGise from './_components/ModalCriarGise.svelte';
+	import ModalDownloadExtras from './_components/ModalDownloadExtras.svelte';
 	import DialogInfo from './_components/DialogInfo.svelte';
 	import { fmtDate, diaSemana } from '$lib/gise/gise-formatters';
 
@@ -28,6 +29,7 @@
 		extrasPendentes: number;
 		extrasPendentesIds: number[];
 		assinaturasRelatorioExtra?: number;
+		assinaturasRelatorioExtraIds?: number[];
 		supervisor_id?: number | null;
 		assessor_id?: number | null;
 		seint1_id?: number | null;
@@ -70,6 +72,10 @@
 
 	let menuExpandidoId = $state<number | null>(null);
 	let showCriarModal = $state(false);
+
+	// --- Download de Extras ---
+	let showDownloadExtrasModal = $state(false);
+	let giseParaDownloadExtras = $state<GiseEscala | null>(null);
 
 	// --- Assinatura rápida inline ---
 	type GiseParaAssinar = {
@@ -155,13 +161,9 @@
 				`Faltam ${faltam} de ${ativa.totalSeccionais} seccional(is) enviarem seus relatórios.`,
 				'A assinatura será liberada quando todas as seccionais concluírem o envio.'
 			];
-		} else if (ativa.status === 'em_andamento') {
-			linhas = [
-				'A escala está em andamento.',
-				'Aguarde o encerramento das atividades para assinar.'
-			];
 		} else if (
 			[
+				'em_andamento',
 				'aguardando_relatorios',
 				'aguardando_assinatura_relat',
 				'pronta_para_finalizar',
@@ -235,24 +237,55 @@
 		dialogInfo = { titulo: `Ass. Extra (0/${totalExtras})`, linhas };
 	}
 
-	function handleExtraPdf(giseId: number) {
-		if (isAdminGeral && !isSupervisor && !isSeccional) {
+	function handleEscalaPdf(ativa: (typeof ativas)[0]) {
+		const escalaAssinada = [
+			'em_andamento',
+			'aguardando_relatorios',
+			'aguardando_assinatura_relat',
+			'pronta_para_finalizar',
+			'finalizada'
+		].includes(ativa.status);
+
+		if (escalaAssinada) {
 			dialogInfo = {
-				titulo: 'Extra PDF — Admin Geral',
+				titulo: 'Download de Escala Assinada',
 				linhas: [
-					'Para baixar um relatório de extra específico, entre na escala e escolha qual relatório deseja baixar.',
-					'Na página da escala, cada seccional e o quadro de supervisão têm seus próprios links de download.'
+					'Esta escala já foi assinada digitalmente.',
+					'O download será do documento oficial com as assinaturas digitais.'
 				],
 				acao: {
-					label: 'Ir para a escala',
+					label: 'Confirmar Download',
 					fn: () => {
 						dialogInfo = null;
-						goto(`/gise/${giseId}`);
+						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
 					}
 				}
 			};
+		} else {
+			dialogInfo = {
+				titulo: 'Download de Escala não Assinada',
+				linhas: [
+					'Esta escala ainda não foi assinada digitalmente pelo supervisor.',
+					'O download será de uma via preliminar (sem assinaturas).'
+				],
+				acao: {
+					label: 'Confirmar Download',
+					fn: () => {
+						dialogInfo = null;
+						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
+					}
+				}
+			};
+		}
+	}
+
+	function handleExtraPdf(ativa: GiseEscala) {
+		if (isAdminGeral && !isSupervisor && !isSeccional) {
+			giseParaDownloadExtras = ativa;
+			showDownloadExtrasModal = true;
 			return;
 		}
+		const giseId = ativa.id;
 		if (isSupervisor && supervisaoExtraUnidadeId) {
 			window.open(
 				`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
@@ -530,7 +563,8 @@
 					{menuExpandidoId}
 					onAssEscala={() => clicarAssEscala(ativa)}
 					onAssExtra={() => clicarAssExtra(ativa)}
-					onExtraPdf={() => handleExtraPdf(ativa.id)}
+					onEscalaPdf={() => handleEscalaPdf(ativa)}
+					onExtraPdf={() => handleExtraPdf(ativa)}
 					onToggleMenu={() => (menuExpandidoId = menuExpandidoId === ativa.id ? null : ativa.id)}
 				/>
 			{/each}
@@ -593,6 +627,12 @@
 	onSuccess={(count, firstId) => {
 		if (count === 1 && firstId) goto(`/gise/${firstId}?edit=true`);
 	}}
+/>
+
+<ModalDownloadExtras
+	bind:open={showDownloadExtrasModal}
+	gise={giseParaDownloadExtras}
+	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 />
 
 <ModalRubrica
