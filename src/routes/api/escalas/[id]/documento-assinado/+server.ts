@@ -6,7 +6,8 @@ import {
 	hasR2,
 	buscarDocumentoEscala,
 	excluirDocumentoEscala,
-	buscarEscala
+	buscarEscala,
+	listarPoliciaisEscala
 } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
 import {
@@ -19,8 +20,10 @@ import {
 } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
 
-export const GET: RequestHandler = async ({ platform, params, locals }) => {
+export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -40,6 +43,28 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 
 	const documento = await buscarDocumentoEscala(db, id);
 	if (!documento) return notFound('Documento assinado');
+
+	// A2: o blob forense íntegro (manifesto com CPF/IP/GPS/selfie) é restrito ao
+	// Super Admin. Os demais (mesmo com permissão na escala) recebem a cópia de
+	// conferência regenerada, sem manifesto.
+	if (!podeBaixarForense(u)) {
+		const policiais = await listarPoliciaisEscala(db, id);
+		const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform);
+		const hash = documento.verificacao_hash ?? undefined;
+		const buffer = await gerarCopiaConferencia({
+			pdfRascunho: rascunho,
+			assinanteNome: documento.assinante_nome,
+			verificationHash: hash,
+			verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
+		});
+		return new Response(buffer as unknown as BodyInit, {
+			headers: {
+				'Content-Type': 'application/pdf',
+				'Content-Disposition': contentDisposition(`conferencia_escala_${id}.pdf`),
+				'Cache-Control': 'private, no-store'
+			}
+		});
+	}
 
 	if (!hasR2(platform)) {
 		return serverError(
