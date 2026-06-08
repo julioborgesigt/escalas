@@ -329,7 +329,7 @@
 							>
 							{#if editandoPapel === 'supervisor'}
 								<div class="flex items-center gap-1.5 mt-1 w-full">
-									<div class="flex-1 sm:max-w-md">
+									<div class="flex-1 min-w-0 sm:max-w-md">
 										<SearchableSelect
 											id="supId"
 											bind:value={supervisorId}
@@ -413,52 +413,101 @@
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
 						<!-- Assessor -->
 						<div
-							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200"
+							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel === 'assessor' ? 'col-span-full' : ''}"
 						>
-							<div class="flex items-center justify-between gap-2">
-								<div class="flex items-center gap-2.5 min-w-0 flex-1">
-									<div class="text-surface-400 dark:text-surface-500 shrink-0">
-										<Users size={14} />
+							{#if editandoPapel === 'assessor'}
+								<div class="flex flex-col gap-1.5 w-full">
+									<div class="flex items-center gap-2">
+										<div class="text-surface-400 dark:text-surface-500 shrink-0">
+											<Users size={14} />
+										</div>
+										<span class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500">
+											Assessor
+										</span>
 									</div>
-									<div class="overflow-hidden min-w-0 flex-1">
-										<span
-											class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
-											>Assessor</span
-										>
-										{#if editandoPapel === 'assessor'}
-											<div class="flex items-center gap-1.5 mt-1 w-full">
-												<div class="flex-1">
-													<SearchableSelect
-														id="assessorId"
-														bind:value={assessorId}
-														loadOptions={buscarOips}
-														selectedOption={selectedFromPoliciais(assessorId)}
-														placeholder="Pesquisar Assessor..."
-														minSearchChars={2}
-														showTrigger={false}
-														class="w-full"
-													/>
-												</div>
-												<div class="flex items-center gap-0.5 shrink-0">
-													<button
-														type="submit"
-														class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
-														disabled={pendingCrud}
-														title="Salvar"
-													>
-														<Check size={18} />
-													</button>
-													<button
-														type="button"
-														class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
-														onclick={cancelarEdicao}
-														title="Cancelar"
-													>
-														<X size={18} />
-													</button>
-												</div>
+									<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
+										<div class="flex-1 min-w-[200px]">
+											<span class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1">
+												Nome do Assessor
+											</span>
+											<SearchableSelect
+												id="assessorId"
+												bind:value={assessorId}
+												loadOptions={buscarOips}
+												selectedOption={selectedFromPoliciais(assessorId)}
+												placeholder="Pesquisar Assessor..."
+												minSearchChars={2}
+												showTrigger={false}
+												class="w-full"
+											/>
+										</div>
+
+										{#if assessorId != null}
+											<div class="flex-1 min-w-[200px]">
+												<label
+													for="assessorEmailNotif"
+													class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1"
+												>
+													E-mail (avisos GISE)
+												</label>
+												<input
+													id="assessorEmailNotif"
+													type="email"
+													name="assessor_email_notificacao"
+													autocomplete="email"
+													bind:value={assessorEmailNotificacao}
+													class="w-full px-3 py-1.5 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400/30 focus:outline-none transition-colors text-surface-900 dark:text-surface-50 placeholder:text-surface-400 dark:placeholder:text-surface-500 h-[38px]"
+													placeholder="nome@provedor.com"
+												/>
 											</div>
-										{:else}
+
+											<div class="flex items-center h-[38px] shrink-0">
+												<label class="flex items-center gap-1.5 cursor-pointer">
+													<input
+														type="checkbox"
+														name="confirmar_email_assessor"
+														value="1"
+														class="rounded border-surface-450 w-3.5 h-3.5"
+														required
+													/>
+													<span class="text-[0.7rem] text-surface-500 dark:text-surface-400 leading-none select-none">
+														Confirmo e-mail.
+													</span>
+												</label>
+											</div>
+										{/if}
+
+										<div class="flex items-center gap-0.5 shrink-0 h-[38px]">
+											<button
+												type="submit"
+												class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+												disabled={pendingCrud}
+												title="Salvar"
+											>
+												<Check size={18} />
+											</button>
+											<button
+												type="button"
+												class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+												onclick={cancelarEdicao}
+												title="Cancelar"
+											>
+												<X size={18} />
+											</button>
+										</div>
+									</div>
+								</div>
+							{:else}
+								<div class="flex items-center justify-between gap-2">
+									<div class="flex items-center gap-2.5 min-w-0 flex-1">
+										<div class="text-surface-400 dark:text-surface-500 shrink-0">
+											<Users size={14} />
+										</div>
+										<div class="overflow-hidden min-w-0 flex-1">
+											<span
+												class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
+												>Assessor</span
+											>
 											<div class="flex items-center gap-2">
 												<p
 													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
@@ -496,63 +545,22 @@
 													Avisos: {gise.assessor_email_notificacao}
 												</p>
 											{/if}
-										{/if}
+										</div>
 									</div>
-								</div>
-								{#if editandoPapel !== 'assessor'}
-									{@const stAss = gise.assessor_id ? marcador('assessor', gise.assessor_id) : null}
 									<div class="shrink-0 flex items-center">
-										{#if stAss === 'ok'}
+										{#if gise.assessor_id && marcador('assessor', gise.assessor_id) === 'ok'}
 											<span
 												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
 												title="Entrada e saída confirmadas">✓</span
 											>
-										{:else if stAss === 'entrada'}
+										{:else if gise.assessor_id && marcador('assessor', gise.assessor_id) === 'entrada'}
 											<span
 												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
 												title="Aguardando confirmação de saída">Entrada</span
 											>
 										{/if}
 									</div>
-								{/if}
-							</div>
-
-							{#if editandoPapel === 'assessor'}
-								{#if assessorId != null}
-									<div
-										class="mt-2 pt-2 border-t border-surface-100 dark:border-surface-800 space-y-2"
-									>
-										<div class="flex flex-col gap-1">
-											<label
-												for="assessorEmailNotif"
-												class="text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400"
-												>E-mail (avisos GISE)</label
-											>
-											<input
-												id="assessorEmailNotif"
-												type="email"
-												name="assessor_email_notificacao"
-												autocomplete="email"
-												bind:value={assessorEmailNotificacao}
-												class="w-full px-2 py-1 rounded border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs focus:border-primary-400 focus:outline-none transition-colors"
-												placeholder="nome@provedor.com"
-											/>
-										</div>
-										<label class="flex items-start gap-1.5 cursor-pointer">
-											<input
-												type="checkbox"
-												name="confirmar_email_assessor"
-												value="1"
-												class="mt-0.5 shrink-0 rounded border-surface-450 w-3 h-3"
-												required
-											/>
-											<span class="text-[0.65rem] text-surface-500 dark:text-surface-400 leading-snug"
-												>Confirmo e-mail.</span
-											>
-										</label>
-									</div>
-								{/if}
-
+								</div>
 							{/if}
 						</div>
 
@@ -571,7 +579,7 @@
 									>
 									{#if editandoPapel === 'seint1'}
 										<div class="flex items-center gap-1.5 mt-1 w-full">
-											<div class="flex-1">
+											<div class="flex-1 min-w-0">
 												<SearchableSelect
 													id="seint1Id"
 													bind:value={seint1Id}
@@ -676,7 +684,7 @@
 									>
 									{#if editandoPapel === 'seint2'}
 										<div class="flex items-center gap-1.5 mt-1 w-full">
-											<div class="flex-1">
+											<div class="flex-1 min-w-0">
 												<SearchableSelect
 													id="seint2Id"
 													bind:value={seint2Id}
