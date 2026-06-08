@@ -162,7 +162,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 			try {
 				const obj = await r2.get(documento.r2_key);
 				if (obj) {
-					// Acesso forense (PII: CPF/IP/GPS/selfie) por Admin Geral/Super — auditar.
+					// Acesso forense (PII: CPF/IP/GPS/selfie) pelo Super Admin — auditar.
 					await registrarAuditComContexto(db, {
 						usuario,
 						acao: 'download_validar_forense',

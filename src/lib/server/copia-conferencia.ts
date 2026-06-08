@@ -5,7 +5,7 @@
  * (CPF, IP, GPS, selfie) e é o artefato legal incontestável. Esse blob NUNCA é
  * mutado nem recortado — remover qualquer byte invalidaria a assinatura CMS.
  *
- * Usuários NÃO privilegiados (todos que não são Admin Geral / Super Admin)
+ * Usuários NÃO privilegiados (todos que não são o Super Admin)
  * recebem em vez dele uma **cópia de conferência**: a escala/relatório
  * regenerado a partir do rascunho (sem manifesto forense), acrescido de um
  * rodapé + QR apontando para `/validar/[hash]`. A confiança vem do portal
@@ -13,19 +13,18 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
-import { isAdminGeral, type UsuarioLogado } from '$lib/auth';
+import { type UsuarioLogado } from '$lib/auth';
 import { adicionarRodapeSimples } from './pdf-signing-visual';
 import { logger } from './logger';
 
 /**
  * Quem pode baixar o PDF forense íntegro (com manifesto: CPF/IP/GPS/selfie).
- * Restrito a Admin Geral + Super Admin — ambos `tipo === 'admin'`, capturado
- * por `isAdminGeral`. Admin Seccional/Unidade são `tipo === 'policial'` e NÃO
- * são privilegiados. Ponto único da regra: para incluir outro papel no futuro,
- * altere apenas aqui.
+ * Restrito ao **Super Admin** apenas. Admin Geral, Admin Seccional/Unidade e
+ * policiais recebem a cópia de conferência. Ponto único da regra: para incluir
+ * outro papel no futuro, altere apenas aqui.
  */
 export function podeBaixarForense(u: UsuarioLogado | null): boolean {
-	return isAdminGeral(u);
+	return u?.isSuperAdmin === true;
 }
 
 export interface CopiaConferenciaOpts {

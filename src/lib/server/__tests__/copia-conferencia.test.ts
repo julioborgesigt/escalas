@@ -3,8 +3,12 @@ import { PDFDocument } from 'pdf-lib';
 import { podeBaixarForense, gerarCopiaConferencia } from '../copia-conferencia';
 import type { UsuarioLogado } from '$lib/auth';
 
+function superAdmin(): UsuarioLogado {
+	return { id: 1, tipo: 'admin', nome: 'Super', primeiro_acesso: false, isSuperAdmin: true };
+}
+
 function adminGeral(): UsuarioLogado {
-	return { id: 1, tipo: 'admin', nome: 'Admin', primeiro_acesso: false };
+	return { id: 1, tipo: 'admin', nome: 'Admin', primeiro_acesso: false, isSuperAdmin: false };
 }
 
 function policial(papel: UsuarioLogado['papel'] = null): UsuarioLogado {
@@ -18,8 +22,11 @@ async function pdfComPaginas(n: number): Promise<Uint8Array> {
 }
 
 describe('podeBaixarForense', () => {
-	it('Admin Geral / Super (tipo admin) → true', () => {
-		expect(podeBaixarForense(adminGeral())).toBe(true);
+	it('Super Admin → true', () => {
+		expect(podeBaixarForense(superAdmin())).toBe(true);
+	});
+	it('Admin Geral (não super) → false', () => {
+		expect(podeBaixarForense(adminGeral())).toBe(false);
 	});
 	it('Admin Seccional → false', () => {
 		expect(podeBaixarForense(policial('admin_seccional'))).toBe(false);
