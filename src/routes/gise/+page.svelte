@@ -287,17 +287,85 @@
 		}
 		const giseId = ativa.id;
 		if (isSupervisor && supervisaoExtraUnidadeId) {
-			window.open(
-				`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
-				'_blank'
-			);
+			const isAssinado = !!ativa.assinaturasRelatorioExtraIds?.includes(supervisaoExtraUnidadeId);
+			if (isAssinado) {
+				dialogInfo = {
+					titulo: 'Download de Relatório de Extra Assinado',
+					linhas: [
+						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+						'O download será do documento oficial com as assinaturas digitais.'
+					],
+					acao: {
+						label: 'Confirmar Download',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
+								'_blank'
+							);
+						}
+					}
+				};
+			} else {
+				dialogInfo = {
+					titulo: 'Download de Relatório de Extra não Assinado',
+					linhas: [
+						'Este relatório de serviço extraordinário ainda não foi assinado digitalmente.',
+						'O download será de uma via preliminar (sem assinaturas).'
+					],
+					acao: {
+						label: 'Confirmar Download',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
+								'_blank'
+							);
+						}
+					}
+				};
+			}
 			return;
 		}
 		if (isSeccional && minhaSeccionalId) {
-			window.open(
-				`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
-				'_blank'
-			);
+			const isAssinado = !!ativa.assinaturasRelatorioExtraIds?.includes(minhaSeccionalId);
+			if (isAssinado) {
+				dialogInfo = {
+					titulo: 'Download de Relatório de Extra Assinado',
+					linhas: [
+						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
+						'O download será do documento oficial com as assinaturas digitais.'
+					],
+					acao: {
+						label: 'Confirmar Download',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
+								'_blank'
+							);
+						}
+					}
+				};
+			} else {
+				dialogInfo = {
+					titulo: 'Download de Relatório de Extra não Assinado',
+					linhas: [
+						'Este relatório de serviço extraordinário ainda não foi assinado digitalmente.',
+						'O download será de uma via preliminar (sem assinaturas).'
+					],
+					acao: {
+						label: 'Confirmar Download',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
+								'_blank'
+							);
+						}
+					}
+				};
+			}
 			return;
 		}
 		dialogInfo = {
