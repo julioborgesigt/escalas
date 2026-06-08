@@ -10,6 +10,7 @@ import {
 } from '$lib/db';
 import { z } from 'zod';
 import { requireAuth, badRequest, forbidden, notFound, validateBody } from '$lib/server/api';
+import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
 
 const solicitarSchema = z.object({
 	tipo: z.enum(['unidade', 'respondencia']),
@@ -46,9 +47,14 @@ export const POST: RequestHandler = async ({ params, locals, platform, request }
 		return badRequest('Escalas de FDS não requerem assinatura');
 	}
 
-	// admin_unidade só pode solicitar para sua própria unidade
-	if (u.tipo !== 'admin' && u.papel === 'admin_unidade' && u.lotacao !== escala.lotacao) {
-		return forbidden('Sem permissão para esta escala');
+	// Admins de escopo (seccional/unidade) só solicitam para escalas DENTRO do seu
+	// escopo administrativo. Antes só `admin_unidade` era verificado — `admin_seccional`
+	// podia criar solicitação para qualquer unidade/seccional. Admin geral é irrestrito.
+	if (u.tipo !== 'admin') {
+		const escopo = await lotacoesAdministradas(db, u);
+		if (!lotacaoNoEscopo(escopo, escala.lotacao)) {
+			return forbidden('Sem permissão para esta escala');
+		}
 	}
 
 	// Valida destinatário para respondência: deve ser DPC com papel administrativo
@@ -80,10 +86,11 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
 		const sol = await buscarSolicitacaoAssinatura(db, id);
 		if (!sol) return notFound('Solicitação');
 
+		// O próprio solicitante pode cancelar; admins de escopo só dentro do seu
+		// escopo administrativo (antes `admin_seccional` cancelava qualquer escala).
+		const escopo = await lotacoesAdministradas(db, u);
 		const podeCancel =
-			sol.solicitante_id === u.id ||
-			(u.papel === 'admin_unidade' && u.lotacao === escala.lotacao) ||
-			u.papel === 'admin_seccional';
+			sol.solicitante_id === u.id || lotacaoNoEscopo(escopo, escala.lotacao);
 
 		if (!podeCancel) return forbidden('Sem permissão para cancelar');
 	}
