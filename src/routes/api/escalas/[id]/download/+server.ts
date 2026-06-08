@@ -12,7 +12,31 @@ import {
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
 import { registrarAuditComContexto } from '$lib/db/audit';
+
+type EscalaArg = Parameters<typeof exportLib.gerarPdf>[0];
+type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
+
+/** Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo. */
+async function gerarRascunhoEscalaPdf(
+	escala: EscalaArg,
+	policiais: PoliciaisArg,
+	platform: App.Platform | undefined
+): Promise<Uint8Array> {
+	if (escala.tipo === 'expediente') {
+		const [logoPolicia, logoCeara] = await Promise.all([
+			carregarLogoR2(platform, 'assets/logogise.jpg'),
+			carregarLogoR2(platform, 'assets/logo_ceara.jpg')
+		]);
+		const result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
+		return result.pdf;
+	}
+	if (escala.tipo === 'plantao') {
+		return exportLib.gerarPdfPlantao(escala, policiais).pdf;
+	}
+	return exportLib.gerarPdf(escala, policiais).pdf;
+}
 
 async function carregarLogoR2(
 	platform: App.Platform | undefined,
@@ -45,28 +69,38 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
 
+	// Para o PDF de uma escala assinada decidimos cedo quem recebe o quê:
+	// Admin Geral/Super → blob forense do R2 (com manifesto); demais → cópia de
+	// conferência (regenerada, sem manifesto). Registramos a distinção na auditoria.
+	const querPdfAssinavel =
+		format === 'pdf' && (escala.tipo === 'expediente' || escala.tipo === 'plantao');
+	const docAssinado = querPdfAssinavel ? await buscarDocumentoEscala(db, id) : undefined;
+	const privilegiado = podeBaixarForense(u);
+	const copiaInfo = docAssinado?.r2_key
+		? privilegiado
+			? ' · Cópia: forense'
+			: ' · Cópia: conferencia'
+		: '';
+
 	await registrarAuditComContexto(db, {
 		usuario: u,
 		acao: 'exportar_escala',
 		entidade: 'escala',
 		entidade_id: id,
-		detalhes: `Formato: ${format} · Tipo: ${escala.tipo}`
+		detalhes: `Formato: ${format} · Tipo: ${escala.tipo}${copiaInfo}`
 	});
 
 	const filename = `${escala.titulo.replace(/[/\\?%*:|"<>]/g, '-')}.${format === 'docx' || format === 'doc' ? 'docx' : format === 'xlsx' || format === 'excel' || format === 'xls' ? 'xlsx' : 'pdf'}`;
 
 	try {
-		// ── PDF: servir documento assinado do R2 se existir ──────────────────
-		if (
-			(format === 'pdf' || format === 'pdf') &&
-			(escala.tipo === 'expediente' || escala.tipo === 'plantao')
-		) {
-			const doc = await buscarDocumentoEscala(db, id);
-			if (doc?.r2_key) {
+		// ── PDF de escala assinada ───────────────────────────────────────────
+		if (querPdfAssinavel && docAssinado?.r2_key) {
+			if (privilegiado) {
+				// Admin Geral/Super: blob forense íntegro (com manifesto) do R2.
 				const r2 = getR2(platform);
 				if (r2) {
 					try {
-						const r2Obj = await r2.get(doc.r2_key);
+						const r2Obj = await r2.get(docAssinado.r2_key);
 						if (r2Obj) {
 							return new Response(await r2Obj.arrayBuffer(), {
 								headers: {
@@ -83,6 +117,25 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 						});
 					}
 				}
+				// R2 ausente/falhou: cai no rascunho regenerado (sem manifesto) abaixo.
+			} else {
+				// Demais usuários: cópia de conferência (sem manifesto forense).
+				const policiaisConf = await listarPoliciaisEscala(db, id);
+				const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform);
+				const hash = docAssinado.verificacao_hash ?? undefined;
+				const buffer = await gerarCopiaConferencia({
+					pdfRascunho: rascunho,
+					assinanteNome: docAssinado.assinante_nome,
+					verificationHash: hash,
+					verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
+				});
+				return new Response(buffer as BodyInit, {
+					headers: {
+						'Content-Type': 'application/pdf',
+						'Content-Disposition': contentDisposition(`conferencia_${filename}`),
+						'Cache-Control': 'no-cache'
+					}
+				});
 			}
 		}
 
@@ -104,20 +157,8 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			else buffer = await exportLib.gerarXlsx(escala, policiais);
 			contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 		} else {
-			// PDF draft: carregar logos do R2 em paralelo
-			let result: exportLib.PdfExportResult;
-			if (escala.tipo === 'expediente') {
-				const [logoPolicia, logoCeara] = await Promise.all([
-					carregarLogoR2(platform, 'assets/logogise.jpg'), // PC Civil (já em uso no GISE)
-					carregarLogoR2(platform, 'assets/logo_ceara.jpg') // Ceará Gov (fazer upload em R2)
-				]);
-				result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
-			} else if (escala.tipo === 'plantao') {
-				result = exportLib.gerarPdfPlantao(escala, policiais);
-			} else {
-				result = exportLib.gerarPdf(escala, policiais);
-			}
-			buffer = result.pdf;
+			// PDF draft (escala sem assinatura): rascunho sem manifesto.
+			buffer = await gerarRascunhoEscalaPdf(escala, policiais, platform);
 			contentType = 'application/pdf';
 		}
 

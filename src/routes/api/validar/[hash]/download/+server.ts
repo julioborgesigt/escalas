@@ -10,6 +10,8 @@ import {
 	serverError
 } from '$lib/server/api';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { registrarAuditComContexto } from '$lib/db/audit';
+import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
@@ -17,6 +19,33 @@ import type { RequestHandler } from './$types';
 // hash (~40 bits) por um usuário autenticado. Estado em D1 (serverless-safe).
 const VALIDAR_DOWNLOAD_MAX = 60;
 const VALIDAR_DOWNLOAD_WINDOW_MIN = 10;
+
+/** Carrega um logo do R2 para a regeneração do rascunho (best-effort). */
+async function carregarLogoConferencia(
+	platform: App.Platform | undefined,
+	key: string
+): Promise<Uint8Array | undefined> {
+	try {
+		const r2 = getR2(platform);
+		if (!r2) return undefined;
+		const obj = await r2.get(key);
+		if (!obj) return undefined;
+		return new Uint8Array(await obj.arrayBuffer());
+	} catch {
+		return undefined;
+	}
+}
+
+/** Response de cópia de conferência (sem cache em proxies compartilhados). */
+function pdfConferencia(buffer: Uint8Array, filename: string): Response {
+	return new Response(buffer as unknown as BodyInit, {
+		headers: {
+			'Content-Type': 'application/pdf',
+			'Content-Disposition': contentDisposition(filename),
+			'Cache-Control': 'private, no-store'
+		}
+	});
+}
 
 export const GET: RequestHandler = async ({ platform, params, url, cookies, getClientAddress }) => {
 	const db = getDB(platform);
@@ -71,13 +100,77 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		r2_key: documento.r2_key || null
 	});
 
-	// Tentar buscar do R2 primeiro se houver r2_key (preferível para integridade digital)
-	if (documento.r2_key) {
+	const privilegiado = podeBaixarForense(usuario);
+
+	// Usuários NÃO privilegiados nunca recebem o blob forense (manifesto com
+	// CPF/IP/GPS/selfie). Recebem a cópia de conferência regenerada (sem manifesto)
+	// + rodapé/QR para /validar. (gise_relatorio já cai no caminho de regeneração
+	// manifest-free mais abaixo, então só tratamos escala/gise aqui.)
+	if (!privilegiado) {
+		const verificationUrl = `${url.origin}/validar/${hash}`;
+		if (documento.tipo_doc === 'escala') {
+			const { buscarEscala, listarPoliciaisEscala } = await import('$lib/db');
+			const exportLib = await import('$lib/server/export');
+			const escala = await buscarEscala(db, documento.escala_id);
+			if (!escala) return notFound('Escala');
+			const policiais = await listarPoliciaisEscala(db, documento.escala_id);
+			let rascunho: Uint8Array;
+			if (escala.tipo === 'expediente') {
+				const [logoPolicia, logoCeara] = await Promise.all([
+					carregarLogoConferencia(platform, 'assets/logogise.jpg'),
+					carregarLogoConferencia(platform, 'assets/logo_ceara.jpg')
+				]);
+				rascunho = (await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara))
+					.pdf;
+			} else if (escala.tipo === 'plantao') {
+				rascunho = exportLib.gerarPdfPlantao(escala, policiais).pdf;
+			} else {
+				rascunho = exportLib.gerarPdf(escala, policiais).pdf;
+			}
+			const buffer = await gerarCopiaConferencia({
+				pdfRascunho: rascunho,
+				assinanteNome: documento.assinante_nome,
+				verificationHash: hash,
+				verificationUrl
+			});
+			return pdfConferencia(buffer, `conferencia_escala_${hash}.pdf`);
+		}
+		if (documento.tipo_doc === 'gise') {
+			const { buscarGiseDetalhado } = await import('$lib/db');
+			const { gerarPdfGise, toGisePdfData } = await import('$lib/server/export');
+			const { getBreveRelatorioEnvMergido } = await import('$lib/server/breve-relatorio-env');
+			const gise = await buscarGiseDetalhado(db, documento.escala_id);
+			if (!gise) return notFound('GISE');
+			const logoBytes = await carregarLogoConferencia(platform, 'assets/logogise.jpg');
+			const brEnv = await getBreveRelatorioEnvMergido(db);
+			const rascunho = (await gerarPdfGise(toGisePdfData(gise, brEnv), logoBytes)).pdf;
+			const buffer = await gerarCopiaConferencia({
+				pdfRascunho: rascunho,
+				assinanteNome: documento.assinante_nome,
+				verificationHash: hash,
+				verificationUrl
+			});
+			return pdfConferencia(buffer, `conferencia_gise_${hash}.pdf`);
+		}
+		// gise_relatorio: segue para a regeneração manifest-free abaixo.
+	}
+
+	// Blob forense do R2 — somente privilegiado chega aqui com r2_key.
+	if (privilegiado && documento.r2_key) {
 		const r2 = getR2(platform);
 		if (r2) {
 			try {
 				const obj = await r2.get(documento.r2_key);
 				if (obj) {
+					// Acesso forense (PII: CPF/IP/GPS/selfie) por Admin Geral/Super — auditar.
+					await registrarAuditComContexto(db, {
+						usuario,
+						acao: 'download_validar_forense',
+						entidade: documento.tipo_doc,
+						entidade_id: documento.escala_id,
+						detalhes: `hash=${hash}`,
+						ip
+					});
 					logger.info('[validar/download] PDF recuperado do R2', {
 						hash,
 						r2_key: documento.r2_key
