@@ -11,6 +11,8 @@ import * as schema from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
+import { podeBaixarForense } from '$lib/server/copia-conferencia';
+import { mascararCPF } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	const u = requireAuth(locals);
@@ -41,10 +43,15 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 		return json({ existe: false });
 	}
 
+	// A2/LGPD: CPF completo do assinante só para o Super Admin; os demais (mesmo
+	// com permissão na GISE) recebem o CPF mascarado, como na página /validar.
+	const cpf = doc.assinante_cpf ?? '';
+	const cpfExibido = podeBaixarForense(u) ? cpf : mascararCPF(cpf);
+
 	return json({
 		existe: true,
 		assinante_nome: doc.assinante_nome,
-		assinante_cpf: doc.assinante_cpf ?? '',
+		assinante_cpf: cpfExibido,
 		data: doc.created_at,
 		verificacao_hash: doc.verificacao_hash
 	});
