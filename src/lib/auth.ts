@@ -133,7 +133,8 @@ function toHex(bytes: Uint8Array): string {
 
 /**
  * Gera um hash seguro da senha usando PBKDF2 com salt aleatório.
- * Formato emitido: `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` (600 000 iterações).
+ * Formato emitido: `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` (100 000 iterações —
+ * teto seguro para o CPU limit do Cloudflare; ver nota sobre OWASP acima).
  */
 export async function hashSenha(senha: string): Promise<string> {
 	const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
