@@ -30,7 +30,7 @@
 		"format:check": "prettier --check src/"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20260602.1",
+		"@cloudflare/workers-types": "^4.20260608.1",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-cloudflare": "^7.0.0",
@@ -51,7 +51,7 @@
 		"typescript-eslint": "^8.59.3",
 		"vite": "^7.3.1",
 		"vitest": "^4.1.8",
-		"wrangler": "^4.96.0"
+		"wrangler": "^4.98.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2",
