@@ -1,0 +1,63 @@
+/**
+ * Geração do rascunho (PDF sem manifesto forense) usado nas cópias de
+ * conferência. Centraliza a lógica para que TODOS os endpoints que servem o
+ * documento assinado (download e documento-assinado, escala e GISE) produzam a
+ * mesma cópia de conferência, sem divergência.
+ */
+
+import * as exportLib from '$lib/server/export';
+import { getR2 } from '$lib/server/platform';
+import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import type { Database } from '$lib/db';
+
+type EscalaArg = Parameters<typeof exportLib.gerarPdf>[0];
+type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
+type GiseDetalhado = Parameters<typeof exportLib.toGisePdfData>[0];
+
+/** Carrega um logo do R2 (best-effort; undefined em qualquer falha). */
+export async function carregarLogoR2(
+	platform: App.Platform | undefined,
+	key: string
+): Promise<Uint8Array | undefined> {
+	try {
+		const r2 = getR2(platform);
+		if (!r2) return undefined;
+		const obj = await r2.get(key);
+		if (!obj) return undefined;
+		return new Uint8Array(await obj.arrayBuffer());
+	} catch {
+		return undefined;
+	}
+}
+
+/** Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo. */
+export async function gerarRascunhoEscalaPdf(
+	escala: EscalaArg,
+	policiais: PoliciaisArg,
+	platform: App.Platform | undefined
+): Promise<Uint8Array> {
+	if (escala.tipo === 'expediente') {
+		const [logoPolicia, logoCeara] = await Promise.all([
+			carregarLogoR2(platform, 'assets/logogise.jpg'),
+			carregarLogoR2(platform, 'assets/logo_ceara.jpg')
+		]);
+		const result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
+		return result.pdf;
+	}
+	if (escala.tipo === 'plantao') {
+		return exportLib.gerarPdfPlantao(escala, policiais).pdf;
+	}
+	return exportLib.gerarPdf(escala, policiais).pdf;
+}
+
+/** Gera o rascunho PDF de uma GISE detalhada (sem manifesto forense). */
+export async function gerarRascunhoGisePdf(
+	db: Database,
+	gise: GiseDetalhado,
+	platform: App.Platform | undefined
+): Promise<Uint8Array> {
+	const logoBytes = await carregarLogoR2(platform, 'assets/logogise.jpg');
+	const brEnv = await getBreveRelatorioEnvMergido(db);
+	const result = await exportLib.gerarPdfGise(exportLib.toGisePdfData(gise, brEnv), logoBytes);
+	return result.pdf;
+}

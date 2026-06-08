@@ -11,6 +11,7 @@ import {
 	hasR2,
 	buscarGiseDocumento,
 	buscarGiseEscala,
+	buscarGiseDetalhado,
 	reabrirGiseEscala
 } from '$lib/db';
 import {
@@ -23,8 +24,10 @@ import {
 	serverError
 } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
+import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { gerarRascunhoGisePdf } from '$lib/server/conferencia-pdf';
 
-export const GET: RequestHandler = async ({ platform, params, locals }) => {
+export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -46,6 +49,30 @@ export const GET: RequestHandler = async ({ platform, params, locals }) => {
 
 	const documento = await buscarGiseDocumento(db, id);
 	if (!documento) return notFound('Documento assinado');
+
+	// A2: o blob forense íntegro (manifesto com CPF/IP/GPS/selfie) é restrito ao
+	// Super Admin. Os demais (mesmo com permissão na GISE) recebem a cópia de
+	// conferência regenerada, sem manifesto.
+	if (!podeBaixarForense(u)) {
+		const giseDetalhado = await buscarGiseDetalhado(db, id);
+		if (!giseDetalhado) return notFound('Escala GISE');
+		const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
+		const hash = documento.verificacao_hash ?? undefined;
+		const buffer = await gerarCopiaConferencia({
+			pdfRascunho: rascunho,
+			assinanteNome: documento.assinante_nome,
+			verificationHash: hash,
+			verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined,
+			rubricBase64: documento.rubrica ?? undefined
+		});
+		return new Response(buffer as unknown as BodyInit, {
+			headers: {
+				'Content-Type': 'application/pdf',
+				'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
+				'Cache-Control': 'private, no-store'
+			}
+		});
+	}
 
 	if (!hasR2(platform)) {
 		return serverError(

@@ -13,45 +13,8 @@ import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
 import { registrarAuditComContexto } from '$lib/db/audit';
-
-type EscalaArg = Parameters<typeof exportLib.gerarPdf>[0];
-type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
-
-/** Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo. */
-async function gerarRascunhoEscalaPdf(
-	escala: EscalaArg,
-	policiais: PoliciaisArg,
-	platform: App.Platform | undefined
-): Promise<Uint8Array> {
-	if (escala.tipo === 'expediente') {
-		const [logoPolicia, logoCeara] = await Promise.all([
-			carregarLogoR2(platform, 'assets/logogise.jpg'),
-			carregarLogoR2(platform, 'assets/logo_ceara.jpg')
-		]);
-		const result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
-		return result.pdf;
-	}
-	if (escala.tipo === 'plantao') {
-		return exportLib.gerarPdfPlantao(escala, policiais).pdf;
-	}
-	return exportLib.gerarPdf(escala, policiais).pdf;
-}
-
-async function carregarLogoR2(
-	platform: App.Platform | undefined,
-	key: string
-): Promise<Uint8Array | undefined> {
-	try {
-		const r2 = getR2(platform);
-		if (!r2) return undefined;
-		const obj = await r2.get(key);
-		if (!obj) return undefined;
-		return new Uint8Array(await obj.arrayBuffer());
-	} catch {
-		return undefined;
-	}
-}
 
 export const GET: RequestHandler = async ({ params, platform, url, locals }) => {
 	const u = requireAuth(locals);
