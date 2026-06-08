@@ -123,7 +123,7 @@
 		isSeccional,
 		podeEditar,
 		modoEdicaoGeral,
-		editando,
+		editando = $bindable(false),
 		documentoAssinadoInfo,
 		pendingCrud,
 		buscarDpcs,
@@ -227,6 +227,28 @@
 	let expandirExtra = $state(false);
 	let formEl = $state<HTMLFormElement | null>(null);
 
+	let editandoPapel = $state<'supervisor' | 'assessor' | 'seint1' | 'seint2' | null>(null);
+
+	function iniciarEdicao(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
+		editandoPapel = papel;
+		onEditar();
+	}
+
+	function cancelarEdicao() {
+		if (editandoPapel === 'supervisor') {
+			supervisorId = gise.supervisor_id ?? null;
+		} else if (editandoPapel === 'assessor') {
+			assessorId = gise.assessor_id ?? null;
+			assessorEmailNotificacao = gise.assessor_email_notificacao ?? '';
+		} else if (editandoPapel === 'seint1') {
+			seint1Id = gise.seint1_id ?? null;
+		} else if (editandoPapel === 'seint2') {
+			seint2Id = gise.seint2_id ?? null;
+		}
+		editandoPapel = null;
+		onCancelar();
+	}
+
 	function excluirMembro(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
 		if (!confirm('Deseja realmente remover esta designação?')) return;
 
@@ -248,6 +270,16 @@
 			}
 		}, 50);
 	}
+
+	$effect(() => {
+		editando = editandoPapel !== null;
+	});
+
+	$effect(() => {
+		if (!editando) {
+			editandoPapel = null;
+		}
+	});
 </script>
 
 <div
@@ -277,22 +309,6 @@
 						Ass. Escala Pend.
 					</span>
 				{/if}
-				{#if isAdminGeral && podeEditar && modoEdicaoGeral && !editando}
-					<button
-						type="button"
-						class="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 {!gise.supervisor_id
-							? 'animate-pulse bg-warning-500 text-white shadow-lg shadow-warning-500/20 hover:bg-warning-600'
-							: 'border border-surface-200 bg-surface-100 text-surface-700 hover:bg-surface-200 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700'}"
-						onclick={onEditar}
-					>
-						<PenLine size={16} />
-						{!gise.supervisor_id
-							? isMobile
-								? 'Definir supervisor'
-								: 'Definir Supervisão'
-							: 'Editar'}
-					</button>
-				{/if}
 			</div>
 		</div>		<form bind:this={formEl} method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
 			<div
@@ -310,18 +326,36 @@
 								class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
 								>DPC Supervisão</span
 							>
-							{#if editando}
-								<div class="w-full sm:max-w-md mt-1">
-									<SearchableSelect
-										id="supId"
-										bind:value={supervisorId}
-										loadOptions={buscarDpcs}
-										selectedOption={selectedFromPoliciais(supervisorId)}
-										placeholder="Pesquisar DPC..."
-										minSearchChars={2}
-										showTrigger={false}
-										class="w-full"
-									/>
+							{#if editandoPapel === 'supervisor'}
+								<div class="flex flex-wrap items-center gap-2 mt-1">
+									<div class="w-full sm:max-w-md">
+										<SearchableSelect
+											id="supId"
+											bind:value={supervisorId}
+											loadOptions={buscarDpcs}
+											selectedOption={selectedFromPoliciais(supervisorId)}
+											placeholder="Pesquisar DPC..."
+											minSearchChars={2}
+											showTrigger={false}
+											class="w-full"
+										/>
+									</div>
+									<div class="flex items-center gap-1.5">
+										<button
+											type="submit"
+											class="btn btn-sm preset-filled-primary-500 text-xs px-3 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+											disabled={pendingCrud}
+										>
+											{pendingCrud ? 'Salvando...' : 'Salvar'}
+										</button>
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-surface-500 text-xs px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+											onclick={cancelarEdicao}
+										>
+											Cancelar
+										</button>
+									</div>
 								</div>
 							{:else}
 								<div class="flex min-w-0 items-center gap-3">
@@ -352,7 +386,7 @@
 												type="button"
 												class="p-1 rounded-lg text-surface-450 hover:text-primary-500 hover:bg-surface-200/50 dark:hover:bg-surface-800 transition-colors"
 												title="Editar"
-												onclick={onEditar}
+												onclick={() => iniciarEdicao('supervisor')}
 											>
 												<PenLine size={14} />
 											</button>
@@ -388,7 +422,7 @@
 											class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
 											>Assessor</span
 										>
-										{#if editando}
+										{#if editandoPapel === 'assessor'}
 											<div class="w-full mt-1">
 												<SearchableSelect
 													id="assessorId"
@@ -414,7 +448,7 @@
 															type="button"
 															class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
 															title="Editar"
-															onclick={onEditar}
+															onclick={() => iniciarEdicao('assessor')}
 														>
 															<PenLine size={12} />
 														</button>
@@ -442,7 +476,7 @@
 										{/if}
 									</div>
 								</div>
-								{#if !editando}
+								{#if editandoPapel !== 'assessor'}
 									{@const stAss = gise.assessor_id ? marcador('assessor', gise.assessor_id) : null}
 									<div class="shrink-0 flex items-center">
 										{#if stAss === 'ok'}
@@ -460,38 +494,56 @@
 								{/if}
 							</div>
 
-							{#if editando && assessorId != null}
-								<div
-									class="mt-2 pt-2 border-t border-surface-100 dark:border-surface-800 space-y-2"
-								>
-									<div class="flex flex-col gap-1">
-										<label
-											for="assessorEmailNotif"
-											class="text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400"
-											>E-mail (avisos GISE)</label
-										>
-										<input
-											id="assessorEmailNotif"
-											type="email"
-											name="assessor_email_notificacao"
-											autocomplete="email"
-											bind:value={assessorEmailNotificacao}
-											class="w-full px-2 py-1 rounded border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs focus:border-primary-400 focus:outline-none transition-colors"
-											placeholder="nome@provedor.com"
-										/>
+							{#if editandoPapel === 'assessor'}
+								{#if assessorId != null}
+									<div
+										class="mt-2 pt-2 border-t border-surface-100 dark:border-surface-800 space-y-2"
+									>
+										<div class="flex flex-col gap-1">
+											<label
+												for="assessorEmailNotif"
+												class="text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400"
+												>E-mail (avisos GISE)</label
+											>
+											<input
+												id="assessorEmailNotif"
+												type="email"
+												name="assessor_email_notificacao"
+												autocomplete="email"
+												bind:value={assessorEmailNotificacao}
+												class="w-full px-2 py-1 rounded border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs focus:border-primary-400 focus:outline-none transition-colors"
+												placeholder="nome@provedor.com"
+											/>
+										</div>
+										<label class="flex items-start gap-1.5 cursor-pointer">
+											<input
+												type="checkbox"
+												name="confirmar_email_assessor"
+												value="1"
+												class="mt-0.5 shrink-0 rounded border-surface-450 w-3 h-3"
+												required
+											/>
+											<span class="text-[0.65rem] text-surface-500 dark:text-surface-400 leading-snug"
+												>Confirmo e-mail.</span
+											>
+										</label>
 									</div>
-									<label class="flex items-start gap-1.5 cursor-pointer">
-										<input
-											type="checkbox"
-											name="confirmar_email_assessor"
-											value="1"
-											class="mt-0.5 shrink-0 rounded border-surface-450 w-3 h-3"
-											required
-										/>
-										<span class="text-[0.65rem] text-surface-500 dark:text-surface-400 leading-snug"
-											>Confirmo e-mail.</span
-										>
-									</label>
+								{/if}
+								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
+									<button
+										type="submit"
+										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+										disabled={pendingCrud}
+									>
+										{pendingCrud ? 'Salvando...' : 'Salvar'}
+									</button>
+									<button
+										type="button"
+										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+										onclick={cancelarEdicao}
+									>
+										Cancelar
+									</button>
 								</div>
 							{/if}
 						</div>
@@ -509,7 +561,7 @@
 										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 										>NUIP OIP</span
 									>
-									{#if editando}
+									{#if editandoPapel === 'seint1'}
 										<div class="w-full mt-1">
 											<SearchableSelect
 												id="seint1Id"
@@ -535,7 +587,7 @@
 														type="button"
 														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
 														title="Editar"
-														onclick={onEditar}
+														onclick={() => iniciarEdicao('seint1')}
 													>
 														<PenLine size={12} />
 													</button>
@@ -555,7 +607,7 @@
 									{/if}
 								</div>
 							</div>
-							{#if !editando}
+							{#if editandoPapel !== 'seint1'}
 								{@const stS1 = gise.seint1_id ? marcador('seint', gise.seint1_id) : null}
 								<div class="shrink-0 flex flex-col items-end gap-0.5">
 									{#if stS1 === 'ok'}
@@ -577,6 +629,25 @@
 									{/if}
 								</div>
 							{/if}
+
+							{#if editandoPapel === 'seint1'}
+								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
+									<button
+										type="submit"
+										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+										disabled={pendingCrud}
+									>
+										{pendingCrud ? 'Salvando...' : 'Salvar'}
+									</button>
+									<button
+										type="button"
+										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+										onclick={cancelarEdicao}
+									>
+										Cancelar
+									</button>
+								</div>
+							{/if}
 						</div>
 
 						<!-- NUIP OIP 2 -->
@@ -592,7 +663,7 @@
 										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
 										>NUIP OIP</span
 									>
-									{#if editando}
+									{#if editandoPapel === 'seint2'}
 										<div class="w-full mt-1">
 											<SearchableSelect
 												id="seint2Id"
@@ -618,7 +689,7 @@
 														type="button"
 														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
 														title="Editar"
-														onclick={onEditar}
+														onclick={() => iniciarEdicao('seint2')}
 													>
 														<PenLine size={12} />
 													</button>
@@ -638,7 +709,7 @@
 									{/if}
 								</div>
 							</div>
-							{#if !editando}
+							{#if editandoPapel !== 'seint2'}
 								{@const stS2 = gise.seint2_id ? marcador('seint', gise.seint2_id) : null}
 								<div class="shrink-0 flex flex-col items-end gap-0.5">
 									{#if stS2 === 'ok'}
@@ -660,29 +731,29 @@
 									{/if}
 								</div>
 							{/if}
+
+							{#if editandoPapel === 'seint2'}
+								<div class="flex items-center gap-1.5 pt-1 mt-1 border-t border-surface-100 dark:border-surface-800">
+									<button
+										type="submit"
+										class="btn btn-xs preset-filled-primary-500 text-xs px-2.5 py-1.5 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+										disabled={pendingCrud}
+									>
+										{pendingCrud ? 'Salvando...' : 'Salvar'}
+									</button>
+									<button
+										type="button"
+										class="btn btn-xs preset-outlined-surface-500 text-xs px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+										onclick={cancelarEdicao}
+									>
+										Cancelar
+									</button>
+								</div>
+							{/if}
 						</div>
 					</div>
 
-					{#if editando}
-						<div
-							class="flex justify-end gap-2 pt-3 border-t border-surface-200/60 dark:border-surface-700/60 mt-3"
-						>
-							<button
-								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
-								disabled={pendingCrud}
-							>
-								{pendingCrud ? 'Salvando...' : 'Salvar'}
-							</button>
-							<button
-								type="button"
-								class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-lg active:scale-95 transition-all"
-								onclick={onCancelar}
-							>
-								Cancelar
-							</button>
-						</div>
-					{/if}
+
 				</div>
 			</div>
 
