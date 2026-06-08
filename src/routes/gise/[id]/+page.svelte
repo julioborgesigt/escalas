@@ -26,6 +26,7 @@
 	import ModalRubrica from './_components/modais/ModalRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
+	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -120,6 +121,28 @@
 
 	// Reabrir escala
 	let showReabrirConfirm = $state(false);
+
+	let showDownloadExtrasModal = $state(false);
+
+	const giseParaDownload = $derived.by(() => {
+		if (!gise) return null;
+		return {
+			id: gise.id,
+			status: gise.status,
+			data_inicio: gise.data_inicio,
+			supervisor_id: gise.supervisor_id,
+			assessor_id: gise.assessor_id,
+			seint1_id: gise.seint1_id,
+			seint2_id: gise.seint2_id,
+			assinaturasRelatorioExtraIds: (data.assinaturasRelatorios ?? [])
+				.filter((a) => a.tipo === 'extraordinario')
+				.map((a) => a.seccional_id),
+			seccionais: (gise.seccionais ?? []).map((sec: { seccional_id: number; seccional_nome: string }) => ({
+				id: sec.seccional_id,
+				nome: sec.seccional_nome
+			}))
+		};
+	});
 
 	// Modo Edição Geral (Admin Geral)
 	let modoEdicaoGeral = $state(false);
@@ -519,6 +542,7 @@
 							supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 							podeAssinar={isSupervisor}
 							giseStatus={gise.status}
+							onConferencia={() => (showDownloadExtrasModal = true)}
 						/>
 					{/if}
 				{/snippet}
@@ -738,4 +762,10 @@
 	exigirCodigoEmail={page.data.exigirCodigoEmailAssinatura ?? false}
 	onConfirm={assinatura.confirmarRubrica}
 	onCancel={assinatura.fecharModalRubrica}
+/>
+
+<ModalDownloadExtras
+	bind:open={showDownloadExtrasModal}
+	gise={giseParaDownload}
+	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
 />

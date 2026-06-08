@@ -28,6 +28,7 @@
 			| null;
 		supervisaoExtraUnidadeId?: number | null;
 		giseStatus?: string;
+		onConferencia?: () => void;
 	}
 
 	const {
@@ -43,7 +44,8 @@
 		assinaturasRelatorios = [],
 		seccionais = [],
 		supervisaoExtraUnidadeId = null,
-		giseStatus = ''
+		giseStatus = '',
+		onConferencia
 	}: Props = $props();
 
 	let expandido = $state(false);
@@ -286,7 +288,7 @@
 						<button
 							type="button"
 							class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1"
-							onclick={mostrarOrientaConferencia}
+							onclick={onConferencia || mostrarOrientaConferencia}
 						>
 							<svg
 								class="h-2.5 w-2.5 shrink-0"
