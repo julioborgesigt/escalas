@@ -46,6 +46,7 @@ export type AcaoAudit =
 	| 'limpeza_retencao'
 	| 'exportar_escala'
 	| 'exportar_gise'
+	| 'download_validar_forense'
 	| 'registrar_incidente'
 	| 'atualizar_incidente'
 	| 'solicitar_direito_lgpd'

@@ -7,6 +7,7 @@ import {
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
+import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
@@ -82,41 +83,91 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			'extraordinario'
 		);
 
-		// 1. Se existir assinatura, baixar do R2 preferencialmente usando a chave do banco
+		// 1. Se existir assinatura: Admin Geral/Super recebem o blob forense íntegro
+		//    do R2 (com manifesto); os demais recebem a cópia de conferência regenerada.
 		if (reportSignature?.verification_hash) {
-			if (!r2) {
-				return serverError('[gise/download] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
+			if (podeBaixarForense(u)) {
+				if (!r2) {
+					return serverError('[gise/download] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
+				}
+
+				try {
+					// Prioridade total: usar a chave salva no banco de dados (mais robusto)
+					let r2Key = reportSignature.r2_key;
+
+					// Fallback apenas para registros legados
+					if (!r2Key) {
+						const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
+						const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
+						r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
+					}
+
+					const r2Object = await r2.get(r2Key);
+					if (r2Object) {
+						const pdfBytes = await r2Object.arrayBuffer();
+						const filename = `relatorio_extraordinario_${gise.data_inicio}_sec_${seccionalId}_assinado.pdf`;
+						return new Response(pdfBytes, {
+							headers: {
+								'Content-Type': 'application/pdf',
+								'Content-Disposition': contentDisposition(filename),
+								'Cache-Control': 'no-cache'
+							}
+						});
+					} else {
+						return notFound('Relatório assinado no R2');
+					}
+				} catch (e) {
+					return serverError(
+						`[gise/download] Erro ao recuperar arquivo do R2 (gise=${id}, sec=${seccionalId})`,
+						e
+					);
+				}
 			}
 
+			// Não privilegiado: regenera o relatório (sem manifesto forense) + rodapé/QR.
 			try {
-				// Prioridade total: usar a chave salva no banco de dados (mais robusto)
-				let r2Key = reportSignature.r2_key;
-
-				// Fallback apenas para registros legados
-				if (!r2Key) {
-					const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
-					const folder = `gise/${yyyy}-${mm}/${dd_escala}/${id}/relatorios_extra`;
-					r2Key = `${folder}/gise_rel_${id}_sec_${seccionalId}_${reportSignature.verification_hash}_assinada.pdf`;
-				}
-
-				const r2Object = await r2.get(r2Key);
-				if (r2Object) {
-					const pdfBytes = await r2Object.arrayBuffer();
-					const filename = `relatorio_extraordinario_${gise.data_inicio}_sec_${seccionalId}_assinado.pdf`;
-					return new Response(pdfBytes, {
-						headers: {
-							'Content-Type': 'application/pdf',
-							'Content-Disposition': contentDisposition(filename),
-							'Cache-Control': 'no-cache'
-						}
-					});
-				} else {
-					return notFound('Relatório assinado no R2');
-				}
-			} catch (e) {
+				const presencas = await buscarPresencasGise(db, id);
+				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
+				const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
+					await import('$lib/server/export');
+				const brEnv = await getBreveRelatorioEnvMergido(db);
+				const result = isSupExtra
+					? await gerarRelatorioExtraordinarioSupervisaoPdf(
+							gise,
+							presencas,
+							url.origin,
+							reportSignature,
+							undefined,
+							false,
+							brEnv
+						)
+					: await gerarRelatorioExtraordinarioPdf(
+							toGisePdfData(gise, brEnv),
+							presencas,
+							seccionalId,
+							url.origin,
+							reportSignature
+						);
+				const hash = reportSignature.verification_hash;
+				const buffer = await gerarCopiaConferencia({
+					pdfRascunho: result.pdf,
+					assinanteNome: reportSignature.assinante_nome,
+					verificationHash: hash,
+					verificationUrl: `${url.origin}/validar/${hash}`,
+					rubricBase64: reportSignature.rubrica ?? undefined
+				});
+				const filename = `conferencia_extraordinario_${gise.data_inicio}_sec_${seccionalId}.pdf`;
+				return new Response(buffer as unknown as BodyInit, {
+					headers: {
+						'Content-Type': 'application/pdf',
+						'Content-Disposition': contentDisposition(filename),
+						'Cache-Control': 'no-cache'
+					}
+				});
+			} catch (err) {
 				return serverError(
-					`[gise/download] Erro ao recuperar arquivo do R2 (gise=${id}, sec=${seccionalId})`,
-					e
+					`[gise/download] Falha ao gerar cópia de conferência do relatório (gise=${id}, sec=${seccionalId})`,
+					err
 				);
 			}
 		}
@@ -170,20 +221,20 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	}
 
 	if (format === 'pdf') {
-		const filename = `gise_${gise.data_inicio}_assinada.pdf`;
+		const docGise = gise.documento;
 
-		// Prioridade total: buscar o PDF assinado (com manifesto) no R2
-		if (gise.documento?.r2_key) {
+		// Admin Geral/Super com documento assinado: blob forense íntegro (com manifesto) do R2.
+		if (docGise?.r2_key && podeBaixarForense(u)) {
 			const r2 = getR2(platform);
 			if (r2) {
 				try {
-					const r2Object = await r2.get(gise.documento.r2_key);
+					const r2Object = await r2.get(docGise.r2_key);
 					if (r2Object) {
 						const pdfBytes = await r2Object.arrayBuffer();
 						return new Response(pdfBytes, {
 							headers: {
 								'Content-Type': 'application/pdf',
-								'Content-Disposition': contentDisposition(filename),
+								'Content-Disposition': contentDisposition(`gise_${gise.data_inicio}_assinada.pdf`),
 								'Cache-Control': 'no-cache'
 							}
 						});
@@ -197,7 +248,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			}
 		}
 
-		// Fallback: gerar PDF normal
+		// Rascunho sem manifesto — base para a cópia de conferência (documento
+		// assinado, usuário não privilegiado) e para a GISE ainda não assinada.
 		const { gerarPdfGise } = await import('$lib/server/export');
 		const r2Logo = getR2(platform);
 		let logoBytes: Uint8Array | undefined;
@@ -220,6 +272,27 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 		const brForPdf = await getBreveRelatorioEnvMergido(db);
 		const result = await gerarPdfGise(toGisePdfData(gise, brForPdf), logoBytes);
+
+		// Documento assinado + usuário não privilegiado → cópia de conferência
+		// (rascunho + rodapé/QR para /validar, sem manifesto forense).
+		if (docGise?.r2_key && !podeBaixarForense(u)) {
+			const hash = docGise.verificacao_hash ?? undefined;
+			const buffer = await gerarCopiaConferencia({
+				pdfRascunho: result.pdf,
+				assinanteNome: docGise.assinante_nome,
+				verificationHash: hash,
+				verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined,
+				rubricBase64: docGise.rubrica ?? undefined
+			});
+			return new Response(buffer as unknown as BodyInit, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
+					'Cache-Control': 'no-cache'
+				}
+			});
+		}
+
 		return new Response(result.pdf as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
