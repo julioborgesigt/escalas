@@ -270,189 +270,7 @@
 					</button>
 				{/if}
 			</div>
-		</div>
-
-		{#if editando}
-			<form method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="space-y-4">
-				<!-- Seção: Comando (DPC + Assessor) -->
-				<div>
-					<p
-						class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-2 px-0.5"
-					>
-						Comando
-					</p>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="supId"
-								class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
-								>Supervisão e apoio (DPC)</label
-							>
-							<SearchableSelect
-								id="supId"
-								bind:value={supervisorId}
-								loadOptions={buscarDpcs}
-								selectedOption={selectedFromPoliciais(supervisorId)}
-								placeholder="Pesquisar DPC..."
-								minSearchChars={2}
-								showTrigger={false}
-								class="w-full"
-							/>
-						</div>
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="assessorId"
-								class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
-							>
-								Assessor (OIP)
-							</label>
-							<SearchableSelect
-								id="assessorId"
-								bind:value={assessorId}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(assessorId)}
-								placeholder="Pesquisar Assessor..."
-								minSearchChars={2}
-								showTrigger={false}
-								class="w-full"
-							/>
-						</div>
-					</div>
-				</div>
-
-				<!-- Bloco de e-mail do assessor: largura total, aparece logo abaixo quando há assessor -->
-				{#if assessorId != null}
-					<div
-						class="rounded-xl border border-primary-400/25 bg-primary-500/5 dark:bg-primary-500/10 p-4 space-y-3"
-					>
-						<div class="flex items-start gap-2.5">
-							<div
-								class="mt-0.5 shrink-0 w-7 h-7 rounded-lg bg-primary-500/15 flex items-center justify-center text-primary-600 dark:text-primary-400"
-							>
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-									/>
-								</svg>
-							</div>
-							<div class="min-w-0">
-								<p class="text-xs font-bold text-surface-700 dark:text-surface-200 mb-0.5">
-									Avisos de preenchimento
-								</p>
-								<p class="text-xs text-surface-500 dark:text-surface-400 leading-snug">
-									Quando uma seccional finalizar o envio da escala, o sistema envia um e-mail com
-									resumo para o endereço abaixo. Confira ou edite o e-mail pessoal do assessor.
-								</p>
-							</div>
-						</div>
-						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-							<div class="flex flex-col gap-1.5">
-								<label
-									for="assessorEmailNotif"
-									class="text-xs font-semibold text-surface-600 dark:text-surface-400"
-									>E-mail do assessor (avisos GISE)</label
-								>
-								<input
-									id="assessorEmailNotif"
-									type="email"
-									name="assessor_email_notificacao"
-									autocomplete="email"
-									bind:value={assessorEmailNotificacao}
-									class="w-full px-3 py-2 rounded-lg border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800 text-sm focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400/30 transition-colors"
-									placeholder="nome@provedor.com"
-								/>
-							</div>
-							<label class="flex items-start gap-2.5 cursor-pointer sm:pb-0.5">
-								<input
-									type="checkbox"
-									name="confirmar_email_assessor"
-									value="1"
-									class="mt-0.5 shrink-0 rounded border-surface-400"
-									required
-								/>
-								<span class="text-xs text-surface-600 dark:text-surface-300 leading-snug"
-									>Confirmo que este e-mail está correto para receber os avisos das seccionais.</span
-								>
-							</label>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Seção: Inteligência (SEINT) -->
-				<div>
-					<p
-						class="text-[0.65rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-2 px-0.5"
-					>
-						Inteligência (SEINT)
-					</p>
-					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="seint1Id"
-								class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
-							>
-								SEINT 1 (OIP)
-							</label>
-							<SearchableSelect
-								id="seint1Id"
-								bind:value={seint1Id}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(seint1Id)}
-								placeholder="Pesquisar SEINT 1..."
-								minSearchChars={2}
-								showTrigger={false}
-								class="w-full"
-							/>
-						</div>
-						<div class="flex flex-col gap-1.5">
-							<label
-								for="seint2Id"
-								class="text-xs font-semibold text-surface-600 dark:text-surface-400 px-0.5"
-							>
-								SEINT 2 (OIP)
-							</label>
-							<SearchableSelect
-								id="seint2Id"
-								bind:value={seint2Id}
-								loadOptions={buscarOips}
-								selectedOption={selectedFromPoliciais(seint2Id)}
-								placeholder="Pesquisar SEINT 2..."
-								minSearchChars={2}
-								showTrigger={false}
-								class="w-full"
-							/>
-						</div>
-					</div>
-				</div>
-
-				<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
-				<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
-				<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
-				<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
-
-				<div
-					class="flex justify-end gap-2 pt-1 border-t border-surface-200/60 dark:border-surface-700/60"
-				>
-					<button
-						type="submit"
-						class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold"
-						disabled={pendingCrud}
-					>
-						{pendingCrud ? 'Salvando...' : 'Salvar'}
-					</button>
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-lg"
-						onclick={onCancelar}
-					>
-						Cancelar
-					</button>
-				</div>
-			</form>
-		{:else}
+		</div>		<form method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
 			<div
 				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-100/70 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800/80 backdrop-blur-sm"
 			>
@@ -468,96 +286,180 @@
 								class="block text-[0.65rem] uppercase tracking-wider font-bold text-surface-500 dark:text-surface-400 mb-0.5"
 								>DPC Supervisão</span
 							>
-							<div class="flex min-w-0 items-center gap-2">
-								<p
-									class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
-								>
-									{gise.supervisor_nome ?? 'Não definido'}
-								</p>
-								<div class="flex shrink-0 items-center">
-									{#if stSupervisor === 'ok'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-											title="Entrada e saída confirmadas">✓</span
-										>
-									{:else if stSupervisor === 'entrada'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Aguardando confirmação de saída">Entrada</span
-										>
-									{/if}
+							{#if editando}
+								<div class="w-full sm:max-w-md mt-1">
+									<SearchableSelect
+										id="supId"
+										bind:value={supervisorId}
+										loadOptions={buscarDpcs}
+										selectedOption={selectedFromPoliciais(supervisorId)}
+										placeholder="Pesquisar DPC..."
+										minSearchChars={2}
+										showTrigger={false}
+										class="w-full"
+									/>
 								</div>
-							</div>
+							{:else}
+								<div class="flex min-w-0 items-center gap-2">
+									<p
+										class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
+									>
+										{gise.supervisor_nome ?? 'Não definido'}
+									</p>
+									<div class="flex shrink-0 items-center">
+										{#if stSupervisor === 'ok'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
+												title="Entrada e saída confirmadas">✓</span
+											>
+										{:else if stSupervisor === 'entrada'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+												title="Aguardando confirmação de saída">Entrada</span
+											>
+										{/if}
+									</div>
+								</div>
+							{/if}
 						</div>
 					</div>
 
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
-						{#if gise.assessor_id}
-							{@const stAss = marcador('assessor', gise.assessor_id)}
-							<div
-								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200"
-							>
-								<div class="flex items-center gap-2.5 min-w-0">
+						<!-- Assessor -->
+						<div
+							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200"
+						>
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-2.5 min-w-0 flex-1">
 									<div class="text-surface-400 dark:text-surface-500 shrink-0">
 										<Users size={14} />
 									</div>
-									<div class="overflow-hidden min-w-0">
+									<div class="overflow-hidden min-w-0 flex-1">
 										<span
 											class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
 											>Assessor</span
 										>
-										<p
-											class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-										>
-											{policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...'}
-										</p>
-										{#if gise.assessor_email_notificacao}
+										{#if editando}
+											<div class="w-full mt-1">
+												<SearchableSelect
+													id="assessorId"
+													bind:value={assessorId}
+													loadOptions={buscarOips}
+													selectedOption={selectedFromPoliciais(assessorId)}
+													placeholder="Pesquisar Assessor..."
+													minSearchChars={2}
+													showTrigger={false}
+													class="w-full"
+												/>
+											</div>
+										{:else}
 											<p
-												class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5"
-												title="E-mail para avisos de seccionais"
+												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 											>
-												Avisos: {gise.assessor_email_notificacao}
+												{gise.assessor_id ? (policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...') : 'Não definido'}
 											</p>
+											{#if gise.assessor_email_notificacao}
+												<p
+													class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5"
+													title="E-mail para avisos de seccionais"
+												>
+													Avisos: {gise.assessor_email_notificacao}
+												</p>
+											{/if}
 										{/if}
 									</div>
 								</div>
-								<div class="shrink-0 flex items-center">
-									{#if stAss === 'ok'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-											title="Entrada e saída confirmadas">✓</span
-										>
-									{:else if stAss === 'entrada'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Aguardando confirmação de saída">Entrada</span
-										>
-									{/if}
-								</div>
-							</div>
-						{/if}
-
-						{#if gise.seint1_id}
-							{@const stS1 = marcador('seint', gise.seint1_id)}
-							<div
-								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
-							>
-								<div class="flex items-center gap-2.5 min-w-0">
-									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
-										<Users size={14} />
+								{#if !editando}
+									{@const stAss = gise.assessor_id ? marcador('assessor', gise.assessor_id) : null}
+									<div class="shrink-0 flex items-center">
+										{#if stAss === 'ok'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
+												title="Entrada e saída confirmadas">✓</span
+											>
+										{:else if stAss === 'entrada'}
+											<span
+												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+												title="Aguardando confirmação de saída">Entrada</span
+											>
+										{/if}
 									</div>
-									<div class="overflow-hidden min-w-0">
-										<span
-											class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
-											>NUIP OIP</span
+								{/if}
+							</div>
+
+							{#if editando && assessorId != null}
+								<div
+									class="mt-2 pt-2 border-t border-surface-100 dark:border-surface-800 space-y-2"
+								>
+									<div class="flex flex-col gap-1">
+										<label
+											for="assessorEmailNotif"
+											class="text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400"
+											>E-mail (avisos GISE)</label
 										>
+										<input
+											id="assessorEmailNotif"
+											type="email"
+											name="assessor_email_notificacao"
+											autocomplete="email"
+											bind:value={assessorEmailNotificacao}
+											class="w-full px-2 py-1 rounded border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs focus:border-primary-400 focus:outline-none transition-colors"
+											placeholder="nome@provedor.com"
+										/>
+									</div>
+									<label class="flex items-start gap-1.5 cursor-pointer">
+										<input
+											type="checkbox"
+											name="confirmar_email_assessor"
+											value="1"
+											class="mt-0.5 shrink-0 rounded border-surface-450 w-3 h-3"
+											required
+										/>
+										<span class="text-[0.65rem] text-surface-500 dark:text-surface-400 leading-snug"
+											>Confirmo e-mail.</span
+										>
+									</label>
+								</div>
+							{/if}
+						</div>
+
+						<!-- NUIP OIP 1 -->
+						<div
+							class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
+						>
+							<div class="flex items-center gap-2.5 min-w-0 flex-1">
+								<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
+									<Users size={14} />
+								</div>
+								<div class="overflow-hidden min-w-0 flex-1">
+									<span
+										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+										>NUIP OIP</span
+									>
+									{#if editando}
+										<div class="w-full mt-1">
+											<SearchableSelect
+												id="seint1Id"
+												bind:value={seint1Id}
+												loadOptions={buscarOips}
+												selectedOption={selectedFromPoliciais(seint1Id)}
+												placeholder="Pesquisar NUIP OIP..."
+												minSearchChars={2}
+												showTrigger={false}
+												class="w-full"
+											/>
+										</div>
+									{:else}
 										<p
 											class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 										>
-											{policiais.find((p) => p.id === gise.seint1_id)?.nome ?? 'Carregando...'}
+											{gise.seint1_id ? (policiais.find((p) => p.id === gise.seint1_id)?.nome ?? 'Carregando...') : 'Não definido'}
 										</p>
-									</div>
+									{/if}
 								</div>
+							</div>
+							{#if !editando}
+								{@const stS1 = gise.seint1_id ? marcador('seint', gise.seint1_id) : null}
 								<div class="shrink-0 flex flex-col items-end gap-0.5">
 									{#if stS1 === 'ok'}
 										<span
@@ -577,30 +479,46 @@
 										>
 									{/if}
 								</div>
-							</div>
-						{/if}
+							{/if}
+						</div>
 
-						{#if gise.seint2_id}
-							{@const stS2 = marcador('seint', gise.seint2_id)}
-							<div
-								class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
-							>
-								<div class="flex items-center gap-2.5 min-w-0">
-									<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
-										<Users size={14} />
-									</div>
-									<div class="overflow-hidden min-w-0">
-										<span
-											class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
-											>NUIP OIP</span
-										>
+						<!-- NUIP OIP 2 -->
+						<div
+							class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
+						>
+							<div class="flex items-center gap-2.5 min-w-0 flex-1">
+								<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
+									<Users size={14} />
+								</div>
+								<div class="overflow-hidden min-w-0 flex-1">
+									<span
+										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+										>NUIP OIP</span
+									>
+									{#if editando}
+										<div class="w-full mt-1">
+											<SearchableSelect
+												id="seint2Id"
+												bind:value={seint2Id}
+												loadOptions={buscarOips}
+												selectedOption={selectedFromPoliciais(seint2Id)}
+												placeholder="Pesquisar NUIP OIP..."
+												minSearchChars={2}
+												showTrigger={false}
+												class="w-full"
+											/>
+										</div>
+									{:else}
 										<p
 											class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 										>
-											{policiais.find((p) => p.id === gise.seint2_id)?.nome ?? 'Carregando...'}
+											{gise.seint2_id ? (policiais.find((p) => p.id === gise.seint2_id)?.nome ?? 'Carregando...') : 'Não definido'}
 										</p>
-									</div>
+									{/if}
 								</div>
+							</div>
+							{#if !editando}
+								{@const stS2 = gise.seint2_id ? marcador('seint', gise.seint2_id) : null}
 								<div class="shrink-0 flex flex-col items-end gap-0.5">
 									{#if stS2 === 'ok'}
 										<span
@@ -620,11 +538,38 @@
 										>
 									{/if}
 								</div>
-							</div>
-						{/if}
+							{/if}
+						</div>
 					</div>
-				</div>
 
+					{#if editando}
+						<div
+							class="flex justify-end gap-2 pt-3 border-t border-surface-200/60 dark:border-surface-700/60 mt-3"
+						>
+							<button
+								type="submit"
+								class="btn preset-filled-primary-500 text-sm px-4 py-2 rounded-lg font-semibold shadow-sm active:scale-95 transition-all"
+								disabled={pendingCrud}
+							>
+								{pendingCrud ? 'Salvando...' : 'Salvar'}
+							</button>
+							<button
+								type="button"
+								class="btn preset-outlined-surface-500 text-sm px-4 py-2 rounded-lg active:scale-95 transition-all"
+								onclick={onCancelar}
+							>
+								Cancelar
+							</button>
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<input type="hidden" name="supervisor_id" value={supervisorId ?? ''} />
+			<input type="hidden" name="assessor_id" value={assessorId ?? ''} />
+			<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
+			<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
+		</form>
 				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
 					{@const mostrarColEscala =
 						!!documentoAssinadoInfo?.existe ||
@@ -1078,6 +1023,5 @@
 					</div>
 				{/if}
 			</div>
-		{/if}
 	</div>
-</div>
+
