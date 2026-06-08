@@ -2,14 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Database } from '$lib/db';
 import type { UsuarioLogado } from '$lib/auth';
 
-// Mock do módulo $lib/db ANTES de importar o SUT — Vitest interpreta hoisting.
+// Mock dos módulos ANTES de importar o SUT — Vitest interpreta hoisting.
 vi.mock('$lib/db', () => ({
 	temSolicitacaoParaDpcAdmin: vi.fn()
+}));
+vi.mock('$lib/server/policial-permissao', () => ({
+	lotacoesAdministradas: vi.fn()
 }));
 
 // Import depois do mock para garantir bind correto.
 import { verificarPermissaoEscala } from '../escala-permissao';
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
+import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 
 const fakeDb = {} as Database;
 
@@ -33,6 +37,10 @@ function user(overrides: Partial<UsuarioLogado>): NonNullable<App.Locals['usuari
 describe('verificarPermissaoEscala', () => {
 	beforeEach(() => {
 		vi.mocked(temSolicitacaoParaDpcAdmin).mockClear();
+		vi.mocked(lotacoesAdministradas).mockReset();
+		// Default: escopo vazio (sem unidades). Testes que exercitam o ramo DPC
+		// sobrescrevem com o conjunto relevante.
+		vi.mocked(lotacoesAdministradas).mockResolvedValue(new Set());
 	});
 
 	it('admin geral SEMPRE pode (mesmo de outra lotação)', async () => {
@@ -56,6 +64,7 @@ describe('verificarPermissaoEscala', () => {
 	});
 
 	it('admin seccional DPC de outra lotação pode SE houver solicitação para ele', async () => {
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['DELEGACIA X']));
 		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(true);
 		const u = user({
 			lotacao: 'SECCIONAL A',
@@ -64,7 +73,14 @@ describe('verificarPermissaoEscala', () => {
 		});
 		const r = await verificarPermissaoEscala(fakeDb, 42, 'DELEGACIA X', u);
 		expect(r).toEqual({ permitido: true });
-		expect(temSolicitacaoParaDpcAdmin).toHaveBeenCalledWith(fakeDb, 42, u.id);
+		// Escopo administrativo é propagado para fechar o IDOR cross-unidade.
+		expect(temSolicitacaoParaDpcAdmin).toHaveBeenCalledWith(
+			fakeDb,
+			42,
+			u.id,
+			['DELEGACIA X'],
+			'DELEGACIA X'
+		);
 	});
 
 	it('admin seccional DPC SEM solicitação direcionada NÃO pode', async () => {
