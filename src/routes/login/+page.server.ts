@@ -13,6 +13,7 @@ import {
 } from '$lib/server/auth-flow';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
+import { resolverAppOrigin } from '$lib/server/app-origin';
 
 const cookieOptions = cookieOptionsLogin;
 
@@ -206,7 +207,7 @@ export const actions: Actions = {
 		}
 
 		const token = await criarTokenRedefinicao(db, 'policial', policial.id);
-		const link = `${url.origin}/redefinir-senha?token=${token}`;
+		const link = `${resolverAppOrigin(url, platform)}/redefinir-senha?token=${token}`;
 
 		try {
 			await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);
