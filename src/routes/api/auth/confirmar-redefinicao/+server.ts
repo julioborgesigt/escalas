@@ -14,6 +14,7 @@ import { administradores, policiais, resetSenhaTokens } from '$lib/server/schema
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { badRequest, rateLimited, validateBody } from '$lib/server/api';
 import { confirmarRedefinicaoSchema } from '$lib/schemas';
+import { resolverAppOrigin } from '$lib/server/app-origin';
 import type { RequestHandler } from './$types';
 
 const RESPOSTA_GENERICA =
@@ -116,7 +117,7 @@ export const POST: RequestHandler = async ({ request, platform, url, getClientAd
 	}
 
 	const token = await criarTokenRedefinicao(db, tipo, usuario.id);
-	const link = `${url.origin}/redefinir-senha?token=${token}`;
+	const link = `${resolverAppOrigin(url, platform)}/redefinir-senha?token=${token}`;
 
 	if (usuario.email_pessoal_verificado !== 1) {
 		if (tipo === 'policial') {

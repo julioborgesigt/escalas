@@ -15,6 +15,7 @@ import { and, eq } from 'drizzle-orm';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { serverError, validateBody } from '$lib/server/api';
 import { primeiroAcessoSchema } from '$lib/schemas';
+import { resolverAppOrigin } from '$lib/server/app-origin';
 import { logger } from '$lib/server/logger';
 
 const MAX_TENTATIVAS_IP = 5;
@@ -68,7 +69,7 @@ export const POST: RequestHandler = async ({ platform, request, url, getClientAd
 	}
 
 	const token = await criarTokenRedefinicao(db, 'policial', policial.id);
-	const link = `${url.origin}/redefinir-senha?token=${token}`;
+	const link = `${resolverAppOrigin(url, platform)}/redefinir-senha?token=${token}`;
 
 	try {
 		await enviarLinkPrimeiroAcesso(policial.email, policial.nome, link, platform);

@@ -6,6 +6,13 @@ declare global {
 	interface Env {
 		escalas_db: D1Database;
 		escalas_docs: R2Bucket;
+		/**
+		 * Origem canônica da aplicação (ex.: `https://escalas.exemplo.gov.br`).
+		 * Quando definida, os links de e-mail (redefinição/primeiro acesso) usam
+		 * esta origem em vez de `url.origin` (derivado do header Host) — defesa em
+		 * camadas contra host-header injection. Opcional.
+		 */
+		APP_ORIGIN?: string;
 		SYNC_TOKEN: string;
 		/**
 		 * Segredo separado, **distinto de SYNC_TOKEN**, exigido pelo endpoint
