@@ -580,7 +580,8 @@ export function gerarPdfPlantao(
 // ---- PDF GISE ----
 export async function gerarPdfGise(
 	gise: GisePdfData,
-	logoJpgBytes?: Uint8Array
+	logoJpgBytes?: Uint8Array,
+	logoCearaBytes?: Uint8Array
 ): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
@@ -698,7 +699,25 @@ export async function gerarPdfGise(
 	if (docData?.rubrica) {
 		try {
 			const format = getImgFormat(docData.rubrica);
-			doc.addImage(docData.rubrica, format || 'PNG', sigCenterX - 30, sigY - 25, 60, 22);
+			// Preserva o aspecto natural da rubrica (antes era fixo 60x22 → esticava).
+			const props = doc.getImageProperties(docData.rubrica);
+			const ratio = props.width > 0 ? props.height / props.width : 22 / 60;
+			let rubW = 60;
+			let rubH = rubW * ratio;
+			const maxH = 24;
+			if (rubH > maxH) {
+				rubH = maxH;
+				rubW = ratio > 0 ? rubH / ratio : 60;
+			}
+			// Centraliza no campo de assinatura, logo acima da linha (em sigY).
+			doc.addImage(
+				docData.rubrica,
+				format || 'PNG',
+				sigCenterX - rubW / 2,
+				sigY - 3 - rubH,
+				rubW,
+				rubH
+			);
 		} catch (e) {
 			console.error('Erro ao inserir rubrica no PDF GISE:', e);
 		}
@@ -754,24 +773,36 @@ export async function gerarPdfGise(
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
 
-	if (!logoJpgBytes || logoJpgBytes.length === 0) {
+	const temLogoEsq = !!(logoJpgBytes && logoJpgBytes.length > 0);
+	const temLogoDir = !!(logoCearaBytes && logoCearaBytes.length > 0);
+	if (!temLogoEsq && !temLogoDir) {
 		return { pdf: pdfBytes, finalY: sigY };
 	}
 
 	try {
 		const pdfDoc = await PDFDocument.load(pdfBytes);
-		const jpgImage = await pdfDoc.embedJpg(logoJpgBytes);
-		const pages = pdfDoc.getPages();
 		const mmToPt = 2.83465;
+		const logoW = 45;
+		const logoH = 14;
+		const topMm = 5;
+		// Landscape A4: 297mm de largura. logogise à esquerda, logo_ceara à direita.
+		const imgEsq = temLogoEsq ? await pdfDoc.embedJpg(logoJpgBytes!).catch(() => null) : null;
+		const imgDir = temLogoDir ? await pdfDoc.embedJpg(logoCearaBytes!).catch(() => null) : null;
 
-		for (const page of pages) {
+		for (const page of pdfDoc.getPages()) {
 			const { height } = page.getSize();
-			page.drawImage(jpgImage, {
-				x: 10 * mmToPt,
-				y: height - 5 * mmToPt - 14 * mmToPt,
-				width: 45 * mmToPt,
-				height: 14 * mmToPt
-			});
+			const y = height - (topMm + logoH) * mmToPt;
+			if (imgEsq) {
+				page.drawImage(imgEsq, { x: 10 * mmToPt, y, width: logoW * mmToPt, height: logoH * mmToPt });
+			}
+			if (imgDir) {
+				page.drawImage(imgDir, {
+					x: (297 - 10 - logoW) * mmToPt,
+					y,
+					width: logoW * mmToPt,
+					height: logoH * mmToPt
+				});
+			}
 		}
 
 		const modifiedPdf = await pdfDoc.save();

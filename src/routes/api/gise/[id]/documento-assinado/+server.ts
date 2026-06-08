@@ -58,12 +58,13 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 		if (!giseDetalhado) return notFound('Escala GISE');
 		const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
 		const hash = documento.verificacao_hash ?? undefined;
+		// A rubrica já aparece no campo de assinatura do corpo (gerarPdfGise) —
+		// não repetir no rodapé para evitar rubrica duplicada.
 		const buffer = await gerarCopiaConferencia({
 			pdfRascunho: rascunho,
 			assinanteNome: documento.assinante_nome,
 			verificationHash: hash,
-			verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined,
-			rubricBase64: documento.rubrica ?? undefined
+			verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
 		});
 		return new Response(buffer as unknown as BodyInit, {
 			headers: {
