@@ -13,7 +13,8 @@
 		FileDown,
 		CheckCircle2,
 		Clock,
-		PenLine
+		PenLine,
+		X
 	} from 'lucide-svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -224,6 +225,29 @@
 
 	let expandirEscala = $state(false);
 	let expandirExtra = $state(false);
+	let formEl = $state<HTMLFormElement | null>(null);
+
+	function excluirMembro(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
+		if (!confirm('Deseja realmente remover esta designação?')) return;
+
+		if (papel === 'supervisor') {
+			supervisorId = null;
+		} else if (papel === 'assessor') {
+			assessorId = null;
+			assessorEmailNotificacao = '';
+		} else if (papel === 'seint1') {
+			seint1Id = null;
+		} else if (papel === 'seint2') {
+			seint2Id = null;
+		}
+
+		// Garante que o estado seja atualizado nos inputs hidden antes de submeter
+		setTimeout(() => {
+			if (formEl) {
+				formEl.requestSubmit();
+			}
+		}, 50);
+	}
 </script>
 
 <div
@@ -270,7 +294,7 @@
 					</button>
 				{/if}
 			</div>
-		</div>		<form method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
+		</div>		<form bind:this={formEl} method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
 			<div
 				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-100/70 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800/80 backdrop-blur-sm"
 			>
@@ -300,25 +324,50 @@
 									/>
 								</div>
 							{:else}
-								<div class="flex min-w-0 items-center gap-2">
-									<p
-										class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
-									>
-										{gise.supervisor_nome ?? 'Não definido'}
-									</p>
-									<div class="flex shrink-0 items-center">
-										{#if stSupervisor === 'ok'}
-											<span
-												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-												title="Entrada e saída confirmadas">✓</span
-											>
-										{:else if stSupervisor === 'entrada'}
-											<span
-												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-												title="Aguardando confirmação de saída">Entrada</span
-											>
-										{/if}
+								<div class="flex min-w-0 items-center gap-3">
+									<div class="flex min-w-0 items-center gap-2">
+										<p
+											class="min-w-0 shrink font-bold text-lg leading-tight text-surface-900 dark:text-white truncate"
+										>
+											{gise.supervisor_nome ?? 'Não definido'}
+										</p>
+										<div class="flex shrink-0 items-center">
+											{#if stSupervisor === 'ok'}
+												<span
+													class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
+													title="Entrada e saída confirmadas">✓</span
+												>
+											{:else if stSupervisor === 'entrada'}
+												<span
+													class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+													title="Aguardando confirmação de saída">Entrada</span
+												>
+											{/if}
+										</div>
 									</div>
+
+									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+										<div class="flex items-center gap-1 shrink-0">
+											<button
+												type="button"
+												class="p-1 rounded-lg text-surface-450 hover:text-primary-500 hover:bg-surface-200/50 dark:hover:bg-surface-800 transition-colors"
+												title="Editar"
+												onclick={onEditar}
+											>
+												<PenLine size={14} />
+											</button>
+											{#if gise.supervisor_id}
+												<button
+													type="button"
+													class="p-1 rounded-lg text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
+													title="Remover"
+													onclick={() => excluirMembro('supervisor')}
+												>
+													<X size={14} />
+												</button>
+											{/if}
+										</div>
+									{/if}
 								</div>
 							{/if}
 						</div>
@@ -353,11 +402,35 @@
 												/>
 											</div>
 										{:else}
-											<p
-												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-											>
-												{gise.assessor_id ? (policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...') : 'Não definido'}
-											</p>
+											<div class="flex items-center gap-2">
+												<p
+													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+												>
+													{gise.assessor_id ? (policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...') : 'Não definido'}
+												</p>
+												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+													<div class="flex items-center gap-1 shrink-0">
+														<button
+															type="button"
+															class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+															title="Editar"
+															onclick={onEditar}
+														>
+															<PenLine size={12} />
+														</button>
+														{#if gise.assessor_id}
+															<button
+																type="button"
+																class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
+																title="Remover"
+																onclick={() => excluirMembro('assessor')}
+															>
+																<X size={12} />
+															</button>
+														{/if}
+													</div>
+												{/if}
+											</div>
 											{#if gise.assessor_email_notificacao}
 												<p
 													class="text-[0.65rem] text-surface-500 dark:text-surface-400 truncate mt-0.5"
@@ -450,11 +523,35 @@
 											/>
 										</div>
 									{:else}
-										<p
-											class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-										>
-											{gise.seint1_id ? (policiais.find((p) => p.id === gise.seint1_id)?.nome ?? 'Carregando...') : 'Não definido'}
-										</p>
+										<div class="flex items-center gap-2">
+											<p
+												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+											>
+												{gise.seint1_id ? (policiais.find((p) => p.id === gise.seint1_id)?.nome ?? 'Carregando...') : 'Não definido'}
+											</p>
+											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+												<div class="flex items-center gap-1 shrink-0">
+													<button
+														type="button"
+														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+														title="Editar"
+														onclick={onEditar}
+													>
+														<PenLine size={12} />
+													</button>
+													{#if gise.seint1_id}
+														<button
+															type="button"
+															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
+															title="Remover"
+															onclick={() => excluirMembro('seint1')}
+														>
+															<X size={12} />
+														</button>
+													{/if}
+												</div>
+											{/if}
+										</div>
 									{/if}
 								</div>
 							</div>
@@ -509,11 +606,35 @@
 											/>
 										</div>
 									{:else}
-										<p
-											class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-										>
-											{gise.seint2_id ? (policiais.find((p) => p.id === gise.seint2_id)?.nome ?? 'Carregando...') : 'Não definido'}
-										</p>
+										<div class="flex items-center gap-2">
+											<p
+												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
+											>
+												{gise.seint2_id ? (policiais.find((p) => p.id === gise.seint2_id)?.nome ?? 'Carregando...') : 'Não definido'}
+											</p>
+											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+												<div class="flex items-center gap-1 shrink-0">
+													<button
+														type="button"
+														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+														title="Editar"
+														onclick={onEditar}
+													>
+														<PenLine size={12} />
+													</button>
+													{#if gise.seint2_id}
+														<button
+															type="button"
+															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
+															title="Remover"
+															onclick={() => excluirMembro('seint2')}
+														>
+															<X size={12} />
+														</button>
+													{/if}
+												</div>
+											{/if}
+										</div>
 									{/if}
 								</div>
 							</div>
