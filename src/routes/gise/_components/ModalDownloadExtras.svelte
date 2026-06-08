@@ -2,13 +2,25 @@
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { Download, FileText, CheckCircle2, Clock, X } from 'lucide-svelte';
 
+	type GiseEscala = {
+		id: number;
+		status: string;
+		data_inicio: string;
+		supervisor_id?: number | null;
+		assessor_id?: number | null;
+		seint1_id?: number | null;
+		seint2_id?: number | null;
+		assinaturasRelatorioExtraIds?: number[];
+		seccionais?: { id: number; nome?: string }[];
+	};
+
 	let {
 		open = $bindable(false),
 		gise,
 		supervisaoExtraUnidadeId
 	}: {
 		open: boolean;
-		gise: any;
+		gise: GiseEscala | null;
 		supervisaoExtraUnidadeId: number | null;
 	} = $props();
 
