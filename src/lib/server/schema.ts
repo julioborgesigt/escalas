@@ -648,7 +648,8 @@ export const recoveryAttempts = sqliteTable(
 				'primeiro_acesso',
 				'validar_download',
 				'verificar_2fa',
-				'reenviar_codigo'
+				'reenviar_codigo',
+				'solicitar_codigo_assinatura'
 			]
 		}).notNull(),
 		attempted_at: text('attempted_at')

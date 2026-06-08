@@ -88,6 +88,66 @@ export function extrairUrlOcsp(cert: forge.pki.Certificate): string | null {
 }
 
 /**
+ * Defesa SSRF: a URL do responder OCSP vem da extensão AIA do certificado
+ * enviado pelo USUÁRIO. Sem validação, um cert com AIA apontando para um host
+ * interno faria o servidor emitir um POST para lá. Permitimos apenas http(s)
+ * para hosts públicos — bloqueamos loopback, redes privadas (RFC 1918), CGNAT,
+ * link-local e o endpoint de metadados de nuvem (169.254.169.254).
+ *
+ * Validação por hostname (defesa em camadas; não cobre DNS-rebinding, mas o
+ * runtime Cloudflare Workers não expõe serviços locais/metadados como um
+ * servidor tradicional). Combinada com a validação de cadeia ICP-Brasil que
+ * roda antes da consulta, fecha o vetor na prática.
+ */
+export function urlOcspPermitida(url: string): boolean {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return false;
+	}
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+
+	// IPv6 literal vem entre colchetes no `hostname` (ex.: `[::1]`) — remove para análise.
+	let host = parsed.hostname.toLowerCase();
+	if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
+	if (!host) return false;
+
+	// Nomes locais óbvios.
+	if (
+		host === 'localhost' ||
+		host.endsWith('.localhost') ||
+		host.endsWith('.local') ||
+		host.endsWith('.internal')
+	) {
+		return false;
+	}
+
+	// IPv6 literal: loopback (::1), link-local (fe80::/10) e ULA (fc00::/7).
+	if (host.includes(':')) {
+		if (host === '::1' || host.startsWith('fe8') || host.startsWith('fe9') || host.startsWith('fea') || host.startsWith('feb') || host.startsWith('fc') || host.startsWith('fd')) {
+			return false;
+		}
+	}
+
+	// IPv4 literal: bloqueia faixas privadas/loopback/link-local/CGNAT/reservadas.
+	const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+	if (m) {
+		const a = Number(m[1]);
+		const b = Number(m[2]);
+		if (a > 255 || b > 255 || Number(m[3]) > 255 || Number(m[4]) > 255) return false;
+		if (a === 0 || a === 10 || a === 127) return false; // this-net, 10/8, loopback
+		if (a === 169 && b === 254) return false; // link-local + metadados de nuvem
+		if (a === 172 && b >= 16 && b <= 31) return false; // 172.16/12
+		if (a === 192 && b === 168) return false; // 192.168/16
+		if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT 100.64/10
+		if (a >= 224) return false; // multicast/reservado
+	}
+
+	return true;
+}
+
+/**
  * Constrói o CertID (RFC 6960) usando SHA-1 (algoritmo padrão).
  */
 function buildCertId(cert: forge.pki.Certificate, issuer: forge.pki.Certificate): forge.asn1.Asn1 {
@@ -548,6 +608,19 @@ export async function consultarOcsp(
 			url: '',
 			consultadoEm,
 			erro: 'Certificado sem URL OCSP no AIA'
+		};
+	}
+
+	// Guard SSRF: nunca emitir o POST para host interno/privado (URL controlada
+	// pelo certificado do usuário). Degrada para 'unknown' (igual a sem AIA).
+	if (!urlOcspPermitida(url)) {
+		logger.warn('[OCSP] URL do responder rejeitada pelo guard SSRF', { url });
+		return {
+			status: 'unknown',
+			responseDerB64: '',
+			url,
+			consultadoEm,
+			erro: 'URL OCSP não permitida (host interno/privado)'
 		};
 	}
 

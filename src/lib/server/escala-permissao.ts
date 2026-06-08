@@ -1,4 +1,5 @@
 import { temSolicitacaoParaDpcAdmin } from '$lib/db';
+import { lotacoesAdministradas } from '$lib/server/policial-permissao';
 import type { Database } from '$lib/db';
 
 /**
@@ -30,7 +31,19 @@ export async function verificarPermissaoEscala(
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
 
 	if (isDpcAdmin) {
-		const temAcesso = await temSolicitacaoParaDpcAdmin(db, escalaId, u.id);
+		// Escopo de unidades que este admin DPC administra. Passado para que o ramo
+		// `unidade` de `temSolicitacaoParaDpcAdmin` só conceda acesso a escalas
+		// DENTRO do escopo (fecha o IDOR cross-unidade/seccional). A `respondencia`
+		// nominal continua valendo mesmo fora do escopo.
+		const escopo = await lotacoesAdministradas(db, u);
+		const lotacoesPermitidas = escopo === null ? undefined : Array.from(escopo);
+		const temAcesso = await temSolicitacaoParaDpcAdmin(
+			db,
+			escalaId,
+			u.id,
+			lotacoesPermitidas,
+			escalaLotacao
+		);
 		if (temAcesso) return { permitido: true };
 		return {
 			permitido: false,

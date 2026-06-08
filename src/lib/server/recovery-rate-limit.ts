@@ -18,7 +18,8 @@ export type RecoveryPurpose =
 	// IP de endpoints sensíveis sem sessão — isolados por purpose (ver schema.ts):
 	| 'validar_download' // download público de /validar
 	| 'verificar_2fa' // brute-force do código 2FA no login
-	| 'reenviar_codigo'; // reenvio de 2FA (reset do contador + e-mail bombing)
+	| 'reenviar_codigo' // reenvio de 2FA (reset do contador + e-mail bombing)
+	| 'solicitar_codigo_assinatura'; // envio do código 2FA de assinatura (e-mail bombing / quota)
 
 /**
  * Conta tentativas do IP para um propósito específico dentro da janela.

@@ -385,19 +385,46 @@ export async function criarSolicitacaoAssinatura(
 }
 
 /**
+ * Decisão pura (sem DB) sobre se uma solicitação de assinatura concede acesso a
+ * um admin DPC. Extraída para teste isolado da regra (fecha o IDOR A1).
+ *
+ * Concede quando:
+ * - `respondencia` direcionada diretamente a este usuário (nomeação explícita —
+ *   vale mesmo fora do escopo, é o ponto de nomear alguém), OU
+ * - `unidade` E a lotação da escala está dentro do escopo administrativo do admin
+ *   (`lotacoesPermitidas`). ANTES este ramo retornava `true` para QUALQUER admin
+ *   DPC, permitindo acesso cross-unidade/seccional.
+ */
+export function solicitacaoConcedeAcessoDpc(
+	sol: { tipo: string; destinatario_id: number | null } | undefined,
+	usuarioId: number,
+	escalaLotacao: string | undefined,
+	lotacoesPermitidas: string[] | undefined
+): boolean {
+	if (!sol) return false;
+	if (sol.tipo === 'respondencia' && sol.destinatario_id === usuarioId) return true;
+	if (sol.tipo === 'unidade') {
+		return !!(escalaLotacao && lotacoesPermitidas?.includes(escalaLotacao));
+	}
+	return false;
+}
+
+/**
  * Verifica se um admin DPC tem acesso a uma escala fora de sua lotação/seccional
  * através de uma solicitação de assinatura.
  *
  * Retorna `true` quando:
  * - há solicitação do tipo `respondencia` direcionada diretamente a este usuário, OU
- * - há solicitação do tipo `unidade` e a escala pertence a uma das lotações permitidas
- *   (passadas como `lotacoesPermitidas`).
+ * - há solicitação do tipo `unidade` e `escalaLotacao` está em `lotacoesPermitidas`
+ *   (escopo de unidades que o admin administra). Sem esse escopo, o ramo `unidade`
+ *   NÃO concede acesso (defesa contra IDOR cross-unidade).
  */
 export async function temSolicitacaoParaDpcAdmin(
 	db: Database,
 	escalaId: number,
 	usuarioId: number,
-	lotacoesPermitidas?: string[]
+	lotacoesPermitidas?: string[],
+	escalaLotacao?: string
 ): Promise<boolean> {
 	const sol = await db
 		.select({
@@ -408,25 +435,7 @@ export async function temSolicitacaoParaDpcAdmin(
 		.where(eq(escalaSolicitacoesAssinatura.escala_id, escalaId))
 		.get();
 
-	if (!sol) return false;
-
-	// Nomeado por respondência direta
-	if (sol.tipo === 'respondencia' && sol.destinatario_id === usuarioId) return true;
-
-	// Solicitação de unidade — a lotação da escala já é validada no contexto do chamador
-	// via `lotacoesPermitidas` (para admin seccional) ou lotacao direta (para admin unidade).
-	// Aqui apenas confirmamos que existe solicitação do tipo unidade.
-	if (sol.tipo === 'unidade') {
-		// Para admin seccional que passou lotacoesPermitidas: qualquer unidade da seccional
-		// já foi autorizada no load; retornamos true para escalar qualquer escala
-		// que tenha uma solicitação de tipo unidade direcionada àquele escopo.
-		if (lotacoesPermitidas !== undefined) return true;
-		// Para admin unidade: a escala.lotacao === u.lotacao já foi verificada antes
-		// (esse caso não chega aqui), mas deixamos retornar true para consistência.
-		return true;
-	}
-
-	return false;
+	return solicitacaoConcedeAcessoDpc(sol, usuarioId, escalaLotacao, lotacoesPermitidas);
 }
 
 export async function buscarSolicitacaoAssinatura(db: Database, escalaId: number) {
