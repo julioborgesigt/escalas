@@ -12,6 +12,7 @@ export {
 	clonarGiseParaData,
 	verificarGiseCompleta,
 	verificarTodosSairam,
+	verificarSaidaCompletaSeccional,
 	verificarTodosEntraram,
 	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,

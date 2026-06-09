@@ -12,6 +12,7 @@ import {
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
 
@@ -257,6 +258,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 			if (relTipo === 'extraordinario') {
 				const presencas = await buscarPresencasGise(db, documento.escala_id);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
+				const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 				const result = isSupExtra
 					? await gerarRelatorioExtraordinarioSupervisaoPdf(
 							gise,
@@ -265,14 +267,20 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 							reportSignature,
 							undefined,
 							false,
-							brEnv
+							brEnv,
+							logoEsq,
+							logoDir
 						)
 					: await gerarRelatorioExtraordinarioPdf(
 							toGisePdfData(gise, brEnv),
 							presencas,
 							seccionalId,
 							url.origin,
-							reportSignature
+							reportSignature,
+							undefined,
+							false,
+							logoEsq,
+							logoDir
 						);
 				finalPdf = result.pdf;
 			} else {

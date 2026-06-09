@@ -5,7 +5,8 @@ import {
 	salvarAssinaturaRelatorioGise,
 	buscarGiseDetalhado,
 	buscarPresencasGise,
-	tentarPromoverGiseProntaParaFinalizar
+	tentarPromoverGiseProntaParaFinalizar,
+	verificarSaidaCompletaSeccional
 } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import {
@@ -14,6 +15,7 @@ import {
 	toGisePdfData
 } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
@@ -100,6 +102,22 @@ export const POST: RequestHandler = async ({
 		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
 		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
 
+		// O relatório de extra só pode ser assinado quando TODOS os participantes
+		// confirmaram a saída (rubrica). Sem isto, o relatório seria assinado
+		// incompleto, faltando a rubrica de quem ainda não saiu.
+		const isSupExtraGate = await secIdEhSupervisaoExtra(db, secIdNum);
+		const saidaCompleta = await verificarSaidaCompletaSeccional(
+			db,
+			giseIdNum,
+			secIdNum,
+			isSupExtraGate
+		);
+		if (!saidaCompleta) {
+			return badRequest(
+				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+			);
+		}
+
 		// Validação unificada de evidências (foto/GPS/2FA segundo flags globais).
 		// O fluxo SERPRO segue para o endpoint qualificado; aqui só passa
 		// assinatura em tela ("simples"/"avancada" segundo classificação).
@@ -132,6 +150,7 @@ export const POST: RequestHandler = async ({
 
 		const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
 		const brEnv = await getBreveRelatorioEnvMergido(db);
+		const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 		const result = isSupervisaoExtra
 			? await gerarRelatorioExtraordinarioSupervisaoPdf(
 					gise,
@@ -140,14 +159,20 @@ export const POST: RequestHandler = async ({
 					mockSignature,
 					undefined,
 					false,
-					brEnv
+					brEnv,
+					logoEsq,
+					logoDir
 				)
 			: await gerarRelatorioExtraordinarioPdf(
 					toGisePdfData(gise, brEnv),
 					presencas,
 					secIdNum,
 					url.origin,
-					mockSignature
+					mockSignature,
+					undefined,
+					false,
+					logoEsq,
+					logoDir
 				);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;

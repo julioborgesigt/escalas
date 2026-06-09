@@ -126,6 +126,61 @@ export async function verificarTodosSairam(db: Database, giseId: number): Promis
 }
 
 /**
+ * Verifica se TODOS os participantes de uma seccional (ou do quadro de supervisão,
+ * quando `isSupervisaoExtra`) confirmaram a SAÍDA. O relatório de serviço
+ * extraordinário só pode ser assinado quando há rubrica de saída de todos os
+ * participantes daquele relatório.
+ *
+ * `isSupervisaoExtra` é passado pelo chamador (que já resolve via
+ * `secIdEhSupervisaoExtra`) para evitar dependência circular.
+ */
+export async function verificarSaidaCompletaSeccional(
+	db: Database,
+	giseId: number,
+	seccionalId: number,
+	isSupervisaoExtra: boolean
+): Promise<boolean> {
+	if (isSupervisaoExtra) {
+		const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
+		if (!gise) return false;
+		const supIds = [
+			...new Set(
+				[gise.supervisor_id, gise.assessor_id, gise.seint1_id, gise.seint2_id].filter(
+					(id): id is number => id != null
+				)
+			)
+		];
+		if (supIds.length === 0) return false;
+		const pres = await db
+			.select({ saida: gisePresencas.saida_timestamp })
+			.from(gisePresencas)
+			.where(and(eq(gisePresencas.gise_id, giseId), inArray(gisePresencas.policial_id, supIds)))
+			.all();
+		const comSaida = pres.filter((p) => p.saida !== null).length;
+		return comSaida >= supIds.length;
+	}
+
+	const result = await db
+		.select({
+			total: sql<number>`count(*)`,
+			com_saida: sql<number>`count(${gisePresencas.saida_timestamp})`
+		})
+		.from(giseMembros)
+		.innerJoin(giseEquipes, eq(giseMembros.equipe_id, giseEquipes.id))
+		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
+		.leftJoin(
+			gisePresencas,
+			and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, giseMembros.policial_id))
+		)
+		.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.seccional_id, seccionalId)))
+		.get();
+
+	const total = result?.total ?? 0;
+	const comSaida = result?.com_saida ?? 0;
+	return total > 0 && comSaida >= total;
+}
+
+/**
  * Transições após presença (entrada/saída) em `/res-gise`:
  *   • `em_andamento` → `aguardando_relatorios` quando **todos confirmaram entrada**;
  *   • `aguardando_relatorios` → `aguardando_assinatura_relat` quando **todos confirmaram saída**;

@@ -499,14 +499,22 @@ export async function verificarTokenRedefinicao(
  * indevida. Mismatch retorna `null` indistinguível de código inválido.
  *
  * Retorna os dados do usuário se válido, ou uma string descrevendo o erro.
+ *
+ * `options.markUsed` (default `true`): quando `false`, o desafio NÃO é marcado
+ * como usado em caso de sucesso — fica reutilizável até expirar (10 min). Use
+ * para ASSINATURA EM LOTE: o usuário solicita um código e assina vários
+ * documentos na mesma sessão, dentro da janela de validade. Login/reset/2FA de
+ * sessão mantêm o default (uso único) para preservar a proteção anti-replay.
  */
 export async function verificarDesafio2FA(
 	db: Database,
 	desafioId: string,
 	codigoInput: string,
 	expectedTipos: readonly TipoDesafio2FA[],
-	bindExtra: string = ''
+	bindExtra: string = '',
+	options: { markUsed?: boolean } = {}
 ): Promise<{ tipo: TipoDesafio2FA; usuarioId: number } | 'expirado' | 'esgotado' | null> {
+	const markUsed = options.markUsed ?? true;
 	const desafio = await db
 		.select()
 		.from(doisFatoresTokens)
@@ -533,7 +541,11 @@ export async function verificarDesafio2FA(
 		return null;
 	}
 
-	await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
+	// Em lote (`markUsed: false`) o desafio permanece válido até expirar, para
+	// autorizar várias assinaturas na mesma sessão sem novo código a cada uma.
+	if (markUsed) {
+		await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
+	}
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }

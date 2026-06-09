@@ -117,6 +117,7 @@ export {
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise,
 	verificarTodosSairam,
+	verificarSaidaCompletaSeccional,
 	verificarTodosEntraram,
 	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,
