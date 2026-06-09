@@ -303,9 +303,18 @@ export async function validarEvidenciasAvancada(
 					'Código de verificação por e-mail é obrigatório para esta assinatura (Lei 14.063/2020 art. 4º II).'
 			};
 		}
-		const result2FA = await verificarDesafio2FA(db, evidence.desafioId, evidence.codigoValidação, [
-			'assinatura'
-		]);
+		// `markUsed: false` — o código de assinatura é reutilizável dentro da sua
+		// janela de validade (10 min), permitindo assinar VÁRIOS relatórios/escalas
+		// na mesma sessão (lote) com um único código. Antes, o desafio era consumido
+		// na 1ª assinatura e a 2ª falhava com "código inválido".
+		const result2FA = await verificarDesafio2FA(
+			db,
+			evidence.desafioId,
+			evidence.codigoValidação,
+			['assinatura'],
+			'',
+			{ markUsed: false }
+		);
 		if (result2FA === 'expirado') {
 			return { ok: false, status: 400, error: 'O código de verificação expirou.' };
 		}
