@@ -1,5 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import type { ResGiseMinhaEscalaLinha, ResGiseListaAdminLinha } from '$lib/types';
 import {
 	getDB,
 	getR2,
@@ -38,7 +39,25 @@ import {
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
-export const load = async ({ locals, platform, url }: any) => {
+interface GiseEscalaItem {
+	id: number;
+	data_inicio: string;
+	status: string;
+	hora_entrada: string | null;
+	hora_saida: string | null;
+	equipe_id: number;
+	sec_hora_entrada: string | null;
+	sec_hora_saida: string | null;
+	eq_hora_entrada: string | null;
+	eq_hora_saida: string | null;
+	equipe_tipo: 'operacional' | 'seint' | 'assessor' | 'supervisor';
+	seccional_id: number;
+	seccional_nome: string;
+}
+
+type GisePresenca = typeof gisePresencas.$inferSelect;
+
+export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
@@ -65,13 +84,13 @@ export const load = async ({ locals, platform, url }: any) => {
 		if (!result && !isSupervisorGise && !isSupervisaoGise) throw redirect(302, '/');
 	}
 
-	const minhasEscalas: any[] = [];
-	const listaAdmin: any[] = [];
+	const minhasEscalas: ResGiseMinhaEscalaLinha[] = [];
+	const listaAdmin: ResGiseListaAdminLinha[] = [];
 
 	const effectiveStatus = statusFilter || 'ativas';
 
 	if (u.tipo === 'policial') {
-		const rawEscalas = await db
+		const rawEscalas = (await db
 			.select({
 				id: giseEscalas.id,
 				data_inicio: giseEscalas.data_inicio,
@@ -101,9 +120,9 @@ export const load = async ({ locals, platform, url }: any) => {
 				)
 			)
 			.orderBy(desc(giseEscalas.data_inicio))
-			.all();
+			.all()) as unknown as GiseEscalaItem[];
 
-		const rawSupervisoes = await db
+		const rawSupervisoes = (await db
 			.select({
 				id: giseEscalas.id,
 				data_inicio: giseEscalas.data_inicio,
@@ -116,7 +135,7 @@ export const load = async ({ locals, platform, url }: any) => {
 				eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
 				eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
 				equipe_tipo:
-					sql`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END` as any,
+					sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
 				seccional_id: sql`0`.as('seccional_id'),
 				seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
 			})
@@ -128,13 +147,13 @@ export const load = async ({ locals, platform, url }: any) => {
 					dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
 				)
 			)
-			.all();
+			.all()) as unknown as GiseEscalaItem[];
 
-		rawEscalas.push(...(rawSupervisoes as any));
+		rawEscalas.push(...rawSupervisoes);
 
 		// DPC supervisor da escala: mesma UX de assessor (entrada/saída, sem formulário de produtividade aqui)
 		if (isSupervisorGise) {
-			const rawSupervisorDpc = await db
+			const rawSupervisorDpc = (await db
 				.select({
 					id: giseEscalas.id,
 					data_inicio: giseEscalas.data_inicio,
@@ -146,7 +165,7 @@ export const load = async ({ locals, platform, url }: any) => {
 					sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
 					eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
 					eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-					equipe_tipo: sql`'supervisor'`.as('equipe_tipo'),
+					equipe_tipo: sql<string>`'supervisor'`,
 					seccional_id: sql`0`.as('seccional_id'),
 					seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
 				})
@@ -158,8 +177,8 @@ export const load = async ({ locals, platform, url }: any) => {
 						dataFilter ? eq(giseEscalas.data_inicio, dataFilter) : sql`1=1`
 					)
 				)
-				.all();
-			for (const row of rawSupervisorDpc as any[]) {
+				.all()) as unknown as GiseEscalaItem[];
+			for (const row of rawSupervisorDpc) {
 				if (!rawEscalas.some((r) => r.id === row.id)) rawEscalas.push(row);
 			}
 		}
@@ -171,7 +190,7 @@ export const load = async ({ locals, platform, url }: any) => {
 
 		const giseIds = [...new Set(rawEscalas.map((e) => e.id))];
 
-		const presencasMap = new Map<number, any>();
+		const presencasMap = new Map<number, GisePresenca>();
 		const docsAssinadosMap = new Map<number, boolean>();
 		const extrasAssinadosMap = new Map<string, boolean>();
 		const respostasEquipeMap = new Map<string, boolean>();
@@ -214,12 +233,12 @@ export const load = async ({ locals, platform, url }: any) => {
 					.all()
 			]);
 
-			presencas.forEach((p: any) => presencasMap.set(p.gise_id, p));
-			docs.forEach((doc: any) => docsAssinadosMap.set(doc.gise_id, true));
-			extras.forEach((ext: any) =>
+			presencas.forEach((p) => presencasMap.set(p.gise_id, p));
+			docs.forEach((doc) => docsAssinadosMap.set(doc.gise_id, true));
+			extras.forEach((ext) =>
 				extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true)
 			);
-			respostas.forEach((res: any) => {
+			respostas.forEach((res) => {
 				if (res.equipe_id != null) {
 					respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true);
 				}
@@ -255,6 +274,8 @@ export const load = async ({ locals, platform, url }: any) => {
 
 			minhasEscalas.push({
 				...e,
+				hora_entrada: e.hora_entrada ?? '08:00',
+				hora_saida: e.hora_saida ?? '16:00',
 				presenca,
 				assinada: !!docAssinado,
 				extraAssinado: !!extraAssinado,

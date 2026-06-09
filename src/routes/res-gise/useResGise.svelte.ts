@@ -1,3 +1,4 @@
+/* eslint-disable svelte/no-navigation-without-resolve, svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
 import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';
@@ -44,6 +45,9 @@ export function useResGise(getData: () => ResGisePageData) {
 	let statusFilterUrl = $state(resolveStatusFilterFromUrl(page.data.usuario, page.url));
 	let mesFilterUrl = $state(page.url.searchParams.get('mes') || '');
 	let dataFilterUrl = $state(page.url.searchParams.get('data') || '');
+
+	let idProdutividadeBaixando = $state<number | null>(null);
+	let idExtraBaixando = $state<number | null>(null);
 
 	// --- Efeitos de Sincronização ---
 	$effect(() => {
@@ -325,6 +329,7 @@ export function useResGise(getData: () => ResGisePageData) {
 	}
 
 	async function baixarRelatorio(escala: ResGiseEscalaSelecionavel) {
+		idProdutividadeBaixando = escala.id;
 		loading.show('Baixando Relatório de Produtividade...');
 		try {
 			const url = `/api/gise/${escala.id}/download?format=produtividade&seccionalId=${escala.seccional_id}&equipeType=${escala.equipe_tipo}`;
@@ -346,10 +351,12 @@ export function useResGise(getData: () => ResGisePageData) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
+			idProdutividadeBaixando = null;
 		}
 	}
 
 	async function baixarRelatorioExtra(escala: ResGiseEscalaSelecionavel) {
+		idExtraBaixando = escala.id;
 		loading.show('Baixando Relatório Extraordinário...');
 		try {
 			const secId =
@@ -375,6 +382,7 @@ export function useResGise(getData: () => ResGisePageData) {
 			toaster.error({ title: 'Erro no Download', description: messageFromUnknown(e) });
 		} finally {
 			loading.hide();
+			idExtraBaixando = null;
 		}
 	}
 
@@ -417,10 +425,10 @@ export function useResGise(getData: () => ResGisePageData) {
 			capturandoRubrica = v;
 		},
 		get baixandoProdutividade() {
-			return loading.active;
+			return idProdutividadeBaixando;
 		},
 		get baixandoExtra() {
-			return loading.active;
+			return idExtraBaixando;
 		},
 
 		// Derived

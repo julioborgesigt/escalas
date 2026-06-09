@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type { GiseModeloPerguntaConfig } from '$lib/types';
 
+	/* eslint-disable prefer-const */
 	let { respostas = $bindable(), modelo = [] } = $props<{
 		respostas: Record<string, unknown>;
 		modelo: GiseModeloPerguntaConfig[];
 	}>();
+	/* eslint-enable prefer-const */
 
 	function handleSimNao(key: string, val: string, q: GiseModeloPerguntaConfig) {
 		respostas[key] = val;
