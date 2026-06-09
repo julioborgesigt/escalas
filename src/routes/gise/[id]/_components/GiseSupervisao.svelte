@@ -117,6 +117,7 @@
 		onSubmit: SubmitFunction;
 	}
 
+	/* eslint-disable prefer-const */
 	let {
 		gise,
 		policiais,
@@ -158,6 +159,7 @@
 		onCancelar,
 		onSubmit
 	}: Props = $props();
+	/* eslint-enable prefer-const */
 
 	const seintRelatorioSet = $derived(new Set(seintSupervisaoComRelatorio ?? []));
 
@@ -223,6 +225,10 @@
 			(s) => s.status !== 'preenchida' && s.status !== 'preenchida_retificada'
 		) || []
 	);
+
+	const urlDocumentoAssinado = $derived(`/api/gise/${gise.id}/documento-assinado`);
+	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
+	const urlDownloadExtra = $derived(`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`);
 
 	let expandirEscala = $state(false);
 	let expandirExtra = $state(false);
@@ -910,8 +916,9 @@
 													</div>
 													<div class="flex items-center gap-1.5 flex-wrap justify-end">
 														{#if documentoAssinadoInfo?.existe}
+															<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 															<a
-																href="/api/gise/{gise.id}/documento-assinado"
+																href={urlDocumentoAssinado}
 																target="_blank"
 																class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5"
 															>
@@ -924,7 +931,7 @@
 																	class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
 																		? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																		: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-																	href="/api/gise/{gise.id}/download?format=pdf"
+																	href={urlDownloadPdf}
 																	target="_blank"
 																	title="Conferência (sem assinatura digital)"
 																>
@@ -1052,7 +1059,7 @@
 											<div class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
 												{#if documentoAssinadoInfo?.existe}
 													<a
-														href="/api/gise/{gise.id}/documento-assinado"
+														href={urlDocumentoAssinado}
 														target="_blank"
 														class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all"
 													>
@@ -1065,7 +1072,7 @@
 															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-															href="/api/gise/{gise.id}/download?format=pdf"
+															href={urlDownloadPdf}
 															target="_blank"
 															title="Conferência (sem assinatura digital)"
 														>
@@ -1264,7 +1271,7 @@
 														<div class="flex items-center gap-1.5 flex-wrap justify-end">
 															{#if assRelSup}
 																<a
-																	href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
+																	href={urlDownloadExtra}
 																	target="_blank"
 																	class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado
 																		? 'pointer-events-none opacity-60'
@@ -1278,7 +1285,7 @@
 																	class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
 																		? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																		: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-																	href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
+																	href={urlDownloadExtra}
 																	target="_blank"
 																>
 																	<svg
@@ -1409,7 +1416,7 @@
 												<div class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
 													{#if assRelSup}
 														<a
-															href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
+															href={urlDownloadExtra}
 															target="_blank"
 															class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
 																? 'pointer-events-none opacity-60'
@@ -1423,7 +1430,7 @@
 															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-															href="/api/gise/{gise.id}/download?format=extraordinario&seccionalId={supervisaoExtraUnidadeId}"
+															href={urlDownloadExtra}
 															target="_blank"
 														>
 															<svg
