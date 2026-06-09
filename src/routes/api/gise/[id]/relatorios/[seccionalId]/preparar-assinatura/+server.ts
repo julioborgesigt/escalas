@@ -10,7 +10,8 @@ import {
 	getDB,
 	buscarGiseDetalhado,
 	buscarPresencasGise,
-	buscarGiseSeccionalMembros
+	buscarGiseSeccionalMembros,
+	verificarSaidaCompletaSeccional
 } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
@@ -88,6 +89,16 @@ export const POST: RequestHandler = async ({
 	};
 
 	const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
+
+	// Só prepara a assinatura quando TODOS os participantes confirmaram a saída
+	// (rubrica) — o relatório de extra exige a rubrica de todos.
+	const saidaCompleta = await verificarSaidaCompletaSeccional(db, id, secIdNum, isSupervisaoExtra);
+	if (!saidaCompleta) {
+		return badRequest(
+			'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+		);
+	}
+
 	const brEnv = await getBreveRelatorioEnvMergido(db);
 	const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 	const result = isSupervisaoExtra

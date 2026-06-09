@@ -5,7 +5,8 @@ import {
 	salvarAssinaturaRelatorioGise,
 	buscarGiseDetalhado,
 	buscarPresencasGise,
-	tentarPromoverGiseProntaParaFinalizar
+	tentarPromoverGiseProntaParaFinalizar,
+	verificarSaidaCompletaSeccional
 } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import {
@@ -100,6 +101,22 @@ export const POST: RequestHandler = async ({
 
 		const secOk = await giseAutorizaSeccionalRelatorioExtra(db, giseIdNum, secIdNum);
 		if (!secOk) return badRequest('Seccional inválida para esta GISE.');
+
+		// O relatório de extra só pode ser assinado quando TODOS os participantes
+		// confirmaram a saída (rubrica). Sem isto, o relatório seria assinado
+		// incompleto, faltando a rubrica de quem ainda não saiu.
+		const isSupExtraGate = await secIdEhSupervisaoExtra(db, secIdNum);
+		const saidaCompleta = await verificarSaidaCompletaSeccional(
+			db,
+			giseIdNum,
+			secIdNum,
+			isSupExtraGate
+		);
+		if (!saidaCompleta) {
+			return badRequest(
+				'Todos os participantes precisam confirmar a saída (rubrica) antes de assinar o relatório.'
+			);
+		}
 
 		// Validação unificada de evidências (foto/GPS/2FA segundo flags globais).
 		// O fluxo SERPRO segue para o endpoint qualificado; aqui só passa

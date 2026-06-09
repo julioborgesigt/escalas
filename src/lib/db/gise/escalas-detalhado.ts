@@ -126,18 +126,20 @@ export async function listarGiseEscalas(
 			.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.where(inArray(giseSeccionais.gise_id, escalaIds))
 			.all(),
-		// IDs das seccionais com saída confirmada mas extra ainda não assinado
+		// IDs das seccionais cujo relatório de extra está PRONTO para assinar:
+		// TODOS os membros confirmaram a saída (rubrica) e o extra ainda não foi
+		// assinado. O `having count(*) = count(saida_timestamp)` exige saída de
+		// todos (left join: membro sem presença/sem saída deixa o count menor).
 		db
 			.select({ gise_id: giseSeccionais.gise_id, seccional_id: giseSeccionais.seccional_id })
 			.from(giseSeccionais)
 			.innerJoin(giseEquipes, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 			.innerJoin(giseMembros, eq(giseMembros.equipe_id, giseEquipes.id))
-			.innerJoin(
+			.leftJoin(
 				gisePresencas,
 				and(
 					eq(gisePresencas.policial_id, giseMembros.policial_id),
-					eq(gisePresencas.gise_id, giseSeccionais.gise_id),
-					isNotNull(gisePresencas.saida_timestamp)
+					eq(gisePresencas.gise_id, giseSeccionais.gise_id)
 				)
 			)
 			.where(
@@ -152,6 +154,7 @@ export async function listarGiseEscalas(
 				)
 			)
 			.groupBy(giseSeccionais.gise_id, giseSeccionais.seccional_id)
+			.having(sql`count(*) = count(${gisePresencas.saida_timestamp})`)
 			.all(),
 		// Seccionais que já finalizaram o envio de sua escala (status != 'pendente')
 		db
