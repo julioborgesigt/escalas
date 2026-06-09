@@ -654,7 +654,7 @@
 						(modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
 					(isAdminGeral && podeEditar && modoEdicaoGeral)}
 				<div
-					class="rounded-xl border border-primary-300 dark:border-primary-700/40 bg-primary-500/10 dark:bg-primary-500/5 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)]"
+					class="rounded-xl border border-primary-300/60 dark:border-primary-700/30 bg-primary-500/4 dark:bg-primary-500/3 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)]"
 				>
 					<!-- Cabeçalho do slot -->
 					<div

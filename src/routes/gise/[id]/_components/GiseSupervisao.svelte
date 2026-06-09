@@ -313,7 +313,7 @@
 			</div>
 		</div>		<form bind:this={formEl} method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
 			<div
-				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-surface-100/70 dark:bg-surface-950/40 border border-surface-200 dark:border-surface-800/80 backdrop-blur-sm"
+				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/20 dark:border-secondary-500/30 backdrop-blur-sm"
 			>
 				<div class="space-y-2.5 sm:space-y-4">
 					<div class="flex items-start gap-2.5 sm:gap-4">
