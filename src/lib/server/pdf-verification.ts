@@ -80,6 +80,27 @@ export interface CmsExtraido {
  * Extrai 1 assinatura a partir de um match de /ByteRange. Retorna `null`
  * se a estrutura não bate (PDF corrompido ou ByteRange órfão).
  */
+/**
+ * Lê o comprimento TOTAL (header + conteúdo) do objeto DER que começa em
+ * `bytes[0]` (a SEQUENCE externa do ContentInfo CMS). Retorna `null` se o
+ * cabeçalho for inválido/indefinido ou estourar o buffer. Robusto a padding
+ * de zeros após o objeto (o placeholder /Contents é zerado).
+ */
+export function lerComprimentoDerTotal(bytes: Uint8Array): number | null {
+	if (bytes.length < 2) return null;
+	let pos = 1; // após o byte de tag (0x30 para SEQUENCE)
+	const lenByte = bytes[pos++];
+	if (lenByte < 0x80) {
+		return pos + lenByte; // forma curta
+	}
+	const n = lenByte & 0x7f;
+	if (n === 0 || n > 4) return null; // indefinido (não-DER) ou absurdo
+	if (bytes.length < pos + n) return null;
+	let len = 0;
+	for (let i = 0; i < n; i++) len = len * 256 + bytes[pos++];
+	return pos + len;
+}
+
 function extrairAssinaturaDeByteRange(
 	pdfBytes: Uint8Array,
 	a: number,
@@ -105,7 +126,11 @@ function extrairAssinaturaDeByteRange(
 	while (hexFim > hexInicio && pdfBytes[hexFim] !== 0x3e /* '>' */) hexFim--;
 	if (hexFim <= hexInicio) return null;
 
-	// Extrai os bytes hex (filtrando whitespace/zero-padding) e converte para DER.
+	// Extrai TODOS os bytes hex (whitespace filtrado). NÃO removemos o padding
+	// `00` final por heurística: quando o CMS termina legitimamente em 0x00 (ex.:
+	// assinatura RSA cujo último byte é 0x00, ~1/256), isso truncava o DER e o
+	// parse falhava ("too long"). Em vez disso, lemos o comprimento real do
+	// objeto DER (SEQUENCE externa) e fatiamos exatamente, ignorando o padding.
 	let hexStr = '';
 	for (let i = hexInicio; i < hexFim; i++) {
 		const ch = pdfBytes[i];
@@ -113,14 +138,26 @@ function extrairAssinaturaDeByteRange(
 			hexStr += String.fromCharCode(ch);
 		}
 	}
-	// Remove o padding `00` do final (Adobe permite até 8KB de placeholder zerado).
-	while (hexStr.endsWith('00') && hexStr.length > 2) hexStr = hexStr.slice(0, -2);
 	if (hexStr.length % 2 !== 0) hexStr = hexStr.slice(0, -1);
 
-	const cmsLen = hexStr.length / 2;
-	const cmsDer = new Uint8Array(cmsLen);
-	for (let i = 0; i < cmsLen; i++) {
-		cmsDer[i] = parseInt(hexStr.substr(i * 2, 2), 16);
+	const fullLen = hexStr.length / 2;
+	const fullBytes = new Uint8Array(fullLen);
+	for (let i = 0; i < fullLen; i++) {
+		fullBytes[i] = parseInt(hexStr.substr(i * 2, 2), 16);
+	}
+
+	// Comprimento total do objeto DER a partir do header (tag + length).
+	const derTotal = lerComprimentoDerTotal(fullBytes);
+	let cmsDer: Uint8Array;
+	if (derTotal !== null && derTotal > 0 && derTotal <= fullLen) {
+		cmsDer = fullBytes.slice(0, derTotal);
+	} else {
+		// Fallback (DER não-parseável aqui): remove padding `00` final como antes.
+		let h = hexStr;
+		while (h.endsWith('00') && h.length > 2) h = h.slice(0, -2);
+		const n = h.length / 2;
+		cmsDer = new Uint8Array(n);
+		for (let i = 0; i < n; i++) cmsDer[i] = parseInt(h.substr(i * 2, 2), 16);
 	}
 
 	// Bytes assinados = [a..a+b) ∪ [c..c+d)
