@@ -772,12 +772,24 @@ export async function gerarPdfGise(
 	});
 
 	const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
+	const withLogos = await embutirLogosGise(pdfBytes, logoJpgBytes, logoCearaBytes);
+	return { pdf: withLogos, finalY: sigY };
+}
 
-	const temLogoEsq = !!(logoJpgBytes && logoJpgBytes.length > 0);
-	const temLogoDir = !!(logoCearaBytes && logoCearaBytes.length > 0);
-	if (!temLogoEsq && !temLogoDir) {
-		return { pdf: pdfBytes, finalY: sigY };
-	}
+/**
+ * Embute os logos institucionais GISE em TODAS as páginas de um PDF landscape A4:
+ * `logogise` no canto superior esquerdo e `logo_ceara` no superior direito.
+ * Best-effort: se um logo faltar ou falhar o embed, mantém o PDF original.
+ * Reusado pelo PDF GISE e pelos relatórios de serviço extraordinário.
+ */
+export async function embutirLogosGise(
+	pdfBytes: Uint8Array,
+	logoEsqBytes?: Uint8Array,
+	logoDirBytes?: Uint8Array
+): Promise<Uint8Array> {
+	const temEsq = !!(logoEsqBytes && logoEsqBytes.length > 0);
+	const temDir = !!(logoDirBytes && logoDirBytes.length > 0);
+	if (!temEsq && !temDir) return pdfBytes;
 
 	try {
 		const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -785,9 +797,8 @@ export async function gerarPdfGise(
 		const logoW = 45;
 		const logoH = 14;
 		const topMm = 5;
-		// Landscape A4: 297mm de largura. logogise à esquerda, logo_ceara à direita.
-		const imgEsq = temLogoEsq ? await pdfDoc.embedJpg(logoJpgBytes!).catch(() => null) : null;
-		const imgDir = temLogoDir ? await pdfDoc.embedJpg(logoCearaBytes!).catch(() => null) : null;
+		const imgEsq = temEsq ? await pdfDoc.embedJpg(logoEsqBytes!).catch(() => null) : null;
+		const imgDir = temDir ? await pdfDoc.embedJpg(logoDirBytes!).catch(() => null) : null;
 
 		for (const page of pdfDoc.getPages()) {
 			const { height } = page.getSize();
@@ -805,11 +816,10 @@ export async function gerarPdfGise(
 			}
 		}
 
-		const modifiedPdf = await pdfDoc.save();
-		return { pdf: modifiedPdf, finalY: sigY };
+		return await pdfDoc.save();
 	} catch (e: any) {
-		console.error('Erro ao inserir logo com pdf-lib:', e.message || e);
-		return { pdf: pdfBytes, finalY: sigY };
+		console.error('Erro ao inserir logos GISE com pdf-lib:', e.message || e);
+		return pdfBytes;
 	}
 }
 
@@ -902,7 +912,9 @@ export async function gerarRelatorioExtraordinarioPdf(
 	baseUrl?: string,
 	reportSignature?: any,
 	qrCodeBase64?: string,
-	isPreparando = false
+	isPreparando = false,
+	logoEsqBytes?: Uint8Array,
+	logoDirBytes?: Uint8Array
 ): Promise<PdfExportResult> {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 	const pageWidth = 297;
@@ -1148,7 +1160,12 @@ export async function gerarRelatorioExtraordinarioPdf(
 		}
 	}
 
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+	const pdfFinal = await embutirLogosGise(
+		new Uint8Array(doc.output('arraybuffer')),
+		logoEsqBytes,
+		logoDirBytes
+	);
+	return { pdf: pdfFinal, finalY: sigY };
 }
 
 // ---- PDF Relatório Extraordinário GISE (Supervisão) ----
@@ -1159,7 +1176,9 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	reportSignature?: any,
 	qrCodeBase64?: string,
 	isPreparando = false,
-	breveEnv?: BreveRelatorioEnv | null
+	breveEnv?: BreveRelatorioEnv | null,
+	logoEsqBytes?: Uint8Array,
+	logoDirBytes?: Uint8Array
 ): Promise<PdfExportResult> {
 	const breveTitulo = resolveBreveRelatorioTitulo(gise, breveEnv);
 	const breveConteudo = resolveBreveRelatorioConteudoSupervisao(gise, breveEnv);
@@ -1282,7 +1301,12 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	if (tableData.length === 0) {
 		doc.setFontSize(10);
 		doc.text('Nenhum integrante definido no quadro de supervisão.', margin, y);
-		return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: y + 10 };
+		const pdfVazio = await embutirLogosGise(
+			new Uint8Array(doc.output('arraybuffer')),
+			logoEsqBytes,
+			logoDirBytes
+		);
+		return { pdf: pdfVazio, finalY: y + 10 };
 	}
 
 	autoTable(doc, {
@@ -1439,5 +1463,10 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		}
 	}
 
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+	const pdfFinal = await embutirLogosGise(
+		new Uint8Array(doc.output('arraybuffer')),
+		logoEsqBytes,
+		logoDirBytes
+	);
+	return { pdf: pdfFinal, finalY: sigY };
 }

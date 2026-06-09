@@ -8,6 +8,7 @@ import {
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
 import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
@@ -74,6 +75,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const secAutorizada = await giseAutorizaSeccionalRelatorioExtra(db, id, seccionalId);
 		if (!secAutorizada) return badRequest('Seccional inválida para esta GISE.');
 
+		const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 		const r2 = getR2(platform);
 
 		const reportSignature = await buscarAssinaturaRelatorioGise(
@@ -139,14 +141,20 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 							reportSignature,
 							undefined,
 							false,
-							brEnv
+							brEnv,
+							logoEsq,
+							logoDir
 						)
 					: await gerarRelatorioExtraordinarioPdf(
 							toGisePdfData(gise, brEnv),
 							presencas,
 							seccionalId,
 							url.origin,
-							reportSignature
+							reportSignature,
+							undefined,
+							false,
+							logoEsq,
+							logoDir
 						);
 				const hash = reportSignature.verification_hash;
 				const buffer = await gerarCopiaConferencia({
@@ -194,7 +202,9 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						null,
 						undefined,
 						true,
-						brEnv
+						brEnv,
+						logoEsq,
+						logoDir
 					)
 				: await gerarRelatorioExtraordinarioPdf(
 						toGisePdfData(gise, brEnv),
@@ -202,7 +212,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 						seccionalId,
 						url.origin,
 						null,
-						undefined
+						undefined,
+						false,
+						logoEsq,
+						logoDir
 					);
 			const filename = isSupervisaoExtra
 				? `RASCUNHO_extraordinario_supervisao_${gise.data_inicio}.pdf`

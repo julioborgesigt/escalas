@@ -14,6 +14,7 @@ import {
 	toGisePdfData
 } from '$lib/server/export';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import {
 	giseAutorizaSeccionalRelatorioExtra,
 	secIdEhSupervisaoExtra
@@ -132,6 +133,7 @@ export const POST: RequestHandler = async ({
 
 		const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, secIdNum);
 		const brEnv = await getBreveRelatorioEnvMergido(db);
+		const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 		const result = isSupervisaoExtra
 			? await gerarRelatorioExtraordinarioSupervisaoPdf(
 					gise,
@@ -140,14 +142,20 @@ export const POST: RequestHandler = async ({
 					mockSignature,
 					undefined,
 					false,
-					brEnv
+					brEnv,
+					logoEsq,
+					logoDir
 				)
 			: await gerarRelatorioExtraordinarioPdf(
 					toGisePdfData(gise, brEnv),
 					presencas,
 					secIdNum,
 					url.origin,
-					mockSignature
+					mockSignature,
+					undefined,
+					false,
+					logoEsq,
+					logoDir
 				);
 		let finalPdf = result.pdf;
 		const qrUrl = `${url.origin}/validar/${hash}`;
