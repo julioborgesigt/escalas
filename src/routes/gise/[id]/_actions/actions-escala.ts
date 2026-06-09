@@ -191,7 +191,13 @@ export const actionsEscala = {
 		const gise = await buscarGiseEscala(db, giseId);
 		if (!gise) return fail(404, { error: 'GISE não encontrada' });
 
-		const updateData: any = {
+		const updateData: {
+			data_inicio: string;
+			hora_entrada: string;
+			hora_saida: string;
+			feriado: boolean;
+			status?: 'em_preenchimento';
+		} = {
 			data_inicio: dataInicio,
 			hora_entrada: horaEntrada,
 			hora_saida: horaSaida,
@@ -383,10 +389,10 @@ export const actionsEscala = {
 				const [yyyy, mm, dd] = gise.data_inicio.split('-');
 				const prefix = `gise/${yyyy}-${mm}/${dd}/${giseId}/`;
 				let listed = await r2.list({ prefix });
-				listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
+				listed.objects.forEach((obj: { key: string }) => fileKeys.add(obj.key));
 				while (listed.truncated) {
 					listed = await r2.list({ prefix, cursor: listed.cursor });
-					listed.objects.forEach((obj: any) => fileKeys.add(obj.key));
+					listed.objects.forEach((obj: { key: string }) => fileKeys.add(obj.key));
 				}
 			} catch (e) {
 				logger.warn('[gise/excluir] Erro ao listar prefixo R2', {

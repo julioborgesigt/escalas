@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import { statusLabel, statusColor, fmtDate, diaSemana } from '$lib/gise/gise-formatters';

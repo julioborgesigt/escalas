@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import type { PageData } from './$types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
@@ -149,7 +150,7 @@
 			iniciarAssinaturaEscala(ativa);
 			return;
 		}
-		let linhas: string[] = [];
+		let linhas: string[];
 		if (ativa.status === 'em_definicao_supervisor') {
 			linhas = [
 				'O supervisor ainda não foi definido para esta escala.',
@@ -218,7 +219,7 @@
 			return;
 		}
 
-		let linhas: string[] = [];
+		let linhas: string[];
 		const jaAssinados = ativa.assinaturasRelatorioExtra ?? 0;
 		if (jaAssinados >= totalExtras) {
 			linhas = ['Todos os relatórios de extra já foram assinados.'];

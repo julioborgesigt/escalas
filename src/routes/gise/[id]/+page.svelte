@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
