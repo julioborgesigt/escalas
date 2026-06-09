@@ -1,7 +1,10 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getDB, listarUnidades, excluirEscala, registrarAuditComContexto } from '$lib/db';
+import type { Database } from '$lib/db';
 import { getNowBR } from '$lib/utils';
+import { and, gte, lte, inArray } from 'drizzle-orm';
+import { unidades as unTable, escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
 
 // Re-exportar interface do compliance
 export interface ItemCompliance {
@@ -15,15 +18,7 @@ export interface ItemCompliance {
 }
 
 // Importar a lógica de compliance existente
-async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemCompliance[]> {
-	const {
-		unidades: unTable,
-		escalas: escTable,
-		escalaDocumentos: docTable
-	} = await import('$lib/server/schema');
-	const { getNowBR } = await import('$lib/utils');
-	const { and, gte, lte, inArray } = await import('drizzle-orm');
-
+async function gerarCompliance(db: Database, ano: number, mes: number): Promise<ItemCompliance[]> {
 	function toISO(y: number, m: number, d: number): string {
 		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 	}
@@ -107,13 +102,13 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 		.where(and(gte(escTable.data_inicio, minDate), lte(escTable.data_inicio, maxDate)))
 		.all();
 
-	const escalaIds = escalasPeriodo.map((e: any) => e.id);
+	const escalaIds = escalasPeriodo.map((e) => e.id);
 	const docs =
 		escalaIds.length > 0
 			? await db.select().from(docTable).where(inArray(docTable.escala_id, escalaIds)).all()
 			: [];
 
-	const docSet = new Set(docs.map((d: any) => d.escala_id));
+	const docSet = new Set(docs.map((d) => d.escala_id));
 	const result: ItemCompliance[] = [];
 
 	for (const p of periodos) {
@@ -126,7 +121,7 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 
 			if (unidade.tem_plantao) {
 				const esc = escalasPeriodo.find(
-					(e: any) =>
+					(e) =>
 						e.lotacao === unidade.nome &&
 						e.tipo === 'plantao' &&
 						e.data_inicio >= inicioMes &&
@@ -156,7 +151,7 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 
 			if (unidade.tem_expediente) {
 				const esc = escalasPeriodo.find(
-					(e: any) =>
+					(e) =>
 						e.lotacao === unidade.nome &&
 						e.tipo === 'expediente' &&
 						e.data_inicio >= inicioMes &&
@@ -187,7 +182,7 @@ async function gerarCompliance(db: any, ano: number, mes: number): Promise<ItemC
 			if (unidade.tem_fds) {
 				for (const fds of fdsList) {
 					const esc = escalasPeriodo.find(
-						(e: any) =>
+						(e) =>
 							e.lotacao === unidade.nome && e.tipo === 'fds' && e.data_inicio === fds.inicio
 					);
 					if (esc) {
