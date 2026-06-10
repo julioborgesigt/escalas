@@ -242,9 +242,9 @@
 							>
 								{cell?.day}
 								{#if fer}<span
-										class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[0.45rem] font-bold uppercase text-error-700 dark:text-error-300 leading-none"
-										>F</span
-									>{/if}
+										class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-error-500"
+										title="Feriado"
+									></span>{/if}
 							</button>
 						{:else}
 							<div class="h-9"></div>

@@ -333,7 +333,7 @@
 			type="button"
 			class="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 {painelAberto
 				? 'bg-surface-200/80 dark:bg-surface-800/80 border-surface-300 dark:border-surface-600'
-				: 'bg-surface-100/60 dark:bg-surface-900/60 border-surface-200 dark:border-white/8 hover:border-primary-400/40'}"
+				: 'bg-surface-100/60 dark:bg-surface-900/60 border-surface-200 dark:border-white/5 hover:border-primary-400/40'}"
 			onclick={() => (painelAberto = !painelAberto)}
 		>
 			<span

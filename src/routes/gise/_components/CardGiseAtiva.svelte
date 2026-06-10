@@ -162,7 +162,7 @@
 						class="btn btn-sm flex-1 font-bold text-xs px-3 py-1.5 flex items-center justify-center gap-1 transition-all active:scale-95 {extraConcluido
 							? 'preset-filled-success-500 text-white'
 							: extraParcial
-								? 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600'
+								? 'preset-filled-tertiary-500'
 								: ativa.extrasPendentes > 0
 									? 'preset-filled-warning-500 text-warning-950'
 									: 'bg-surface-200/50 dark:bg-surface-800 text-surface-500 dark:text-surface-400 border border-surface-300/50 dark:border-surface-700'}"

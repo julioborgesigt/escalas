@@ -87,7 +87,7 @@
 </div>
 
 <div
-	class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+	class="card-glass p-3 sm:p-4 rounded-xl"
 >
 	<form method="POST" action="?/salvar" use:enhance={handleSalvar} class="space-y-2">
 		<!-- Linha 1 -->
@@ -213,7 +213,7 @@
 
 {#if isAdminOrSeccional || isAdminUnidade}
 	<div
-		class="p-3 sm:p-4 rounded-xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 mt-4"
+		class="card-glass p-3 sm:p-4 rounded-xl mt-4"
 	>
 		<h2 class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300">
 			Papel Administrativo

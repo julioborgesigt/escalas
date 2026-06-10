@@ -573,7 +573,7 @@
 </Dialog>
 
 <div
-	class="p-4 sm:p-6 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 overflow-hidden mt-6"
+	class="card-glass p-4 sm:p-6 rounded-3xl overflow-hidden mt-6"
 >
 	<div
 		class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4 mb-8 p-4 sm:p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10"
@@ -848,13 +848,13 @@
 	:global(.cadastro-policial-modal .select),
 	:global(.cadastro-policial-modal .lotacao-searchable input),
 	:global(.cadastro-policial-modal .lotacao-searchable button) {
-		background-color: #f8fafc;
+		background-color: var(--color-surface-50);
 	}
 
 	:global(.dark .cadastro-policial-modal .input),
 	:global(.dark .cadastro-policial-modal .select),
 	:global(.dark .cadastro-policial-modal .lotacao-searchable input),
 	:global(.dark .cadastro-policial-modal .lotacao-searchable button) {
-		background-color: #1f2937;
+		background-color: var(--color-surface-800);
 	}
 </style>

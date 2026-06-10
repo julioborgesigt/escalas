@@ -127,7 +127,7 @@
 	<div class="w-full max-w-sm">
 		<!-- Card -->
 		<div
-			class="p-6 sm:p-8 rounded-3xl bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl border border-surface-200 dark:border-white/10 shadow-2xl shadow-black/10 dark:shadow-black/50"
+			class="p-6 sm:p-8 rounded-3xl card-glass-auth"
 		>
 			<!-- Icon + Title -->
 			<div class="text-center mb-6">

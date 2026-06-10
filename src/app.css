@@ -56,3 +56,17 @@
 		scroll-behavior: auto !important;
 	}
 }
+
+/* Utilitários centralizados de Glass Card (V-6) */
+@utility card-glass {
+	@apply bg-white/80 dark:bg-surface-900/60 backdrop-blur-md
+		border border-surface-200 dark:border-white/5
+		shadow-xl shadow-black/5 dark:shadow-black/20;
+}
+
+@utility card-glass-auth {
+	@apply bg-white/90 dark:bg-surface-900/60 backdrop-blur-xl
+		border border-surface-200 dark:border-white/10
+		shadow-2xl shadow-black/10 dark:shadow-black/50;
+}
+

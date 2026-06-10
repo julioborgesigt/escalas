@@ -264,7 +264,7 @@
 
 		{#if mostrarFiltrosHistorico}
 			<div
-				class="overflow-hidden rounded-2xl border border-surface-200/90 bg-surface-50/80 shadow-sm dark:border-surface-800 dark:bg-surface-900/60"
+				class="card-glass overflow-hidden rounded-2xl"
 				transition:slide={{ duration: 250 }}
 			>
 				<div

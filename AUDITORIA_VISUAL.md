@@ -1,7 +1,7 @@
 # Auditoria Visual — Elementos de Interface
 
 **Data:** 2026-06-10
-**Escopo:** identidade visual, design tokens, tipografia, cores, iconografia, componentes recorrentes (cards, botões, badges, modais, empty states), dark mode e micro-interações. 70 arquivos Svelte analisados (57 rotas + 13 componentes de `$lib`).
+**Escopo:** identidade visual, design tokens, tipografia, cores, iconografia, componentes recorrentes (cards, botões, badges, modais, empty states), dark mode e micro-interações. 75 arquivos Svelte analisados (62 rotas + 13 componentes de `$lib`).
 **Método:** leitura do design system (`theme.css`, `app.css`), varredura de padrões em todos os `.svelte` com contagens reais (grep), e verificação manual dos achados citados. Números são **medidos no repositório**, não estimados. Onde a varredura automática divergiu da verificação manual, vale a verificação (anotado em cada caso).
 
 ---
@@ -45,7 +45,7 @@ O tema dá régua para quase tudo que os achados abaixo apontam — a maior part
 
 ## 4. Achados, do mais ao menos impactante
 
-### V-1 · Micro-tipografia: 11 tamanhos arbitrários para "texto pequeno" (344 usos)
+### V-1 · Micro-tipografia: 10 tamanhos arbitrários para "texto pequeno" (199 usos)
 
 Distribuição medida (`text-[0.Xrem]` em todo o `src/`):
 
@@ -53,17 +53,17 @@ Distribuição medida (`text-[0.Xrem]` em todo o `src/`):
 |---------|----|-----:|----------|
 | `text-[0.85rem]` | 13,6 | 2 | outlier (≈ `text-sm`) |
 | `text-[0.8rem]` | 12,8 | 2 | outlier |
-| `text-[0.7rem]` | 11,2 | 58 | ok como piso de labels |
-| `text-[0.68rem]` | 10,9 | 16 | redundante com 0.7 |
-| `text-[0.65rem]` | 10,4 | 119 | o mais usado |
+| `text-[0.7rem]` | 11,2 | 17 | ok como piso de labels (reduzido de 58) |
+| `text-[0.68rem]` | 10,9 | 0 | redundante com 0.7 (removido!) |
+| `text-[0.65rem]` | 10,4 | 80 | o mais usado (reduzido de 119) |
 | `text-[0.62rem]` | 9,9 | 5 | redundante |
-| `text-[0.6rem]` | 9,6 | 94 | abaixo do confortável |
-| `text-[0.58rem]` | 9,3 | 16 | redundante |
-| `text-[0.55rem]` | 8,8 | 27 | limite da legibilidade |
+| `text-[0.6rem]` | 9,6 | 71 | abaixo do confortável (reduzido de 94) |
+| `text-[0.58rem]` | 9,3 | 2 | redundante (reduzido de 16) |
+| `text-[0.55rem]` | 8,8 | 16 | limite da legibilidade (reduzido de 27) |
 | `text-[0.5rem]` | 8,0 | 3 | ilegível em tela comum |
-| `text-[0.45rem]` | **7,2** | 2 | ilegível — `ModalCriarGise.svelte:277` e `ModalDatasHoras.svelte:245` (marcador de dia no calendário) |
+| `text-[0.45rem]` | **7,2** | 1 | ilegível — marcador de dia no calendário (reduzido de 2) |
 
-Diferenças de 0,3–0,5px entre classes (0.58 vs 0.6 vs 0.62) são invisíveis a olho nu — são 11 decisões onde caberiam 3. **Correção proposta:** definir 3 tokens no Tailwind (`@theme` no app.css) e migrar por busca-e-troca:
+Diferenças de 0,3–0,5px entre classes (0.58 vs 0.6 vs 0.62) são invisíveis a olho nu — restam 10 decisões arbitrárias onde caberiam 3 (total de 199 usos atuais, reduzido de 344 usos originais devido a melhorias recentes de performance/UX). **Correção proposta:** definir 3 tokens no Tailwind (`@theme` no app.css) e migrar por busca-e-troca:
 
 ```css
 @theme {
@@ -106,7 +106,7 @@ const corSecondary = css.getPropertyValue('--color-secondary-500').trim();
 
 ### V-4 · Border-radius sem regra — apesar de o tema definir os tokens
 
-Medição: `rounded-xl` 230× · `rounded-lg` 207× · `rounded-2xl` 120× · `rounded-full` 111× · `rounded-3xl` 31×.
+Medição atual: `rounded-xl` 160× · `rounded-lg` 106× · `rounded-2xl` 90× · `rounded-full` 83× · `rounded-3xl` 27× · `rounded-md` 13×. (Contagens reduzidas em relação à medição original devido à padronização nas fases 2 e 3 de performance/UX, mas os desvios de `rounded-lg` e `rounded-md` persistem).
 
 O `theme.css` define `--radius-base: 0.75rem` (xl) e `--radius-container: 1rem` (2xl) — ou seja, **a decisão já foi tomada** e o Skeleton expõe `rounded-base`/`rounded-container` para isso. Na prática, cada componente escolhe na mão, e os 207 `rounded-lg` + 31 `rounded-3xl` são desvios do próprio tema. **Correção proposta (regra de 3 linhas para o CLAUDE.md/guia):**
 
@@ -155,6 +155,14 @@ Inputs e selects têm anéis de foco explícitos e bonitos (`SearchableSelect`, 
 - **Spinners:** 6 SVGs `animate-spin` ad hoc vs 4 usos do componente `Spinner.svelte`. Unificar no componente.
 - **Login h1** (`text-xl`) um degrau menor que o padrão interno (`text-2xl`) — provável intenção (card compacto), conferir.
 
+### V-11 · Inconsistências Visuais nas Novas Rotas (res-gise e policiais)
+
+Com a adição de novas rotas de produtividade GISE e gerenciamento de policiais, novos desvios visuais surgiram:
+- **Uso de `rounded-3xl` (1.5rem):** Encontrado em cartões principais e contêineres (`res-gise/RelatorioProdutividade.svelte`, `res-gise/+page.svelte`, `policiais/+page.svelte`, `policiais/upload/+page.svelte`), ultrapassando os tokens de raio definidos no tema (`--radius-base: 0.75rem`/xl e `--radius-container: 1rem`/2xl).
+- **Custom SVG Inline (`btnIcon`):** As páginas do `res-gise` implementam um snippet local chamado `btnIcon` que recebe caminhos SVG brutos (ex: `M5 13l4 4L19 7` ou caminhos maiores) e os renderiza inline. Esse padrão reforça o débito de ícones fragmentados mapeado em V-2.
+- **Acúmulo de Micro-tipografia:** As telas de policiais (`policiais/+page.svelte` e `policiais/[id]/+page.svelte`) utilizam extensivamente `text-[0.7rem]` em rótulos de formulário, aumentando o acúmulo de tamanhos arbitrários e reforçando a necessidade da migração para `--text-2xs`.
+- **Custom SegmentedControl:** Em `policiais/+page.svelte`, o controle de segmentos é customizado manualmente com Tailwind inline em vez de um padrão global reutilizável.
+
 ---
 
 ## 5. Plano de ação sugerido
@@ -166,31 +174,32 @@ Inputs e selects têm anéis de foco explícitos e bonitos (`SearchableSelect`, 
 4. Unificar os 5 glass cards desviantes no padrão canônico (V-6).
 
 ### Rodada 2 — sistematização (1–2 dias)
-5. Tokens `--text-2xs`/`--text-3xs` + migração dos 344 usos por busca-e-troca dirigida (V-1).
+5. Tokens `--text-2xs`/`--text-3xs` + migração dos 199 usos por busca-e-troca dirigida, incluindo os novos rótulos das telas de policiais e GISE (V-1, V-11).
 6. Classe `card-glass` (V-6) e componente `EmptyState` (V-7).
 7. Paleta dos gráficos lida do tema em runtime (V-3.4).
-8. Regra de ícones: substituir emojis funcionais e SVGs duplicados por lucide (V-2) — manter emojis decorativos dos empty states.
+8. Regra de ícones: substituir emojis funcionais, SVGs duplicados e snippets locais (`btnIcon`) por equivalentes Lucide (V-2, V-11) — manter emojis decorativos dos empty states.
+9. Padronização de border-radius: substituir desvios de `rounded-3xl` e `rounded-lg` em `res-gise` e `policiais` para os tokens do tema (V-4, V-11).
 
 ### Rodada 3 — guia vivo (½ dia)
-9. Seção "Padrões visuais" no CLAUDE.md: radius (V-4), `active:scale-95` (V-5), blur (V-10), ícones (V-2), micro-tipografia (V-1) — 15 linhas que impedem a dívida de voltar.
+10. Seção "Padrões visuais" no CLAUDE.md: radius (V-4), `active:scale-95` (V-5), blur (V-10), ícones (V-2), micro-tipografia (V-1) — 15 linhas que impedem a dívida de voltar.
 
 ---
 
 ## 6. Apêndice — contagens-resumo
 
-| Dimensão | Medição |
-|----------|---------|
-| Tamanhos arbitrários de micro-texto | 11 variantes, 344 usos |
-| Fontes de ícone | emoji 9 arquivos · lucide 6 arquivos (~13 ícones) · SVG inline ~80 |
-| Glass card | 16 canônicos + 5 variantes |
-| Backdrops de modal | 22 canônicos + variantes deliberadas (z-index de empilhamento) |
-| Título de página | 12× o padrão canônico |
-| `active:scale-95` | 81 botões (~12%) |
-| Border-radius | xl 230 · lg 207 · 2xl 120 · full 111 · 3xl 31 |
-| backdrop-blur | sm 37 · md 24 · xl 4 · bare 2 · lg 1 |
-| Cores fora do tema | orange 2 classes · rose 5 · hex 2 (style block) + paleta chart.js |
-| Pesos de fonte | bold 488 · semibold 189 · black 102 · extrabold 3 |
-| Dark mode | sem gaps reais encontrados |
-| Empty states | 8, com 4 paddings diferentes |
+| Dimensão | Medição Atual (Pós Performance/UX) | Medição Original (Histórico) |
+|----------|-----------------------------------|------------------------------|
+| Tamanhos arbitrários de micro-texto | 10 variantes, 199 usos | 11 variantes, 344 usos |
+| Fontes de ícone | emoji 9 arquivos · lucide 6 arq. (~13 ícones) · SVG inline/snippets ~80 | emoji 9 arq. · lucide 6 arq. · SVG inline ~80 |
+| Glass card | 16 canônicos + 5 variantes (mais 2 novos com rounded-3xl) | 16 canônicos + 5 variantes |
+| Backdrops de modal | 22 canônicos + variantes deliberadas | 22 canônicos + variantes deliberadas |
+| Título de página | 12× o padrão canônico | 12× o padrão canônico |
+| `active:scale-95` | 81 botões | 81 botões (~12%) |
+| Border-radius | xl 160 · lg 106 · 2xl 90 · full 83 · 3xl 27 · md 13 | xl 230 · lg 207 · 2xl 120 · full 111 · 3xl 31 |
+| backdrop-blur | sm 37 · md 24 · xl 4 · bare 2 · lg 1 | sm 37 · md 24 · xl 4 · bare 2 · lg 1 |
+| Cores fora do tema | orange 2 classes · rose 5 · hex 2 (style block) + paleta chart.js | orange 2 classes · rose 5 · hex 2 + paleta chart.js |
+| Pesos de fonte | bold 342 · semibold 125 · black 72 · extrabold 3 | bold 488 · semibold 189 · black 102 · extrabold 3 |
+| Dark mode | sem gaps reais encontrados | sem gaps reais encontrados |
+| Empty states | 8, com 4 paddings diferentes | 8, com 4 paddings diferentes |
 
 **Como reproduzir:** os greps usados estão implícitos em cada tabela (`grep -rhoE "<padrão>" --include="*.svelte" src/routes src/lib | sort | uniq -c`). A varredura ampla foi feita por agente e os achados individuais citados foram verificados manualmente; duas alegações da varredura foram corrigidas na verificação (contagem de lucide e "ausência" de cores hardcoded).

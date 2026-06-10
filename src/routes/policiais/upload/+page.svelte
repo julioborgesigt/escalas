@@ -58,7 +58,7 @@
 </div>
 
 <div
-	class="p-4 sm:p-6 mb-4 rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20"
+	class="card-glass p-4 sm:p-6 mb-4 rounded-3xl"
 >
 	<!-- Format instructions -->
 	<div

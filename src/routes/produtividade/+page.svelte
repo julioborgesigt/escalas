@@ -531,7 +531,7 @@
 			<button
 				type="button"
 				class="btn {selectedCharts.length > 0
-					? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 text-white'
+					? 'bg-error-600 hover:bg-error-700 shadow-error-500/20 text-white'
 					: 'bg-surface-200/80 dark:bg-surface-800/80 text-surface-500 dark:text-surface-400 cursor-not-allowed'} shadow-xl text-[0.65rem] font-black uppercase py-2 px-6 rounded-xl transition-all {selectedCharts.length >
 				0
 					? 'hover:scale-105 active:scale-95'

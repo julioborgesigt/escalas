@@ -408,10 +408,10 @@
 
 				{#if exigirGps}
 					<div
-						class="flex items-start gap-2 p-2 rounded-xl bg-rose-500/5 border border-rose-500/10"
+						class="flex items-start gap-2 p-2 rounded-xl bg-error-500/5 border border-error-500/10"
 					>
 						<svg
-							class="w-4 h-4 text-rose-500 shrink-0 mt-0.5"
+							class="w-4 h-4 text-error-500 shrink-0 mt-0.5"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
