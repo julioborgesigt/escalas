@@ -19,7 +19,7 @@ import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
-import { verificarAssinaturaCms } from './crypto-verify';
+import { verificarAssinaturaCms, SIGNATURE_OIDS, DIGEST_OIDS } from './crypto-verify';
 import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } from './icp-policy';
 
 // OIDs reaproveitados de pdf-signing.ts
@@ -712,6 +712,49 @@ export async function verificarAssinaturaCmsAsync(
 	});
 }
 
+/**
+ * Política criptográfica mínima do certificado/assinatura do SIGNATÁRIO:
+ *   - rejeita SHA-1 (colisões práticas desde 2017 — uma assinatura "válida"
+ *     com SHA-1 não sustenta não-repúdio);
+ *   - exige RSA ≥ 2048 bits (DOC-ICP-01 não emite menos desde 2012);
+ *   - exige keyUsage com digitalSignature ou nonRepudiation (um cert ICP
+ *     emitido só para keyEncipherment/autenticação não é cert de assinatura).
+ *
+ * NÃO se aplica ao CertID do OCSP (RFC 6960 usa SHA-1 por especificação) nem
+ * à TSA (validada à parte, com EKU timeStamping crítica).
+ */
+export function avaliarPoliticaCriptografica(
+	sigAlgOid: string,
+	digestAlgOid: string | undefined,
+	cert: forge.pki.Certificate
+): { ok: boolean; motivo?: string } {
+	if (
+		sigAlgOid === SIGNATURE_OIDS.SHA1_RSA ||
+		(sigAlgOid === SIGNATURE_OIDS.RSA_ENCRYPTION && digestAlgOid === DIGEST_OIDS.SHA1)
+	) {
+		return { ok: false, motivo: 'assinatura usa SHA-1 (algoritmo quebrado — mínimo SHA-256)' };
+	}
+	// Chave RSA: forge expõe o módulo em `n`. Chaves EC não têm `n` (a curva
+	// já é validada na verificação — P-256/384/521 apenas).
+	const pub = cert.publicKey as { n?: { bitLength(): number } } | undefined;
+	if (pub?.n) {
+		const bits = pub.n.bitLength();
+		if (bits < 2048) {
+			return { ok: false, motivo: `chave RSA de ${bits} bits (mínimo 2048)` };
+		}
+	}
+	const ku = cert.getExtension('keyUsage') as
+		| { digitalSignature?: boolean; nonRepudiation?: boolean }
+		| null;
+	if (!ku || (!ku.digitalSignature && !ku.nonRepudiation)) {
+		return {
+			ok: false,
+			motivo: 'certificado sem keyUsage de assinatura (digitalSignature/nonRepudiation)'
+		};
+	}
+	return { ok: true };
+}
+
 export function verificarCadeiaIcpBrasil(
 	cert: forge.pki.Certificate,
 	dataReferencia?: Date
@@ -1045,6 +1088,18 @@ export async function verificarAssinaturaCompleta(
 		erros.push('Assinatura criptográfica dos SignedAttributes inválida');
 	}
 
+	// 2b. Política criptográfica mínima (SHA-1, RSA < 2048, keyUsage) — uma
+	//     assinatura matematicamente válida com algoritmo/chave fracos não
+	//     sustenta a classificação de qualificada.
+	const politicaCripto = avaliarPoliticaCriptografica(
+		cms.sigAlgOid,
+		cms.digestAlgOid,
+		cms.certificate
+	);
+	if (!politicaCripto.ok) {
+		erros.push(`Política criptográfica violada: ${politicaCripto.motivo}`);
+	}
+
 	// 3. Carimbo de tempo qualificado — determinado ANTES da cadeia porque
 	//    serve de data de referência para validar a validade do certificado no
 	//    instante da assinatura (e não em "agora").
@@ -1093,6 +1148,7 @@ export async function verificarAssinaturaCompleta(
 	//    issuer (defesa anti-MITM também na re-verificação, não só no momento da
 	//    assinatura). Localiza o issuer no trust store pelo CN; sem ele,
 	//    statusDeSnapshot devolve apenas o status (compat com snapshots antigos).
+	let ocspNaoConfiavel = false;
 	if (options.ocspSnapshotB64) {
 		let issuerCert: forge.pki.Certificate | undefined;
 		try {
@@ -1111,6 +1167,8 @@ export async function verificarAssinaturaCompleta(
 				`Certificado REVOGADO${snap.revokedAt ? ` em ${snap.revokedAt}` : ''} (snapshot OCSP)`
 			);
 		} else if (snap.assinaturaResponder === 'invalida') {
+			// Falha dura: snapshot adulterado/forjado não pode sustentar "good".
+			ocspNaoConfiavel = true;
 			erros.push(
 				'Assinatura do responder OCSP não confere no snapshot — status de revogação não confiável (possível adulteração ou MITM).'
 			);
@@ -1197,8 +1255,10 @@ export async function verificarAssinaturaCompleta(
 		result.checks.integridade &&
 		result.checks.cobertura &&
 		result.checks.assinaturaRsa &&
+		politicaCripto.ok &&
 		cadeiaOk &&
-		result.checks.revogacao !== 'revoked';
+		result.checks.revogacao !== 'revoked' &&
+		!ocspNaoConfiavel;
 
 	return result;
 }

@@ -88,6 +88,12 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 						.from(policiais)
 						.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
 						.orderBy(asc(policiais.nome))
+						// E-mails (dado pessoal — LGPD) só para Admin Geral, espelhando a
+						// política de /api/policiais/[id]/email-aviso e do campo
+						// `assessorEmailSugerido` abaixo. Supervisores recebem null.
+						.then((rows) =>
+							isGeral ? rows : rows.map((r) => ({ ...r, email: null, email_pessoal: null }))
+						)
 				: Promise.resolve([]);
 
 		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter(
@@ -185,12 +191,16 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	} catch (e) {
 		if (e && typeof e === 'object' && 'status' in e) throw e;
 		const msg = e instanceof Error ? e.message : String(e);
+		// errorId correlaciona a mensagem genérica ao log estruturado — a
+		// mensagem interna (Drizzle/D1) nunca vai para o cliente.
+		const errorId = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 		logger.error('[gise/load] Erro ao carregar GISE', {
 			gise_id: id,
+			errorId,
 			error: msg,
 			stack: e instanceof Error ? e.stack : undefined
 		});
-		throw error(500, `Erro ao carregar GISE: ${msg}`);
+		throw error(500, `Erro ao carregar a escala GISE. Informe o código ${errorId} ao suporte.`);
 	}
 };
 
