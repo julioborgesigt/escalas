@@ -29,7 +29,30 @@
 		ignorados: false
 	});
 
-	const dados = $derived(data.compliance as ItemCompliance[]);
+	// `data.compliance` chega como PROMISE (streaming do load): o shell pinta
+	// já com os filtros, e o relatório preenche quando resolver. `null` =
+	// computando (skeleton). Resolver aqui — em vez de {#await} no template —
+	// preserva a cadeia de deriveds (dados → dadosFiltrados → dadosAgrupados).
+	let complianceResolvido = $state<ItemCompliance[] | null>(null);
+	$effect(() => {
+		const promessa = data.compliance;
+		complianceResolvido = null;
+		let ativo = true;
+		Promise.resolve(promessa)
+			.then((v) => {
+				if (ativo) complianceResolvido = v as ItemCompliance[];
+			})
+			.catch(() => {
+				if (!ativo) return;
+				complianceResolvido = [];
+				toaster.create({ title: 'Erro ao carregar o compliance', type: 'error' });
+			});
+		return () => {
+			ativo = false;
+		};
+	});
+	const dados = $derived(complianceResolvido ?? []);
+	const carregandoCompliance = $derived(complianceResolvido === null);
 	const unidadesDB = $derived(data.unidades as Unidade[]);
 
 	// Filtros
@@ -266,7 +289,9 @@
 		} catch {
 			/* ignora */
 		}
-		await invalidate(page.url.pathname);
+		// Chave declarada com depends() no load: invalidate(pathname) exigia
+		// match exato de URL e não funcionava com ?ano=&mes= presentes.
+		await invalidate('app:painel');
 		loadingService.hide();
 	}
 
@@ -289,7 +314,7 @@
 			loadingService.hide();
 			if (result.type === 'success') {
 				toaster.create({ title: 'Escala excluída com sucesso!', type: 'success' });
-				await invalidate(page.url.pathname);
+				await invalidate('app:painel');
 				escalaExcluirOpen = false;
 				itemParaExcluir = null;
 			} else {
@@ -531,6 +556,14 @@
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
 					Escolha um opção nos filtros para exibir
 				</p>
+			</div>
+		{:else if carregandoCompliance}
+			<!-- Compliance ainda resolvendo (streaming) — sem isto cairia no
+			     estado vazio "Nenhuma pendência" durante o cálculo -->
+			<div class="space-y-2" aria-busy="true">
+				{#each { length: 6 } as _, i (i)}
+					<SkeletonCard lines={2} hasFooter={false} />
+				{/each}
 			</div>
 		{:else if dadosFiltrados.length === 0}
 			<div class="text-center py-20">

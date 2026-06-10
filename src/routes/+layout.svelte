@@ -1,5 +1,12 @@
 <script lang="ts">
 	import '../app.css';
+	// Preload das duas fontes críticas acima da dobra (corpo + títulos): sem
+	// isto o browser só descobre os woff2 após baixar e parsear o CSS, e o
+	// texto pisca no swap. O ?url resolve para o MESMO asset hasheado que o
+	// @font-face do app.css referencia — um download só. Demais pesos seguem
+	// sob demanda via @fontsource.
+	import inter400Url from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
+	import outfit700Url from '@fontsource/outfit/files/outfit-latin-700-normal.woff2?url';
 	import { tick } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import { goto, onNavigate, afterNavigate } from '$app/navigation';
@@ -147,6 +154,10 @@
 </script>
 
 <svelte:head>
+	<!-- crossorigin é obrigatório em preload de fonte (fetch em modo CORS
+	     mesmo same-origin); sem ele o browser baixa o arquivo duas vezes. -->
+	<link rel="preload" href={inter400Url} as="font" type="font/woff2" crossorigin="anonymous" />
+	<link rel="preload" href={outfit700Url} as="font" type="font/woff2" crossorigin="anonymous" />
 	<title>Escalas de Plantão Policial</title>
 	<meta
 		name="description"

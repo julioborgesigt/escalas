@@ -4,7 +4,8 @@ import { getDB, listarUnidades, excluirEscala, registrarAuditComContexto } from 
 import type { Database } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import { and, gte, lte, inArray } from 'drizzle-orm';
-import { unidades as unTable, escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
+import { escalas as escTable, escalaDocumentos as docTable } from '$lib/server/schema';
+import type { Unidade } from '$lib/server/schema';
 
 // Re-exportar interface do compliance
 export interface ItemCompliance {
@@ -17,8 +18,15 @@ export interface ItemCompliance {
 	escala_id?: number;
 }
 
-// Importar a lógica de compliance existente
-async function gerarCompliance(db: Database, ano: number, mes: number): Promise<ItemCompliance[]> {
+// Importar a lógica de compliance existente.
+// `listaUnidades` vem do load (já buscado para os filtros da UI) — antes a
+// função refazia o mesmo SELECT em unidades, duplicando o round-trip ao D1.
+async function gerarCompliance(
+	db: Database,
+	ano: number,
+	mes: number,
+	listaUnidades: Unidade[]
+): Promise<ItemCompliance[]> {
 	function toISO(y: number, m: number, d: number): string {
 		return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 	}
@@ -59,7 +67,6 @@ async function gerarCompliance(db: Database, ano: number, mes: number): Promise<
 		return list;
 	}
 
-	const listaUnidades = await db.select().from(unTable).all();
 	if (listaUnidades.length === 0) return [];
 
 	const hoje = getNowBR();
@@ -213,7 +220,12 @@ async function gerarCompliance(db: Database, ano: number, mes: number): Promise<
 	return result;
 }
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
+	// Chave de invalidação segmentada — também conserta o recarregar() da página:
+	// `invalidate(pathname)` exige match exato de URL (incluindo query), então
+	// com filtros ?ano=&mes= na URL ele silenciosamente não invalidava nada.
+	depends('app:painel');
+
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 	if (u.tipo !== 'admin') throw redirect(302, '/');
@@ -230,13 +242,13 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const ano = qAno === 'todos' ? 0 : qAno !== null ? Number(qAno) : anoCorrente;
 	const mes = qMes === 'todos' ? 0 : qMes !== null ? Number(qMes) : mesCorrente;
 
-	const [compliance, unidadesLista] = await Promise.all([
-		gerarCompliance(db, ano, mes),
-		listarUnidades(db)
-	]);
+	const unidadesLista = await listarUnidades(db);
 
 	return {
-		compliance,
+		// STREAMED (promise não aguardada): o shell do painel (filtros, cards)
+		// renderiza imediatamente; o relatório chega quando a computação
+		// períodos × unidades terminar e a página mostra skeleton até lá.
+		compliance: gerarCompliance(db, ano, mes, unidadesLista),
 		unidades: unidadesLista,
 		filtroAno: qAno !== null ? qAno : String(anoCorrente),
 		filtroMes: qMes !== null ? qMes : String(mesCorrente)

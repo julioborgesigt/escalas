@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { csrfHeaders } from '$lib/csrf';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -26,6 +26,7 @@
 	let erroBuscaDestinatario = $state('');
 
 	let buscaTimer: ReturnType<typeof setTimeout> | null = null;
+	let buscaController: AbortController | null = null;
 
 	$effect(() => {
 		if (open) {
@@ -39,19 +40,32 @@
 				clearTimeout(buscaTimer);
 				buscaTimer = null;
 			}
+			buscaController?.abort();
+			buscaController = null;
+			buscandoDestinatario = false;
 		}
 	});
 
 	async function buscarDestinatarios(q: string) {
 		if (buscaTimer) clearTimeout(buscaTimer);
+		// Cancela a busca em voo: evita resultado antigo chegando depois do novo
+		buscaController?.abort();
 		resultadosBuscaDestinatario = [];
 		erroBuscaDestinatario = '';
-		if (q.trim().length < 2) return;
+		if (q.trim().length < 2) {
+			buscandoDestinatario = false;
+			return;
+		}
+		// Feedback imediato enquanto digita — antes o spinner só aparecia depois
+		// do debounce + rede, e em conexão lenta parecia que nada acontecia.
+		buscandoDestinatario = true;
 		buscaTimer = setTimeout(async () => {
-			buscandoDestinatario = true;
+			const controller = new AbortController();
+			buscaController = controller;
 			try {
 				const res = await fetch(
-					`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q.trim())}&limit=8`
+					`/api/policiais/search?cargo=DPC&somente_admins=true&q=${encodeURIComponent(q.trim())}&limit=8`,
+					{ signal: controller.signal }
 				);
 				if (res.ok) {
 					const json = await res.json();
@@ -59,9 +73,14 @@
 					if (resultadosBuscaDestinatario.length === 0) {
 						erroBuscaDestinatario = 'Nenhum delegado (DPC) administrador encontrado.';
 					}
+				} else {
+					erroBuscaDestinatario = 'Erro ao buscar delegados. Tente novamente.';
 				}
+			} catch {
+				if (controller.signal.aborted) return; // substituída por busca mais nova
+				erroBuscaDestinatario = 'Erro de rede ao buscar delegados. Tente novamente.';
 			} finally {
-				buscandoDestinatario = false;
+				if (!controller.signal.aborted) buscandoDestinatario = false;
 			}
 		}, 300);
 	}
@@ -81,8 +100,10 @@
 			});
 			if (res.ok) {
 				open = false;
-				await invalidateAll();
 				toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
+				// Invalidação segmentada: refaz só o load da listagem (depends em
+				// /escalas/+page.server.ts), não o layout inteiro.
+				await invalidate('app:escalas');
 				onConfirmado();
 			} else {
 				const json = await res.json().catch(() => ({}));
@@ -218,7 +239,15 @@
 									/>
 								{/if}
 							</div>
-							{#if resultadosBuscaDestinatario.length > 0}
+							{#if buscandoDestinatario}
+								<p
+									class="text-xs text-surface-500 px-1 flex items-center gap-1.5"
+									role="status"
+									aria-live="polite"
+								>
+									<Spinner size="sm" class="text-tertiary-500" /> Buscando delegados…
+								</p>
+							{:else if resultadosBuscaDestinatario.length > 0}
 								<div
 									class="card rounded-xl border border-surface-200 dark:border-white/10 overflow-hidden max-h-44 overflow-y-auto shadow-md"
 								>
@@ -237,7 +266,7 @@
 										</button>
 									{/each}
 								</div>
-							{:else if erroBuscaDestinatario && !buscandoDestinatario}
+							{:else if erroBuscaDestinatario}
 								<p class="text-xs text-surface-400 px-1">{erroBuscaDestinatario}</p>
 							{/if}
 						{/if}

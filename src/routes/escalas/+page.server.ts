@@ -29,7 +29,13 @@ import {
 	MESES_PT
 } from '$lib/rotacao';
 
-export const load: PageServerLoad = async ({ locals, platform, url }) => {
+export const load: PageServerLoad = async ({ locals, platform, url, depends }) => {
+	// Chave de invalidação segmentada: mutações da listagem (excluir, solicitar/
+	// cancelar/concluir assinatura) chamam invalidate('app:escalas') em vez de
+	// invalidateAll() — evita refazer também o load do layout (flags + papel GISE)
+	// a cada operação (auditoria de performance, U-1).
+	depends('app:escalas');
+
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 

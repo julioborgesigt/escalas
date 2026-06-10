@@ -18,6 +18,18 @@
 >
 > **Correção ao achado P-1:** a estimativa original de “~60 kB gz de Sentry” veio da atribuição do visualizer (que refletia o build de servidor). A fatia real do SDK tree-shaken no bundle de cliente era **~29 kB gz** — o ganho medido. A seção P-1 abaixo mantém o texto original da auditoria; os números válidos são os desta tabela.
 
+> **Status — Fase 2 implementada (2026-06-10).**
+>
+> | Item | Resultado |
+> |------|-----------|
+> | U-1 Invalidação segmentada em `/escalas` | `depends('app:escalas')` no load; os 5 call-sites de `invalidateAll()` (excluir, cancelar solicitação, 2 fluxos de assinatura, solicitar assinatura no dialog) viraram `invalidate('app:escalas')` — o layout (flags + papel GISE) não é mais refeito a cada mutação. Exclusão ganhou remoção otimista (`removidosLocais`): a linha some na hora e a invalidação corrige total/paginação no fundo. |
+> | B-3 + U-5 Streaming no `/painel` | `compliance` agora é promise streamed: o shell (filtros) pinta imediatamente e o relatório preenche ao resolver, com `SkeletonCard` no intervalo. Dedup do SELECT de unidades (era buscado 2× por request). **Bug corrigido de quebra:** `invalidate(page.url.pathname)` exigia match exato de URL — com `?ano=&mes=` na URL, o botão “Atualizar” e a exclusão de escala silenciosamente não recarregavam nada; agora usam `invalidate('app:painel')`. |
+> | P-3 Preload de fontes | `<link rel="preload">` para Inter 400 e Outfit 700 via `?url` no layout raiz; verificado no build que o URL hasheado bate com o do `@font-face` do CSS (um download só). Corte de pesos não aplicado — o comentário do app.css documenta que os 8 pesos refletem uso real. |
+> | U-4 Busca de DPC (dialog de solicitação) | `AbortController` cancela buscas em voo (sem resultado fora de ordem), feedback “Buscando delegados…” imediato (antes o spinner só aparecia após debounce+rede), e erro de rede agora é exibido (antes era silencioso). |
+> | U-2 Tabela de servidores | Labels de 9,6px → 11,2px e badges de 8,8px → 10,4px nos cards mobile. Constatação: a alegação original (“tabela com 11px no mobile”) não procedia — a tabela é `hidden sm:block` e o `text-[0.7rem]` era classe morta (removida). De quebra: wrapper `table-container` (classe inexistente) corrigido para `table-wrap` do Skeleton — a tabela não tinha scroll horizontal em tablets. |
+>
+> Verificação: `svelte-check` 0 erros, ESLint 0 erros, 403/403 testes, build OK, first-load JS sem regressão (`/login` 131 kB gz).
+
 ---
 
 ## 1. Sumário executivo
@@ -337,12 +349,12 @@ Cruza com B-3: com streaming + `{#await}` + `SkeletonCard`, o painel ganha tanto
 3. ~~**Batch usuário+aceite no hooks** (B-1, camada 1)~~ ✅ 3-4 RTs → 2 RTs em todo request.
 4. ~~**`width`/`height` nas imagens** (U-3) e **fundo fixo → pseudo-elemento** (P-2)~~ ✅ (pendência residual: brasão do R2 em `/validar*`, proporção não verificável pelo repo).
 
-### Fase 2 — percepção de velocidade (2–4 dias)
+### Fase 2 — percepção de velocidade (2–4 dias) — ✅ CONCLUÍDA (ver Status no topo)
 
-5. **`invalidate('app:escalas')` + otimismo local nas mutações de `/escalas`** (U-1).
-6. **Preload das 2 fontes críticas** (P-3) e avaliação de corte de pesos.
-7. **Streaming + skeleton no `/painel`** (B-3 + U-5), incluindo dedup de `listarUnidades`.
-8. **Loading state da busca DPC** (U-4) e fonte mínima de 12 px na tabela de servidores (U-2).
+5. ~~**`invalidate('app:escalas')` + otimismo local nas mutações de `/escalas`** (U-1).~~ ✅
+6. ~~**Preload das 2 fontes críticas** (P-3)~~ ✅ (corte de pesos avaliado e não aplicado — uso real documentado).
+7. ~~**Streaming + skeleton no `/painel`** (B-3 + U-5), incluindo dedup de `listarUnidades`.~~ ✅ (+ correção do `invalidate` quebrado com query params).
+8. ~~**Loading state da busca DPC** (U-4) e fonte mínima na tabela de servidores (U-2).~~ ✅ (+ `table-wrap` no lugar de classe inexistente).
 
 ### Fase 3 — refinamento (quando houver folga)
 

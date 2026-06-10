@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
@@ -104,6 +104,10 @@
 	]);
 
 	const escalas = $derived((data.escalas ?? []) as EscalaListagem[]);
+	// Exclusão otimista: ids removidos somem da tabela na hora; o
+	// invalidate('app:escalas') que segue corrige total/paginação no fundo.
+	let removidosLocais = $state<number[]>([]);
+	const escalasVisiveis = $derived(escalas.filter((e) => !removidosLocais.includes(e.id)));
 	const totalPaginas = $derived(data.pagination.totalPages);
 	const ITEMS_POR_PAGINA = 20;
 
@@ -301,13 +305,16 @@
 		return async ({ result }: { result: ActionResult }) => {
 			pendingExcluir = false;
 			if (result.type === 'success') {
+				const removida = escalaParaExcluir;
 				toaster.create({
-					title: `Escala de ${escalaParaExcluir!.titulo} removida`,
+					title: `Escala de ${removida!.titulo} removida`,
 					type: 'success'
 				});
+				if (removida) removidosLocais = [...removidosLocais, removida.id];
 				dialogOpen = false;
 				escalaParaExcluir = null;
-				await invalidateAll();
+				await invalidate('app:escalas');
+				removidosLocais = [];
 			} else {
 				const d =
 					result.type === 'failure'
@@ -374,7 +381,7 @@
 				headers: csrfHeaders()
 			});
 			if (res.ok) {
-				await invalidateAll();
+				await invalidate('app:escalas');
 				toaster.create({ title: 'Solicitação cancelada', type: 'success' });
 			} else {
 				const json = await res.json().catch(() => ({}));
@@ -409,7 +416,7 @@
 		onDocumentoAssinado: async () => {
 			dialogAssinaturaTela = false;
 			escalaAssinandoId = null;
-			await invalidateAll();
+			await invalidate('app:escalas');
 		}
 	});
 
@@ -753,7 +760,7 @@
 		</div>
 
 		<TabelaEscalas
-			{escalas}
+			escalas={escalasVisiveis}
 			{podeOIPSolicitar}
 			{solicitacoesMap}
 			skipLoad={data.skipLoad}
@@ -791,7 +798,7 @@
 		nomeArquivo="escala_assinada.pdf"
 		onSuccess={async () => {
 			escalaAssinandoId = null;
-			await invalidateAll();
+			await invalidate('app:escalas');
 		}}
 	/>
 </div>
