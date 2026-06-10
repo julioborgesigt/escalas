@@ -6,6 +6,8 @@ declare global {
 	interface Env {
 		escalas_db: D1Database;
 		escalas_docs: R2Bucket;
+		/** Binding do Cloudflare Email Sending (serviço primário de envio). */
+		EMAIL?: SendEmail;
 		/**
 		 * Origem canônica da aplicação (ex.: `https://escalas.exemplo.gov.br`).
 		 * Quando definida, os links de e-mail (redefinição/primeiro acesso) usam

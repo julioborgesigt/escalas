@@ -13,6 +13,10 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 # exigir, defina TSA_USERNAME/TSA_PASSWORD como secrets (wrangler secret put).
 TSA_URL = "http://timestamp.digicert.com"
 
+[[send_email]]
+name = "EMAIL"
+default_destination = "nao-responda@escalaspcce.com.br"
+
 [[d1_databases]]
 binding = "escalas_db"
 database_name = "escalas-db"
