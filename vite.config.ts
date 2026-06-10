@@ -21,6 +21,10 @@ export default defineConfig({
 						if (id.includes('node-forge')) return 'crypto';
 						if (id.includes('@skeletonlabs') || id.includes('@zag-js')) return 'skeleton';
 						if (id.includes('lucide-svelte') || id.includes('lucide')) return 'lucide';
+						// Chunk próprio: o SDK é carregado via import() dinâmico no idle
+						// (hooks.client.ts). Sem esta linha ele cairia no 'vendor', que é
+						// importado estaticamente por todas as rotas — anulando o lazy-load.
+						if (id.includes('@sentry')) return 'sentry';
 						return 'vendor';
 					}
 				}

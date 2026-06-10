@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { invalidate } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { browser } from '$app/environment';
@@ -22,24 +23,30 @@
 	const escalas = $derived(data.escalas as EscalaListagem[]);
 	const unidades = $derived(data.unidades as Unidade[]);
 
-	// Filtros com persistência
+	// Filtros server-side via URL (?seccional=&unidade=&ano=&mes=&vistos=&page=).
+	// A URL é a fonte de verdade — o load pagina e filtra no banco em vez de
+	// trafegar todas as escalas assinadas para filtrar no cliente (auditoria de
+	// performance, B-2). O localStorage continua persistindo a última escolha e
+	// é reaplicado (via replaceState) quando a página abre sem parâmetros.
 	const KEY = 'filtros_recebidos';
 	const defaults = {
-		seccional: '',
+		seccional: '' as number | '',
 		unidade: '',
-		data: '',
 		naoLidos: true,
 		ano: 0,
 		mes: 0
 	};
 	const saved = getSavedFilters(KEY, defaults);
 
-	let filtroSeccional = $state(saved.seccional);
-	let filtroUnidade = $state(saved.unidade);
-	let filtroData = $state(saved.data);
-	let filtroAno = $state<number>(saved.ano);
-	let filtroMes = $state<number>(saved.mes);
-	let mostrarApenasNaoVistos = $state(saved.naoLidos);
+	let filtroSeccional = $state<number | ''>(
+		untrack(() => Number(page.url.searchParams.get('seccional')) || '')
+	);
+	let filtroUnidade = $state(untrack(() => page.url.searchParams.get('unidade') ?? ''));
+	let filtroAno = $state<number>(untrack(() => Number(page.url.searchParams.get('ano')) || 0));
+	let filtroMes = $state<number>(untrack(() => Number(page.url.searchParams.get('mes')) || 0));
+	let mostrarApenasNaoVistos = $state(
+		untrack(() => page.url.searchParams.get('vistos') !== 'todos')
+	);
 
 	// Salvar a cada mudança
 	$effect(() => {
@@ -49,7 +56,6 @@
 				JSON.stringify({
 					seccional: filtroSeccional,
 					unidade: filtroUnidade,
-					data: filtroData,
 					naoLidos: mostrarApenasNaoVistos,
 					ano: filtroAno,
 					mes: filtroMes
@@ -59,9 +65,6 @@
 	});
 
 	const unidadesArray = $derived(Array.isArray(unidades) ? unidades : []);
-	const unidadeParaSeccionalId = $derived(
-		new Map(unidadesArray.map((u) => [u.nome, u.seccional_id]))
-	);
 	const seccionais = $derived(unidadesArray.filter((u) => u.tipo === 'seccional'));
 	const seccionaisOptions = $derived(seccionais.map((s) => ({ value: s.id, label: s.nome })));
 
@@ -87,48 +90,105 @@
 		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
 	);
 
+	function buildQueryParams(p: number) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams();
+		if (filtroSeccional !== '' && filtroSeccional !== null) {
+			params.set('seccional', String(filtroSeccional));
+		}
+		if (filtroUnidade.trim()) params.set('unidade', filtroUnidade.trim());
+		if (filtroAno) params.set('ano', String(filtroAno));
+		if (filtroMes) params.set('mes', String(filtroMes));
+		if (!mostrarApenasNaoVistos) params.set('vistos', 'todos');
+		if (p > 1) params.set('page', String(p));
+		return params.toString();
+	}
+
+	function navegarComFiltros(p = 1, opts: { replace?: boolean } = {}) {
+		const qs = buildQueryParams(p);
+		goto(qs ? `?${qs}` : page.url.pathname, {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: opts.replace ?? false
+		});
+	}
+
+	let mounted = false;
+	// svelte-ignore state_referenced_locally
+	let prevSeccional = $state(filtroSeccional);
+	// svelte-ignore state_referenced_locally
+	let prevUnidade = $state(filtroUnidade);
+	// svelte-ignore state_referenced_locally
+	let prevAno = $state(filtroAno);
+	// svelte-ignore state_referenced_locally
+	let prevMes = $state(filtroMes);
+	// svelte-ignore state_referenced_locally
+	let prevNaoVistos = $state(mostrarApenasNaoVistos);
+	let unidadeDebounce: ReturnType<typeof setTimeout> | undefined;
+
+	function sincronizarPrev() {
+		prevSeccional = filtroSeccional;
+		prevUnidade = filtroUnidade;
+		prevAno = filtroAno;
+		prevMes = filtroMes;
+		prevNaoVistos = mostrarApenasNaoVistos;
+	}
+
 	$effect(() => {
-		if (filtroAno === null) {
-			filtroAno = 0;
+		// Normaliza null vindo do clear do SearchableSelect
+		if (filtroAno === null) filtroAno = 0;
+		if (filtroMes === null) filtroMes = 0;
+		if (filtroSeccional === null) filtroSeccional = '';
+
+		if (!mounted) {
+			mounted = true;
+			// Primeira visita sem parâmetros: reaplica os filtros persistidos
+			// (comportamento da versão client-side), trocando a URL in-place.
+			const savedSeccional = Number(saved.seccional) || '';
+			const savedTemFiltros =
+				savedSeccional !== '' ||
+				saved.unidade !== '' ||
+				saved.ano !== 0 ||
+				saved.mes !== 0 ||
+				saved.naoLidos !== true;
+			if (page.url.search === '' && savedTemFiltros) {
+				filtroSeccional = savedSeccional;
+				filtroUnidade = saved.unidade;
+				filtroAno = saved.ano;
+				filtroMes = saved.mes;
+				mostrarApenasNaoVistos = saved.naoLidos;
+				sincronizarPrev();
+				untrack(() => navegarComFiltros(1, { replace: true }));
+				return;
+			}
+			sincronizarPrev();
+			return;
 		}
-		if (filtroMes === null) {
-			filtroMes = 0;
-		}
-		if (filtroSeccional === null) {
-			filtroSeccional = '';
+
+		const unidadeMudou = filtroUnidade !== prevUnidade;
+		const outrosMudaram =
+			filtroSeccional !== prevSeccional ||
+			filtroAno !== prevAno ||
+			filtroMes !== prevMes ||
+			mostrarApenasNaoVistos !== prevNaoVistos;
+		if (!unidadeMudou && !outrosMudaram) return;
+
+		sincronizarPrev();
+		clearTimeout(unidadeDebounce);
+		if (unidadeMudou && !outrosMudaram) {
+			// Texto livre: espera o usuário parar de digitar antes de ir ao servidor
+			unidadeDebounce = setTimeout(() => untrack(() => navegarComFiltros(1)), 350);
+		} else {
+			untrack(() => navegarComFiltros(1));
 		}
 	});
-
-	const escalasFiltradas = $derived(
-		(Array.isArray(escalas) ? escalas : []).filter((e) => {
-			if (filtroSeccional) {
-				const sId = unidadeParaSeccionalId.get(e.lotacao);
-				if (sId !== Number(filtroSeccional)) return false;
-			}
-			if (filtroUnidade && !e.lotacao.toLowerCase().includes(filtroUnidade.toLowerCase()))
-				return false;
-			if (filtroData && !e.data_inicio.includes(filtroData)) return false;
-			if (mostrarApenasNaoVistos && e.visto_por_admin) return false;
-
-			if (filtroAno && filtroAno !== 0) {
-				const parts = e.data_inicio.split('-');
-				const eAno = parseInt(parts[0], 10);
-				if (eAno !== filtroAno) return false;
-			}
-			if (filtroMes && filtroMes !== 0) {
-				const parts = e.data_inicio.split('-');
-				const eMes = parseInt(parts[1], 10);
-				if (eMes !== filtroMes) return false;
-			}
-
-			return true;
-		})
-	);
 
 	async function recarregar() {
 		loadingService.show('Atualizando caixa de entrada...');
 		try {
-			await invalidate(page.url.pathname);
+			// Predicado por pathname: o load agora depende da URL COM search params
+			// (filtros/página), então o match exato por string não bastaria.
+			await invalidate((url) => url.pathname === page.url.pathname);
 		} finally {
 			loadingService.hide();
 		}
@@ -164,19 +224,6 @@
 		};
 	}
 
-	let paginaAtual = $state(1);
-	const itensPorPagina = 10;
-	const totalPaginas = $derived(Math.max(1, Math.ceil(escalasFiltradas.length / itensPorPagina)));
-	const escalasRecebidasPaginadas = $derived(
-		escalasFiltradas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina)
-	);
-
-	$effect(() => {
-		if (filtroAno || filtroMes || filtroUnidade || filtroData || mostrarApenasNaoVistos) {
-			paginaAtual = 1;
-		}
-	});
-
 	// Helper para formatar data de criação
 	function formatRelativeTime(dateStr: string) {
 		const date = new Date(dateStr.replace(' ', 'T'));
@@ -204,17 +251,15 @@
 	function limparFiltros() {
 		filtroSeccional = '';
 		filtroUnidade = '';
-		filtroData = '';
 		filtroAno = 0;
 		filtroMes = 0;
 		mostrarApenasNaoVistos = true;
-		recarregar();
+		// O $effect de filtros detecta a mudança e navega para a URL limpa.
 	}
 
 	const temFiltros = $derived(
 		filtroSeccional !== '' ||
 			filtroUnidade !== '' ||
-			filtroData !== '' ||
 			filtroAno !== 0 ||
 			filtroMes !== 0 ||
 			mostrarApenasNaoVistos !== true
@@ -371,7 +416,7 @@
 	<div
 		class="rounded-3xl bg-white/80 dark:bg-surface-900/60 backdrop-blur-md border border-surface-200 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5"
 	>
-		{#if escalasFiltradas.length === 0}
+		{#if escalas.length === 0}
 			<div class="text-center py-20 px-4">
 				<p class="text-4xl mb-4">📥</p>
 				<p class="text-surface-600 dark:text-surface-400 text-lg font-semibold">
@@ -432,7 +477,7 @@
 								</tr>
 							{/each}
 						{:else}
-							{#each escalasRecebidasPaginadas as escala (escala.id)}
+							{#each escalas as escala (escala.id)}
 								<tr
 									class={escala.visto_por_admin ? 'opacity-60 grayscale-[0.5]' : 'bg-primary-500/5'}
 								>
@@ -588,7 +633,7 @@
 						<SkeletonCard />
 					{/each}
 				{:else}
-					{#each escalasRecebidasPaginadas as escala (escala.id)}
+					{#each escalas as escala (escala.id)}
 						<div
 							class="p-4 rounded-2xl bg-surface-100/50 dark:bg-surface-800/50 border {escala.visto_por_admin
 								? 'border-surface-200 dark:border-white/5 opacity-70'
@@ -704,13 +749,13 @@
 			</div>
 
 			<PaginationControls
-				{paginaAtual}
-				{totalPaginas}
-				totalItens={escalasFiltradas.length}
-				{itensPorPagina}
+				paginaAtual={data.page}
+				totalPaginas={data.totalPages}
+				totalItens={data.total}
+				itensPorPagina={data.limit}
 				labelSingular="escala recebida"
 				labelPlural="escala(s) recebida(s)"
-				onPageChange={(p) => (paginaAtual = p)}
+				onPageChange={(p) => navegarComFiltros(p)}
 			/>
 		{/if}
 	</div>

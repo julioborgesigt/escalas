@@ -29,6 +29,10 @@ export async function listarEscalas(
 		page?: number;
 		limit?: number;
 		lotacoes?: string[];
+		/** Substring da lotação (filtro "Unidade" da cx. de entrada). */
+		lotacaoBusca?: string;
+		/** Substring de data_inicio, ex.: '2026-06' ou '2026-06-10'. */
+		dataBusca?: string;
 	}
 ): Promise<{
 	escalas: EscalaListagem[];
@@ -60,6 +64,14 @@ export async function listarEscalas(
 		conditions.push(
 			or(like(escalas.titulo, `%${buscaEscapada}%`), like(escalas.cidade, `%${buscaEscapada}%`))!
 		);
+	}
+
+	if (opts?.lotacaoBusca) {
+		conditions.push(like(escalas.lotacao, `%${escapeLike(opts.lotacaoBusca.trim())}%`));
+	}
+
+	if (opts?.dataBusca) {
+		conditions.push(like(escalas.data_inicio, `%${escapeLike(opts.dataBusca.trim())}%`));
 	}
 
 	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo

@@ -4,6 +4,20 @@
 **Escopo:** front-end (bundle, rede, renderização), back-end (TTFB no Cloudflare Workers + D1) e UX percebida (feedback, navegação, mobile).
 **Método:** build de produção real (`vite build`) com medição de chunks gzip, walk do grafo de imports por rota, leitura dirigida de `hooks.server.ts`, todos os `+page.server.ts`, componentes e migrations. Todos os números abaixo foram **medidos neste repositório**, não estimados.
 
+> **Status — Fase 1 implementada (2026-06-10).** Resultados medidos pós-implementação:
+>
+> | Item | Resultado medido |
+> |------|------------------|
+> | P-1 Sentry lazy (`hooks.client.ts` + chunk `sentry` no `vite.config.ts`) | First-load JS: `/login` 159 → **130 kB gz** (−18%); todas as rotas −28/−29 kB gz. O chunk do Sentry (169 kB gz, namespace completo por ser import dinâmico) carrega no idle, fora do caminho crítico, sem nenhum importador estático. |
+> | B-1 Batch usuário+aceite (`validarSessaoComAceite`) | 3-4 round-trips D1 → **2** por request autenticado (sessão; depois usuário + aceite + sliding-update num único `db.batch`). |
+> | B-2 Paginação em `/recebidos` | Load com `limit 10` + filtros server-side via URL (seccional/unidade/mês/ano/vistos), `PaginationControls` ligado ao servidor; filtros persistidos continuam funcionando (reaplicados via `replaceState`). Removido o filtro invisível `filtroData` (estado sem input na UI). |
+> | P-2 Fundo fixo → pseudo-elemento | `background-attachment: fixed` removido; gradientes do dark mode agora em `.dark body::before` composto na GPU. |
+> | U-3 Dimensões de imagem | `width`/`height` (640×640, medido do asset) nos 3 logos in-repo (`/aceitar-termo`, `/termo/[versao]`, `/termo/dpo`). Os 3 brasões de `/validar*` vêm do R2 (`/api/validar/logo`) e a proporção real não é verificável pelo repositório — pendente: medir a imagem em produção e aplicar o mesmo fix. |
+>
+> Verificação: `svelte-check` 0 erros, ESLint 0 erros novos, 403/403 testes unitários passando, build de produção OK.
+>
+> **Correção ao achado P-1:** a estimativa original de “~60 kB gz de Sentry” veio da atribuição do visualizer (que refletia o build de servidor). A fatia real do SDK tree-shaken no bundle de cliente era **~29 kB gz** — o ganho medido. A seção P-1 abaixo mantém o texto original da auditoria; os números válidos são os desta tabela.
+
 ---
 
 ## 1. Sumário executivo
@@ -316,12 +330,12 @@ Cruza com B-3: com streaming + `{#await}` + `SkeletonCard`, o painel ganha tanto
 
 ## 6. Plano de ação priorizado
 
-### Fase 1 — alto impacto, baixo risco (1–2 dias)
+### Fase 1 — alto impacto, baixo risco (1–2 dias) — ✅ CONCLUÍDA (ver Status no topo)
 
-1. **Defer do Sentry no client** (P-1) → −60 kB gz no JS crítico de todas as páginas.
-2. **Paginação em `/recebidos`** (B-2) → remove o único load sem teto.
-3. **Batch usuário+aceite no hooks** (B-1, camada 1) → 3 RTs → 2 RTs em todo request.
-4. **`width`/`height` nas imagens** (U-3) e **fundo fixo → pseudo-elemento** (P-2).
+1. ~~**Defer do Sentry no client** (P-1)~~ ✅ −29 kB gz medidos no JS crítico de todas as páginas (estimativa original de −60 kB corrigida — ver Status).
+2. ~~**Paginação em `/recebidos`** (B-2)~~ ✅ limit 10 + filtros server-side via URL.
+3. ~~**Batch usuário+aceite no hooks** (B-1, camada 1)~~ ✅ 3-4 RTs → 2 RTs em todo request.
+4. ~~**`width`/`height` nas imagens** (U-3) e **fundo fixo → pseudo-elemento** (P-2)~~ ✅ (pendência residual: brasão do R2 em `/validar*`, proporção não verificável pelo repo).
 
 ### Fase 2 — percepção de velocidade (2–4 dias)
 

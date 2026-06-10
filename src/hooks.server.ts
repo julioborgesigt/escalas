@@ -3,8 +3,8 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 import { captureException, setUser } from '@sentry/cloudflare';
-import { validarSessao } from '$lib/auth';
-import { getDB, temAceiteVigente } from '$lib/db';
+import { validarSessao, validarSessaoComAceite } from '$lib/auth';
+import { getDB } from '$lib/db';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx } from '$lib/server/request-context';
@@ -155,11 +155,32 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	const token = event.cookies.get('session_token');
+
+	// Rotas livres do bloqueio do termo: a própria /aceitar-termo, /termo/[versao]
+	// (consulta pública), /api/auth/logout (permitir sair) e a rota raiz pós-login.
+	// Calculado ANTES da validação de sessão: quando o termo será exigido, a query
+	// de aceite entra no MESMO batch D1 da busca do usuário (1 round-trip a menos
+	// em todo request autenticado — ver validarSessaoComAceite).
+	const rotasLivresTermo =
+		pathname.startsWith('/aceitar-termo') ||
+		pathname.startsWith('/termo/') ||
+		pathname.startsWith('/api/termos/') ||
+		pathname.startsWith('/api/auth/');
+
 	let usuario = null;
+	let aceiteVigente = true;
 
 	try {
 		const db = getDB(event.platform);
-		usuario = await validarSessao(db, token, event.platform);
+		if (rotasLivresTermo) {
+			usuario = await validarSessao(db, token, event.platform);
+		} else {
+			const hash = await calcularHashTermo();
+			({ usuario, aceiteVigente } = await validarSessaoComAceite(db, token, event.platform, {
+				versao: TERMO_VERSAO,
+				hash
+			}));
+		}
 	} catch (err) {
 		logger.warn('[hooks] validarSessao falhou', { err: String(err) });
 	}
@@ -190,35 +211,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	// Fluxo de aceite do Termo de Uso vigente.
 	// Roda APÓS primeiro_acesso resolvido (senha definida + e-mail confirmado).
-	// Rotas livres do bloqueio: a própria /aceitar-termo, /termo/[versao] (consulta
-	// pública), /api/auth/logout (permitir sair) e a rota raiz pós-login.
-	const rotasLivresTermo =
-		pathname.startsWith('/aceitar-termo') ||
-		pathname.startsWith('/termo/') ||
-		pathname.startsWith('/api/termos/') ||
-		pathname.startsWith('/api/auth/');
-	if (!rotasLivresTermo) {
-		try {
-			const db = getDB(event.platform);
-			const hash = await calcularHashTermo();
-			const ok = await temAceiteVigente(db, usuario.tipo, usuario.id, TERMO_VERSAO, hash);
-			if (!ok) {
-				if (pathname.startsWith('/api/')) {
-					return apiError(
-						'Aceite o Termo de Uso vigente antes de continuar',
-						403,
-						ErrorCode.FORBIDDEN
-					);
-				}
-				throw redirect(302, '/aceitar-termo');
-			}
-		} catch (err) {
-			// `redirect` é uma exceção de controle de fluxo do SvelteKit — propaga.
-			if (err && typeof err === 'object' && 'status' in err && 'location' in err) throw err;
-			logger.warn('[hooks] verificação de termo falhou — permitindo seguir', {
-				err: String(err)
-			});
+	// O aceite em si já foi verificado dentro do batch de validarSessaoComAceite;
+	// aqui só decidimos o destino com base no resultado.
+	if (!rotasLivresTermo && !aceiteVigente) {
+		if (pathname.startsWith('/api/')) {
+			return apiError('Aceite o Termo de Uso vigente antes de continuar', 403, ErrorCode.FORBIDDEN);
 		}
+		throw redirect(302, '/aceitar-termo');
 	}
 
 	event.locals.usuario = usuario;

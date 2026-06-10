@@ -56,7 +56,13 @@
 		<header
 			class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5"
 		>
-			<img src={icon} alt="Logo PC-CE" class="w-14 sm:w-20 mb-2 drop-shadow-md" />
+			<img
+				src={icon}
+				alt="Logo PC-CE"
+				width="640"
+				height="640"
+				class="w-14 sm:w-20 mb-2 drop-shadow-md"
+			/>
 			<h1
 				class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center"
 			>

@@ -1,4 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
+import { eq, or } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';
 import {
 	getDB,
@@ -12,28 +13,56 @@ import {
 	hasR2,
 	registrarAuditComContexto
 } from '$lib/db';
+import { unidades as unidadesTable } from '$lib/server/schema';
 
-export const load: PageServerLoad = async ({ locals, platform }) => {
+/** Itens por página da caixa de entrada (mesmo tamanho da paginação antiga client-side). */
+const ITENS_POR_PAGINA = 10;
+
+export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 	if (u.tipo !== 'admin') throw redirect(302, '/');
 
 	const db = getDB(platform);
 
-	// Busca escalas assinadas (todas, sem filtro de tempo — filtro é client-side)
+	// Filtros e paginação via URL (antes o load trazia TODAS as escalas assinadas
+	// sem limite e o filtro era client-side — payload/query cresciam sem teto com
+	// o histórico; auditoria de performance, B-2).
+	const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+	const mes = Number(url.searchParams.get('mes')) || undefined;
+	const ano = Number(url.searchParams.get('ano')) || undefined;
+	// Default da caixa de entrada: só não-vistos. `vistos=todos` libera o histórico.
+	const mostrarTodas = url.searchParams.get('vistos') === 'todos';
+	const seccionalId = Number(url.searchParams.get('seccional')) || undefined;
+	const unidadeBusca = url.searchParams.get('unidade')?.trim() || undefined;
+	const dataBusca = url.searchParams.get('data')?.trim() || undefined;
+
+	// Filtro por seccional → lista de lotações da seccional (mesmo padrão de /escalas)
+	let lotacoes: string[] | undefined;
+	if (seccionalId) {
+		const rows = await db
+			.select({ nome: unidadesTable.nome })
+			.from(unidadesTable)
+			.where(or(eq(unidadesTable.id, seccionalId), eq(unidadesTable.seccional_id, seccionalId)));
+		lotacoes = rows.map((r) => r.nome);
+	}
+
 	const [resultado, unidadesLista] = await Promise.all([
 		listarEscalas(
 			db,
 			undefined,
 			'assinada',
+			mes,
+			ano,
 			undefined,
-			undefined,
-			undefined,
-			undefined,
+			mostrarTodas ? undefined : false,
 			undefined,
 			{
-				limit: undefined,
-				page: undefined
+				page,
+				limit: ITENS_POR_PAGINA,
+				lotacoes,
+				lotacaoBusca: unidadeBusca,
+				dataBusca
 			}
 		),
 		listarUnidades(db)
@@ -41,6 +70,10 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 
 	return {
 		escalas: resultado.escalas,
+		total: resultado.total,
+		page: resultado.page,
+		totalPages: resultado.totalPages,
+		limit: resultado.limit,
 		unidades: unidadesLista
 	};
 };
