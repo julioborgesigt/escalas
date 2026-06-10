@@ -17,8 +17,9 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Se envio de e-mail estiver ativo | SMTP Gmail (2FA, redefinição de senha, etc.) |
 | `SYNC_TOKEN` | Sim, para webhooks | Bearer token usado por [`/api/webhook/sync-policiais`](src/routes/api/webhook/sync-policiais/+server.ts) e [`/api/webhook/sync-unidades`](src/routes/api/webhook/sync-unidades/+server.ts) |
 | `RESET_TOKEN` | **Apenas** se quiser permitir reset destrutivo | Segredo **separado**, distinto do `SYNC_TOKEN`, exigido por [`/api/webhook/reset-policiais`](src/routes/api/webhook/reset-policiais/+server.ts). Sem ele configurado, o endpoint sempre retorna 401 (fail-closed). |
-| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login admin via env (ver [`api/auth/login`](src/routes/api/auth/login/+server.ts)) |
-| `SENTRY_*` / DSN | Se Sentry estiver ligado | Erros no worker (`@sentry/cloudflare`) |
+| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login admin via env (ver [`api/auth/login`](src/routes/api/auth/login/+server.ts)). A senha pode (e DEVE) ser informada como **hash PBKDF2** no formato `pbkdf2v2:...` em vez de texto claro — gere com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts`. Texto claro continua aceito por compatibilidade. O mesmo vale para `SUPER_ADMIN_SENHA`. |
+| `RATE_LIMIT_IP_SALT` | Recomendado em produção | Segredo (`openssl rand -hex 32`) que muda a chave de rate-limit de "/24 anonimizada" para **hash salteado do IP completo**. Sem ele, 5 falhas de login bloqueiam a /24 inteira (ex.: o NAT da corporação — DoS barato e lockout mútuo). Com ele, o bloqueio é por endereço, sem persistir IP em claro (LGPD ok). |
+| `SENTRY_*` / DSN | Se Sentry estiver ligado | Erros no worker (`@sentry/cloudflare`). Logins via credenciais de bootstrap (SUPER_ADMIN/ADMIN_GERAL) geram evento `warning` no Sentry. |
 | `WEBHOOK_REPLAY_ENFORCE` | Após rollout (ver abaixo) | Quando truthy (`1`, `true`, `yes`, `on`), webhooks rejeitam requisições sem `X-Webhook-Timestamp` + `X-Webhook-Nonce`. Default: aceita por compatibilidade, mas loga `info` para cada chamada sem headers. |
 
 **Secrets sensíveis:** nunca commitar `.dev.vars` com valores reais; usar apenas localmente ou CI.

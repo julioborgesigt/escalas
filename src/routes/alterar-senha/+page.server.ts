@@ -5,7 +5,14 @@ import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
 import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import { cookieOptions } from '$lib/server/auth-flow';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import type { Actions, PageServerLoad } from './$types';
+
+// Throttle da verificação de senha_atual: com uma sessão roubada, este era o
+// único caminho de brute-force online ilimitado da senha (para depois trocá-la
+// "legitimamente"). Chave POR USUÁRIO (não IP): o atacante já está autenticado.
+const SENHA_ATUAL_MAX_TENTATIVAS = 5;
+const SENHA_ATUAL_JANELA_MIN = 15;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	return {
@@ -61,24 +68,35 @@ export const actions = {
 				return fail(400, { error: 'Senha atual é obrigatória' });
 			}
 
-			if (usuario.tipo === 'admin') {
-				const registro = await db
-					.select({ senha: administradores.senha })
-					.from(administradores)
-					.where(eq(administradores.id, usuario.id))
-					.get();
-				if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
-					return fail(401, { error: 'Senha atual incorreta' });
-				}
-			} else {
-				const registro = await db
-					.select({ senha: policiais.senha })
-					.from(policiais)
-					.where(eq(policiais.id, usuario.id))
-					.get();
-				if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
-					return fail(401, { error: 'Senha atual incorreta' });
-				}
+			const chaveThrottle = `senha-atual:${usuario.tipo}:${usuario.id}`;
+			const { blocked } = await contarRecoveryAttempts(
+				db,
+				chaveThrottle,
+				'alterar_senha',
+				SENHA_ATUAL_JANELA_MIN,
+				SENHA_ATUAL_MAX_TENTATIVAS
+			);
+			if (blocked) {
+				return fail(429, {
+					error: `Muitas tentativas de senha incorretas. Tente novamente em ${SENHA_ATUAL_JANELA_MIN} minutos.`
+				});
+			}
+
+			const registro =
+				usuario.tipo === 'admin'
+					? await db
+							.select({ senha: administradores.senha })
+							.from(administradores)
+							.where(eq(administradores.id, usuario.id))
+							.get()
+					: await db
+							.select({ senha: policiais.senha })
+							.from(policiais)
+							.where(eq(policiais.id, usuario.id))
+							.get();
+			if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
+				await registrarRecoveryAttempt(db, chaveThrottle, 'alterar_senha');
+				return fail(401, { error: 'Senha atual incorreta' });
 			}
 		}
 

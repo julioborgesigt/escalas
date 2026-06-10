@@ -2,6 +2,7 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { tick } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
@@ -272,11 +273,12 @@
 		}
 
 		// Garante que o estado seja atualizado nos inputs hidden antes de submeter
-		setTimeout(() => {
+		// (tick() é determinístico; setTimeout(50) era uma corrida com o DOM).
+		void tick().then(() => {
 			if (formEl) {
 				formEl.requestSubmit();
 			}
-		}, 50);
+		});
 	}
 
 	$effect(() => {

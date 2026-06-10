@@ -30,9 +30,18 @@ const ROTAS_PUBLICAS = new Set([
 	'/termo'
 ]);
 
+/**
+ * Match com delimitador: `/termo` cobre `/termo` e `/termo/...`, mas NÃO uma
+ * rota futura `/termoXyz` — `startsWith` puro tornaria pública qualquer rota
+ * que compartilhe o prefixo.
+ */
+function pathnameNoEscopo(pathname: string, rota: string): boolean {
+	return pathname === rota || pathname.startsWith(rota + '/');
+}
+
 function isRotaPublica(pathname: string): boolean {
 	for (const rota of ROTAS_PUBLICAS) {
-		if (pathname.startsWith(rota)) return true;
+		if (pathnameNoEscopo(pathname, rota)) return true;
 	}
 	return false;
 }
@@ -43,7 +52,7 @@ const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function isCsrfExempt(pathname: string): boolean {
 	for (const rota of CSRF_EXEMPT_ROUTES) {
-		if (pathname.startsWith(rota)) return true;
+		if (pathnameNoEscopo(pathname, rota)) return true;
 	}
 	return false;
 }
@@ -67,7 +76,9 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'X-Content-Type-Options': 'nosniff',
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
 	'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
-	'X-XSS-Protection': '1; mode=block',
+	// Auditor XSS legado: removido dos navegadores modernos e, onde existiu,
+	// `mode=block` abria side-channels. `0` desliga explicitamente; a CSP cobre.
+	'X-XSS-Protection': '0',
 	'Cross-Origin-Resource-Policy': 'same-origin',
 	'Cross-Origin-Opener-Policy': 'same-origin',
 	'Cross-Origin-Embedder-Policy': 'credentialless'

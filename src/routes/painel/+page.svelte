@@ -213,12 +213,19 @@
 		}
 	});
 
-	// Sync local month/year state with query parameters
+	// Sync local month/year state with query parameters.
+	// `ultimoNavegado` impede navegação repetida para o mesmo alvo: se o
+	// servidor normalizar o valor (ex.: '05' → '5'), o estado local diverge de
+	// `data` para sempre e, sem o guard, este efeito entraria em loop infinito
+	// de goto().
+	let ultimoNavegado: string | null = null;
 	$effect(() => {
 		if (filtroAno === null) filtroAno = 'todos';
 		if (filtroMes === null) filtroMes = 'todos';
 
-		if (filtroAno !== data.filtroAno || filtroMes !== data.filtroMes) {
+		const alvo = `${filtroAno}|${filtroMes}`;
+		if (alvo !== `${data.filtroAno}|${data.filtroMes}` && alvo !== ultimoNavegado) {
+			ultimoNavegado = alvo;
 			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const params = new URLSearchParams(page.url.searchParams);
 			params.set('ano', filtroAno);
@@ -232,15 +239,16 @@
 		filtroMes = data.filtroMes;
 	});
 
-	// Limpar unidade quando a seccional muda (após o mount)
-	let initialMount = true;
+	// Limpar unidade quando a seccional muda DE FATO. Compara o valor
+	// normalizado (null ≡ '') para não disparar quando o efeito de
+	// normalização converte null → '' sem mudança real de seccional.
+	let prevSeccional: string | number | undefined;
 	$effect(() => {
-		const _sec = filtroSeccional;
-		if (initialMount) {
-			initialMount = false;
-			return;
+		const sec = filtroSeccional ?? '';
+		if (prevSeccional !== undefined && sec !== prevSeccional) {
+			filtroUnidade = '';
 		}
-		filtroUnidade = '';
+		prevSeccional = sec;
 	});
 
 	// Exclusão de escala (para "não assinada")
