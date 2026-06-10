@@ -30,6 +30,20 @@
 >
 > Verificação: `svelte-check` 0 erros, ESLint 0 erros, 403/403 testes, build OK, first-load JS sem regressão (`/login` 131 kB gz).
 
+> **Status — Fase 3 implementada (2026-06-10).**
+>
+> | Item | Resultado |
+> |------|-----------|
+> | B-1 camada 2 — Cache de sessão no edge | `session-cache.ts` (Cache API, TTL 60s, chave = SHA-256 próprio do token, nunca o token cru): dentro da janela, requests autenticados fazem **zero** queries de auth no D1. Invalidação explícita em 3 pontos: logout, aceite do termo (sem isso o usuário ficaria preso no redirect por 60s) e troca de senha (token rotacionado = miss natural; entrada antiga invalidada por higiene). Trade-offs documentados no módulo: janela de revogação de 60s, invalidação por colo, sliding-expiration atrasada em ≤60s. Resultados negativos nunca são cacheados. |
+> | B-4 — Índice composto | Migration `0030` + schema drizzle: `idx_escala_policiais_policial_data (policial_id, data_plantao)` — a checagem de conflito de plantão deixa de varrer o histórico do policial. |
+> | P-4 — Dynamic import dos modais de `/gise/[id]` | **Não aplicado, com razão medida:** os 8 modais somam ~26 kB de fonte (~4 kB gz minificado) — a estimativa original de “10–20 kB gz” estava errada; o peso do node é a página em si. Trocar o ciclo de vida de modais do fluxo de assinatura (ModalRubrica) por ~4 kB não passa no custo-benefício. |
+> | B-5 — Projeção condicional de e-mails | `/gise/[id]`: `email`/`email_pessoal` agora só entram no SELECT quando Admin Geral — minimização LGPD real (o dado não sai do banco), em vez de anulação pós-fetch. |
+> | P-5 — Chunk skeleton dividido por rota | Removido o agrupamento manual `'skeleton'` do `manualChunks` (early-return `undefined`, sem cair no `vendor`): cada rota baixa só as máquinas zag que usa. **Medido:** `/login` 131 → **109 kB gz** (−17%), `/painel` 129 → 116, `/gise/[id]` 183 → 176, todas as rotas melhoraram. |
+>
+> **Acumulado das 3 fases (first-load JS gz):** `/login` 159 → **109 kB (−31%)** · `/painel` 157 → **116 (−26%)** · `/recebidos` 160 → **126 (−21%)** · `/gise/[id]` 211 → **176 (−17%)** · `/escalas` 193 → **162 (−16%)**. Auth no servidor: de 3-4 round-trips D1 sequenciais por request para 2 no pior caso e **0 na janela de cache**.
+>
+> Verificação fase 3: `svelte-check` 0 erros, ESLint 0 erros, 403/403 testes, build OK.
+
 ---
 
 ## 1. Sumário executivo
@@ -356,12 +370,12 @@ Cruza com B-3: com streaming + `{#await}` + `SkeletonCard`, o painel ganha tanto
 7. ~~**Streaming + skeleton no `/painel`** (B-3 + U-5), incluindo dedup de `listarUnidades`.~~ ✅ (+ correção do `invalidate` quebrado com query params).
 8. ~~**Loading state da busca DPC** (U-4) e fonte mínima na tabela de servidores (U-2).~~ ✅ (+ `table-wrap` no lugar de classe inexistente).
 
-### Fase 3 — refinamento (quando houver folga)
+### Fase 3 — refinamento — ✅ CONCLUÍDA (ver Status no topo)
 
-9. Cache curto de sessão no edge (B-1, camada 2 — decidir janela de revogação aceitável).
-10. Índice composto `escala_policiais(policial_id, data_plantao)` (B-4).
-11. Dynamic import dos modais pesados de `/gise/[id]` (P-4).
-12. Projeção condicional de e-mails em `/gise/[id]` (B-5) e revisão do agrupamento do chunk skeleton (P-5).
+9. ~~Cache curto de sessão no edge (B-1, camada 2)~~ ✅ TTL 60s com 3 pontos de invalidação explícita.
+10. ~~Índice composto `escala_policiais(policial_id, data_plantao)` (B-4)~~ ✅ migration 0030.
+11. ~~Dynamic import dos modais pesados de `/gise/[id]` (P-4)~~ ❌ descartado com medição: modais somam ~4 kB gz, não os 10–20 kB estimados — risco no fluxo de assinatura não compensa.
+12. ~~Projeção condicional de e-mails em `/gise/[id]` (B-5) e revisão do chunk skeleton (P-5)~~ ✅ ambos; split do skeleton rendeu −22 kB gz no `/login`.
 
 ### Resultado esperado ao fim das fases 1–2
 

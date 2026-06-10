@@ -95,7 +95,9 @@ export const escalaPoliciais = sqliteTable(
 	(table) => [
 		index('idx_escala_policiais_escala').on(table.escala_id),
 		index('idx_escala_policiais_policial').on(table.policial_id),
-		index('idx_escala_policiais_escala_policial').on(table.escala_id, table.policial_id)
+		index('idx_escala_policiais_escala_policial').on(table.escala_id, table.policial_id),
+		// Conflito de plantão filtra por (policial, data) — ver migration 0030
+		index('idx_escala_policiais_policial_data').on(table.policial_id, table.data_plantao)
 	]
 );
 

@@ -5,6 +5,7 @@ import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
 import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import { cookieOptions } from '$lib/server/auth-flow';
+import { invalidarSessaoCache } from '$lib/server/session-cache';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -120,6 +121,11 @@ export const actions = {
 		await db
 			.delete(sessoes)
 			.where(and(eq(sessoes.tipo, usuario.tipo), eq(sessoes.usuario_id, usuario.id)));
+
+		// Higiene do cache edge de sessão: o token antigo ainda valeria por até
+		// 60s no colo local. O token NOVO é cache-miss natural (chave diferente),
+		// então primeiro_acesso=0 entra em vigor imediatamente.
+		await invalidarSessaoCache(cookies.get('session_token'));
 
 		const novoToken = await criarSessao(db, usuario.tipo, usuario.id);
 		cookies.set('session_token', novoToken, cookieOptions(url));
