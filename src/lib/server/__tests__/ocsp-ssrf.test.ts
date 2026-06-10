@@ -48,6 +48,33 @@ describe('urlOcspPermitida (guard SSRF do OCSP)', () => {
 		expect(urlOcspPermitida('http://[fd12:3456::1]/')).toBe(false);
 	});
 
+	it('rejeita IPv4 em encodings alternativos (inteiro, octal, hex)', () => {
+		expect(urlOcspPermitida('http://2130706433/')).toBe(false); // 127.0.0.1 inteiro
+		expect(urlOcspPermitida('http://017700000001/')).toBe(false); // 127.0.0.1 octal
+		expect(urlOcspPermitida('http://0x7f.0.0.1/')).toBe(false); // hex
+		expect(urlOcspPermitida('http://0x7f000001/')).toBe(false); // hex inteiro
+		expect(urlOcspPermitida('http://127.1/')).toBe(false); // forma de 2 partes
+		expect(urlOcspPermitida('http://192.168.1/')).toBe(false); // forma de 3 partes
+		expect(urlOcspPermitida('http://0251.0376.169.254/')).toBe(false); // octal misto (169.254...)
+		expect(urlOcspPermitida('http://2852039166/')).toBe(false); // 169.254.169.254 inteiro
+	});
+
+	it('rejeita IPv4 interno embutido em IPv6 (mapped/compatible/NAT64)', () => {
+		expect(urlOcspPermitida('http://[::ffff:127.0.0.1]/')).toBe(false);
+		expect(urlOcspPermitida('http://[::ffff:7f00:1]/')).toBe(false);
+		expect(urlOcspPermitida('http://[::ffff:10.0.0.5]/')).toBe(false);
+		expect(urlOcspPermitida('http://[::ffff:169.254.169.254]/')).toBe(false);
+		expect(urlOcspPermitida('http://[::127.0.0.1]/')).toBe(false); // v4-compatible
+		expect(urlOcspPermitida('http://[64:ff9b::127.0.0.1]/')).toBe(false); // NAT64
+		expect(urlOcspPermitida('http://[::]/')).toBe(false); // unspecified
+		expect(urlOcspPermitida('http://[fec0::1]/')).toBe(false); // site-local
+	});
+
+	it('aceita IPv6 público e IPv4 público embutido em IPv6', () => {
+		expect(urlOcspPermitida('http://[2001:db8::1]/')).toBe(true);
+		expect(urlOcspPermitida('http://[::ffff:8.8.8.8]/')).toBe(true);
+	});
+
 	it('rejeita URL malformada ou vazia', () => {
 		expect(urlOcspPermitida('not a url')).toBe(false);
 		expect(urlOcspPermitida('')).toBe(false);

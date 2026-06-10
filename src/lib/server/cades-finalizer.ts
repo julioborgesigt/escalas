@@ -13,6 +13,7 @@
 import forge from 'node-forge';
 import { logger } from './logger';
 import {
+	avaliarCoberturaAssinatura,
 	extrairCmsDoPdf,
 	parseCms,
 	verificarAssinaturaCmsAsync,
@@ -116,6 +117,18 @@ export async function verificarECarimbarAssinatura(
 			ok: false,
 			status: 422,
 			error: 'Hash do conteúdo assinado não confere com o messageDigest do CMS'
+		};
+	}
+
+	// 2b. Cobertura do byte-range: a assinatura deve cobrir o arquivo INTEIRO —
+	// sem isso, bytes anexados após a região assinada (shadow attack) passariam
+	// pela checagem de integridade acima.
+	const cobertura = await avaliarCoberturaAssinatura(signedPdfBytes, extracao.byteRange);
+	if (!cobertura.ok) {
+		return {
+			ok: false,
+			status: 422,
+			error: `Assinatura não cobre o documento completo: ${cobertura.motivo}`
 		};
 	}
 
