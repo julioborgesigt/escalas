@@ -22,17 +22,23 @@
 @source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
 @source '../node_modules/@skeletonlabs/skeleton/dist';
 
-/* Fundo Premium Global */
-body {
-	background-attachment: fixed;
-}
-
-@variant dark {
-	body {
-		background-image:
-			radial-gradient(circle at top right, oklch(25% 0.05 210deg / 20%), transparent 40%),
-			radial-gradient(circle at bottom left, oklch(25% 0.05 260deg / 20%), transparent 40%);
-	}
+/* Fundo Premium Global (dark mode).
+ * Pseudo-elemento `position: fixed` em vez de `background-attachment: fixed`
+ * no body: o attachment fixed desabilita a composição acelerada do fundo e
+ * repinta os gradientes a cada frame de scroll (jank perceptível em mobile;
+ * iOS chega a ignorar o valor). O ::before fica numa layer própria composta
+ * na GPU — mesmo visual, zero repaint por frame. O background-color do body
+ * (Tailwind, app.html) propaga para o canvas, então o z-index negativo não
+ * fica encoberto. */
+.dark body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background-image:
+		radial-gradient(circle at top right, oklch(25% 0.05 210deg / 20%), transparent 40%),
+		radial-gradient(circle at bottom left, oklch(25% 0.05 260deg / 20%), transparent 40%);
 }
 
 /* Respeita a preferência do SO para reduzir movimento. Cobre transitions do

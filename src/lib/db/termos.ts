@@ -78,6 +78,19 @@ export async function buscarUltimoAceite(
 }
 
 /**
+ * Predicado puro de vigência: o aceite corresponde à versão+hash vigentes?
+ * Único ponto com a regra — usado por `temAceiteVigente` e pelo batch de
+ * sessão em `$lib/auth` (`validarSessaoComAceite`).
+ */
+export function aceiteEhVigente(
+	aceite: { versao_termo: string; hash_termo: string } | null | undefined,
+	versao: string,
+	hash: string
+): boolean {
+	return !!aceite && aceite.versao_termo === versao && aceite.hash_termo === hash;
+}
+
+/**
  * Verifica se o usuário tem um aceite vigente para a versão+hash informados.
  */
 export async function temAceiteVigente(
@@ -88,5 +101,5 @@ export async function temAceiteVigente(
 	hash: string
 ): Promise<boolean> {
 	const ult = await buscarUltimoAceite(db, tipo, usuarioId);
-	return !!ult && ult.versao_termo === versao && ult.hash_termo === hash;
+	return aceiteEhVigente(ult, versao, hash);
 }

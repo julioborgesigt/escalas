@@ -1,13 +1,15 @@
-import { eq, and, gt, inArray } from 'drizzle-orm';
+import { eq, and, gt, inArray, desc } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import {
 	sessoes,
 	administradores,
 	policiais,
 	doisFatoresTokens,
-	resetSenhaTokens
+	resetSenhaTokens,
+	aceitesTermos
 } from './server/schema';
 import type { Database } from './db';
+import { aceiteEhVigente } from './db/termos';
 import {
 	getLegacyPasswordDeadline,
 	getLegacyPasswordDeadlineDefault
@@ -303,11 +305,13 @@ export async function criarSessao(
 	return token;
 }
 
-export async function validarSessao(
-	db: Database,
-	token: string | undefined,
-	platform?: App.Platform
-): Promise<UsuarioLogado | null> {
+/**
+ * Busca a linha de sessão válida para o token (cobrindo o fallback legado de
+ * token em claro) e devolve também o UPDATE de sliding-expiration JÁ MONTADO
+ * (mas não executado) quando aplicável — o chamador decide se o executa
+ * isolado (`validarSessao`) ou dentro de um `db.batch` (`validarSessaoComAceite`).
+ */
+async function buscarSessaoValida(db: Database, token: string | undefined) {
 	if (!token) return null;
 
 	const now = Date.now();
@@ -337,41 +341,35 @@ export async function validarSessao(
 	// Sliding: se a sessão está perto de expirar, estende para now + SESSION_TTL_MS.
 	// Cap por threshold evita UPDATE em todo request.
 	const expiresAtMs = new Date(sessao.expires_at).getTime();
-	if (expiresAtMs - now < SESSION_TTL_MS - SESSION_SLIDING_THRESHOLD_MS) {
-		const novoExpiresAt = new Date(now + SESSION_TTL_MS).toISOString();
-		await db.update(sessoes).set({ expires_at: novoExpiresAt }).where(eq(sessoes.id, sessao.id));
-	}
-
-	// Query both tables in parallel — only one will match based on sessao.tipo
-	const [admin, policial] = await Promise.all([
-		sessao.tipo === 'admin'
-			? db.select().from(administradores).where(eq(administradores.id, sessao.usuario_id)).get()
-			: Promise.resolve(null),
-		sessao.tipo === 'policial'
+	const slidingUpdate =
+		expiresAtMs - now < SESSION_TTL_MS - SESSION_SLIDING_THRESHOLD_MS
 			? db
-					.select()
-					.from(policiais)
-					.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
-					.get()
-			: Promise.resolve(null)
-	]);
+					.update(sessoes)
+					.set({ expires_at: new Date(now + SESSION_TTL_MS).toISOString() })
+					.where(eq(sessoes.id, sessao.id))
+			: null;
 
-	if (sessao.tipo === 'admin') {
-		if (!admin) return null;
-		const _env = platform?.env as any;
-		const superAdminLogin = _env?.SUPER_ADMIN_LOGIN?.trim();
-		const isSuperAdmin = !!superAdminLogin && admin.login === superAdminLogin;
+	return { sessao, slidingUpdate };
+}
 
-		return {
-			id: admin.id,
-			tipo: 'admin' as const,
-			nome: admin.nome,
-			primeiro_acesso: admin.primeiro_acesso === 1,
-			isSuperAdmin
-		};
-	}
+function mapearAdmin(
+	admin: typeof administradores.$inferSelect,
+	platform?: App.Platform
+): UsuarioLogado {
+	const _env = platform?.env as any;
+	const superAdminLogin = _env?.SUPER_ADMIN_LOGIN?.trim();
+	const isSuperAdmin = !!superAdminLogin && admin.login === superAdminLogin;
 
-	if (!policial) return null;
+	return {
+		id: admin.id,
+		tipo: 'admin' as const,
+		nome: admin.nome,
+		primeiro_acesso: admin.primeiro_acesso === 1,
+		isSuperAdmin
+	};
+}
+
+function mapearPolicial(policial: typeof policiais.$inferSelect): UsuarioLogado {
 	return {
 		id: policial.id,
 		tipo: 'policial' as const,
@@ -385,6 +383,100 @@ export async function validarSessao(
 		cpf: policial.cpf ?? null,
 		email: policial.email ?? null
 	};
+}
+
+export async function validarSessao(
+	db: Database,
+	token: string | undefined,
+	platform?: App.Platform
+): Promise<UsuarioLogado | null> {
+	const resultado = await buscarSessaoValida(db, token);
+	if (!resultado) return null;
+	const { sessao, slidingUpdate } = resultado;
+
+	if (slidingUpdate) await slidingUpdate;
+
+	if (sessao.tipo === 'admin') {
+		const admin = await db
+			.select()
+			.from(administradores)
+			.where(eq(administradores.id, sessao.usuario_id))
+			.get();
+		return admin ? mapearAdmin(admin, platform) : null;
+	}
+
+	const policial = await db
+		.select()
+		.from(policiais)
+		.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
+		.get();
+	return policial ? mapearPolicial(policial) : null;
+}
+
+/**
+ * Variante de `validarSessao` usada pelo hooks.server.ts: além do usuário,
+ * verifica o aceite do Termo de Uso vigente NO MESMO round-trip ao D1.
+ *
+ * Motivação (auditoria de performance, B-1): a sequência sessão → usuário →
+ * aceite eram 3 queries D1 em série em todo request autenticado (~5-30ms
+ * cada no Worker). Aqui, depois da busca da sessão, usuário + aceite
+ * (+ sliding update, quando devido) vão juntos num `db.batch` — 2 round-trips
+ * no total em vez de 3-4.
+ *
+ * Nota de semântica: como usuário e aceite compartilham o batch, uma falha de
+ * D1 derruba os dois e o request cai no fluxo "sessão inválida" (redirect ao
+ * /login, cookie preservado — basta recarregar). Antes, uma falha isolada da
+ * query de aceite deixava o request passar com warning; esse cenário só
+ * ocorria de fato com o banco já indisponível, onde a página quebraria adiante
+ * de qualquer forma.
+ */
+export async function validarSessaoComAceite(
+	db: Database,
+	token: string | undefined,
+	platform: App.Platform | undefined,
+	termo: { versao: string; hash: string }
+): Promise<{ usuario: UsuarioLogado | null; aceiteVigente: boolean }> {
+	const resultado = await buscarSessaoValida(db, token);
+	if (!resultado) return { usuario: null, aceiteVigente: false };
+	const { sessao, slidingUpdate } = resultado;
+
+	const aceiteQuery = db
+		.select({ versao_termo: aceitesTermos.versao_termo, hash_termo: aceitesTermos.hash_termo })
+		.from(aceitesTermos)
+		.where(
+			and(eq(aceitesTermos.usuario_tipo, sessao.tipo), eq(aceitesTermos.usuario_id, sessao.usuario_id))
+		)
+		.orderBy(desc(aceitesTermos.aceitou_em))
+		.limit(1);
+
+	let usuario: UsuarioLogado | null;
+	let ultimoAceite: { versao_termo: string; hash_termo: string } | undefined;
+
+	if (sessao.tipo === 'admin') {
+		const userQuery = db
+			.select()
+			.from(administradores)
+			.where(eq(administradores.id, sessao.usuario_id))
+			.limit(1);
+		const [admins, aceites] = slidingUpdate
+			? await db.batch([userQuery, aceiteQuery, slidingUpdate])
+			: await db.batch([userQuery, aceiteQuery]);
+		usuario = admins[0] ? mapearAdmin(admins[0], platform) : null;
+		ultimoAceite = aceites[0];
+	} else {
+		const userQuery = db
+			.select()
+			.from(policiais)
+			.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
+			.limit(1);
+		const [pols, aceites] = slidingUpdate
+			? await db.batch([userQuery, aceiteQuery, slidingUpdate])
+			: await db.batch([userQuery, aceiteQuery]);
+		usuario = pols[0] ? mapearPolicial(pols[0]) : null;
+		ultimoAceite = aceites[0];
+	}
+
+	return { usuario, aceiteVigente: aceiteEhVigente(ultimoAceite, termo.versao, termo.hash) };
 }
 
 export async function excluirSessao(db: Database, token: string): Promise<void> {
