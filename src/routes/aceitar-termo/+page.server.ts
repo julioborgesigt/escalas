@@ -7,6 +7,7 @@ import {
 	calcularHashTermo
 } from '$lib/server/termo/termo-vigente';
 import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
+import { invalidarSessaoCache } from '$lib/server/session-cache';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	aceitar: async ({ request, locals, platform, getClientAddress }) => {
+	aceitar: async ({ request, locals, platform, cookies, getClientAddress }) => {
 		const u = locals.usuario;
 		if (!u) throw error(401, 'Não autorizado');
 
@@ -69,6 +70,10 @@ export const actions: Actions = {
 			entidade: 'termo_uso',
 			detalhes: `Versão ${VERSAO} (hash ${hash.slice(0, 16)}…)`
 		});
+
+		// O cache edge de sessão guarda `aceiteVigente` — sem invalidar aqui,
+		// o redirect abaixo voltaria para /aceitar-termo por até 60s.
+		await invalidarSessaoCache(cookies.get('session_token'));
 
 		// Redireciona para a área principal conforme tipo de usuário.
 		throw redirect(303, u.tipo === 'admin' ? '/painel' : '/escalas');

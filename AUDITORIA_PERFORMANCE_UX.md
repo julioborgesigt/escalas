@@ -18,6 +18,32 @@
 >
 > **Correção ao achado P-1:** a estimativa original de “~60 kB gz de Sentry” veio da atribuição do visualizer (que refletia o build de servidor). A fatia real do SDK tree-shaken no bundle de cliente era **~29 kB gz** — o ganho medido. A seção P-1 abaixo mantém o texto original da auditoria; os números válidos são os desta tabela.
 
+> **Status — Fase 2 implementada (2026-06-10).**
+>
+> | Item | Resultado |
+> |------|-----------|
+> | U-1 Invalidação segmentada em `/escalas` | `depends('app:escalas')` no load; os 5 call-sites de `invalidateAll()` (excluir, cancelar solicitação, 2 fluxos de assinatura, solicitar assinatura no dialog) viraram `invalidate('app:escalas')` — o layout (flags + papel GISE) não é mais refeito a cada mutação. Exclusão ganhou remoção otimista (`removidosLocais`): a linha some na hora e a invalidação corrige total/paginação no fundo. |
+> | B-3 + U-5 Streaming no `/painel` | `compliance` agora é promise streamed: o shell (filtros) pinta imediatamente e o relatório preenche ao resolver, com `SkeletonCard` no intervalo. Dedup do SELECT de unidades (era buscado 2× por request). **Bug corrigido de quebra:** `invalidate(page.url.pathname)` exigia match exato de URL — com `?ano=&mes=` na URL, o botão “Atualizar” e a exclusão de escala silenciosamente não recarregavam nada; agora usam `invalidate('app:painel')`. |
+> | P-3 Preload de fontes | `<link rel="preload">` para Inter 400 e Outfit 700 via `?url` no layout raiz; verificado no build que o URL hasheado bate com o do `@font-face` do CSS (um download só). Corte de pesos não aplicado — o comentário do app.css documenta que os 8 pesos refletem uso real. |
+> | U-4 Busca de DPC (dialog de solicitação) | `AbortController` cancela buscas em voo (sem resultado fora de ordem), feedback “Buscando delegados…” imediato (antes o spinner só aparecia após debounce+rede), e erro de rede agora é exibido (antes era silencioso). |
+> | U-2 Tabela de servidores | Labels de 9,6px → 11,2px e badges de 8,8px → 10,4px nos cards mobile. Constatação: a alegação original (“tabela com 11px no mobile”) não procedia — a tabela é `hidden sm:block` e o `text-[0.7rem]` era classe morta (removida). De quebra: wrapper `table-container` (classe inexistente) corrigido para `table-wrap` do Skeleton — a tabela não tinha scroll horizontal em tablets. |
+>
+> Verificação: `svelte-check` 0 erros, ESLint 0 erros, 403/403 testes, build OK, first-load JS sem regressão (`/login` 131 kB gz).
+
+> **Status — Fase 3 implementada (2026-06-10).**
+>
+> | Item | Resultado |
+> |------|-----------|
+> | B-1 camada 2 — Cache de sessão no edge | `session-cache.ts` (Cache API, TTL 60s, chave = SHA-256 próprio do token, nunca o token cru): dentro da janela, requests autenticados fazem **zero** queries de auth no D1. Invalidação explícita em 3 pontos: logout, aceite do termo (sem isso o usuário ficaria preso no redirect por 60s) e troca de senha (token rotacionado = miss natural; entrada antiga invalidada por higiene). Trade-offs documentados no módulo: janela de revogação de 60s, invalidação por colo, sliding-expiration atrasada em ≤60s. Resultados negativos nunca são cacheados. |
+> | B-4 — Índice composto | Migration `0030` + schema drizzle: `idx_escala_policiais_policial_data (policial_id, data_plantao)` — a checagem de conflito de plantão deixa de varrer o histórico do policial. |
+> | P-4 — Dynamic import dos modais de `/gise/[id]` | **Não aplicado, com razão medida:** os 8 modais somam ~26 kB de fonte (~4 kB gz minificado) — a estimativa original de “10–20 kB gz” estava errada; o peso do node é a página em si. Trocar o ciclo de vida de modais do fluxo de assinatura (ModalRubrica) por ~4 kB não passa no custo-benefício. |
+> | B-5 — Projeção condicional de e-mails | `/gise/[id]`: `email`/`email_pessoal` agora só entram no SELECT quando Admin Geral — minimização LGPD real (o dado não sai do banco), em vez de anulação pós-fetch. |
+> | P-5 — Chunk skeleton dividido por rota | Removido o agrupamento manual `'skeleton'` do `manualChunks` (early-return `undefined`, sem cair no `vendor`): cada rota baixa só as máquinas zag que usa. **Medido:** `/login` 131 → **109 kB gz** (−17%), `/painel` 129 → 116, `/gise/[id]` 183 → 176, todas as rotas melhoraram. |
+>
+> **Acumulado das 3 fases (first-load JS gz):** `/login` 159 → **109 kB (−31%)** · `/painel` 157 → **116 (−26%)** · `/recebidos` 160 → **126 (−21%)** · `/gise/[id]` 211 → **176 (−17%)** · `/escalas` 193 → **162 (−16%)**. Auth no servidor: de 3-4 round-trips D1 sequenciais por request para 2 no pior caso e **0 na janela de cache**.
+>
+> Verificação fase 3: `svelte-check` 0 erros, ESLint 0 erros, 403/403 testes, build OK.
+
 ---
 
 ## 1. Sumário executivo
@@ -337,19 +363,19 @@ Cruza com B-3: com streaming + `{#await}` + `SkeletonCard`, o painel ganha tanto
 3. ~~**Batch usuário+aceite no hooks** (B-1, camada 1)~~ ✅ 3-4 RTs → 2 RTs em todo request.
 4. ~~**`width`/`height` nas imagens** (U-3) e **fundo fixo → pseudo-elemento** (P-2)~~ ✅ (pendência residual: brasão do R2 em `/validar*`, proporção não verificável pelo repo).
 
-### Fase 2 — percepção de velocidade (2–4 dias)
+### Fase 2 — percepção de velocidade (2–4 dias) — ✅ CONCLUÍDA (ver Status no topo)
 
-5. **`invalidate('app:escalas')` + otimismo local nas mutações de `/escalas`** (U-1).
-6. **Preload das 2 fontes críticas** (P-3) e avaliação de corte de pesos.
-7. **Streaming + skeleton no `/painel`** (B-3 + U-5), incluindo dedup de `listarUnidades`.
-8. **Loading state da busca DPC** (U-4) e fonte mínima de 12 px na tabela de servidores (U-2).
+5. ~~**`invalidate('app:escalas')` + otimismo local nas mutações de `/escalas`** (U-1).~~ ✅
+6. ~~**Preload das 2 fontes críticas** (P-3)~~ ✅ (corte de pesos avaliado e não aplicado — uso real documentado).
+7. ~~**Streaming + skeleton no `/painel`** (B-3 + U-5), incluindo dedup de `listarUnidades`.~~ ✅ (+ correção do `invalidate` quebrado com query params).
+8. ~~**Loading state da busca DPC** (U-4) e fonte mínima na tabela de servidores (U-2).~~ ✅ (+ `table-wrap` no lugar de classe inexistente).
 
-### Fase 3 — refinamento (quando houver folga)
+### Fase 3 — refinamento — ✅ CONCLUÍDA (ver Status no topo)
 
-9. Cache curto de sessão no edge (B-1, camada 2 — decidir janela de revogação aceitável).
-10. Índice composto `escala_policiais(policial_id, data_plantao)` (B-4).
-11. Dynamic import dos modais pesados de `/gise/[id]` (P-4).
-12. Projeção condicional de e-mails em `/gise/[id]` (B-5) e revisão do agrupamento do chunk skeleton (P-5).
+9. ~~Cache curto de sessão no edge (B-1, camada 2)~~ ✅ TTL 60s com 3 pontos de invalidação explícita.
+10. ~~Índice composto `escala_policiais(policial_id, data_plantao)` (B-4)~~ ✅ migration 0030.
+11. ~~Dynamic import dos modais pesados de `/gise/[id]` (P-4)~~ ❌ descartado com medição: modais somam ~4 kB gz, não os 10–20 kB estimados — risco no fluxo de assinatura não compensa.
+12. ~~Projeção condicional de e-mails em `/gise/[id]` (B-5) e revisão do chunk skeleton (P-5)~~ ✅ ambos; split do skeleton rendeu −22 kB gz no `/login`.
 
 ### Resultado esperado ao fim das fases 1–2
 

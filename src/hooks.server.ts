@@ -3,8 +3,9 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { timingSafeEqual } from 'node:crypto';
 import { captureException, setUser } from '@sentry/cloudflare';
-import { validarSessao, validarSessaoComAceite } from '$lib/auth';
+import { validarSessaoComAceite } from '$lib/auth';
 import { getDB } from '$lib/db';
+import { lerSessaoCache, gravarSessaoCache } from '$lib/server/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx } from '$lib/server/request-context';
@@ -170,19 +171,31 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	let usuario = null;
 	let aceiteVigente = true;
 
-	try {
-		const db = getDB(event.platform);
-		if (rotasLivresTermo) {
-			usuario = await validarSessao(db, token, event.platform);
-		} else {
-			const hash = await calcularHashTermo();
-			({ usuario, aceiteVigente } = await validarSessaoComAceite(db, token, event.platform, {
-				versao: TERMO_VERSAO,
-				hash
-			}));
+	if (token) {
+		try {
+			// Cache edge (TTL 60s) na frente do D1: dentro da janela, o request
+			// não paga nenhuma query de autenticação. Trade-offs documentados em
+			// session-cache.ts. A checagem de aceite roda SEMPRE no mesmo batch
+			// (custo zero de round-trip) — em rotasLivresTermo ela simplesmente
+			// não é imposta abaixo.
+			const cacheado = await lerSessaoCache(token);
+			if (cacheado) {
+				usuario = cacheado.usuario;
+				aceiteVigente = cacheado.aceiteVigente;
+			} else {
+				const db = getDB(event.platform);
+				const hash = await calcularHashTermo();
+				({ usuario, aceiteVigente } = await validarSessaoComAceite(db, token, event.platform, {
+					versao: TERMO_VERSAO,
+					hash
+				}));
+				if (usuario) {
+					await gravarSessaoCache(token, { usuario, aceiteVigente });
+				}
+			}
+		} catch (err) {
+			logger.warn('[hooks] validarSessao falhou', { err: String(err) });
 		}
-	} catch (err) {
-		logger.warn('[hooks] validarSessao falhou', { err: String(err) });
 	}
 
 	if (!usuario) {

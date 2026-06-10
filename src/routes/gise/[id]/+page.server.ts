@@ -75,25 +75,37 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			}>
 		> =
 			supportIds.length > 0
-				? db
-						.select({
-							id: policiais.id,
-							nome: policiais.nome,
-							matricula: policiais.matricula,
-							cargo: policiais.cargo,
-							lotacao: policiais.lotacao,
-							email: policiais.email,
-							email_pessoal: policiais.email_pessoal
-						})
-						.from(policiais)
-						.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
-						.orderBy(asc(policiais.nome))
-						// E-mails (dado pessoal — LGPD) só para Admin Geral, espelhando a
-						// política de /api/policiais/[id]/email-aviso e do campo
-						// `assessorEmailSugerido` abaixo. Supervisores recebem null.
-						.then((rows) =>
-							isGeral ? rows : rows.map((r) => ({ ...r, email: null, email_pessoal: null }))
-						)
+				? // E-mails (dado pessoal — LGPD) só para Admin Geral, espelhando a
+					// política de /api/policiais/[id]/email-aviso e do campo
+					// `assessorEmailSugerido` abaixo. A condição fica na PROJEÇÃO do
+					// SELECT (minimização: o dado nem sai do banco para supervisores),
+					// não em anulação pós-fetch.
+					isGeral
+					? db
+							.select({
+								id: policiais.id,
+								nome: policiais.nome,
+								matricula: policiais.matricula,
+								cargo: policiais.cargo,
+								lotacao: policiais.lotacao,
+								email: policiais.email,
+								email_pessoal: policiais.email_pessoal
+							})
+							.from(policiais)
+							.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
+							.orderBy(asc(policiais.nome))
+					: db
+							.select({
+								id: policiais.id,
+								nome: policiais.nome,
+								matricula: policiais.matricula,
+								cargo: policiais.cargo,
+								lotacao: policiais.lotacao
+							})
+							.from(policiais)
+							.where(and(eq(policiais.ativo, 1), inArray(policiais.id, supportIds)))
+							.orderBy(asc(policiais.nome))
+							.then((rows) => rows.map((r) => ({ ...r, email: null, email_pessoal: null })))
 				: Promise.resolve([]);
 
 		const seintIdsParaRelatorio = [gise.seint1_id, gise.seint2_id].filter(
