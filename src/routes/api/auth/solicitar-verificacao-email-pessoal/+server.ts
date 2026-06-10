@@ -65,11 +65,19 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	const codigo = gerarCodigo2FA();
-	// `bindExtra = email` (I-1 da auditoria): o hash do código no banco
-	// agora inclui o endereço destino. `confirmar-verificacao` só consegue
-	// validar passando o MESMO email — impede submeter código de email_A
-	// com email_B no body.
-	const desafioId = await criarDesafio2FA(db, 'verificacao_email', u.id, codigo, emailNormalizado);
+	// `bindExtra = tipo + email` (I-1 da auditoria): o hash do código no banco
+	// inclui o endereço destino — `confirmar-verificacao` só valida passando o
+	// MESMO email, impedindo submeter código de email_A com email_B no body.
+	// O `tipo` entra no binding porque `usuario_id` colide entre tabelas
+	// (administradores.id vs policiais.id): sem ele, um policial de id N
+	// poderia, em tese, confirmar o desafio criado por um admin de id N.
+	const desafioId = await criarDesafio2FA(
+		db,
+		'verificacao_email',
+		u.id,
+		codigo,
+		`${u.tipo}\x1f${emailNormalizado}`
+	);
 
 	try {
 		await enviarCodigoEmailPessoal(email, codigo, u.nome, platform);

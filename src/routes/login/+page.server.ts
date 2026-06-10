@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { eq, and, count, gt } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { verificarDesafio2FA, criarSessao, criarTokenRedefinicao } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
@@ -11,7 +11,8 @@ import {
 	cookieOptionsLogin,
 	type AdminModulo
 } from '$lib/server/auth-flow';
-import { administradores, policiais, loginAttempts } from '$lib/server/schema';
+import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
+import { administradores, policiais } from '$lib/server/schema';
 import { loginSchema } from '$lib/schemas';
 import { resolverAppOrigin } from '$lib/server/app-origin';
 
@@ -19,6 +20,11 @@ const cookieOptions = cookieOptionsLogin;
 
 const PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP = 5;
 const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
+
+// Mesmos tetos da rota JSON /api/auth/verificar-2fa — sem eles aqui, a form
+// action seria uma porta paralela sem throttle para brute-force do código.
+const VERIFICAR_2FA_MAX = 10;
+const VERIFICAR_2FA_WINDOW_MIN = 15;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const u = locals.usuario;
@@ -100,8 +106,9 @@ export const actions: Actions = {
 		};
 	},
 
-	verificar2FA: async ({ request, cookies, platform, url }) => {
+	verificar2FA: async ({ request, cookies, platform, url, getClientAddress }) => {
 		const db = getDB(platform);
+		const ip = getClientAddress();
 		const formData = await request.formData();
 		const desafioId = formData.get('desafioId') as string;
 		const codigo = formData.get('codigo') as string;
@@ -110,10 +117,40 @@ export const actions: Actions = {
 			return fail(400, { error: 'Dados inválidos' });
 		}
 
+		// Teto por IP (mesmo da rota JSON): o contador de 5 tentativas por desafio
+		// é resetável via reenvio de código, então sem este teto o atacante recicla
+		// desafios indefinidamente. Fail-open: erro no contador não quebra o login.
+		try {
+			const { blocked } = await contarRecoveryAttempts(
+				db,
+				ip,
+				'verificar_2fa',
+				VERIFICAR_2FA_WINDOW_MIN,
+				VERIFICAR_2FA_MAX
+			);
+			if (blocked) {
+				return fail(429, { error: 'Muitas tentativas. Faça login novamente em alguns minutos.' });
+			}
+		} catch (err) {
+			logger.error('[login/verificar2FA] Falha no rate-limit (fail-open)', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+
 		const resultado = await verificarDesafio2FA(db, desafioId, String(codigo), [
 			'policial',
 			'admin'
 		]);
+
+		if (resultado === 'expirado' || resultado === 'esgotado' || !resultado) {
+			try {
+				await registrarRecoveryAttempt(db, ip, 'verificar_2fa');
+			} catch (err) {
+				logger.error('[login/verificar2FA] Falha ao registrar tentativa (fail-open)', {
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
+		}
 
 		if (resultado === 'expirado') {
 			return fail(401, { error: 'Código expirado. Faça login novamente.', expirado: true });
@@ -180,19 +217,19 @@ export const actions: Actions = {
 
 		const respostaGenerica = { success: true, enviado: true };
 
-		const windowIp = new Date(
-			Date.now() - PRIMEIRO_ACESSO_JANELA_IP_MINUTOS * 60 * 1000
-		).toISOString();
-		const [ipCount] = await db
-			.select({ n: count() })
-			.from(loginAttempts)
-			.where(and(eq(loginAttempts.ip, ip), gt(loginAttempts.attempted_at, windowIp)));
-
-		if ((ipCount?.n ?? 0) >= PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP) {
+		// Rate limit em recovery_attempts (isolado de login_attempts, IP anonimizado)
+		// — mesma mecânica da rota /api/auth/primeiro-acesso.
+		const limite = await contarRecoveryAttempts(
+			db,
+			ip,
+			'primeiro_acesso',
+			PRIMEIRO_ACESSO_JANELA_IP_MINUTOS,
+			PRIMEIRO_ACESSO_MAX_TENTATIVAS_IP
+		);
+		if (limite.blocked) {
 			return respostaGenerica;
 		}
-
-		await db.insert(loginAttempts).values({ ip, success: 0 });
+		await registrarRecoveryAttempt(db, ip, 'primeiro_acesso');
 
 		const policial = await db
 			.select()
@@ -200,10 +237,16 @@ export const actions: Actions = {
 			.where(and(eq(policiais.matricula, matricula.trim()), eq(policiais.ativo, 1)))
 			.get();
 
-		if (!policial) return respostaGenerica;
-		if (policial.primeiro_acesso !== 1) return respostaGenerica;
-		if (!policial.email) {
-			return fail(422, { error: 'Nenhum e-mail cadastrado para esta matrícula.' });
+		// Anti-enumeração: TODAS as respostas de pré-requisitos devolvem a mesma
+		// resposta genérica — um 422 "sem e-mail cadastrado" diferenciaria
+		// matrícula existente de inexistente. A informação útil fica no log.
+		if (!policial || policial.primeiro_acesso !== 1 || !policial.email) {
+			if (policial && !policial.email) {
+				logger.warn('[login/primeiro-acesso] matrícula sem e-mail cadastrado', {
+					policial_id: policial.id
+				});
+			}
+			return respostaGenerica;
 		}
 
 		const token = await criarTokenRedefinicao(db, 'policial', policial.id);

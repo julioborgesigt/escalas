@@ -13,6 +13,8 @@
 import forge from 'node-forge';
 import { logger } from './logger';
 import {
+	avaliarCoberturaAssinatura,
+	avaliarPoliticaCriptografica,
 	extrairCmsDoPdf,
 	parseCms,
 	verificarAssinaturaCmsAsync,
@@ -119,6 +121,18 @@ export async function verificarECarimbarAssinatura(
 		};
 	}
 
+	// 2b. Cobertura do byte-range: a assinatura deve cobrir o arquivo INTEIRO —
+	// sem isso, bytes anexados após a região assinada (shadow attack) passariam
+	// pela checagem de integridade acima.
+	const cobertura = await avaliarCoberturaAssinatura(signedPdfBytes, extracao.byteRange);
+	if (!cobertura.ok) {
+		return {
+			ok: false,
+			status: 422,
+			error: `Assinatura não cobre o documento completo: ${cobertura.motivo}`
+		};
+	}
+
 	// 3. Assinatura RSA dos SignedAttributes
 	const rsaOk = await verificarAssinaturaCmsAsync(
 		cms.certificate,
@@ -132,6 +146,21 @@ export async function verificarECarimbarAssinatura(
 			ok: false,
 			status: 422,
 			error: 'Assinatura criptográfica dos SignedAttributes inválida (RSA/RSA-PSS/ECDSA)'
+		};
+	}
+
+	// 3b. Política criptográfica mínima: SHA-1, RSA < 2048 ou certificado sem
+	// keyUsage de assinatura não entram no acervo como assinatura qualificada.
+	const politicaCripto = avaliarPoliticaCriptografica(
+		cms.sigAlgOid,
+		cms.digestAlgOid,
+		cms.certificate
+	);
+	if (!politicaCripto.ok) {
+		return {
+			ok: false,
+			status: 422,
+			error: `Política criptográfica violada: ${politicaCripto.motivo}`
 		};
 	}
 
@@ -317,6 +346,19 @@ export async function verificarECarimbarAssinatura(
 					error:
 						'Certificado REVOGADO segundo o responder OCSP da AC' +
 						(snap.revokedAt ? ` (revogado em ${snap.revokedAt})` : '')
+				};
+			}
+			// Falha dura: resposta OCSP cuja assinatura não confere é
+			// indistinguível de um MITM injetando "good" para um certificado
+			// revogado. Diferente de indisponibilidade (degrada para
+			// 'unknown'), aqui houve resposta ATIVA e ela não é confiável.
+			if (snap.assinaturaResponder === 'invalida') {
+				return {
+					ok: false,
+					status: 422,
+					error:
+						'Resposta OCSP com assinatura inválida — status de revogação não confiável ' +
+						'(possível adulteração ou interceptação). Tente novamente.'
 				};
 			}
 		} else if (ts.disponivel) {

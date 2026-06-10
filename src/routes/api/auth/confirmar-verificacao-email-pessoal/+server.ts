@@ -33,15 +33,18 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 	// Tipo dedicado `verificacao_email` (I-2): se o desafio veio do canal de
 	// assinatura, é rejeitado aqui — fecha confused-deputy.
-	// `bindExtra = emailNormalizado` (I-1): o hash precisa bater contra o
-	// MESMO e-mail que recebeu o OTP. Se o usuário trocar o `email` no body
-	// entre solicitar e confirmar, o hash diverge → 'Código inválido'.
+	// `bindExtra = tipo + emailNormalizado` (I-1): o hash precisa bater contra
+	// o MESMO e-mail que recebeu o OTP e o MESMO tipo de usuário que criou o
+	// desafio (usuario_id colide entre administradores e policiais). Se o
+	// usuário trocar o `email` no body entre solicitar e confirmar, ou um
+	// desafio de admin for submetido por policial de mesmo id, o hash diverge
+	// → 'Código inválido'.
 	const resultado = await verificarDesafio2FA(
 		db,
 		desafioId,
 		codigo,
 		['verificacao_email'],
-		emailNormalizado
+		`${u.tipo}\x1f${emailNormalizado}`
 	);
 
 	if (resultado === 'expirado') return badRequest('Código expirado. Solicite um novo código.');

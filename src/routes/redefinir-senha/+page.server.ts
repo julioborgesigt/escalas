@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { getDB, registrarAuditComContexto } from '$lib/db';
-import { verificarTokenRedefinicao, hashSenha } from '$lib/auth';
-import { administradores, policiais, sessoes, resetSenhaTokens } from '$lib/server/schema';
+import { verificarTokenRedefinicao, marcarTokenRedefinicaoUsado, hashSenha } from '$lib/auth';
+import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -66,7 +66,7 @@ export const actions: Actions = {
 		const { tipo, usuarioId } = resultado;
 
 		// Marcar token como usado ANTES de alterar a senha (previne race condition)
-		await db.update(resetSenhaTokens).set({ usado: 1 }).where(eq(resetSenhaTokens.token, token));
+		await marcarTokenRedefinicaoUsado(db, token);
 
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha);
 

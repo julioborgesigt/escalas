@@ -13,12 +13,13 @@
  */
 
 import forge from 'node-forge';
+import { PDFDocument } from 'pdf-lib';
 import { logger } from './logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
 import { statusDeSnapshot, type StatusOcsp } from './ocsp';
 import { mascararCPF } from '../utils';
 import { detectarDss } from './pades-lt';
-import { verificarAssinaturaCms } from './crypto-verify';
+import { verificarAssinaturaCms, SIGNATURE_OIDS, DIGEST_OIDS } from './crypto-verify';
 import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } from './icp-policy';
 
 // OIDs reaproveitados de pdf-signing.ts
@@ -43,6 +44,14 @@ export interface VerificationResult {
 		cadeiaIcpBrasil: boolean | 'indisponivel';
 		timestampQualificado: boolean;
 		revogacao: StatusOcsp;
+		/**
+		 * O /ByteRange da assinatura principal cobre o arquivo INTEIRO (ou o
+		 * que sobra após `c+d` é apenas um incremental update DSS legítimo).
+		 * Sem este check, um atacante anexa um incremental update redefinindo
+		 * páginas/objetos após a região assinada ("shadow attack") e os demais
+		 * checks continuam passando.
+		 */
+		cobertura: boolean;
 	};
 	certificado?: VerificationCertificado;
 	timestamp?: { tipo: 'act_icp' | 'servidor' | 'tsa_externa'; momento: string };
@@ -208,9 +217,205 @@ export function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
  * Mantém comportamento legado (apenas a última). Para validar todas as
  * assinaturas em workflow multi-signature, use `extrairTodasCmsDoPdf`.
  */
+/**
+ * Índice da assinatura "principal" entre as extraídas: a de MAIOR cobertura
+ * (`c+d`). Usar a última na ordem do arquivo permitiria que um atacante
+ * anexasse um CMS próprio com /ByteRange minúsculo ao final e o promovesse
+ * a principal. Empate (não deveria ocorrer) resolve para a mais recente.
+ */
+export function indiceAssinaturaPrincipal(todas: CmsExtraido[]): number {
+	let melhor = -1;
+	let melhorFim = -1;
+	for (let i = 0; i < todas.length; i++) {
+		const [, , c, d] = todas[i].byteRange;
+		if (c + d >= melhorFim) {
+			melhorFim = c + d;
+			melhor = i;
+		}
+	}
+	return melhor;
+}
+
 export function extrairCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido | null {
 	const todas = extrairTodasCmsDoPdf(pdfBytes);
-	return todas.length > 0 ? todas[todas.length - 1] : null;
+	if (todas.length === 0) return null;
+	return todas[indiceAssinaturaPrincipal(todas)];
+}
+
+// ---------------------------------------------------------------------------
+// Cobertura do ByteRange (anti shadow-attack)
+// ---------------------------------------------------------------------------
+
+const LATIN1 = new TextDecoder('latin1');
+
+/** Próximo número de objeto livre da revisão assinada (mesma heurística de pades-lt). */
+function proximoObjetoLivre(texto: string): number {
+	let max = 0;
+	for (const m of texto.matchAll(/(?:^|[\r\n])\s*(\d+)\s+\d+\s+obj\b/g)) {
+		const n = parseInt(m[1], 10);
+		if (Number.isFinite(n) && n >= max) max = n + 1;
+	}
+	for (const m of texto.matchAll(/\/Size\s+(\d+)/g)) {
+		const n = parseInt(m[1], 10);
+		if (Number.isFinite(n) && n > max) max = n;
+	}
+	return max;
+}
+
+function bytesSaoWhitespace(bytes: Uint8Array): boolean {
+	for (const b of bytes) {
+		if (b !== 0x20 && b !== 0x0a && b !== 0x0d && b !== 0x09 && b !== 0x00 && b !== 0x0c) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Valida que o conteúdo APÓS o fim do /ByteRange é um incremental update DSS
+ * legítimo (PAdES-LT, gerado por `aplicarDss`) e não uma adulteração
+ * ("hide-and-replace"). Regras:
+ *   - termina em %%EOF e contém /DSS; não contém novo /ByteRange;
+ *   - só pode redefinir o objeto Root (catalog) — qualquer outro número de
+ *     objeto já existente na revisão assinada é rejeitado;
+ *   - todo /Root dos trailers anexados aponta para o MESMO objeto da revisão
+ *     assinada;
+ *   - o catalog resultante é idêntico ao da revisão assinada, exceto pela
+ *     entrada /DSS adicionada (impede troca de /Pages, /OpenAction etc.).
+ */
+async function trailingEhDssLegitimo(
+	pdfBytes: Uint8Array,
+	fimAssinado: number
+): Promise<{ ok: boolean; motivo?: string }> {
+	const assinado = LATIN1.decode(pdfBytes.subarray(0, fimAssinado));
+	const trailing = LATIN1.decode(pdfBytes.subarray(fimAssinado));
+
+	if (!/%%EOF\s*$/.test(trailing)) {
+		return { ok: false, motivo: 'conteúdo anexado após a assinatura não termina em %%EOF' };
+	}
+	if (/\/ByteRange\b/.test(trailing)) {
+		// Outra assinatura após a principal teria cobertura MAIOR e seria a
+		// principal; um /ByteRange aqui é estrutura órfã/forjada.
+		return { ok: false, motivo: 'estrutura de assinatura órfã anexada após a assinatura principal' };
+	}
+	if (!/\/DSS\b/.test(trailing)) {
+		return { ok: false, motivo: 'conteúdo anexado após a assinatura não é um DSS (PAdES-LT)' };
+	}
+
+	// /Root da revisão assinada (última ocorrência = trailer vigente ao assinar).
+	let rootNum = -1;
+	for (const m of assinado.matchAll(/\/Root\s+(\d+)\s+\d+\s+R\b/g)) {
+		rootNum = parseInt(m[1], 10);
+	}
+	if (rootNum < 0) {
+		return { ok: false, motivo: 'revisão assinada sem /Root identificável' };
+	}
+	for (const m of trailing.matchAll(/\/Root\s+(\d+)\s+\d+\s+R\b/g)) {
+		if (parseInt(m[1], 10) !== rootNum) {
+			return { ok: false, motivo: 'incremental update troca o /Root do documento' };
+		}
+	}
+
+	// Objetos definidos no trailing: ou são NOVOS (número >= próximo livre da
+	// revisão assinada) ou são o catalog (Root) re-serializado com /DSS.
+	const limite = proximoObjetoLivre(assinado);
+	for (const m of trailing.matchAll(/(?:^|[\r\n])\s*(\d+)\s+\d+\s+obj\b/g)) {
+		const num = parseInt(m[1], 10);
+		if (num !== rootNum && num < limite) {
+			return {
+				ok: false,
+				motivo: `incremental update redefine o objeto ${num} da revisão assinada`
+			};
+		}
+	}
+
+	// Catalog antes × depois: única mudança permitida é a entrada /DSS.
+	try {
+		const opts = { ignoreEncryption: true, updateMetadata: false } as const;
+		const antes = await PDFDocument.load(pdfBytes.slice(0, fimAssinado), opts);
+		const depois = await PDFDocument.load(pdfBytes, opts);
+		const entradasAntes = new Map<string, string>();
+		for (const [name, val] of antes.catalog.entries()) {
+			entradasAntes.set(name.toString(), String(val));
+		}
+		for (const [name, val] of depois.catalog.entries()) {
+			const chave = name.toString();
+			if (chave === '/DSS') continue;
+			if (entradasAntes.get(chave) !== String(val)) {
+				return { ok: false, motivo: `incremental update altera a entrada ${chave} do catalog` };
+			}
+			entradasAntes.delete(chave);
+		}
+		entradasAntes.delete('/DSS');
+		if (entradasAntes.size > 0) {
+			return {
+				ok: false,
+				motivo: `incremental update remove entrada(s) do catalog: ${[...entradasAntes.keys()].join(', ')}`
+			};
+		}
+	} catch (e) {
+		return {
+			ok: false,
+			motivo: `não foi possível analisar o incremental update (${e instanceof Error ? e.message : String(e)})`
+		};
+	}
+
+	return { ok: true };
+}
+
+/**
+ * Verifica que o /ByteRange da assinatura cobre o documento INTEIRO:
+ *   - começa no byte 0;
+ *   - o gap entre os dois trechos é exatamente o placeholder /Contents
+ *     (`<hex>` + whitespace);
+ *   - termina no fim do arquivo — ou o que sobra é apenas um incremental
+ *     update DSS legítimo (PAdES-LT) validado por `trailingEhDssLegitimo`.
+ *
+ * Sem isso, `verificarIntegridadePdf` confere o hash apenas dos trechos que o
+ * PRÓPRIO PDF declara — um documento adulterado por conteúdo anexado após a
+ * região assinada passaria como íntegro.
+ */
+export async function avaliarCoberturaAssinatura(
+	pdfBytes: Uint8Array,
+	byteRange: [number, number, number, number]
+): Promise<{ ok: boolean; motivo?: string }> {
+	const [a, b, c, d] = byteRange;
+	if (a !== 0) {
+		return { ok: false, motivo: `/ByteRange não inicia no byte 0 (inicia em ${a})` };
+	}
+	if (a + b > c || c + d > pdfBytes.length) {
+		return { ok: false, motivo: '/ByteRange com trechos inconsistentes' };
+	}
+
+	// Gap [a+b, c) = exatamente o /Contents: '<' + hex/whitespace + '>' + whitespace.
+	let pos = a + b;
+	if (pdfBytes[pos] !== 0x3c /* '<' */) {
+		return { ok: false, motivo: 'gap do /ByteRange não inicia no placeholder /Contents' };
+	}
+	pos++;
+	while (pos < c && pdfBytes[pos] !== 0x3e /* '>' */) {
+		const ch = pdfBytes[pos];
+		const hex =
+			(ch >= 0x30 && ch <= 0x39) || (ch >= 0x41 && ch <= 0x46) || (ch >= 0x61 && ch <= 0x66);
+		const ws = ch === 0x20 || ch === 0x0a || ch === 0x0d || ch === 0x09;
+		if (!hex && !ws) {
+			return { ok: false, motivo: 'gap do /ByteRange contém bytes fora do placeholder hex' };
+		}
+		pos++;
+	}
+	if (pos >= c) {
+		return { ok: false, motivo: 'placeholder /Contents sem ">" de fechamento dentro do gap' };
+	}
+	pos++; // consome '>'
+	if (!bytesSaoWhitespace(pdfBytes.subarray(pos, c))) {
+		return { ok: false, motivo: 'gap do /ByteRange contém bytes após o fechamento do /Contents' };
+	}
+
+	// Fim da cobertura: EOF exato, whitespace residual, ou DSS legítimo.
+	const fim = c + d;
+	if (fim === pdfBytes.length) return { ok: true };
+	if (bytesSaoWhitespace(pdfBytes.subarray(fim))) return { ok: true };
+	return trailingEhDssLegitimo(pdfBytes, fim);
 }
 
 // ---------------------------------------------------------------------------
@@ -507,6 +712,49 @@ export async function verificarAssinaturaCmsAsync(
 	});
 }
 
+/**
+ * Política criptográfica mínima do certificado/assinatura do SIGNATÁRIO:
+ *   - rejeita SHA-1 (colisões práticas desde 2017 — uma assinatura "válida"
+ *     com SHA-1 não sustenta não-repúdio);
+ *   - exige RSA ≥ 2048 bits (DOC-ICP-01 não emite menos desde 2012);
+ *   - exige keyUsage com digitalSignature ou nonRepudiation (um cert ICP
+ *     emitido só para keyEncipherment/autenticação não é cert de assinatura).
+ *
+ * NÃO se aplica ao CertID do OCSP (RFC 6960 usa SHA-1 por especificação) nem
+ * à TSA (validada à parte, com EKU timeStamping crítica).
+ */
+export function avaliarPoliticaCriptografica(
+	sigAlgOid: string,
+	digestAlgOid: string | undefined,
+	cert: forge.pki.Certificate
+): { ok: boolean; motivo?: string } {
+	if (
+		sigAlgOid === SIGNATURE_OIDS.SHA1_RSA ||
+		(sigAlgOid === SIGNATURE_OIDS.RSA_ENCRYPTION && digestAlgOid === DIGEST_OIDS.SHA1)
+	) {
+		return { ok: false, motivo: 'assinatura usa SHA-1 (algoritmo quebrado — mínimo SHA-256)' };
+	}
+	// Chave RSA: forge expõe o módulo em `n`. Chaves EC não têm `n` (a curva
+	// já é validada na verificação — P-256/384/521 apenas).
+	const pub = cert.publicKey as { n?: { bitLength(): number } } | undefined;
+	if (pub?.n) {
+		const bits = pub.n.bitLength();
+		if (bits < 2048) {
+			return { ok: false, motivo: `chave RSA de ${bits} bits (mínimo 2048)` };
+		}
+	}
+	const ku = cert.getExtension('keyUsage') as
+		| { digitalSignature?: boolean; nonRepudiation?: boolean }
+		| null;
+	if (!ku || (!ku.digitalSignature && !ku.nonRepudiation)) {
+		return {
+			ok: false,
+			motivo: 'certificado sem keyUsage de assinatura (digitalSignature/nonRepudiation)'
+		};
+	}
+	return { ok: true };
+}
+
 export function verificarCadeiaIcpBrasil(
 	cert: forge.pki.Certificate,
 	dataReferencia?: Date
@@ -766,7 +1014,8 @@ export async function verificarAssinaturaCompleta(
 			assinaturaRsa: false,
 			cadeiaIcpBrasil: false,
 			timestampQualificado: false,
-			revogacao: 'unknown'
+			revogacao: 'unknown',
+			cobertura: false
 		},
 		erros
 	};
@@ -816,6 +1065,17 @@ export async function verificarAssinaturaCompleta(
 		erros.push('Hash do conteúdo do PDF não confere com o messageDigest assinado');
 	}
 
+	// 1b. Cobertura do /ByteRange — o hash acima só prova integridade dos
+	//     trechos que o próprio PDF declara; aqui garantimos que esses trechos
+	//     cobrem o arquivo inteiro (tolerando apenas DSS incremental legítimo).
+	const cobertura = await avaliarCoberturaAssinatura(pdfBytes, extracao.byteRange);
+	result.checks.cobertura = cobertura.ok;
+	if (!cobertura.ok) {
+		erros.push(
+			`Assinatura não cobre o documento completo — possível conteúdo adicionado após a assinatura (${cobertura.motivo})`
+		);
+	}
+
 	// 2. Assinatura do SignerInfo (RSA PKCS#1, RSA-PSS ou ECDSA conforme sigAlgOid).
 	result.checks.assinaturaRsa = await verificarAssinaturaCmsAsync(
 		cms.certificate,
@@ -826,6 +1086,18 @@ export async function verificarAssinaturaCompleta(
 	);
 	if (!result.checks.assinaturaRsa) {
 		erros.push('Assinatura criptográfica dos SignedAttributes inválida');
+	}
+
+	// 2b. Política criptográfica mínima (SHA-1, RSA < 2048, keyUsage) — uma
+	//     assinatura matematicamente válida com algoritmo/chave fracos não
+	//     sustenta a classificação de qualificada.
+	const politicaCripto = avaliarPoliticaCriptografica(
+		cms.sigAlgOid,
+		cms.digestAlgOid,
+		cms.certificate
+	);
+	if (!politicaCripto.ok) {
+		erros.push(`Política criptográfica violada: ${politicaCripto.motivo}`);
 	}
 
 	// 3. Carimbo de tempo qualificado — determinado ANTES da cadeia porque
@@ -876,6 +1148,7 @@ export async function verificarAssinaturaCompleta(
 	//    issuer (defesa anti-MITM também na re-verificação, não só no momento da
 	//    assinatura). Localiza o issuer no trust store pelo CN; sem ele,
 	//    statusDeSnapshot devolve apenas o status (compat com snapshots antigos).
+	let ocspNaoConfiavel = false;
 	if (options.ocspSnapshotB64) {
 		let issuerCert: forge.pki.Certificate | undefined;
 		try {
@@ -894,6 +1167,8 @@ export async function verificarAssinaturaCompleta(
 				`Certificado REVOGADO${snap.revokedAt ? ` em ${snap.revokedAt}` : ''} (snapshot OCSP)`
 			);
 		} else if (snap.assinaturaResponder === 'invalida') {
+			// Falha dura: snapshot adulterado/forjado não pode sustentar "good".
+			ocspNaoConfiavel = true;
 			erros.push(
 				'Assinatura do responder OCSP não confere no snapshot — status de revogação não confiável (possível adulteração ou MITM).'
 			);
@@ -918,8 +1193,10 @@ export async function verificarAssinaturaCompleta(
 		const todas = extrairTodasCmsDoPdf(pdfBytes);
 		if (todas.length > 1) {
 			const adicionais: NonNullable<VerificationResult['assinaturasAdicionais']> = [];
-			// Itera todas EXCETO a última (que já foi validada acima como principal).
-			for (let i = 0; i < todas.length - 1; i++) {
+			const principal = indiceAssinaturaPrincipal(todas);
+			// Itera todas EXCETO a principal (já validada acima).
+			for (let i = 0; i < todas.length; i++) {
+				if (i === principal) continue;
 				const t = todas[i];
 				const cmsAnt = parseCms(t.cmsDer);
 				if (!cmsAnt) {
@@ -976,9 +1253,12 @@ export async function verificarAssinaturaCompleta(
 	}
 	result.valid =
 		result.checks.integridade &&
+		result.checks.cobertura &&
 		result.checks.assinaturaRsa &&
+		politicaCripto.ok &&
 		cadeiaOk &&
-		result.checks.revogacao !== 'revoked';
+		result.checks.revogacao !== 'revoked' &&
+		!ocspNaoConfiavel;
 
 	return result;
 }

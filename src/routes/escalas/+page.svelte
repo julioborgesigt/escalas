@@ -264,23 +264,28 @@
 		pendingRevogar = true;
 		const id = escalaParaRevogar.id;
 		dialogRevogarOpen = false;
-		const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
-			method: 'DELETE',
-			headers: csrfHeaders()
-		});
-		pendingRevogar = false;
-		if (res.ok) {
-			toaster.create({
-				title: 'Assinatura revogada',
-				description: 'A escala agora pode ser editada.',
-				type: 'info'
+		try {
+			const res = await fetch(`/api/escalas/${id}/documento-assinado`, {
+				method: 'DELETE',
+				headers: csrfHeaders()
 			});
-			goto(`/escalas/${id}`);
-		} else {
-			const err = await res.json().catch(() => ({}));
-			toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
+			if (res.ok) {
+				toaster.create({
+					title: 'Assinatura revogada',
+					description: 'A escala agora pode ser editada.',
+					type: 'info'
+				});
+				goto(`/escalas/${id}`);
+			} else {
+				const err = await res.json().catch(() => ({}));
+				toaster.create({ title: err.error || 'Erro ao revogar assinatura', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Falha de rede ao revogar assinatura', type: 'error' });
+		} finally {
+			pendingRevogar = false;
+			escalaParaRevogar = null;
 		}
-		escalaParaRevogar = null;
 	}
 
 	const temFiltros = $derived(

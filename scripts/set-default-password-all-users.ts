@@ -2,10 +2,15 @@
  * Define uma senha para TODOS os usuários (policiais + administradores).
  *
  * Uso (local):
- *   npx tsx scripts/set-default-password-all-users.ts --password=SENHA --yes
+ *   SET_PASSWORD=SENHA npx tsx scripts/set-default-password-all-users.ts --yes
  *
  * Uso (produção/remoto):
- *   npx tsx scripts/set-default-password-all-users.ts --password=SENHA --remote --yes
+ *   SET_PASSWORD=SENHA npx tsx scripts/set-default-password-all-users.ts --remote --yes
+ *
+ * A senha vem da env `SET_PASSWORD` (ou de `--password=SENHA`, DEPRECADO:
+ * argv vaza no histórico do shell e em `ps`). Todos os usuários ficam com
+ * `primeiro_acesso=1` — a senha compartilhada é provisória por definição e a
+ * troca é forçada no primeiro login.
  *
  * ATENÇÃO: nunca use uma senha fixa/conhecida. Gere uma senha aleatória
  * e comunique-a aos usuários por canal seguro fora do terminal.
@@ -14,7 +19,8 @@
 import { execSync } from 'node:child_process';
 
 const DB_NAME = 'escalas-db';
-const PBKDF2_PREFIX = 'pbkdf2v1:';
+// v2 (formato atual de $lib/auth) — emitir v1 disparava re-hash no login.
+const PBKDF2_PREFIX = 'pbkdf2v2:';
 const PBKDF2_ITERATIONS = 100_000;
 
 function toHex(bytes: Uint8Array): string {
@@ -35,7 +41,7 @@ async function hashSenha(senha: string): Promise<string> {
 		keyMaterial,
 		256
 	);
-	return `${PBKDF2_PREFIX}${toHex(salt)}:${toHex(new Uint8Array(hashBuffer))}`;
+	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${toHex(salt)}:${toHex(new Uint8Array(hashBuffer))}`;
 }
 
 async function main() {
@@ -44,20 +50,22 @@ async function main() {
 	const flag = isRemote ? '--remote' : '--local';
 
 	const passwordArg = process.argv.find((a) => a.startsWith('--password='));
-	if (!passwordArg) {
-		console.error('Erro: forneça --password=SENHA como argumento.');
+	if (passwordArg) {
+		console.warn(
+			'AVISO: --password em argv fica no histórico do shell e visível em `ps`. ' +
+				'Prefira a env SET_PASSWORD.'
+		);
+	}
+	const DEFAULT_PASSWORD = process.env.SET_PASSWORD ?? passwordArg?.slice('--password='.length);
+
+	if (!DEFAULT_PASSWORD) {
+		console.error('Erro: forneça a senha via env SET_PASSWORD (preferido) ou --password=SENHA.');
 		console.error(
-			'Exemplo: npx tsx scripts/set-default-password-all-users.ts --password=MinhaSenh@123 --yes'
+			'Exemplo: SET_PASSWORD=MinhaSenh@123 npx tsx scripts/set-default-password-all-users.ts --yes'
 		);
 		console.error(
 			'NUNCA use senhas fixas ou conhecidas. Gere uma senha aleatória e comunique por canal seguro.'
 		);
-		process.exit(1);
-	}
-	const DEFAULT_PASSWORD = passwordArg.slice('--password='.length);
-
-	if (!DEFAULT_PASSWORD) {
-		console.error('Erro: a senha informada está vazia.');
 		process.exit(1);
 	}
 
@@ -67,9 +75,11 @@ async function main() {
 	}
 
 	const hash = await hashSenha(DEFAULT_PASSWORD);
+	// primeiro_acesso=1: senha compartilhada é provisória — força a troca (e a
+	// verificação de e-mail pessoal) no primeiro login de cada usuário.
 	const sql = [
-		`UPDATE policiais SET senha='${hash}', primeiro_acesso=0, updated_at=datetime('now', '-3 hours');`,
-		`UPDATE administradores SET senha='${hash}', primeiro_acesso=0;`
+		`UPDATE policiais SET senha='${hash}', primeiro_acesso=1, updated_at=datetime('now', '-3 hours');`,
+		`UPDATE administradores SET senha='${hash}', primeiro_acesso=1;`
 	].join(' ');
 
 	console.log(
@@ -81,7 +91,9 @@ async function main() {
 	});
 
 	// Nunca imprimir a senha — apenas confirmar o encerramento.
-	console.log('Concluído. Comunique a senha aos usuários por canal seguro e solicite troca imediata.');
+	console.log(
+		'Concluído. Comunique a senha aos usuários por canal seguro; a troca será exigida no primeiro login.'
+	);
 }
 
 main().catch((err) => {

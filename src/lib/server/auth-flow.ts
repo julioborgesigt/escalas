@@ -14,11 +14,12 @@ import {
 	compararSegredoUtf8TimingSafe,
 	SESSION_TTL_MS
 } from '$lib/auth';
+import { captureMessage } from '@sentry/cloudflare';
 import { enviarCodigo2FA } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
-import { anonimizarIp } from '$lib/db/audit';
+import { chaveRateLimitIp } from '$lib/server/recovery-rate-limit';
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
@@ -73,13 +74,44 @@ export function cookieOptions(url: URL) {
 	};
 }
 
+/**
+ * Compara a senha digitada com o segredo de bootstrap da env.
+ *
+ * Aceita DOIS formatos na env (`SUPER_ADMIN_SENHA` / `ADMIN_GERAL_SENHA`):
+ *   - hash PBKDF2 (`pbkdf2v2:...` gerado por `hashSenha`) — RECOMENDADO: quem
+ *     lê o dashboard/wrangler não vê a senha em claro;
+ *   - texto claro (legado) — comparação timing-safe, mantido por compat.
+ */
+async function verificarSenhaBootstrap(
+	senha: string,
+	envValor: string,
+	db: Database
+): Promise<boolean> {
+	if (envValor.startsWith('pbkdf2v')) {
+		return verificarSenha(senha, envValor, db);
+	}
+	return compararSegredoUtf8TimingSafe(senha, envValor);
+}
+
+/** Alerta de uso de credencial root: log + Sentry (não só log, fácil de perder). */
+function alertarLoginBootstrap(mensagem: string, ip: string): void {
+	logger.warn(mensagem, { ip });
+	try {
+		captureMessage(mensagem, 'warning');
+	} catch {
+		/* Sentry indisponível não pode quebrar o login break-glass */
+	}
+}
+
 export async function checkRateLimit(
 	db: Database,
 	ip: string
 ): Promise<{ blocked: boolean; remaining: number }> {
-	// Deve usar o mesmo IP anonimizado que recordAttempt grava — sem isso a
-	// consulta nunca encontra os registros e o rate limit fica inoperante.
-	const ipNormalized = anonimizarIp(ip) ?? ip;
+	// Deve usar a mesma chave que recordAttempt grava — sem isso a consulta
+	// nunca encontra os registros e o rate limit fica inoperante. Com
+	// RATE_LIMIT_IP_SALT, a chave é o hash salteado do IP completo (granular);
+	// sem o salt, /24 anonimizado (legado).
+	const ipNormalized = await chaveRateLimitIp(ip);
 	/** Mesmo relógio/formato que `attempted_at` (default `datetime('now')` no SQLite). */
 	const desde = sql.raw(`datetime('now', '-${LOGIN_WINDOW_MINUTES} minutes')`);
 	const attempts = await db
@@ -107,7 +139,7 @@ export async function recordAttempt(
 	identifier?: string
 ): Promise<void> {
 	await db.insert(loginAttempts).values({
-		ip: anonimizarIp(ip) ?? ip,
+		ip: await chaveRateLimitIp(ip),
 		success: success ? 1 : 0,
 		identifier: identifier ?? null
 	});
@@ -248,7 +280,7 @@ export async function tentarLogin({
 		const superSenha = _env?.SUPER_ADMIN_SENHA ?? '';
 
 		if (superLogin && superSenha && matricula === superLogin) {
-			if (!compararSegredoUtf8TimingSafe(senha, superSenha)) {
+			if (!(await verificarSenhaBootstrap(senha, superSenha, db))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
@@ -327,10 +359,10 @@ export async function tentarLogin({
 				};
 			}
 
-			logger.warn(
+			alertarLoginBootstrap(
 				'[security] Login do Super Admin via bootstrap env SEM 2FA (break-glass). ' +
 					'Configure SUPER_ADMIN_EMAIL para exigir segundo fator nesta conta root.',
-				{ ip }
+				ip
 			);
 			const token = await criarSessao(db, 'admin', superAdmin.id);
 			return {
@@ -394,14 +426,14 @@ export async function tentarLogin({
 				};
 			}
 
-			logger.warn(
+			alertarLoginBootstrap(
 				'[security] Login via credenciais de bootstrap (ADMIN_GERAL). ' +
 					'Configure e-mail pessoal verificado e remova ADMIN_GERAL_LOGIN/SENHA do ambiente ' +
 					'para encerrar este caminho sem 2FA.',
-				{ ip }
+				ip
 			);
 
-			if (!compararSegredoUtf8TimingSafe(senha, envSenha)) {
+			if (!(await verificarSenhaBootstrap(senha, envSenha, db))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,

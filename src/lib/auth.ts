@@ -1,4 +1,4 @@
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, inArray } from 'drizzle-orm';
 import { timingSafeEqual } from 'node:crypto';
 import {
 	sessoes,
@@ -227,6 +227,21 @@ export function gerarToken(): string {
 	return toHex(bytes);
 }
 
+// ---- Hash de tokens persistidos (sessão / redefinição) ----
+//
+// Tokens de sessão e de reset são armazenados como `sha256:<hex>` — o valor
+// em claro só vive no cookie/link do usuário. Um dump/backup do D1 (ou acesso
+// de operador) não permite sequestrar sessões ativas nem resets pendentes.
+// O prefixo distingue hash de token legado em claro (ambos têm 64 hex chars);
+// linhas legadas são aceitas em fallback e migradas para hash no primeiro uso.
+
+const TOKEN_HASH_PREFIX = 'sha256:';
+
+async function hashTokenArmazenado(token: string): Promise<string> {
+	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+	return `${TOKEN_HASH_PREFIX}${toHex(new Uint8Array(buf))}`;
+}
+
 /**
  * Compara dois segredos em texto (ex.: `ADMIN_GERAL_SENHA`) de forma timing-safe
  * sobre os bytes UTF-8: buffers com o mesmo tamanho máximo e `timingSafeEqual`.
@@ -280,7 +295,7 @@ export async function criarSessao(
 	const token = gerarToken();
 	const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 	await db.insert(sessoes).values({
-		token,
+		token: await hashTokenArmazenado(token),
 		tipo,
 		usuario_id: usuarioId,
 		expires_at: expiresAt
@@ -296,11 +311,26 @@ export async function validarSessao(
 	if (!token) return null;
 
 	const now = Date.now();
-	const sessao = await db
+	const nowISO = new Date(now).toISOString();
+	const tokenHash = await hashTokenArmazenado(token);
+	let sessao = await db
 		.select()
 		.from(sessoes)
-		.where(and(eq(sessoes.token, token), gt(sessoes.expires_at, new Date(now).toISOString())))
+		.where(and(eq(sessoes.token, tokenHash), gt(sessoes.expires_at, nowISO)))
 		.get();
+
+	if (!sessao) {
+		// Fallback: sessão criada antes da migração para token hasheado (em
+		// claro no banco). Aceita e migra a linha para o formato hasheado.
+		sessao = await db
+			.select()
+			.from(sessoes)
+			.where(and(eq(sessoes.token, token), gt(sessoes.expires_at, nowISO)))
+			.get();
+		if (sessao) {
+			await db.update(sessoes).set({ token: tokenHash }).where(eq(sessoes.id, sessao.id));
+		}
+	}
 
 	if (!sessao) return null;
 
@@ -358,7 +388,10 @@ export async function validarSessao(
 }
 
 export async function excluirSessao(db: Database, token: string): Promise<void> {
-	await db.delete(sessoes).where(eq(sessoes.token, token));
+	// Cobre tanto a forma hasheada (atual) quanto linhas legadas em claro.
+	await db
+		.delete(sessoes)
+		.where(inArray(sessoes.token, [await hashTokenArmazenado(token), token]));
 }
 
 /**
@@ -448,7 +481,7 @@ export async function criarTokenRedefinicao(
 	const token = gerarToken();
 	const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
 	await db.insert(resetSenhaTokens).values({
-		token,
+		token: await hashTokenArmazenado(token),
 		tipo_usuario: tipoUsuario,
 		usuario_id: usuarioId,
 		expires_at: expiresAt
@@ -457,27 +490,29 @@ export async function criarTokenRedefinicao(
 }
 
 /**
- * Verifica um token de redefinição de senha usando comparação timing-safe.
- * Retorna os dados do usuário se válido, 'expirado' ou 'invalido'.
+ * Verifica um token de redefinição de senha. O lookup é pelo HASH do token
+ * (com fallback para linhas legadas em claro); a comparação final do hash é
+ * timing-safe. Retorna os dados do usuário se válido, 'expirado' ou 'invalido'.
  */
 export async function verificarTokenRedefinicao(
 	db: Database,
 	tokenInput: string
 ): Promise<{ tipo: 'policial' | 'admin'; usuarioId: number } | 'expirado' | 'invalido'> {
-	const SENTINEL = '0'.repeat(64); // mesmo tamanho de gerarToken()
-
+	const tokenHash = await hashTokenArmazenado(tokenInput);
 	const row = await db
 		.select()
 		.from(resetSenhaTokens)
-		.where(eq(resetSenhaTokens.token, tokenInput))
+		.where(inArray(resetSenhaTokens.token, [tokenHash, tokenInput]))
 		.get();
 
 	// Sempre executa timingSafeEqual para evitar timing oracle
+	const SENTINEL = '0'.repeat(tokenHash.length);
 	const storedToken = row?.token ?? SENTINEL;
-	const bufA = Buffer.from(storedToken.padEnd(64, '0').slice(0, 64));
-	const bufB = Buffer.from(tokenInput.padEnd(64, '0').slice(0, 64));
+	const esperado = storedToken.startsWith(TOKEN_HASH_PREFIX) ? tokenHash : tokenInput;
+	const bufA = Buffer.from(storedToken.padEnd(96, '0').slice(0, 96));
+	const bufB = Buffer.from(esperado.padEnd(96, '0').slice(0, 96));
 	const tokensMatch = timingSafeEqual(bufA, bufB) ? 1 : 0;
-	const lenMatch = storedToken.length === tokenInput.length ? 1 : 0;
+	const lenMatch = storedToken.length === esperado.length ? 1 : 0;
 
 	if (!row || row.usado === 1 || (tokensMatch & lenMatch) !== 1) {
 		return 'invalido';
@@ -487,6 +522,18 @@ export async function verificarTokenRedefinicao(
 	}
 
 	return { tipo: row.tipo_usuario as 'policial' | 'admin', usuarioId: row.usuario_id };
+}
+
+/**
+ * Marca um token de redefinição como usado (uso único). Cobre a forma
+ * hasheada (atual) e linhas legadas em claro. Chamar ANTES de trocar a
+ * senha (anti-race).
+ */
+export async function marcarTokenRedefinicaoUsado(db: Database, token: string): Promise<void> {
+	await db
+		.update(resetSenhaTokens)
+		.set({ usado: 1 })
+		.where(inArray(resetSenhaTokens.token, [await hashTokenArmazenado(token), token]));
 }
 
 /**

@@ -661,6 +661,7 @@
 					bind:this={canvas}
 					width="500"
 					height="280"
+					aria-label="Área de desenho da assinatura manuscrita — desenhe sua assinatura com o dedo ou mouse"
 					class="w-full h-[280px] cursor-crosshair touch-none"
 					onmousedown={startDrawing}
 					onmousemove={draw}
@@ -883,6 +884,8 @@
 						inputmode="numeric"
 						maxlength="6"
 						placeholder="000000"
+						aria-label="Código de verificação de 6 dígitos enviado ao seu e-mail"
+						autocomplete="one-time-code"
 						bind:value={codigoInput}
 						class="input text-center text-3xl tracking-[0.5em] font-mono h-16 rounded-2xl bg-white dark:bg-surface-900 border-2 {codigoError
 							? 'border-error-500 uppercase'

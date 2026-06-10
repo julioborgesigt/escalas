@@ -88,14 +88,123 @@ export function extrairUrlOcsp(cert: forge.pki.Certificate): string | null {
 }
 
 /**
+ * Interpreta `host` como IPv4 em QUALQUER forma aceita por `inet_aton`:
+ * decimal pontilhado, octal (017700000001), hex (0x7f.0.0.1), inteiro único
+ * (2130706433) e formas com 2/3 partes. Retorna o valor de 32 bits ou `null`
+ * quando não é um literal IPv4. Sem isso, encodings alternativos contornariam
+ * a checagem de faixas (o fetch do Node/undici resolve todos para o mesmo IP).
+ */
+function parseIpv4Literal(host: string): number | null {
+	if (!/^[0-9a-fA-FxX.]+$/.test(host) || host.length === 0) return null;
+	let parts = host.split('.');
+	// Trailing dot ("127.0.0.1.") é tolerado por alguns resolvers.
+	if (parts.length > 1 && parts[parts.length - 1] === '') parts = parts.slice(0, -1);
+	if (parts.length < 1 || parts.length > 4) return null;
+	const nums: number[] = [];
+	for (const p of parts) {
+		let v: number;
+		if (/^0[xX][0-9a-fA-F]+$/.test(p)) v = parseInt(p.slice(2), 16);
+		else if (/^0[0-7]*$/.test(p)) v = parseInt(p, 8);
+		else if (/^[1-9][0-9]*$/.test(p)) v = parseInt(p, 10);
+		else return null;
+		if (!Number.isFinite(v) || v < 0) return null;
+		nums.push(v);
+	}
+	// Semântica inet_aton: as n-1 primeiras partes são octetos; a última
+	// preenche os bytes restantes.
+	const n = nums.length;
+	for (let i = 0; i < n - 1; i++) if (nums[i] > 255) return null;
+	const bytesUltimo = 4 - (n - 1);
+	if (nums[n - 1] > 2 ** (8 * bytesUltimo) - 1) return null;
+	let val = 0;
+	for (let i = 0; i < n - 1; i++) val = val * 256 + nums[i];
+	return (val * 2 ** (8 * bytesUltimo) + nums[n - 1]) >>> 0;
+}
+
+/** Faixas IPv4 proibidas (loopback, privadas, link-local, CGNAT, reservadas). */
+function ipv4Bloqueado(ip: number): boolean {
+	const a = (ip >>> 24) & 0xff;
+	const b = (ip >>> 16) & 0xff;
+	if (a === 0 || a === 10 || a === 127) return true; // this-net, 10/8, loopback
+	if (a === 169 && b === 254) return true; // link-local + metadados de nuvem
+	if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
+	if (a === 192 && b === 168) return true; // 192.168/16
+	if (a === 192 && b === 0) return true; // 192.0.0/24 (IETF) + 192.0.2/24 (TEST-NET-1)
+	if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking 198.18/15
+	if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
+	if (a >= 224) return true; // multicast/reservado/broadcast
+	return false;
+}
+
+/**
+ * Expande um literal IPv6 para 8 grupos de 16 bits. Aceita `::` e IPv4
+ * embutido na cauda (`::ffff:127.0.0.1`). Retorna `null` se malformado.
+ */
+function parseIpv6Literal(host: string): number[] | null {
+	if (!host.includes(':')) return null;
+	// Zone index (fe80::1%eth0) — descarta para análise.
+	const semZona = host.split('%')[0];
+	const dupla = semZona.split('::');
+	if (dupla.length > 2) return null;
+	const parseLado = (lado: string): number[] | null => {
+		if (lado === '') return [];
+		const grupos: number[] = [];
+		const partes = lado.split(':');
+		for (let i = 0; i < partes.length; i++) {
+			const p = partes[i];
+			if (i === partes.length - 1 && p.includes('.')) {
+				const v4 = parseIpv4Literal(p);
+				if (v4 === null) return null;
+				grupos.push((v4 >>> 16) & 0xffff, v4 & 0xffff);
+			} else if (/^[0-9a-fA-F]{1,4}$/.test(p)) {
+				grupos.push(parseInt(p, 16));
+			} else {
+				return null;
+			}
+		}
+		return grupos;
+	};
+	const esq = parseLado(dupla[0]);
+	if (esq === null) return null;
+	if (dupla.length === 1) {
+		return esq.length === 8 ? esq : null;
+	}
+	const dir = parseLado(dupla[1]);
+	if (dir === null || esq.length + dir.length > 7) return null;
+	return [...esq, ...new Array(8 - esq.length - dir.length).fill(0), ...dir];
+}
+
+/** Faixas IPv6 proibidas, incluindo IPv4 embutido (mapped/compatible/NAT64). */
+function ipv6Bloqueado(grupos: number[]): boolean {
+	const todosZero = (ate: number) => grupos.slice(0, ate).every((g) => g === 0);
+	// :: (unspecified) e ::1 (loopback)
+	if (todosZero(7) && (grupos[7] === 0 || grupos[7] === 1)) return true;
+	// IPv4-mapped (::ffff:0:0/96), IPv4-compatible (::/96) e NAT64 (64:ff9b::/96):
+	// aplica as faixas IPv4 ao endereço embutido.
+	const v4Embutido =
+		(todosZero(5) && (grupos[5] === 0xffff || grupos[5] === 0)) ||
+		(grupos[0] === 0x64 && grupos[1] === 0xff9b && grupos.slice(2, 6).every((g) => g === 0));
+	if (v4Embutido) {
+		const ip4 = ((grupos[6] << 16) | grupos[7]) >>> 0;
+		if (ipv4Bloqueado(ip4)) return true;
+	}
+	const alto = grupos[0];
+	if ((alto & 0xffc0) === 0xfe80) return true; // link-local fe80::/10
+	if ((alto & 0xffc0) === 0xfec0) return true; // site-local (deprecated) fec0::/10
+	if ((alto & 0xfe00) === 0xfc00) return true; // ULA fc00::/7
+	return false;
+}
+
+/**
  * Defesa SSRF: a URL do responder OCSP vem da extensão AIA do certificado
  * enviado pelo USUÁRIO. Sem validação, um cert com AIA apontando para um host
  * interno faria o servidor emitir um POST para lá. Permitimos apenas http(s)
  * para hosts públicos — bloqueamos loopback, redes privadas (RFC 1918), CGNAT,
- * link-local e o endpoint de metadados de nuvem (169.254.169.254).
+ * link-local e o endpoint de metadados de nuvem (169.254.169.254), em TODOS
+ * os encodings de IP (decimal/octal/hex/inteiro, IPv6 e IPv4 embutido em IPv6).
  *
- * Validação por hostname (defesa em camadas; não cobre DNS-rebinding, mas o
- * runtime Cloudflare Workers não expõe serviços locais/metadados como um
+ * Validação por literal de host (defesa em camadas; não cobre DNS-rebinding,
+ * mas o runtime Cloudflare Workers não expõe serviços locais/metadados como um
  * servidor tradicional). Combinada com a validação de cadeia ICP-Brasil que
  * roda antes da consulta, fecha o vetor na prática.
  */
@@ -123,26 +232,11 @@ export function urlOcspPermitida(url: string): boolean {
 		return false;
 	}
 
-	// IPv6 literal: loopback (::1), link-local (fe80::/10) e ULA (fc00::/7).
-	if (host.includes(':')) {
-		if (host === '::1' || host.startsWith('fe8') || host.startsWith('fe9') || host.startsWith('fea') || host.startsWith('feb') || host.startsWith('fc') || host.startsWith('fd')) {
-			return false;
-		}
-	}
+	const v6 = parseIpv6Literal(host);
+	if (v6) return !ipv6Bloqueado(v6);
 
-	// IPv4 literal: bloqueia faixas privadas/loopback/link-local/CGNAT/reservadas.
-	const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-	if (m) {
-		const a = Number(m[1]);
-		const b = Number(m[2]);
-		if (a > 255 || b > 255 || Number(m[3]) > 255 || Number(m[4]) > 255) return false;
-		if (a === 0 || a === 10 || a === 127) return false; // this-net, 10/8, loopback
-		if (a === 169 && b === 254) return false; // link-local + metadados de nuvem
-		if (a === 172 && b >= 16 && b <= 31) return false; // 172.16/12
-		if (a === 192 && b === 168) return false; // 192.168/16
-		if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT 100.64/10
-		if (a >= 224) return false; // multicast/reservado
-	}
+	const v4 = parseIpv4Literal(host);
+	if (v4 !== null) return !ipv4Bloqueado(v4);
 
 	return true;
 }

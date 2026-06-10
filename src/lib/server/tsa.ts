@@ -23,6 +23,7 @@
 
 import forge from 'node-forge';
 import { logger } from './logger';
+import { urlOcspPermitida } from './ocsp';
 
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 
@@ -164,6 +165,14 @@ export async function solicitarCarimboTempo(
 	signatureValue: string,
 	config: TsaConfig
 ): Promise<TsaResult> {
+	// Mesmo guard SSRF do OCSP: a URL vem de env (operador), mas se algum dia
+	// for derivada de configuração editável por admin, o POST nunca pode sair
+	// para host interno/privado/metadados de nuvem.
+	if (!urlOcspPermitida(config.url)) {
+		logger.warn('[TSA] URL da TSA rejeitada pelo guard SSRF', { url: config.url });
+		return { ok: false, error: 'URL da TSA aponta para host não permitido' };
+	}
+
 	let reqDer: Uint8Array;
 	try {
 		reqDer = montarTimeStampReq(signatureValue);
