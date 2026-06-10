@@ -1,18 +1,18 @@
 /**
- * Envio de e-mail via Resend API (HTTP REST).
+ * Envio de e-mail com fallback automático:
+ *   1º — Cloudflare Email Sending (binding nativo, cota 200/dia)
+ *   2º — Resend API (HTTP REST, fallback quando cota CF esgotada ou binding ausente)
  *
  * Configuração necessária (wrangler.toml / .dev.vars):
- *   RESEND_API_KEY=re_...                  ← Chave de API do Resend
- *   RESEND_FROM_EMAIL=onboarding@resend.dev ← Remetente verificado
+ *   EMAIL binding            ← Cloudflare Email Sending (primário)
+ *   RESEND_API_KEY=re_...    ← Chave de API do Resend (fallback)
+ *   RESEND_FROM_EMAIL=...    ← Remetente verificado no Resend
  */
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
 import { logger } from './logger';
 import { mascararEmail } from './auth-flow';
 
-/**
- * Escapa caracteres HTML perigosos para interpolação segura nos templates de e-mail.
- */
 function escapeHtml(value: string): string {
 	return value
 		.replace(/&/g, '&amp;')
@@ -22,44 +22,66 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, '&#x27;');
 }
 
-function getResendConfig(platform: App.Platform | undefined): { apiKey: string; from: string } {
-	const e = platform?.env as Env | undefined;
-	return {
-		apiKey: e?.RESEND_API_KEY ?? '',
-		from: e?.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
-	};
-}
-
-function ensureResendConfig(platform: App.Platform | undefined): { apiKey: string; from: string } {
-	const { apiKey, from } = getResendConfig(platform);
-	if (!apiKey) {
-		throw new Error('Resend API key não configurada. Defina RESEND_API_KEY no ambiente.');
-	}
-	return { apiKey, from };
-}
+const CF_FROM = 'nao-responda@escalaspcce.com.br';
+const CF_FROM_NAME = 'Sistema de Escalas - PCCE';
 
 interface EmailAttachment {
 	filename: string;
 	content: string; // Base64
 }
 
-/**
- * Helper genérico para disparar requisições HTTP para a API do Resend.
- */
-async function dispararEmail(
+interface EmailOptions {
+	to: string;
+	subject: string;
+	html: string;
+	text?: string;
+	attachments?: EmailAttachment[];
+}
+
+// ─── Cloudflare Email Sending ────────────────────────────────────────────────
+
+async function dispararEmailCloudflare(
 	platform: App.Platform | undefined,
-	options: {
-		to: string;
-		subject: string;
-		html: string;
-		text?: string;
-		attachments?: EmailAttachment[];
-	}
+	options: EmailOptions
 ): Promise<{ messageId: string }> {
-	const { apiKey, from } = ensureResendConfig(platform);
+	const env = platform?.env as Env | undefined;
+	if (!env?.EMAIL) throw new Error('CF_EMAIL_BINDING_ABSENT');
+
+	const result = await env.EMAIL.send({
+		from: { email: CF_FROM, name: CF_FROM_NAME },
+		to: [{ email: options.to }],
+		subject: options.subject,
+		html: options.html,
+		...(options.text ? { text: options.text } : {}),
+		...(options.attachments?.length
+			? {
+					attachments: options.attachments.map((a) => ({
+						disposition: 'attachment' as const,
+						filename: a.filename,
+						content: a.content,
+						type: 'application/octet-stream'
+					}))
+				}
+			: {})
+	});
+
+	return { messageId: result.messageId ?? 'cf-ok' };
+}
+
+// ─── Resend (fallback) ────────────────────────────────────────────────────────
+
+async function dispararEmailResend(
+	platform: App.Platform | undefined,
+	options: EmailOptions
+): Promise<{ messageId: string }> {
+	const e = platform?.env as Env | undefined;
+	const apiKey = e?.RESEND_API_KEY ?? '';
+	const from = e?.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev';
+
+	if (!apiKey) throw new Error('Resend API key não configurada. Defina RESEND_API_KEY no ambiente.');
 
 	const bodyPayload = {
-		from: `Sistema de Escalas - PCCE <${from}>`,
+		from: `${CF_FROM_NAME} <${from}>`,
 		to: options.to,
 		subject: options.subject,
 		html: options.html,
@@ -69,10 +91,7 @@ async function dispararEmail(
 
 	const response = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
-		headers: {
-			'Authorization': `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
+		headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify(bodyPayload)
 	});
 
@@ -83,6 +102,27 @@ async function dispararEmail(
 
 	const data = (await response.json()) as { id: string };
 	return { messageId: data.id };
+}
+
+// ─── Dispatcher com fallback ─────────────────────────────────────────────────
+
+async function dispararEmail(
+	platform: App.Platform | undefined,
+	options: EmailOptions
+): Promise<{ messageId: string }> {
+	try {
+		const result = await dispararEmailCloudflare(platform, options);
+		logger.debug('[email] Enviado via Cloudflare Email Sending');
+		return result;
+	} catch (cfErr) {
+		const motivo = cfErr instanceof Error ? cfErr.message : String(cfErr);
+		if (motivo !== 'CF_EMAIL_BINDING_ABSENT') {
+			logger.warn('[email] Falha no Cloudflare Email Sending, usando Resend como fallback', {
+				motivo
+			});
+		}
+		return dispararEmailResend(platform, options);
+	}
 }
 
 export async function enviarSenhaProvisoria(
