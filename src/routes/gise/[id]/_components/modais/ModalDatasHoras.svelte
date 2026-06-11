@@ -9,7 +9,7 @@
 		data_inicio: string;
 		hora_entrada: string | null;
 		hora_saida: string | null;
-		feriado?: boolean;
+		feriado?: boolean | number;
 	}
 
 	interface Props {

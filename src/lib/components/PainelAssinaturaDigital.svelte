@@ -139,7 +139,7 @@
 	const assinatura = useAssinaturaEscala({
 		getParams: () => ({ escalaId, isFDS, policiaisCount, usuario }),
 		onDocumentoAssinado: (info) => {
-			documentoAssinadoInfo = info;
+			documentoAssinadoInfo = info as DocumentoAssinadoInfo | null;
 		}
 	});
 

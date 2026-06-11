@@ -3,23 +3,11 @@
  * Centraliza permissões, formatação e detecção de dispositivo.
  */
 
+import type { GiseDetalhado } from '$lib/db';
 import { SvelteDate } from 'svelte/reactivity';
 
-interface Seccional {
-	seccional_id: number;
-	status: string;
-	[key: string]: unknown;
-}
-
-interface GiseShape {
-	supervisor_id?: number | null;
-	seccionais?: Seccional[];
-	status?: string;
-	[key: string]: unknown;
-}
-
 interface GiseData {
-	gise?: GiseShape | null;
+	gise?: GiseDetalhado | null;
 	policiais?: unknown[];
 	todasUnidades?: unknown[];
 	papelGise?: string;
@@ -30,7 +18,6 @@ interface GiseData {
 	isSupervisor?: boolean;
 	isMembro?: boolean;
 	usuarioAtual?: { id: number } | null;
-	[key: string]: unknown;
 }
 
 export interface GiseEstadoParams {
@@ -43,7 +30,7 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const policiais = $derived(_data.policiais ?? []);
 	const todasUnidades = $derived(_data.todasUnidades ?? []);
 	const papelGise = $derived(_data.papelGise);
-	const minhaSeccionalId = $derived(_data.minhaSeccionalId);
+	const minhaSeccionalId = $derived(_data.minhaSeccionalId ?? null);
 
 	// Permissões
 	const isAdminGeral = $derived(_data.isGeral === true);
@@ -56,14 +43,14 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 
 	const minhaSeccional = $derived(
 		isSeccional
-			? gise?.seccionais?.find((s: Seccional) => s.seccional_id === minhaSeccionalId)
+			? gise?.seccionais?.find((s) => s.seccional_id === minhaSeccionalId)
 			: null
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
 		(gise?.seccionais?.length ?? 0) > 0 &&
 			(gise?.seccionais?.every(
-				(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
+				(s) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
 			) ?? false)
 	);
 

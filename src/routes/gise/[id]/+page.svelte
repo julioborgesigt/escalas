@@ -46,7 +46,7 @@
 	const { statusLabel, statusColor, fmtDate, diaSemana } = giseEstado;
 
 	const gise = $derived(giseEstado.gise);
-	const policiais = $derived(giseEstado.policiais);
+	const policiais = $derived(data.policiais as Policial[]);
 	const todasUnidades = $derived(giseEstado.todasUnidades);
 
 	// Relatórios extraordinários pendentes de assinatura (usado pelo hook de assinatura e pelo template)
