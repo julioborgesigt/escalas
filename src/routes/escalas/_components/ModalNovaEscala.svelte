@@ -149,7 +149,7 @@
 		return `${d}/${m}`;
 	}
 	function sabadoDaSemanaLocal(): Date {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+
 		const hoje = new Date();
 		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;

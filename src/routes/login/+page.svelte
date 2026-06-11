@@ -469,9 +469,8 @@
 				{/if}
 				<label class="label">
 					<span class="label-text">{tipo === 'admin' ? 'Login' : 'Matrícula'}</span>
-					<!-- svelte-ignore a11y_autofocus — página dedicada de login: foco
-					     inicial no primeiro campo é exceção amplamente aceita pela
-					     comunidade a11y e elimina 1 toque em mobile. -->
+					<!-- svelte-ignore a11y_autofocus -->
+					<!-- Página dedicada de login: foco inicial no campo é padrão aceito por a11y. -->
 					<input
 						class="input"
 						type="text"

@@ -28,7 +28,7 @@ function emit(level: LogLevel, message: string, context?: Record<string, unknown
 			console.warn(JSON.stringify(entry));
 			break;
 		default:
-			console.log(JSON.stringify(entry));
+			console.warn(JSON.stringify(entry));
 	}
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve */
+	 
 	import { enhance } from '$app/forms';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';

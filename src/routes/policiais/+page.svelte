@@ -1,5 +1,5 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve */
+	 
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';

@@ -23,11 +23,13 @@
 	const confirmDialog = useConfirmationDialog<{ itemId: number; nome: string }>();
 
 	const escala = $derived(data.escala);
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let finalizadaEm = $state<string | null>(untrack(() => data.escala?.finalizada_em ?? null));
 	$effect(() => {
 		finalizadaEm = data.escala?.finalizada_em ?? null;
 	});
 	const emailEnvioInicial = $derived(data.escala?.email_envio ?? null);
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let solicitacaoAtual = $state<{ tipo: string; destinatario_id?: number } | null>(
 		untrack(() => data.solicitacaoAtual ?? null)
 	);
@@ -45,6 +47,7 @@
 			: null
 	);
 
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let policiaisEscalaLocal = $state<EscalaPolicialComDados[]>(
 		untrack(() => data.policiaisEscala as EscalaPolicialComDados[])
 	);
@@ -69,7 +72,7 @@
 		const days: string[] = [];
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(escala.data_inicio + 'T00:00:00');
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		 
 		const last = new Date(escala.data_fim + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);

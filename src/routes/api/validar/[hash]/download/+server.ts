@@ -285,7 +285,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				finalPdf = result.pdf;
 			} else {
 				const seccional = gise.seccionais.find(
-					(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
+					(s) => s.id === seccionalId || s.seccional_id === seccionalId
 				);
 				if (!seccional) {
 					logger.error('[validar/download] Seccional ausente na GISE', {
@@ -316,7 +316,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 
 			logger.info('[validar/download] Re-geração dinâmica concluída', { hash });
 			const filename = `relatorio_${relTipo}_${hash}.pdf`;
-			return new Response(finalPdf as any, {
+			return new Response(finalPdf, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),

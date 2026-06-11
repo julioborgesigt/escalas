@@ -175,7 +175,17 @@ export async function listarGiseEscalas(
 		equipeTypesRows,
 		extrasPendIdsRows,
 		seccionaisEnviadasRows
-	] = parallelResults as [any, any, any, number | null, any, any, any, any, any];
+	] = parallelResults as [
+		Array<{ gise_id: number }>,
+		Array<{ gise_id: number; count: number }>,
+		Array<{ gise_id: number; seccional_id: number }>,
+		number | null,
+		Array<{ gise_id: number; seccional_id: number }>,
+		Array<{ gise_id: number; seccional_id: number; nome: string }>,
+		Array<{ gise_id: number; seccional_id: number; tipo: string }>,
+		Array<{ gise_id: number; seccional_id: number }>,
+		Array<{ gise_id: number; count: number }>
+	];
 
 	// Coleta presenças da supervisão para todas as escalas
 	const todosSupIds = new Set<number>();
@@ -198,7 +208,7 @@ export async function listarGiseEscalas(
 					)
 					.all()
 			: [];
-	const supPresMap = new Map<string, { entrada: any; saida: any }>();
+	const supPresMap = new Map<string, { entrada: string | null; saida: string | null }>();
 	for (const p of supPresRows) {
 		supPresMap.set(`${p.gise_id}_${p.policial_id}`, {
 			entrada: p.entrada_timestamp,

@@ -19,7 +19,7 @@ export async function criarUnidade(
 		cidade: string;
 	}
 ) {
-	const values: Record<string, unknown> = {
+	return db.insert(unidades).values({
 		nome: data.nome.trim(),
 		tipo: data.tipo,
 		tem_plantao: data.tem_plantao,
@@ -27,8 +27,7 @@ export async function criarUnidade(
 		tem_fds: data.tem_fds,
 		cidade: data.cidade || '',
 		seccional_id: data.seccional_id ?? null
-	};
-	return db.insert(unidades).values(values as any);
+	});
 }
 
 export async function atualizarUnidade(

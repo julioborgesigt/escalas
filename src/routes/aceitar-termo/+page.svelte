@@ -78,6 +78,8 @@
 			class="termo-conteudo p-4 sm:p-6 max-h-[55vh] overflow-y-auto text-sm leading-relaxed text-surface-700 dark:text-surface-200"
 			onscroll={onScroll}
 		>
+			<!-- sanitizado em +page.server.ts via sanitizeTermoHtml() -->
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html data.conteudoHtml}
 		</div>
 

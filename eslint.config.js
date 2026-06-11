@@ -50,13 +50,15 @@ export default [
 			// CI. Item explícito no plano de remediação (Sprint 2/3). Não relaxar
 			// para 'off': queremos que cada nova ocorrência apareça no diff de PR.
 			'svelte/require-each-key': 'warn',
-			'svelte/no-navigation-without-resolve': 'warn',
+			// Desativada: projeto não configura paths.base (svelte.config.js sem 'kit.paths.base').
+			// resolve() de '$app/paths' seria no-op; todos os warnings são falsos positivos.
+			'svelte/no-navigation-without-resolve': 'off',
 			'svelte/prefer-svelte-reactivity': 'warn',
 			'svelte/prefer-writable-derived': 'warn',
 			'svelte/no-unused-svelte-ignore': 'warn',
 			'no-useless-assignment': 'warn',
 			'no-unused-expressions': 'warn',
-			'prefer-const': 'warn'
+			'prefer-const': ['warn', { destructuring: 'all' }]
 		}
 	},
 	{

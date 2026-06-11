@@ -14,7 +14,6 @@
 		seccionais?: { id: number; nome?: string }[];
 	};
 
-	/* eslint-disable prefer-const */
 	let {
 		open = $bindable(false),
 		gise,
@@ -24,7 +23,6 @@
 		gise: GiseEscala | null;
 		supervisaoExtraUnidadeId: number | null;
 	} = $props();
-	/* eslint-enable prefer-const */
 
 	type ExtraItem = {
 		id: number;

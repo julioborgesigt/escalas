@@ -150,8 +150,8 @@ export const POST: RequestHandler = async ({
 	const membrosSec = isSupervisaoExtra
 		? listarPoliciaisSupervisaoExtra(gise).map((r) => ({ policial_id: r.policial_id }))
 		: await buscarGiseSeccionalMembros(db, id, secIdNum);
-	const idsMembros = new Set(membrosSec.map((m: any) => m.policial_id));
-	const presencasFiltradas = presencas.filter((p: any) => idsMembros.has(p.policial_id));
+	const idsMembros = new Set(membrosSec.map((m) => m.policial_id));
+	const presencasFiltradas = presencas.filter((p) => idsMembros.has(p.policial_id));
 
 	const r2 = getR2(platform as App.Platform | undefined);
 
