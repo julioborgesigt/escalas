@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { tick } from 'svelte';
@@ -17,7 +16,9 @@
 		Clock,
 		PenLine,
 		X,
-		Check
+		Check,
+		Trash2,
+		Loader2
 	} from 'lucide-svelte';
 	import {
 		estadoMarcadorRodagemSupervisao,
@@ -228,13 +229,22 @@
 
 	const urlDocumentoAssinado = $derived(`/api/gise/${gise.id}/documento-assinado`);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
-	const urlDownloadExtra = $derived(`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`);
+	const urlDownloadExtra = $derived(
+		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`
+	);
 
 	let expandirEscala = $state(false);
 	let expandirExtra = $state(false);
 	let formEl = $state<HTMLFormElement | null>(null);
 
 	let editandoPapel = $state<'supervisor' | 'assessor' | 'seint1' | 'seint2' | null>(null);
+	let removendoPapel = $state<'supervisor' | 'assessor' | 'seint1' | 'seint2' | null>(null);
+
+	$effect(() => {
+		if (!pendingCrud) {
+			removendoPapel = null;
+		}
+	});
 
 	function iniciarEdicao(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
 		editandoPapel = papel;
@@ -258,6 +268,8 @@
 
 	function excluirMembro(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
 		if (!confirm('Deseja realmente remover esta designação?')) return;
+
+		removendoPapel = papel;
 
 		if (papel === 'supervisor') {
 			supervisorId = null;
@@ -294,7 +306,7 @@
 	class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
 >
 	<div
-		class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70"
+		class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70 rounded-t-2xl"
 	></div>
 
 	<div class="p-3 sm:p-5 md:p-6">
@@ -318,7 +330,14 @@
 					</span>
 				{/if}
 			</div>
-		</div>		<form bind:this={formEl} method="POST" action="?/salvarSupervisores" use:enhance={onSubmit} class="contents">
+		</div>
+		<form
+			bind:this={formEl}
+			method="POST"
+			action="?/salvarSupervisores"
+			use:enhance={onSubmit}
+			class="contents"
+		>
 			<div
 				class="p-3 sm:p-4 md:p-5 rounded-2xl bg-secondary-500/5 dark:bg-secondary-500/10 border border-secondary-500/20 dark:border-secondary-500/30 backdrop-blur-sm"
 			>
@@ -355,13 +374,18 @@
 											disabled={pendingCrud}
 											title="Salvar"
 										>
-											<Check size={18} />
+											{#if pendingCrud && editandoPapel === 'supervisor'}
+												<Loader2 size={18} class="animate-spin" />
+											{:else}
+												<Check size={18} />
+											{/if}
 										</button>
 										<button
 											type="button"
 											class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
 											onclick={cancelarEdicao}
 											title="Cancelar"
+											disabled={pendingCrud}
 										>
 											<X size={18} />
 										</button>
@@ -406,8 +430,13 @@
 													class="p-1 rounded-lg text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
 													title="Remover"
 													onclick={() => excluirMembro('supervisor')}
+													disabled={pendingCrud}
 												>
-													<X size={14} />
+													{#if pendingCrud && removendoPapel === 'supervisor'}
+														<Loader2 size={14} class="animate-spin" />
+													{:else}
+														<Trash2 size={14} />
+													{/if}
 												</button>
 											{/if}
 										</div>
@@ -420,7 +449,10 @@
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pt-1.5 sm:pt-2">
 						<!-- Assessor -->
 						<div
-							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel === 'assessor' ? 'col-span-full' : ''}"
+							class="flex flex-col gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm hover:shadow transition-all duration-200 {editandoPapel ===
+							'assessor'
+								? 'col-span-full'
+								: ''}"
 						>
 							{#if editandoPapel === 'assessor'}
 								<div class="flex flex-col gap-1.5 w-full">
@@ -428,13 +460,17 @@
 										<div class="text-surface-400 dark:text-surface-500 shrink-0">
 											<Users size={14} />
 										</div>
-										<span class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500">
+										<span
+											class="block text-[0.6rem] uppercase font-bold text-surface-400 dark:text-surface-500"
+										>
 											Assessor
 										</span>
 									</div>
 									<div class="flex flex-wrap lg:flex-nowrap items-end gap-3 w-full">
 										<div class="flex-1 min-w-[200px]">
-											<span class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1">
+											<span
+												class="block text-[0.65rem] font-semibold text-surface-500 dark:text-surface-400 mb-1"
+											>
 												Nome do Assessor
 											</span>
 											<SearchableSelect
@@ -477,7 +513,9 @@
 														class="rounded border-surface-450 w-3.5 h-3.5"
 														required
 													/>
-													<span class="text-[0.7rem] text-surface-500 dark:text-surface-400 leading-none select-none">
+													<span
+														class="text-[0.7rem] text-surface-500 dark:text-surface-400 leading-none select-none"
+													>
 														Confirmo e-mail.
 													</span>
 												</label>
@@ -491,13 +529,18 @@
 												disabled={pendingCrud}
 												title="Salvar"
 											>
-												<Check size={18} />
+												{#if pendingCrud && editandoPapel === 'assessor'}
+													<Loader2 size={18} class="animate-spin" />
+												{:else}
+													<Check size={18} />
+												{/if}
 											</button>
 											<button
 												type="button"
 												class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
 												onclick={cancelarEdicao}
 												title="Cancelar"
+												disabled={pendingCrud}
 											>
 												<X size={18} />
 											</button>
@@ -519,7 +562,10 @@
 												<p
 													class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 												>
-													{gise.assessor_id ? (policiais.find((p) => p.id === gise.assessor_id)?.nome ?? 'Carregando...') : 'Não definido'}
+													{gise.assessor_id
+														? (policiais.find((p) => p.id === gise.assessor_id)?.nome ??
+															'Carregando...')
+														: 'Não definido'}
 												</p>
 												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 													<div class="flex items-center gap-1 shrink-0">
@@ -537,8 +583,13 @@
 																class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
 																title="Remover"
 																onclick={() => excluirMembro('assessor')}
+																disabled={pendingCrud}
 															>
-																<X size={12} />
+																{#if pendingCrud && removendoPapel === 'assessor'}
+																	<Loader2 size={12} class="animate-spin" />
+																{:else}
+																	<Trash2 size={12} />
+																{/if}
 															</button>
 														{/if}
 													</div>
@@ -605,13 +656,18 @@
 													disabled={pendingCrud}
 													title="Salvar"
 												>
-													<Check size={18} />
+													{#if pendingCrud && editandoPapel === 'seint1'}
+														<Loader2 size={18} class="animate-spin" />
+													{:else}
+														<Check size={18} />
+													{/if}
 												</button>
 												<button
 													type="button"
 													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
 													onclick={cancelarEdicao}
 													title="Cancelar"
+													disabled={pendingCrud}
 												>
 													<X size={18} />
 												</button>
@@ -622,7 +678,10 @@
 											<p
 												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 											>
-												{gise.seint1_id ? (policiais.find((p) => p.id === gise.seint1_id)?.nome ?? 'Carregando...') : 'Não definido'}
+												{gise.seint1_id
+													? (policiais.find((p) => p.id === gise.seint1_id)?.nome ??
+														'Carregando...')
+													: 'Não definido'}
 											</p>
 											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 												<div class="flex items-center gap-1 shrink-0">
@@ -640,8 +699,13 @@
 															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
 															title="Remover"
 															onclick={() => excluirMembro('seint1')}
+															disabled={pendingCrud}
 														>
-															<X size={12} />
+															{#if pendingCrud && removendoPapel === 'seint1'}
+																<Loader2 size={12} class="animate-spin" />
+															{:else}
+																<Trash2 size={12} />
+															{/if}
 														</button>
 													{/if}
 												</div>
@@ -672,8 +736,6 @@
 									{/if}
 								</div>
 							{/if}
-
-
 						</div>
 
 						<!-- NUIP OIP 2 -->
@@ -710,13 +772,18 @@
 													disabled={pendingCrud}
 													title="Salvar"
 												>
-													<Check size={18} />
+													{#if pendingCrud && editandoPapel === 'seint2'}
+														<Loader2 size={18} class="animate-spin" />
+													{:else}
+														<Check size={18} />
+													{/if}
 												</button>
 												<button
 													type="button"
 													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
 													onclick={cancelarEdicao}
 													title="Cancelar"
+													disabled={pendingCrud}
 												>
 													<X size={18} />
 												</button>
@@ -727,7 +794,10 @@
 											<p
 												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
 											>
-												{gise.seint2_id ? (policiais.find((p) => p.id === gise.seint2_id)?.nome ?? 'Carregando...') : 'Não definido'}
+												{gise.seint2_id
+													? (policiais.find((p) => p.id === gise.seint2_id)?.nome ??
+														'Carregando...')
+													: 'Não definido'}
 											</p>
 											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 												<div class="flex items-center gap-1 shrink-0">
@@ -745,8 +815,13 @@
 															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
 															title="Remover"
 															onclick={() => excluirMembro('seint2')}
+															disabled={pendingCrud}
 														>
-															<X size={12} />
+															{#if pendingCrud && removendoPapel === 'seint2'}
+																<Loader2 size={12} class="animate-spin" />
+															{:else}
+																<Trash2 size={12} />
+															{/if}
 														</button>
 													{/if}
 												</div>
@@ -777,12 +852,8 @@
 									{/if}
 								</div>
 							{/if}
-
-
 						</div>
 					</div>
-
-
 				</div>
 			</div>
 
@@ -791,242 +862,105 @@
 			<input type="hidden" name="seint1_id" value={seint1Id ?? ''} />
 			<input type="hidden" name="seint2_id" value={seint2Id ?? ''} />
 			{#if editandoPapel !== 'assessor'}
-				<input type="hidden" name="assessor_email_notificacao" value={assessorEmailNotificacao ?? ''} />
+				<input
+					type="hidden"
+					name="assessor_email_notificacao"
+					value={assessorEmailNotificacao ?? ''}
+				/>
 				{#if assessorId != null}
 					<input type="hidden" name="confirmar_email_assessor" value="1" />
 				{/if}
 			{/if}
 		</form>
-				{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
-					{@const mostrarColEscala =
-						!!documentoAssinadoInfo?.existe ||
-						mostrarPainelAssinaturaEscala ||
-						mostrarPainelAssinaturaEscalaReadonly ||
-						isSupervisor}
-					<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
-						<div class="flex flex-col gap-4">
-							{#if mostrarColEscala}
-								<div class="flex flex-col gap-1.5 w-full animate-fade">
-									{#if isMobile}
-										<!-- Mobile: card normal com título externo -->
-										<p
-											class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
-										>
-											{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
-										</p>
+		{#if documentoAssinadoInfo?.existe || mostrarPainelAssinaturaEscala || mostrarPainelAssinaturaEscalaReadonly || mostrarBlocoExtraSupervisao || loteSection || isSupervisor}
+			{@const mostrarColEscala =
+				!!documentoAssinadoInfo?.existe ||
+				mostrarPainelAssinaturaEscala ||
+				mostrarPainelAssinaturaEscalaReadonly ||
+				isSupervisor}
+			<div class="border-t border-surface-200/60 dark:border-surface-700/60 pt-3 mt-4 sm:mt-5">
+				<div class="flex flex-col gap-4">
+					{#if mostrarColEscala}
+						<div class="flex flex-col gap-1.5 w-full animate-fade">
+							{#if isMobile}
+								<!-- Mobile: card normal com título externo -->
+								<p
+									class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+								>
+									{documentoAssinadoInfo?.existe ? 'Escala GISE' : 'Assinatura da escala GISE'}
+								</p>
+								<div
+									class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
+								>
+									<!-- Header: sempre visível, clicável no mobile -->
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
+										onclick={() => {
+											expandirEscala = !expandirEscala;
+										}}
+									>
 										<div
-											class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
+											class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
 										>
-											<!-- Header: sempre visível, clicável no mobile -->
-											<button
-												type="button"
-												class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
-												onclick={() => {
-													expandirEscala = !expandirEscala;
-												}}
-											>
-												<div
-													class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+											<ShieldCheck size={14} />
+										</div>
+										<div class="min-w-0 flex-1">
+											{#if documentoAssinadoInfo?.existe}
+												<span
+													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
 												>
-													<ShieldCheck size={14} />
-												</div>
-												<div class="min-w-0 flex-1">
-													{#if documentoAssinadoInfo?.existe}
-														<span
-															class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
-														>
-															<CheckCircle2 size={9} />Assinada
-														</span>
-														<p
-															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-														>
-															Escala assinada digitalmente
-														</p>
-													{:else}
-														{#if gise.status === 'aguardando_assinatura'}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
-															>
-																<Clock size={9} />ass. Pendente
-															</span>
-														{:else}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
-															>
-																<Clock size={9} />em preenchimento
-															</span>
-														{/if}
-														<p
-															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-														>
-															Assinatura da escala GISE
-														</p>
-													{/if}
-												</div>
-												<svg
-													class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirEscala
-														? 'rotate-180'
-														: ''}"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
+													<CheckCircle2 size={9} />Assinada
+												</span>
+												<p
+													class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
 												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M19 9l-7 7-7-7"
-													/>
-												</svg>
-											</button>
-											<!-- Body: expansível no mobile -->
-											{#if expandirEscala}
-												<div
-													transition:slide={{ duration: 200 }}
-													class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
+													Escala assinada digitalmente
+												</p>
+											{:else}
+												{#if gise.status === 'aguardando_assinatura'}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+													>
+														<Clock size={9} />ass. Pendente
+													</span>
+												{:else}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+													>
+														<Clock size={9} />em preenchimento
+													</span>
+												{/if}
+												<p
+													class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
 												>
-													<div class="space-y-2">
-														{#if documentoAssinadoInfo?.existe}
-															<p
-																class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
-															>
-																{documentoAssinadoInfo.assinante_nome}
-															</p>
-														{:else}
-															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-															>
-																O supervisor poderá assinar a escala quando todas as seccionais
-																enviarem a escala.
-															</p>
-															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-															>
-																<span class="text-error-600 dark:text-error-400 font-medium"
-																	>Faltando envio de:</span
-																>
-																{#if !gise.seccionais || gise.seccionais.length === 0}
-																	a escalar
-																{:else if seccionaisPendentes.length === 0}
-																	Nenhum
-																{:else}
-																	{seccionaisPendentes.map((s) => s.seccional_nome).join(', ')}
-																{/if}
-															</p>
-														{/if}
-													</div>
-													<div class="flex items-center gap-1.5 flex-wrap justify-end">
-														{#if documentoAssinadoInfo?.existe}
-															<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-															<a
-																href={urlDocumentoAssinado}
-																target="_blank"
-																class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5"
-															>
-																<FileDown size={13} class="shrink-0" />
-																Baixar PDF
-															</a>
-														{:else}
-															{#if isSupervisor || isAdminGeral}
-																<a
-																	class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
-																		? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
-																		: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-																	href={urlDownloadPdf}
-																	target="_blank"
-																	title="Conferência (sem assinatura digital)"
-																>
-																	<svg
-																		class="h-2.5 w-2.5 shrink-0"
-																		fill="none"
-																		stroke="currentColor"
-																		viewBox="0 0 24 24"
-																		><path
-																			stroke-linecap="round"
-																			stroke-linejoin="round"
-																			stroke-width="2"
-																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																		/></svg
-																	>
-																	Conferência
-																</a>
-															{/if}
-															{#if isSupervisor}
-																<button
-																	type="button"
-																	class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-																	disabled={!mostrarPainelAssinaturaEscala}
-																	onclick={() => onAbrirAssinaturaEscalaManual()}
-																>
-																	<svg
-																		class="h-2.5 w-2.5 shrink-0"
-																		fill="none"
-																		stroke="currentColor"
-																		viewBox="0 0 24 24"
-																		><path
-																			stroke-linecap="round"
-																			stroke-linejoin="round"
-																			stroke-width="2"
-																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																		/></svg
-																	>
-																	Tela
-																</button>
-															{/if}
-														{/if}
-													</div>
-												</div>
+													Assinatura da escala GISE
+												</p>
 											{/if}
 										</div>
-									{:else}
-										<!-- Desktop: Premium horizontal row layout -->
-										<div
-											class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
+										<svg
+											class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirEscala
+												? 'rotate-180'
+												: ''}"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
 										>
-											<!-- Parte 1: Status e Título -->
-											<div class="flex items-center gap-3 min-w-[250px] shrink-0">
-												<div
-													class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
-												>
-													<ShieldCheck size={14} />
-												</div>
-												<div class="min-w-0">
-													{#if documentoAssinadoInfo?.existe}
-														<span
-															class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
-														>
-															<CheckCircle2 size={9} />Assinada
-														</span>
-														<p
-															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-														>
-															Escala GISE
-														</p>
-													{:else}
-														{#if gise.status === 'aguardando_assinatura'}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
-															>
-																<Clock size={9} />ass. Pendente
-															</span>
-														{:else}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
-															>
-																<Clock size={9} />em preenchimento
-															</span>
-														{/if}
-														<p
-															class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-														>
-															Assinatura da escala GISE
-														</p>
-													{/if}
-												</div>
-											</div>
-
-											<!-- Parte 2: Informações/Detalhes -->
-											<div class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 9l-7 7-7-7"
+											/>
+										</svg>
+									</button>
+									<!-- Body: expansível no mobile -->
+									{#if expandirEscala}
+										<div
+											transition:slide={{ duration: 200 }}
+											class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
+										>
+											<div class="space-y-2">
 												{#if documentoAssinadoInfo?.existe}
 													<p
 														class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
@@ -1037,10 +971,11 @@
 													<p
 														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
 													>
-														O supervisor poderá assinar a escala quando todas as seccionais enviarem a escala.
+														O supervisor poderá assinar a escala quando todas as seccionais enviarem
+														a escala.
 													</p>
 													<p
-														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
 													>
 														<span class="text-error-600 dark:text-error-400 font-medium"
 															>Faltando envio de:</span
@@ -1055,14 +990,13 @@
 													</p>
 												{/if}
 											</div>
-
-											<!-- Parte 3: Ações -->
-											<div class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+											<div class="flex items-center gap-1.5 flex-wrap justify-end">
 												{#if documentoAssinadoInfo?.existe}
+													<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 													<a
 														href={urlDocumentoAssinado}
 														target="_blank"
-														class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all"
+														class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5"
 													>
 														<FileDown size={13} class="shrink-0" />
 														Baixar PDF
@@ -1070,7 +1004,7 @@
 												{:else}
 													{#if isSupervisor || isAdminGeral}
 														<a
-															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
+															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {assinaturaEscalaHabilitada
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 															href={urlDownloadPdf}
@@ -1095,9 +1029,9 @@
 													{#if isSupervisor}
 														<button
 															type="button"
-															class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+															class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 															disabled={!mostrarPainelAssinaturaEscala}
-															onclick={() => painelTokenGise?.assinarComSerpro()}
+															onclick={() => onAbrirAssinaturaEscalaManual()}
 														>
 															<svg
 																class="h-2.5 w-2.5 shrink-0"
@@ -1111,274 +1045,276 @@
 																	d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 																/></svg
 															>
-															Token
+															Tela
 														</button>
 													{/if}
 												{/if}
 											</div>
 										</div>
 									{/if}
-
-									{#if mostrarPainelAssinaturaEscala}
-										<div class="sr-only" aria-hidden="true">
-											<PainelAssinaturaToken
-												bind:control={painelTokenGise}
-												bind:signerName={serproSignerName}
-												bind:signerCpf={serproSignerCpf}
-												signerEmail={assinaturaEscalaSignerEmail ?? ''}
-												prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
-												finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
-												nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
-												extraPayload={{ rubrica: rubricaCapturada }}
-												disabled={false}
-												onSuccess={onAssinaturaEscalaDigitalSuccess}
-											/>
-										</div>
-									{/if}
 								</div>
-							{/if}
+							{:else}
+								<!-- Desktop: Premium horizontal row layout -->
+								<div
+									class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
+								>
+									<!-- Parte 1: Status e Título -->
+									<div class="flex items-center gap-3 min-w-[250px] shrink-0">
+										<div
+											class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+										>
+											<ShieldCheck size={14} />
+										</div>
+										<div class="min-w-0">
+											{#if documentoAssinadoInfo?.existe}
+												<span
+													class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+												>
+													<CheckCircle2 size={9} />Assinada
+												</span>
+												<p
+													class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+												>
+													Escala GISE
+												</p>
+											{:else}
+												{#if gise.status === 'aguardando_assinatura'}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+													>
+														<Clock size={9} />ass. Pendente
+													</span>
+												{:else}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+													>
+														<Clock size={9} />em preenchimento
+													</span>
+												{/if}
+												<p
+													class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+												>
+													Assinatura da escala GISE
+												</p>
+											{/if}
+										</div>
+									</div>
 
-							{#if mostrarBlocoExtraSupervisao}
-								<div class="flex flex-col gap-1.5 w-full animate-fade">
-									{#if !extraSupervisaoConfigurado}
-										{#if isMobile}
+									<!-- Parte 2: Informações/Detalhes -->
+									<div
+										class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+									>
+										{#if documentoAssinadoInfo?.existe}
 											<p
-												class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+												class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
 											>
-												Relatório de extra (Supervisão e apoio)
+												{documentoAssinadoInfo.assinante_nome}
+											</p>
+										{:else}
+											<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
+												O supervisor poderá assinar a escala quando todas as seccionais enviarem a
+												escala.
+											</p>
+											<p
+												class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+											>
+												<span class="text-error-600 dark:text-error-400 font-medium"
+													>Faltando envio de:</span
+												>
+												{#if !gise.seccionais || gise.seccionais.length === 0}
+													a escalar
+												{:else if seccionaisPendentes.length === 0}
+													Nenhum
+												{:else}
+													{seccionaisPendentes.map((s) => s.seccional_nome).join(', ')}
+												{/if}
 											</p>
 										{/if}
-										<div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 p-3.5">
-											<p
-												class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg px-3 py-2"
+									</div>
+
+									<!-- Parte 3: Ações -->
+									<div
+										class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+									>
+										{#if documentoAssinadoInfo?.existe}
+											<a
+												href={urlDocumentoAssinado}
+												target="_blank"
+												class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all"
 											>
-												O relatório de extra do quadro ainda não está disponível. Peça ao
-												administrador para executar as migrações.
-											</p>
-										</div>
-									{:else}
-										{#if isMobile}
-											<!-- Mobile layout -->
-											<p
-												class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
-											>
-												Relatório de extra (Supervisão e apoio)
-											</p>
-											<div
-												class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
-											>
-												<button
-													type="button"
-													class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
-													onclick={() => {
-														expandirExtra = !expandirExtra;
-													}}
+												<FileDown size={13} class="shrink-0" />
+												Baixar PDF
+											</a>
+										{:else}
+											{#if isSupervisor || isAdminGeral}
+												<a
+													class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {assinaturaEscalaHabilitada
+														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
+														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
+													href={urlDownloadPdf}
+													target="_blank"
+													title="Conferência (sem assinatura digital)"
 												>
-													<div
-														class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
-													>
-														<ShieldCheck size={14} />
-													</div>
-													<div class="min-w-0 flex-1">
-														{#if assRelSup}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
-															>
-																<CheckCircle2 size={9} />Assinado
-															</span>
-															<p
-																class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-															>
-																Relatório de extra — supervisão e apoio
-															</p>
-														{:else}
-															{#if rubSupOk}
-																<span
-																	class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
-																>
-																	<Clock size={9} />pronto para assinar
-																</span>
-															{:else}
-																<span
-																	class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
-																>
-																	<Clock size={9} />Aguardando rubricas
-																</span>
-															{/if}
-															<p
-																class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-															>
-																Relatório de extra — supervisão e apoio
-															</p>
-														{/if}
-													</div>
 													<svg
-														class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirExtra
-															? 'rotate-180'
-															: ''}"
+														class="h-2.5 w-2.5 shrink-0"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
-													>
-														<path
+														><path
 															stroke-linecap="round"
 															stroke-linejoin="round"
 															stroke-width="2"
-															d="M19 9l-7 7-7-7"
-														/>
-													</svg>
-												</button>
-
-												{#if expandirExtra}
-													<div
-														transition:slide={{ duration: 200 }}
-														class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
+															d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+														/></svg
 													>
-														<div class="space-y-2">
-															{#if assRelSup}
-																<p
-																	class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
-																>
-																	{assRelSup.assinante_nome}
-																</p>
-															{:else}
-																<p
-																	class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-																>
-																	O supervisor poderá assinar o relatório de extra do quadro de
-																	supervisão quando todos os integrantes confirmarem sua saída.
-																</p>
-																{#if !rubSupOk}
-																	<p
-																		class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-																	>
-																		{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
-																			<span class="text-error-600 dark:text-error-400 font-medium"
-																				>Faltando rúbrica de:</span
-																			>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
-																		{:else}
-																			{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
-																		{/if}
-																	</p>
-																{:else}
-																	<p
-																		class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
-																	>
-																		Disponível para conferência. Aguardando assinatura.
-																	</p>
-																{/if}
-															{/if}
-														</div>
-														<div class="flex items-center gap-1.5 flex-wrap justify-end">
-															{#if assRelSup}
-																<a
-																	href={urlDownloadExtra}
-																	target="_blank"
-																	class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado
-																		? 'pointer-events-none opacity-60'
-																		: ''}"
-																>
-																	<FileDown size={13} class="shrink-0" />
-																	Baixar PDF
-																</a>
-															{:else}
-																<a
-																	class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
-																		? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
-																		: 'preset-tonal-surface opacity-50 pointer-events-none'}"
-																	href={urlDownloadExtra}
-																	target="_blank"
-																>
-																	<svg
-																		class="h-2.5 w-2.5 shrink-0"
-																		fill="none"
-																		stroke="currentColor"
-																		viewBox="0 0 24 24"
-																		><path
-																			stroke-linecap="round"
-																			stroke-linejoin="round"
-																			stroke-width="2"
-																			d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																		/></svg
-																	>
-																	Conferência
-																</a>
-																{#if isSupervisor && extraSupervisaoConfigurado}
-																	<button
-																		type="button"
-																		class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
-																		disabled={!assinaturaExtraHabilitada}
-																		onclick={() => onAssinarExtraSupervisaoManual?.()}
-																	>
-																		<svg
-																			class="h-2.5 w-2.5 shrink-0"
-																			fill="none"
-																			stroke="currentColor"
-																			viewBox="0 0 24 24"
-																			><path
-																				stroke-linecap="round"
-																				stroke-linejoin="round"
-																				stroke-width="2"
-																				d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-																			/></svg
-																		>
-																		Tela
-																	</button>
-																{/if}
-															{/if}
-														</div>
-													</div>
+													Conferência
+												</a>
+											{/if}
+											{#if isSupervisor}
+												<button
+													type="button"
+													class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+													disabled={!mostrarPainelAssinaturaEscala}
+													onclick={() => painelTokenGise?.assinarComSerpro()}
+												>
+													<svg
+														class="h-2.5 w-2.5 shrink-0"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														><path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+														/></svg
+													>
+													Token
+												</button>
+											{/if}
+										{/if}
+									</div>
+								</div>
+							{/if}
+
+							{#if mostrarPainelAssinaturaEscala}
+								<div class="sr-only" aria-hidden="true">
+									<PainelAssinaturaToken
+										bind:control={painelTokenGise}
+										bind:signerName={serproSignerName}
+										bind:signerCpf={serproSignerCpf}
+										signerEmail={assinaturaEscalaSignerEmail ?? ''}
+										prepararUrl="/api/gise/{gise.id}/preparar-assinatura"
+										finalizarUrl="/api/gise/{gise.id}/finalizar-assinatura"
+										nomeArquivo="gise_{gise.data_inicio}_assinada.pdf"
+										extraPayload={{ rubrica: rubricaCapturada }}
+										disabled={false}
+										onSuccess={onAssinaturaEscalaDigitalSuccess}
+									/>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					{#if mostrarBlocoExtraSupervisao}
+						<div class="flex flex-col gap-1.5 w-full animate-fade">
+							{#if !extraSupervisaoConfigurado}
+								{#if isMobile}
+									<p
+										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+									>
+										Relatório de extra (Supervisão e apoio)
+									</p>
+								{/if}
+								<div
+									class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 p-3.5"
+								>
+									<p
+										class="text-xs text-warning-700 dark:text-warning-400 bg-warning-500/10 border border-warning-500/20 rounded-lg px-3 py-2"
+									>
+										O relatório de extra do quadro ainda não está disponível. Peça ao administrador
+										para executar as migrações.
+									</p>
+								</div>
+							{:else}
+								{#if isMobile}
+									<!-- Mobile layout -->
+									<p
+										class="text-[0.6rem] font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500"
+									>
+										Relatório de extra (Supervisão e apoio)
+									</p>
+									<div
+										class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow duration-300"
+									>
+										<button
+											type="button"
+											class="flex w-full items-center gap-2 p-3 text-left cursor-pointer active:bg-surface-100/60 dark:active:bg-surface-700/40"
+											onclick={() => {
+												expandirExtra = !expandirExtra;
+											}}
+										>
+											<div
+												class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+											>
+												<ShieldCheck size={14} />
+											</div>
+											<div class="min-w-0 flex-1">
+												{#if assRelSup}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+													>
+														<CheckCircle2 size={9} />Assinado
+													</span>
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Relatório de extra — supervisão e apoio
+													</p>
+												{:else}
+													{#if rubSupOk}
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														>
+															<Clock size={9} />pronto para assinar
+														</span>
+													{:else}
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														>
+															<Clock size={9} />Aguardando rubricas
+														</span>
+													{/if}
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Relatório de extra — supervisão e apoio
+													</p>
 												{/if}
 											</div>
-										{:else}
-											<!-- Desktop layout: Premium horizontal row layout -->
-											<div
-												class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
+											<svg
+												class="h-4 w-4 shrink-0 text-surface-400 transition-transform duration-200 {expandirExtra
+													? 'rotate-180'
+													: ''}"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
 											>
-												<!-- Parte 1: Status e Título -->
-												<div class="flex items-center gap-3 min-w-[250px] shrink-0">
-													<div
-														class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
-													>
-														<ShieldCheck size={14} />
-													</div>
-													<div class="min-w-0">
-														{#if assRelSup}
-															<span
-																class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
-															>
-																<CheckCircle2 size={9} />Assinado
-															</span>
-															<p
-																class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-															>
-																Relatório de extra
-															</p>
-														{:else}
-															{#if rubSupOk}
-																<span
-																	class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
-																>
-																	<Clock size={9} />pronto para assinar
-																</span>
-															{:else}
-																<span
-																	class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
-																>
-																	<Clock size={9} />Aguardando rubricas
-																</span>
-															{/if}
-															<p
-																class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
-															>
-																Relatório de extra (supervisão)
-															</p>
-														{/if}
-													</div>
-												</div>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M19 9l-7 7-7-7"
+												/>
+											</svg>
+										</button>
 
-												<!-- Parte 2: Informações/Detalhes -->
-												<div class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+										{#if expandirExtra}
+											<div
+												transition:slide={{ duration: 200 }}
+												class="px-3 pb-3 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50 flex-1 flex flex-col justify-between gap-2.5"
+											>
+												<div class="space-y-2">
 													{#if assRelSup}
 														<p
 															class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
@@ -1389,11 +1325,12 @@
 														<p
 															class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
 														>
-															O supervisor poderá assinar o relatório de extra do quadro de supervisão quando todos os integrantes confirmarem sua saída.
+															O supervisor poderá assinar o relatório de extra do quadro de
+															supervisão quando todos os integrantes confirmarem sua saída.
 														</p>
 														{#if !rubSupOk}
 															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
 															>
 																{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
 																	<span class="text-error-600 dark:text-error-400 font-medium"
@@ -1405,21 +1342,19 @@
 															</p>
 														{:else}
 															<p
-																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+																class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
 															>
 																Disponível para conferência. Aguardando assinatura.
 															</p>
 														{/if}
 													{/if}
 												</div>
-
-												<!-- Parte 3: Ações -->
-												<div class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+												<div class="flex items-center gap-1.5 flex-wrap justify-end">
 													{#if assRelSup}
 														<a
 															href={urlDownloadExtra}
 															target="_blank"
-															class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+															class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado
 																? 'pointer-events-none opacity-60'
 																: ''}"
 														>
@@ -1428,7 +1363,7 @@
 														</a>
 													{:else}
 														<a
-															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
+															class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 {downloadExtraSupConferenciaHabilitado
 																? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
 																: 'preset-tonal-surface opacity-50 pointer-events-none'}"
 															href={urlDownloadExtra}
@@ -1451,9 +1386,9 @@
 														{#if isSupervisor && extraSupervisaoConfigurado}
 															<button
 																type="button"
-																class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+																class="btn btn-xs preset-filled-warning-500 border border-warning-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-warning-600 disabled:opacity-40 flex items-center gap-1"
 																disabled={!assinaturaExtraHabilitada}
-																onclick={() => onAssinarExtraSupervisaoDigital?.()}
+																onclick={() => onAssinarExtraSupervisaoManual?.()}
 															>
 																<svg
 																	class="h-2.5 w-2.5 shrink-0"
@@ -1467,21 +1402,170 @@
 																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
 																	/></svg
 																>
-																Token
+																Tela
 															</button>
 														{/if}
 													{/if}
 												</div>
 											</div>
 										{/if}
-									{/if}
-								</div>
+									</div>
+								{:else}
+									<!-- Desktop layout: Premium horizontal row layout -->
+									<div
+										class="rounded-xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex items-center justify-between gap-4 p-3.5 px-4"
+									>
+										<!-- Parte 1: Status e Título -->
+										<div class="flex items-center gap-3 min-w-[250px] shrink-0">
+											<div
+												class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg bg-surface-100 dark:bg-surface-700"
+											>
+												<ShieldCheck size={14} />
+											</div>
+											<div class="min-w-0">
+												{#if assRelSup}
+													<span
+														class="inline-flex items-center gap-1 rounded-full bg-success-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-success-700 dark:text-success-400"
+													>
+														<CheckCircle2 size={9} />Assinado
+													</span>
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Relatório de extra
+													</p>
+												{:else}
+													{#if rubSupOk}
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-warning-700 dark:text-warning-400"
+														>
+															<Clock size={9} />pronto para assinar
+														</span>
+													{:else}
+														<span
+															class="inline-flex items-center gap-1 rounded-full bg-surface-500/15 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-surface-700 dark:text-surface-400"
+														>
+															<Clock size={9} />Aguardando rubricas
+														</span>
+													{/if}
+													<p
+														class="text-xs font-semibold text-surface-700 dark:text-surface-200 mt-0.5"
+													>
+														Relatório de extra (supervisão)
+													</p>
+												{/if}
+											</div>
+										</div>
+
+										<!-- Parte 2: Informações/Detalhes -->
+										<div
+											class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+										>
+											{#if assRelSup}
+												<p
+													class="text-xs font-bold text-surface-800 dark:text-surface-100 break-words"
+												>
+													{assRelSup.assinante_nome}
+												</p>
+											{:else}
+												<p
+													class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400"
+												>
+													O supervisor poderá assinar o relatório de extra do quadro de supervisão
+													quando todos os integrantes confirmarem sua saída.
+												</p>
+												{#if !rubSupOk}
+													<p
+														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+													>
+														{#if faltSup?.startsWith(FALTANTE_RUBRICA_SUPER_PREFIX)}
+															<span class="text-error-600 dark:text-error-400 font-medium"
+																>Faltando rúbrica de:</span
+															>{faltSup.slice(FALTANTE_RUBRICA_SUPER_PREFIX.length)}
+														{:else}
+															{faltSup ?? 'Aguardando rúbricas do quadro de supervisão.'}
+														{/if}
+													</p>
+												{:else}
+													<p
+														class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400 mt-0.5"
+													>
+														Disponível para conferência. Aguardando assinatura.
+													</p>
+												{/if}
+											{/if}
+										</div>
+
+										<!-- Parte 3: Ações -->
+										<div
+											class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+										>
+											{#if assRelSup}
+												<a
+													href={urlDownloadExtra}
+													target="_blank"
+													class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+														? 'pointer-events-none opacity-60'
+														: ''}"
+												>
+													<FileDown size={13} class="shrink-0" />
+													Baixar PDF
+												</a>
+											{:else}
+												<a
+													class="btn btn-xs text-[0.65rem] px-2.5 py-1.5 rounded-lg font-semibold no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {downloadExtraSupConferenciaHabilitado
+														? 'preset-tonal-primary border border-primary-500/30 hover:border-primary-500'
+														: 'preset-tonal-surface opacity-50 pointer-events-none'}"
+													href={urlDownloadExtra}
+													target="_blank"
+												>
+													<svg
+														class="h-2.5 w-2.5 shrink-0"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														><path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+														/></svg
+													>
+													Conferência
+												</a>
+												{#if isSupervisor && extraSupervisaoConfigurado}
+													<button
+														type="button"
+														class="btn btn-xs preset-filled-tertiary-500 border border-tertiary-600/30 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg hover:border-tertiary-600 disabled:opacity-40 flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+														disabled={!assinaturaExtraHabilitada}
+														onclick={() => onAssinarExtraSupervisaoDigital?.()}
+													>
+														<svg
+															class="h-2.5 w-2.5 shrink-0"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+															><path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+															/></svg
+														>
+														Token
+													</button>
+												{/if}
+											{/if}
+										</div>
+									</div>
+								{/if}
 							{/if}
-
-							{@render loteSection?.()}
 						</div>
-					</div>
-				{/if}
-			</div>
-	</div>
+					{/if}
 
+					{@render loteSection?.()}
+				</div>
+			</div>
+		{/if}
+	</div>
+</div>
