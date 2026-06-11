@@ -22,7 +22,7 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, '&#x27;');
 }
 
-const CF_FROM = 'nao-responda@escalaspcce.com.br';
+const CF_FROM = 'sistema@nao-responda.escalaspcce.com.br';
 const CF_FROM_NAME = 'Sistema de Escalas - PCCE';
 
 interface EmailAttachment {

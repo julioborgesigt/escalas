@@ -23,6 +23,9 @@ migrations_dir = "migrations"
 binding = "escalas_docs"
 bucket_name = "escalas-docs"
 
+[[send_email]]
+name = "EMAIL"
+
 # ─────────────────────────────────────────────────────────────────────────
 # Ambiente PREVIEW (staging + deployments de PR).
 #
@@ -56,4 +59,7 @@ migrations_dir = "migrations"
 [[env.preview.r2_buckets]]
 binding = "escalas_docs"
 bucket_name = "escalas-docs-staging"
+
+[[env.preview.send_email]]
+name = "EMAIL"
 
