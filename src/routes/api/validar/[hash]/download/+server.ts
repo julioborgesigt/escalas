@@ -316,7 +316,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 
 			logger.info('[validar/download] Re-geração dinâmica concluída', { hash });
 			const filename = `relatorio_${relTipo}_${hash}.pdf`;
-			return new Response(finalPdf, {
+			return new Response(finalPdf as unknown as BodyInit, {
 				headers: {
 					'Content-Type': 'application/pdf',
 					'Content-Disposition': contentDisposition(filename),

@@ -141,7 +141,7 @@
 			let total = 0;
 			if (res.drogas_detalhe) {
 				Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-					const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
+					const unidade = (res.drogas_unidade && (res.drogas_unidade as Record<string, string>)[tipo]) || 'g';
 					let p = Number(peso) || 0;
 					if (unidade === 'kg') p *= 1000;
 					total += p;

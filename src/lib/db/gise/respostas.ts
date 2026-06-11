@@ -294,7 +294,7 @@ export async function buscarRespostasProdutividadeSeccional(
 
 				if (isSim || p.tipo === 'operacoes_seint_pura') {
 					if (p.tipo === 'mandados_maiores' && resps.mandados_lista) {
-						resps.mandados_lista.forEach((item, idx: number) => {
+						(resps.mandados_lista as { nome?: string; mandado?: string }[]).forEach((item, idx) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -305,7 +305,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'prisoes_maiores' && resps.prisoes_lista) {
-						resps.prisoes_lista.forEach((item, idx: number) => {
+						(resps.prisoes_lista as { nome?: string; mandado?: string }[]).forEach((item, idx) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -327,7 +327,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'apreensoes_menores' && resps.apreensoes_lista) {
-						resps.apreensoes_lista.forEach((item, idx: number) => {
+						(resps.apreensoes_lista as { nome?: string; mandado?: string }[]).forEach((item, idx) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -350,7 +350,7 @@ export async function buscarRespostasProdutividadeSeccional(
 					}
 					// SEINT Complex Types
 					if (p.tipo === 'celulares_complex' && resps.celulares_lista) {
-						resps.celulares_lista.forEach((item, idx: number) => {
+						(resps.celulares_lista as { modelo?: string; n_proc?: string }[]).forEach((item, idx) => {
 							if (item.modelo || item.n_proc) {
 								allResults.push({
 									equipe_id: eqId,
@@ -362,7 +362,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'analise_complex' && resps.analise_lista) {
-						resps.analise_lista.forEach((item, idx: number) => {
+						(resps.analise_lista as { modelo?: string; n_proc?: string; tamanho?: string }[]).forEach((item, idx) => {
 							if (item.modelo || item.n_proc) {
 								allResults.push({
 									equipe_id: eqId,
@@ -374,7 +374,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'relatorios_seint_complex' && resps.relatorios_seint_lista) {
-						resps.relatorios_seint_lista.forEach((item, idx: number) => {
+						(resps.relatorios_seint_lista as { n_relat?: string; q_alvos?: string }[]).forEach((item, idx) => {
 							if (item.n_relat || item.q_alvos) {
 								allResults.push({
 									equipe_id: eqId,
@@ -386,7 +386,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'foragidos_complex' && resps.foragidos_lista) {
-						resps.foragidos_lista.forEach((item, idx: number) => {
+						(resps.foragidos_lista as { nome?: string; resultado?: string }[]).forEach((item, idx) => {
 							if (item.nome || item.resultado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -400,7 +400,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						(p.tipo === 'operacoes_seint_complex' || p.tipo === 'operacoes_seint_pura') &&
 						resps.operacoes_seint_lista
 					) {
-						resps.operacoes_seint_lista.forEach((item, idx: number) => {
+						(resps.operacoes_seint_lista as { nome?: string; delegacia?: string }[]).forEach((item, idx) => {
 							if (item.nome || item.delegacia) {
 								allResults.push({
 									equipe_id: eqId,
