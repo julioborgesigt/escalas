@@ -45,27 +45,83 @@ async function dispararEmailCloudflare(
 	options: EmailOptions
 ): Promise<{ messageId: string }> {
 	const env = platform?.env as Env | undefined;
-	if (!env?.EMAIL) throw new Error('CF_EMAIL_BINDING_ABSENT');
 
-	const result = await env.EMAIL.send({
-		from: { email: CF_FROM, name: CF_FROM_NAME },
-		to: [{ email: options.to }],
+	// Se houver o binding nativo de e-mail (Workers/Pages em prod), prioriza-o
+	if (env?.EMAIL) {
+		const result = await env.EMAIL.send({
+			from: { email: CF_FROM, name: CF_FROM_NAME },
+			to: [{ email: options.to }],
+			subject: options.subject,
+			html: options.html,
+			...(options.text ? { text: options.text } : {}),
+			...(options.attachments?.length
+				? {
+						attachments: options.attachments.map((a) => ({
+							disposition: 'attachment' as const,
+							filename: a.filename,
+							content: a.content,
+							type: 'application/octet-stream'
+						}))
+					}
+				: {})
+		});
+
+		return { messageId: result.messageId ?? 'cf-ok' };
+	}
+
+	// Caso contrário, tenta enviar via REST API utilizando as credenciais fornecidas
+	const apiToken = env?.CLOUDFLARE_API_TOKEN;
+	const accountId = env?.CLOUDFLARE_ACCOUNT_ID;
+
+	if (!apiToken || !accountId) {
+		throw new Error('CF_EMAIL_BINDING_ABSENT');
+	}
+
+	const bodyPayload = {
+		from: { address: CF_FROM, name: CF_FROM_NAME },
+		to: options.to,
 		subject: options.subject,
 		html: options.html,
 		...(options.text ? { text: options.text } : {}),
 		...(options.attachments?.length
 			? {
 					attachments: options.attachments.map((a) => ({
-						disposition: 'attachment' as const,
+						disposition: 'attachment',
 						filename: a.filename,
 						content: a.content,
 						type: 'application/octet-stream'
 					}))
 				}
 			: {})
-	});
+	};
 
-	return { messageId: result.messageId ?? 'cf-ok' };
+	const response = await fetch(
+		`https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`,
+		{
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${apiToken}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(bodyPayload)
+		}
+	);
+
+	if (!response.ok) {
+		const errorText = await response.text();
+		throw new Error(`Falha ao enviar e-mail via Cloudflare REST API (HTTP ${response.status}): ${errorText}`);
+	}
+
+	const data = (await response.json()) as {
+		success: boolean;
+		result: { delivered: string[] } | null;
+	};
+
+	if (!data.success) {
+		throw new Error('Falha na resposta do Cloudflare REST API');
+	}
+
+	return { messageId: 'cf-rest-ok' };
 }
 
 // ─── Resend (fallback) ────────────────────────────────────────────────────────

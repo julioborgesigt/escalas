@@ -24,6 +24,8 @@ declare global {
 		RESET_TOKEN?: string;
 		RESEND_API_KEY?: string;
 		RESEND_FROM_EMAIL?: string;
+		CLOUDFLARE_API_TOKEN?: string;
+		CLOUDFLARE_ACCOUNT_ID?: string;
 		/**
 		 * DSN do Sentry. Quando vazio/ausente, o SDK é inicializado em modo no-op
 		 * (útil em dev/local). Configure em produção para receber 5xx do worker.
