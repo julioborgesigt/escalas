@@ -11,8 +11,30 @@ interface Seccional {
 	[key: string]: unknown;
 }
 
+interface GiseShape {
+	supervisor_id?: number | null;
+	seccionais?: Seccional[];
+	status?: string;
+	[key: string]: unknown;
+}
+
+interface GiseData {
+	gise?: GiseShape | null;
+	policiais?: unknown[];
+	todasUnidades?: unknown[];
+	papelGise?: string;
+	minhaSeccionalId?: number | null;
+	isGeral?: boolean;
+	isSeccional?: boolean;
+	isUnidade?: boolean;
+	isSupervisor?: boolean;
+	isMembro?: boolean;
+	usuarioAtual?: { id: number } | null;
+	[key: string]: unknown;
+}
+
 export interface GiseEstadoParams {
-	getData: () => any;
+	getData: () => GiseData;
 }
 
 export function useGiseEstado({ getData }: GiseEstadoParams) {
@@ -39,10 +61,10 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
-		gise?.seccionais?.length > 0 &&
-			gise.seccionais.every(
+		(gise?.seccionais?.length ?? 0) > 0 &&
+			(gise?.seccionais?.every(
 				(s: Seccional) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
-			)
+			) ?? false)
 	);
 
 	const editaBloqueado = $derived(

@@ -356,7 +356,7 @@ function mapearAdmin(
 	admin: typeof administradores.$inferSelect,
 	platform?: App.Platform
 ): UsuarioLogado {
-	const _env = platform?.env as any;
+	const _env = platform?.env as Env | undefined;
 	const superAdminLogin = _env?.SUPER_ADMIN_LOGIN?.trim();
 	const isSuperAdmin = !!superAdminLogin && admin.login === superAdminLogin;
 

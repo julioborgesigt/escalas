@@ -3,8 +3,23 @@
  * Cuida do lifecycle, destruição de instâncias stale e atualização.
  */
 
-import type { TooltipItem } from 'chart.js';
+import type { Chart, TooltipItem } from 'chart.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+
+type ChartConstructor = typeof Chart;
+type ChartInstance = InstanceType<ChartConstructor>;
+
+interface ListItem {
+	seccional_id: number;
+	data_inicio: string;
+	respostasParsed?: Record<string, unknown>;
+	respostas?: string;
+}
+
+interface SeccionalItem {
+	id: number;
+	nome: string;
+}
 
 export interface ChartQuestion {
 	id: number;
@@ -16,8 +31,11 @@ export interface ChartQuestion {
 	specialStore: string | null;
 }
 
-export function useCharts(getChart: () => any, getData: () => any) {
-	const chartInstances = new SvelteMap<number, any>();
+export function useCharts(
+	getChart: () => ChartConstructor | null,
+	getData: () => { seccionais?: SeccionalItem[] } & Record<string, unknown>
+) {
+	const chartInstances = new SvelteMap<number, ChartInstance>();
 	const canvasElements = $state<Record<number, HTMLCanvasElement>>({});
 
 	function destroyStaleCharts(questionIds: Set<number>) {
@@ -29,14 +47,14 @@ export function useCharts(getChart: () => any, getData: () => any) {
 		});
 	}
 
-	function updateCharts(questions: ChartQuestion[], list: any[], filterSeccional: string | number) {
+	function updateCharts(questions: ChartQuestion[], list: ListItem[], filterSeccional: string | number) {
 		const Chart = getChart();
 		if (!Chart) return;
 
 		const isShowingAll = !filterSeccional;
 		const labels = isShowingAll
-			? (getData().seccionais ?? []).map((s: any) => s.nome.split(' do ')[0])
-			: Array.from(new SvelteSet(list.map((i: any) => i.data_inicio))).sort();
+			? (getData().seccionais ?? []).map((s: SeccionalItem) => s.nome.split(' do ')[0])
+			: Array.from(new SvelteSet(list.map((i: ListItem) => i.data_inicio))).sort();
 
 		questions.forEach((q) => {
 			const canvas = canvasElements[q.id];
@@ -44,24 +62,25 @@ export function useCharts(getChart: () => any, getData: () => any) {
 
 			// Destroy existing
 			if (chartInstances.has(q.id)) {
-				chartInstances.get(q.id).destroy();
+				chartInstances.get(q.id)!.destroy();
 			}
 
 			// Process Data
-			let chartData: number[] = [];
+			let chartData: number[];
 
 			if (isShowingAll) {
-				chartData = (getData().seccionais ?? []).map((sec: any) => {
+				chartData = (getData().seccionais ?? []).map((sec: SeccionalItem) => {
 					return list
-						.filter((item: any) => item.seccional_id === sec.id)
-						.reduce((acc: number, item: any) => {
-							const res = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
+						.filter((item: ListItem) => item.seccional_id === sec.id)
+						.reduce((acc: number, item: ListItem) => {
+							const res: Record<string, unknown> = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;
-								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
+								if (res.drogas_detalhe && typeof res.drogas_detalhe === 'object') {
+									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
+										const drogasUnidade = res.drogas_unidade as Record<string, string> | undefined;
+										const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
 										let pesoV = Number(peso) || 0;
 										if (unidade === 'kg') pesoV *= 1000;
 										drogasTotal += pesoV;
@@ -75,15 +94,16 @@ export function useCharts(getChart: () => any, getData: () => any) {
 			} else {
 				chartData = labels.map((date: string) => {
 					return list
-						.filter((item: any) => item.data_inicio === date)
-						.reduce((acc: number, item: any) => {
-							const res = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
+						.filter((item: ListItem) => item.data_inicio === date)
+						.reduce((acc: number, item: ListItem) => {
+							const res: Record<string, unknown> = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;
-								if (res.drogas_detalhe) {
-									Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-										const unidade = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
+								if (res.drogas_detalhe && typeof res.drogas_detalhe === 'object') {
+									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
+										const drogasUnidade = res.drogas_unidade as Record<string, string> | undefined;
+										const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
 										let pesoV = Number(peso) || 0;
 										if (unidade === 'kg') pesoV *= 1000;
 										drogasTotal += pesoV;

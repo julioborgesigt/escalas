@@ -17,8 +17,10 @@ export interface StatsResult {
 /**
  * Agrega estatísticas a partir dos dados filtrados.
  */
+type FilteredDataItem = { respostasParsed?: Record<string, unknown>; respostas?: string; seccional_id?: number };
+
 export function calculateStats(
-	filteredData: any[],
+	filteredData: FilteredDataItem[],
 	questions: Question[],
 	armasKey: string
 ): StatsResult {
@@ -37,7 +39,7 @@ export function calculateStats(
 	});
 
 	filteredData.forEach((item) => {
-		const res = (item as any).respostasParsed ?? JSON.parse(item.respostas || '{}');
+		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<string, unknown>;
 
 		// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
 		questions.forEach((q) => {
@@ -51,8 +53,9 @@ export function calculateStats(
 
 		// P10: Drugs
 		if (res.drogas_detalhe) {
-			Object.entries(res.drogas_detalhe).forEach(([tipo, peso]) => {
-				const unid = (res.drogas_unidade && res.drogas_unidade[tipo]) || 'g';
+			Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
+				const drogas_unidade = res.drogas_unidade as Record<string, unknown> | undefined;
+				const unid = (drogas_unidade && drogas_unidade[tipo]) || 'g';
 				let pNorm = Number(peso) || 0;
 				if (unid === 'kg') pNorm *= 1000;
 				s.drogasPorTipo[tipo] = (s.drogasPorTipo[tipo] || 0) + pNorm;
@@ -62,7 +65,7 @@ export function calculateStats(
 
 		// P11: Weapons
 		if (res[armasKey] === 'Sim' && res.armas_detalhe) {
-			Object.entries(res.armas_detalhe).forEach(([tipo, qtd]) => {
+			Object.entries(res.armas_detalhe as Record<string, unknown>).forEach(([tipo, qtd]) => {
 				const n = Number(qtd) || 0;
 				s.apreensoes_armas += n;
 				s.armasPorTipo[tipo] = (s.armasPorTipo[tipo] || 0) + n;
@@ -87,18 +90,20 @@ export interface RankingItem {
 /**
  * Calcula ranking genérico por seccional.
  */
+type SeccionalItem = { id: number; nome: string };
+
 export function calculateRanking(
-	seccionais: any[],
-	filteredData: any[],
-	extractValue: (res: Record<string, any>) => number
+	seccionais: SeccionalItem[],
+	filteredData: FilteredDataItem[],
+	extractValue: (res: Record<string, unknown>) => number
 ): RankingItem[] {
 	const r = new Map<number, RankingItem>();
-	(seccionais ?? []).forEach((s: any) => r.set(s.id, { nome: s.nome, total: 0 }));
+	(seccionais ?? []).forEach((s) => r.set(s.id, { nome: s.nome, total: 0 }));
 
 	filteredData.forEach((item) => {
-		const res = (item as any).respostasParsed ?? JSON.parse(item.respostas || '{}');
+		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<string, unknown>;
 		const val = extractValue(res);
-		const entry = r.get(item.seccional_id);
+		const entry = item.seccional_id !== undefined ? r.get(item.seccional_id) : undefined;
 		if (entry) entry.total += val;
 	});
 	return Array.from(r.values()).sort((a, b) => b.total - a.total);

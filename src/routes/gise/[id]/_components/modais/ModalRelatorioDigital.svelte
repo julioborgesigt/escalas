@@ -16,7 +16,6 @@
 		onClose: () => void;
 	}
 
-	/* eslint-disable prefer-const */
 	let {
 		open,
 		giseId,
@@ -30,7 +29,6 @@
 		onSuccess,
 		onClose
 	}: Props = $props();
-	/* eslint-enable prefer-const */
 </script>
 
 <Dialog

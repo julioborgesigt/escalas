@@ -1,5 +1,5 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve */
+	 
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { tick } from 'svelte';
@@ -119,7 +119,6 @@
 		onSubmit: SubmitFunction;
 	}
 
-	/* eslint-disable prefer-const */
 	let {
 		gise,
 		policiais,
@@ -161,7 +160,6 @@
 		onCancelar,
 		onSubmit
 	}: Props = $props();
-	/* eslint-enable prefer-const */
 
 	const seintRelatorioSet = $derived(new Set(seintSupervisaoComRelatorio ?? []));
 

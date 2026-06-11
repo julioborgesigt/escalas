@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm';
 import {
 	giseEscalas,
 	giseSeccionais,
@@ -13,6 +13,18 @@ import type { Database } from '../core';
 import { logger } from '../../server/logger';
 
 import { parseRespostasFormularioJsonLoose } from '../../schemas/gise-respostas-form';
+
+/** Pergunta de um modelo de formulário GISE (operacional ou SEINT). */
+interface PerguntaModelo {
+	id: number;
+	texto: string;
+	tipo: string;
+	key: string;
+	filhos: PerguntaModelo[];
+	subtexto_qtd?: string;
+	subtexto_lista?: string;
+	subtexto_tipo?: string;
+}
 
 // ---- Formulário de Produtividade ----
 
@@ -238,7 +250,7 @@ const DEFAULT_SEINT_QUESTIONS = [
 ];
 
 export async function buscarRespostasProdutividadeSeccional(
-	db: any,
+	db: Database,
 	giseId: number,
 	seccionalId: number
 ) {
@@ -260,8 +272,8 @@ export async function buscarRespostasProdutividadeSeccional(
 			)
 			.all()
 	]);
-	const modelosMap = new Map();
-	configRows.forEach((row: any) => {
+	const modelosMap = new Map<string, PerguntaModelo[]>();
+	configRows.forEach((row) => {
 		try {
 			modelosMap.set(row.tipo, JSON.parse(row.config));
 		} catch (err) {
@@ -271,7 +283,8 @@ export async function buscarRespostasProdutividadeSeccional(
 
 	const allResults: { equipe_id: number; pergunta: string; resposta: string }[] = [];
 
-	const processarPerguntas = (listaPerguntas: any[], resps: any, eqId: number) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- resps is a dynamic untyped JSON blob; narrowing every access would change logic
+	const processarPerguntas = (listaPerguntas: PerguntaModelo[], resps: any, eqId: number) => {
 		for (const p of listaPerguntas) {
 			const resp = resps[p.key] ?? resps[String(p.id)] ?? resps[p.id];
 			if (resp !== undefined && resp !== null && resp !== '') {
@@ -281,7 +294,7 @@ export async function buscarRespostasProdutividadeSeccional(
 
 				if (isSim || p.tipo === 'operacoes_seint_pura') {
 					if (p.tipo === 'mandados_maiores' && resps.mandados_lista) {
-						resps.mandados_lista.forEach((item: any, idx: number) => {
+						resps.mandados_lista.forEach((item, idx: number) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -292,7 +305,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'prisoes_maiores' && resps.prisoes_lista) {
-						resps.prisoes_lista.forEach((item: any, idx: number) => {
+						resps.prisoes_lista.forEach((item, idx: number) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -314,7 +327,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'apreensoes_menores' && resps.apreensoes_lista) {
-						resps.apreensoes_lista.forEach((item: any, idx: number) => {
+						resps.apreensoes_lista.forEach((item, idx: number) => {
 							if (item.nome || item.mandado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -337,7 +350,7 @@ export async function buscarRespostasProdutividadeSeccional(
 					}
 					// SEINT Complex Types
 					if (p.tipo === 'celulares_complex' && resps.celulares_lista) {
-						resps.celulares_lista.forEach((item: any, idx: number) => {
+						resps.celulares_lista.forEach((item, idx: number) => {
 							if (item.modelo || item.n_proc) {
 								allResults.push({
 									equipe_id: eqId,
@@ -349,7 +362,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'analise_complex' && resps.analise_lista) {
-						resps.analise_lista.forEach((item: any, idx: number) => {
+						resps.analise_lista.forEach((item, idx: number) => {
 							if (item.modelo || item.n_proc) {
 								allResults.push({
 									equipe_id: eqId,
@@ -361,7 +374,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'relatorios_seint_complex' && resps.relatorios_seint_lista) {
-						resps.relatorios_seint_lista.forEach((item: any, idx: number) => {
+						resps.relatorios_seint_lista.forEach((item, idx: number) => {
 							if (item.n_relat || item.q_alvos) {
 								allResults.push({
 									equipe_id: eqId,
@@ -373,7 +386,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'foragidos_complex' && resps.foragidos_lista) {
-						resps.foragidos_lista.forEach((item: any, idx: number) => {
+						resps.foragidos_lista.forEach((item, idx: number) => {
 							if (item.nome || item.resultado) {
 								allResults.push({
 									equipe_id: eqId,
@@ -387,7 +400,7 @@ export async function buscarRespostasProdutividadeSeccional(
 						(p.tipo === 'operacoes_seint_complex' || p.tipo === 'operacoes_seint_pura') &&
 						resps.operacoes_seint_lista
 					) {
-						resps.operacoes_seint_lista.forEach((item: any, idx: number) => {
+						resps.operacoes_seint_lista.forEach((item, idx: number) => {
 							if (item.nome || item.delegacia) {
 								allResults.push({
 									equipe_id: eqId,
@@ -413,7 +426,7 @@ export async function buscarRespostasProdutividadeSeccional(
 			modelosMap.get(r.equipe_tipo) ||
 			(r.equipe_tipo === 'seint' ? DEFAULT_SEINT_QUESTIONS : DEFAULT_QUESTIONS);
 
-		processarPerguntas(modeloPerguntas, resps as any, r.equipe_id!);
+		processarPerguntas(modeloPerguntas, resps, r.equipe_id!);
 	}
 
 	return allResults;
@@ -552,7 +565,7 @@ export async function listarTodasRespostasGise(
 	const offset = (page - 1) * limit;
 
 	// Build dynamic conditions
-	const conditions: any[] = [];
+	const conditions: SQL[] = [];
 	if (opts?.mes) {
 		const monthStr = opts.mes.toString().padStart(2, '0');
 		conditions.push(sql`strftime('%m', ${giseEscalas.data_inicio}) = ${monthStr}`);

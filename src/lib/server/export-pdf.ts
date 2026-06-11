@@ -87,17 +87,62 @@ export interface GisePdfData {
 	documento: { rubrica?: string | null; verificacao_hash?: string | null } | null;
 }
 
+type GisePresenca = {
+	id: number;
+	gise_id: number;
+	policial_id: number | null;
+	policial_nome: string | null;
+	policial_matricula: string | null;
+	policial_cpf: string | null;
+	policial_cargo: string | null;
+	policial_classe: string | null;
+	policial_lotacao: string | null;
+	entrada_timestamp: string | null;
+	entrada_rubrica: string | null;
+	entrada_selfie_key: string | null;
+	saida_timestamp: string | null;
+	saida_rubrica: string | null;
+	saida_selfie_key: string | null;
+	ip_address: string | null;
+	user_agent: string | null;
+	latitude: number | null;
+	longitude: number | null;
+};
+
+/** Subset of the DB row used by PDF generation functions. Compatible with both the
+ *  full DB record from buscarAssinaturaRelatorioGise and the partial mock objects
+ *  used in assinar/preparar-assinatura routes. */
+type RelatorioAssinatura = {
+	assinante_nome?: string | null;
+	assinante_matricula?: string | null;
+	rubrica?: string | null;
+	verification_hash?: string | null;
+	created_at?: string | null;
+};
+
+type GiseSeccionalEquipe = { id: number; tipo: string; [key: string]: unknown };
+type GiseSeccionalParaPdf = {
+	id?: number;
+	seccional_id?: number;
+	seccional_nome?: string;
+	nome?: string;
+	equipes?: GiseSeccionalEquipe[];
+	unidades?: Array<{ equipes?: GiseSeccionalEquipe[] }>;
+	[key: string]: unknown;
+};
+type RespostaProdutividade = { equipe_id: number; pergunta: string; resposta: string };
+
 export interface GiseProdutividadeData {
-	gise: any;
-	seccional: any;
-	supervisorDoc?: any;
+	gise: { data_inicio: string };
+	seccional: GiseSeccionalParaPdf;
+	supervisorDoc?: unknown;
 	baseUrl?: string;
-	respostas?: any[];
+	respostas?: RespostaProdutividade[];
 }
 
-function fmtHoraGise(h: any): string {
+function fmtHoraGise(h: string | number | null | undefined): string {
 	if (!h) return '';
-	if (String(h).includes(':')) return h;
+	if (String(h).includes(':')) return String(h);
 	const n = parseInt(String(h));
 	if (isNaN(n)) return String(h);
 	return `${String(n).padStart(2, '0')}:00`;
@@ -466,8 +511,8 @@ export async function gerarPdfExpediente(
 		}
 
 		return { pdf: await pdfDoc.save(), finalY: sigY, pageHeightMm: PAGE_H };
-	} catch (e: any) {
-		console.error('[export] Erro ao inserir logos (expediente):', e.message || e);
+	} catch (e: unknown) {
+		console.error('[export] Erro ao inserir logos (expediente):', e instanceof Error ? e.message : e);
 		return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
 	}
 }
@@ -817,8 +862,8 @@ export async function embutirLogosGise(
 		}
 
 		return await pdfDoc.save();
-	} catch (e: any) {
-		console.error('Erro ao inserir logos GISE com pdf-lib:', e.message || e);
+	} catch (e: unknown) {
+		console.error('Erro ao inserir logos GISE com pdf-lib:', e instanceof Error ? e.message : e);
 		return pdfBytes;
 	}
 }
@@ -857,7 +902,7 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 		const teams = seccional.equipes || [];
 
 		for (const team of teams) {
-			const teamResponses = respostas.filter((r: any) => r.equipe_id === team.id);
+			const teamResponses = respostas.filter((r) => r.equipe_id === team.id);
 			if (teamResponses.length === 0) continue;
 
 			doc.setFont('helvetica', 'bold');
@@ -870,7 +915,7 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 			);
 			y += 12;
 
-			const rows = teamResponses.map((r: any) => [r.pergunta, r.resposta]);
+			const rows = teamResponses.map((r) => [r.pergunta, r.resposta]);
 
 			autoTable(doc, {
 				startY: y,
@@ -907,10 +952,10 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 // ---- PDF Relatório Extraordinário GISE (Seccional) ----
 export async function gerarRelatorioExtraordinarioPdf(
 	gise: GisePdfData,
-	presencas: any[],
+	presencas: GisePresenca[],
 	seccionalId?: number,
 	baseUrl?: string,
-	reportSignature?: any,
+	reportSignature?: RelatorioAssinatura | null,
 	qrCodeBase64?: string,
 	isPreparando = false,
 	logoEsqBytes?: Uint8Array,
@@ -1073,7 +1118,7 @@ export async function gerarRelatorioExtraordinarioPdf(
 	doc.setFont('helvetica', 'normal');
 	const cidade =
 		gise.seccionais
-			.find((s: any) => s.seccional_id === seccionalId)
+			.find((s) => s.seccional_id === seccionalId)
 			?.seccional_nome.split('-')[1]
 			?.trim() || 'Iguatu';
 	doc.text(`${cidade}/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, {
@@ -1171,9 +1216,9 @@ export async function gerarRelatorioExtraordinarioPdf(
 // ---- PDF Relatório Extraordinário GISE (Supervisão) ----
 export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	gise: import('$lib/db').GiseDetalhado,
-	presencas: any[],
+	presencas: GisePresenca[],
 	baseUrl?: string,
-	reportSignature?: any,
+	reportSignature?: RelatorioAssinatura | null,
 	qrCodeBase64?: string,
 	isPreparando = false,
 	breveEnv?: BreveRelatorioEnv | null,
@@ -1249,7 +1294,7 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		lotacao: string
 	) => {
 		if (id == null || !nome) return;
-		const pres = presencas.find((p: any) => p.policial_id === id);
+		const pres = presencas.find((p) => p.policial_id === id);
 		slots.push({
 			policial_id: id,
 			nome,
@@ -1284,7 +1329,7 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	);
 
 	const tableData = slots.map((m) => {
-		const pres = presencas.find((p: any) => p.policial_id === m.policial_id);
+		const pres = presencas.find((p) => p.policial_id === m.policial_id);
 		return [
 			m.nome,
 			m.cargo,

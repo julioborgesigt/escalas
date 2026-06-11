@@ -44,6 +44,7 @@
 
 	// Sync mode items (filtered)
 	// svelte-ignore state_referenced_locally
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let syncItems = $state<Option[]>(options);
 	$effect(() => {
 		syncItems = options;

@@ -56,13 +56,18 @@ export interface Question {
 /**
  * Converte o modelo cru de perguntas em perguntas processadas para gráficos.
  */
-export function mapQuestions(modelo: any[] | undefined | null, filterTipo: string): Question[] {
+type ModeloQuestion = { id: number; texto: string; key: string; tipo: string };
+
+export function mapQuestions(
+	modelo: ModeloQuestion[] | undefined | null,
+	filterTipo: string
+): Question[] {
 	const base = filterTipo === 'seint' ? modelo : modelo;
 	if (!base || base.length === 0) return [];
 
 	return base
-		.filter((q: any) => CHARTABLE_TYPES.includes(q.tipo))
-		.map((q: any, idx: number) => {
+		.filter((q) => CHARTABLE_TYPES.includes(q.tipo))
+		.map((q, idx: number) => {
 			const mappedKey = KEY_MAP[q.tipo] ?? q.key;
 			return {
 				id: q.id,
@@ -79,7 +84,7 @@ export function mapQuestions(modelo: any[] | undefined | null, filterTipo: strin
 /**
  * Retorna a chave de armas configurada no modelo.
  */
-export function getArmasKey(modeloOperacional: any[] | undefined): string {
-	const q = (modeloOperacional || []).find((q: any) => q.tipo === 'armas_complex');
+export function getArmasKey(modeloOperacional: ModeloQuestion[] | undefined): string {
+	const q = (modeloOperacional || []).find((q) => q.tipo === 'armas_complex');
 	return q?.key ?? 'apreensoes_armas_bool';
 }

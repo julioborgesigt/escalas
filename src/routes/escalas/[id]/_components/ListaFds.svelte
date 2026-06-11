@@ -47,7 +47,7 @@
 		const days = [];
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(start + 'T00:00:00');
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+
 		const last = new Date(end + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);

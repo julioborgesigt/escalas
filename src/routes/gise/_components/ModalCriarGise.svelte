@@ -8,7 +8,6 @@
 	import { page } from '$app/state';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	/* eslint-disable prefer-const */
 	let {
 		open = $bindable(false),
 		escalas,
@@ -18,7 +17,6 @@
 		escalas: { id: number; data_inicio: string; status: string }[];
 		onSuccess: (count: number, firstId?: number) => void;
 	} = $props();
-	/* eslint-enable prefer-const */
 
 	let diasModal = $state<Record<string, { f: boolean }>>({});
 	let calAno = $state(2026);

@@ -41,6 +41,7 @@
 	} = $props();
 
 	// --- Solicitar Assinatura (OIP) ---
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let solicitacaoLocal = $state(untrack(() => solicitacaoAtual));
 	$effect(() => {
 		solicitacaoLocal = solicitacaoAtual ?? null;

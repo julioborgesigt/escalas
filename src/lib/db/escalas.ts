@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, asc, inArray, like } from 'drizzle-orm';
+import { eq, and, or, sql, desc, asc, inArray, like, type SQL } from 'drizzle-orm';
 import {
 	escalas,
 	escalaPoliciais,
@@ -41,7 +41,7 @@ export async function listarEscalas(
 	limit: number;
 	totalPages: number;
 }> {
-	const conditions: ReturnType<typeof eq>[] = [];
+	const conditions: SQL[] = [];
 
 	if (lotacao) {
 		conditions.push(eq(escalas.lotacao, lotacao));
@@ -50,13 +50,13 @@ export async function listarEscalas(
 	}
 	if (mes) {
 		const monthStr = mes.toString().padStart(2, '0');
-		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}` as any);
+		conditions.push(sql`strftime('%m', ${escalas.data_inicio}) = ${monthStr}`);
 	}
-	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}` as any);
+	if (ano) conditions.push(sql`strftime('%Y', ${escalas.data_inicio}) = ${ano.toString()}`);
 	if (tipo && tipo !== 'todos')
 		conditions.push(eq(escalas.tipo, tipo as 'plantao' | 'expediente' | 'fds'));
 	if (visto !== undefined) conditions.push(eq(escalas.visto_por_admin, visto ? 1 : 0));
-	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}` as any);
+	if (criadaEmDepoisDe) conditions.push(sql`${escalas.created_at} >= ${criadaEmDepoisDe}`);
 
 	// Busca por título ou cidade
 	if (opts?.busca) {
@@ -76,9 +76,9 @@ export async function listarEscalas(
 
 	// Filtro de status via IS NULL / IS NOT NULL sobre o LEFT JOIN abaixo
 	if (status === 'pendente') {
-		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL` as any);
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NULL`);
 	} else if (status === 'assinada') {
-		conditions.push(sql`${escalaDocumentos.escala_id} IS NOT NULL` as any);
+		conditions.push(sql`${escalaDocumentos.escala_id} IS NOT NULL`);
 	}
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -320,18 +320,18 @@ export async function adicionarTodosPoliciais(
 	// D1 limita ~100 parâmetros por statement; cada linha tem 9 campos,
 	// então um INSERT multi-linha com >11 policiais estouraria o limite.
 	// db.batch() executa N statements em um único round-trip de forma atômica.
-	await db.batch(
-		novos.map((p) =>
-			db.insert(escalaPoliciais).values({
-				escala_id: escalaId,
-				policial_id: p.id,
-				data_plantao: dataPlantao,
-				data_saida: dataSaida,
-				hora_entrada: horaEntrada,
-				hora_saida: horaSaida
-			})
-		) as any
+	const insertsLote = novos.map((p) =>
+		db.insert(escalaPoliciais).values({
+			escala_id: escalaId,
+			policial_id: p.id,
+			data_plantao: dataPlantao,
+			data_saida: dataSaida,
+			hora_entrada: horaEntrada,
+			hora_saida: horaSaida
+		})
 	);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- .map() returns T[] but db.batch() requires [U, ...U[]] non-empty tuple
+	await db.batch(insertsLote as any);
 
 	return novos.length;
 }
@@ -474,12 +474,6 @@ export async function listarSolicitacoesEscalas(
 	>
 > {
 	if (escalaIds.length === 0) return new Map();
-
-	// Alias para o join com policiais (destinatário)
-	const dest = {
-		id: policiais.id,
-		nome: policiais.nome
-	};
 
 	const rows = await db
 		.select({

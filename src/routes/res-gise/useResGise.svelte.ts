@@ -1,4 +1,4 @@
-/* eslint-disable svelte/no-navigation-without-resolve, svelte/prefer-writable-derived */
+/* eslint-disable svelte/prefer-writable-derived */
 import { toaster } from '$lib/toast';
 import { fmtDate } from '$lib/gise/gise-formatters';
 import { loading } from '$lib/loading.svelte';

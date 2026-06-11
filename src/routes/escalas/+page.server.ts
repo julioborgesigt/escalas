@@ -13,7 +13,7 @@ import {
 import { escalaSchema } from '$lib/schemas';
 import { registrarAuditComContexto } from '$lib/db';
 import { logger } from '$lib/server/logger';
-import { eq, or, and, inArray, sql, desc } from 'drizzle-orm';
+import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {
 	unidades as unidadesTable,
 	escalas as escalasTable,
@@ -89,8 +89,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 	const anoAtual = new Date().getFullYear();
 	const escalasExistentesBase = and(
 		or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
-		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) >= ${anoAtual - 1}` as any,
-		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) <= ${anoAtual + 3}` as any
+		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) >= ${anoAtual - 1}` as SQL,
+		sql`cast(strftime('%Y', ${escalasTable.data_inicio}) as integer) <= ${anoAtual + 3}` as SQL
 	);
 	const scopeEscalas =
 		u.papel === 'admin_unidade' && u.lotacao
@@ -113,7 +113,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		const subqDocs = db.select({ escala_id: escalaDocumentos.escala_id }).from(escalaDocumentos);
 		const baseWhere = and(
 			or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
-			sql`${escalasTable.id} NOT IN (${subqDocs})` as any
+			sql`${escalasTable.id} NOT IN (${subqDocs})` as SQL
 		);
 
 		if (isAdmin) {
@@ -130,15 +130,10 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 					is_assinada: sql<boolean>`EXISTS (SELECT 1 FROM escala_documentos WHERE escala_id = ${escalasTable.id})`
 				})
 				.from(escalasTable)
-				.where(
-					and(
-						or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
-						// Admin geral vê apenas as não assinadas nas pendências, para não poluir
-						sql`${escalasTable.id} NOT IN (${subqDocs})` as any
-					)
-				)
+				.where(baseWhere)
 				.orderBy(desc(escalasTable.created_at))
-				.limit(50) as any;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				.limit(50) as any; // drizzle's chained query type is a specialized subtype of ReturnType<typeof db.select>
 		} else {
 			// DPC admin só vê escalas que têm uma solicitação direcionada a eles
 			let scopeCondition;
@@ -195,7 +190,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 						: or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!
 				)
 				.orderBy(desc(escalasTable.created_at))
-				.limit(50) as any;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				.limit(50) as any; // drizzle's chained query type is a specialized subtype of ReturnType<typeof db.select>
 		}
 	}
 
@@ -234,7 +230,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		!isAdmin && (u.papel === 'admin_seccional' || u.papel === 'admin_unidade');
 	if (deveCarregarSolicitacoes && resultado.escalas.length > 0) {
 		const escalasNaoAssinadas = resultado.escalas
-			.filter((e) => (e.tipo === 'plantao' || e.tipo === 'expediente') && !(e as any).is_assinada)
+			.filter((e) => (e.tipo === 'plantao' || e.tipo === 'expediente') && !e.is_assinada)
 			.map((e) => e.id);
 		if (escalasNaoAssinadas.length > 0) {
 			const mapa = await listarSolicitacoesEscalas(db, escalasNaoAssinadas);
@@ -542,7 +538,8 @@ export const actions: Actions = {
 				const BATCH_SIZE = 50;
 				for (let i = 0; i < linhasParaInserir.length; i += BATCH_SIZE) {
 					const chunk = linhasParaInserir.slice(i, i + BATCH_SIZE);
-					await db.batch(chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any);
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					await db.batch(chunk.map((row) => db.insert(escalaPoliciais).values(row)) as any); // drizzle batch requires a non-empty tuple type; array from .map() is not assignable
 				}
 			}
 

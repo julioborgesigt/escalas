@@ -14,7 +14,8 @@
 		extraPayload = {} as Record<string, unknown>,
 		disabled = false,
 		onSuccess = async () => {},
-		control = $bindable()
+		// eslint-disable-next-line no-useless-assignment
+		control = $bindable<{ assinarComSerpro: () => Promise<void> } | null>()
 	}: {
 		prepararUrl: string;
 		finalizarUrl: string;

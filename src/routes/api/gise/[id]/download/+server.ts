@@ -322,16 +322,16 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		const { gerarRelatorioProdutividadeGisePdf } = await import('$lib/server/export');
 
 		const seccional = gise.seccionais.find(
-			(s: any) => s.id === seccionalId || s.seccional_id === seccionalId
+			(s) => s.id === seccionalId || s.seccional_id === seccionalId
 		);
 		if (!seccional) return notFound('Seccional');
 
 		// Achatar todas as equipes da seccional (de todas as unidades)
-		const todasEquipes = (seccional.unidades ?? []).flatMap((u: any) => u.equipes ?? []);
+		const todasEquipes = (seccional.unidades ?? []).flatMap((u) => u.equipes ?? []);
 		const seccionalFiltrada = equipeType
 			? {
 					...seccional,
-					equipes: todasEquipes.filter((eq: any) => eq.tipo === equipeType)
+					equipes: todasEquipes.filter((eq) => eq.tipo === equipeType)
 				}
 			: { ...seccional, equipes: todasEquipes };
 

@@ -11,6 +11,14 @@ import { loading } from '$lib/loading.svelte';
 import { apiFetch } from '$lib/api-fetch';
 import { logger } from '$lib/logger';
 
+/** Response shape from /preparar-assinatura */
+interface PrepararAssinaturaResponse {
+	messageDigest: string;
+	preparedPdf: string;
+	signingTimeISO: string;
+	verificationHash: string;
+}
+
 export interface UseAssinaturaParams {
 	getParams: () => {
 		escalaId: string;
@@ -18,7 +26,7 @@ export interface UseAssinaturaParams {
 		policiaisCount: number;
 		usuario: UsuarioLogado | null;
 	};
-	onDocumentoAssinado?: (info: any) => void;
+	onDocumentoAssinado?: (info: unknown) => void;
 }
 
 export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssinaturaParams) {
@@ -88,22 +96,23 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			gpsCoords = await getCoordinates();
 
 			loading.show('Preparando assinatura...');
-			const prepData = await apiFetch<any>(`/api/escalas/${escalaId}/preparar-assinatura`, {
+			const prepData = await apiFetch<PrepararAssinaturaResponse>(`/api/escalas/${escalaId}/preparar-assinatura`, {
 				method: 'POST',
 				body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
 			});
 
 			loading.show('Assinando com SERPRO...');
 			const messageDigestBase64 = btoa(
+				// messageDigest is always a valid hex string, so match never returns null here
 				prepData.messageDigest
-					.match(/.{2}/g)
+					.match(/.{2}/g)!
 					.map((h: string) => String.fromCharCode(parseInt(h, 16)))
 					.join('')
 			);
 			const serproRes = await client.sign(messageDigestBase64);
 
 			loading.show('Finalizando assinatura...');
-			const info = await apiFetch<any>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
+			const info = await apiFetch<unknown>(`/api/escalas/${escalaId}/finalizar-assinatura`, {
 				method: 'POST',
 				body: JSON.stringify({
 					preparedPdf: prepData.preparedPdf,
@@ -154,7 +163,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			}
 
 			loading.show('Assinando...');
-			const info = await apiFetch<any>(`/api/escalas/${escalaId}/assinar-simples`, {
+			const info = await apiFetch<unknown>(`/api/escalas/${escalaId}/assinar-simples`, {
 				method: 'POST',
 				body: JSON.stringify({
 					rubrica,

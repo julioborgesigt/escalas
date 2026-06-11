@@ -87,7 +87,7 @@
 			list.push(item);
 			map.set(item.data_plantao, list);
 		}
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+
 		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
 	}
 

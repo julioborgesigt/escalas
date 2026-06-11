@@ -34,8 +34,8 @@
 
 	let cargoBusca = $state<'DPC' | 'OIP' | ''>('');
 	let policialId = $state('');
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let dataPlantao = $state('');
-
 	$effect(() => {
 		dataPlantao = escala.data_inicio ?? '';
 	});
@@ -46,6 +46,7 @@
 	let addEquipe = $state('1');
 	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
 	let addPrimeiroPlantao = $state('');
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let addDatasSelecionadas = $state<string[]>([]);
 	let addObservacoes = $state('');
 
@@ -82,9 +83,9 @@
 	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
 		if (!primeiroPlantao) return [];
 		const datas: string[] = [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		 
 		const inicio = new Date(escala.data_inicio + 'T00:00:00');
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		 
 		const fim = new Date(escala.data_fim + 'T00:00:00');
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const d = new Date(primeiroPlantao + 'T00:00:00');
@@ -114,6 +115,7 @@
 
 	const datasCalc = $derived(calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala));
 
+	 
 	$effect(() => {
 		addDatasSelecionadas = datasCalc;
 	});
