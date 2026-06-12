@@ -564,7 +564,7 @@
 		<div>
 			{#if !isSeccional}
 				<div
-					class="mb-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50/60 dark:bg-surface-800/40 p-3"
+					class="mb-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-3 shadow-sm"
 				>
 					<div class="flex items-center justify-between gap-2">
 						<h2 class="font-semibold text-surface-900 dark:text-surface-50">

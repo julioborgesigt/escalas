@@ -59,16 +59,16 @@ export function getFaltandoRubrica(sec: GiseSecComMembros): string {
 }
 
 export const SECCIONAL_BG_CLASSES: readonly string[] = [
-	'border-l-blue-600 bg-blue-50/10 dark:bg-blue-950/10',
-	'border-l-emerald-600 bg-emerald-50/10 dark:bg-emerald-950/10',
-	'border-l-indigo-600 bg-indigo-50/10 dark:bg-indigo-950/10',
-	'border-l-violet-600 bg-violet-50/10 dark:bg-violet-950/10',
-	'border-l-amber-600 bg-amber-50/10 dark:bg-amber-950/10',
-	'border-l-rose-600 bg-rose-50/10 dark:bg-rose-950/10',
-	'border-l-cyan-600 bg-cyan-50/10 dark:bg-cyan-950/10',
-	'border-l-teal-600 bg-teal-50/10 dark:bg-teal-950/10',
-	'border-l-sky-600 bg-sky-50/10 dark:bg-sky-950/10',
-	'border-l-slate-600 bg-slate-100/10 dark:bg-slate-800/10'
+	'border-l-blue-600 bg-white dark:bg-surface-900',
+	'border-l-emerald-600 bg-white dark:bg-surface-900',
+	'border-l-indigo-600 bg-white dark:bg-surface-900',
+	'border-l-violet-600 bg-white dark:bg-surface-900',
+	'border-l-amber-600 bg-white dark:bg-surface-900',
+	'border-l-rose-600 bg-white dark:bg-surface-900',
+	'border-l-cyan-600 bg-white dark:bg-surface-900',
+	'border-l-teal-600 bg-white dark:bg-surface-900',
+	'border-l-sky-600 bg-white dark:bg-surface-900',
+	'border-l-slate-600 bg-white dark:bg-surface-900'
 ];
 
 export function getSeccionalColorClass(seccionalId: number): string {
