@@ -73,6 +73,13 @@ async function dispararEmailCloudflare(
 	const apiToken = env?.CLOUDFLARE_API_TOKEN;
 	const accountId = env?.CLOUDFLARE_ACCOUNT_ID;
 
+	logger.info('[email/cloudflare] REST API config state', {
+		hasApiToken: !!apiToken,
+		apiTokenLength: apiToken ? apiToken.length : 0,
+		hasAccountId: !!accountId,
+		accountId
+	});
+
 	if (!apiToken || !accountId) {
 		throw new Error('CF_EMAIL_BINDING_ABSENT');
 	}
@@ -109,6 +116,11 @@ async function dispararEmailCloudflare(
 
 	if (!response.ok) {
 		const errorText = await response.text();
+		logger.error('[email/cloudflare] REST API error response', {
+			status: response.status,
+			statusText: response.statusText,
+			errorText
+		});
 		throw new Error(
 			`Falha ao enviar e-mail via Cloudflare REST API (HTTP ${response.status}): ${errorText}`
 		);
@@ -118,6 +130,8 @@ async function dispararEmailCloudflare(
 		success: boolean;
 		result: { delivered: string[] } | null;
 	};
+
+	logger.info('[email/cloudflare] REST API success response', { data });
 
 	if (!data.success) {
 		throw new Error('Falha na resposta do Cloudflare REST API');
