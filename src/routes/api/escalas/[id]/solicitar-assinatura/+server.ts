@@ -89,8 +89,7 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
 		// O próprio solicitante pode cancelar; admins de escopo só dentro do seu
 		// escopo administrativo (antes `admin_seccional` cancelava qualquer escala).
 		const escopo = await lotacoesAdministradas(db, u);
-		const podeCancel =
-			sol.solicitante_id === u.id || lotacaoNoEscopo(escopo, escala.lotacao);
+		const podeCancel = sol.solicitante_id === u.id || lotacaoNoEscopo(escopo, escala.lotacao);
 
 		if (!podeCancel) return forbidden('Sem permissão para cancelar');
 	}

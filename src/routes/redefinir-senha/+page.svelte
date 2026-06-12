@@ -44,9 +44,7 @@
 
 <div class="min-h-[80vh] flex items-center justify-center p-4">
 	<div class="w-full max-w-sm">
-		<div
-			class="p-6 sm:p-8 rounded-3xl card-glass-auth"
-		>
+		<div class="p-6 sm:p-8 rounded-3xl card-glass-auth">
 			{#if !data.valido}
 				<!-- Token inválido / expirado -->
 				<div class="text-center">

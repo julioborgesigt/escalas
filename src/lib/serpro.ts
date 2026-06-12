@@ -628,7 +628,7 @@ export class SerproSignerClient {
  * Usado por sign() e signFile() quando a resposta contém um campo `error`.
  */
 function interpretarErroSerpro(o: Record<string, unknown>): string {
-	const raw = String((o.error ?? o.causedBy ?? o.message) ?? '');
+	const raw = String(o.error ?? o.causedBy ?? o.message ?? '');
 	const lower = raw.toLowerCase();
 
 	if (
@@ -650,19 +650,19 @@ function interpretarErroSerpro(o: Record<string, unknown>): string {
 		: 'Erro no Assinador SERPRO. Verifique se o Token A3 está conectado e tente novamente.';
 }
 
-
 /**
  * Exibe um modal de aviso sobre o Assinador SERPRO.
  * @param sessionKey - Chave no sessionStorage para "não mostrar novamente"
  * @param titulo - Título do modal
  * @param corpo - HTML do corpo do modal (parágrafos)
  */
-function exibirAvisoSerproModal(sessionKey: string, titulo: string, corpo: string): Promise<boolean> {
+function exibirAvisoSerproModal(
+	sessionKey: string,
+	titulo: string,
+	corpo: string
+): Promise<boolean> {
 	return new Promise((resolve) => {
-		if (
-			typeof sessionStorage !== 'undefined' &&
-			sessionStorage.getItem(sessionKey) === 'true'
-		) {
+		if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey) === 'true') {
 			resolve(true);
 			return;
 		}

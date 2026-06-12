@@ -454,9 +454,7 @@ export async function verificarECarimbarAssinatura(
 		// O DSS só agregaria LTV self-contained no Adobe — o que, neste tipo de assinatura,
 		// sai pela culatra. Reabilitar só após migrar para PAdES (ETSI.CAdES.detached) e
 		// validar no Adobe. Opt-in: EMBED_PADES_LT_DSS=1/true/on.
-		const dssHabilitado = /^(1|true|yes|on)$/i.test(
-			(options.env?.EMBED_PADES_LT_DSS ?? '').trim()
-		);
+		const dssHabilitado = /^(1|true|yes|on)$/i.test((options.env?.EMBED_PADES_LT_DSS ?? '').trim());
 		if (dssHabilitado && (certsDer.length > 0 || ocspsDer.length > 0)) {
 			pdfFinal = await aplicarDss(pdfComTst, {
 				certs: certsDer,

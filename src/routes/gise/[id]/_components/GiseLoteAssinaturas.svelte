@@ -152,7 +152,7 @@
 			>
 				<div
 					class="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
-					'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+						'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
 						? 'bg-success-100 dark:bg-success-900/30'
 						: statusLoteInfo.text === 'Todos prontos para ass.' ||
 							  statusLoteInfo.text === 'pronto para ass. (parcial)'
@@ -230,8 +230,8 @@
 				>
 					<div class="space-y-2">
 						<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
-							O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou
-							todos de uma vez.
+							O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente
+							ou todos de uma vez.
 						</p>
 						<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 							<span class="text-error-600 dark:text-error-400 font-medium">Faltando envio de:</span>
@@ -358,7 +358,7 @@
 				<div class="flex items-center gap-3 min-w-[250px] shrink-0">
 					<div
 						class="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg {statusLoteInfo.text ===
-						'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
+							'Todos Assinados' || statusLoteInfo.text === 'Assinados (parcial)'
 							? 'bg-success-100 dark:bg-success-900/30'
 							: statusLoteInfo.text === 'Todos prontos para ass.' ||
 								  statusLoteInfo.text === 'pronto para ass. (parcial)'
@@ -414,7 +414,9 @@
 				</div>
 
 				<!-- Parte 2: Informações/Detalhes -->
-				<div class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+				<div
+					class="flex-1 min-w-0 text-left border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+				>
 					<p class="text-[0.68rem] leading-snug text-surface-500 dark:text-surface-400">
 						O supervisor poderá assinar os Relatórios de extra das equipes em lote, parcialmente ou
 						todos de uma vez.
@@ -491,17 +493,15 @@
 				</div>
 
 				<!-- Parte 3: Ações -->
-				<div class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5">
+				<div
+					class="flex items-center gap-1.5 shrink-0 justify-end border-l border-surface-200/40 dark:border-surface-800/80 pl-4 py-0.5"
+				>
 					<button
 						type="button"
 						class="btn btn-xs preset-tonal-primary border border-primary-500/30 hover:border-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
 						onclick={onConferencia || mostrarOrientaConferencia}
 					>
-						<svg
-							class="h-2.5 w-2.5 shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+						<svg class="h-2.5 w-2.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
 								stroke-linecap="round"
 								stroke-linejoin="round"

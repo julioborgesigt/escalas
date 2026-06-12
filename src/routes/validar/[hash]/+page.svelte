@@ -542,8 +542,8 @@
 					{:else}
 						<p class="text-sm text-surface-700 dark:text-surface-300 mb-3 sm:mb-4">
 							A autenticidade deste documento já está comprovada acima — assinante, data,
-							certificado e hash. O <strong>documento assinado na íntegra</strong> contém dados
-							restritos e está disponível apenas para usuários autenticados.
+							certificado e hash. O <strong>documento assinado na íntegra</strong> contém dados restritos
+							e está disponível apenas para usuários autenticados.
 						</p>
 						<a
 							href="/login"

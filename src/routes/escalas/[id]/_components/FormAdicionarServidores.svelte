@@ -83,9 +83,9 @@
 	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
 		if (!primeiroPlantao) return [];
 		const datas: string[] = [];
-		 
+
 		const inicio = new Date(escala.data_inicio + 'T00:00:00');
-		 
+
 		const fim = new Date(escala.data_fim + 'T00:00:00');
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const d = new Date(primeiroPlantao + 'T00:00:00');
@@ -115,7 +115,6 @@
 
 	const datasCalc = $derived(calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala));
 
-	 
 	$effect(() => {
 		addDatasSelecionadas = datasCalc;
 	});
@@ -259,9 +258,7 @@
 {/if}
 
 {#if visivel && !isFDS}
-	<div
-		class="card-glass p-4 sm:p-6 mb-4 rounded-3xl"
-	>
+	<div class="card-glass p-4 sm:p-6 mb-4 rounded-3xl">
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 		{#if escala.tipo === 'plantao'}
 			<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>

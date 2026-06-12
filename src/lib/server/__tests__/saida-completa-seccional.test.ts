@@ -28,13 +28,19 @@ function dbSup(gise: unknown, presencas: unknown[]) {
 
 describe('verificarSaidaCompletaSeccional — seccional normal', () => {
 	it('todos com saída → true', async () => {
-		expect(await verificarSaidaCompletaSeccional(dbNormal({ total: 3, com_saida: 3 }), 1, 9, false)).toBe(true);
+		expect(
+			await verificarSaidaCompletaSeccional(dbNormal({ total: 3, com_saida: 3 }), 1, 9, false)
+		).toBe(true);
 	});
 	it('falta alguém sair → false', async () => {
-		expect(await verificarSaidaCompletaSeccional(dbNormal({ total: 3, com_saida: 2 }), 1, 9, false)).toBe(false);
+		expect(
+			await verificarSaidaCompletaSeccional(dbNormal({ total: 3, com_saida: 2 }), 1, 9, false)
+		).toBe(false);
 	});
 	it('sem membros → false', async () => {
-		expect(await verificarSaidaCompletaSeccional(dbNormal({ total: 0, com_saida: 0 }), 1, 9, false)).toBe(false);
+		expect(
+			await verificarSaidaCompletaSeccional(dbNormal({ total: 0, com_saida: 0 }), 1, 9, false)
+		).toBe(false);
 	});
 	it('resultado ausente → false', async () => {
 		expect(await verificarSaidaCompletaSeccional(dbNormal(undefined), 1, 9, false)).toBe(false);

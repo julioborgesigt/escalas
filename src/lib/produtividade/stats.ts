@@ -17,7 +17,11 @@ export interface StatsResult {
 /**
  * Agrega estatísticas a partir dos dados filtrados.
  */
-type FilteredDataItem = { respostasParsed?: Record<string, unknown>; respostas?: string; seccional_id?: number };
+type FilteredDataItem = {
+	respostasParsed?: Record<string, unknown>;
+	respostas?: string;
+	seccional_id?: number;
+};
 
 export function calculateStats(
 	filteredData: FilteredDataItem[],
@@ -39,7 +43,10 @@ export function calculateStats(
 	});
 
 	filteredData.forEach((item) => {
-		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<string, unknown>;
+		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<
+			string,
+			unknown
+		>;
 
 		// Dynamic Aggregation for all Numeric/Boolean/Smart Questions
 		questions.forEach((q) => {
@@ -101,7 +108,10 @@ export function calculateRanking(
 	(seccionais ?? []).forEach((s) => r.set(s.id, { nome: s.nome, total: 0 }));
 
 	filteredData.forEach((item) => {
-		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<string, unknown>;
+		const res = (item.respostasParsed ?? JSON.parse(item.respostas || '{}')) as Record<
+			string,
+			unknown
+		>;
 		const val = extractValue(res);
 		const entry = item.seccional_id !== undefined ? r.get(item.seccional_id) : undefined;
 		if (entry) entry.total += val;

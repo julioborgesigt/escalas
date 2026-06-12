@@ -285,9 +285,7 @@
 	</div>
 </div>
 
-<div
-	class="p-4 sm:p-6 rounded-2xl card-glass mb-6"
->
+<div class="p-4 sm:p-6 rounded-2xl card-glass mb-6">
 	<div class="flex flex-col sm:flex-row gap-4">
 		<label class="label flex-1">
 			<span class="label-text font-semibold mb-1">Filtrar por Seccional</span>
@@ -325,9 +323,7 @@
 <ModalExcluirUnidade bind:open={dialogExcluirOpen} unidade={unidadeParaExcluir} />
 <ModalCadastrarUnidade bind:open={cadastroOpen} {seccionais} />
 
-<div
-	class="p-4 sm:p-6 rounded-3xl card-glass overflow-hidden"
->
+<div class="p-4 sm:p-6 rounded-3xl card-glass overflow-hidden">
 	{#if data.unidades.length === 0}
 		<div class="text-center py-20">
 			<div

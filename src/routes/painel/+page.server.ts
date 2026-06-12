@@ -189,8 +189,7 @@ async function gerarCompliance(
 			if (unidade.tem_fds) {
 				for (const fds of fdsList) {
 					const esc = escalasPeriodo.find(
-						(e) =>
-							e.lotacao === unidade.nome && e.tipo === 'fds' && e.data_inicio === fds.inicio
+						(e) => e.lotacao === unidade.nome && e.tipo === 'fds' && e.data_inicio === fds.inicio
 					);
 					if (esc) {
 						result.push({

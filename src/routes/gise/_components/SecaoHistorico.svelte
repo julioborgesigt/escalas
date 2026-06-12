@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto } from '$app/navigation';
 	import { navigating } from '$app/state';
 	import { page } from '$app/state';
@@ -263,10 +262,7 @@
 		</div>
 
 		{#if mostrarFiltrosHistorico}
-			<div
-				class="card-glass overflow-hidden rounded-2xl"
-				transition:slide={{ duration: 250 }}
-			>
+			<div class="card-glass overflow-hidden rounded-2xl" transition:slide={{ duration: 250 }}>
 				<div
 					class="border-b border-surface-200/90 bg-white/60 px-4 py-3 dark:border-surface-800 dark:bg-surface-950/40 sm:px-5"
 				>

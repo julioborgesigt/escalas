@@ -62,7 +62,9 @@ describe('verificarDesafio2FA — markUsed', () => {
 
 	it('código errado falha mesmo com markUsed:false', async () => {
 		const db = makeDb(novoDesafio());
-		const r = await verificarDesafio2FA(db, 'abc', '000000', ['assinatura'], '', { markUsed: false });
+		const r = await verificarDesafio2FA(db, 'abc', '000000', ['assinatura'], '', {
+			markUsed: false
+		});
 		expect(r).toBeNull();
 	});
 
@@ -70,7 +72,9 @@ describe('verificarDesafio2FA — markUsed', () => {
 		const row = novoDesafio();
 		row.expires_at = new Date(Date.now() - 1000).toISOString();
 		const db = makeDb(row);
-		const r = await verificarDesafio2FA(db, 'abc', '123456', ['assinatura'], '', { markUsed: false });
+		const r = await verificarDesafio2FA(db, 'abc', '123456', ['assinatura'], '', {
+			markUsed: false
+		});
 		expect(r).toBe('expirado');
 	});
 });

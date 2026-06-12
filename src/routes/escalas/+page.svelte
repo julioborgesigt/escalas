@@ -683,9 +683,7 @@
 		}}
 	/>
 
-	<div
-		class="card-glass p-4 rounded-3xl overflow-hidden mt-4"
-	>
+	<div class="card-glass p-4 rounded-3xl overflow-hidden mt-4">
 		<div
 			class="grid grid-cols-12 gap-2 mb-6 p-3 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/5 items-end"
 		>

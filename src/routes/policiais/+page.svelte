@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
@@ -572,9 +571,7 @@
 	</Dialog.Content>
 </Dialog>
 
-<div
-	class="card-glass p-4 sm:p-6 rounded-3xl overflow-hidden mt-6"
->
+<div class="card-glass p-4 sm:p-6 rounded-3xl overflow-hidden mt-6">
 	<div
 		class="flex flex-col md:flex-row md:flex-wrap xl:flex-nowrap items-stretch md:items-end gap-4 mb-8 p-4 sm:p-6 rounded-2xl bg-surface-100/30 dark:bg-surface-800/20 border border-surface-200 dark:border-white/10"
 	>

@@ -10,10 +10,7 @@ import forge from 'node-forge';
 import { avaliarPoliticaCriptografica } from '../pdf-verification';
 import { SIGNATURE_OIDS, DIGEST_OIDS } from '../crypto-verify';
 
-function gerarCert(
-	bits: number,
-	keyUsage: Record<string, boolean> | null
-): forge.pki.Certificate {
+function gerarCert(bits: number, keyUsage: Record<string, boolean> | null): forge.pki.Certificate {
 	const keys = forge.pki.rsa.generateKeyPair(bits);
 	const cert = forge.pki.createCertificate();
 	cert.publicKey = keys.publicKey;

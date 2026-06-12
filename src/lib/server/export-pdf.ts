@@ -512,7 +512,10 @@ export async function gerarPdfExpediente(
 
 		return { pdf: await pdfDoc.save(), finalY: sigY, pageHeightMm: PAGE_H };
 	} catch (e: unknown) {
-		console.error('[export] Erro ao inserir logos (expediente):', e instanceof Error ? e.message : e);
+		console.error(
+			'[export] Erro ao inserir logos (expediente):',
+			e instanceof Error ? e.message : e
+		);
 		return { pdf: pdfBytes, finalY: sigY, pageHeightMm: PAGE_H };
 	}
 }
@@ -849,7 +852,12 @@ export async function embutirLogosGise(
 			const { height } = page.getSize();
 			const y = height - (topMm + logoH) * mmToPt;
 			if (imgEsq) {
-				page.drawImage(imgEsq, { x: 10 * mmToPt, y, width: logoW * mmToPt, height: logoH * mmToPt });
+				page.drawImage(imgEsq, {
+					x: 10 * mmToPt,
+					y,
+					width: logoW * mmToPt,
+					height: logoH * mmToPt
+				});
 			}
 			if (imgDir) {
 				page.drawImage(imgDir, {

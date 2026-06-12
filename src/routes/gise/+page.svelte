@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import type { PageData } from './$types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';

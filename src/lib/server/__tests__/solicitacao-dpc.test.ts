@@ -14,46 +14,49 @@ describe('solicitacaoConcedeAcessoDpc', () => {
 
 	it('respondencia nominal ao próprio usuário → true (mesmo fora de escopo)', () => {
 		expect(
-			solicitacaoConcedeAcessoDpc({ tipo: 'respondencia', destinatario_id: 7 }, 7, 'DELEGACIA X', [])
+			solicitacaoConcedeAcessoDpc(
+				{ tipo: 'respondencia', destinatario_id: 7 },
+				7,
+				'DELEGACIA X',
+				[]
+			)
 		).toBe(true);
 	});
 
 	it('respondencia direcionada a OUTRO usuário → false', () => {
 		expect(
-			solicitacaoConcedeAcessoDpc(
-				{ tipo: 'respondencia', destinatario_id: 9 },
-				7,
-				'DELEGACIA X',
-				['DELEGACIA X']
-			)
+			solicitacaoConcedeAcessoDpc({ tipo: 'respondencia', destinatario_id: 9 }, 7, 'DELEGACIA X', [
+				'DELEGACIA X'
+			])
 		).toBe(false);
 	});
 
 	it('unidade com escala DENTRO do escopo → true', () => {
 		expect(
-			solicitacaoConcedeAcessoDpc(
-				{ tipo: 'unidade', destinatario_id: null },
-				7,
+			solicitacaoConcedeAcessoDpc({ tipo: 'unidade', destinatario_id: null }, 7, 'DELEGACIA A', [
 				'DELEGACIA A',
-				['DELEGACIA A', 'DELEGACIA B']
-			)
+				'DELEGACIA B'
+			])
 		).toBe(true);
 	});
 
 	it('unidade com escala FORA do escopo → false (IDOR fechado)', () => {
 		expect(
-			solicitacaoConcedeAcessoDpc(
-				{ tipo: 'unidade', destinatario_id: null },
-				7,
-				'DELEGACIA X',
-				['DELEGACIA A', 'DELEGACIA B']
-			)
+			solicitacaoConcedeAcessoDpc({ tipo: 'unidade', destinatario_id: null }, 7, 'DELEGACIA X', [
+				'DELEGACIA A',
+				'DELEGACIA B'
+			])
 		).toBe(false);
 	});
 
 	it('unidade sem lotacoesPermitidas → false', () => {
 		expect(
-			solicitacaoConcedeAcessoDpc({ tipo: 'unidade', destinatario_id: null }, 7, 'DELEGACIA X', undefined)
+			solicitacaoConcedeAcessoDpc(
+				{ tipo: 'unidade', destinatario_id: null },
+				7,
+				'DELEGACIA X',
+				undefined
+			)
 		).toBe(false);
 	});
 

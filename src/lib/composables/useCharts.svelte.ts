@@ -47,7 +47,11 @@ export function useCharts(
 		});
 	}
 
-	function updateCharts(questions: ChartQuestion[], list: ListItem[], filterSeccional: string | number) {
+	function updateCharts(
+		questions: ChartQuestion[],
+		list: ListItem[],
+		filterSeccional: string | number
+	) {
 		const Chart = getChart();
 		if (!Chart) return;
 
@@ -73,18 +77,23 @@ export function useCharts(
 					return list
 						.filter((item: ListItem) => item.seccional_id === sec.id)
 						.reduce((acc: number, item: ListItem) => {
-							const res: Record<string, unknown> = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
+							const res: Record<string, unknown> =
+								item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;
 								if (res.drogas_detalhe && typeof res.drogas_detalhe === 'object') {
-									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
-										const drogasUnidade = res.drogas_unidade as Record<string, string> | undefined;
-										const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
-										let pesoV = Number(peso) || 0;
-										if (unidade === 'kg') pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
+									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(
+										([tipo, peso]) => {
+											const drogasUnidade = res.drogas_unidade as
+												| Record<string, string>
+												| undefined;
+											const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
+											let pesoV = Number(peso) || 0;
+											if (unidade === 'kg') pesoV *= 1000;
+											drogasTotal += pesoV;
+										}
+									);
 								}
 								return acc + drogasTotal;
 							}
@@ -96,18 +105,23 @@ export function useCharts(
 					return list
 						.filter((item: ListItem) => item.data_inicio === date)
 						.reduce((acc: number, item: ListItem) => {
-							const res: Record<string, unknown> = item.respostasParsed ?? JSON.parse(item.respostas || '{}');
+							const res: Record<string, unknown> =
+								item.respostasParsed ?? JSON.parse(item.respostas || '{}');
 							if (q.isBool) return acc + (res[q.key] === 'Sim' ? 1 : 0);
 							if (q.specialStore === 'drogasGeral') {
 								let drogasTotal = 0;
 								if (res.drogas_detalhe && typeof res.drogas_detalhe === 'object') {
-									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(([tipo, peso]) => {
-										const drogasUnidade = res.drogas_unidade as Record<string, string> | undefined;
-										const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
-										let pesoV = Number(peso) || 0;
-										if (unidade === 'kg') pesoV *= 1000;
-										drogasTotal += pesoV;
-									});
+									Object.entries(res.drogas_detalhe as Record<string, unknown>).forEach(
+										([tipo, peso]) => {
+											const drogasUnidade = res.drogas_unidade as
+												| Record<string, string>
+												| undefined;
+											const unidade = (drogasUnidade && drogasUnidade[tipo]) || 'g';
+											let pesoV = Number(peso) || 0;
+											if (unidade === 'kg') pesoV *= 1000;
+											drogasTotal += pesoV;
+										}
+									);
 								}
 								return acc + drogasTotal;
 							}

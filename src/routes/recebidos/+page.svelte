@@ -335,9 +335,7 @@
 	</div>
 
 	<!-- Filtros Rápidos -->
-	<div
-		class="p-4 sm:p-5 mb-4 rounded-2xl card-glass flex flex-col gap-4"
-	>
+	<div class="p-4 sm:p-5 mb-4 rounded-2xl card-glass flex flex-col gap-4">
 		<div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end w-full">
 			<div class="flex flex-col gap-1 w-full lg:w-48">
 				<span class="label-text text-sm font-semibold">Seccional</span>
@@ -413,9 +411,7 @@
 	</div>
 
 	<!-- Tabela de Cx. de Entrada -->
-	<div
-		class="rounded-3xl card-glass p-4 sm:p-5"
-	>
+	<div class="rounded-3xl card-glass p-4 sm:p-5">
 		{#if escalas.length === 0}
 			<div class="text-center py-20 px-4">
 				<p class="text-4xl mb-4">📥</p>

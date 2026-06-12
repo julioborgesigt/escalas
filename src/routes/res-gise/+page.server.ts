@@ -134,8 +134,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 				sec_hora_saida: sql`NULL`.as('sec_hora_saida'),
 				eq_hora_entrada: sql`NULL`.as('eq_hora_entrada'),
 				eq_hora_saida: sql`NULL`.as('eq_hora_saida'),
-				equipe_tipo:
-					sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
+				equipe_tipo: sql<string>`CASE WHEN ${giseEscalas.assessor_id} = ${u.id} THEN 'assessor' ELSE 'seint' END`,
 				seccional_id: sql`0`.as('seccional_id'),
 				seccional_nome: sql`'Supervisão Geral'`.as('seccional_nome')
 			})
@@ -235,9 +234,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 
 			presencas.forEach((p) => presencasMap.set(p.gise_id, p));
 			docs.forEach((doc) => docsAssinadosMap.set(doc.gise_id, true));
-			extras.forEach((ext) =>
-				extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true)
-			);
+			extras.forEach((ext) => extrasAssinadosMap.set(`${ext.gise_id}_${ext.seccional_id}`, true));
 			respostas.forEach((res) => {
 				if (res.equipe_id != null) {
 					respostasEquipeMap.set(`${res.gise_id}_${res.equipe_id}`, true);

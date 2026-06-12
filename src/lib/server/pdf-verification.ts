@@ -296,7 +296,10 @@ async function trailingEhDssLegitimo(
 	if (/\/ByteRange\b/.test(trailing)) {
 		// Outra assinatura após a principal teria cobertura MAIOR e seria a
 		// principal; um /ByteRange aqui é estrutura órfã/forjada.
-		return { ok: false, motivo: 'estrutura de assinatura órfã anexada após a assinatura principal' };
+		return {
+			ok: false,
+			motivo: 'estrutura de assinatura órfã anexada após a assinatura principal'
+		};
 	}
 	if (!/\/DSS\b/.test(trailing)) {
 		return { ok: false, motivo: 'conteúdo anexado após a assinatura não é um DSS (PAdES-LT)' };
@@ -540,10 +543,13 @@ export function parseCms(cmsDer: Uint8Array): CmsParsed | null {
 			}
 		}
 		if (!signedAttrs || !signatureValue) {
-			logger.warn('[PDF-VERIFY] CMS sem signedAttrs ([0]) ou signatureValue (OCTET STRING) no SignerInfo', {
-				temSignedAttrs: !!signedAttrs,
-				temSignatureValue: !!signatureValue
-			});
+			logger.warn(
+				'[PDF-VERIFY] CMS sem signedAttrs ([0]) ou signatureValue (OCTET STRING) no SignerInfo',
+				{
+					temSignedAttrs: !!signedAttrs,
+					temSignatureValue: !!signatureValue
+				}
+			);
 			return null;
 		}
 		if (sigAlgEncontrado) {
@@ -743,9 +749,10 @@ export function avaliarPoliticaCriptografica(
 			return { ok: false, motivo: `chave RSA de ${bits} bits (mínimo 2048)` };
 		}
 	}
-	const ku = cert.getExtension('keyUsage') as
-		| { digitalSignature?: boolean; nonRepudiation?: boolean }
-		| null;
+	const ku = cert.getExtension('keyUsage') as {
+		digitalSignature?: boolean;
+		nonRepudiation?: boolean;
+	} | null;
 	if (!ku || (!ku.digitalSignature && !ku.nonRepudiation)) {
 		return {
 			ok: false,

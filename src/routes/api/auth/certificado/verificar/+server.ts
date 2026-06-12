@@ -3,7 +3,14 @@ import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { criarSessao } from '$lib/auth';
 import { doisFatoresTokens, policiais } from '$lib/server/schema';
-import { badRequest, unauthorized, rateLimited, ErrorCode, apiError, validateBody } from '$lib/server/api';
+import {
+	badRequest,
+	unauthorized,
+	rateLimited,
+	ErrorCode,
+	apiError,
+	validateBody
+} from '$lib/server/api';
 import { certificadoVerificarSchema } from '$lib/schemas';
 import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-flow';
 import { verificarRespostaDesafioCertificado } from '$lib/server/cert-login';
@@ -13,7 +20,13 @@ import { logger } from '$lib/server/logger';
 import forge from 'node-forge';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ platform, request, cookies, url, getClientAddress }) => {
+export const POST: RequestHandler = async ({
+	platform,
+	request,
+	cookies,
+	url,
+	getClientAddress
+}) => {
 	const db = getDB(platform);
 	const ip = getClientAddress();
 
@@ -130,10 +143,7 @@ export const POST: RequestHandler = async ({ platform, request, cookies, url, ge
 	}
 
 	// Marcar desafio como usado (one-time use)
-	await db
-		.update(doisFatoresTokens)
-		.set({ usado: 1 })
-		.where(eq(doisFatoresTokens.id, desafio.id));
+	await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
 
 	await recordAttempt(db, ip, true);
 

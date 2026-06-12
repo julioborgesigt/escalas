@@ -96,10 +96,13 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 			gpsCoords = await getCoordinates();
 
 			loading.show('Preparando assinatura...');
-			const prepData = await apiFetch<PrepararAssinaturaResponse>(`/api/escalas/${escalaId}/preparar-assinatura`, {
-				method: 'POST',
-				body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
-			});
+			const prepData = await apiFetch<PrepararAssinaturaResponse>(
+				`/api/escalas/${escalaId}/preparar-assinatura`,
+				{
+					method: 'POST',
+					body: JSON.stringify({ signerName: serproSignerName, signerCpf: serproSignerCpf })
+				}
+			);
 
 			loading.show('Assinando com SERPRO...');
 			const messageDigestBase64 = btoa(

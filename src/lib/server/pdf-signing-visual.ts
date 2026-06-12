@@ -30,13 +30,7 @@ export async function adicionarRodapeSimples(
 	assinante: string,
 	options: RodapeSimplesOptions = {}
 ): Promise<Uint8Array> {
-	const {
-		verificationHash,
-		verificationUrl,
-		rubricBase64,
-		customRubricX,
-		customRubricY
-	} = options;
+	const { verificationHash, verificationUrl, rubricBase64, customRubricX, customRubricY } = options;
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);

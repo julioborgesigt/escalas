@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
@@ -138,10 +137,12 @@
 			assinaturasRelatorioExtraIds: (data.assinaturasRelatorios ?? [])
 				.filter((a) => a.tipo === 'extraordinario')
 				.map((a) => a.seccional_id),
-			seccionais: (gise.seccionais ?? []).map((sec: { seccional_id: number; seccional_nome: string }) => ({
-				id: sec.seccional_id,
-				nome: sec.seccional_nome
-			}))
+			seccionais: (gise.seccionais ?? []).map(
+				(sec: { seccional_id: number; seccional_nome: string }) => ({
+					id: sec.seccional_id,
+					nome: sec.seccional_nome
+				})
+			)
 		};
 	});
 

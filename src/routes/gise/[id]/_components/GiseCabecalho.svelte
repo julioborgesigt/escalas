@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';

@@ -36,8 +36,7 @@ export type RecoveryPurpose =
  * para throttle por usuário: passam intactas sem salt, hasheadas com salt.
  */
 export async function chaveRateLimitIp(ip: string): Promise<string> {
-	const salt =
-		typeof process !== 'undefined' ? process.env?.RATE_LIMIT_IP_SALT?.trim() : undefined;
+	const salt = typeof process !== 'undefined' ? process.env?.RATE_LIMIT_IP_SALT?.trim() : undefined;
 	if (!salt) return anonimizarIp(ip) ?? ip;
 	const data = new TextEncoder().encode(`${salt}\x1f${ip}`);
 	const buf = await crypto.subtle.digest('SHA-256', data);

@@ -8,10 +8,7 @@
  * em camadas, qualquer host-header injection (link de reset apontando para
  * domínio do atacante).
  */
-export function resolverAppOrigin(
-	requestUrl: URL,
-	platform: App.Platform | undefined
-): string {
+export function resolverAppOrigin(requestUrl: URL, platform: App.Platform | undefined): string {
 	const env = platform?.env as Record<string, string | undefined> | undefined;
 	const configurada = env?.APP_ORIGIN?.trim();
 	if (configurada) {

@@ -81,7 +81,6 @@
 	}
 
 	function sabadoDaSemana(): Date {
-
 		const hoje = new Date();
 		const dow = hoje.getDay();
 		const offset = dow === 0 ? -1 : 6 - dow;
@@ -389,9 +388,7 @@
 
 <!-- =========== SELETOR DE REGIME =========== -->
 {#if selecionando}
-	<div
-		class="card-glass p-4 sm:p-6 rounded-3xl"
-	>
+	<div class="card-glass p-4 sm:p-6 rounded-3xl">
 		{#if unidadesComRegime.length === 0}
 			<div
 				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"
@@ -525,9 +522,7 @@
 		{/if}
 	</div>
 
-	<div
-		class="card-glass p-4 sm:p-6 rounded-3xl"
-	>
+	<div class="card-glass p-4 sm:p-6 rounded-3xl">
 		<form method="POST" action="?/criar" use:enhance={handleForm} class="space-y-4">
 			<input type="hidden" name="data_inicio" value={dataInicio} />
 			<input type="hidden" name="data_fim" value={dataFim} />

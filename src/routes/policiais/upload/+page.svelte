@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
@@ -57,9 +56,7 @@
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
-<div
-	class="card-glass p-4 sm:p-6 mb-4 rounded-3xl"
->
+<div class="card-glass p-4 sm:p-6 mb-4 rounded-3xl">
 	<!-- Format instructions -->
 	<div
 		class="bg-surface-100/50 dark:bg-surface-800 border border-surface-200 dark:border-white/10 rounded-lg p-4 mb-6"

@@ -444,7 +444,10 @@ export async function validarSessaoComAceite(
 		.select({ versao_termo: aceitesTermos.versao_termo, hash_termo: aceitesTermos.hash_termo })
 		.from(aceitesTermos)
 		.where(
-			and(eq(aceitesTermos.usuario_tipo, sessao.tipo), eq(aceitesTermos.usuario_id, sessao.usuario_id))
+			and(
+				eq(aceitesTermos.usuario_tipo, sessao.tipo),
+				eq(aceitesTermos.usuario_id, sessao.usuario_id)
+			)
 		)
 		.orderBy(desc(aceitesTermos.aceitou_em))
 		.limit(1);
@@ -481,9 +484,7 @@ export async function validarSessaoComAceite(
 
 export async function excluirSessao(db: Database, token: string): Promise<void> {
 	// Cobre tanto a forma hasheada (atual) quanto linhas legadas em claro.
-	await db
-		.delete(sessoes)
-		.where(inArray(sessoes.token, [await hashTokenArmazenado(token), token]));
+	await db.delete(sessoes).where(inArray(sessoes.token, [await hashTokenArmazenado(token), token]));
 }
 
 /**
@@ -683,7 +684,10 @@ export async function verificarDesafio2FA(
 	// Em lote (`markUsed: false`) o desafio permanece válido até expirar, para
 	// autorizar várias assinaturas na mesma sessão sem novo código a cada uma.
 	if (markUsed) {
-		await db.update(doisFatoresTokens).set({ usado: 1 }).where(eq(doisFatoresTokens.id, desafio.id));
+		await db
+			.update(doisFatoresTokens)
+			.set({ usado: 1 })
+			.where(eq(doisFatoresTokens.id, desafio.id));
 	}
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };

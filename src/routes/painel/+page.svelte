@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { page, navigating } from '$app/state';
@@ -541,9 +540,7 @@
 	</Dialog>
 
 	<!-- Tabela -->
-	<div
-		class="rounded-3xl card-glass p-4 sm:p-5"
-	>
+	<div class="rounded-3xl card-glass p-4 sm:p-5">
 		{#if loadingService.active}
 			<div
 				class="flex flex-col items-center justify-center py-16 gap-3 text-surface-400 dark:text-surface-500"

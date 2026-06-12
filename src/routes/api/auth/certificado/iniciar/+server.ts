@@ -31,13 +31,11 @@ export const POST: RequestHandler = async ({ platform, getClientAddress }) => {
 	// assinar qualquer conteúdo). Deve permanecer idêntico ao cálculo no cliente
 	// (src/routes/login/+page.svelte → fazerLoginComCertificado).
 	const nonceBytes = Uint8Array.from(nonce.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-	const expectedDigestHex = await crypto.subtle
-		.digest('SHA-256', nonceBytes)
-		.then((buf) =>
-			Array.from(new Uint8Array(buf))
-				.map((b) => b.toString(16).padStart(2, '0'))
-				.join('')
-		);
+	const expectedDigestHex = await crypto.subtle.digest('SHA-256', nonceBytes).then((buf) =>
+		Array.from(new Uint8Array(buf))
+			.map((b) => b.toString(16).padStart(2, '0'))
+			.join('')
+	);
 
 	const expiresAt = new Date(Date.now() + CERTIFICADO_DESAFIO_TTL_MS).toISOString();
 

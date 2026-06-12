@@ -95,7 +95,9 @@
 		<div
 			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[85vh] overflow-y-auto border border-surface-200 dark:border-white/10 flex flex-col"
 		>
-			<div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3">
+			<div
+				class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3"
+			>
 				<div class="min-w-0">
 					<Dialog.Title class="text-lg font-bold text-surface-900 dark:text-surface-50">
 						Relatórios de Extra (GISE)
@@ -136,18 +138,25 @@
 									<FileText size={18} />
 								</div>
 								<div class="min-w-0">
-									<p class="text-xs font-semibold text-surface-800 dark:text-surface-200 truncate leading-snug">
+									<p
+										class="text-xs font-semibold text-surface-800 dark:text-surface-200 truncate leading-snug"
+									>
 										{item.nome}
 									</p>
 									<div class="flex items-center gap-1 mt-0.5">
 										{#if item.disponivel}
-											<CheckCircle2 size={12} class="text-success-600 dark:text-success-400 shrink-0" />
-											<span class="text-[0.65rem] text-success-700 dark:text-success-400 font-medium"
+											<CheckCircle2
+												size={12}
+												class="text-success-600 dark:text-success-400 shrink-0"
+											/>
+											<span
+												class="text-[0.65rem] text-success-700 dark:text-success-400 font-medium"
 												>Assinado (Disponível)</span
 											>
 										{:else}
 											<Clock size={12} class="text-warning-600 dark:text-warning-500 shrink-0" />
-											<span class="text-[0.65rem] text-warning-700 dark:text-warning-500 font-medium"
+											<span
+												class="text-[0.65rem] text-warning-700 dark:text-warning-500 font-medium"
 												>Pendente (Não assinado)</span
 											>
 										{/if}

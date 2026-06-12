@@ -311,7 +311,11 @@ async function verificarIncremental(
 		}
 	}
 	// (c) startxref aponta para a palavra-chave "xref".
-	if (xrefOffset < 0 || xrefOffset >= output.length || decOut.slice(xrefOffset, xrefOffset + 4) !== 'xref') {
+	if (
+		xrefOffset < 0 ||
+		xrefOffset >= output.length ||
+		decOut.slice(xrefOffset, xrefOffset + 4) !== 'xref'
+	) {
 		return { ok: false, motivo: `startxref (${xrefOffset}) não aponta para "xref"` };
 	}
 	// (d) Round-trip: o PDF reabre e expõe o DSS recém-embarcado.

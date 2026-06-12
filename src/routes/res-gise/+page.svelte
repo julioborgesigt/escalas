@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';

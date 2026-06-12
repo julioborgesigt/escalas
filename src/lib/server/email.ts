@@ -109,7 +109,9 @@ async function dispararEmailCloudflare(
 
 	if (!response.ok) {
 		const errorText = await response.text();
-		throw new Error(`Falha ao enviar e-mail via Cloudflare REST API (HTTP ${response.status}): ${errorText}`);
+		throw new Error(
+			`Falha ao enviar e-mail via Cloudflare REST API (HTTP ${response.status}): ${errorText}`
+		);
 	}
 
 	const data = (await response.json()) as {
@@ -134,7 +136,8 @@ async function dispararEmailResend(
 	const apiKey = e?.RESEND_API_KEY ?? '';
 	const from = e?.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev';
 
-	if (!apiKey) throw new Error('Resend API key não configurada. Defina RESEND_API_KEY no ambiente.');
+	if (!apiKey)
+		throw new Error('Resend API key não configurada. Defina RESEND_API_KEY no ambiente.');
 
 	const bodyPayload = {
 		from: `${CF_FROM_NAME} <${from}>`,
@@ -153,7 +156,9 @@ async function dispararEmailResend(
 
 	if (!response.ok) {
 		const errorText = await response.text();
-		throw new Error(`Falha ao enviar e-mail via Resend API (HTTP ${response.status}): ${errorText}`);
+		throw new Error(
+			`Falha ao enviar e-mail via Resend API (HTTP ${response.status}): ${errorText}`
+		);
 	}
 
 	const data = (await response.json()) as { id: string };

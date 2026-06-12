@@ -327,15 +327,17 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'apreensoes_menores' && resps.apreensoes_lista) {
-						(resps.apreensoes_lista as { nome?: string; mandado?: string }[]).forEach((item, idx) => {
-							if (item.nome || item.mandado) {
-								allResults.push({
-									equipe_id: eqId,
-									pergunta: `  ↳ Apreensão ${idx + 1}`,
-									resposta: `${item.nome} - ${item.mandado}`
-								});
+						(resps.apreensoes_lista as { nome?: string; mandado?: string }[]).forEach(
+							(item, idx) => {
+								if (item.nome || item.mandado) {
+									allResults.push({
+										equipe_id: eqId,
+										pergunta: `  ↳ Apreensão ${idx + 1}`,
+										resposta: `${item.nome} - ${item.mandado}`
+									});
+								}
 							}
-						});
+						);
 					}
 					if (p.tipo === 'drogas_complex' && resps.drogas_selecionadas) {
 						resps.drogas_selecionadas.forEach((d: string) => {
@@ -350,19 +352,23 @@ export async function buscarRespostasProdutividadeSeccional(
 					}
 					// SEINT Complex Types
 					if (p.tipo === 'celulares_complex' && resps.celulares_lista) {
-						(resps.celulares_lista as { modelo?: string; n_proc?: string }[]).forEach((item, idx) => {
-							if (item.modelo || item.n_proc) {
-								allResults.push({
-									equipe_id: eqId,
-									pergunta: `  ↳ Aparelho ${idx + 1}`,
-									resposta:
-										`${item.modelo || ''} ${item.n_proc ? '(Proc: ' + item.n_proc + ')' : ''}`.trim()
-								});
+						(resps.celulares_lista as { modelo?: string; n_proc?: string }[]).forEach(
+							(item, idx) => {
+								if (item.modelo || item.n_proc) {
+									allResults.push({
+										equipe_id: eqId,
+										pergunta: `  ↳ Aparelho ${idx + 1}`,
+										resposta:
+											`${item.modelo || ''} ${item.n_proc ? '(Proc: ' + item.n_proc + ')' : ''}`.trim()
+									});
+								}
 							}
-						});
+						);
 					}
 					if (p.tipo === 'analise_complex' && resps.analise_lista) {
-						(resps.analise_lista as { modelo?: string; n_proc?: string; tamanho?: string }[]).forEach((item, idx) => {
+						(
+							resps.analise_lista as { modelo?: string; n_proc?: string; tamanho?: string }[]
+						).forEach((item, idx) => {
 							if (item.modelo || item.n_proc) {
 								allResults.push({
 									equipe_id: eqId,
@@ -374,41 +380,47 @@ export async function buscarRespostasProdutividadeSeccional(
 						});
 					}
 					if (p.tipo === 'relatorios_seint_complex' && resps.relatorios_seint_lista) {
-						(resps.relatorios_seint_lista as { n_relat?: string; q_alvos?: string }[]).forEach((item, idx) => {
-							if (item.n_relat || item.q_alvos) {
-								allResults.push({
-									equipe_id: eqId,
-									pergunta: `  ↳ Relatório ${idx + 1}`,
-									resposta:
-										`${item.n_relat || ''} ${item.q_alvos ? '(' + item.q_alvos + ' alvos)' : ''}`.trim()
-								});
+						(resps.relatorios_seint_lista as { n_relat?: string; q_alvos?: string }[]).forEach(
+							(item, idx) => {
+								if (item.n_relat || item.q_alvos) {
+									allResults.push({
+										equipe_id: eqId,
+										pergunta: `  ↳ Relatório ${idx + 1}`,
+										resposta:
+											`${item.n_relat || ''} ${item.q_alvos ? '(' + item.q_alvos + ' alvos)' : ''}`.trim()
+									});
+								}
 							}
-						});
+						);
 					}
 					if (p.tipo === 'foragidos_complex' && resps.foragidos_lista) {
-						(resps.foragidos_lista as { nome?: string; resultado?: string }[]).forEach((item, idx) => {
-							if (item.nome || item.resultado) {
-								allResults.push({
-									equipe_id: eqId,
-									pergunta: `  ↳ Alvo ${idx + 1}`,
-									resposta: `${item.nome || ''} - Status: ${item.resultado || 'N/I'}`.trim()
-								});
+						(resps.foragidos_lista as { nome?: string; resultado?: string }[]).forEach(
+							(item, idx) => {
+								if (item.nome || item.resultado) {
+									allResults.push({
+										equipe_id: eqId,
+										pergunta: `  ↳ Alvo ${idx + 1}`,
+										resposta: `${item.nome || ''} - Status: ${item.resultado || 'N/I'}`.trim()
+									});
+								}
 							}
-						});
+						);
 					}
 					if (
 						(p.tipo === 'operacoes_seint_complex' || p.tipo === 'operacoes_seint_pura') &&
 						resps.operacoes_seint_lista
 					) {
-						(resps.operacoes_seint_lista as { nome?: string; delegacia?: string }[]).forEach((item, idx) => {
-							if (item.nome || item.delegacia) {
-								allResults.push({
-									equipe_id: eqId,
-									pergunta: `  ↳ Operação ${idx + 1}`,
-									resposta: `${item.nome || ''} (${item.delegacia || ''})`.trim()
-								});
+						(resps.operacoes_seint_lista as { nome?: string; delegacia?: string }[]).forEach(
+							(item, idx) => {
+								if (item.nome || item.delegacia) {
+									allResults.push({
+										equipe_id: eqId,
+										pergunta: `  ↳ Operação ${idx + 1}`,
+										resposta: `${item.nome || ''} (${item.delegacia || ''})`.trim()
+									});
+								}
 							}
-						});
+						);
 					}
 
 					if (p.filhos && p.filhos.length > 0) {

@@ -126,9 +126,7 @@
 <div class="min-h-[80vh] flex items-center justify-center p-4">
 	<div class="w-full max-w-sm">
 		<!-- Card -->
-		<div
-			class="p-6 sm:p-8 rounded-3xl card-glass-auth"
-		>
+		<div class="p-6 sm:p-8 rounded-3xl card-glass-auth">
 			<!-- Icon + Title -->
 			<div class="text-center mb-6">
 				<div

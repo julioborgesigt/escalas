@@ -161,7 +161,9 @@ function berToDer(ber: Buffer): Buffer {
 		} else {
 			const n = lb & 0x7f;
 			if (pos + n > ber.length)
-				throw new Error(`BER: bytes de comprimento excedem o buffer (pos ${pos} + ${n} > ${ber.length})`);
+				throw new Error(
+					`BER: bytes de comprimento excedem o buffer (pos ${pos} + ${n} > ${ber.length})`
+				);
 			len = 0;
 			for (let i = 0; i < n; i++) len = (len << 8) | ber[pos++];
 		}
@@ -181,7 +183,9 @@ function berToDer(ber: Buffer): Buffer {
 				value = Buffer.from(bytes);
 			} else {
 				if (pos + len > ber.length)
-					throw new Error(`BER: valor primitivo excede o buffer (pos ${pos} + len ${len} > ${ber.length})`);
+					throw new Error(
+						`BER: valor primitivo excede o buffer (pos ${pos} + len ${len} > ${ber.length})`
+					);
 				value = Buffer.from(ber.subarray(pos, pos + len));
 				pos += len;
 			}

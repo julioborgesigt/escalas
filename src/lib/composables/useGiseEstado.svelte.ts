@@ -42,16 +42,15 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const isMembro = $derived(_data.isMembro === true);
 
 	const minhaSeccional = $derived(
-		isSeccional
-			? gise?.seccionais?.find((s) => s.seccional_id === minhaSeccionalId)
-			: null
+		isSeccional ? gise?.seccionais?.find((s) => s.seccional_id === minhaSeccionalId) : null
 	);
 
 	const todasSeccionaisPreenchidas = $derived(
 		(gise?.seccionais?.length ?? 0) > 0 &&
 			(gise?.seccionais?.every(
 				(s) => s.status === 'preenchida' || s.status === 'preenchida_retificada'
-			) ?? false)
+			) ??
+				false)
 	);
 
 	const editaBloqueado = $derived(

@@ -72,7 +72,7 @@
 		const days: string[] = [];
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const current = new Date(escala.data_inicio + 'T00:00:00');
-		 
+
 		const last = new Date(escala.data_fim + 'T00:00:00');
 		while (current <= last) {
 			days.push(new Date(current).toISOString().split('T')[0]);

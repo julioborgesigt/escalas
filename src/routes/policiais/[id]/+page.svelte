@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
@@ -86,9 +85,7 @@
 	<a href="/policiais" class="btn preset-outlined-primary-500">Voltar</a>
 </div>
 
-<div
-	class="card-glass p-3 sm:p-4 rounded-xl"
->
+<div class="card-glass p-3 sm:p-4 rounded-xl">
 	<form method="POST" action="?/salvar" use:enhance={handleSalvar} class="space-y-2">
 		<!-- Linha 1 -->
 		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
@@ -212,9 +209,7 @@
 </div>
 
 {#if isAdminOrSeccional || isAdminUnidade}
-	<div
-		class="card-glass p-3 sm:p-4 rounded-xl mt-4"
-	>
+	<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
 		<h2 class="text-base font-bold mb-3 text-surface-700 dark:text-surface-300">
 			Papel Administrativo
 		</h2>
