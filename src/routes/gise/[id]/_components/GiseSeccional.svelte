@@ -67,6 +67,10 @@
 	// entre as equipes/slots renderizados pelo template deste componente.
 	let modoEdicaoSeccional = $state(false);
 
+	let editandoHorariosSeccional = $state(false);
+	let editSecHoraEnt = $state('');
+	let editSecHoraSai = $state('');
+
 	let editandoEquipe = $state<number | null>(null);
 	let editSlotsDpc = $state(0);
 	let editSlotsOip = $state(0);
@@ -112,6 +116,9 @@
 		onSalvarHorariosEquipeSuccess: () => {
 			editandoHorariosEquipeId = null;
 		},
+		onSalvarHorariosSecSuccess: () => {
+			editandoHorariosSeccional = false;
+		},
 		onAdicionarMembroSuccess: () => {
 			equipeParaAdicionar = null;
 			policialParaAdicionar = '';
@@ -124,6 +131,10 @@
 		getHorariosEquipeFormulario: () => ({
 			entrada: editEqHoraEnt,
 			saida: editEqHoraSai
+		}),
+		getHorariosSecFormulario: () => ({
+			entrada: editSecHoraEnt,
+			saida: editSecHoraSai
 		})
 	});
 
@@ -136,6 +147,7 @@
 	const pendingAdicionarUnidade = $derived(actions.pendingAdicionarUnidade);
 	const pendingRemoverUnidade = $derived(actions.pendingRemoverUnidade);
 	const pendingSalvarHorariosEquipe = $derived(actions.pendingSalvarHorariosEquipe);
+	const pendingSalvarHorariosSec = $derived(actions.pendingSalvarHorariosSec);
 	const pendingAdicionarMembro = $derived(actions.pendingAdicionarMembro);
 	const pendingRemoverMembro = $derived(actions.pendingRemoverMembro);
 	const pendingRemoverSeccional = $derived(actions.pendingRemoverSeccional);
@@ -371,42 +383,123 @@
 			? ''
 			: 'border-b border-surface-200/40 dark:border-surface-700/40'}"
 	>
-		<button
-			type="button"
-			class="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-left active:scale-[0.99] transition-transform"
-			onclick={onToggleRecolher}
-		>
-			<div class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0">
-				<svg
-					class="w-5 h-5 transition-transform duration-300 {recolhida ? '-rotate-90' : ''}"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
-			</div>
-			<span class="font-bold text-surface-900 dark:text-surface-50 text-sm sm:text-base">
-				{sec.seccional_nome}
-			</span>
-			{@render statusBadge(sec.status, true)}
-			<div
-				class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2"
+		<div class="flex-1 min-w-0 flex flex-wrap items-center gap-y-1">
+			<button
+				type="button"
+				class="flex items-center gap-x-3 text-left active:scale-[0.99] transition-transform min-w-0"
+				onclick={onToggleRecolher}
 			>
-				<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
-				{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
-					<span
-						class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-[0.65rem]"
-						>H. Personalizado</span
+				<div
+					class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
+				>
+					<svg
+						class="w-5 h-5 transition-transform duration-300 {recolhida ? '-rotate-90' : ''}"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
 					>
-				{/if}
-			</div>
-		</button>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M19 9l-7 7-7-7"
+						/>
+					</svg>
+				</div>
+				<span
+					class="font-bold text-surface-900 dark:text-surface-50 text-sm sm:text-base truncate mr-2"
+				>
+					{sec.seccional_nome}
+				</span>
+				{@render statusBadge(sec.status, true)}
+			</button>
+
+			{#if editandoHorariosSeccional}
+				<div class="flex flex-wrap items-center gap-2 ml-2">
+					<input
+						type="text"
+						placeholder="08:00"
+						class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraEnt &&
+						!validarHora(editSecHoraEnt)
+							? 'border-error-500'
+							: 'border-surface-300 dark:border-surface-600'}"
+						bind:value={editSecHoraEnt}
+					/>
+					<span class="opacity-30">-</span>
+					<input
+						type="text"
+						placeholder="16:00"
+						class="w-16 px-2 py-1 text-sm rounded border bg-white dark:bg-surface-900 {editSecHoraSai &&
+						!validarHora(editSecHoraSai)
+							? 'border-error-500'
+							: 'border-surface-300 dark:border-surface-600'}"
+						bind:value={editSecHoraSai}
+					/>
+					<div class="flex items-center gap-2 shrink-0">
+						<form
+							method="POST"
+							action="?/salvarHorariosSec"
+							use:enhance={actions.handleSalvarHorariosSec}
+							class="contents"
+						>
+							<input type="hidden" name="secId" value={sec.id} />
+							<input
+								type="hidden"
+								name="hora_entrada"
+								value={normalizarHora(editSecHoraEnt) ?? ''}
+							/>
+							<input type="hidden" name="hora_saida" value={normalizarHora(editSecHoraSai) ?? ''} />
+							<button
+								type="submit"
+								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+								disabled={pendingCrud}
+								title="Confirmar">{pendingSalvarHorariosSec ? '…' : '✓'}</button
+							>
+						</form>
+						<button
+							type="button"
+							class="btn btn-sm preset-outlined-primary-500 text-sm py-1 px-2 rounded"
+							onclick={() => (editandoHorariosSeccional = false)}>×</button
+						>
+					</div>
+				</div>
+			{:else}
+				<div
+					class="flex items-center gap-1.5 text-xs sm:text-sm text-surface-500 font-medium sm:ml-2"
+				>
+					<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
+					{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
+						<span
+							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-[0.65rem]"
+							>H. Personalizado</span
+						>
+					{/if}
+
+					{#if podeEditar && ((isAdminGeral && modoEdicaoGeral) || (isSeccional && sec.seccional_id === minhaSeccionalId && (modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')))}
+						<button
+							type="button"
+							class="btn btn-xs preset-filled-surface-500 rounded p-1 shrink-0 ml-1"
+							onclick={(e) => {
+								e.stopPropagation();
+								editandoHorariosSeccional = true;
+								editSecHoraEnt = sec.hora_entrada ?? gise.hora_entrada ?? '';
+								editSecHoraSai = sec.hora_saida ?? gise.hora_saida ?? '';
+							}}
+							title="Editar horários da seccional"
+						>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+								/></svg
+							>
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 
 		{#if isAdminGeral && podeEditar && modoEdicaoGeral}
 			<div class="hidden shrink-0 items-start sm:flex">

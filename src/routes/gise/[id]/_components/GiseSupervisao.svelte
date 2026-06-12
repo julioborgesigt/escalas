@@ -306,7 +306,7 @@
 	class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
 >
 	<div
-		class="absolute top-[1px] left-[1px] right-[1px] h-[3px] bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 opacity-70 rounded-t-[15px]"
+		class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-tertiary-500 rounded-t-[15px]"
 	></div>
 
 	<div class="p-3 sm:p-5 md:p-6">

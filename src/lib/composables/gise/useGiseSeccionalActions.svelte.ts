@@ -29,12 +29,19 @@ export interface UseGiseSeccionalActionsParams {
 	onSalvarHorariosEquipeSuccess?: () => void;
 	onAdicionarMembroSuccess?: () => void;
 	onAdicionarUnidadeSuccess?: () => void;
+	onSalvarHorariosSecSuccess?: () => void;
 	/**
 	 * Lê os horários atuais do formulário inline de edição de equipe — usado
 	 * no `beforeSubmit` de `handleSalvarHorariosEquipe` para validar antes de
 	 * deixar o POST sair.
 	 */
 	getHorariosEquipeFormulario: () => { entrada: string; saida: string };
+	/**
+	 * Lê os horários atuais do formulário inline de edição de seccional — usado
+	 * no `beforeSubmit` de `handleSalvarHorariosSec` para validar antes de
+	 * deixar o POST sair.
+	 */
+	getHorariosSecFormulario: () => { entrada: string; saida: string };
 }
 
 export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
@@ -46,7 +53,9 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		onSalvarHorariosEquipeSuccess,
 		onAdicionarMembroSuccess,
 		onAdicionarUnidadeSuccess,
-		getHorariosEquipeFormulario
+		onSalvarHorariosSecSuccess,
+		getHorariosEquipeFormulario,
+		getHorariosSecFormulario
 	} = params;
 
 	let pendingFinalizarSeccional = $state(false);
@@ -56,6 +65,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 	let pendingRemoverEquipe = $state(false);
 	let pendingSalvarSlotsEquipe = $state(false);
 	let pendingSalvarHorariosEquipe = $state(false);
+	let pendingSalvarHorariosSec = $state(false);
 	let pendingAdicionarMembro = $state(false);
 	let pendingRemoverMembro = $state(false);
 	let pendingAdicionarUnidade = $state(false);
@@ -72,6 +82,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 			pendingRemoverEquipe ||
 			pendingSalvarSlotsEquipe ||
 			pendingSalvarHorariosEquipe ||
+			pendingSalvarHorariosSec ||
 			pendingAdicionarMembro ||
 			pendingRemoverMembro ||
 			pendingAdicionarUnidade ||
@@ -141,6 +152,25 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		successTitle: 'Horários da equipe atualizados',
 		errorTitle: 'Erro ao salvar',
 		onSuccess: () => onSalvarHorariosEquipeSuccess?.()
+	});
+
+	const handleSalvarHorariosSec = makeEnhanceHandler({
+		setPending: (p) => (pendingSalvarHorariosSec = p),
+		beforeSubmit: () => {
+			const { entrada, saida } = getHorariosSecFormulario();
+			const horas = [entrada, saida].filter(Boolean);
+			if (horas.some((h) => !validarHora(h))) {
+				toaster.error({
+					title: 'Formato inválido',
+					description: 'Use o formato HH:MM, ex: 14:00'
+				});
+				return false;
+			}
+			return true;
+		},
+		successTitle: 'Horários da seccional atualizados',
+		errorTitle: 'Erro ao salvar',
+		onSuccess: () => onSalvarHorariosSecSuccess?.()
 	});
 
 	const handleAdicionarMembro = makeEnhanceHandler({
@@ -254,6 +284,9 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		get pendingSalvarHorariosEquipe() {
 			return pendingSalvarHorariosEquipe;
 		},
+		get pendingSalvarHorariosSec() {
+			return pendingSalvarHorariosSec;
+		},
 		get pendingAdicionarMembro() {
 			return pendingAdicionarMembro;
 		},
@@ -279,6 +312,7 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		handleRemoverEquipe,
 		handleSalvarSlotsEquipe,
 		handleSalvarHorariosEquipe,
+		handleSalvarHorariosSec,
 		handleAdicionarMembro,
 		handleRemoverMembro,
 		handleAdicionarUnidade,
