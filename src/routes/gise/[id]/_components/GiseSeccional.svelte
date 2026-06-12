@@ -1,5 +1,4 @@
 <script lang="ts">
-	 
 	import { enhance } from '$app/forms';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import type { GiseDetalhado, GiseUnidadeSlot, GiseEquipeComMembros } from '$lib/db/gise';
@@ -361,10 +360,16 @@
 	{/if}
 {/snippet}
 
-<div class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden {getSeccionalColorClass(sec.seccional_id)} shadow-sm hover:shadow-md transition-shadow duration-300">
+<div
+	class="rounded-2xl border-2 border-surface-300 dark:border-surface-700 border-l-[6px] mb-4 overflow-hidden {getSeccionalColorClass(
+		sec.seccional_id
+	)} shadow-sm hover:shadow-md transition-shadow duration-300"
+>
 	<!-- Cabeçalho da seccional -->
 	<div
-		class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {recolhida ? '' : 'border-b border-surface-200/40 dark:border-surface-700/40'}"
+		class="flex flex-wrap items-center gap-2 justify-between px-4 sm:px-5 py-3 {recolhida
+			? ''
+			: 'border-b border-surface-200/40 dark:border-surface-700/40'}"
 	>
 		<button
 			type="button"
@@ -435,10 +440,7 @@
 
 	{#if !recolhida}
 		{#if podeDownload || (isAdminGeral && podeEditar && modoEdicaoGeral)}
-			<Accordion
-				collapsible
-				class="border-b border-surface-200 dark:border-surface-700 sm:hidden"
-			>
+			<Accordion collapsible class="border-b border-surface-200 dark:border-surface-700 sm:hidden">
 				<Accordion.Item value="downloads">
 					<Accordion.ItemTrigger
 						class="flex w-full cursor-pointer items-center justify-center px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-100/90 dark:text-surface-200 dark:hover:bg-surface-800/50"
@@ -655,11 +657,11 @@
 						(modoEdicaoSeccional || sec.status === 'pendente' || sec.status === 'retificada')) ||
 					(isAdminGeral && podeEditar && modoEdicaoGeral)}
 				<div
-					class="rounded-xl border border-primary-300/60 dark:border-primary-700/30 bg-primary-500/4 dark:bg-primary-500/3 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)]"
+					class="rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-950 overflow-visible shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)]"
 				>
 					<!-- Cabeçalho do slot -->
 					<div
-						class="flex flex-col gap-2 px-4 py-3 border-b border-primary-300/30 dark:border-primary-700/30"
+						class="flex flex-col gap-2 px-4 py-3 border-b border-surface-200 dark:border-surface-800"
 					>
 						{#if podeEditarCabecalhoUnidade && selecionandoUnidadeSlotId === slot.id}
 							<div class="flex flex-col sm:flex-row gap-2 w-full min-w-0 sm:items-center">
@@ -840,7 +842,11 @@
 					</div>
 
 					<!-- Equipes do slot -->
-					<div class="px-3 pt-3 grid grid-cols-1 {slot.equipes?.length > 1 ? 'md:grid-cols-2' : ''} gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}">
+					<div
+						class="px-3 pt-3 grid grid-cols-1 {slot.equipes?.length > 1
+							? 'md:grid-cols-2'
+							: ''} gap-3 {isAdminGeral && podeEditar && modoEdicaoGeral ? 'pb-1' : 'pb-3'}"
+					>
 						{#each slot.equipes ?? [] as equipe (equipe.id)}
 							<div
 								class="flex-1 rounded-xl border border-surface-200 dark:border-surface-700/60 p-3 sm:p-4 bg-white dark:bg-surface-900 shadow-sm hover:shadow-md transition-shadow duration-200"

@@ -679,48 +679,15 @@
 			<div
 				class="w-full max-w-sm rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-white/10 shadow-2xl p-6 space-y-6"
 			>
-				<div class="flex flex-col items-center text-center space-y-4">
-					<div
-						class="w-16 h-16 rounded-full bg-error-500/10 flex items-center justify-center text-error-600 dark:text-error-400"
-					>
-						{#if isLoggingOut}
-							<!-- Spinner animado durante o logout -->
-							<svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="3"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-								></path>
-							</svg>
-						{:else}
-							<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-								/>
-							</svg>
-						{/if}
-					</div>
-					<div class="space-y-2">
-						<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">
-							{isLoggingOut ? 'Encerrando sessão...' : 'Sair do Sistema'}
-						</Dialog.Title>
-						<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400">
-							{isLoggingOut
-								? 'Aguarde, você será redirecionado em instantes.'
-								: 'Deseja realmente encerrar sua sessão?'}
-						</Dialog.Description>
-					</div>
+				<div class="flex flex-col items-center text-center space-y-2">
+					<Dialog.Title class="text-xl font-bold text-surface-900 dark:text-surface-50">
+						{isLoggingOut ? 'Encerrando sessão...' : 'Sair do Sistema'}
+					</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400">
+						{isLoggingOut
+							? 'Aguarde, você será redirecionado em instantes.'
+							: 'Deseja realmente encerrar sua sessão?'}
+					</Dialog.Description>
 				</div>
 				<div class="flex flex-col gap-2">
 					<button
