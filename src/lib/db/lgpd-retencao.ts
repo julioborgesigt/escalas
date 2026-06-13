@@ -1,4 +1,4 @@
-import { lt } from 'drizzle-orm';
+import { lt, eq, desc } from 'drizzle-orm';
 import {
 	sessoes,
 	loginAttempts,
@@ -124,4 +124,68 @@ export async function executarLimpezaRetencao(
 		webhookNonces: resNonces.rowsAffected ?? 0,
 		auditLog: resAudit.rowsAffected ?? 0
 	};
+}
+
+/** Estado de saúde do cron de limpeza, derivado do último `audit_log`. */
+export interface SaudeLimpezaRetencao {
+	/** ISO do último `audit_log` com acao='limpeza_retencao', ou null se nunca rodou. */
+	ultimaExecucao: string | null;
+	/** Horas desde a última execução; null se nunca rodou. */
+	horasDesdeUltima: number | null;
+	/** true se passou do limite tolerado (cron provavelmente parado). */
+	atrasada: boolean;
+}
+
+/**
+ * Lógica pura do failsafe: dado o timestamp da última limpeza, decide se o cron
+ * está atrasado. Separada da consulta para ser testável sem banco.
+ *
+ * @param ultimaExecucao ISO da última execução (aceita "YYYY-MM-DD HH:MM:SS"
+ *   sem fuso, tratado como UTC), ou null se nunca rodou.
+ * @param toleranciaHoras janela aceitável entre execuções.
+ * @param agoraMs instante de referência (default `Date.now()`).
+ */
+export function avaliarSaudeLimpeza(
+	ultimaExecucao: string | null,
+	toleranciaHoras: number,
+	agoraMs: number = Date.now()
+): SaudeLimpezaRetencao {
+	if (!ultimaExecucao) {
+		return { ultimaExecucao: null, horasDesdeUltima: null, atrasada: true };
+	}
+	// created_at de datetime('now') vem sem fuso ("YYYY-MM-DD HH:MM:SS"): tratamos como UTC.
+	const ms = Date.parse(
+		ultimaExecucao.includes('T') ? ultimaExecucao : ultimaExecucao.replace(' ', 'T') + 'Z'
+	);
+	const horas = Number.isNaN(ms) ? null : (agoraMs - ms) / 3_600_000;
+	return {
+		ultimaExecucao,
+		horasDesdeUltima: horas,
+		atrasada: horas === null || horas > toleranciaHoras
+	};
+}
+
+/**
+ * Failsafe do cron de limpeza. O Cloudflare Pages não tem cron nativo: a
+ * limpeza depende de um agendador externo (GitHub Actions). Se ele parar de
+ * disparar, as tabelas de retenção crescem silenciosamente. Como cada execução
+ * grava um `audit_log` (`acao='limpeza_retencao'`), basta consultar o mais
+ * recente — sem nova tabela nem armazenamento extra. Exposto no health detail
+ * para um monitor externo flagrar a defasagem.
+ *
+ * @param toleranciaHoras janela aceitável entre execuções (default 48h: o cron
+ *   roda diariamente, então 48h dá folga para uma falha pontual).
+ */
+export async function verificarSaudeLimpezaRetencao(
+	db: Database,
+	toleranciaHoras = 48
+): Promise<SaudeLimpezaRetencao> {
+	const [ultimo] = await db
+		.select({ created_at: auditLog.created_at })
+		.from(auditLog)
+		.where(eq(auditLog.acao, 'limpeza_retencao'))
+		.orderBy(desc(auditLog.created_at))
+		.limit(1);
+
+	return avaliarSaudeLimpeza(ultimo?.created_at ?? null, toleranciaHoras);
 }
