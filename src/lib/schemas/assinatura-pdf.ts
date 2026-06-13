@@ -90,7 +90,6 @@ export const prepararAssinaturaSchema = z.object({
 	latitude: latitudeSchema,
 	longitude: longitudeSchema
 });
-type PrepararAssinaturaInput = z.infer<typeof prepararAssinaturaSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FINALIZAR-ASSINATURA — escalas (usa nomes "signature" / "certificate" / "messageDigestHex")
@@ -109,7 +108,6 @@ export const finalizarAssinaturaEscalasSchema = z.object({
 	latitude: latitudeSchema,
 	longitude: longitudeSchema
 });
-type FinalizarAssinaturaEscalasInput = z.infer<typeof finalizarAssinaturaEscalasSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FINALIZAR-ASSINATURA — gise (usa nomes "rawSignature" / "certificateBase64" / "messageDigest")
@@ -134,7 +132,6 @@ export const finalizarAssinaturaGiseSchema = z.object({
 	/** Específico do daily GISE: 'manha' | 'tarde' | 'ambos'. */
 	dia: optionalNullable(z.enum(['manha', 'tarde', 'ambos']))
 });
-type FinalizarAssinaturaGiseInput = z.infer<typeof finalizarAssinaturaGiseSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ASSINAR-SIMPLES — schema canônico (escalas + gise unificados)
@@ -187,5 +184,3 @@ export const assinarSimplesSchema = z.object({
 	),
 	livenessChallenge: livenessChallengeSchema
 });
-type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
-type LivenessChallengeInput = NonNullable<z.infer<typeof livenessChallengeSchema>>;

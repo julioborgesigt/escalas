@@ -7,5 +7,3 @@ export const assinaturaConfigSchema = z.object({
 	exigirCodigoEmail: z.boolean().optional(),
 	restringirSmartphone: z.boolean().optional()
 });
-
-type AssinaturaConfigInput = z.infer<typeof assinaturaConfigSchema>;

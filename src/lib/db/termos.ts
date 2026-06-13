@@ -6,7 +6,6 @@
  * registros de aceite individuais.
  */
 
-import { and, desc, eq } from 'drizzle-orm';
 import { aceitesTermos } from '../server/schema';
 import type { AceiteTermo } from '../server/schema';
 import type { Database } from './core';

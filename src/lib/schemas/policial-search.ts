@@ -26,5 +26,3 @@ export const policialSearchQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(50).default(20),
 	page: z.coerce.number().int().min(1).max(10000).default(1)
 });
-
-type PolicialSearchQuery = z.infer<typeof policialSearchQuerySchema>;

@@ -34,6 +34,3 @@ export const escalaPolicialSchema = z.object({
 	hora_saida: z.string().max(5).default(''),
 	equipe: z.string().max(50).default('')
 });
-
-type EscalaInput = z.infer<typeof escalaSchema>;
-type EscalaPolicialInput = z.infer<typeof escalaPolicialSchema>;

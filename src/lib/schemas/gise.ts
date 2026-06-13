@@ -109,5 +109,3 @@ export const giseHistoricoExportQuerySchema = z
 			}
 		}
 	});
-
-type GiseSignatureInput = z.infer<typeof giseSignatureSchema>;
