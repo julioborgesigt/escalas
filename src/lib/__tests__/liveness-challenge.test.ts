@@ -39,6 +39,35 @@ function olhoFechado() {
 	];
 }
 
+/**
+ * Olho PEQUENO aberto: EAR ≈ 0.22 — ABAIXO do antigo limiar absoluto de
+ * "aberto" (0.25). Com a lógica fixa anterior, depois de uma piscada o olho
+ * nunca era reconhecido como reaberto (0.22 < 0.25) → contador travava em 0/2.
+ * Este é exatamente o caso que a baseline adaptativa conserta.
+ */
+function olhoPequenoAberto() {
+	return [
+		{ x: 0, y: 0 },
+		{ x: 1, y: -0.33 },
+		{ x: 2, y: -0.33 },
+		{ x: 3, y: 0 },
+		{ x: 2, y: 0.33 },
+		{ x: 1, y: 0.33 }
+	];
+}
+
+/** Olho PEQUENO fechado: EAR ≈ 0.08. */
+function olhoPequenoFechado() {
+	return [
+		{ x: 0, y: 0 },
+		{ x: 1, y: -0.12 },
+		{ x: 2, y: -0.12 },
+		{ x: 3, y: 0 },
+		{ x: 2, y: 0.12 },
+		{ x: 1, y: 0.12 }
+	];
+}
+
 // ---------------------------------------------------------------------------
 // sortearChallenge
 // ---------------------------------------------------------------------------
@@ -127,6 +156,52 @@ describe('BlinkCounter', () => {
 		}
 		const r = counter.feed(olhoMeio, olhoMeio);
 		expect(r.concluido).toBe(false);
+	});
+
+	it('REGRESSÃO: conta 2 piscadas em olho pequeno (EAR aberto ~0.22 < limiar fixo antigo)', () => {
+		const counter = new BlinkCounter();
+		// Calibra a baseline (~0.22) com 5 frames de olho aberto pequeno.
+		for (let i = 0; i < 5; i++) counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		// Duas piscadas: fechado→aberto ×2 (limiares agora relativos à baseline).
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // blink 1
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
+		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // blink 2
+		expect(r.concluido).toBe(true);
+		expect(r.progresso).toBe(1);
+	});
+
+	it('baseline usa o MÁXIMO: uma piscada durante a calibração não a corrompe', () => {
+		const counter = new BlinkCounter();
+		// Calibração com uma piscada acidental no meio (frame fechado).
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado()); // piscada acidental
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // baseline = max ≈ 0.22
+		// Agora 2 piscadas devem contar normalmente.
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
+		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
+		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		expect(r.concluido).toBe(true);
+	});
+
+	it('ignora frames sem landmarks (arrays vazios) sem contar piscada falsa', () => {
+		const counter = new BlinkCounter();
+		for (let i = 0; i < 5; i++) counter.feed([], []); // sem dados → ignorado
+		const r = counter.feed([], []);
+		expect(r.progresso).toBe(0);
+		expect(r.concluido).toBe(false);
+	});
+
+	it('frame sem landmarks no meio de uma piscada não a interrompe', () => {
+		const counter = new BlinkCounter();
+		for (let i = 0; i < 5; i++) counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
+		counter.feed(olhoPequenoFechado(), olhoPequenoFechado()); // fecha
+		counter.feed([], []); // frame perdido (ignorado, mantém estado "fechado")
+		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // reabre → blink 1
+		expect(r.progresso).toBe(0.5);
 	});
 });
 

@@ -227,24 +227,47 @@
 
 	function startDetectionLoop() {
 		if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+		// Guarda de reentrância: com amostragem rápida (150ms) uma detecção lenta
+		// em aparelho modesto poderia empilhar chamadas. Se ainda há uma rodando,
+		// o tick atual é ignorado (a cadência cai naturalmente, sem pile-up).
+		let emAndamento = false;
 		faceDetectionInterval = setInterval(async () => {
 			if (!videoElement || videoElement.paused || !isFaceModelLoaded || !faceapi) return;
+			if (emAndamento) return;
+			emAndamento = true;
 			try {
-				// Pipeline: detect → landmarks → expressions. Cada etapa só roda
-				// se a anterior achou exatamente 1 rosto, economizando CPU em
-				// dispositivos modestos.
-				const detection = await faceapi
-					.detectSingleFace(
-						videoElement,
-						new faceapi.TinyFaceDetectorOptions({
-							inputSize: 224,
-							scoreThreshold: 0.5
-						})
-					)
-					.withFaceLandmarks()
-					.withFaceExpressions();
+				// Pipeline MÍNIMA por desafio: o blink só precisa dos 68 landmarks
+				// (em maior resolução p/ olhos nítidos); o smile só das expressões.
+				// Rodar apenas a rede necessária compensa, em CPU, a amostragem mais
+				// rápida — antes rodava landmarks E expressions em todo frame.
+				const tipo = challengeAtual?.tipo;
+				const opts = new faceapi.TinyFaceDetectorOptions({
+					inputSize: tipo === 'blink' ? 320 : 224,
+					scoreThreshold: 0.5
+				});
 
-				if (!detection) {
+				let box: { x: number; y: number; width: number } | null = null;
+				let eyesLeft: { x: number; y: number }[] | null = null;
+				let eyesRight: { x: number; y: number }[] | null = null;
+				let happy: number | null = null;
+
+				if (tipo === 'smile') {
+					const det = await faceapi.detectSingleFace(videoElement, opts).withFaceExpressions();
+					if (det) {
+						box = det.detection.box;
+						happy = det.expressions.happy ?? 0;
+					}
+				} else {
+					// blink (e fallback enquanto o challenge ainda não sorteou): landmarks.
+					const det = await faceapi.detectSingleFace(videoElement, opts).withFaceLandmarks();
+					if (det) {
+						box = det.detection.box;
+						eyesLeft = det.landmarks.getLeftEye();
+						eyesRight = det.landmarks.getRightEye();
+					}
+				}
+
+				if (!box) {
 					faceDetected = false;
 					stableFrames = 0;
 					movingFrames = 0;
@@ -253,9 +276,7 @@
 					return;
 				}
 
-				// Reaproveita o detection.detection para box e o resto para landmarks/expressions.
 				faceDetected = true;
-				const box = detection.detection.box;
 
 				if (lastBox) {
 					const dx = box.x - lastBox.x;
@@ -293,11 +314,9 @@
 
 				// Alimentar o challenge ativo com os dados desta frame.
 				if (challengeAtual && !challengeProgresso?.concluido) {
-					if (challengeAtual.tipo === 'blink') {
-						const landmarks = detection.landmarks;
-						challengeProgresso = blinkCounter.feed(landmarks.getLeftEye(), landmarks.getRightEye());
-					} else if (challengeAtual.tipo === 'smile') {
-						const happy = detection.expressions.happy ?? 0;
+					if (challengeAtual.tipo === 'blink' && eyesLeft && eyesRight) {
+						challengeProgresso = blinkCounter.feed(eyesLeft, eyesRight);
+					} else if (challengeAtual.tipo === 'smile' && happy !== null) {
 						challengeProgresso = smileDetector.feed(happy);
 					}
 					if (challengeProgresso?.concluido && !challengeConcluidoEm) {
@@ -306,8 +325,12 @@
 				}
 			} catch (e) {
 				// Ignora erros ocasionais (pipeline pesado pode falhar em frames específicos)
+			} finally {
+				emAndamento = false;
 			}
-		}, 400);
+			// ~150ms: rápido o bastante para capturar o frame de olho fechado de uma
+			// piscada natural (~150-300ms), que a cadência antiga de 400ms perdia.
+		}, 150);
 	}
 
 	$effect(() => {

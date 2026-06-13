@@ -58,7 +58,7 @@ export const CHALLENGES_DISPONIVEIS: ChallengeDefinicao[] = [
 	{
 		tipo: 'blink',
 		instrucao: 'Pisque os olhos 2 vezes',
-		hint: 'Pisque normalmente, sem forçar',
+		hint: 'Pisque devagar, fechando bem os olhos',
 		timeoutMs: 10_000
 	},
 	{
@@ -112,31 +112,45 @@ function dist(a: LandmarkPoint, b: LandmarkPoint): number {
 }
 
 function ear(eye: LandmarkPoint[]): number {
-	if (eye.length !== 6) return 1.0; // sem dados → "olho aberto"
+	if (eye.length !== 6) return NaN; // sem dados → sentinela (frame ignorado)
 	const vert1 = dist(eye[1], eye[5]);
 	const vert2 = dist(eye[2], eye[4]);
 	const horiz = dist(eye[0], eye[3]);
-	if (horiz === 0) return 1.0;
+	if (horiz === 0) return NaN;
 	return (vert1 + vert2) / (2.0 * horiz);
 }
 
-/** Limiar abaixo do qual consideramos o olho fechado. */
+/**
+ * Limiares ABSOLUTOS de fallback — usados só antes da baseline calibrar (ou se a
+ * calibração falhar). O EAR de olho aberto varia muito por pessoa/câmera/óculos/
+ * distância, então a detecção principal é RELATIVA à baseline (ver `BlinkCounter`).
+ */
 const EAR_FECHADO = 0.2;
-/** Limiar acima do qual consideramos o olho aberto novamente (histerese). */
 const EAR_ABERTO = 0.25;
 /** Quantos blinks consecutivos exigir para considerar o challenge cumprido. */
 const BLINKS_NECESSARIOS = 2;
 
+/** Frames de olho aberto coletados para estimar a baseline do usuário. */
+const CALIB_FRAMES = 5;
+/** Olho "fechado" quando o EAR cai abaixo de baseline × este fator. */
+const RATIO_FECHADO = 0.75;
+/** Olho "aberto" de novo quando o EAR sobe acima de baseline × este fator (histerese). */
+const RATIO_ABERTO = 0.85;
+
 /**
- * Máquina de estados para detecção de blink.
+ * Máquina de estados para detecção de blink com BASELINE ADAPTATIVO.
  *
- * Usa histerese (EAR_FECHADO vs EAR_ABERTO) para evitar contagem dupla por
- * jitter. Conta UM blink quando o EAR cai abaixo de FECHADO e depois sobe
- * acima de ABERTO.
+ * Em vez de limiares fixos (frágeis: olhos pequenos podem nunca cair abaixo de
+ * 0.2), calibra a abertura de olho do próprio usuário nos primeiros frames e
+ * detecta a piscada por queda RELATIVA. Conta UM blink quando o EAR cai abaixo
+ * de `baseline × RATIO_FECHADO` e depois sobe acima de `baseline × RATIO_ABERTO`
+ * (histerese proporcional). Antes da calibração, recorre aos limiares absolutos.
  */
 export class BlinkCounter {
 	private estado: 'aberto' | 'fechado' = 'aberto';
 	private blinksDetectados = 0;
+	private baseline: number | null = null;
+	private amostrasCalib: number[] = [];
 
 	/**
 	 * Alimenta um frame com landmarks do face-api.
@@ -148,11 +162,30 @@ export class BlinkCounter {
 	feed(leftEye: LandmarkPoint[], rightEye: LandmarkPoint[]): ChallengeProgresso {
 		const earMedio = (ear(leftEye) + ear(rightEye)) / 2;
 
-		if (this.estado === 'aberto' && earMedio < EAR_FECHADO) {
-			this.estado = 'fechado';
-		} else if (this.estado === 'fechado' && earMedio > EAR_ABERTO) {
-			this.estado = 'aberto';
-			this.blinksDetectados++;
+		// Sem medição confiável (landmarks ausentes → ear()=NaN): ignora o frame,
+		// não calibra nem muda de estado.
+		const semMedida = !Number.isFinite(earMedio);
+
+		if (!semMedida) {
+			// Calibração: coleta as primeiras amostras válidas e usa o MÁXIMO como
+			// baseline de olho aberto — robusto a uma piscada acidental durante a
+			// janela (o frame baixo não vira a baseline).
+			if (this.baseline === null) {
+				this.amostrasCalib.push(earMedio);
+				if (this.amostrasCalib.length >= CALIB_FRAMES) {
+					this.baseline = Math.max(...this.amostrasCalib);
+				}
+			}
+
+			const limFechado = this.baseline !== null ? this.baseline * RATIO_FECHADO : EAR_FECHADO;
+			const limAberto = this.baseline !== null ? this.baseline * RATIO_ABERTO : EAR_ABERTO;
+
+			if (this.estado === 'aberto' && earMedio < limFechado) {
+				this.estado = 'fechado';
+			} else if (this.estado === 'fechado' && earMedio > limAberto) {
+				this.estado = 'aberto';
+				this.blinksDetectados++;
+			}
 		}
 
 		const concluido = this.blinksDetectados >= BLINKS_NECESSARIOS;
@@ -169,6 +202,8 @@ export class BlinkCounter {
 	reset(): void {
 		this.estado = 'aberto';
 		this.blinksDetectados = 0;
+		this.baseline = null;
+		this.amostrasCalib = [];
 	}
 }
 
@@ -223,22 +258,4 @@ export class SmileDetector {
 		this.framesAcima = 0;
 		this.confirmado = false;
 	}
-}
-
-// ---------------------------------------------------------------------------
-// Resultado consolidado para auditoria
-// ---------------------------------------------------------------------------
-
-/**
- * Resultado do challenge — registrado no manifesto do PDF como prova de
- * presença ativa. Inclui o tipo sorteado, o momento de início e fim, e
- * se foi cumprido na primeira tentativa.
- */
-interface ChallengeResultado {
-	tipo: ChallengeTipo;
-	cumprido: boolean;
-	tentativas: number;
-	iniciadoEm: string; // ISO 8601
-	concluidoEm: string | null;
-	duracaoMs: number;
 }
