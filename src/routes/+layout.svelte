@@ -125,7 +125,7 @@
 	const rotaPath = $derived(page.url.pathname);
 	/** Rota GISE: lista/escala, excl. `/gise/config` (entrada separada "Config. GISE"). */
 	const giseListaOuEscalaPath = $derived(
-		rotaPath === '/gise' || (rotaPath.startsWith('/gise/') && !rotaPath.startsWith('/gise/config'))
+		rotaPath === '/gise' || (rotaPath.startsWith('/gise/') && !rotaPath.startsWith('/gise/config') && !rotaPath.startsWith('/gise/bem-vindo'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
 
@@ -375,7 +375,7 @@
 						href="/escalas"
 						data-sveltekit-preload-data="hover"
 						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/escalas')
+						{isActive('/escalas') && !page.url.pathname.startsWith('/escalas/bem-vindo')
 							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 						onclick={() => (sidebarOpen = false)}
@@ -389,6 +389,25 @@
 							/></svg
 						>
 						{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
+					</a>
+					<a
+						href="/escalas/bem-vindo"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/escalas/bem-vindo')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+							/></svg
+						>
+						Manual Escalas
 					</a>
 				{/if}
 			{/if}
@@ -420,6 +439,25 @@
 							/></svg
 						>
 						Escalas GISE
+					</a>
+					<a
+						href="/gise/bem-vindo"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/gise/bem-vindo')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+							/></svg
+						>
+						Manual GISE
 					</a>
 					{#if usuario?.tipo === 'admin'}
 						<a

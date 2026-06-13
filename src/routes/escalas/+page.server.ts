@@ -184,10 +184,10 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 				.where(
 					scopeCondition
 						? and(
-								or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!,
+								baseWhere,
 								scopeCondition!
 							)
-						: or(eq(escalasTable.tipo, 'plantao'), eq(escalasTable.tipo, 'expediente'))!
+						: baseWhere
 				)
 				.orderBy(desc(escalasTable.created_at))
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
