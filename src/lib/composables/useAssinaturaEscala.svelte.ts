@@ -31,8 +31,6 @@ interface UseAssinaturaParams {
 
 export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssinaturaParams) {
 	const escalaId = $derived(getParams().escalaId);
-	const isFDS = $derived(getParams().isFDS);
-	const policiaisCount = $derived(getParams().policiaisCount);
 	const usuario = $derived(getParams().usuario);
 	// Estados de assinatura
 	let dialogSignOpen = $state(false);

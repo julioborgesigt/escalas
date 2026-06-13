@@ -1,4 +1,4 @@
-import { logger as baseLogger, createRequestLogger } from '$lib/logger';
+import { logger as baseLogger } from '$lib/logger';
 import { getRequestCtx } from './request-context';
 
 function withCtx(ctx?: Record<string, unknown>): Record<string, unknown> | undefined {

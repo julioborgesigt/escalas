@@ -189,12 +189,3 @@ export const assinarSimplesSchema = z.object({
 });
 type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
 type LivenessChallengeInput = NonNullable<z.infer<typeof livenessChallengeSchema>>;
-
-/** @deprecated use `assinarSimplesSchema`. Alias mantido para não quebrar imports. */
-const assinarSimplesEscalasSchema = assinarSimplesSchema;
-/** @deprecated */
-type AssinarSimplesEscalasInput = AssinarSimplesInput;
-/** @deprecated use `assinarSimplesSchema`. */
-const assinarSimplesGiseSchema = assinarSimplesSchema;
-/** @deprecated */
-type AssinarSimplesGiseInput = AssinarSimplesInput;

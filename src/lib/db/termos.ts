@@ -61,23 +61,6 @@ export async function registrarAceite(
 }
 
 /**
- * Retorna o aceite mais recente do usuário (ou undefined se nunca aceitou).
- */
-async function buscarUltimoAceite(
-	db: Database,
-	tipo: 'policial' | 'admin',
-	usuarioId: number
-): Promise<AceiteTermo | undefined> {
-	return db
-		.select()
-		.from(aceitesTermos)
-		.where(and(eq(aceitesTermos.usuario_tipo, tipo), eq(aceitesTermos.usuario_id, usuarioId)))
-		.orderBy(desc(aceitesTermos.aceitou_em))
-		.limit(1)
-		.get();
-}
-
-/**
  * Predicado puro de vigência: o aceite corresponde à versão+hash vigentes?
  * Único ponto com a regra — usado por `temAceiteVigente` e pelo batch de
  * sessão em `$lib/auth` (`validarSessaoComAceite`).
@@ -88,18 +71,4 @@ export function aceiteEhVigente(
 	hash: string
 ): boolean {
 	return !!aceite && aceite.versao_termo === versao && aceite.hash_termo === hash;
-}
-
-/**
- * Verifica se o usuário tem um aceite vigente para a versão+hash informados.
- */
-async function temAceiteVigente(
-	db: Database,
-	tipo: 'policial' | 'admin',
-	usuarioId: number,
-	versao: string,
-	hash: string
-): Promise<boolean> {
-	const ult = await buscarUltimoAceite(db, tipo, usuarioId);
-	return aceiteEhVigente(ult, versao, hash);
 }

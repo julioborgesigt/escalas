@@ -29,7 +29,6 @@ export function useGiseEstado({ getData }: GiseEstadoParams) {
 	const gise = $derived(_data.gise);
 	const policiais = $derived(_data.policiais ?? []);
 	const todasUnidades = $derived(_data.todasUnidades ?? []);
-	const papelGise = $derived(_data.papelGise);
 	const minhaSeccionalId = $derived(_data.minhaSeccionalId ?? null);
 
 	// Permissões

@@ -487,20 +487,6 @@ export async function excluirSessao(db: Database, token: string): Promise<void> 
 	await db.delete(sessoes).where(inArray(sessoes.token, [await hashTokenArmazenado(token), token]));
 }
 
-/**
- * Invalida TODAS as sessões do usuário. Use após troca/redefinição de senha
- * para forçar re-login em todos os dispositivos (inclusive o atual). O caller
- * é responsável por emitir uma nova sessão e setar o cookie se quiser manter
- * o usuário logado.
- */
-async function invalidarTodasSessoes(
-	db: Database,
-	tipo: 'policial' | 'admin',
-	usuarioId: number
-): Promise<void> {
-	await db.delete(sessoes).where(and(eq(sessoes.tipo, tipo), eq(sessoes.usuario_id, usuarioId)));
-}
-
 // ---- Autenticação de Dois Fatores ----
 
 /** Gera um código numérico de 6 dígitos para 2FA. */

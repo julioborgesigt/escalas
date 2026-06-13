@@ -673,30 +673,6 @@ export async function verificarIntegridadePdf(
 }
 
 /**
- * @deprecated Use `verificarAssinaturaCmsAsync` — só suporta RSA PKCS#1 v1.5
- *             + SHA-256, falha silenciosamente para ECDSA/RSA-PSS. Mantida
- *             como wrapper síncrono apenas para callers legados.
- */
-function verificarAssinaturaRsa(
-	cert: forge.pki.Certificate,
-	signedAttrsAsSet: forge.asn1.Asn1,
-	signatureValue: string
-): boolean {
-	try {
-		const md = forge.md.sha256.create();
-		const der = forge.asn1.toDer(signedAttrsAsSet).getBytes();
-		md.update(der);
-		const pubKey = cert.publicKey as forge.pki.rsa.PublicKey;
-		return pubKey.verify(md.digest().getBytes(), signatureValue);
-	} catch (e) {
-		logger.warn('[PDF-VERIFY] Falha na verificação RSA (legado)', {
-			error: e instanceof Error ? e.message : String(e)
-		});
-		return false;
-	}
-}
-
-/**
  * Verifica a assinatura do SignerInfo respeitando o `sigAlgOid` extraído
  * do CMS — suporta RSA PKCS#1 v1.5, RSA-PSS e ECDSA.
  *

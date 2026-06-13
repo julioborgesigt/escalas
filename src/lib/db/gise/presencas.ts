@@ -1,5 +1,5 @@
 import { eq, and, sql } from 'drizzle-orm';
-import { giseDocumentos, gisePresencas, policiais } from '../../server/schema';
+import { gisePresencas, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { getNowBR } from '../../utils';
 import { anonimizarIp } from '../audit';
@@ -7,14 +7,6 @@ import { parseUserAgent } from '../../server/document-utils';
 
 function gps2(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
-}
-
-async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
-	return db
-		.select()
-		.from(gisePresencas)
-		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)))
-		.get();
 }
 
 export async function salvarEntradaGise(
@@ -82,15 +74,6 @@ export async function salvarSaidaGise(
 			updated_at: sql`datetime('now', '-3 hours')`
 		})
 		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
-}
-
-async function isDailyGiseSigned(db: Database, giseId: number) {
-	const doc = await db
-		.select({ id: giseDocumentos.id })
-		.from(giseDocumentos)
-		.where(eq(giseDocumentos.gise_id, giseId))
-		.get();
-	return !!doc;
 }
 
 export async function buscarPresencasGise(db: Database, giseId: number) {

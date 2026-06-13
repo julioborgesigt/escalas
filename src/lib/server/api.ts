@@ -113,18 +113,6 @@ export function requireSuperAdmin(locals: App.Locals): UsuarioLogado | Response 
 	return usuario;
 }
 
-/**
- * Retorna o usuário logado se for admin geral ou admin seccional/unidade, ou 403.
- */
-function requireAnyAdmin(locals: App.Locals): UsuarioLogado | Response {
-	const usuario = requireAuth(locals);
-	if (usuario instanceof Response) return usuario;
-	if (usuario.tipo !== 'admin' && !usuario.papel) {
-		return apiError('Acesso negado', 403, ErrorCode.FORBIDDEN);
-	}
-	return usuario;
-}
-
 // ---- Respostas de erro padronizadas ----
 
 /** Resposta 400 Bad Request — opcionalmente com ErrorCode (default VALIDATION). */
@@ -222,25 +210,4 @@ export function contentDisposition(filename: string): string {
 	const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '\\"');
 	const encoded = encodeURIComponent(filename);
 	return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
-}
-
-// ---- Validação ----
-
-/**
- * Valida dados com um schema Zod. Retorna os dados validados ou uma Response 400.
- * Padrão de uso: `const data = validate(body, schema); if (data instanceof Response) return data;`
- */
-function validate<T>(
-	data: unknown,
-	schema: {
-		safeParse: (
-			v: unknown
-		) => { success: true; data: T } | { success: false; error: { issues: { message: string }[] } };
-	}
-): T | Response {
-	const result = schema.safeParse(data);
-	if (!result.success) {
-		return badRequest(result.error.issues[0].message);
-	}
-	return result.data;
 }

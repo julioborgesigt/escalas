@@ -38,13 +38,3 @@ export const logger = {
 	warn: (message: string, context?: Record<string, unknown>) => emit('warn', message, context),
 	error: (message: string, context?: Record<string, unknown>) => emit('error', message, context)
 };
-
-export function createRequestLogger(requestId: string, path: string) {
-	const base = { requestId, path };
-	return {
-		debug: (msg: string, ctx?: Record<string, unknown>) => logger.debug(msg, { ...base, ...ctx }),
-		info: (msg: string, ctx?: Record<string, unknown>) => logger.info(msg, { ...base, ...ctx }),
-		warn: (msg: string, ctx?: Record<string, unknown>) => logger.warn(msg, { ...base, ...ctx }),
-		error: (msg: string, ctx?: Record<string, unknown>) => logger.error(msg, { ...base, ...ctx })
-	};
-}
