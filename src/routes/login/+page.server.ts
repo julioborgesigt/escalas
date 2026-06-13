@@ -2,7 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { verificarDesafio2FA, criarSessao, criarTokenRedefinicao } from '$lib/auth';
+import { verificarDesafio2FA, criarSessao, criarTokenRedefinicao, obterRotaBemVindo } from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import {
@@ -26,10 +26,11 @@ const PRIMEIRO_ACESSO_JANELA_IP_MINUTOS = 15;
 const VERIFICAR_2FA_MAX = 10;
 const VERIFICAR_2FA_WINDOW_MIN = 15;
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const u = locals.usuario;
 	if (u) {
-		throw redirect(302, u.tipo === 'admin' ? '/painel' : '/escalas');
+		const adminModulo = cookies.get('admin_modulo');
+		throw redirect(302, obterRotaBemVindo(u, adminModulo));
 	}
 	return {};
 };
@@ -98,9 +99,41 @@ export const actions: Actions = {
 		if (!result.formRedirect) {
 			return fail(500, { error: 'Resposta de login incompleta.' });
 		}
+		let redirectUrl = result.formRedirect;
+		if (!result.primeiroAcesso) {
+			if (result.role === 'admin') {
+				const admin = await db
+					.select()
+					.from(administradores)
+					.where(eq(administradores.login, matricula))
+					.get();
+				if (admin) {
+					const mappedUser = { id: admin.id, tipo: 'admin' as const, nome: admin.nome, primeiro_acesso: false };
+					redirectUrl = obterRotaBemVindo(mappedUser, result.adminModuloCookie);
+				}
+			} else {
+				const policial = await db
+					.select()
+					.from(policiais)
+					.where(eq(policiais.matricula, matricula))
+					.get();
+				if (policial) {
+					const mappedUser = {
+						id: policial.id,
+						tipo: 'policial' as const,
+						nome: policial.nome,
+						primeiro_acesso: false,
+						papel: policial.papel ?? null,
+						papel_unidade_id: policial.papel_unidade_id ?? null,
+						cargo: policial.cargo as 'DPC' | 'OIP'
+					};
+					redirectUrl = obterRotaBemVindo(mappedUser, null);
+				}
+			}
+		}
 		return {
 			success: true,
-			redirect: result.formRedirect,
+			redirect: redirectUrl,
 			primeiro_acesso: result.primeiroAcesso,
 			nome: result.nome
 		};
@@ -168,6 +201,7 @@ export const actions: Actions = {
 		const { tipo, usuarioId } = resultado;
 
 		let primeiroAcesso: boolean;
+		let mappedUser;
 		if (tipo === 'admin') {
 			const admin = await db
 				.select()
@@ -176,10 +210,20 @@ export const actions: Actions = {
 				.get();
 			if (!admin) return fail(404, { error: 'Usuário não encontrado' });
 			primeiroAcesso = admin.primeiro_acesso === 1;
+			mappedUser = { id: admin.id, tipo: 'admin' as const, nome: admin.nome, primeiro_acesso: primeiroAcesso };
 		} else {
 			const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 			if (!policial || policial.ativo === 0) return fail(403, { error: 'Usuário inativo' });
 			primeiroAcesso = policial.primeiro_acesso === 1;
+			mappedUser = {
+				id: policial.id,
+				tipo: 'policial' as const,
+				nome: policial.nome,
+				primeiro_acesso: primeiroAcesso,
+				papel: policial.papel ?? null,
+				papel_unidade_id: policial.papel_unidade_id ?? null,
+				cargo: policial.cargo as 'DPC' | 'OIP'
+			};
 		}
 
 		const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
@@ -189,18 +233,16 @@ export const actions: Actions = {
 			const pendingModulo = cookies.get('admin_modulo_pending') || 'ambas';
 			cookies.set('admin_modulo', pendingModulo, cookieOptions(url));
 			cookies.delete('admin_modulo_pending', { path: '/' });
-			const adminDest2FA =
-				pendingModulo === 'gise' ? '/gise' : pendingModulo === 'escalas' ? '/recebidos' : '/painel';
 			return {
 				success: true,
-				redirect: primeiroAcesso ? '/alterar-senha' : adminDest2FA,
+				redirect: primeiroAcesso ? '/alterar-senha' : obterRotaBemVindo(mappedUser, pendingModulo),
 				primeiro_acesso: primeiroAcesso
 			};
 		}
 
 		return {
 			success: true,
-			redirect: primeiroAcesso ? '/alterar-senha' : '/escalas',
+			redirect: primeiroAcesso ? '/alterar-senha' : obterRotaBemVindo(mappedUser, null),
 			primeiro_acesso: primeiroAcesso
 		};
 	},

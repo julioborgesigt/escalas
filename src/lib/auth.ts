@@ -678,3 +678,20 @@ export async function verificarDesafio2FA(
 
 	return { tipo: desafio.tipo as TipoDesafio2FA, usuarioId: desafio.usuario_id };
 }
+
+/**
+ * Retorna a rota de boas-vindas adequada para o usuário e módulo selecionado.
+ */
+export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null): string {
+	if (u.tipo === 'admin') {
+		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
+	}
+	if (u.papel === 'admin_seccional') {
+		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
+	}
+	if (u.papel === 'admin_unidade') {
+		return '/escalas/bem-vindo';
+	}
+	return '/bem-vindo';
+}
+
