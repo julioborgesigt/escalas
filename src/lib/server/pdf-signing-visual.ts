@@ -13,7 +13,7 @@ import { formatarDataHora } from './pdf-signing-prepare';
  * Adiciona um rodapé de confirmação administrativa no PDF.
  * Não é uma assinatura PKI — é um carimbo textual com data/hora e nome do responsável.
  */
-export interface RodapeSimplesOptions {
+interface RodapeSimplesOptions {
 	verificationHash?: string;
 	verificationUrl?: string;
 	rubricBase64?: string;
@@ -681,7 +681,7 @@ export async function adicionarPaginaAuditoria(
 // Rodapé Universal em Todas as Páginas de Conteúdo
 // ---------------------------------------------------------------------------
 
-export interface RodapeUniversalOptions {
+interface RodapeUniversalOptions {
 	/** Hash SHA-256 do PDF original */
 	documentHash: string;
 	/** URL completa de validação (ex: https://escalas.pages.dev/validar/XXXX) */

@@ -13,7 +13,7 @@ export function validarHora(v: string): boolean {
 	return /^\d{1,2}:\d{2}$/.test(normalizarHora(v) ?? '');
 }
 
-export function horaToMin(h: string): number {
+function horaToMin(h: string): number {
 	const [hh, mm] = h.split(':').map(Number);
 	return hh * 60 + (mm || 0);
 }

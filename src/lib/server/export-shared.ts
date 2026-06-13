@@ -1,12 +1,12 @@
 import type { Escala, EscalaPolicialComDados } from '../types';
 import { formatarData, calcularDataSaida } from '../utils';
 
-export interface DiaPlantao {
+interface DiaPlantao {
 	data: string;
 	policiais: EscalaPolicialComDados[];
 }
 
-export interface OficialPlantao {
+interface OficialPlantao {
 	policial_id: number;
 	equipe: string;
 	nome: string;
@@ -18,15 +18,15 @@ export interface OficialPlantao {
 	observacoes: string;
 }
 
-export function getHoraEntrada(p: EscalaPolicialComDados, escala: Escala): string {
+function getHoraEntrada(p: EscalaPolicialComDados, escala: Escala): string {
 	return p.hora_entrada || escala.hora_entrada || '08';
 }
 
-export function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string {
+function getHoraSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	return p.hora_saida || escala.hora_saida || '08';
 }
 
-export function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
+function getDataSaida(p: EscalaPolicialComDados, escala: Escala): string {
 	if (p.data_saida) return p.data_saida;
 	return calcularDataSaida(p.data_plantao, getHoraEntrada(p, escala), getHoraSaida(p, escala));
 }
@@ -46,7 +46,7 @@ export function formatarDataPlantao(p: EscalaPolicialComDados, escala: Escala): 
 	return dataEntrada;
 }
 
-export function ordenarPoliciais(lista: EscalaPolicialComDados[]): EscalaPolicialComDados[] {
+function ordenarPoliciais(lista: EscalaPolicialComDados[]): EscalaPolicialComDados[] {
 	return [...lista].sort((a, b) => {
 		if (a.cargo !== b.cargo) return a.cargo === 'DPC' ? -1 : 1;
 		return a.nome.localeCompare(b.nome);
@@ -141,7 +141,7 @@ export function agruparPlantao(policiais: EscalaPolicialComDados[]): Map<string,
 	return new Map([...equipes.entries()].sort(([a], [b]) => a.localeCompare(b)));
 }
 
-export function formatarDias(dias: string[]): string {
+function formatarDias(dias: string[]): string {
 	return dias.map((d) => d.split('-')[2]).join(', ');
 }
 

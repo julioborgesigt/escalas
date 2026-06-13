@@ -519,7 +519,7 @@ function buildCmsSignedData(
 
 // ---- Interface para o resultado da preparação ----
 
-export interface PrepareResult {
+interface PrepareResult {
 	preparedPdf: Uint8Array;
 	signedAttrsHashHex: string;
 	messageDigest: string;

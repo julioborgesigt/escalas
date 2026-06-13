@@ -6,7 +6,7 @@
  * centralize the type cast at a single boundary.
  */
 
-export interface R2Bucket {
+interface R2Bucket {
 	get(key: string): Promise<R2ObjectBody | null>;
 	put(
 		key: string,
@@ -19,7 +19,7 @@ export interface R2Bucket {
 	): Promise<{ objects: Array<{ key: string }>; truncated: boolean; cursor?: string }>;
 }
 
-export interface R2ObjectBody {
+interface R2ObjectBody {
 	body: ReadableStream;
 	arrayBuffer(): Promise<ArrayBuffer>;
 	text(): Promise<string>;

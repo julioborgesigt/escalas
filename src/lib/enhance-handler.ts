@@ -13,7 +13,7 @@ import type { SubmitFunction } from '@sveltejs/kit';
 
 type ResultData = Record<string, unknown>;
 
-export interface MakeEnhanceHandlerOptions<D extends ResultData = ResultData> {
+interface MakeEnhanceHandlerOptions<D extends ResultData = ResultData> {
 	/** Setter do flag de progresso (geralmente `pendingCrud`). Chamado com `true` antes do submit e `false` ao final. */
 	setPending: (pending: boolean) => void;
 	/** Validação pré-submit. Retornar `false` aborta o submit. */

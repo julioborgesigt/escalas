@@ -116,13 +116,13 @@ export function tipoCarimboPrevisto(env?: Record<string, string | undefined>): T
 	return temSelo && !!tsaUrl ? 'tsa_externa' : 'servidor';
 }
 
-export interface ResultadoSelo {
+interface ResultadoSelo {
 	ok: true;
 	pdf: Uint8Array;
 	tipoCarimboTempo: TipoCarimoTempo;
 	cn: string;
 }
-export interface FalhaSelo {
+interface FalhaSelo {
 	ok: false;
 	motivo: 'nao_configurado' | 'erro';
 }

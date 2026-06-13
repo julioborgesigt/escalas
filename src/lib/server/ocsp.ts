@@ -18,7 +18,7 @@ const OID_SHA1 = '1.3.14.3.2.26';
 
 export type StatusOcsp = 'good' | 'revoked' | 'unknown';
 
-export interface OcspSnapshot {
+interface OcspSnapshot {
 	status: StatusOcsp;
 	/** Resposta OCSP completa em DER base64 — armazenada para auditoria CAdES-LT. */
 	responseDerB64: string;

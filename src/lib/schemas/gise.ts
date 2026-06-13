@@ -110,4 +110,4 @@ export const giseHistoricoExportQuerySchema = z
 		}
 	});
 
-export type GiseSignatureInput = z.infer<typeof giseSignatureSchema>;
+type GiseSignatureInput = z.infer<typeof giseSignatureSchema>;

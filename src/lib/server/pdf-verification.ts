@@ -78,7 +78,7 @@ export interface VerificationResult {
 // Extração de CMS e ByteRange do PDF
 // ---------------------------------------------------------------------------
 
-export interface CmsExtraido {
+interface CmsExtraido {
 	cmsDer: Uint8Array;
 	byteRange: [number, number, number, number];
 	/** Bytes assinados, na ordem do byteRange (concatenados). */
@@ -194,7 +194,7 @@ function extrairAssinaturaDeByteRange(
  * só a última assinatura era validada — uma assinatura anterior corrompida
  * passava despercebida.
  */
-export function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
+function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
 	const ascii = new TextDecoder('latin1').decode(pdfBytes);
 	const brRegex = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
 	const out: CmsExtraido[] = [];
@@ -223,7 +223,7 @@ export function extrairTodasCmsDoPdf(pdfBytes: Uint8Array): CmsExtraido[] {
  * anexasse um CMS próprio com /ByteRange minúsculo ao final e o promovesse
  * a principal. Empate (não deveria ocorrer) resolve para a mais recente.
  */
-export function indiceAssinaturaPrincipal(todas: CmsExtraido[]): number {
+function indiceAssinaturaPrincipal(todas: CmsExtraido[]): number {
 	let melhor = -1;
 	let melhorFim = -1;
 	for (let i = 0; i < todas.length; i++) {
@@ -677,7 +677,7 @@ export async function verificarIntegridadePdf(
  *             + SHA-256, falha silenciosamente para ECDSA/RSA-PSS. Mantida
  *             como wrapper síncrono apenas para callers legados.
  */
-export function verificarAssinaturaRsa(
+function verificarAssinaturaRsa(
 	cert: forge.pki.Certificate,
 	signedAttrsAsSet: forge.asn1.Asn1,
 	signatureValue: string
@@ -997,7 +997,7 @@ export async function verificarTimestampToken(
 // Orquestrador
 // ---------------------------------------------------------------------------
 
-export interface VerifyOptions {
+interface VerifyOptions {
 	/** Snapshot OCSP previamente armazenado (CAdES-LT). */
 	ocspSnapshotB64?: string | null;
 	/**

@@ -23,7 +23,7 @@ import {
 } from '$lib/db';
 import { giseEscalas, giseEquipes, giseMembros, giseSeccionais } from '$lib/server/schema';
 
-export interface PapelGise {
+interface PapelGise {
 	isSupervisor: boolean;
 	isMembro: boolean;
 	/** Assessor ou SEINT no quadro de supervisão (GISE ativa). */

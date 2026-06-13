@@ -81,7 +81,7 @@ function horaPtBR(isoTs: string): string {
 }
 
 /** Mesmos campos enviados ao POST da planilha Base_Equipe (exceto nome, que vem da linha do membro). */
-export type DadosPlanilhaBaseEquipePolicial = {
+type DadosPlanilhaBaseEquipePolicial = {
 	gise_id: number;
 	cidade_atuacao: string;
 	tipo_servico: string;
@@ -93,7 +93,7 @@ export type DadosPlanilhaBaseEquipePolicial = {
 	dia_saida: string;
 };
 
-export function dadosPlanilhaBaseEquipeParaMembro(
+function dadosPlanilhaBaseEquipeParaMembro(
 	gise: GiseEscala,
 	giseId: number,
 	r: LinhaBaseEquipeMembro
@@ -148,7 +148,7 @@ export function dadosPlanilhaBaseEquipeParaMembro(
 /**
  * Mapa policial_id → colunas idênticas ao envio «Enviar para a planilha» (Base_Equipe).
  */
-export async function montarMapaBaseEquipePorPolicialId(
+async function montarMapaBaseEquipePorPolicialId(
 	db: Database,
 	giseId: number
 ): Promise<Map<number, DadosPlanilhaBaseEquipePolicial>> {

@@ -20,7 +20,7 @@ function normalizarHora(h: string | null | undefined): string {
 	return h.includes(':') ? h : `${String(h).padStart(2, '0')}:00`;
 }
 
-export interface ConflitoInfo {
+interface ConflitoInfo {
 	data: string;
 	motivo: string;
 }

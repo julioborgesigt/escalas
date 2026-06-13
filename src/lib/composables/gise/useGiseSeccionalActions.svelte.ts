@@ -20,7 +20,7 @@ import { makeEnhanceHandler } from '$lib/enhance-handler';
 import { validarHora } from '$lib/gise/gise-horarios';
 import { SvelteURLSearchParams } from 'svelte/reactivity';
 
-export interface UseGiseSeccionalActionsParams {
+interface UseGiseSeccionalActionsParams {
 	/** Callbacks de reset chamados pelo composable após cada sucesso de CRUD. */
 	onFinalizarSeccionalSuccess?: () => void;
 	onSelecionarUnidadeSuccess?: () => void;

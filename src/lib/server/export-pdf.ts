@@ -28,13 +28,13 @@ interface JsPDFWithAutoTable extends jsPDF {
 	lastAutoTable?: { finalY: number };
 }
 
-export interface PdfExportResult {
+interface PdfExportResult {
 	pdf: Uint8Array;
 	finalY: number;
 	pageHeightMm?: number;
 }
 
-export interface GisePdfData {
+interface GisePdfData {
 	data_inicio: string;
 	hora_entrada: string;
 	hora_saida: string;
@@ -132,7 +132,7 @@ type GiseSeccionalParaPdf = {
 };
 type RespostaProdutividade = { equipe_id: number; pergunta: string; resposta: string };
 
-export interface GiseProdutividadeData {
+interface GiseProdutividadeData {
 	gise: { data_inicio: string };
 	seccional: GiseSeccionalParaPdf;
 	supervisorDoc?: unknown;
@@ -830,7 +830,7 @@ export async function gerarPdfGise(
  * Best-effort: se um logo faltar ou falhar o embed, mantém o PDF original.
  * Reusado pelo PDF GISE e pelos relatórios de serviço extraordinário.
  */
-export async function embutirLogosGise(
+async function embutirLogosGise(
 	pdfBytes: Uint8Array,
 	logoEsqBytes?: Uint8Array,
 	logoDirBytes?: Uint8Array

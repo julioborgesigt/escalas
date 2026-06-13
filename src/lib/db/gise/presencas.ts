@@ -9,7 +9,7 @@ function gps2(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
 }
 
-export async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
+async function buscarPresencaGise(db: Database, giseId: number, policialId: number) {
 	return db
 		.select()
 		.from(gisePresencas)
@@ -84,7 +84,7 @@ export async function salvarSaidaGise(
 		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
 }
 
-export async function isDailyGiseSigned(db: Database, giseId: number) {
+async function isDailyGiseSigned(db: Database, giseId: number) {
 	const doc = await db
 		.select({ id: giseDocumentos.id })
 		.from(giseDocumentos)

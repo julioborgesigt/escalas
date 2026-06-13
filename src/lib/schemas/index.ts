@@ -1,10 +1,5 @@
-export { policialSchema, policialUpdateSchema, type PolicialInput } from './policial';
-export {
-	escalaSchema,
-	escalaPolicialSchema,
-	type EscalaInput,
-	type EscalaPolicialInput
-} from './escala';
+export { policialSchema, policialUpdateSchema } from './policial';
+export { escalaSchema, escalaPolicialSchema } from './escala';
 export {
 	loginSchema,
 	alterarSenhaSchema,
@@ -15,41 +10,26 @@ export {
 	confirmarRedefinicaoSchema,
 	solicitarVerificacaoEmailSchema,
 	confirmarVerificacaoEmailSchema,
-	certificadoVerificarSchema,
-	type LoginInput,
-	type AlterarSenhaInput
+	certificadoVerificarSchema
 } from './auth';
-export { unidadeSchema, type UnidadeInput } from './unidade';
+export { unidadeSchema } from './unidade';
 export {
 	giseSignatureSchema,
 	giseIdParamSchema,
 	giseDownloadSchema,
-	giseHistoricoExportQuerySchema,
-	type GiseSignatureInput
+	giseHistoricoExportQuerySchema
 } from './gise';
-export { assinaturaConfigSchema, type AssinaturaConfigInput } from './config';
-export { policialSearchQuerySchema, type PolicialSearchQuery } from './policial-search';
+export { assinaturaConfigSchema } from './config';
+export { policialSearchQuerySchema } from './policial-search';
 export {
 	prepararAssinaturaSchema,
 	finalizarAssinaturaEscalasSchema,
 	finalizarAssinaturaGiseSchema,
-	assinarSimplesSchema,
-	assinarSimplesEscalasSchema,
-	assinarSimplesGiseSchema,
-	type PrepararAssinaturaInput,
-	type FinalizarAssinaturaEscalasInput,
-	type FinalizarAssinaturaGiseInput,
-	type AssinarSimplesInput,
-	type AssinarSimplesEscalasInput,
-	type AssinarSimplesGiseInput
+	assinarSimplesSchema
 } from './assinatura-pdf';
 export {
 	novoIncidenteSchema,
 	atualizarIncidenteSchema,
 	responderSolicitacaoSchema,
-	novaSolicitacaoTitularSchema,
-	type NovoIncidenteInput,
-	type AtualizarIncidenteInput,
-	type ResponderSolicitacaoInput,
-	type NovaSolicitacaoTitularInput
+	novaSolicitacaoTitularSchema
 } from './lgpd';

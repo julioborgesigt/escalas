@@ -3,17 +3,17 @@ import { lgpdIncidentes } from '../server/schema';
 import type { Database } from './core';
 import type { LgpdIncidente } from '../server/schema';
 
-export type TipoIncidente =
+type TipoIncidente =
 	| 'acesso_nao_autorizado'
 	| 'vazamento'
 	| 'uso_indevido'
 	| 'perda'
 	| 'alteracao'
 	| 'outro';
-export type GravidadeIncidente = 'baixa' | 'media' | 'alta' | 'critica';
-export type StatusIncidente = 'aberto' | 'investigando' | 'notificado_anpd' | 'encerrado';
+type GravidadeIncidente = 'baixa' | 'media' | 'alta' | 'critica';
+type StatusIncidente = 'aberto' | 'investigando' | 'notificado_anpd' | 'encerrado';
 
-export interface NovoIncidenteInput {
+interface NovoIncidenteInput {
 	titulo: string;
 	descricao: string;
 	tipo_incidente: TipoIncidente;
@@ -29,7 +29,7 @@ export interface NovoIncidenteInput {
 	created_by_nome: string;
 }
 
-export interface AtualizarIncidenteInput {
+interface AtualizarIncidenteInput {
 	titulo?: string;
 	descricao?: string;
 	status?: StatusIncidente;

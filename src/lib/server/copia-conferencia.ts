@@ -27,7 +27,7 @@ export function podeBaixarForense(u: UsuarioLogado | null): boolean {
 	return u?.isSuperAdmin === true;
 }
 
-export interface CopiaConferenciaOpts {
+interface CopiaConferenciaOpts {
 	/** Rascunho já gerado pelo caller (gerarPdf / gerarPdfGise / relatório) — SEM manifesto. */
 	pdfRascunho: Uint8Array;
 	assinanteNome: string;

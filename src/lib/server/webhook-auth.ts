@@ -30,7 +30,7 @@ export const NONCE_MIN_LEN = 16;
  * Resultado da validação. Use `kind` para distinguir os cenários de erro do
  * sucesso — facilita logging estruturado pelo caller.
  */
-export type WebhookAuthResult =
+type WebhookAuthResult =
 	| { ok: true }
 	| { ok: false; reason: 'config-missing' | 'config-weak' | 'bearer-invalid' | 'hmac-invalid' };
 
@@ -115,7 +115,7 @@ export async function validarWebhookSync(
 // o replay em ≤ window segundos E o servidor só precisa lembrar de nonces
 // dentro dessa janela.
 
-export type ReplayProtectionResult =
+type ReplayProtectionResult =
 	| { ok: true }
 	| {
 			ok: false;

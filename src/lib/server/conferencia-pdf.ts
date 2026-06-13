@@ -15,7 +15,7 @@ type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
 type GiseDetalhado = Parameters<typeof exportLib.toGisePdfData>[0];
 
 /** Carrega um logo do R2 (best-effort; undefined em qualquer falha). */
-export async function carregarLogoR2(
+async function carregarLogoR2(
 	platform: App.Platform | undefined,
 	key: string
 ): Promise<Uint8Array | undefined> {

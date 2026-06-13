@@ -76,7 +76,7 @@ async function idsSupervisaoExtraReconhecidos(db: Database): Promise<Set<number>
 	return s;
 }
 
-export function limparCacheUnidadeSupervisaoExtra() {
+function limparCacheUnidadeSupervisaoExtra() {
 	unidadeSupervisaoExtraIdCache = undefined;
 	idsSupervisaoExtraCache = undefined;
 }

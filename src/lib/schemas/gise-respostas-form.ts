@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 /** Respostas do formulário GISE: objeto JSON com chaves string (ids/perguntas). */
-export const giseRespostasFormRecordSchema = z.record(z.string(), z.unknown());
+const giseRespostasFormRecordSchema = z.record(z.string(), z.unknown());
 
-export type GiseRespostasFormRecord = z.infer<typeof giseRespostasFormRecordSchema>;
+type GiseRespostasFormRecord = z.infer<typeof giseRespostasFormRecordSchema>;
 
 /** Parse seguro: retorna `{}` se JSON inválido ou não for objeto registro. */
 export function parseRespostasFormularioJsonLoose(

@@ -200,7 +200,7 @@ async function dispararEmail(
 	}
 }
 
-export async function enviarSenhaProvisoria(
+async function enviarSenhaProvisoria(
 	destinatario: string,
 	senhaProvisoria: string,
 	nomeUsuario: string,

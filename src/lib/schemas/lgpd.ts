@@ -17,7 +17,7 @@ const dateIsoSchema = z
 	.string()
 	.refine((s) => !Number.isNaN(Date.parse(s)), { message: 'Data inválida (esperado ISO 8601)' });
 
-export const tipoIncidenteSchema = z.enum([
+const tipoIncidenteSchema = z.enum([
 	'acesso_nao_autorizado',
 	'vazamento',
 	'uso_indevido',
@@ -26,14 +26,9 @@ export const tipoIncidenteSchema = z.enum([
 	'outro'
 ]);
 
-export const gravidadeIncidenteSchema = z.enum(['baixa', 'media', 'alta', 'critica']);
+const gravidadeIncidenteSchema = z.enum(['baixa', 'media', 'alta', 'critica']);
 
-export const statusIncidenteSchema = z.enum([
-	'aberto',
-	'investigando',
-	'notificado_anpd',
-	'encerrado'
-]);
+const statusIncidenteSchema = z.enum(['aberto', 'investigando', 'notificado_anpd', 'encerrado']);
 
 /** Criação de incidente — `created_by_id`/`created_by_nome` ficam fora (vêm da sessão). */
 export const novoIncidenteSchema = z.object({
@@ -49,7 +44,7 @@ export const novoIncidenteSchema = z.object({
 	responsavel_email: z.string().email('E-mail do responsável inválido').max(200),
 	medidas_tomadas: z.string().max(10_000).optional().nullable()
 });
-export type NovoIncidenteInput = z.infer<typeof novoIncidenteSchema>;
+type NovoIncidenteInput = z.infer<typeof novoIncidenteSchema>;
 
 /** PATCH — todos os campos opcionais, mas pelo menos um precisa estar presente. */
 export const atualizarIncidenteSchema = z
@@ -66,11 +61,11 @@ export const atualizarIncidenteSchema = z
 	.refine((v) => Object.keys(v).length > 0, {
 		message: 'Informe ao menos um campo para atualizar'
 	});
-export type AtualizarIncidenteInput = z.infer<typeof atualizarIncidenteSchema>;
+type AtualizarIncidenteInput = z.infer<typeof atualizarIncidenteSchema>;
 
 // ──────────────────────────────────────────────────────────────────────
 
-export const tipoDireitoLgpdSchema = z.enum([
+const tipoDireitoLgpdSchema = z.enum([
 	'acesso',
 	'correcao',
 	'anonimizacao',
@@ -82,17 +77,17 @@ export const tipoDireitoLgpdSchema = z.enum([
 ]);
 
 /** Status válidos para o admin definir via PATCH (`pendente` é o inicial, não-editável). */
-export const statusResponderSolicitacaoSchema = z.enum(['em_analise', 'concluida', 'indeferida']);
+const statusResponderSolicitacaoSchema = z.enum(['em_analise', 'concluida', 'indeferida']);
 
 export const responderSolicitacaoSchema = z.object({
 	status: statusResponderSolicitacaoSchema,
 	resposta: z.string().min(1, 'Campo obrigatório: resposta').max(10_000)
 });
-export type ResponderSolicitacaoInput = z.infer<typeof responderSolicitacaoSchema>;
+type ResponderSolicitacaoInput = z.infer<typeof responderSolicitacaoSchema>;
 
 /** Submissão do titular (não-admin). */
 export const novaSolicitacaoTitularSchema = z.object({
 	tipo_direito: tipoDireitoLgpdSchema,
 	descricao: z.string().max(5_000).optional().nullable()
 });
-export type NovaSolicitacaoTitularInput = z.infer<typeof novaSolicitacaoTitularSchema>;
+type NovaSolicitacaoTitularInput = z.infer<typeof novaSolicitacaoTitularSchema>;

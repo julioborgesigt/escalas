@@ -27,7 +27,7 @@ import type { Database } from '$lib/db/core';
 import { logger } from '$lib/server/logger';
 
 /** Mensagem retornada à UI quando URL ou secret não existem em nenhuma fonte. */
-export const ERRO_BASE_EQUIPE_ENV_AUSENTE =
+const ERRO_BASE_EQUIPE_ENV_AUSENTE =
 	'Integração com a planilha não está configurada no servidor (URL ou secret ausente).';
 
 export type BaseEquipeEnv = {
@@ -88,7 +88,7 @@ function resolveBaseEquipeUrls(
 	return { url, secret };
 }
 
-export type SyncBaseEquipeResult = { ok: true; linhas: number } | { ok: false; error: string };
+type SyncBaseEquipeResult = { ok: true; linhas: number } | { ok: false; error: string };
 
 /** Resposta JSON do próprio SvelteKit (fetch a uma rota do portal), não do Apps Script. */
 function detalheSeRespostaNaoEhPlanilha(
@@ -203,7 +203,7 @@ export async function executarSyncBaseEquipeGiseComResultado(
 	}
 }
 
-export async function syncGiseBaseEquipeAposFinalizar(
+async function syncGiseBaseEquipeAposFinalizar(
 	env: BaseEquipeEnv | undefined,
 	db: Database,
 	giseId: number

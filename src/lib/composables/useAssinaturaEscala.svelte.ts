@@ -19,7 +19,7 @@ interface PrepararAssinaturaResponse {
 	verificationHash: string;
 }
 
-export interface UseAssinaturaParams {
+interface UseAssinaturaParams {
 	getParams: () => {
 		escalaId: string;
 		isFDS: boolean;

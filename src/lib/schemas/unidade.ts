@@ -14,4 +14,4 @@ export const unidadeSchema = z.object({
 	cidade: z.string().max(200).default('')
 });
 
-export type UnidadeInput = z.infer<typeof unidadeSchema>;
+type UnidadeInput = z.infer<typeof unidadeSchema>;

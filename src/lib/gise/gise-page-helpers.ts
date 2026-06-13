@@ -7,12 +7,12 @@ import type {
 import type { Unidade } from '$lib/server/schema';
 
 /** Seccional agregada na árvore GISE (equipes e membros). */
-export type GiseSecComMembros = {
+type GiseSecComMembros = {
 	unidades?: GiseUnidadeSlot[];
 };
 
 /** Tipos de equipe com relatório de produtividade, na ordem exibida na UI. */
-export type GiseEquipeTipo = 'operacional' | 'seint';
+type GiseEquipeTipo = 'operacional' | 'seint';
 
 const ORDEM_TIPOS: readonly GiseEquipeTipo[] = ['operacional', 'seint'];
 
@@ -58,7 +58,7 @@ export function getFaltandoRubrica(sec: GiseSecComMembros): string {
 	return 'Faltando rubrica de: ' + faltantes.map((m) => m.policial_nome.split(' ')[0]).join(', ');
 }
 
-export const SECCIONAL_BG_CLASSES: readonly string[] = [
+const SECCIONAL_BG_CLASSES: readonly string[] = [
 	'border-l-blue-600 bg-white dark:bg-surface-900',
 	'border-l-emerald-600 bg-white dark:bg-surface-900',
 	'border-l-indigo-600 bg-white dark:bg-surface-900',

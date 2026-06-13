@@ -23,7 +23,7 @@
 import { PDFDocument, PDFName, PDFArray, type PDFRef, type PDFDict, type PDFObject } from 'pdf-lib';
 import { logger } from './logger';
 
-export interface DssData {
+interface DssData {
 	/** Certificados X.509 em DER (signatário, intermediárias, raiz). */
 	certs: Uint8Array[];
 	/** Respostas OCSP em DER (RFC 6960). */

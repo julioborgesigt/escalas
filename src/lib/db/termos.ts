@@ -13,7 +13,7 @@ import type { Database } from './core';
 import { anonimizarIp } from './audit';
 import { parseUserAgent } from '../server/document-utils';
 
-export interface RegistrarAceiteInput {
+interface RegistrarAceiteInput {
 	usuario_tipo: 'policial' | 'admin';
 	usuario_id: number;
 	versao_termo: string;
@@ -63,7 +63,7 @@ export async function registrarAceite(
 /**
  * Retorna o aceite mais recente do usuário (ou undefined se nunca aceitou).
  */
-export async function buscarUltimoAceite(
+async function buscarUltimoAceite(
 	db: Database,
 	tipo: 'policial' | 'admin',
 	usuarioId: number
@@ -93,7 +93,7 @@ export function aceiteEhVigente(
 /**
  * Verifica se o usuário tem um aceite vigente para a versão+hash informados.
  */
-export async function temAceiteVigente(
+async function temAceiteVigente(
 	db: Database,
 	tipo: 'policial' | 'admin',
 	usuarioId: number,

@@ -213,7 +213,7 @@ export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<v
 
 // ---- Escala Policiais ----
 
-export async function adicionarPolicialEscala(
+async function adicionarPolicialEscala(
 	db: Database,
 	escalaId: number,
 	policialId: number,
@@ -263,7 +263,7 @@ export async function adicionarMultiplasDatasPlantao(
 	);
 }
 
-export async function atualizarEscalaPolicial(
+async function atualizarEscalaPolicial(
 	db: Database,
 	id: number,
 	dataPlantao: string,
@@ -284,7 +284,7 @@ export async function atualizarEscalaPolicial(
 		.where(eq(escalaPoliciais.id, id));
 }
 
-export async function removerPolicialEscala(db: Database, id: number) {
+async function removerPolicialEscala(db: Database, id: number) {
 	return db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, id));
 }
 

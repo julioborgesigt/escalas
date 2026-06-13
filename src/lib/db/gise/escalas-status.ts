@@ -30,7 +30,7 @@ export async function verificarGiseCompleta(db: Database, giseId: number): Promi
 /**
  * Verifica se todos os membros escalados + quadro de supervisão confirmaram entrada.
  */
-export async function verificarTodosEntraram(db: Database, giseId: number): Promise<boolean> {
+async function verificarTodosEntraram(db: Database, giseId: number): Promise<boolean> {
 	const result = await db
 		.select({
 			total: sql<number>`count(*)`,
@@ -79,7 +79,7 @@ export async function verificarTodosEntraram(db: Database, giseId: number): Prom
  * Retorna true quando todos têm saida_timestamp preenchido.
  * Usa agregação condicional em query única em vez de 2 queries separadas.
  */
-export async function verificarTodosSairam(db: Database, giseId: number): Promise<boolean> {
+async function verificarTodosSairam(db: Database, giseId: number): Promise<boolean> {
 	// Membros normais das equipes das seccionais
 	const result = await db
 		.select({
@@ -249,10 +249,7 @@ export async function tentarPromoverGiseProntaParaFinalizar(
  * Verifica se todas as equipes enviaram seus relatórios de produtividade,
  * além dos relatórios individuais das inteligências (SEINT1 e SEINT2) da supervisão.
  */
-export async function verificarTodosRelatoriosEnviados(
-	db: Database,
-	giseId: number
-): Promise<boolean> {
+async function verificarTodosRelatoriosEnviados(db: Database, giseId: number): Promise<boolean> {
 	const result = await db
 		.select({
 			total: sql<number>`count(distinct ${giseEquipes.id})`,
@@ -308,7 +305,7 @@ export async function verificarTodosRelatoriosEnviados(
  * Verifica se todos os relatórios de extra estão assinados (uma por seccional
  * da GISE +, quando houver quadro de supervisão, um relatório adicional do quadro).
  */
-export async function verificarTodosRelatoriosExtraAssinados(
+async function verificarTodosRelatoriosExtraAssinados(
 	db: Database,
 	giseId: number
 ): Promise<boolean> {

@@ -23,15 +23,15 @@ import { chaveRateLimitIp } from '$lib/server/recovery-rate-limit';
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
-export const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_WINDOW_MINUTES = 15;
 // Throttle por CONTA (account lockout) — complementa o por-IP, fechando o
 // brute-force distribuído (vários IPs contra UMA matrícula). Teto mais alto que
 // o por-IP (agrega vários IPs) e janela curta auto-expirável: o impacto de DoS
 // (travar uma conta de propósito) fica limitado a ACCOUNT_WINDOW_MINUTES e se
 // cura sozinho. Contas com 2FA por e-mail têm proteção adicional.
-export const ACCOUNT_MAX_ATTEMPTS = 10;
-export const ACCOUNT_WINDOW_MINUTES = 15;
+const ACCOUNT_MAX_ATTEMPTS = 10;
+const ACCOUNT_WINDOW_MINUTES = 15;
 
 export function mascararEmail(email: string): string {
 	const at = email.indexOf('@');
@@ -149,7 +149,7 @@ export async function recordAttempt(
  * Hash do identificador da conta (`tipo:matricula`, normalizado) para contar
  * tentativas por conta SEM gravar a matrícula em texto no log de tentativas.
  */
-export async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
+async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
 	const data = new TextEncoder().encode(`${tipo}:${matricula.trim().toLowerCase()}`);
 	const buf = await crypto.subtle.digest('SHA-256', data);
 	return Array.from(new Uint8Array(buf))
@@ -162,7 +162,7 @@ export async function hashIdentificadorLogin(tipo: string, matricula: string): P
  * Complementa `checkRateLimit` (por IP): pega brute-force distribuído por
  * múltiplos IPs contra a mesma conta.
  */
-export async function checkAccountRateLimit(
+async function checkAccountRateLimit(
 	db: Database,
 	identifierHash: string
 ): Promise<{ blocked: boolean }> {
@@ -185,7 +185,7 @@ export const cookieOptionsLogin = (url: URL) => cookieOptions(url);
 
 export type AdminModulo = 'ambas' | 'gise' | 'escalas';
 
-export type TentarLoginArgs = {
+type TentarLoginArgs = {
 	db: Database;
 	ip: string;
 	matricula: string;
@@ -196,7 +196,7 @@ export type TentarLoginArgs = {
 	formAdminModulo?: AdminModulo;
 };
 
-export type Pendente2FA = {
+type Pendente2FA = {
 	desafioId: string;
 	nome: string;
 	primeiroAcesso: boolean;
@@ -204,7 +204,7 @@ export type Pendente2FA = {
 	tipoUsuario2FA: 'admin' | 'policial';
 };
 
-export type TentarLoginResult =
+type TentarLoginResult =
 	| {
 			sucesso: true;
 			statusCode: 200;

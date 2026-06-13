@@ -3,7 +3,7 @@
  * Centraliza a criação de canvas off-screen com header/footer padronizado.
  */
 
-export interface ChartExportConfig {
+interface ChartExportConfig {
 	label: string;
 	color: string;
 	sourceCanvas?: HTMLCanvasElement | null;
@@ -175,7 +175,7 @@ export const VIRTUAL_CHARTS: Record<
 	'detail-armas': { label: 'Detalhamento de Armas', color: '#6366f1', type: 'detail' }
 };
 
-export interface ExportPayload {
+interface ExportPayload {
 	seccionalName: string;
 	periodText: string;
 }
