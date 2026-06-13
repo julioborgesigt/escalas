@@ -8,4 +8,4 @@ export const assinaturaConfigSchema = z.object({
 	restringirSmartphone: z.boolean().optional()
 });
 
-export type AssinaturaConfigInput = z.infer<typeof assinaturaConfigSchema>;
+type AssinaturaConfigInput = z.infer<typeof assinaturaConfigSchema>;

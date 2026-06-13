@@ -17,7 +17,7 @@ export type { Database } from './db/core';
 
 export { registrarAuditComContexto, listarAuditLog } from './db/audit';
 
-export { registrarAceite, buscarUltimoAceite, temAceiteVigente } from './db/termos';
+export { registrarAceite } from './db/termos';
 
 export {
 	salvarConfiguracao,
@@ -54,10 +54,7 @@ export {
 	marcarVisto,
 	finalizarEscalaFDS,
 	desfinalizarEscalaFDS,
-	adicionarPolicialEscala,
 	adicionarMultiplasDatasPlantao,
-	atualizarEscalaPolicial,
-	removerPolicialEscala,
 	adicionarTodosPoliciais,
 	listarPoliciaisEscala,
 	listarPoliciaisEscalaQuery,
@@ -116,19 +113,13 @@ export {
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise,
-	verificarTodosSairam,
 	verificarSaidaCompletaSeccional,
-	verificarTodosEntraram,
-	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,
 	tentarPromoverGiseProntaParaFinalizar,
-	verificarTodosRelatoriosExtraAssinados,
 	buscarGiseSeccionalMembros,
 	adicionarGiseSeccionalUnidade,
 	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade,
-	listarMembrosParaBaseEquipe,
 	buscarVagasPadraoEquipesGise,
-	salvarVagasPadraoEquipesGise,
-	VAGAS_EQUIPES_FALLBACK
+	salvarVagasPadraoEquipesGise
 } from './db/gise';

@@ -27,7 +27,7 @@ import { urlOcspPermitida } from './ocsp';
 
 const OID_SHA256 = '2.16.840.1.101.3.4.2.1';
 
-export type TsaConfig = {
+type TsaConfig = {
 	url: string;
 	username?: string;
 	password?: string;
@@ -35,7 +35,7 @@ export type TsaConfig = {
 	timeoutMs?: number;
 };
 
-export type TsaResult =
+type TsaResult =
 	| {
 			ok: true;
 			/** TimeStampToken (ContentInfo) em DER, pronto para virar attrValue. */

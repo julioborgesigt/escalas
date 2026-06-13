@@ -38,7 +38,7 @@
  *  III — ASSINATURA ELETRÔNICA QUALIFICADA:
  *        a que utiliza certificado digital ICP-Brasil (MP 2.200-2/2001).
  */
-export type NivelAssinatura = 'simples' | 'avancada' | 'qualificada';
+type NivelAssinatura = 'simples' | 'avancada' | 'qualificada';
 
 // ---------------------------------------------------------------------------
 // Requisitos do sistema
@@ -126,7 +126,7 @@ export const REFORCOS_OPCIONAIS = [
 // Classificação
 // ---------------------------------------------------------------------------
 
-export interface FlagsParaClassificacao {
+interface FlagsParaClassificacao {
 	exigirFotoAssinatura: boolean;
 	exigirGpsAssinatura: boolean;
 	exigirCodigoEmailAssinatura: boolean;

@@ -3,7 +3,7 @@ import { lgpdSolicitacoes } from '../server/schema';
 import type { Database } from './core';
 import type { LgpdSolicitacao } from '../server/schema';
 
-export type TipoDireitoLgpd =
+type TipoDireitoLgpd =
 	| 'acesso'
 	| 'correcao'
 	| 'anonimizacao'
@@ -13,9 +13,9 @@ export type TipoDireitoLgpd =
 	| 'revogacao_consentimento'
 	| 'oposicao';
 
-export type StatusSolicitacao = 'pendente' | 'em_analise' | 'concluida' | 'indeferida';
+type StatusSolicitacao = 'pendente' | 'em_analise' | 'concluida' | 'indeferida';
 
-export interface NovaSolicitacaoInput {
+interface NovaSolicitacaoInput {
 	solicitante_tipo: 'policial' | 'admin';
 	solicitante_id: number;
 	solicitante_nome: string;

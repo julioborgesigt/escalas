@@ -20,7 +20,7 @@ interface GiseData {
 	usuarioAtual?: { id: number } | null;
 }
 
-export interface GiseEstadoParams {
+interface GiseEstadoParams {
 	getData: () => GiseData;
 }
 

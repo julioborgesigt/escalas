@@ -36,7 +36,7 @@ export const SELFIE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const DATA_URI_RE = /^data:image\/(jpeg|png|jpg);base64,/i;
 
 /** Resultado do upload. `null` se a selfie veio vazia (caller decide se isso é erro). */
-export type SelfieUploadResult =
+type SelfieUploadResult =
 	| { ok: true; key: string }
 	| { ok: false; reason: 'formato-invalido' | 'magic-mismatch' | 'too-large' };
 

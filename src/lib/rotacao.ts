@@ -23,7 +23,7 @@ export const MESES_PT = [
 	'DEZEMBRO'
 ];
 
-export type Rotacao = '1x3' | '2x6';
+type Rotacao = '1x3' | '2x6';
 
 function diffDias(a: string, b: string): number {
 	const da = new Date(a + 'T00:00:00');

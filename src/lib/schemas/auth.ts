@@ -151,5 +151,5 @@ export const alterarSenhaSchema = z.object({
 		.refine((s) => !SENHAS_COMUNS.has(s.toLowerCase()), 'Essa senha é muito comum. Escolha outra.')
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
-export type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;
+type LoginInput = z.infer<typeof loginSchema>;
+type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;

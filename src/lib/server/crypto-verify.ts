@@ -48,9 +48,9 @@ const OID_PRIME256V1 = '1.2.840.10045.3.1.7'; // P-256
 const OID_SECP384R1 = '1.3.132.0.34'; // P-384
 const OID_SECP521R1 = '1.3.132.0.35'; // P-521
 
-export type SignatureFamily = 'rsa-pkcs1' | 'rsa-pss' | 'ecdsa';
+type SignatureFamily = 'rsa-pkcs1' | 'rsa-pss' | 'ecdsa';
 
-export interface VerifyParams {
+interface VerifyParams {
 	/** Certificado do signatário (forge). */
 	cert: forge.pki.Certificate;
 	/** OID do signatureAlgorithm do SignerInfo. */

@@ -4,7 +4,7 @@ export function getInt(fd: FormData, key: string): number {
 	return parseInt(v as string);
 }
 
-export function getIntParam(url: URL, key: string): number {
+function getIntParam(url: URL, key: string): number {
 	const v = url.searchParams.get(key);
 	if (!v) return NaN;
 	return parseInt(v);

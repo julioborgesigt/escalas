@@ -90,7 +90,7 @@ export const prepararAssinaturaSchema = z.object({
 	latitude: latitudeSchema,
 	longitude: longitudeSchema
 });
-export type PrepararAssinaturaInput = z.infer<typeof prepararAssinaturaSchema>;
+type PrepararAssinaturaInput = z.infer<typeof prepararAssinaturaSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FINALIZAR-ASSINATURA — escalas (usa nomes "signature" / "certificate" / "messageDigestHex")
@@ -109,7 +109,7 @@ export const finalizarAssinaturaEscalasSchema = z.object({
 	latitude: latitudeSchema,
 	longitude: longitudeSchema
 });
-export type FinalizarAssinaturaEscalasInput = z.infer<typeof finalizarAssinaturaEscalasSchema>;
+type FinalizarAssinaturaEscalasInput = z.infer<typeof finalizarAssinaturaEscalasSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FINALIZAR-ASSINATURA — gise (usa nomes "rawSignature" / "certificateBase64" / "messageDigest")
@@ -134,7 +134,7 @@ export const finalizarAssinaturaGiseSchema = z.object({
 	/** Específico do daily GISE: 'manha' | 'tarde' | 'ambos'. */
 	dia: optionalNullable(z.enum(['manha', 'tarde', 'ambos']))
 });
-export type FinalizarAssinaturaGiseInput = z.infer<typeof finalizarAssinaturaGiseSchema>;
+type FinalizarAssinaturaGiseInput = z.infer<typeof finalizarAssinaturaGiseSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ASSINAR-SIMPLES — schema canônico (escalas + gise unificados)
@@ -187,14 +187,14 @@ export const assinarSimplesSchema = z.object({
 	),
 	livenessChallenge: livenessChallengeSchema
 });
-export type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
-export type LivenessChallengeInput = NonNullable<z.infer<typeof livenessChallengeSchema>>;
+type AssinarSimplesInput = z.infer<typeof assinarSimplesSchema>;
+type LivenessChallengeInput = NonNullable<z.infer<typeof livenessChallengeSchema>>;
 
 /** @deprecated use `assinarSimplesSchema`. Alias mantido para não quebrar imports. */
-export const assinarSimplesEscalasSchema = assinarSimplesSchema;
+const assinarSimplesEscalasSchema = assinarSimplesSchema;
 /** @deprecated */
-export type AssinarSimplesEscalasInput = AssinarSimplesInput;
+type AssinarSimplesEscalasInput = AssinarSimplesInput;
 /** @deprecated use `assinarSimplesSchema`. */
-export const assinarSimplesGiseSchema = assinarSimplesSchema;
+const assinarSimplesGiseSchema = assinarSimplesSchema;
 /** @deprecated */
-export type AssinarSimplesGiseInput = AssinarSimplesInput;
+type AssinarSimplesGiseInput = AssinarSimplesInput;

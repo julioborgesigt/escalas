@@ -83,7 +83,7 @@ export function faltantesSupervisaoExtra(
 	return FALTANTE_RUBRICA_SUPER_PREFIX + falt.join(', ');
 }
 
-export type PapelMarcadorSupervisao = 'supervisor' | 'assessor' | 'seint';
+type PapelMarcadorSupervisao = 'supervisor' | 'assessor' | 'seint';
 
 type PresencaRodagem = {
 	policial_id: number;

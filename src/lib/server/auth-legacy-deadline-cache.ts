@@ -20,7 +20,7 @@
 import { buscarConfiguracao } from '$lib/db/configuracoes';
 import type { Database } from '$lib/db/core';
 
-export const LEGACY_PASSWORD_DEADLINE_DEFAULT_ISO = '2026-07-01T00:00:00Z';
+const LEGACY_PASSWORD_DEADLINE_DEFAULT_ISO = '2026-07-01T00:00:00Z';
 
 const CHAVE = 'auth.legacy_password_deadline';
 const CACHE_KEY = 'https://internal.escalas.local/auth-legacy-deadline/v1';
@@ -96,7 +96,7 @@ export function getLegacyPasswordDeadlineDefault(): Date {
  * em `configuracoes`. Não há rota da UI que faça isso hoje (configuração
  * manual via D1), mas a função fica disponível para quando houver.
  */
-export async function invalidarLegacyPasswordDeadline(): Promise<void> {
+async function invalidarLegacyPasswordDeadline(): Promise<void> {
 	const cache = safeCacheRef();
 	if (!cache) return;
 	try {

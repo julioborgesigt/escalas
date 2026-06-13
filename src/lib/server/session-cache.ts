@@ -26,7 +26,7 @@
 
 import type { UsuarioLogado } from '$lib/auth';
 
-export interface SessaoCacheada {
+interface SessaoCacheada {
 	usuario: UsuarioLogado;
 	aceiteVigente: boolean;
 }

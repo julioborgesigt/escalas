@@ -1,4 +1,4 @@
-export class LoadingState {
+class LoadingState {
 	#message = $state('Carregando...');
 	#active = $state(false);
 

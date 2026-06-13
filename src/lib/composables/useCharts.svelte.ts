@@ -21,7 +21,7 @@ interface SeccionalItem {
 	nome: string;
 }
 
-export interface ChartQuestion {
+interface ChartQuestion {
 	id: number;
 	label: string;
 	key: string;

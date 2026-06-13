@@ -10,7 +10,6 @@ function gps2(v?: number): number | undefined {
 }
 
 /** Reexportado de '../documentos' para uso pelos endpoints. */
-export type { AssinaturaCadesMetadata } from '../documentos';
 import type { AssinaturaCadesMetadata } from '../documentos';
 
 export async function salvarGiseDocumento(

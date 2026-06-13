@@ -4,7 +4,7 @@
 
 import type { Question } from './questions';
 
-export interface StatsResult {
+interface StatsResult {
 	drogasGeral: number;
 	drogasPorTipo: Record<string, number>;
 	apreensoes_armas: number;
@@ -89,7 +89,7 @@ export function calculateStats(
 	return s;
 }
 
-export interface RankingItem {
+interface RankingItem {
 	nome: string;
 	total: number;
 }

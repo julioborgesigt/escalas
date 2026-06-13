@@ -18,22 +18,22 @@ import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
 import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
 
-export type PendenteExtra = {
+type PendenteExtra = {
 	seccionalId: number;
 	tipo: 'extraordinario';
 };
 
-export type PainelToken = {
+type PainelToken = {
 	assinarComSerpro: () => Promise<void>;
 } | null;
 
-export type RelatorioSendoAssinado = {
+type RelatorioSendoAssinado = {
 	lote?: PendenteExtra[];
 	seccionalId?: number;
 	tipo?: 'extraordinario' | 'produtividade';
 } | null;
 
-export interface UseGiseAssinaturaParams {
+interface UseGiseAssinaturaParams {
 	getGiseId: () => number;
 	/** Usado para nomear o arquivo PDF baixado após `assinar-simples`. */
 	getGiseDataInicio: () => string | undefined;

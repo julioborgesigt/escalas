@@ -234,7 +234,7 @@ export class SmileDetector {
  * presença ativa. Inclui o tipo sorteado, o momento de início e fim, e
  * se foi cumprido na primeira tentativa.
  */
-export interface ChallengeResultado {
+interface ChallengeResultado {
 	tipo: ChallengeTipo;
 	cumprido: boolean;
 	tentativas: number;

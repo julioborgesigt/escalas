@@ -49,7 +49,7 @@ export const ErrorCode = {
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
 /** Corpo serializado padronizado de erro da API. */
-export interface ApiErrorBody {
+interface ApiErrorBody {
 	error: string;
 	status: number;
 	errorType?: ErrorCode;
@@ -116,7 +116,7 @@ export function requireSuperAdmin(locals: App.Locals): UsuarioLogado | Response 
 /**
  * Retorna o usuário logado se for admin geral ou admin seccional/unidade, ou 403.
  */
-export function requireAnyAdmin(locals: App.Locals): UsuarioLogado | Response {
+function requireAnyAdmin(locals: App.Locals): UsuarioLogado | Response {
 	const usuario = requireAuth(locals);
 	if (usuario instanceof Response) return usuario;
 	if (usuario.tipo !== 'admin' && !usuario.papel) {
@@ -230,7 +230,7 @@ export function contentDisposition(filename: string): string {
  * Valida dados com um schema Zod. Retorna os dados validados ou uma Response 400.
  * Padrão de uso: `const data = validate(body, schema); if (data instanceof Response) return data;`
  */
-export function validate<T>(
+function validate<T>(
 	data: unknown,
 	schema: {
 		safeParse: (

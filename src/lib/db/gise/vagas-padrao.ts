@@ -2,9 +2,9 @@ import { buscarConfiguracao, salvarConfiguracao } from '../configuracoes';
 import type { Database } from '../core';
 
 /** Uma chave em `configuracoes` com JSON: `{"op":{"dpc":1,"oip":3},"seint":{"dpc":0,"oip":2}}` */
-export const GISE_EQUIPES_VAGAS_JSON_KEY = 'gise_equipes_vagas';
+const GISE_EQUIPES_VAGAS_JSON_KEY = 'gise_equipes_vagas';
 
-export const VAGAS_EQUIPES_FALLBACK = {
+const VAGAS_EQUIPES_FALLBACK = {
 	operacional: { dpc: 1, oip: 3 },
 	seint: { dpc: 0, oip: 2 }
 } as const;
@@ -18,7 +18,7 @@ function n(v: unknown, fallback: number): number {
 	return fallback;
 }
 
-export function parseVagasEquipesGiseJson(raw: string | null): {
+function parseVagasEquipesGiseJson(raw: string | null): {
 	operacional: { dpc: number; oip: number };
 	seint: { dpc: number; oip: number };
 } {

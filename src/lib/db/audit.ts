@@ -16,7 +16,7 @@ import type { Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
 
-export type AcaoAudit =
+type AcaoAudit =
 	| 'login'
 	| 'logout'
 	| 'alterar_senha'
@@ -68,7 +68,7 @@ interface AuditEntry {
  * Registra uma entrada no log de auditoria.
  * Não lança exceção — falhas são logadas em console para não bloquear o fluxo principal.
  */
-export async function registrarAudit(db: Database, entry: AuditEntry): Promise<void> {
+async function registrarAudit(db: Database, entry: AuditEntry): Promise<void> {
 	try {
 		await db.insert(auditLog).values({
 			usuario_id: entry.usuario_id,

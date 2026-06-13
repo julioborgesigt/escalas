@@ -35,5 +35,5 @@ export const escalaPolicialSchema = z.object({
 	equipe: z.string().max(50).default('')
 });
 
-export type EscalaInput = z.infer<typeof escalaSchema>;
-export type EscalaPolicialInput = z.infer<typeof escalaPolicialSchema>;
+type EscalaInput = z.infer<typeof escalaSchema>;
+type EscalaPolicialInput = z.infer<typeof escalaPolicialSchema>;

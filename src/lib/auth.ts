@@ -287,7 +287,7 @@ export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
  * throughput sem perder a propriedade sliding (no pior caso, a sessão é
  * estendida `SESSION_TTL_MS - threshold` antes do vencimento).
  */
-export const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
+const SESSION_SLIDING_THRESHOLD_MS = 30 * 60 * 1000; // 30 min
 
 export async function criarSessao(
 	db: Database,
@@ -493,7 +493,7 @@ export async function excluirSessao(db: Database, token: string): Promise<void> 
  * é responsável por emitir uma nova sessão e setar o cookie se quiser manter
  * o usuário logado.
  */
-export async function invalidarTodasSessoes(
+async function invalidarTodasSessoes(
 	db: Database,
 	tipo: 'policial' | 'admin',
 	usuarioId: number

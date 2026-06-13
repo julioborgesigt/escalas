@@ -21,7 +21,7 @@ const dev = import.meta.env.DEV;
 /**
  * Resultado do comando "sign" do Assinador SERPRO.
  */
-export interface SerproSignResult {
+interface SerproSignResult {
 	/** Assinatura RSA bruta em Base64 (campo outputData ou signature da resposta). */
 	rawSignature: string;
 	/** Certificado do signatário em Base64 DER, se retornado pelo SERPRO. */
@@ -36,7 +36,7 @@ export interface SerproSignResult {
 	rawMessages: unknown[];
 }
 
-export interface SerproCertificate {
+interface SerproCertificate {
 	alias: string;
 	subjectDN: string;
 	issuerDN?: string;
@@ -81,7 +81,7 @@ const SERPRO_WS_URLS = [
  * O usuário deve abrir esta URL, clicar em "Avançado" → "Prosseguir" (ou equivalente).
  * No Chrome/Edge isso pode não funcionar — use Firefox para a primeira autorização.
  */
-export const SERPRO_CERT_AUTH_URL = `https://${SERPRO_HOST}:65166`;
+const SERPRO_CERT_AUTH_URL = `https://${SERPRO_HOST}:65166`;
 
 /** Timeout em ms para cada comando WebSocket */
 const COMMAND_TIMEOUT_MS = 30_000;
@@ -853,7 +853,7 @@ export async function conectarSerproParaLogin(
  * @param dataToSignBase64 - Bytes do byte-range do PDF em Base64 (de preparar-assinatura)
  * @returns cmsBase64 - CMS SignedData completo retornado pelo SERPRO
  */
-export async function assinarSerpro(
+async function assinarSerpro(
 	client: SerproSignerClient,
 	dataToSignBase64: string
 ): Promise<{ cmsBase64: string }> {

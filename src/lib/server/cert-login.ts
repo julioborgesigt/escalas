@@ -30,9 +30,9 @@ import { extrairDadosDoCertificado } from './pdf-signing-prepare';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { logger } from './logger';
 
-export type MotivoFalhaCert = 'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere';
+type MotivoFalhaCert = 'cms_invalido' | 'assinatura_invalida' | 'nonce_nao_confere';
 
-export type ResultadoDesafioCert =
+type ResultadoDesafioCert =
 	| { ok: true; nome: string; cpf: string; certificado: forge.pki.Certificate }
 	| { ok: false; motivo: MotivoFalhaCert };
 

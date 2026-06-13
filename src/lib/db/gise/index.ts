@@ -11,13 +11,9 @@ export {
 	reabrirGiseEscala,
 	clonarGiseParaData,
 	verificarGiseCompleta,
-	verificarTodosSairam,
 	verificarSaidaCompletaSeccional,
-	verificarTodosEntraram,
-	verificarTodosRelatoriosEnviados,
 	sincronizarStatusGiseAposPresencaRelatorios,
 	tentarPromoverGiseProntaParaFinalizar,
-	verificarTodosRelatoriosExtraAssinados,
 	isSupervisorGiseAtiva,
 	isMembroGiseAtiva,
 	isSupervisaoGiseAtiva
@@ -62,24 +58,7 @@ export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';
 
 export { salvarEntradaGise, salvarSaidaGise, buscarPresencasGise } from './presencas';
 
-export { listarMembrosParaBaseEquipe } from './base-equipe';
-export type { LinhaBaseEquipeMembro } from './base-equipe';
-
-export {
-	montarMapaBaseEquipePorPolicialId,
-	montarLinhasBaseEquipeGise,
-	dadosPlanilhaBaseEquipeParaMembro,
-	BASE_EQUIPE_PLANILHA_HEADERS
-} from './planilha-base-equipe-dados';
-export type { DadosPlanilhaBaseEquipePolicial } from './planilha-base-equipe-dados';
-
-export {
-	buscarVagasPadraoEquipesGise,
-	salvarVagasPadraoEquipesGise,
-	parseVagasEquipesGiseJson,
-	VAGAS_EQUIPES_FALLBACK,
-	GISE_EQUIPES_VAGAS_JSON_KEY
-} from './vagas-padrao';
+export { buscarVagasPadraoEquipesGise, salvarVagasPadraoEquipesGise } from './vagas-padrao';
 
 export {
 	buscarAssinaturasRelatoriosGise,

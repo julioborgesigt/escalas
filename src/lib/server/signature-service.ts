@@ -51,7 +51,7 @@ import type { TipoCarimoTempo } from './document-utils';
  * Sessão autenticada do signatário. Compatível com `App.Locals['usuario']`
  * mas tipado explicitamente para evitar acoplamento.
  */
-export interface SignatureUser {
+interface SignatureUser {
 	id: number;
 	tipo: 'admin' | 'policial';
 	nome: string;
@@ -59,7 +59,7 @@ export interface SignatureUser {
 	email?: string | null;
 }
 
-export interface QualifiedInput {
+interface QualifiedInput {
 	preparedPdf: Uint8Array;
 	/** CMS PKCS#7 completo retornado pelo Assinador SERPRO. */
 	serproCms?: string | null;
@@ -69,7 +69,7 @@ export interface QualifiedInput {
 	signingTimeISO?: string | null;
 }
 
-export interface QualifiedFinalization {
+interface QualifiedFinalization {
 	pdfFinal: Uint8Array;
 	metadata: AssinaturaCadesMetadata;
 	tipoCarimboTempo: TipoCarimoTempo;
@@ -78,7 +78,7 @@ export interface QualifiedFinalization {
 	padesLt: boolean;
 }
 
-export interface LivenessResult {
+interface LivenessResult {
 	tipo: 'blink' | 'smile';
 	cumprido: boolean;
 	tentativas: number;
@@ -87,7 +87,7 @@ export interface LivenessResult {
 	duracaoMs: number;
 }
 
-export interface SimpleEvidence {
+interface SimpleEvidence {
 	rubrica?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
@@ -101,7 +101,7 @@ export interface SimpleEvidence {
  * Evidências validadas e prontas para persistência. As flags ativas
  * determinam quais campos estão garantidamente preenchidos.
  */
-export interface ValidatedEvidence {
+interface ValidatedEvidence {
 	rubrica: string | null;
 	latitude: number | null;
 	longitude: number | null;
@@ -112,7 +112,7 @@ export interface ValidatedEvidence {
 	livenessChallenge: LivenessResult | null;
 }
 
-export type ServiceFailure = {
+type ServiceFailure = {
 	ok: false;
 	status: number;
 	error: string;

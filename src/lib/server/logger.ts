@@ -13,5 +13,3 @@ export const logger = {
 	warn: (msg: string, ctx?: Record<string, unknown>) => baseLogger.warn(msg, withCtx(ctx)),
 	error: (msg: string, ctx?: Record<string, unknown>) => baseLogger.error(msg, withCtx(ctx))
 };
-
-export { createRequestLogger };

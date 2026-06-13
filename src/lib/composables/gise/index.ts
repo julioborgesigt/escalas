@@ -1,6 +1,3 @@
-export { useGiseEstado, type GiseEstadoParams } from '../useGiseEstado.svelte';
-export { useGiseAssinatura, type UseGiseAssinaturaParams } from '../useGiseAssinatura.svelte';
-export {
-	useGiseSeccionalActions,
-	type UseGiseSeccionalActionsParams
-} from './useGiseSeccionalActions.svelte';
+export { useGiseEstado } from '../useGiseEstado.svelte';
+export { useGiseAssinatura } from '../useGiseAssinatura.svelte';
+export { useGiseSeccionalActions } from './useGiseSeccionalActions.svelte';

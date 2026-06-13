@@ -2,13 +2,13 @@
  * Texto plano (WhatsApp / copiar-colar) para aviso ao assessor quando uma seccional envia a GISE.
  */
 
-export type GiseSecLinha = { nome: string; status: string };
+type GiseSecLinha = { nome: string; status: string };
 
-export function seccionalJaEnviou(status: string): boolean {
+function seccionalJaEnviou(status: string): boolean {
 	return status === 'preenchida' || status === 'preenchida_retificada';
 }
 
-export function rotuloStatusSeccional(status: string): string {
+function rotuloStatusSeccional(status: string): string {
 	switch (status) {
 		case 'preenchida':
 			return 'enviada';

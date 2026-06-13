@@ -51,7 +51,7 @@ export function statusLabelGiseXlsx(status: string): string {
 	return m[status] ?? status;
 }
 
-export type AppendGiseXlsxState = {
+type AppendGiseXlsxState = {
 	usedWorksheetNames: Set<string>;
 };
 
@@ -138,7 +138,7 @@ function addCabecalhoSupervisaoNaAbaSeccional(
 	ws.addRow([]);
 }
 
-export type AppendGiseXlsxOptions = {
+type AppendGiseXlsxOptions = {
 	/** Várias GISE no mesmo arquivo: nomes de abas por seccional únicos (sufixo id). */
 	multiEscala?: boolean;
 };
