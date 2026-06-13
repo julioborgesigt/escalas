@@ -182,14 +182,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 					escalaSolicitacoesAssinatura,
 					eq(escalaSolicitacoesAssinatura.escala_id, escalasTable.id)
 				)
-				.where(
-					scopeCondition
-						? and(
-								baseWhere,
-								scopeCondition!
-							)
-						: baseWhere
-				)
+				.where(scopeCondition ? and(baseWhere, scopeCondition!) : baseWhere)
 				.orderBy(desc(escalasTable.created_at))
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				.limit(50) as any; // drizzle's chained query type is a specialized subtype of ReturnType<typeof db.select>

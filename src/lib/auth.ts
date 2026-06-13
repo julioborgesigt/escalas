@@ -694,4 +694,3 @@ export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null)
 	}
 	return '/bem-vindo';
 }
-

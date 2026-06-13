@@ -2,7 +2,12 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { eq, and } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { verificarDesafio2FA, criarSessao, criarTokenRedefinicao, obterRotaBemVindo } from '$lib/auth';
+import {
+	verificarDesafio2FA,
+	criarSessao,
+	criarTokenRedefinicao,
+	obterRotaBemVindo
+} from '$lib/auth';
 import { enviarLinkPrimeiroAcesso } from '$lib/server/email';
 import { logger } from '$lib/server/logger';
 import {
@@ -108,7 +113,12 @@ export const actions: Actions = {
 					.where(eq(administradores.login, matricula))
 					.get();
 				if (admin) {
-					const mappedUser = { id: admin.id, tipo: 'admin' as const, nome: admin.nome, primeiro_acesso: false };
+					const mappedUser = {
+						id: admin.id,
+						tipo: 'admin' as const,
+						nome: admin.nome,
+						primeiro_acesso: false
+					};
 					redirectUrl = obterRotaBemVindo(mappedUser, result.adminModuloCookie);
 				}
 			} else {
@@ -210,7 +220,12 @@ export const actions: Actions = {
 				.get();
 			if (!admin) return fail(404, { error: 'Usuário não encontrado' });
 			primeiroAcesso = admin.primeiro_acesso === 1;
-			mappedUser = { id: admin.id, tipo: 'admin' as const, nome: admin.nome, primeiro_acesso: primeiroAcesso };
+			mappedUser = {
+				id: admin.id,
+				tipo: 'admin' as const,
+				nome: admin.nome,
+				primeiro_acesso: primeiroAcesso
+			};
 		} else {
 			const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 			if (!policial || policial.ativo === 0) return fail(403, { error: 'Usuário inativo' });

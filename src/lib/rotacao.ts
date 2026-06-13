@@ -184,7 +184,12 @@ interface DiasPorPolicial {
  * escala para o mês seguinte.
  */
 export function agruparDiasPorPolicial(
-	linhas: readonly { policial_id: number; nome: string; equipe?: string | null; data_plantao: string }[]
+	linhas: readonly {
+		policial_id: number;
+		nome: string;
+		equipe?: string | null;
+		data_plantao: string;
+	}[]
 ): Map<number, DiasPorPolicial> {
 	const porPolicial = new Map<number, DiasPorPolicial>();
 	for (const p of linhas) {

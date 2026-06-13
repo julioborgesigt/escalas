@@ -125,7 +125,10 @@
 	const rotaPath = $derived(page.url.pathname);
 	/** Rota GISE: lista/escala, excl. `/gise/config` (entrada separada "Config. GISE"). */
 	const giseListaOuEscalaPath = $derived(
-		rotaPath === '/gise' || (rotaPath.startsWith('/gise/') && !rotaPath.startsWith('/gise/config') && !rotaPath.startsWith('/gise/bem-vindo'))
+		rotaPath === '/gise' ||
+			(rotaPath.startsWith('/gise/') &&
+				!rotaPath.startsWith('/gise/config') &&
+				!rotaPath.startsWith('/gise/bem-vindo'))
 	);
 	const giseConfigPathAtivo = $derived(rotaPath.startsWith('/gise/config'));
 
