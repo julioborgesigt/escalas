@@ -48,7 +48,9 @@ async function dispararEmailCloudflare(
 
 	// Se houver o binding nativo de e-mail (Workers/Pages em prod), prioriza-o
 	if (env?.EMAIL && typeof env.EMAIL === 'object' && 'send' in env.EMAIL) {
-		const result = await (env.EMAIL as any).send({
+		const result = await (
+			env.EMAIL as { send(m: Record<string, unknown>): Promise<{ messageId?: string }> }
+		).send({
 			from: { email: CF_FROM, name: CF_FROM_NAME },
 			to: [{ email: options.to }],
 			subject: options.subject,

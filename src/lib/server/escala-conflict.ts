@@ -20,11 +20,6 @@ function normalizarHora(h: string | null | undefined): string {
 	return h.includes(':') ? h : `${String(h).padStart(2, '0')}:00`;
 }
 
-interface ConflitoInfo {
-	data: string;
-	motivo: string;
-}
-
 /**
  * Verifica conflito apenas nas escalas não-GISE (`escala_policiais`).
  * Utilizado internamente pelas funções GISE para completar a checagem cruzada.

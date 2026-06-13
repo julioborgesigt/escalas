@@ -31,5 +31,3 @@ export const policialSchema = z.object({
 export const policialUpdateSchema = policialSchema.partial().extend({
 	ativo: z.number().min(0).max(1).optional()
 });
-
-type PolicialInput = z.infer<typeof policialSchema>;

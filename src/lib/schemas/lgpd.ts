@@ -44,7 +44,6 @@ export const novoIncidenteSchema = z.object({
 	responsavel_email: z.string().email('E-mail do responsável inválido').max(200),
 	medidas_tomadas: z.string().max(10_000).optional().nullable()
 });
-type NovoIncidenteInput = z.infer<typeof novoIncidenteSchema>;
 
 /** PATCH — todos os campos opcionais, mas pelo menos um precisa estar presente. */
 export const atualizarIncidenteSchema = z
@@ -61,7 +60,6 @@ export const atualizarIncidenteSchema = z
 	.refine((v) => Object.keys(v).length > 0, {
 		message: 'Informe ao menos um campo para atualizar'
 	});
-type AtualizarIncidenteInput = z.infer<typeof atualizarIncidenteSchema>;
 
 // ──────────────────────────────────────────────────────────────────────
 
@@ -83,11 +81,9 @@ export const responderSolicitacaoSchema = z.object({
 	status: statusResponderSolicitacaoSchema,
 	resposta: z.string().min(1, 'Campo obrigatório: resposta').max(10_000)
 });
-type ResponderSolicitacaoInput = z.infer<typeof responderSolicitacaoSchema>;
 
 /** Submissão do titular (não-admin). */
 export const novaSolicitacaoTitularSchema = z.object({
 	tipo_direito: tipoDireitoLgpdSchema,
 	descricao: z.string().max(5_000).optional().nullable()
 });
-type NovaSolicitacaoTitularInput = z.infer<typeof novaSolicitacaoTitularSchema>;

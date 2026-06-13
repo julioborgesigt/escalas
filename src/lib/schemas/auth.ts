@@ -150,6 +150,3 @@ export const alterarSenhaSchema = z.object({
 		.refine((s) => /[0-9]/.test(s), 'A senha deve conter pelo menos um número')
 		.refine((s) => !SENHAS_COMUNS.has(s.toLowerCase()), 'Essa senha é muito comum. Escolha outra.')
 });
-
-type LoginInput = z.infer<typeof loginSchema>;
-type AlterarSenhaInput = z.infer<typeof alterarSenhaSchema>;

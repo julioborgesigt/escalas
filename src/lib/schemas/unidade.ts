@@ -13,5 +13,3 @@ export const unidadeSchema = z.object({
 	tem_fds: z.boolean().default(false),
 	cidade: z.string().max(200).default('')
 });
-
-type UnidadeInput = z.infer<typeof unidadeSchema>;
