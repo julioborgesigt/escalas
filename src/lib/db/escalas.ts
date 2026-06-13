@@ -213,29 +213,6 @@ export async function desfinalizarEscalaFDS(db: Database, id: number): Promise<v
 
 // ---- Escala Policiais ----
 
-async function adicionarPolicialEscala(
-	db: Database,
-	escalaId: number,
-	policialId: number,
-	dataPlantao: string,
-	dataSaida: string,
-	horaEntrada: string,
-	horaSaida: string,
-	observacoes: string = '',
-	equipe: string = ''
-) {
-	return db.insert(escalaPoliciais).values({
-		escala_id: escalaId,
-		policial_id: policialId,
-		data_plantao: dataPlantao,
-		data_saida: dataSaida,
-		hora_entrada: horaEntrada,
-		hora_saida: horaSaida,
-		observacoes,
-		equipe
-	});
-}
-
 export async function adicionarMultiplasDatasPlantao(
 	db: Database,
 	escalaId: number,
@@ -261,31 +238,6 @@ export async function adicionarMultiplasDatasPlantao(
 			observacoes
 		}))
 	);
-}
-
-async function atualizarEscalaPolicial(
-	db: Database,
-	id: number,
-	dataPlantao: string,
-	dataSaida: string,
-	horaEntrada: string,
-	horaSaida: string,
-	observacoes: string = ''
-) {
-	return db
-		.update(escalaPoliciais)
-		.set({
-			data_plantao: dataPlantao,
-			data_saida: dataSaida,
-			hora_entrada: horaEntrada,
-			hora_saida: horaSaida,
-			observacoes
-		})
-		.where(eq(escalaPoliciais.id, id));
-}
-
-async function removerPolicialEscala(db: Database, id: number) {
-	return db.delete(escalaPoliciais).where(eq(escalaPoliciais.id, id));
 }
 
 export async function adicionarTodosPoliciais(

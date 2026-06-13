@@ -1,5 +1,3 @@
-import { Dialog } from '@skeletonlabs/skeleton-svelte';
-
 /**
  * Hook reutilizável para diálogos de confirmação (exclusão, etc).
  *

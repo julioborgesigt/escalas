@@ -146,24 +146,6 @@ function dadosPlanilhaBaseEquipeParaMembro(
 }
 
 /**
- * Mapa policial_id → colunas idênticas ao envio «Enviar para a planilha» (Base_Equipe).
- */
-async function montarMapaBaseEquipePorPolicialId(
-	db: Database,
-	giseId: number
-): Promise<Map<number, DadosPlanilhaBaseEquipePolicial>> {
-	const gise = await buscarGiseEscala(db, giseId);
-	if (!gise) return new Map();
-
-	const linhasDb = await listarMembrosParaBaseEquipe(db, giseId);
-	const map = new Map<number, DadosPlanilhaBaseEquipePolicial>();
-	for (const r of linhasDb) {
-		map.set(r.policial_id, dadosPlanilhaBaseEquipeParaMembro(gise, giseId, r));
-	}
-	return map;
-}
-
-/**
  * Monta as linhas A–J para a aba Base_Equipe (uma linha por membro escalado).
  */
 export async function montarLinhasBaseEquipeGise(

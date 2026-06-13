@@ -14,8 +14,6 @@
  * Verifique a documentação oficial caso ocorram erros de protocolo.
  */
 
-import { logger } from '$lib/logger';
-
 const dev = import.meta.env.DEV;
 
 /**
@@ -75,16 +73,6 @@ const SERPRO_WS_URLS = [
 	'ws://127.0.0.1:65156/signer/',
 	'ws://127.0.0.1:65500/signer/'
 ];
-
-/**
- * URL para aceitar o certificado do SERPRO no navegador.
- * O usuário deve abrir esta URL, clicar em "Avançado" → "Prosseguir" (ou equivalente).
- * No Chrome/Edge isso pode não funcionar — use Firefox para a primeira autorização.
- */
-const SERPRO_CERT_AUTH_URL = `https://${SERPRO_HOST}:65166`;
-
-/** Timeout em ms para cada comando WebSocket */
-const COMMAND_TIMEOUT_MS = 30_000;
 
 /**
  * Extrai CPF de uma string subjectDN no padrão ICP-Brasil.
@@ -256,40 +244,6 @@ export class SerproSignerClient {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
-	}
-
-	/**
-	 * Envia um comando JSON e aguarda a resposta.
-	 */
-	private sendCommand<T>(command: object): Promise<T> {
-		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-			return Promise.reject(new Error('WebSocket não está conectado'));
-		}
-		if (dev) console.warn('[SERPRO] → Enviando comando:', command);
-		return new Promise<T>((resolve, reject) => {
-			this.pendingResolve = (data) => {
-				try {
-					const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-					if (dev) console.warn('[SERPRO]   Resposta parseada:', parsed);
-					if (parsed?.error || parsed?.result === 'ERROR' || parsed?.result === 'FAILURE') {
-						reject(
-							new Error(parsed.message || parsed.error || 'Erro retornado pelo Assinador SERPRO')
-						);
-					} else {
-						resolve(parsed as T);
-					}
-				} catch (err) {
-					logger.warn('[SERPRO] parse da resposta do assinador', { err: String(err) });
-					reject(new Error('Resposta inválida do Assinador SERPRO'));
-				}
-			};
-			this.pendingReject = reject;
-			this.timeoutId = setTimeout(() => {
-				this.clearPending();
-				reject(new Error('Timeout aguardando resposta do Assinador SERPRO'));
-			}, COMMAND_TIMEOUT_MS);
-			this.ws!.send(JSON.stringify(command));
-		});
 	}
 
 	/**
@@ -831,33 +785,4 @@ export async function conectarSerproParaLogin(
 	const client = new SerproSignerClient();
 	await client.connect();
 	return client;
-}
-
-/**
- * Assina um hash SHA-256 (hexadecimal) usando o Assinador SERPRO.
- *
- * O SERPRO exibe sua interface nativa para seleção de certificado e PIN.
- * A resposta deve incluir a assinatura e (esperamos) o certificado do signatário.
- *
- * @param client  - Cliente SERPRO conectado
- * @param hashHex - Hash em hexadecimal dos SignedAttributes (retornado por preparar-assinatura)
- * @returns rawSignature e certificateBase64 para uso em finalizar-assinatura
- */
-/**
- * Assina os bytes do byte-range do PDF usando o Assinador SERPRO com type:'file'.
- *
- * O SERPRO computa SHA-256(byte-range) e usa como messageDigest no CMS resultante.
- * O CMS é então embutido diretamente no placeholder /Contents do PDF preparado.
- *
- * @param client           - Cliente SERPRO conectado
- * @param dataToSignBase64 - Bytes do byte-range do PDF em Base64 (de preparar-assinatura)
- * @returns cmsBase64 - CMS SignedData completo retornado pelo SERPRO
- */
-async function assinarSerpro(
-	client: SerproSignerClient,
-	dataToSignBase64: string
-): Promise<{ cmsBase64: string }> {
-	const result = await client.signFile(dataToSignBase64);
-	// result.rawSignature = campo 'signature' ou 'outputData' da resposta SERPRO = CMS completo
-	return { cmsBase64: result.rawSignature };
 }

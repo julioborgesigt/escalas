@@ -6,8 +6,7 @@ import {
 	giseMembros,
 	gisePresencas,
 	giseDocumentos,
-	giseAssinaturasRelatorios,
-	giseRespostasFormulario
+	giseAssinaturasRelatorios
 } from '../../server/schema';
 import type { Database } from '../core';
 import { buscarGiseEscala, atualizarGiseEscala } from './escalas-crud';
@@ -243,62 +242,6 @@ export async function tentarPromoverGiseProntaParaFinalizar(
 	if (!extrasOk) return;
 
 	await atualizarGiseEscala(db, giseId, { status: 'pronta_para_finalizar' });
-}
-
-/**
- * Verifica se todas as equipes enviaram seus relatórios de produtividade,
- * além dos relatórios individuais das inteligências (SEINT1 e SEINT2) da supervisão.
- */
-async function verificarTodosRelatoriosEnviados(db: Database, giseId: number): Promise<boolean> {
-	const result = await db
-		.select({
-			total: sql<number>`count(distinct ${giseEquipes.id})`,
-			com_resposta: sql<number>`count(distinct ${giseRespostasFormulario.equipe_id})`
-		})
-		.from(giseEquipes)
-		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
-		.leftJoin(
-			giseRespostasFormulario,
-			and(
-				eq(giseRespostasFormulario.gise_id, giseId),
-				eq(giseRespostasFormulario.equipe_id, giseEquipes.id)
-			)
-		)
-		.where(eq(giseSeccionais.gise_id, giseId))
-		.get();
-
-	let total = result?.total ?? 0;
-	let comResposta = result?.com_resposta ?? 0;
-
-	// Adiciona validação dos formulários avulsos do SEINT da equipe de supervisão
-	const gise = await db.select().from(giseEscalas).where(eq(giseEscalas.id, giseId)).get();
-	if (gise) {
-		const seintIds = [
-			...new Set([gise.seint1_id, gise.seint2_id].filter((id): id is number => id != null))
-		];
-		if (seintIds.length > 0) {
-			const respostasSups = await db
-				.select({ policial_id: giseRespostasFormulario.policial_id })
-				.from(giseRespostasFormulario)
-				.where(
-					and(
-						eq(giseRespostasFormulario.gise_id, giseId),
-						inArray(giseRespostasFormulario.policial_id, seintIds)
-					)
-				)
-				.all();
-
-			const policiaisComRelatorio = new Set(
-				respostasSups.map((r) => r.policial_id).filter((id): id is number => id != null)
-			);
-
-			total += seintIds.length;
-			comResposta += policiaisComRelatorio.size;
-		}
-	}
-
-	if (total === 0) return false;
-	return comResposta >= total;
 }
 
 /**

@@ -90,18 +90,3 @@ export async function getLegacyPasswordDeadline(db: Database): Promise<Date> {
 export function getLegacyPasswordDeadlineDefault(): Date {
 	return parseDeadlineIso(LEGACY_PASSWORD_DEADLINE_DEFAULT_ISO);
 }
-
-/**
- * Invalida o cache edge — chamar APÓS alterar `auth.legacy_password_deadline`
- * em `configuracoes`. Não há rota da UI que faça isso hoje (configuração
- * manual via D1), mas a função fica disponível para quando houver.
- */
-async function invalidarLegacyPasswordDeadline(): Promise<void> {
-	const cache = safeCacheRef();
-	if (!cache) return;
-	try {
-		await cache.delete(makeRequest());
-	} catch {
-		// silently ignore — TTL natural absorve em <= 5min
-	}
-}

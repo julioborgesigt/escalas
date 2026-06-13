@@ -76,11 +76,6 @@ async function idsSupervisaoExtraReconhecidos(db: Database): Promise<Set<number>
 	return s;
 }
 
-function limparCacheUnidadeSupervisaoExtra() {
-	unidadeSupervisaoExtraIdCache = undefined;
-	idsSupervisaoExtraCache = undefined;
-}
-
 /** Autoriza `seccionalId` como slot de relatório de extra do quadro de supervisão (dept ou legado). */
 export async function secIdEhSupervisaoExtra(db: Database, seccionalId: number): Promise<boolean> {
 	return (await idsSupervisaoExtraReconhecidos(db)).has(seccionalId);
