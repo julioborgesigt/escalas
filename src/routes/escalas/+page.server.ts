@@ -26,6 +26,7 @@ import {
 	primeiroDiaDoMes,
 	ultimoDiaDoMes,
 	calcularDataSaida,
+	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
 
@@ -498,13 +499,7 @@ export const actions: Actions = {
 					adicionados++;
 				}
 			} else {
-				const diasPorPolicial = new Map<number, { nome: string; dias: string[]; equipe: string }>();
-				for (const p of policiaisAtuais) {
-					if (!diasPorPolicial.has(p.policial_id)) {
-						diasPorPolicial.set(p.policial_id, { nome: p.nome, dias: [], equipe: p.equipe || '' });
-					}
-					diasPorPolicial.get(p.policial_id)!.dias.push(p.data_plantao);
-				}
+				const diasPorPolicial = agruparDiasPorPolicial(policiaisAtuais);
 				const he = escalaPrev.hora_entrada || '00:00';
 				const hs = escalaPrev.hora_saida || '23:59';
 				for (const [policialId, { nome, dias, equipe }] of diasPorPolicial) {

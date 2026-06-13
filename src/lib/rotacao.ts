@@ -170,3 +170,30 @@ export function calcularDataSaida(
 	}
 	return dataPlantao;
 }
+
+/** Dias de plantão de um policial, agrupados para o cálculo de rotação. */
+interface DiasPorPolicial {
+	nome: string;
+	dias: string[];
+	equipe: string;
+}
+
+/**
+ * Agrupa as linhas de plantão de uma escala por policial, acumulando as datas
+ * de cada um. Usado como entrada para `calcularProximoMesDias` ao replicar uma
+ * escala para o mês seguinte.
+ */
+export function agruparDiasPorPolicial(
+	linhas: readonly { policial_id: number; nome: string; equipe?: string | null; data_plantao: string }[]
+): Map<number, DiasPorPolicial> {
+	const porPolicial = new Map<number, DiasPorPolicial>();
+	for (const p of linhas) {
+		let entrada = porPolicial.get(p.policial_id);
+		if (!entrada) {
+			entrada = { nome: p.nome, dias: [], equipe: p.equipe || '' };
+			porPolicial.set(p.policial_id, entrada);
+		}
+		entrada.dias.push(p.data_plantao);
+	}
+	return porPolicial;
+}

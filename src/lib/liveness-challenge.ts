@@ -21,7 +21,7 @@
 // Tipos
 // ---------------------------------------------------------------------------
 
-export type ChallengeTipo = 'blink' | 'smile';
+type ChallengeTipo = 'blink' | 'smile';
 
 export interface ChallengeDefinicao {
 	tipo: ChallengeTipo;
