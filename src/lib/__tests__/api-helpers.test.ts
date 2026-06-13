@@ -151,6 +151,7 @@ import {
 	primeiroDiaDoMes,
 	ultimoDiaDoMes,
 	calcularDataSaida,
+	agruparDiasPorPolicial,
 	MESES_PT
 } from '$lib/rotacao';
 
@@ -313,5 +314,39 @@ describe('calcularProximoMesDias — 2x6', () => {
 			'2025-02-26',
 			'2025-02-27'
 		]);
+	});
+});
+
+describe('agruparDiasPorPolicial', () => {
+	it('agrupa os dias de cada policial preservando nome e equipe', () => {
+		const map = agruparDiasPorPolicial([
+			{ policial_id: 1, nome: 'Ana', equipe: 'A', data_plantao: '2025-01-01' },
+			{ policial_id: 2, nome: 'Beto', equipe: 'B', data_plantao: '2025-01-02' },
+			{ policial_id: 1, nome: 'Ana', equipe: 'A', data_plantao: '2025-01-05' }
+		]);
+		expect(map.size).toBe(2);
+		expect(map.get(1)).toEqual({ nome: 'Ana', equipe: 'A', dias: ['2025-01-01', '2025-01-05'] });
+		expect(map.get(2)).toEqual({ nome: 'Beto', equipe: 'B', dias: ['2025-01-02'] });
+	});
+
+	it('preserva a ordem de inserção dos dias', () => {
+		const map = agruparDiasPorPolicial([
+			{ policial_id: 7, nome: 'X', equipe: 'A', data_plantao: '2025-01-09' },
+			{ policial_id: 7, nome: 'X', equipe: 'A', data_plantao: '2025-01-01' }
+		]);
+		expect(map.get(7)?.dias).toEqual(['2025-01-09', '2025-01-01']);
+	});
+
+	it('normaliza equipe null/undefined para string vazia', () => {
+		const map = agruparDiasPorPolicial([
+			{ policial_id: 1, nome: 'Ana', equipe: null, data_plantao: '2025-01-01' },
+			{ policial_id: 2, nome: 'Beto', data_plantao: '2025-01-02' }
+		]);
+		expect(map.get(1)?.equipe).toBe('');
+		expect(map.get(2)?.equipe).toBe('');
+	});
+
+	it('retorna mapa vazio para entrada vazia', () => {
+		expect(agruparDiasPorPolicial([]).size).toBe(0);
 	});
 });

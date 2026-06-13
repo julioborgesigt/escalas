@@ -55,7 +55,20 @@ O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as cham
 2. **Republicar a Apps Script**: passa a enviar os headers. Confirmar nos logs do Worker que toda chamada agora vem com timestamp+nonce.
 3. **Setar `WEBHOOK_REPLAY_ENFORCE=1`** no Cloudflare (Settings → Environment variables): qualquer chamada sem os headers passa a devolver 401. A partir daqui, replay protection está **obrigatório**.
 
-A limpeza periódica de `webhook_nonces` ainda não é automatizada. Como nonces fora da janela de 5min são inúteis para defender contra replay, qualquer cron simples (ex.: `DELETE FROM webhook_nonces WHERE received_at < datetime('now', '-1 hour');`) pode rodar via Cloudflare Cron Trigger no futuro.
+A limpeza periódica de `webhook_nonces` (e das demais tabelas de retenção) é automatizada por `executarLimpezaRetencao`, disparada pelo cron `cleanup-retencao.yml` (GitHub Actions) — ver [Failsafe da limpeza de retenção](#failsafe-da-limpeza-de-retenção).
+
+### Failsafe da limpeza de retenção
+
+O Cloudflare Pages não tem cron nativo, então a limpeza depende do agendador externo (`cleanup-retencao.yml`, diário). Se ele parar de disparar (workflow desabilitado, segredo rotacionado, repositório arquivado), as tabelas de retenção crescem **silenciosamente** e consomem cota do D1.
+
+Para flagrar isso sem nova tabela nem armazenamento extra, `GET /api/health?detail=<HEALTH_DETAIL_TOKEN>` reporta o campo `retencao` derivado do último `audit_log` de limpeza:
+
+```json
+{ "status": "degraded", "checks": { "limpezaRetencao": "stale" },
+  "retencao": { "ultimaExecucao": "...", "horasDesdeUltima": 73.2, "atrasada": true } }
+```
+
+**Ação do operador:** aponte um monitor externo (UptimeRobot, Better Stack, etc.) para essa URL e alerte quando `retencao.atrasada` for `true` (ou `status` for `degraded`). A tolerância padrão é 48h (o cron roda a cada 24h). A liveness pública (`/api/health` sem `detail`) **não** muda por causa da defasagem — continua `200 ok` enquanto D1/R2 respondem.
 
 ## Banco de dados (D1)
 

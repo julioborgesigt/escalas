@@ -591,7 +591,6 @@ export const resetSenhaTokens = sqliteTable(
 		index('idx_reset_senha_usuario').on(table.tipo_usuario, table.usuario_id, table.created_at)
 	]
 );
-export type ResetSenhaToken = typeof resetSenhaTokens.$inferSelect;
 
 // ---- Configurações do Sistema ----
 
@@ -801,13 +800,9 @@ export const lgpdSolicitacoes = sqliteTable(
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
-export type NovoPolicial = typeof policiais.$inferInsert;
 export type Escala = typeof escalas.$inferSelect;
 export type NovaEscala = typeof escalas.$inferInsert;
 export type EscalaPolicial = typeof escalaPoliciais.$inferSelect;
-export type Administrador = typeof administradores.$inferSelect;
-export type Administrator = typeof administradores.$inferSelect;
-export type Sessao = typeof sessoes.$inferSelect;
 export type Unidade = typeof unidades.$inferSelect;
 export type EscalaDocumento = typeof escalaDocumentos.$inferSelect;
 export type GiseEscala = typeof giseEscalas.$inferSelect;
@@ -816,14 +811,8 @@ export type GiseEquipe = typeof giseEquipes.$inferSelect;
 export type GiseMembro = typeof giseMembros.$inferSelect;
 export type GiseDocumento = typeof giseDocumentos.$inferSelect;
 export type GisePresenca = typeof gisePresencas.$inferSelect;
-export type GiseRespostaFormulario = typeof giseRespostasFormulario.$inferSelect;
 export type GiseAssinaturaRelatorio = typeof giseAssinaturasRelatorios.$inferSelect;
 export type AceiteTermo = typeof aceitesTermos.$inferSelect;
-export type NovoAceiteTermo = typeof aceitesTermos.$inferInsert;
-export type DoisFatoresToken = typeof doisFatoresTokens.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
-export type NovoAuditLog = typeof auditLog.$inferInsert;
 export type LgpdIncidente = typeof lgpdIncidentes.$inferSelect;
-export type NovoLgpdIncidente = typeof lgpdIncidentes.$inferInsert;
 export type LgpdSolicitacao = typeof lgpdSolicitacoes.$inferSelect;
-export type NovaLgpdSolicitacao = typeof lgpdSolicitacoes.$inferInsert;

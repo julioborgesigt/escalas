@@ -26,7 +26,7 @@ import { OID_SIG_POLICY_ID, avaliarPoliticaAssinatura, type AvaliacaoPolitica } 
 const OID_MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
 const OID_SIGNATURE_TIME_STAMP_TOKEN = '1.2.840.113549.1.9.16.2.14';
 
-export interface VerificationCertificado {
+interface VerificationCertificado {
 	nome: string;
 	cpf: string;
 	cpfMascarado: string;

@@ -15,6 +15,7 @@ import { getR2 } from '$lib/server/platform';
 import { sql } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
+import { verificarSaudeLimpezaRetencao, type SaudeLimpezaRetencao } from '$lib/db/lgpd-retencao';
 
 interface HealthEnv {
 	HEALTH_DETAIL_TOKEN?: string;
@@ -58,8 +59,24 @@ export const GET = async ({ platform, url }: RequestEvent) => {
 		compararSegredoUtf8TimingSafe(detailToken, env.HEALTH_DETAIL_TOKEN);
 
 	if (wantDetail) {
+		// Failsafe do cron de limpeza (LGPD/retenção): se o agendador externo
+		// parar, as tabelas crescem sem limite. Sinalizamos a defasagem para o
+		// monitor do operador sem derrubar a liveness pública. Não bloqueia o
+		// health se a consulta falhar (DB já reportado acima).
+		let retencao: SaudeLimpezaRetencao | { erro: true };
+		try {
+			retencao = await verificarSaudeLimpezaRetencao(getDB(platform));
+		} catch {
+			retencao = { erro: true };
+		}
+		const stale = 'atrasada' in retencao && retencao.atrasada;
 		return json(
-			{ status: healthy ? 'healthy' : 'degraded', checks, timestamp: new Date().toISOString() },
+			{
+				status: healthy ? (stale ? 'degraded' : 'healthy') : 'degraded',
+				checks: { ...checks, limpezaRetencao: stale ? 'stale' : 'ok' },
+				retencao,
+				timestamp: new Date().toISOString()
+			},
 			{ status: healthy ? 200 : 503 }
 		);
 	}

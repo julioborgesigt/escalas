@@ -27,14 +27,14 @@ Plataforma de gestão de escalas de plantão, expediente e GISE (Grupo de Interv
 
 | Camada | Tecnologia | Versão |
 |--------|-----------|--------|
-| Meta-framework | SvelteKit | 2.50.2 |
-| UI | Svelte 5 (runes) | 5.51.0 |
+| Meta-framework | SvelteKit | 2.63.1 |
+| UI | Svelte 5 (runes) | 5.56.3 |
 | Estilização | Tailwind CSS v4 + Skeleton UI v4 | 4.2.2 / 4.13.0 |
 | ORM | Drizzle ORM | 0.45.1 |
 | Banco de dados | Cloudflare D1 (SQLite serverless) | — |
 | Armazenamento | Cloudflare R2 (PDFs, selfies, documentos) | — |
 | Hospedagem | Cloudflare Pages (edge runtime) | — |
-| Validação | Zod | 4.3.6 |
+| Validação | Zod | 4.4.3 |
 | Assinatura digital | pdf-lib + @signpdf + node-forge + web-pki | — |
 | Reconhecimento facial | @vladmandic/face-api (TensorFlow.js) | 1.7.15 |
 | E-mail | Nodemailer (SMTP Gmail) | 8.0.4 |
