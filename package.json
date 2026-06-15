@@ -68,7 +68,7 @@
 		"@fontsource/inter": "^5.2.8",
 		"@fontsource/outfit": "^5.2.8",
 		"@sentry/browser": "^10.56.0",
-		"@sentry/cloudflare": "^10.55.0",
+		"@sentry/cloudflare": "^10.57.0",
 		"@signpdf/placeholder-pdf-lib": "^3.3.0",
 		"@signpdf/utils": "^3.3.0",
 		"@skeletonlabs/skeleton": "^4.13.0",
