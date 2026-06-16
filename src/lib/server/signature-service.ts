@@ -347,11 +347,17 @@ export async function validarEvidenciasAvancada(
 		};
 	}
 
-	// 2b. Quando a foto é exigida, o cliente DEVE comprovar liveness ativa
-	//     (challenge blink/smile cumprido). Sem isso, atacante poderia
-	//     submeter selfie roubada da vítima. O componente SignaturePad
-	//     bloqueia a UI, mas validamos no servidor também — defesa em
-	//     profundidade contra cliente comprometido.
+	// 2b. Liveness ativo (challenge blink/smile). Fronteira de garantia
+	//     (auditoria A2 — decisão de produto "Nível 0"): o veredito blink/smile
+	//     é calculado NO CLIENTE (face-api); aqui o servidor só confere
+	//     consistência estrutural e temporal (cumprido + duração plausível) e
+	//     NÃO re-verifica a imagem. Isso eleva a barra contra selfie estática e
+	//     apresentação à câmera, mas NÃO resiste a um cliente adulterado que
+	//     forje o payload — nada client-side resiste. É um REFORÇO da assinatura
+	//     AVANÇADA (Lei 14.063/2020 art. 4º II), não prova de identidade forte:
+	//     o não-repúdio pleno vem da QUALIFICADA via Token A3 (ICP-Brasil), já
+	//     disponível no sistema. Endurecer exigiria PAD/liveness server-side
+	//     certificado (serviço externo) — fora do escopo desta decisão.
 	if (flags.exigirFotoAssinatura) {
 		const ch = evidence.livenessChallenge;
 		if (!ch) {
