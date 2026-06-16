@@ -605,15 +605,74 @@ function interpretarErroSerpro(o: Record<string, unknown>): string {
 }
 
 /**
+ * Segmento de um parágrafo do aviso, modelado como DADOS (não HTML) para que o
+ * modal seja construído via `createElement`/`textContent` — sem `innerHTML`,
+ * eliminando o sink de XSS mesmo que o conteúdo passe a vir de fonte dinâmica.
+ */
+type SegmentoAviso = string | { strong: string } | { link: string; href: string };
+
+interface ParagrafoAviso {
+	segmentos: SegmentoAviso[];
+	/** Classe do `<p>` (default: parágrafo padrão). */
+	classe?: string;
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Ícone de alerta (estático), criado via DOM em vez de innerHTML. */
+function criarIconeAlertaSerpro(): SVGElement {
+	const svg = document.createElementNS(SVG_NS, 'svg');
+	svg.setAttribute('class', 'w-5 h-5 text-warning-500');
+	svg.setAttribute('fill', 'none');
+	svg.setAttribute('viewBox', '0 0 24 24');
+	svg.setAttribute('stroke', 'currentColor');
+	const path = document.createElementNS(SVG_NS, 'path');
+	path.setAttribute('stroke-linecap', 'round');
+	path.setAttribute('stroke-linejoin', 'round');
+	path.setAttribute('stroke-width', '2');
+	path.setAttribute(
+		'd',
+		'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+	);
+	svg.appendChild(path);
+	return svg;
+}
+
+/** Converte um segmento em nó DOM seguro (texto puro, negrito ou link externo). */
+function criarSegmentoAviso(seg: SegmentoAviso): Node {
+	if (typeof seg === 'string') return document.createTextNode(seg);
+	if ('strong' in seg) {
+		const strong = document.createElement('strong');
+		strong.textContent = seg.strong;
+		return strong;
+	}
+	const a = document.createElement('a');
+	// Só aceita http(s): blinda contra `javascript:`/`data:` caso o href passe a
+	// vir de fonte dinâmica. Hoje os hrefs são constantes do domínio SERPRO.
+	a.href = /^https?:\/\//i.test(seg.href) ? seg.href : '#';
+	a.target = '_blank';
+	a.rel = 'noopener noreferrer';
+	a.className =
+		'text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300';
+	a.textContent = seg.link;
+	return a;
+}
+
+/**
  * Exibe um modal de aviso sobre o Assinador SERPRO.
+ *
+ * O corpo é descrito como DADOS (`ParagrafoAviso[]`) e renderizado via DOM,
+ * nunca por `innerHTML` — não há sink de XSS ainda que o texto venha a ser
+ * dinâmico no futuro.
+ *
  * @param sessionKey - Chave no sessionStorage para "não mostrar novamente"
  * @param titulo - Título do modal
- * @param corpo - HTML do corpo do modal (parágrafos)
+ * @param paragrafos - Parágrafos do corpo, como segmentos estruturados
  */
 function exibirAvisoSerproModal(
 	sessionKey: string,
 	titulo: string,
-	corpo: string
+	paragrafos: ParagrafoAviso[]
 ): Promise<boolean> {
 	return new Promise((resolve) => {
 		if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey) === 'true') {
@@ -630,68 +689,79 @@ function exibirAvisoSerproModal(
 		overlay.className =
 			'fixed inset-0 z-[9999] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm';
 
-		overlay.innerHTML = `
-			<div class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-2xl space-y-4 text-surface-900 dark:text-surface-100 font-sans">
-				<div class="flex items-start gap-3">
-					<div class="mt-0.5 shrink-0 rounded-lg p-2 bg-warning-500/10">
-						<svg class="w-5 h-5 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-						</svg>
-					</div>
-					<div class="min-w-0 flex-1">
-						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50">
-							${titulo}
-						</h3>
-					</div>
-				</div>
+		const card = document.createElement('div');
+		card.className =
+			'w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-2xl space-y-4 text-surface-900 dark:text-surface-100 font-sans';
 
-				<div class="space-y-2.5 text-sm text-surface-600 dark:text-surface-300">
-					${corpo}
-				</div>
+		// Cabeçalho (ícone + título)
+		const header = document.createElement('div');
+		header.className = 'flex items-start gap-3';
+		const iconWrap = document.createElement('div');
+		iconWrap.className = 'mt-0.5 shrink-0 rounded-lg p-2 bg-warning-500/10';
+		iconWrap.appendChild(criarIconeAlertaSerpro());
+		const tituloWrap = document.createElement('div');
+		tituloWrap.className = 'min-w-0 flex-1';
+		const h3 = document.createElement('h3');
+		h3.className = 'text-base font-bold text-surface-900 dark:text-surface-50';
+		h3.textContent = titulo;
+		tituloWrap.appendChild(h3);
+		header.append(iconWrap, tituloWrap);
 
-				<div class="flex items-start gap-2 pt-1">
-					<input type="checkbox" id="serpro-skip-checkbox" class="mt-0.5 w-4 h-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-surface-800 cursor-pointer" />
-					<label for="serpro-skip-checkbox" class="text-xs text-surface-500 dark:text-surface-400 select-none cursor-pointer leading-tight">
-						Não exibir este aviso novamente nesta sessão
-					</label>
-				</div>
+		// Corpo (parágrafos estruturados, renderizados via DOM)
+		const corpo = document.createElement('div');
+		corpo.className = 'space-y-2.5 text-sm text-surface-600 dark:text-surface-300';
+		for (const paragrafo of paragrafos) {
+			const p = document.createElement('p');
+			p.className = paragrafo.classe ?? 'leading-relaxed';
+			for (const seg of paragrafo.segmentos) p.appendChild(criarSegmentoAviso(seg));
+			corpo.appendChild(p);
+		}
 
-				<div class="flex justify-end gap-3 pt-2">
-					<button
-						type="button"
-						id="serpro-cancel-btn"
-						class="btn preset-outlined-surface-500 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
-					>
-						Cancelar
-					</button>
-					<button
-						type="button"
-						id="serpro-confirm-btn"
-						class="btn preset-filled-primary-500 text-white rounded-xl px-4 py-2 text-sm font-bold shadow transition-colors"
-					>
-						Continuar
-					</button>
-				</div>
-			</div>
-		`;
+		// "Não exibir novamente"
+		const skipWrap = document.createElement('div');
+		skipWrap.className = 'flex items-start gap-2 pt-1';
+		const skipCheckbox = document.createElement('input');
+		skipCheckbox.type = 'checkbox';
+		skipCheckbox.id = 'serpro-skip-checkbox';
+		skipCheckbox.className =
+			'mt-0.5 w-4 h-4 rounded border-surface-300 dark:border-surface-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-surface-800 cursor-pointer';
+		const skipLabel = document.createElement('label');
+		skipLabel.htmlFor = 'serpro-skip-checkbox';
+		skipLabel.className =
+			'text-xs text-surface-500 dark:text-surface-400 select-none cursor-pointer leading-tight';
+		skipLabel.textContent = 'Não exibir este aviso novamente nesta sessão';
+		skipWrap.append(skipCheckbox, skipLabel);
 
+		// Ações
+		const acoes = document.createElement('div');
+		acoes.className = 'flex justify-end gap-3 pt-2';
+		const cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className =
+			'btn preset-outlined-surface-500 rounded-xl px-4 py-2 text-sm font-semibold transition-colors';
+		cancelBtn.textContent = 'Cancelar';
+		const confirmBtn = document.createElement('button');
+		confirmBtn.type = 'button';
+		confirmBtn.className =
+			'btn preset-filled-primary-500 text-white rounded-xl px-4 py-2 text-sm font-bold shadow transition-colors';
+		confirmBtn.textContent = 'Continuar';
+		acoes.append(cancelBtn, confirmBtn);
+
+		card.append(header, corpo, skipWrap, acoes);
+		overlay.appendChild(card);
 		document.body.appendChild(overlay);
-
-		const confirmBtn = overlay.querySelector('#serpro-confirm-btn');
-		const cancelBtn = overlay.querySelector('#serpro-cancel-btn');
-		const skipCheckbox = overlay.querySelector('#serpro-skip-checkbox') as HTMLInputElement | null;
 
 		const cleanup = () => overlay.remove();
 
-		confirmBtn?.addEventListener('click', () => {
-			if (skipCheckbox?.checked && typeof sessionStorage !== 'undefined') {
+		confirmBtn.addEventListener('click', () => {
+			if (skipCheckbox.checked && typeof sessionStorage !== 'undefined') {
 				sessionStorage.setItem(sessionKey, 'true');
 			}
 			cleanup();
 			resolve(true);
 		});
 
-		cancelBtn?.addEventListener('click', () => {
+		cancelBtn.addEventListener('click', () => {
 			cleanup();
 			resolve(false);
 		});
@@ -701,39 +771,56 @@ function exibirAvisoSerproModal(
 /**
  * Aviso padrão para assinatura de documentos.
  */
+const SERPRO_DOWNLOAD_URL =
+	'https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro';
+
 function exibirAvisoSerpro(): Promise<boolean> {
-	return exibirAvisoSerproModal(
-		'pularAvisoSerpro',
-		'Assinador SERPRO Necessário',
-		`<p class="leading-relaxed">
-			Para realizar a assinatura digital no computador, o aplicativo <strong>Assinador SERPRO</strong> deve estar instalado e em execução no seu sistema.
-		</p>
-		<p class="leading-relaxed">
-			Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">Clique aqui para baixar</a>.
-		</p>
-		<p class="font-medium text-warning-600 dark:text-warning-500">
-			Certifique-se de abrir o aplicativo antes de prosseguir.
-		</p>`
-	);
+	return exibirAvisoSerproModal('pularAvisoSerpro', 'Assinador SERPRO Necessário', [
+		{
+			segmentos: [
+				'Para realizar a assinatura digital no computador, o aplicativo ',
+				{ strong: 'Assinador SERPRO' },
+				' deve estar instalado e em execução no seu sistema.'
+			]
+		},
+		{
+			segmentos: [
+				'Se ainda não possui o aplicativo, ',
+				{ link: 'Clique aqui para baixar', href: SERPRO_DOWNLOAD_URL },
+				'.'
+			]
+		},
+		{
+			classe: 'font-medium text-warning-600 dark:text-warning-500',
+			segmentos: ['Certifique-se de abrir o aplicativo antes de prosseguir.']
+		}
+	]);
 }
 
 /**
  * Aviso específico para login com Token A3.
  */
 function exibirAvisoSerproLogin(): Promise<boolean> {
-	return exibirAvisoSerproModal(
-		'pularAvisoSerproLogin',
-		'Login com Token A3',
-		`<p class="leading-relaxed">
-			Para entrar com seu certificado digital, o aplicativo <strong>Assinador SERPRO</strong> precisa estar instalado e em execução no seu computador.
-		</p>
-		<p class="leading-relaxed">
-			Ele será usado para confirmar sua identidade por meio do Token A3, sem necessidade de senha. Se ainda não possui o aplicativo, <a href="https://www.serpro.gov.br/links-fixos-superiores/assinador-digital/assinador-serpro" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700 dark:hover:text-primary-300">clique aqui para baixar</a>.
-		</p>
-		<p class="font-medium text-warning-600 dark:text-warning-500">
-			Abra o Assinador SERPRO antes de continuar.
-		</p>`
-	);
+	return exibirAvisoSerproModal('pularAvisoSerproLogin', 'Login com Token A3', [
+		{
+			segmentos: [
+				'Para entrar com seu certificado digital, o aplicativo ',
+				{ strong: 'Assinador SERPRO' },
+				' precisa estar instalado e em execução no seu computador.'
+			]
+		},
+		{
+			segmentos: [
+				'Ele será usado para confirmar sua identidade por meio do Token A3, sem necessidade de senha. Se ainda não possui o aplicativo, ',
+				{ link: 'clique aqui para baixar', href: SERPRO_DOWNLOAD_URL },
+				'.'
+			]
+		},
+		{
+			classe: 'font-medium text-warning-600 dark:text-warning-500',
+			segmentos: ['Abra o Assinador SERPRO antes de continuar.']
+		}
+	]);
 }
 
 /**
