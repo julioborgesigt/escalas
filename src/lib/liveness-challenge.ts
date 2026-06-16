@@ -15,6 +15,14 @@
  * Não é defesa contra deepfake em tempo real (Nível 3 ou 4 fariam) — mas
  * resolve o ataque oportunístico mais comum em fraudes de assinatura em
  * tela: usar selfie roubada da vítima.
+ *
+ * Fronteira de garantia (auditoria A2): a avaliação roda NO CLIENTE e o
+ * servidor confia no resultado reportado (só confere consistência estrutural
+ * e temporal em signature-service.ts). Um cliente adulterado pode forjar o
+ * payload — por isso o liveness é REFORÇO da assinatura AVANÇADA, não prova
+ * de identidade forte. Para não-repúdio pleno, use a QUALIFICADA via Token A3
+ * (ICP-Brasil). Endurecer exigiria PAD server-side certificado (serviço
+ * externo) — decisão de produto não adotada ("Nível 0").
  */
 
 // ---------------------------------------------------------------------------
