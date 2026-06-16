@@ -73,28 +73,38 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 //
 // Sobre as iterações (importante):
 //
-// OWASP 2023+ recomenda mínimo 600 000 iterações para PBKDF2-SHA256, mas o
-// runtime Cloudflare Pages Functions tem CPU limit baixo (10 ms no free tier,
-// 50 ms no paid). 600k derivação leva ~50-60 ms num isolate — estoura o
-// limite em qualquer plano que não seja Workers Paid completo, devolvendo
-// "Error 1102: Worker exceeded CPU time limit" como HTTP 500.
+// OWASP 2023+ recomenda mínimo 600 000 iterações para PBKDF2-HMAC-SHA256.
+// Adotamos 600 000 (v2). Cada derivação custa ~50-100 ms de CPU num isolate —
+// folgado no Workers Paid, cujo limite de CPU é 30 s por request por padrão
+// (configurável até 5 min). É, porém, MUITO acima do teto do Workers Free
+// (10 ms de CPU), onde estouraria com "Error 1102: Worker exceeded CPU time
+// limit" (HTTP 500).
 //
-// Mantemos 100 000 iterações (mesmo valor pré-auditoria) como teto seguro
-// para o plano atual. O formato v2 (iter explícito) fica preparado para
-// subir o número assim que o sistema migrar para Workers Paid — basta
-// trocar a constante abaixo, sem migração de banco. Hashes v1 antigos
-// continuam aceitos via fallback.
+// ⚠️ REGRESSÃO DE PLANO: se este projeto voltar para o Workers Free (10 ms de
+// CPU), REDUZA `PBKDF2_V2_ITERATIONS` de volta para 100 000. Como o iter fica
+// embutido em cada hash v2 (`pbkdf2v2:<iter>:...`), baixar a constante afeta
+// apenas hashes NOVOS; os hashes 600k já gravados continuariam exigindo 600k
+// para VERIFICAR e estourariam o CPU no login no Free — nesse cenário, force
+// um reset de senha das contas afetadas.
 //
-// Defesa em camadas que compensa parcialmente o iter baixo:
-//  - Rate-limit forte por IP em `login_attempts` (auth-flow.ts:69)
+// Migração automática (sem migração de banco): hashes v2 com iter abaixo do
+// alvo atual (ex.: 100k pré-upgrade), v1 e SHA-256 legados são detectados por
+// `isHashLegado` e re-hasheados para o alvo no próximo login bem-sucedido.
+// `verificarSenha` usa o iter embutido, então hashes antigos seguem
+// verificáveis durante a transição.
+//
+// Defesa em camadas (mantida independentemente do iter):
+//  - Rate-limit forte por IP em `login_attempts` (auth-flow.ts)
 //  - Recovery isolado em `recovery_attempts` para não amplificar
-//  - 2FA por e-mail obrigatório para admins e qualquer reset
-//  - SENHAS_COMUNS blocklist (~60 entradas) em schemas/auth.ts (I-6)
+//  - 2FA por e-mail obrigatório no login (fail-closed) e em qualquer reset
+//  - SENHAS_COMUNS blocklist em schemas/auth.ts
 
 const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
 const PBKDF2_V2_PREFIX = 'pbkdf2v2:';
+/** Piso para hashes v1 legados (iter implícito) e limite inferior do sanity check. */
 const PBKDF2_V1_ITERATIONS = 100_000;
-const PBKDF2_V2_ITERATIONS = 100_000;
+/** Alvo atual (OWASP 2023+). Ver nota acima sobre regressão para o Workers Free. */
+const PBKDF2_V2_ITERATIONS = 600_000;
 /** Prefixo emitido por `hashSenha` (sempre v2 — formato versionado). */
 const PBKDF2_PREFIX = PBKDF2_V2_PREFIX;
 /** Iterações usadas em hashes recém-criados. */
@@ -215,12 +225,18 @@ export async function verificarSenha(
 }
 
 /**
- * Retorna true se o hash armazenado deve ser migrado para o formato atual.
- * Inclui SHA-256 sem salt (pré-PBKDF2) E PBKDF2 v1 (100k iterações — fraco
- * para 2026). O auth-flow chama `hashSenha` para re-hashar quando true.
+ * Retorna true se o hash armazenado deve ser migrado para o formato/custo
+ * atuais. Inclui SHA-256 sem salt (pré-PBKDF2), PBKDF2 v1 E PBKDF2 v2 com
+ * iterações ABAIXO do alvo atual (ex.: 100k gravado antes do upgrade para
+ * 600k). O auth-flow chama `hashSenha` para re-hashar quando true; como o iter
+ * fica embutido no hash v2, `verificarSenha` valida o hash antigo normalmente
+ * antes da migração.
  */
 export function isHashLegado(storedHash: string): boolean {
-	return !storedHash.startsWith(PBKDF2_V2_PREFIX);
+	if (!storedHash.startsWith(PBKDF2_V2_PREFIX)) return true;
+	// v2 abaixo do alvo de iterações: re-hashar no próximo login para migrar.
+	const iter = parseInt(storedHash.slice(PBKDF2_V2_PREFIX.length).split(':')[0], 10);
+	return !Number.isFinite(iter) || iter < PBKDF2_ITERATIONS;
 }
 
 export function gerarToken(): string {
