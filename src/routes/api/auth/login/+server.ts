@@ -48,13 +48,16 @@ export const POST: RequestHandler = async ({
 
 	if (!result.sucesso) {
 		// tentarLogin pode devolver 400 (validação), 401 (credenciais inválidas),
-		// 429 (rate-limit, já tratado acima) ou 500 (interno).
+		// 403 (sem e-mail para o 2º fator — fail-closed A1), 429 (rate-limit, já
+		// tratado acima) ou 500 (interno).
 		const code =
 			result.statusCode === 401
 				? ErrorCode.AUTH_REQUIRED
-				: result.statusCode === 500
-					? ErrorCode.INTERNAL
-					: ErrorCode.VALIDATION;
+				: result.statusCode === 403
+					? ErrorCode.FORBIDDEN
+					: result.statusCode === 500
+						? ErrorCode.INTERNAL
+						: ErrorCode.VALIDATION;
 		return apiError(result.erro, result.statusCode, code);
 	}
 

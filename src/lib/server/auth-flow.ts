@@ -33,6 +33,19 @@ export const LOGIN_WINDOW_MINUTES = 15;
 const ACCOUNT_MAX_ATTEMPTS = 10;
 const ACCOUNT_WINDOW_MINUTES = 15;
 
+/**
+ * Fail-closed do 2º fator (auditoria A1): uma conta com a senha correta mas SEM
+ * e-mail cadastrado para o 2FA NÃO recebe sessão — exceto no onboarding de
+ * primeiro acesso (sessão confinada a /alterar-senha, onde o e-mail é
+ * cadastrado/verificado). Antes, a ausência de e-mail pulava o 2FA
+ * silenciosamente e o login caía para fator único (só senha). Quem não tem
+ * e-mail pode autenticar pelo login com certificado digital (Token A3), que é
+ * posse criptográfica e não depende de OTP por e-mail.
+ */
+const SEM_EMAIL_2FA_MSG =
+	'Sua conta não possui e-mail cadastrado para o segundo fator de autenticação. ' +
+	'Contate o administrador para cadastrar seu e-mail ou entre com certificado digital (Token A3).';
+
 export function mascararEmail(email: string): string {
 	const at = email.indexOf('@');
 	if (at <= 0) return email;
@@ -224,7 +237,7 @@ type TentarLoginResult =
 	| { sucesso: false; statusCode: 429; erro: string }
 	| {
 			sucesso: false;
-			statusCode: 400 | 401 | 429 | 500;
+			statusCode: 400 | 401 | 403 | 429 | 500;
 			erro: string;
 			fields?: { matricula?: string; tipo?: string };
 	  };
@@ -532,6 +545,19 @@ export async function tentarLogin({
 			};
 		}
 
+		// Fail-closed do 2º fator (A1): sem e-mail para enviar o código e fora do
+		// onboarding, a senha sozinha não concede sessão. primeiro_acesso continua
+		// permitido (sessão confinada a /alterar-senha, onde o e-mail é cadastrado).
+		if (!admin.email && admin.primeiro_acesso !== 1) {
+			logger.warn('[login] Bloqueado: admin sem e-mail para 2FA', { adminId: admin.id });
+			return {
+				sucesso: false,
+				statusCode: 403,
+				erro: SEM_EMAIL_2FA_MSG,
+				fields: { matricula, tipo }
+			};
+		}
+
 		const token = await criarSessao(db, 'admin', admin.id);
 		const dest = adminDestino(adminModulo);
 		return {
@@ -591,6 +617,18 @@ export async function tentarLogin({
 				tipoUsuario2FA: 'policial'
 			},
 			setAdminModuloPendingCookie: false
+		};
+	}
+
+	// Fail-closed do 2º fator (A1): mesma regra do fluxo admin — sem e-mail e fora
+	// do onboarding, não há sessão por senha. Login por Token A3 segue disponível.
+	if (!policial.email && policial.primeiro_acesso !== 1) {
+		logger.warn('[login] Bloqueado: policial sem e-mail para 2FA', { policialId: policial.id });
+		return {
+			sucesso: false,
+			statusCode: 403,
+			erro: SEM_EMAIL_2FA_MSG,
+			fields: { matricula, tipo }
 		};
 	}
 

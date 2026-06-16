@@ -91,7 +91,7 @@ export const actions: Actions = {
 		}
 
 		if (!result.sucesso) {
-			return fail(result.statusCode as 400 | 401 | 429 | 500, {
+			return fail(result.statusCode as 400 | 401 | 403 | 429 | 500, {
 				error: result.erro,
 				fields: result.fields ?? { matricula, tipo }
 			});
