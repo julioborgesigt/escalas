@@ -70,7 +70,6 @@ export const POST: RequestHandler = async ({
 		latitude,
 		longitude,
 		rubrica,
-		documentHash: documentHashOriginal,
 		assinanteEmail
 	} = validated.data;
 
@@ -128,8 +127,9 @@ export const POST: RequestHandler = async ({
 			longitude,
 			selfie_key: undefined,
 			r2_key: r2Key,
-			// Preferimos o hash do PDF original para auditoria do conteúdo.
-			arquivo_hash: documentHashOriginal || arquivo_hash,
+			// arquivo_hash = hash do PDF FINAL assinado (o que a /validar reconfere);
+			// não usamos o documentHash enviado pelo cliente (A4).
+			arquivo_hash,
 			assinante_email: assinanteEmail ?? u.email,
 			tipo_carimbo_tempo: result.tipoCarimboTempo,
 			cert_issuer: result.metadata.cert_issuer,
