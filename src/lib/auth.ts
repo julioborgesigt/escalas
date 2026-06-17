@@ -699,7 +699,7 @@ export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null)
 		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
 	}
 	if (u.papel === 'admin_seccional') {
-		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
+		return '/escalas/bem-vindo';
 	}
 	if (u.papel === 'admin_unidade') {
 		return '/escalas/bem-vindo';

@@ -492,25 +492,27 @@
 			<!-- Grupo 2: GISE · Produtividade (admin) · Config. GISE · Rel. GISE -->
 			{#if showGrupo2}
 				{#if showGise}
-					<a
-						href="/gise/bem-vindo"
-						data-sveltekit-preload-data="hover"
-						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/gise/bem-vindo')
-							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
-							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-						onclick={() => (sidebarOpen = false)}
-					>
-						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="1.5"
-								d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-							/></svg
+					{#if usuario?.papel !== 'admin_seccional'}
+						<a
+							href="/gise/bem-vindo"
+							data-sveltekit-preload-data="hover"
+							class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+							{isActive('/gise/bem-vindo')
+								? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+								: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+							onclick={() => (sidebarOpen = false)}
 						>
-						Boas-vindas
-					</a>
+							<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+									d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+								/></svg
+							>
+							Boas-vindas
+						</a>
+					{/if}
 					<a
 						href="/gise"
 						data-sveltekit-preload-data="hover"
