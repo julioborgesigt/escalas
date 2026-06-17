@@ -118,6 +118,33 @@
 		}
 	}
 
+	let switchingModule = $state(false);
+
+	async function alternarModulo() {
+		if (switchingModule) return;
+		switchingModule = true;
+		loading.show('Alternando módulo...');
+		try {
+			const res = await fetch('/api/auth/alternar-modulo', {
+				method: 'POST',
+				headers: csrfHeaders()
+			});
+			if (res.ok) {
+				const result = await res.json();
+				if (result.redirect) {
+					await goto(result.redirect, { invalidateAll: true });
+				}
+			} else {
+				toaster.create({ title: 'Erro ao alternar módulo', type: 'error' });
+			}
+		} catch {
+			toaster.create({ title: 'Erro de conexão ao alternar módulo', type: 'error' });
+		} finally {
+			switchingModule = false;
+			loading.hide();
+		}
+	}
+
 	function isActive(path: string): boolean {
 		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
 	}
@@ -357,6 +384,25 @@
 			{#if showGrupo1}
 				{#if usuario?.tipo === 'admin'}
 					<a
+						href="/escalas/bem-vindo"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/escalas/bem-vindo')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+							/></svg
+						>
+						Boas-vindas
+					</a>
+					<a
 						href="/painel"
 						data-sveltekit-preload-data="hover"
 						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
@@ -447,25 +493,6 @@
 			{#if showGrupo2}
 				{#if showGise}
 					<a
-						href="/gise"
-						data-sveltekit-preload-data="hover"
-						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{giseListaOuEscalaPath
-							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
-							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-						onclick={() => (sidebarOpen = false)}
-					>
-						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="1.5"
-								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-							/></svg
-						>
-						Escalas GISE
-					</a>
-					<a
 						href="/gise/bem-vindo"
 						data-sveltekit-preload-data="hover"
 						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
@@ -483,6 +510,25 @@
 							/></svg
 						>
 						Boas-vindas
+					</a>
+					<a
+						href="/gise"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{giseListaOuEscalaPath
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+							/></svg
+						>
+						Escalas GISE
 					</a>
 					{#if usuario?.tipo === 'admin'}
 						<a
@@ -677,7 +723,7 @@
 						{/if}
 					</div>
 				{/if}
-				<div class="flex flex-wrap gap-1">
+				<div class="flex flex-wrap gap-1.5 items-center">
 					{#if usuario?.tipo === 'admin'}
 						<span
 							class="badge preset-filled-primary-500 text-[0.6rem] font-semibold tracking-wider uppercase"
@@ -688,6 +734,18 @@
 									? 'ESCALAS'
 									: 'GERAL'}
 						</span>
+						<button
+							type="button"
+							class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md active:scale-95 transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
+							onclick={alternarModulo}
+							title="Alternar Módulo (GISE / Escalas)"
+							aria-label="Alternar Módulo"
+							disabled={switchingModule}
+						>
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+							</svg>
+						</button>
 					{/if}
 					{#if usuario?.papel === 'admin_seccional'}
 						<span

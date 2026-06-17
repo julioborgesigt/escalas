@@ -3,6 +3,7 @@
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);
+	const cardWidthClass = $derived(usuario?.tipo === 'admin' ? 'max-w-2xl' : 'max-w-xl');
 </script>
 
 <svelte:head>
@@ -13,7 +14,7 @@
 	class="welcome-wrapper flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in"
 >
 	<div
-		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-secondary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-xl w-full text-center space-y-6"
+		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-secondary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl {cardWidthClass} w-full text-center space-y-6"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-secondary-500/10 via-transparent to-primary-500/5 z-0"
@@ -44,30 +45,132 @@
 				</h2>
 			</div>
 
-			<!-- Descrição -->
-			<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-md mx-auto">
-				Você está no ambiente de planejamento especial do GISE. Aqui você pode gerenciar a alocação
-				de equipes operacionais e validar os relatórios consolidados de serviço extraordinário.
-			</p>
+			{#if usuario?.tipo === 'admin'}
+				<!-- Descrição Geral Admin -->
+				<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto">
+					Você está no ambiente de gestão do módulo GISE. Como administrador, utilize as abas abaixo para gerenciar a alocação das equipes, analisar a produtividade ou ajustar configurações.
+				</p>
 
-			<!-- Action -->
-			<div class="pt-4">
-				<button
-					type="button"
-					class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
-					onclick={() => goto('/gise')}
-				>
-					Entrar no Painel GISE
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2.5"
-							d="M13 5l7 7-7 7M5 5l7 7-7 7"
-						/></svg
+				<!-- Grid de Ações para Admin (4 cards) -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
+					<!-- Card Escalas GISE -->
+					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors">
+						<div class="space-y-2">
+							<div class="flex items-center gap-2">
+								<span class="text-xl">📅</span>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Escalas GISE</h3>
+							</div>
+							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+								Planeje, gerencie e valide a alocação de equipes operacionais e equipes de inteligência em serviço extraordinário.
+							</p>
+						</div>
+						<button
+							type="button"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							onclick={() => goto('/gise')}
+						>
+							Acessar Escalas GISE
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+							</svg>
+						</button>
+					</div>
+
+					<!-- Card Produtividade -->
+					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors">
+						<div class="space-y-2">
+							<div class="flex items-center gap-2">
+								<span class="text-xl">📊</span>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Produtividade</h3>
+							</div>
+							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+								Acompanhe relatórios de apreensões de armas e drogas, analise os índices de prisões e exporte gráficos consolidados.
+							</p>
+						</div>
+						<button
+							type="button"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							onclick={() => goto('/produtividade')}
+						>
+							Acessar Produtividade
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+							</svg>
+						</button>
+					</div>
+
+					<!-- Card Conf. Gise -->
+					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors">
+						<div class="space-y-2">
+							<div class="flex items-center gap-2">
+								<span class="text-xl">⚙️</span>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Conf. Gise</h3>
+							</div>
+							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+								Configure parâmetros globais do módulo GISE, como valores limite de cotas financeiras e horas extras permitidas.
+							</p>
+						</div>
+						<button
+							type="button"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							onclick={() => goto('/gise/config')}
+						>
+							Acessar Conf. Gise
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+							</svg>
+						</button>
+					</div>
+
+					<!-- Card Conf. Form. -->
+					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors">
+						<div class="space-y-2">
+							<div class="flex items-center gap-2">
+								<span class="text-xl">📄</span>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Conf. Form.</h3>
+							</div>
+							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
+								Gerencie modelos de formulários de relatório de inteligência e valide os arquivos de presença das equipes GISE.
+							</p>
+						</div>
+						<button
+							type="button"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							onclick={() => goto('/res-gise')}
+						>
+							Acessar Conf. Form.
+							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			{:else}
+				<!-- Descrição Original para Supervisor/Membro -->
+				<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-md mx-auto">
+					Você está no ambiente de planejamento especial do GISE. Aqui você pode gerenciar a alocação
+					de equipes operacionais e validar os relatórios consolidados de serviço extraordinário.
+				</p>
+
+				<!-- Action Original para Supervisor/Membro -->
+				<div class="pt-4">
+					<button
+						type="button"
+						class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
+						onclick={() => goto('/gise')}
 					>
-				</button>
-			</div>
+						Entrar no Painel GISE
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2.5"
+								d="M13 5l7 7-7 7M5 5l7 7-7 7"
+							/></svg
+						>
+					</button>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>

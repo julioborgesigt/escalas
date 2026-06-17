@@ -615,15 +615,12 @@
 				class="w-full"
 			>
 				<SegmentedControl.Control
-					class="flex items-center w-full rounded-lg border border-surface-300 dark:border-surface-600 bg-surface-100 dark:bg-surface-800 p-1 gap-0.5 relative"
+					class="flex items-center w-full rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800 p-1 gap-1"
 				>
-					<SegmentedControl.Indicator
-						class="absolute inset-y-1 rounded-md bg-primary-600 dark:bg-primary-500 shadow-sm transition-[left,width] duration-200"
-					/>
 					{#each [['', 'Todos'], ['DPC', 'DPC'], ['OIP', 'OIP']] as [val, label] (val)}
 						<SegmentedControl.Item
 							value={val}
-							class="relative z-10 flex-1 px-3 py-1.5 text-center text-sm font-bold text-surface-500 dark:text-surface-400 data-[state=checked]:text-white dark:data-[state=checked]:text-white cursor-pointer select-none transition-colors rounded-md"
+							class="flex-1 px-3 py-1.5 text-center text-sm font-semibold rounded-lg cursor-pointer select-none transition-all duration-200 text-surface-500 dark:text-surface-400 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white data-[state=checked]:shadow-md data-[state=checked]:shadow-primary-500/25 hover:text-surface-700 dark:hover:text-surface-200"
 						>
 							<SegmentedControl.ItemText>{label}</SegmentedControl.ItemText>
 							<SegmentedControl.ItemHiddenInput />

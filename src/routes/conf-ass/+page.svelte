@@ -82,7 +82,7 @@
 	<title>Conf. Assinatura | Escalas</title>
 </svelte:head>
 
-<div class="max-w-2xl mx-auto px-4 py-8">
+<div class="space-y-6">
 	<h1 class="h2 font-bold mb-1">Configurações de Assinatura</h1>
 	<p class="text-surface-500 text-sm mb-6">
 		Parâmetros globais que afetam todas as assinaturas em tela do sistema.
