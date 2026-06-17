@@ -71,40 +71,37 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 //   v1 (legado): `pbkdf2v1:<salt_hex>:<hash_hex>`        — iterations = 100 000 implícito
 //   v2 (atual):  `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` — iterations explícito
 //
-// Sobre as iterações (importante):
+// Sobre as iterações (IMPORTANTE — não suba sem ler):
 //
 // OWASP 2023+ recomenda mínimo 600 000 iterações para PBKDF2-HMAC-SHA256.
-// Adotamos 600 000 (v2). Cada derivação custa ~50-100 ms de CPU num isolate —
-// folgado no Workers Paid, cujo limite de CPU é 30 s por request por padrão
-// (configurável até 5 min). É, porém, MUITO acima do teto do Workers Free
-// (10 ms de CPU), onde estouraria com "Error 1102: Worker exceeded CPU time
-// limit" (HTTP 500).
+// PORÉM, este projeto roda em Cloudflare PAGES Functions (ver
+// `pages_build_output_dir` no wrangler.toml), cujo limite de CPU por request é
+// ~50 ms no plano pago (10 ms no free) — e NÃO o limite configurável de 30 s
+// dos Workers standalone. Uma derivação de 600k leva ~60-90 ms e ESTOURA esse
+// teto: o login por senha (verificarSenha + eventual re-hash) passa a devolver
+// "Error 1102: Worker exceeded CPU time limit" → HTTP 500.
 //
-// ⚠️ REGRESSÃO DE PLANO: se este projeto voltar para o Workers Free (10 ms de
-// CPU), REDUZA `PBKDF2_V2_ITERATIONS` de volta para 100 000. Como o iter fica
-// embutido em cada hash v2 (`pbkdf2v2:<iter>:...`), baixar a constante afeta
-// apenas hashes NOVOS; os hashes 600k já gravados continuariam exigindo 600k
-// para VERIFICAR e estourariam o CPU no login no Free — nesse cenário, force
-// um reset de senha das contas afetadas.
+// ⚠️ HISTÓRICO: subir para 600 000 já foi tentado e QUEBROU o login de todos
+// que usam senha hasheada (policiais e admins de banco). O bootstrap por env
+// (SUPER_ADMIN/ADMIN_GERAL) compara a senha em texto, sem PBKDF2, então seguia
+// logando e mascarava o sintoma. 100 000 (~10-15 ms) é o teto seguro para
+// Pages. Para chegar a 600k seria preciso MIGRAR para Workers standalone (onde
+// `cpu_ms` é configurável) ou trocar o KDF — não basta o plano pago.
 //
-// Migração automática (sem migração de banco): hashes v2 com iter abaixo do
-// alvo atual (ex.: 100k pré-upgrade), v1 e SHA-256 legados são detectados por
-// `isHashLegado` e re-hasheados para o alvo no próximo login bem-sucedido.
-// `verificarSenha` usa o iter embutido, então hashes antigos seguem
-// verificáveis durante a transição.
+// O formato v2 (iter explícito no hash, `pbkdf2v2:<iter>:...`) deixa o número
+// pronto para subir sem migração de banco quando o runtime permitir.
 //
-// Defesa em camadas (mantida independentemente do iter):
-//  - Rate-limit forte por IP em `login_attempts` (auth-flow.ts)
+// Defesa em camadas que compensa o iter menor:
+//  - Rate-limit forte por IP + por conta em `login_attempts` (auth-flow.ts)
 //  - Recovery isolado em `recovery_attempts` para não amplificar
-//  - 2FA por e-mail obrigatório no login (fail-closed) e em qualquer reset
+//  - 2FA por e-mail obrigatório no login (fail-closed, A1) e em qualquer reset
 //  - SENHAS_COMUNS blocklist em schemas/auth.ts
 
 const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
 const PBKDF2_V2_PREFIX = 'pbkdf2v2:';
-/** Piso para hashes v1 legados (iter implícito) e limite inferior do sanity check. */
 const PBKDF2_V1_ITERATIONS = 100_000;
-/** Alvo atual (OWASP 2023+). Ver nota acima sobre regressão para o Workers Free. */
-const PBKDF2_V2_ITERATIONS = 600_000;
+/** Teto seguro para o CPU limit das Pages Functions (~50 ms). Ver nota acima. */
+const PBKDF2_V2_ITERATIONS = 100_000;
 /** Prefixo emitido por `hashSenha` (sempre v2 — formato versionado). */
 const PBKDF2_PREFIX = PBKDF2_V2_PREFIX;
 /** Iterações usadas em hashes recém-criados. */
@@ -225,18 +222,17 @@ export async function verificarSenha(
 }
 
 /**
- * Retorna true se o hash armazenado deve ser migrado para o formato/custo
- * atuais. Inclui SHA-256 sem salt (pré-PBKDF2), PBKDF2 v1 E PBKDF2 v2 com
- * iterações ABAIXO do alvo atual (ex.: 100k gravado antes do upgrade para
- * 600k). O auth-flow chama `hashSenha` para re-hashar quando true; como o iter
- * fica embutido no hash v2, `verificarSenha` valida o hash antigo normalmente
- * antes da migração.
+ * Retorna true se o hash deve ser migrado para o formato atual: SHA-256 sem
+ * salt (pré-PBKDF2) e PBKDF2 v1. v2 (formato emitido por `hashSenha`) NÃO é
+ * legado. O auth-flow chama `hashSenha` para re-hashar quando true.
+ *
+ * Nota: NÃO marcamos v2 com iter menor como legado para forçar re-hash — em
+ * Pages Functions isso somaria uma 2ª derivação ao login e estouraria o CPU
+ * (ver nota sobre iterações acima). A subida de custo, se um dia viável, deve
+ * vir acompanhada da migração de runtime.
  */
 export function isHashLegado(storedHash: string): boolean {
-	if (!storedHash.startsWith(PBKDF2_V2_PREFIX)) return true;
-	// v2 abaixo do alvo de iterações: re-hashar no próximo login para migrar.
-	const iter = parseInt(storedHash.slice(PBKDF2_V2_PREFIX.length).split(':')[0], 10);
-	return !Number.isFinite(iter) || iter < PBKDF2_ITERATIONS;
+	return !storedHash.startsWith(PBKDF2_V2_PREFIX);
 }
 
 export function gerarToken(): string {
