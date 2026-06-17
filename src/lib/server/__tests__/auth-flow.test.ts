@@ -1,0 +1,224 @@
+/**
+ * Testes de integração leve do `tentarLogin` — foco no FAIL-CLOSED do 2º fator
+ * (auditoria A1): uma conta com a senha correta mas SEM e-mail NÃO recebe
+ * sessão (403), exceto no onboarding (primeiro_acesso=1, sessão confinada a
+ * /alterar-senha). Cobre também os caminhos adjacentes (2FA quando há e-mail;
+ * credencial inválida) para travar regressões do fluxo de login.
+ *
+ * Harness sem better-sqlite3: nestes caminhos o `tentarLogin` só consulta
+ * `login_attempts` (rate-limit), `policiais`/`administradores` (lookup) e faz
+ * inserts (tentativa / sessão / desafio 2FA). O `fakeDb` responde por tabela;
+ * o envio de e-mail (fire-and-forget) é mockado para não tocar a rede.
+ */
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { loginAttempts, policiais, administradores } from '$lib/server/schema';
+import { hashSenha } from '$lib/auth';
+import type { Database } from '$lib/db';
+
+// E-mail é disparado em background no fluxo 2FA; mock evita rede/efeitos.
+vi.mock('$lib/server/email', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/server/email')>();
+	return { ...actual, enviarCodigo2FA: vi.fn().mockResolvedValue(undefined) };
+});
+
+import { tentarLogin } from '../auth-flow';
+
+const SENHA = 'SenhaForte1';
+let senhaHash: string;
+beforeAll(async () => {
+	senhaHash = await hashSenha(SENHA);
+});
+
+type Row = Record<string, unknown>;
+
+/**
+ * fakeDb mínimo, discriminando por tabela:
+ *  - `login_attempts`: nunca tem registros (rate-limit por IP e por conta liberado);
+ *  - `policiais`/`administradores`: devolvem a conta injetada (ou undefined);
+ *  - inserts/updates: no-op.
+ *
+ * O objeto de `where()` é thenable porque `checkAccountRateLimit` faz
+ * `await db.select({ n: count() })...where(...)` (sem `.get()`/`.all()`).
+ */
+function fakeDb(opts: { policial?: Row; admin?: Row }): Database {
+	const select = (fields?: Record<string, unknown>) => ({
+		from: (table: unknown) => ({
+			where: () => {
+				const isCount = !!fields && 'n' in fields;
+				return {
+					all: async () => [] as Row[],
+					get: async () => {
+						if (table === policiais) return opts.policial;
+						if (table === administradores) return opts.admin;
+						return undefined;
+					},
+					then: (resolve: (v: Row[]) => unknown, reject: (e: unknown) => unknown) =>
+						Promise.resolve(isCount ? [{ n: 0 }] : ([] as Row[])).then(resolve, reject)
+				};
+			}
+		})
+	});
+	const insert = () => ({ values: async () => undefined });
+	const update = () => ({ set: () => ({ where: async () => undefined }) });
+	return { select, insert, update } as unknown as Database;
+}
+
+function basePolicial(over: Row = {}): Row {
+	return {
+		id: 1,
+		matricula: '12345',
+		nome: 'Fulano de Tal',
+		senha: senhaHash,
+		ativo: 1,
+		primeiro_acesso: 0,
+		email: null,
+		papel: null,
+		papel_unidade_id: null,
+		cargo: 'OIP',
+		cpf: null,
+		lotacao: 'Unidade X',
+		...over
+	};
+}
+
+function baseAdmin(over: Row = {}): Row {
+	return {
+		id: 1,
+		login: 'admin1',
+		nome: 'Admin Um',
+		senha: senhaHash,
+		primeiro_acesso: 0,
+		email: null,
+		...over
+	};
+}
+
+describe('tentarLogin — fail-closed do 2º fator (A1)', () => {
+	it('POLICIAL sem e-mail e fora do primeiro acesso → 403 (não cria sessão)', async () => {
+		const db = fakeDb({ policial: basePolicial({ email: null, primeiro_acesso: 0 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: '12345',
+			senha: SENHA,
+			tipo: 'policial',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect(r.statusCode).toBe(403);
+		if (!r.sucesso && 'erro' in r) expect(r.erro).toContain('segundo fator');
+	});
+
+	it('POLICIAL com e-mail e fora do primeiro acesso → 2FA pendente', async () => {
+		const db = fakeDb({ policial: basePolicial({ email: 'fulano@exemplo.com', primeiro_acesso: 0 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: '12345',
+			senha: SENHA,
+			tipo: 'policial',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect('pendente2FA' in r).toBe(true);
+		if (!r.sucesso && 'pendente2FA' in r) {
+			expect(r.pendente2FA.tipoUsuario2FA).toBe('policial');
+			expect(r.pendente2FA.emailMascarado).toContain('@');
+		}
+	});
+
+	it('POLICIAL sem e-mail MAS em primeiro acesso → sessão (onboarding preservado)', async () => {
+		const db = fakeDb({ policial: basePolicial({ email: null, primeiro_acesso: 1 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: '12345',
+			senha: SENHA,
+			tipo: 'policial',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(true);
+		if (r.sucesso) {
+			expect(r.token).toBeTruthy();
+			expect(r.primeiroAcesso).toBe(true);
+			expect(r.role).toBe('policial');
+		}
+	});
+
+	it('ADMIN (de banco) sem e-mail e fora do primeiro acesso → 403', async () => {
+		const db = fakeDb({ admin: baseAdmin({ email: null, primeiro_acesso: 0 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'admin1',
+			senha: SENHA,
+			tipo: 'admin',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect(r.statusCode).toBe(403);
+	});
+
+	it('ADMIN (de banco) sem e-mail MAS em primeiro acesso → sessão (onboarding)', async () => {
+		const db = fakeDb({ admin: baseAdmin({ email: null, primeiro_acesso: 1 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'admin1',
+			senha: SENHA,
+			tipo: 'admin',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(true);
+		if (r.sucesso) {
+			expect(r.token).toBeTruthy();
+			expect(r.role).toBe('admin');
+		}
+	});
+
+	it('ADMIN (de banco) com e-mail → 2FA pendente', async () => {
+		const db = fakeDb({ admin: baseAdmin({ email: 'admin@exemplo.com', primeiro_acesso: 0 }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: 'admin1',
+			senha: SENHA,
+			tipo: 'admin',
+			platform: undefined
+		});
+		expect('pendente2FA' in r).toBe(true);
+		if (!r.sucesso && 'pendente2FA' in r) {
+			expect(r.pendente2FA.tipoUsuario2FA).toBe('admin');
+		}
+	});
+});
+
+describe('tentarLogin — credenciais (sanity, sem mascarar o A1)', () => {
+	it('senha incorreta → 401 (mesmo com e-mail cadastrado)', async () => {
+		const db = fakeDb({ policial: basePolicial({ email: 'fulano@exemplo.com' }) });
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: '12345',
+			senha: 'SenhaErrada9',
+			tipo: 'policial',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect(r.statusCode).toBe(401);
+	});
+
+	it('conta inexistente → 401', async () => {
+		const db = fakeDb({});
+		const r = await tentarLogin({
+			db,
+			ip: '1.2.3.4',
+			matricula: '99999',
+			senha: SENHA,
+			tipo: 'policial',
+			platform: undefined
+		});
+		expect(r.sucesso).toBe(false);
+		expect(r.statusCode).toBe(401);
+	});
+});
