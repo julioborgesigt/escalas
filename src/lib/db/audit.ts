@@ -40,6 +40,7 @@ type AcaoAudit =
 	| 'finalizar_gise'
 	| 'reabrir_gise'
 	| 'falha_login'
+	| 'login_bootstrap'
 	| 'solicitar_redefinicao_senha'
 	| 'redefinir_senha'
 	| 'aceitar_termos'
