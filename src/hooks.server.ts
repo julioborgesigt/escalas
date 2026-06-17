@@ -5,7 +5,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessaoComAceite } from '$lib/auth';
 import { getDB } from '$lib/db';
-import { lerSessaoCache, gravarSessaoCache } from '$lib/server/session-cache';
+import { lerSessaoCache, gravarSessaoCache, resolverTtlCacheSessao } from '$lib/server/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx } from '$lib/server/request-context';
@@ -173,12 +173,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	if (token) {
 		try {
-			// Cache edge (TTL 60s) na frente do D1: dentro da janela, o request
-			// não paga nenhuma query de autenticação. Trade-offs documentados em
-			// session-cache.ts. A checagem de aceite roda SEMPRE no mesmo batch
-			// (custo zero de round-trip) — em rotasLivresTermo ela simplesmente
-			// não é imposta abaixo.
-			const cacheado = await lerSessaoCache(token);
+			// Cache edge (TTL configurável via SESSION_CACHE_TTL_SECONDS, default
+			// 60s; 0 desliga) na frente do D1: dentro da janela, o request não paga
+			// query de autenticação. Trade-offs documentados em session-cache.ts.
+			// A checagem de aceite roda SEMPRE no mesmo batch (custo zero de
+			// round-trip) — em rotasLivresTermo ela simplesmente não é imposta abaixo.
+			const cacheTtl = resolverTtlCacheSessao(event.platform);
+			const cacheado = await lerSessaoCache(token, cacheTtl);
 			if (cacheado) {
 				usuario = cacheado.usuario;
 				aceiteVigente = cacheado.aceiteVigente;
@@ -190,7 +191,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 					hash
 				}));
 				if (usuario) {
-					await gravarSessaoCache(token, { usuario, aceiteVigente });
+					await gravarSessaoCache(token, { usuario, aceiteVigente }, cacheTtl);
 				}
 			}
 		} catch (err) {
