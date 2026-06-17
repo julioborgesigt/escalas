@@ -14,7 +14,7 @@ import type { Database } from '$lib/db';
 describe('hashSenha (PBKDF2)', () => {
 	it('produz hash no formato pbkdf2v2:<iter>:<salt>:<hash>', async () => {
 		const hash = await hashSenha('minhaSenha');
-		expect(hash).toMatch(/^pbkdf2v2:600000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+		expect(hash).toMatch(/^pbkdf2v2:100000:[0-9a-f]{32}:[0-9a-f]{64}$/);
 	});
 
 	it('gera salt diferente para cada chamada (mesmo input)', async () => {
@@ -93,11 +93,10 @@ describe('isHashLegado', () => {
 		expect(isHashLegado('pbkdf2v1:abc123:def456')).toBe(true);
 	});
 
-	it('considera v2 abaixo do alvo (100k) legado e v2 no alvo (600k) atual', () => {
-		// Após o upgrade para 600k (Workers Paid), um hash v2 com iter menor
-		// deve migrar no próximo login — logo conta como legado para re-hash.
-		expect(isHashLegado('pbkdf2v2:100000:abc123:def456')).toBe(true);
-		// Hash já no alvo atual não é re-hasheado.
+	it('identifica hash PBKDF2 v2 como atual (não-legado, qualquer iter)', () => {
+		// v2 é o formato emitido por hashSenha — nunca é re-hasheado no login
+		// (re-hash extra estouraria o CPU das Pages Functions).
+		expect(isHashLegado('pbkdf2v2:100000:abc123:def456')).toBe(false);
 		expect(isHashLegado('pbkdf2v2:600000:abc123:def456')).toBe(false);
 	});
 });
@@ -287,7 +286,7 @@ describe('verificarDesafio2FA — expectedTipos (defense in depth)', () => {
 describe('gerarSenhaAleatoriaHash', () => {
 	it('retorna hash PBKDF2 v2 válido', async () => {
 		const hash = await gerarSenhaAleatoriaHash();
-		expect(hash).toMatch(/^pbkdf2v2:600000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+		expect(hash).toMatch(/^pbkdf2v2:100000:[0-9a-f]{32}:[0-9a-f]{64}$/);
 	});
 
 	it('gera hashes diferentes a cada chamada', async () => {
