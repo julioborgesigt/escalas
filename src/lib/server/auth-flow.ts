@@ -377,6 +377,20 @@ export async function tentarLogin({
 					'Configure SUPER_ADMIN_EMAIL para exigir segundo fator nesta conta root.',
 				ip
 			);
+			// Rastreabilidade forense (A7): registra no audit log consultável o uso
+			// do break-glass root sem 2FA. try/catch — auditoria não pode derrubar o
+			// login de emergência.
+			try {
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'login_bootstrap',
+					entidade: 'admin',
+					detalhes: 'Super Admin autenticado via bootstrap env SEM 2FA (break-glass)',
+					ip
+				});
+			} catch {
+				/* auditoria indisponível não bloqueia o break-glass */
+			}
 			const token = await criarSessao(db, 'admin', superAdmin.id);
 			return {
 				sucesso: true,
@@ -484,6 +498,19 @@ export async function tentarLogin({
 			}
 
 			await recordAttempt(db, ip, true, identHash);
+			// Rastreabilidade forense (A7): registra o uso do bootstrap ADMIN_GERAL
+			// (sem 2FA) no audit log consultável. try/catch — não pode quebrar o login.
+			try {
+				await registrarAuditComContexto(db, {
+					usuario: null,
+					acao: 'login_bootstrap',
+					entidade: 'admin',
+					detalhes: 'Admin Geral autenticado via bootstrap env (sem 2FA)',
+					ip
+				});
+			} catch {
+				/* auditoria indisponível não bloqueia o login */
+			}
 			const token = await criarSessao(db, 'admin', envAdmin.id);
 			return {
 				sucesso: true,
