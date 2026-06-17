@@ -50,7 +50,6 @@ export const POST: RequestHandler = async ({
 		verificationHash,
 		latitude,
 		longitude,
-		documentHash: documentHashOriginal,
 		assinanteEmail
 	} = validated.data;
 
@@ -82,10 +81,12 @@ export const POST: RequestHandler = async ({
 			return apiError(result.error, result.status, code);
 		}
 
-		// Hash do PDF assinado (controle de integridade no banco — pode ser
-		// recalculado a partir do r2_key, mas guardamos para auditoria forense).
+		// arquivo_hash = hash do PDF FINAL assinado (o que vai pro R2 e que a
+		// página /validar reconfere). Recalculado no servidor — não usamos o
+		// `documentHash` enviado pelo cliente (A4), que é o hash do PDF ORIGINAL
+		// e não bateria com o blob assinado.
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const documentHash = Array.from(new Uint8Array(hashBuffer))
+		const arquivoHash = Array.from(new Uint8Array(hashBuffer))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
@@ -115,8 +116,7 @@ export const POST: RequestHandler = async ({
 			latitude,
 			longitude,
 			undefined, // selfieKey
-			// Hash do PDF original (recebido do preparar-assinatura)
-			documentHashOriginal || documentHash,
+			arquivoHash,
 			assinanteEmail,
 			result.tipoCarimboTempo,
 			result.metadata

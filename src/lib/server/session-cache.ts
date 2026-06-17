@@ -7,11 +7,14 @@
  * D1 (sessão; usuário+aceite). Com este cache, a maioria dos requests dentro
  * da janela de 60s não toca o banco para autenticação.
  *
- * Trade-offs conscientes (mesma família do gise-papel-cache, TTL 60s):
+ * Trade-offs conscientes (mesma família do gise-papel-cache, TTL 60s default):
  *  - Revogação: uma sessão excluída/expirada ou um usuário desativado podem
- *    continuar válidos por até 60s. O logout invalida explicitamente NO COLO
+ *    continuar válidos por até o TTL. O logout invalida explicitamente NO COLO
  *    que atendeu o request; o Cache API é por data center, então um token
- *    roubado usado em outro colo mantém a janela de 60s. Aceito para 60s.
+ *    roubado usado em outro colo mantém a janela do TTL. O TTL é configurável
+ *    via `SESSION_CACHE_TTL_SECONDS` (auditoria A5): reduza para encurtar a
+ *    janela de revogação ou use `0` para desligar o cache (revalidação no D1
+ *    a cada request — revogação imediata, ao custo de mais queries).
  *  - Sliding expiration: requests servidos do cache não estendem a sessão;
  *    o atraso máximo da extensão é o próprio TTL (60s em 8h de sessão).
  *  - Aceite do termo: o aceite registra-se uma vez e o fluxo invalida o cache
@@ -31,7 +34,27 @@ interface SessaoCacheada {
 	aceiteVigente: boolean;
 }
 
-const TTL_SECONDS = 60;
+/** TTL padrão (s) quando `SESSION_CACHE_TTL_SECONDS` não está definido. */
+export const SESSION_CACHE_TTL_DEFAULT = 60;
+/** Teto do TTL — acima disso a janela de revogação ficaria longa demais. */
+const SESSION_CACHE_TTL_MAX = 300;
+
+/**
+ * Resolve o TTL do cache de sessão a partir de `SESSION_CACHE_TTL_SECONDS`
+ * (wrangler var/secret), com clamp em [0, 300]. `0` DESLIGA o cache: toda
+ * request autenticada revalida no D1, tornando a revogação (logout,
+ * desativação, troca de papel) imediata ao custo de mais queries. Default 60s.
+ */
+export function resolverTtlCacheSessao(platform: App.Platform | undefined): number {
+	const raw = (platform?.env as Record<string, string | undefined> | undefined)
+		?.SESSION_CACHE_TTL_SECONDS;
+	if (raw === undefined || raw === null || String(raw).trim() === '') {
+		return SESSION_CACHE_TTL_DEFAULT;
+	}
+	const n = Number(raw);
+	if (!Number.isFinite(n)) return SESSION_CACHE_TTL_DEFAULT;
+	return Math.max(0, Math.min(SESSION_CACHE_TTL_MAX, Math.floor(n)));
+}
 
 async function chaveCache(token: string): Promise<Request> {
 	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
@@ -47,7 +70,11 @@ function safeCacheRef(): Cache | null {
 	return c.default ?? null;
 }
 
-export async function lerSessaoCache(token: string): Promise<SessaoCacheada | null> {
+export async function lerSessaoCache(
+	token: string,
+	ttlSeconds: number = SESSION_CACHE_TTL_DEFAULT
+): Promise<SessaoCacheada | null> {
+	if (ttlSeconds <= 0) return null; // cache desligado por configuração (revogação imediata)
 	const cache = safeCacheRef();
 	if (!cache) return null;
 	try {
@@ -60,14 +87,19 @@ export async function lerSessaoCache(token: string): Promise<SessaoCacheada | nu
 }
 
 /** Grava apenas sessões VÁLIDAS — resultado negativo nunca é cacheado. */
-export async function gravarSessaoCache(token: string, valor: SessaoCacheada): Promise<void> {
+export async function gravarSessaoCache(
+	token: string,
+	valor: SessaoCacheada,
+	ttlSeconds: number = SESSION_CACHE_TTL_DEFAULT
+): Promise<void> {
+	if (ttlSeconds <= 0) return; // cache desligado por configuração
 	const cache = safeCacheRef();
 	if (!cache) return;
 	try {
 		const response = new Response(JSON.stringify(valor), {
 			headers: {
 				'Content-Type': 'application/json',
-				'Cache-Control': `max-age=${TTL_SECONDS}`
+				'Cache-Control': `max-age=${ttlSeconds}`
 			}
 		});
 		await cache.put(await chaveCache(token), response);

@@ -21,6 +21,7 @@ import {
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { calcularHashBuffer } from '$lib/server/document-utils';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -43,7 +44,6 @@ export const POST: RequestHandler = async ({
 		verificationHash,
 		signingTimeISO,
 		messageDigestHex,
-		documentHash,
 		assinanteEmail,
 		latitude,
 		longitude
@@ -92,6 +92,11 @@ export const POST: RequestHandler = async ({
 			httpMetadata: { contentType: 'application/pdf' }
 		});
 
+		// arquivo_hash = hash do PDF FINAL (o que está no R2 e que a /validar
+		// reconfere). Recalculado aqui em vez de confiar no `documentHash` do
+		// cliente (A4) — que é o hash do PDF ORIGINAL e não bate com o blob assinado.
+		const arquivoHash = await calcularHashBuffer(result.pdfFinal);
+
 		await salvarDocumentoEscala(
 			db,
 			id,
@@ -104,7 +109,7 @@ export const POST: RequestHandler = async ({
 			latitude ?? undefined,
 			longitude ?? undefined,
 			undefined, // selfieKey
-			documentHash ?? undefined,
+			arquivoHash,
 			assinanteEmail ?? undefined,
 			result.tipoCarimboTempo,
 			result.metadata
