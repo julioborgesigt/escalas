@@ -443,25 +443,6 @@
 				{/if}
 				{#if showEscalasPoliciais}
 					<a
-						href="/escalas"
-						data-sveltekit-preload-data="hover"
-						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/escalas') && !page.url.pathname.startsWith('/escalas/bem-vindo')
-							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
-							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
-						onclick={() => (sidebarOpen = false)}
-					>
-						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="1.5"
-								d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-							/></svg
-						>
-						{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
-					</a>
-					<a
 						href="/escalas/bem-vindo"
 						data-sveltekit-preload-data="hover"
 						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
@@ -479,6 +460,25 @@
 							/></svg
 						>
 						Boas-vindas
+					</a>
+					<a
+						href="/escalas"
+						data-sveltekit-preload-data="hover"
+						class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
+						{isActive('/escalas') && !page.url.pathname.startsWith('/escalas/bem-vindo')
+							? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
+							: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
+						onclick={() => (sidebarOpen = false)}
+					>
+						<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.5"
+								d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+							/></svg
+						>
+						{usuario?.tipo === 'admin' ? 'Arquivo' : 'Escalas'}
 					</a>
 				{/if}
 			{/if}
