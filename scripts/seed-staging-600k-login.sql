@@ -7,7 +7,7 @@
 --   npx wrangler d1 execute escalas-db-staging --remote --file scripts/seed-staging-600k-login.sql
 --
 -- Depois, logar em https://escalas-staging.julio-aparecido3.workers.dev/login com:
---   Matricula: TESTE600K
+--   Matricula: 60060060   (aba "Policial" — o campo aceita 8 caracteres)
 --   Senha:     Validacao600k!2026
 -- email=NULL de proposito: apos a derivacao 600k (sucesso), o fail-closed A1
 -- responde 403 "contate o administrador" — o que PROVA que a verificacao de
@@ -18,4 +18,4 @@
 INSERT OR REPLACE INTO policiais
   (id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo)
 VALUES
-  (99200, 'TESTE600K', 'Teste PBKDF2 600k', 'OIP', 'DELEGACIA DEMO STAGING', 'pbkdf2v2:600000:c280a3779894908b02e3df355e20edbb:14be9535e493726683e733c0bcf2a8f604bdf275da7deee171ca9b6cfa945d9d', 0, NULL, 1);
+  (99200, '60060060', 'Teste PBKDF2 600k', 'OIP', 'DELEGACIA DEMO STAGING', 'pbkdf2v2:600000:c280a3779894908b02e3df355e20edbb:14be9535e493726683e733c0bcf2a8f604bdf275da7deee171ca9b6cfa945d9d', 0, NULL, 1);
