@@ -1,18 +1,21 @@
 <#
 .SYNOPSIS
-  Popula os secrets do Worker `escalas-staging` (migração Pages → Workers).
-  Versão PowerShell nativa do scripts/set-staging-secrets.sh (para Windows).
+  Popula os secrets do Worker escalas-staging (migracao Pages -> Workers).
+  Versao PowerShell nativa do scripts/set-staging-secrets.sh (para Windows).
 
 .DESCRIPTION
-  Gera valores ALEATÓRIOS de teste para os segredos internos (tokens, salts,
+  Gera valores ALEATORIOS de teste para os segredos internos (tokens, salts,
   selo institucional autoassinado) + super admin break-glass, e envia tudo de
-  uma vez via `wrangler secret bulk` (JSON temporário — mais robusto no Windows
-  que pipe por stdin). Os segredos EXTERNOS (Resend, Cloudflare, Sentry…) só são
-  enviados se você passá-los por parâmetro. NÃO toca produção.
+  uma vez via "wrangler secret bulk" (JSON temporario - mais robusto no Windows
+  que pipe por stdin). Os segredos EXTERNOS (Resend, Cloudflare, Sentry...) so
+  sao enviados se voce passa-los por parametro. NAO toca producao.
 
-  Pré-requisitos: Node/npx no PATH, wrangler autenticado (mesma conta do deploy),
-  e o Worker `escalas-staging` já criado (o deploy do GitHub Actions já criou no
-  merge). Plano: docs/MIGRACAO-WORKERS.md §4.4.
+  Pre-requisitos: Node/npx no PATH, wrangler autenticado (mesma conta do deploy),
+  e o Worker escalas-staging ja criado (o deploy do GitHub Actions ja criou no
+  merge). Plano: docs/MIGRACAO-WORKERS.md secao 4.4.
+
+  NOTA: arquivo em ASCII puro de proposito - o Windows PowerShell 5.1 le .ps1
+  sem BOM como ANSI e acentos/travessoes quebrariam o parser.
 
 .EXAMPLE
   ./scripts/set-staging-secrets.ps1
@@ -24,7 +27,7 @@
 param(
 	[string]$EnvName = "staging",
 	[string]$Config  = "wrangler.workers.toml",
-	# Externos — enviados só quando informados (ou via env var de mesmo nome).
+	# Externos - enviados so quando informados (ou via env var de mesmo nome).
 	[string]$ResendApiKey            = $env:RESEND_API_KEY,
 	[string]$ResendFromEmail         = $env:RESEND_FROM_EMAIL,
 	[string]$CloudflareApiToken      = $env:CLOUDFLARE_API_TOKEN,
@@ -39,17 +42,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Raiz do projeto = pasta-pai deste script. `--config` é relativo ao CWD.
+# Raiz do projeto = pasta-pai deste script. --config e relativo ao CWD.
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 foreach ($cmd in @("node", "npx")) {
 	if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
-		throw "$cmd não encontrado no PATH."
+		throw "$cmd nao encontrado no PATH."
 	}
 }
 
-# ---- Geradores aleatórios (RNG criptográfico do .NET) ----
+# ---- Geradores aleatorios (RNG criptografico do .NET) ----
 function New-HexToken([int]$bytes = 32) {
 	$b = New-Object byte[] $bytes
 	$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -64,7 +67,7 @@ function New-Password {
 	([Convert]::ToBase64String($b) -replace '[/+=]', '').Substring(0, 20)
 }
 
-# Mantém a ORDEM de inserção (vira o JSON do secret bulk).
+# Mantem a ORDEM de insercao (vira o JSON do secret bulk).
 $secrets = [ordered]@{}
 $ref = New-Object System.Collections.Generic.List[string]
 $ref.Add("# Secrets gerados para escalas-$EnvName em $((Get-Date).ToUniversalTime().ToString('s'))Z")
@@ -76,22 +79,22 @@ foreach ($nome in @("SYNC_TOKEN", "RESET_TOKEN", "RATE_LIMIT_IP_SALT", "HEALTH_D
 	$v = New-HexToken 32
 	$secrets[$nome] = $v
 	$ref.Add("$nome=$v")
-	Write-Host "  + $nome"
+	Write-Host "  [+] $nome"
 }
 
-# Super Admin break-glass. NAO defina SUPER_ADMIN_EMAIL no staging — sem ele o
-# login é direto (sem 2FA por e-mail), permitindo testar sem provedor de e-mail.
+# Super Admin break-glass. NAO defina SUPER_ADMIN_EMAIL no staging - sem ele o
+# login e direto (sem 2FA por e-mail), permitindo testar sem provedor de e-mail.
 $saLogin = "superadmin-staging"
 $saSenha = New-Password
 $secrets["SUPER_ADMIN_LOGIN"] = $saLogin
 $secrets["SUPER_ADMIN_SENHA"] = $saSenha
 $ref.Add("SUPER_ADMIN_LOGIN=$saLogin")
-$ref.Add("SUPER_ADMIN_SENHA=$saSenha   # <-- use para logar no staging")
-Write-Host "  + SUPER_ADMIN_LOGIN / SUPER_ADMIN_SENHA"
+$ref.Add("SUPER_ADMIN_SENHA=$saSenha   # use para logar no staging")
+Write-Host "  [+] SUPER_ADMIN_LOGIN / SUPER_ADMIN_SENHA"
 
-# Selo institucional autoassinado de TESTE, gerado num diretório TEMPORÁRIO
+# Selo institucional autoassinado de TESTE, gerado num diretorio TEMPORARIO
 # (o gerador grava selo-institucional.*.pem no CWD; o repo versiona o .cert.pem
-# público, que não pode ser tocado aqui).
+# publico, que nao pode ser tocado aqui).
 Write-Host "-> Gerando selo institucional de teste..."
 $seloTmp = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $seloTmp | Out-Null
@@ -102,18 +105,18 @@ try {
 	Pop-Location
 	Remove-Item -Recurse -Force $seloTmp -ErrorAction SilentlyContinue
 }
-# O bundle base64 é a única linha longa só com [A-Za-z0-9+/=].
+# O bundle base64 e a unica linha longa so com [A-Za-z0-9+/=].
 $seloB64 = $seloOut | Where-Object { $_ -match '^[A-Za-z0-9+/=]{200,}$' } | Select-Object -Last 1
 if ($seloB64) {
 	$secrets["SELO_INSTITUCIONAL_PEM"] = $seloB64
 	$ref.Add("SELO_INSTITUCIONAL_PEM=<bundle base64 de teste gerado>")
-	Write-Host "  + SELO_INSTITUCIONAL_PEM"
+	Write-Host "  [+] SELO_INSTITUCIONAL_PEM"
 } else {
-	Write-Host "  - SELO_INSTITUCIONAL_PEM (falha ao gerar — opcional, segue sem selo)"
+	Write-Host "  [-] SELO_INSTITUCIONAL_PEM (falha ao gerar - opcional, segue sem selo)"
 }
 
-# ---- Externos: só entram se informados ----
-Write-Host "-> Secrets externos (enviados só se informados):"
+# ---- Externos: so entram se informados ----
+Write-Host "-> Secrets externos (enviados so se informados):"
 $externos = [ordered]@{
 	RESEND_API_KEY               = $ResendApiKey
 	RESEND_FROM_EMAIL            = $ResendFromEmail
@@ -129,16 +132,16 @@ $externos = [ordered]@{
 foreach ($nome in $externos.Keys) {
 	$valor = $externos[$nome]
 	if ([string]::IsNullOrWhiteSpace($valor)) {
-		Write-Host "  - $nome (pulado: passe -$nome ou a env var p/ enviar)"
-		$ref.Add("# $nome= (NAO enviado — informe e rode de novo)")
+		Write-Host "  [ ] $nome (pulado: passe -$nome ou a env var p/ enviar)"
+		$ref.Add("# $nome= (NAO enviado - informe e rode de novo)")
 	} else {
 		$secrets[$nome] = $valor
-		Write-Host "  + $nome"
-		$ref.Add("$nome=<informado por parâmetro/env>")
+		Write-Host "  [+] $nome"
+		$ref.Add("$nome=<informado por parametro/env>")
 	}
 }
 
-# ---- Envia tudo via `wrangler secret bulk` (JSON temporário, sem BOM) ----
+# ---- Envia tudo via "wrangler secret bulk" (JSON temporario, sem BOM) ----
 $tmpJson = Join-Path ([System.IO.Path]::GetTempPath()) ("staging-secrets-" + [System.Guid]::NewGuid().ToString() + ".json")
 try {
 	$json = ($secrets | ConvertTo-Json -Depth 3)
@@ -151,7 +154,7 @@ try {
 	Remove-Item $tmpJson -Force -ErrorAction SilentlyContinue
 }
 
-# ---- Arquivo de referência (gitignored) ----
+# ---- Arquivo de referencia (gitignored) ----
 $refFile = Join-Path $root "staging-secrets.generated.txt"
 [System.IO.File]::WriteAllLines($refFile, $ref, (New-Object System.Text.UTF8Encoding $false))
 
