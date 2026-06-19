@@ -107,13 +107,20 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Build em MODO WORKERS (staging da migração Pages → Workers). O
+      # WRANGLER_CONFIG faz o adapter ler wrangler.workers.toml e emitir a saída
+      # de Workers (_worker.js + assets + .assetsignore). Ver docs/MIGRACAO-WORKERS.md.
       - run: npm run build
+        env:
+          WRANGLER_CONFIG: wrangler.workers.toml
 
       - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .svelte-kit/cloudflare --project-name=escalas --branch=staging
+          # Publica o Worker `escalas-staging` com bindings de staging (D1/R2
+          # dedicados). NÃO toca produção (que segue no projeto Pages).
+          command: deploy --env staging --config wrangler.workers.toml
 
   deploy-production:
     needs: test
