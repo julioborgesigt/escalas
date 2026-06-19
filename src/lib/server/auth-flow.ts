@@ -98,10 +98,11 @@ export function cookieOptions(url: URL) {
 async function verificarSenhaBootstrap(
 	senha: string,
 	envValor: string,
-	db: Database
+	db: Database,
+	pepper?: string
 ): Promise<boolean> {
 	if (envValor.startsWith('pbkdf2v')) {
-		return verificarSenha(senha, envValor, db);
+		return verificarSenha(senha, envValor, db, pepper);
 	}
 	return compararSegredoUtf8TimingSafe(senha, envValor);
 }
@@ -260,6 +261,10 @@ export async function tentarLogin({
 	platform,
 	formAdminModulo
 }: TentarLoginArgs): Promise<TentarLoginResult> {
+	// Pepper (A3): segredo global do ambiente. Quando presente, `verificarSenha`
+	// consegue conferir hashes v3 e o login re-hasha v1/v2/legado → v3.
+	const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+
 	const rateLimit = await checkRateLimit(db, ip);
 	if (rateLimit.blocked) {
 		return {
@@ -293,7 +298,7 @@ export async function tentarLogin({
 		const superSenha = _env?.SUPER_ADMIN_SENHA ?? '';
 
 		if (superLogin && superSenha && matricula === superLogin) {
-			if (!(await verificarSenhaBootstrap(senha, superSenha, db))) {
+			if (!(await verificarSenhaBootstrap(senha, superSenha, db, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
@@ -460,7 +465,7 @@ export async function tentarLogin({
 				ip
 			);
 
-			if (!(await verificarSenhaBootstrap(senha, envSenha, db))) {
+			if (!(await verificarSenhaBootstrap(senha, envSenha, db, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
@@ -529,7 +534,7 @@ export async function tentarLogin({
 			.from(administradores)
 			.where(eq(administradores.login, matricula))
 			.get();
-		if (!admin || !(await verificarSenha(senha, admin.senha, db))) {
+		if (!admin || !(await verificarSenha(senha, admin.senha, db, pepper))) {
 			await recordAttempt(db, ip, false, identHash);
 			return {
 				sucesso: false,
@@ -539,8 +544,8 @@ export async function tentarLogin({
 			};
 		}
 
-		if (isHashLegado(admin.senha)) {
-			const novoHash = await hashSenha(senha);
+		if (isHashLegado(admin.senha, !!pepper)) {
+			const novoHash = await hashSenha(senha, pepper);
 			await db
 				.update(administradores)
 				.set({ senha: novoHash })
@@ -605,7 +610,7 @@ export async function tentarLogin({
 		.where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial || !(await verificarSenha(senha, policial.senha, db))) {
+	if (!policial || !(await verificarSenha(senha, policial.senha, db, pepper))) {
 		await recordAttempt(db, ip, false, identHash);
 		return {
 			sucesso: false,
@@ -615,8 +620,8 @@ export async function tentarLogin({
 		};
 	}
 
-	if (isHashLegado(policial.senha)) {
-		const novoHash = await hashSenha(senha);
+	if (isHashLegado(policial.senha, !!pepper)) {
+		const novoHash = await hashSenha(senha, pepper);
 		await db.update(policiais).set({ senha: novoHash }).where(eq(policiais.id, policial.id));
 	}
 

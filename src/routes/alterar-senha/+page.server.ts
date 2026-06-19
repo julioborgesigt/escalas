@@ -63,6 +63,8 @@ export const actions = {
 			}
 		}
 
+		const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+
 		// Verificar senha atual (exceto no primeiro acesso)
 		if (!usuario.primeiro_acesso) {
 			if (!senha_atual) {
@@ -95,13 +97,13 @@ export const actions = {
 							.from(policiais)
 							.where(eq(policiais.id, usuario.id))
 							.get();
-			if (!registro || !(await verificarSenha(senha_atual, registro.senha, db))) {
+			if (!registro || !(await verificarSenha(senha_atual, registro.senha, db, pepper))) {
 				await registrarRecoveryAttempt(db, chaveThrottle, 'alterar_senha');
 				return fail(401, { error: 'Senha atual incorreta' });
 			}
 		}
 
-		const novaSenhaHash = await hashSenha(parsed.data.nova_senha);
+		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
 
 		if (usuario.tipo === 'admin') {
 			await db

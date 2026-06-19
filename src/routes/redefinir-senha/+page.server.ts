@@ -68,7 +68,8 @@ export const actions: Actions = {
 		// Marcar token como usado ANTES de alterar a senha (previne race condition)
 		await marcarTokenRedefinicaoUsado(db, token);
 
-		const novaSenhaHash = await hashSenha(parsed.data.nova_senha);
+		const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
 
 		// Buscar nome para auditoria
 		let nome = 'Usuário';
