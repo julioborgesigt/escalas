@@ -16,10 +16,19 @@ const SERPRO_WS = [
 	'ws://127.0.0.1:65500'
 ];
 
+/**
+ * Seleção do modo de build do adapter-cloudflare:
+ *  - sem `WRANGLER_CONFIG`  → lê `wrangler.toml` (modo Pages) — produção, default.
+ *  - `WRANGLER_CONFIG=wrangler.workers.toml` → modo Workers (staging na migração).
+ * O adapter decide Pages vs Workers pela config do wrangler que recebe aqui.
+ * Ver docs/MIGRACAO-WORKERS.md.
+ */
+const wranglerConfig = process.env.WRANGLER_CONFIG;
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
-		adapter: adapter(),
+		adapter: adapter(wranglerConfig ? { config: wranglerConfig } : {}),
 
 		/**
 		 * CSP gerenciada pelo SvelteKit para respostas HTML...
