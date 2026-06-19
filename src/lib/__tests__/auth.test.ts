@@ -93,11 +93,56 @@ describe('isHashLegado', () => {
 		expect(isHashLegado('pbkdf2v1:abc123:def456')).toBe(true);
 	});
 
-	it('identifica hash PBKDF2 v2 como atual (não-legado, qualquer iter)', () => {
-		// v2 é o formato emitido por hashSenha — nunca é re-hasheado no login
-		// (re-hash extra estouraria o CPU das Pages Functions).
+	it('identifica hash PBKDF2 v2 como atual quando NÃO há pepper', () => {
+		// Sem pepper (default), v2 é o alvo — não re-hasheia no login.
 		expect(isHashLegado('pbkdf2v2:100000:abc123:def456')).toBe(false);
 		expect(isHashLegado('pbkdf2v2:600000:abc123:def456')).toBe(false);
+	});
+
+	it('com pepper ativo, v2/v1/legado viram legado (sobem para v3)', () => {
+		expect(isHashLegado('pbkdf2v2:100000:abc123:def456', true)).toBe(true);
+		expect(isHashLegado('pbkdf2v1:abc:def', true)).toBe(true);
+		expect(isHashLegado('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f', true)).toBe(
+			true
+		);
+	});
+
+	it('v3 nunca é legado (com ou sem pepper) — não rebaixa', () => {
+		expect(isHashLegado('pbkdf2v3:100000:abc:def', true)).toBe(false);
+		expect(isHashLegado('pbkdf2v3:100000:abc:def', false)).toBe(false);
+	});
+});
+
+describe('pepper (pbkdf2v3 — achado A3)', () => {
+	const PEPPER = 'pepper-de-teste-deadbeef';
+
+	it('hashSenha com pepper emite formato pbkdf2v3', async () => {
+		const hash = await hashSenha('minhaSenha', PEPPER);
+		expect(hash).toMatch(/^pbkdf2v3:100000:[0-9a-f]{32}:[0-9a-f]{64}$/);
+	});
+
+	it('hashSenha sem pepper continua emitindo v2 (fallback)', async () => {
+		const hash = await hashSenha('minhaSenha');
+		expect(hash).toMatch(/^pbkdf2v2:100000:/);
+	});
+
+	it('verificarSenha confere v3 com o pepper correto', async () => {
+		const hash = await hashSenha('senhaForte', PEPPER);
+		expect(await verificarSenha('senhaForte', hash, undefined, PEPPER)).toBe(true);
+		expect(await verificarSenha('senhaErrada', hash, undefined, PEPPER)).toBe(false);
+	});
+
+	it('verificarSenha REJEITA v3 com pepper errado ou ausente (fail-closed)', async () => {
+		const hash = await hashSenha('senhaForte', PEPPER);
+		expect(await verificarSenha('senhaForte', hash, undefined, 'pepper-errado')).toBe(false);
+		expect(await verificarSenha('senhaForte', hash)).toBe(false);
+		expect(await verificarSenha('senhaForte', hash, undefined, undefined)).toBe(false);
+	});
+
+	it('o pepper muda o hash para a mesma senha (HMAC aplicado)', async () => {
+		// hashes v3 com peppers diferentes não se verificam cruzado
+		const h1 = await hashSenha('igual', 'pepperA-aaaaaaaaaaaaaaaa');
+		expect(await verificarSenha('igual', h1, undefined, 'pepperB-bbbbbbbbbbbbbbbb')).toBe(false);
 	});
 });
 

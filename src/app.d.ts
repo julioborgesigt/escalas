@@ -22,6 +22,17 @@ declare global {
 		 * Manter offline e rodar manualmente a partir de máquina conhecida.
 		 */
 		RESET_TOKEN?: string;
+		/**
+		 * Pepper de senha (achado A3). Segredo GLOBAL aplicado via HMAC-SHA256
+		 * sobre a senha ANTES do PBKDF2 (formato de hash `pbkdf2v3`). Com ele, um
+		 * dump do D1 sozinho não permite brute-force offline (o atacante precisa
+		 * também deste segredo). Opcional: sem ele, `hashSenha` emite `pbkdf2v2`
+		 * (fallback). Ao defini-lo, o login re-hasha v1/v2/legado → v3
+		 * progressivamente. NUNCA rotacionar sem plano de migração: trocar o valor
+		 * invalida todos os hashes v3 existentes (exige reset de senha). Gere com
+		 * `openssl rand -hex 32`.
+		 */
+		PASSWORD_PEPPER?: string;
 		RESEND_API_KEY?: string;
 		RESEND_FROM_EMAIL?: string;
 		CLOUDFLARE_API_TOKEN?: string;
