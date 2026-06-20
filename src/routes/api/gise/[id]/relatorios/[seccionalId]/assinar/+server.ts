@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { bytesToHex } from '$lib/crypto/hex';
 import type { RequestHandler } from './$types';
 import {
 	getDB,
@@ -184,9 +185,7 @@ export const POST: RequestHandler = async ({
 
 		// Calcular Hash do original (Integridade)
 		const originalHashBuffer = await crypto.subtle.digest('SHA-256', finalPdf.slice());
-		const documentHash = Array.from(new Uint8Array(originalHashBuffer))
-			.map((b) => b.toString(16).padStart(2, '0'))
-			.join('');
+		const documentHash = bytesToHex(new Uint8Array(originalHashBuffer));
 
 		// Adicionar folha de auditoria (Manifesto) profissional
 		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
@@ -218,9 +217,7 @@ export const POST: RequestHandler = async ({
 		const pdfParaSalvar = selado.ok ? selado.pdf : finalPdf;
 
 		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
-		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
-			.map((b) => b.toString(16).padStart(2, '0'))
-			.join('');
+		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const p = platform as Record<string, unknown> | undefined;
 		const r2 = getR2(p);

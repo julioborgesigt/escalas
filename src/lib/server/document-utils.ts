@@ -1,3 +1,4 @@
+import { bytesToHex } from '$lib/crypto/hex';
 /**
  * Utilitários para segurança jurídica de documentos digitais.
  *
@@ -21,9 +22,7 @@
 export async function calcularHashBuffer(bytes: Uint8Array): Promise<string> {
 	const hashBuffer = await crypto.subtle.digest('SHA-256', bytes as unknown as ArrayBuffer);
 	const hashArray = new Uint8Array(hashBuffer);
-	return Array.from(hashArray)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	return bytesToHex(hashArray);
 }
 
 // ---------------------------------------------------------------------------

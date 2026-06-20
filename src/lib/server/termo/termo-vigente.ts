@@ -1,3 +1,4 @@
+import { bytesToHex } from '$lib/crypto/hex';
 /**
  * Termo de Uso e Política de Privacidade — versão vigente.
  *
@@ -117,8 +118,6 @@ export async function calcularHashTermo(): Promise<string> {
 	const payload = `v${VERSAO}\n${VIGENTE_DESDE}\n${CONTEUDO_HTML}`;
 	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
 	const arr = new Uint8Array(buf);
-	_hashCache = Array.from(arr)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	_hashCache = bytesToHex(arr);
 	return _hashCache;
 }

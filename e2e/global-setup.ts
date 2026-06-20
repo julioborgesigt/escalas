@@ -2,6 +2,9 @@ import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '../src/lib/server/termo/termo-vigente';
+// Mesma função de hash do app (módulo PURO) — sem cópia local que divergiria
+// do formato real (item C6 da auditoria). Sem pepper → emite v2.
+import { hashSenha } from '../src/lib/crypto/password-hash';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -35,35 +38,6 @@ function execSqlSafe(sql: string): boolean {
 	}
 }
 
-/**
- * Replica `hashSenha` de src/lib/auth.ts sem importar o módulo inteiro
- * (que carrega DB, drizzle, etc.). Mantém em sincronia: pbkdf2v1 + 100k
- * iterações + SHA-256 + salt random 16 bytes. Se PBKDF2_ITERATIONS mudar
- * em produção, este script PRECISA ser atualizado também.
- */
-async function hashSenhaParaFixture(senha: string): Promise<string> {
-	const salt = crypto.getRandomValues(new Uint8Array(16));
-	const saltHex = Array.from(salt)
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
-	const key = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode(senha),
-		'PBKDF2',
-		false,
-		['deriveBits']
-	);
-	const bits = await crypto.subtle.deriveBits(
-		{ name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
-		key,
-		256
-	);
-	const hashHex = Array.from(new Uint8Array(bits))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
-	return `pbkdf2v1:${saltHex}:${hashHex}`;
-}
-
 export default async function globalSetup() {
 	// Limpa tentativas de login no D1 local para e2e não herdarem rate limit
 	// de execuções anteriores (preview reutiliza o mesmo arquivo de estado
@@ -78,7 +52,7 @@ export default async function globalSetup() {
 	//
 	// email=NULL pula 2FA (auth-flow:354 exige email para mandar código).
 	// primeiro_acesso=0 pula redirect para /alterar-senha.
-	const senhaHash = await hashSenhaParaFixture(FIXTURE.password);
+	const senhaHash = await hashSenha(FIXTURE.password);
 	const fixtureSeed = `
 		INSERT OR REPLACE INTO unidades (id, nome, tipo) VALUES
 			(${FIXTURE.unidadeA.id}, '${FIXTURE.unidadeA.nome}', 'delegacia'),

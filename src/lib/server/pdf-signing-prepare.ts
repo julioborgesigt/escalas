@@ -4,6 +4,7 @@ import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
 import * as QRCode from 'qrcode';
 import { logger } from './logger';
+import { bytesToHex } from '$lib/crypto/hex';
 // Identidade da política (OIDs, hash oficial, resolver) — fonte única
 // compartilhada com a verificação, sem deps pesadas.
 import { OID_SIG_POLICY_ID, OID_PA_AD_RB_V2_3, resolverHashPolitica } from './icp-policy';
@@ -1007,10 +1008,7 @@ export function embedCmsBytesNoPlaceholder(
 	const sigEnd = pdfString.indexOf('>', sigStart);
 	const placeholderLength = sigEnd - sigStart - 1;
 
-	let cmsHex = '';
-	for (let i = 0; i < cmsDer.length; i++) {
-		cmsHex += cmsDer[i].toString(16).padStart(2, '0');
-	}
+	const cmsHex = bytesToHex(cmsDer);
 
 	if (cmsHex.length > placeholderLength) {
 		throw new Error(

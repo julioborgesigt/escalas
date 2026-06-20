@@ -10,6 +10,17 @@ import {
 } from './server/schema';
 import type { Database } from './db';
 import { aceiteEhVigente } from './db/termos';
+import { bytesToHex } from './crypto/hex';
+
+// Hashing de senha (PBKDF2 + pepper) vive em ./crypto/password-hash — módulo
+// PURO compartilhado com os scripts/e2e (item C6 da auditoria). Re-exportado
+// aqui para manter a API pública `$lib/auth` estável.
+export {
+	hashSenha,
+	verificarSenha,
+	isHashLegado,
+	gerarSenhaAleatoriaHash
+} from './crypto/password-hash';
 
 export interface UsuarioLogado {
 	id: number;
@@ -61,231 +72,11 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 	return isAdminGeral(u) || isAdminSeccional(u) || isAdminUnidade(u);
 }
 
-// ---- Hashing de senha ----
-//
-// Formatos suportados (`verificarSenha` aceita todos; `hashSenha` emite v3 com
-// pepper, senão v2):
-//   v1 (legado): `pbkdf2v1:<salt_hex>:<hash_hex>`        — iterations = 100 000 implícito
-//   v2 (atual):  `pbkdf2v2:<iter>:<salt_hex>:<hash_hex>` — iterations explícito
-//   v3 (pepper): `pbkdf2v3:<iter>:<salt_hex>:<hash_hex>` — PBKDF2 sobre
-//                HMAC-SHA256(PASSWORD_PEPPER, senha). Ver nota do A3 abaixo.
-//
-// Sobre as iterações e o achado A3 (IMPORTANTE — leia antes de mexer):
-//
-// OWASP 2023+ recomenda mínimo 600 000 iterações para PBKDF2-HMAC-SHA256.
-// PORÉM, o runtime da Cloudflare (workerd — o MESMO no Pages e no Workers)
-// IMPÕE UM TETO RÍGIDO DE 100 000 iterações na API `crypto.subtle` do WebCrypto:
-// pedir mais devolve "Pbkdf2 failed: iteration counts above 100000 are not
-// supported". NÃO é limite de CPU (não adianta `cpu_ms`), é um limite da API —
-// idêntico no Pages e no Workers. (A auditoria A3 atribuiu o erro a CPU/Pages;
-// a Fase 2 da migração provou empiricamente em staging que a causa é o teto de
-// iterações, então migrar de plataforma NÃO destrava 600k via `crypto.subtle`.)
-//
-// COMO O A3 É RESOLVIDO ENTÃO — PEPPER (v3):
-// Em vez de subir iterações, aplicamos um PEPPER: HMAC-SHA256 da senha com um
-// segredo GLOBAL `PASSWORD_PEPPER` (que vive só no ambiente, nunca no banco)
-// ANTES do PBKDF2. Custo de CPU ~zero (um HMAC) e dentro do teto de 100k. Com
-// isso, um vazamento do D1 sozinho NÃO permite brute-force offline: sem o
-// `PASSWORD_PEPPER`, o atacante nem consegue testar candidatos. É defesa melhor
-// que 600k para o cenário real (DB dump), pois 600k só DESACELERA o ataque,
-// enquanto o pepper o INVIABILIZA (assumindo que o segredo não vaze junto).
-//
-// FALLBACK: sem `PASSWORD_PEPPER` setado, `hashSenha` emite v2 (comportamento
-// atual) e o sistema funciona normalmente — o pepper é opt-in por ambiente.
-// Quando o segredo está presente, o login re-hasha v1/v2/legado → v3 (migração
-// progressiva, sem big-bang no banco).
-//
-// Defesa em camadas que continua valendo:
-//  - Rate-limit forte por IP + por conta em `login_attempts` (auth-flow.ts)
-//  - Recovery isolado em `recovery_attempts` para não amplificar
-//  - 2FA por e-mail obrigatório no login (fail-closed, A1) e em qualquer reset
-//  - SENHAS_COMUNS blocklist em schemas/auth.ts
-
-const PBKDF2_V1_PREFIX = 'pbkdf2v1:';
-const PBKDF2_V2_PREFIX = 'pbkdf2v2:';
-/** Pepper (A3): PBKDF2 sobre HMAC-SHA256(PASSWORD_PEPPER, senha). */
-const PBKDF2_V3_PREFIX = 'pbkdf2v3:';
-const PBKDF2_V1_ITERATIONS = 100_000;
-/** Teto RÍGIDO da API `crypto.subtle` do workerd (Pages e Workers). Ver nota A3. */
-const PBKDF2_V2_ITERATIONS = 100_000;
-/** Prefixo do fake-hash de cadastro em massa (sempre v2). */
-const PBKDF2_PREFIX = PBKDF2_V2_PREFIX;
-/** Iterações usadas em hashes recém-criados (v2 e v3). */
-const PBKDF2_ITERATIONS = PBKDF2_V2_ITERATIONS;
-
-async function derivarPBKDF2Material(
-	material: BufferSource,
-	salt: Uint8Array<ArrayBuffer>,
-	iterations: number
-): Promise<string> {
-	const keyMaterial = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, [
-		'deriveBits'
-	]);
-	const hashBuffer = await crypto.subtle.deriveBits(
-		{ name: 'PBKDF2', salt: salt as BufferSource, iterations, hash: 'SHA-256' },
-		keyMaterial,
-		256
-	);
-	const arr = new Uint8Array(hashBuffer);
-	const hex = new Array(arr.length);
-	for (let i = 0; i < arr.length; i++) {
-		hex[i] = arr[i].toString(16).padStart(2, '0');
-	}
-	return hex.join('');
-}
-
-async function derivarPBKDF2(
-	senha: string,
-	salt: Uint8Array<ArrayBuffer>,
-	iterations: number
-): Promise<string> {
-	return derivarPBKDF2Material(new TextEncoder().encode(senha) as BufferSource, salt, iterations);
-}
-
-/**
- * Pepper (A3): HMAC-SHA256(PASSWORD_PEPPER, senha) → 32 bytes. Pré-tempera a
- * senha com um segredo GLOBAL (do ambiente, nunca no banco) antes do PBKDF2, de
- * modo que um dump do D1 sozinho não permita brute-force offline. Custo de CPU
- * desprezível e sem esbarrar no teto de 100k iterações do `crypto.subtle`.
- */
-async function pepperizarSenha(senha: string, pepper: string): Promise<Uint8Array<ArrayBuffer>> {
-	const key = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode(pepper) as BufferSource,
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
-	const sig = await crypto.subtle.sign(
-		'HMAC',
-		key,
-		new TextEncoder().encode(senha) as BufferSource
-	);
-	return new Uint8Array(sig);
-}
-
-function toHex(bytes: Uint8Array): string {
-	const hex = new Array(bytes.length);
-	for (let i = 0; i < bytes.length; i++) {
-		hex[i] = bytes[i].toString(16).padStart(2, '0');
-	}
-	return hex.join('');
-}
-
-/**
- * Gera um hash seguro da senha usando PBKDF2 (100 000 iterações — teto da API
- * `crypto.subtle` do workerd; ver nota A3 acima).
- *
- * Com `pepper` (PASSWORD_PEPPER do ambiente): emite o formato v3, aplicando
- * HMAC-SHA256(pepper, senha) antes do PBKDF2 — defesa contra brute-force offline
- * em caso de vazamento do D1. Sem `pepper`: emite v2 (fallback, comportamento
- * legado), preservando o funcionamento quando o segredo não está configurado.
- */
-export async function hashSenha(senha: string, pepper?: string): Promise<string> {
-	const salt = crypto.getRandomValues(new Uint8Array(16)) as Uint8Array<ArrayBuffer>;
-	const saltHex = toHex(salt);
-	if (pepper) {
-		const material = await pepperizarSenha(senha, pepper);
-		const hashHex = await derivarPBKDF2Material(material as BufferSource, salt, PBKDF2_ITERATIONS);
-		return `${PBKDF2_V3_PREFIX}${PBKDF2_ITERATIONS}:${saltHex}:${hashHex}`;
-	}
-	const hashHex = await derivarPBKDF2(senha, salt, PBKDF2_ITERATIONS);
-	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${saltHex}:${hashHex}`;
-}
-
-/**
- * Verifica se uma senha corresponde ao hash armazenado.
- * Suporta PBKDF2 v3 (pepper), v2 (atual) e v1 (legado). Hashes em qualquer
- * outro formato (ex.: SHA-256 sem salt, pré-PBKDF2) NÃO são mais aceitos — o
- * suporte legado expirou; contas nesse estado precisam redefinir a senha.
- */
-export async function verificarSenha(
-	senha: string,
-	storedHash: string,
-	pepper?: string
-): Promise<boolean> {
-	if (storedHash.startsWith(PBKDF2_V3_PREFIX)) {
-		// Formato: pbkdf2v3:<iter>:<salt_hex>:<hash_hex> sobre HMAC(pepper, senha).
-		// Sem o pepper o hash é inverificável — fail-closed (não dá pra autenticar).
-		if (!pepper) return false;
-		const parts = storedHash.slice(PBKDF2_V3_PREFIX.length).split(':');
-		if (parts.length !== 3) return false;
-		const [iterStr, saltHex, expectedHex] = parts;
-		const iter = parseInt(iterStr, 10);
-		if (!Number.isFinite(iter) || iter < PBKDF2_V1_ITERATIONS || iter > 10_000_000) return false;
-		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
-		if (!saltBytes) return false;
-		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
-		const material = await pepperizarSenha(senha, pepper);
-		const actualHex = await derivarPBKDF2Material(material as BufferSource, salt, iter);
-		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
-		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
-		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
-		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
-		return (hashMatch & lenMatch) === 1;
-	}
-	if (storedHash.startsWith(PBKDF2_V2_PREFIX)) {
-		// Formato: pbkdf2v2:<iter>:<salt_hex>:<hash_hex>
-		const parts = storedHash.slice(PBKDF2_V2_PREFIX.length).split(':');
-		if (parts.length !== 3) return false;
-		const [iterStr, saltHex, expectedHex] = parts;
-		const iter = parseInt(iterStr, 10);
-		// Sanity: iter precisa ser numérico positivo e dentro de uma janela
-		// razoável (impede DoS via iter gigante vindo de hash corrompido/banco
-		// adulterado).
-		if (!Number.isFinite(iter) || iter < PBKDF2_V1_ITERATIONS || iter > 10_000_000) return false;
-		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
-		if (!saltBytes) return false;
-		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
-		const actualHex = await derivarPBKDF2(senha, salt, iter);
-		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
-		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
-		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
-		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
-		return (hashMatch & lenMatch) === 1;
-	}
-	if (storedHash.startsWith(PBKDF2_V1_PREFIX)) {
-		// Formato legado: pbkdf2v1:<salt_hex>:<hash_hex>, iter = 100 000 implícito.
-		const parts = storedHash.slice(PBKDF2_V1_PREFIX.length).split(':');
-		if (parts.length !== 2) return false;
-		const [saltHex, expectedHex] = parts;
-		const saltBytes = saltHex.match(/.{2}/g)?.map((b) => parseInt(b, 16));
-		if (!saltBytes) return false;
-		const salt = new Uint8Array(saltBytes) as Uint8Array<ArrayBuffer>;
-		const actualHex = await derivarPBKDF2(senha, salt, PBKDF2_V1_ITERATIONS);
-		const a = Buffer.from(actualHex.padEnd(64, '0').slice(0, 64));
-		const b = Buffer.from(expectedHex.padEnd(64, '0').slice(0, 64));
-		const hashMatch = timingSafeEqual(a, b) ? 1 : 0;
-		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
-		return (hashMatch & lenMatch) === 1;
-	}
-	// Formato desconhecido (ex.: SHA-256 sem salt, pré-PBKDF2): suporte removido.
-	// Contas nesse estado não autenticam — precisam redefinir a senha.
-	return false;
-}
-
-/**
- * Retorna true se o hash deve ser migrado para o formato corrente. O auth-flow
- * chama `hashSenha` para re-hashar (no login bem-sucedido) quando true.
- *
- * - `pepperAtivo = true` (PASSWORD_PEPPER setado): o alvo é v3, então tudo
- *   abaixo de v3 (v2, v1, SHA-256 legado) é legado e sobe para v3 no login.
- * - `pepperAtivo = false` (sem segredo): o alvo é v2 (comportamento legado);
- *   v3 NUNCA é legado (não rebaixa, e sem o segredo nem seria reproduzível).
- *
- * O custo do re-hash no login é 1 derivação extra de 100k (~10-15 ms) + o HMAC
- * do pepper (desprezível) — dentro do orçamento de CPU.
- */
-export function isHashLegado(storedHash: string, pepperAtivo: boolean = false): boolean {
-	if (storedHash.startsWith(PBKDF2_V3_PREFIX)) return false;
-	if (pepperAtivo) return true;
-	return !storedHash.startsWith(PBKDF2_V2_PREFIX);
-}
 
 export function gerarToken(): string {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
-	return toHex(bytes);
+	return bytesToHex(bytes);
 }
 
 // ---- Hash de tokens persistidos (sessão / redefinição) ----
@@ -300,7 +91,7 @@ const TOKEN_HASH_PREFIX = 'sha256:';
 
 async function hashTokenArmazenado(token: string): Promise<string> {
 	const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-	return `${TOKEN_HASH_PREFIX}${toHex(new Uint8Array(buf))}`;
+	return `${TOKEN_HASH_PREFIX}${bytesToHex(new Uint8Array(buf))}`;
 }
 
 /**
@@ -320,23 +111,6 @@ export function compararSegredoUtf8TimingSafe(input: string, expected: string): 
 	return match && sameLen;
 }
 
-/**
- * Retorna um hash no formato PBKDF2 **inválido para login**: não é derivado da senha.
- * Usado no cadastro/sincronização em massa para evitar Erro 1102 (CPU) na Cloudflare.
- *
- * **Invariantes:** quem recebe este hash deve ter `primeiro_acesso = 1` e só autenticar
- * após `hashSenha` real (primeiro acesso ou redefinição). `verificarSenha` continuará
- * falhando para qualquer senha digitada até lá — comportamento esperado.
- */
-export async function gerarSenhaAleatoriaHash(): Promise<string> {
-	// Gera payload PBKDF2-formatado sem derivação pesada para evitar estouro de CPU.
-	// O hash não corresponde a senha real e continua inválido para autenticação.
-	// Emite no formato v2 (`pbkdf2v2:<iter>:<salt>:<hash>`) para não disparar
-	// re-hash desnecessário em `isHashLegado` quando o primeiro login real ocorrer.
-	const salt = toHex(crypto.getRandomValues(new Uint8Array(16)));
-	const fakeHash = toHex(crypto.getRandomValues(new Uint8Array(32)));
-	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${salt}:${fakeHash}`;
-}
 
 /** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -574,9 +348,7 @@ async function hashCodigo2FA(codigo: string, extra: string = ''): Promise<string
 	const enc = new TextEncoder();
 	const input = extra ? `${extra}\x1f${codigo}` : codigo;
 	const hashBuf = await crypto.subtle.digest('SHA-256', enc.encode(input));
-	return Array.from(new Uint8Array(hashBuf))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	return bytesToHex(new Uint8Array(hashBuf));
 }
 
 /**

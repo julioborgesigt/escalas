@@ -6,6 +6,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { bytesToHex } from '$lib/crypto/hex';
 import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
@@ -86,9 +87,7 @@ export const POST: RequestHandler = async ({
 		// `documentHash` enviado pelo cliente (A4), que é o hash do PDF ORIGINAL
 		// e não bateria com o blob assinado.
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const arquivoHash = Array.from(new Uint8Array(hashBuffer))
-			.map((b) => b.toString(16).padStart(2, '0'))
-			.join('');
+		const arquivoHash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;

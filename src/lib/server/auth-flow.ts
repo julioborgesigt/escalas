@@ -3,6 +3,7 @@
  * Rate limit, auditoria, migração de hash legado e 2FA permanecem alinhados entre os canais.
  */
 import { eq, and, gt, sql, count } from 'drizzle-orm';
+import { bytesToHex } from '$lib/crypto/hex';
 import { registrarAuditComContexto } from '$lib/db';
 import {
 	hashSenha,
@@ -165,9 +166,7 @@ export async function recordAttempt(
 async function hashIdentificadorLogin(tipo: string, matricula: string): Promise<string> {
 	const data = new TextEncoder().encode(`${tipo}:${matricula.trim().toLowerCase()}`);
 	const buf = await crypto.subtle.digest('SHA-256', data);
-	return Array.from(new Uint8Array(buf))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	return bytesToHex(new Uint8Array(buf));
 }
 
 /**
