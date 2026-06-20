@@ -97,7 +97,7 @@ export const actions = {
 							.from(policiais)
 							.where(eq(policiais.id, usuario.id))
 							.get();
-			if (!registro || !(await verificarSenha(senha_atual, registro.senha, db, pepper))) {
+			if (!registro || !(await verificarSenha(senha_atual, registro.senha, pepper))) {
 				await registrarRecoveryAttempt(db, chaveThrottle, 'alterar_senha');
 				return fail(401, { error: 'Senha atual incorreta' });
 			}

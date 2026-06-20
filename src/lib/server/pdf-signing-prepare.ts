@@ -129,9 +129,9 @@ export function extrairDadosDoCertificado(cert: forge.pki.Certificate): {
  *     e a verificação RSA continua válida.
  *   - Adobe Acrobat exige DER e rejeita CMS com comprimentos indefinidos (BER).
  *
- * O conversor anterior (berWrappersToDer) falhava silenciosamente quando o
- * próprio SignedData usava comprimento indefinido (caso do SERPRO), retornando
- * BER bruto e causando "Esperado um objeto de número" no Adobe.
+ * Esta conversão recursiva trata o caso em que o próprio SignedData usa
+ * comprimento indefinido (caso do SERPRO) — onde converter só os wrappers
+ * externos deixaria BER bruto e causaria "Esperado um objeto de número" no Adobe.
  */
 function berToDer(ber: Buffer): Buffer {
 	let pos = 0;

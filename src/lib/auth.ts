@@ -10,10 +10,6 @@ import {
 } from './server/schema';
 import type { Database } from './db';
 import { aceiteEhVigente } from './db/termos';
-import {
-	getLegacyPasswordDeadline,
-	getLegacyPasswordDeadlineDefault
-} from './server/auth-legacy-deadline-cache';
 
 export interface UsuarioLogado {
 	id: number;
@@ -198,14 +194,13 @@ export async function hashSenha(senha: string, pepper?: string): Promise<string>
 
 /**
  * Verifica se uma senha corresponde ao hash armazenado.
- * Suporta hashes PBKDF2 v1 (100k implícito, legado), v2 (iterações explícitas, atual)
- * e SHA-256 sem salt (legado pré-PBKDF2, migração automática).
- * Com `db`, o prazo do SHA-256 vem de `configuracoes.auth.legacy_password_deadline` (cache 5 min).
+ * Suporta PBKDF2 v3 (pepper), v2 (atual) e v1 (legado). Hashes em qualquer
+ * outro formato (ex.: SHA-256 sem salt, pré-PBKDF2) NÃO são mais aceitos — o
+ * suporte legado expirou; contas nesse estado precisam redefinir a senha.
  */
 export async function verificarSenha(
 	senha: string,
 	storedHash: string,
-	db?: Database,
 	pepper?: string
 ): Promise<boolean> {
 	if (storedHash.startsWith(PBKDF2_V3_PREFIX)) {
@@ -263,27 +258,9 @@ export async function verificarSenha(
 		const lenMatch = actualHex.length === expectedHex.length ? 1 : 0;
 		return (hashMatch & lenMatch) === 1;
 	}
-	// Suporte legado: SHA-256 sem salt — DEPRECADO (prazo em `auth.legacy_password_deadline`).
-	// Policiais com hash legado devem fazer login para migrar automaticamente para PBKDF2.
-	const LEGACY_DEADLINE = db
-		? await getLegacyPasswordDeadline(db)
-		: getLegacyPasswordDeadlineDefault();
-	if (new Date() > LEGACY_DEADLINE) {
-		// Após o deadline, hash legado não é mais aceito — forçar reset de senha
-		return false;
-	}
-	const data = new TextEncoder().encode(senha);
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-	const legacyHash = toHex(new Uint8Array(hashBuffer));
-	// Timing-safe — espelha o tratamento do ramo PBKDF2 acima. Sem isto,
-	// `legacyHash === storedHash` vaza por timing-oracle byte-a-byte (legacy
-	// é SHA-256 sem salt, então um atacante com banco vazado poderia testar
-	// candidatos online via diferença de tempo de comparação de string).
-	const aBuf = Buffer.from(legacyHash.padEnd(64, '0').slice(0, 64));
-	const bBuf = Buffer.from(storedHash.padEnd(64, '0').slice(0, 64));
-	const hashMatch = timingSafeEqual(aBuf, bBuf) ? 1 : 0;
-	const lenMatch = legacyHash.length === storedHash.length ? 1 : 0;
-	return (hashMatch & lenMatch) === 1;
+	// Formato desconhecido (ex.: SHA-256 sem salt, pré-PBKDF2): suporte removido.
+	// Contas nesse estado não autenticam — precisam redefinir a senha.
+	return false;
 }
 
 /**

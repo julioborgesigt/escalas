@@ -31,10 +31,10 @@ describe('verificarSenha', () => {
 		expect(await verificarSenha('senhaErrada', hash)).toBe(false);
 	});
 
-	it('verifica corretamente hash SHA-256 legado', async () => {
-		// SHA-256 de "12345678"
+	it('rejeita hash SHA-256 legado (suporte pré-PBKDF2 removido)', async () => {
+		// SHA-256 de "12345678" — formato legado não é mais aceito (B5 da auditoria).
 		const legacyHash = 'ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f';
-		expect(await verificarSenha('12345678', legacyHash)).toBe(true);
+		expect(await verificarSenha('12345678', legacyHash)).toBe(false);
 		expect(await verificarSenha('87654321', legacyHash)).toBe(false);
 	});
 
@@ -128,21 +128,21 @@ describe('pepper (pbkdf2v3 — achado A3)', () => {
 
 	it('verificarSenha confere v3 com o pepper correto', async () => {
 		const hash = await hashSenha('senhaForte', PEPPER);
-		expect(await verificarSenha('senhaForte', hash, undefined, PEPPER)).toBe(true);
-		expect(await verificarSenha('senhaErrada', hash, undefined, PEPPER)).toBe(false);
+		expect(await verificarSenha('senhaForte', hash, PEPPER)).toBe(true);
+		expect(await verificarSenha('senhaErrada', hash, PEPPER)).toBe(false);
 	});
 
 	it('verificarSenha REJEITA v3 com pepper errado ou ausente (fail-closed)', async () => {
 		const hash = await hashSenha('senhaForte', PEPPER);
-		expect(await verificarSenha('senhaForte', hash, undefined, 'pepper-errado')).toBe(false);
+		expect(await verificarSenha('senhaForte', hash, 'pepper-errado')).toBe(false);
 		expect(await verificarSenha('senhaForte', hash)).toBe(false);
-		expect(await verificarSenha('senhaForte', hash, undefined, undefined)).toBe(false);
+		expect(await verificarSenha('senhaForte', hash, undefined)).toBe(false);
 	});
 
 	it('o pepper muda o hash para a mesma senha (HMAC aplicado)', async () => {
 		// hashes v3 com peppers diferentes não se verificam cruzado
 		const h1 = await hashSenha('igual', 'pepperA-aaaaaaaaaaaaaaaa');
-		expect(await verificarSenha('igual', h1, undefined, 'pepperB-bbbbbbbbbbbbbbbb')).toBe(false);
+		expect(await verificarSenha('igual', h1, 'pepperB-bbbbbbbbbbbbbbbb')).toBe(false);
 	});
 });
 
