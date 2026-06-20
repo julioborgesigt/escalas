@@ -5,7 +5,11 @@ import { timingSafeEqual } from 'node:crypto';
 import { captureException, setUser } from '@sentry/cloudflare';
 import { validarSessaoComAceite } from '$lib/auth';
 import { getDB } from '$lib/db';
-import { lerSessaoCache, gravarSessaoCache, resolverTtlCacheSessao } from '$lib/server/session-cache';
+import {
+	lerSessaoCache,
+	gravarSessaoCache,
+	resolverTtlCacheSessao
+} from '$lib/server/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
 import { requestStore, getRequestCtx } from '$lib/server/request-context';

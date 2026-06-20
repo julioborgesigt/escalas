@@ -148,10 +148,7 @@ async function derivarPBKDF2(
  * modo que um dump do D1 sozinho não permita brute-force offline. Custo de CPU
  * desprezível e sem esbarrar no teto de 100k iterações do `crypto.subtle`.
  */
-async function pepperizarSenha(
-	senha: string,
-	pepper: string
-): Promise<Uint8Array<ArrayBuffer>> {
+async function pepperizarSenha(senha: string, pepper: string): Promise<Uint8Array<ArrayBuffer>> {
 	const key = await crypto.subtle.importKey(
 		'raw',
 		new TextEncoder().encode(pepper) as BufferSource,
@@ -159,7 +156,11 @@ async function pepperizarSenha(
 		false,
 		['sign']
 	);
-	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(senha) as BufferSource);
+	const sig = await crypto.subtle.sign(
+		'HMAC',
+		key,
+		new TextEncoder().encode(senha) as BufferSource
+	);
 	return new Uint8Array(sig);
 }
 

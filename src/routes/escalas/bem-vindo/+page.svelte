@@ -13,9 +13,13 @@
 		usuario?.tipo === 'admin'
 			? 'max-w-2xl'
 			: usuario?.papel === 'admin_seccional'
-				? (showResGise ? 'max-w-4xl' : 'max-w-2xl')
+				? showResGise
+					? 'max-w-4xl'
+					: 'max-w-2xl'
 				: usuario?.papel === 'admin_unidade'
-					? (showResGise ? 'max-w-2xl' : 'max-w-xl')
+					? showResGise
+						? 'max-w-2xl'
+						: 'max-w-xl'
 					: 'max-w-xl'
 	);
 </script>
@@ -62,20 +66,26 @@
 			{#if usuario?.tipo === 'admin'}
 				<!-- Descrição Geral Admin -->
 				<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto">
-					Você está no ambiente de gestão do Portal de Escalas. Como administrador, utilize as abas abaixo para monitorar a conformidade das escalas ou gerenciar os novos recebimentos.
+					Você está no ambiente de gestão do Portal de Escalas. Como administrador, utilize as abas
+					abaixo para monitorar a conformidade das escalas ou gerenciar os novos recebimentos.
 				</p>
 
 				<!-- Grid de Ações para Admin -->
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 					<!-- Card Painel -->
-					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+					<div
+						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+					>
 						<div class="space-y-2">
 							<div class="flex items-center gap-2">
 								<span class="text-xl">📊</span>
-								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Painel de Compliance</h3>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+									Painel de Compliance
+								</h3>
 							</div>
 							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-								Acompanhe o envio e assinatura das escalas por delegacia, monitorando o cumprimento dos prazos e identificando pendências.
+								Acompanhe o envio e assinatura das escalas por delegacia, monitorando o cumprimento
+								dos prazos e identificando pendências.
 							</p>
 						</div>
 						<button
@@ -85,20 +95,30 @@
 						>
 							Acessar Painel
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2.5"
+									d="M9 5l7 7-7 7"
+								/>
 							</svg>
 						</button>
 					</div>
 
 					<!-- Card Caixa de Entrada -->
-					<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+					<div
+						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+					>
 						<div class="space-y-2">
 							<div class="flex items-center gap-2">
 								<span class="text-xl">📥</span>
-								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Caixa de Entrada</h3>
+								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+									Caixa de Entrada
+								</h3>
 							</div>
 							<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-								Visualize e gerencie os envios e assinaturas de escalas em tempo real, além de realizar exportações (Word, Excel, PDF).
+								Visualize e gerencie os envios e assinaturas de escalas em tempo real, além de
+								realizar exportações (Word, Excel, PDF).
 							</p>
 						</div>
 						<button
@@ -108,7 +128,12 @@
 						>
 							Acessar Cx. de Entrada
 							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2.5"
+									d="M9 5l7 7-7 7"
+								/>
 							</svg>
 						</button>
 					</div>
@@ -116,21 +141,33 @@
 			{:else if isSubAdmin}
 				{#if usuario?.papel === 'admin_seccional'}
 					<!-- Descrição Geral Admin Seccional -->
-					<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto">
-						Você está no ambiente administrativo da seccional. Gerencie e supervisione as escalas ordinárias ou acesse o planejamento e acompanhamento do módulo GISE.
+					<p
+						class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto"
+					>
+						Você está no ambiente administrativo da seccional. Gerencie e supervisione as escalas
+						ordinárias ou acesse o planejamento e acompanhamento do módulo GISE.
 					</p>
 
 					<!-- Grid de Ações para Admin Seccional (2 ou 3 cards) -->
-					<div class="grid grid-cols-1 {showResGise ? 'md:grid-cols-3' : 'sm:grid-cols-2'} gap-4 pt-4 text-left">
+					<div
+						class="grid grid-cols-1 {showResGise
+							? 'md:grid-cols-3'
+							: 'sm:grid-cols-2'} gap-4 pt-4 text-left"
+					>
 						<!-- Card Escalas -->
-						<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+						<div
+							class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+						>
 							<div class="space-y-2">
 								<div class="flex items-center gap-2">
 									<span class="text-xl">📅</span>
-									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Escalas Ordinárias</h3>
+									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+										Escalas Ordinárias
+									</h3>
 								</div>
 								<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-									Envie e gerencie as escalas ordinárias de sua seccional, incluindo plantão (mensal), expediente e a escala de final de semana.
+									Envie e gerencie as escalas ordinárias de sua seccional, incluindo plantão
+									(mensal), expediente e a escala de final de semana.
 								</p>
 							</div>
 							<button
@@ -140,20 +177,30 @@
 							>
 								Acessar Escalas
 								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2.5"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 						</div>
 
 						<!-- Card Escalas GISE -->
-						<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+						<div
+							class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+						>
 							<div class="space-y-2">
 								<div class="flex items-center gap-2">
 									<span class="text-xl">🛡️</span>
-									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Escalas GISE</h3>
+									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+										Escalas GISE
+									</h3>
 								</div>
 								<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-									Preencha e gerencie a escalação dos policiais convocados para atuar nas operações extraordinárias do GISE.
+									Preencha e gerencie a escalação dos policiais convocados para atuar nas operações
+									extraordinárias do GISE.
 								</p>
 							</div>
 							<button
@@ -163,21 +210,31 @@
 							>
 								Acessar Escalas GISE
 								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2.5"
+										d="M9 5l7 7-7 7"
+									/>
 								</svg>
 							</button>
 						</div>
 
 						<!-- Card Presença GISE (Condicional) -->
 						{#if showResGise}
-							<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+							<div
+								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+							>
 								<div class="space-y-2">
 									<div class="flex items-center gap-2">
 										<span class="text-xl">📝</span>
-										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Presença GISE</h3>
+										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+											Presença GISE
+										</h3>
 									</div>
 									<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-										Confirme sua presença nas escalas extraordinárias GISE onde foi alocado e assine a folha correspondente.
+										Confirme sua presença nas escalas extraordinárias GISE onde foi alocado e assine
+										a folha correspondente.
 									</p>
 								</div>
 								<button
@@ -187,7 +244,12 @@
 								>
 									Confirmar Presença
 									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2.5"
+											d="M9 5l7 7-7 7"
+										/>
 									</svg>
 								</button>
 							</div>
@@ -196,21 +258,30 @@
 				{:else if usuario?.papel === 'admin_unidade'}
 					{#if showResGise}
 						<!-- Descrição Geral SubAdmin com GISE -->
-						<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto">
-							Você está no ambiente administrativo do Portal de Escalas. Por aqui, você poderá criar e gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana, bem como poderá confirmar sua presença na escala GISE, quando escalado.
+						<p
+							class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-lg mx-auto"
+						>
+							Você está no ambiente administrativo do Portal de Escalas. Por aqui, você poderá criar
+							e gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final
+							de semana, bem como poderá confirmar sua presença na escala GISE, quando escalado.
 						</p>
 
 						<!-- Grid de Ações para SubAdmin (2 cards) -->
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 							<!-- Card Escalas -->
-							<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+							<div
+								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+							>
 								<div class="space-y-2">
 									<div class="flex items-center gap-2">
 										<span class="text-xl">📅</span>
-										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Gestão de Escalas</h3>
+										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+											Gestão de Escalas
+										</h3>
 									</div>
 									<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-										Crie e gerencie as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana de sua unidade administrativa.
+										Crie e gerencie as escalas ordinárias (mensal) de plantão e expediente e a
+										escala de final de semana de sua unidade administrativa.
 									</p>
 								</div>
 								<button
@@ -220,20 +291,30 @@
 								>
 									Acessar Escalas
 									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2.5"
+											d="M9 5l7 7-7 7"
+										/>
 									</svg>
 								</button>
 							</div>
 
 							<!-- Card Presença GISE -->
-							<div class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors">
+							<div
+								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+							>
 								<div class="space-y-2">
 									<div class="flex items-center gap-2">
 										<span class="text-xl">🛡️</span>
-										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">Presença GISE</h3>
+										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
+											Presença GISE
+										</h3>
 									</div>
 									<p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-										Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a folha de presença correspondente.
+										Confirme sua presença nas escalas GISE ativas onde você foi alocado e assine a
+										folha de presença correspondente.
 									</p>
 								</div>
 								<button
@@ -243,15 +324,25 @@
 								>
 									Acessar Presença GISE
 									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2.5"
+											d="M9 5l7 7-7 7"
+										/>
 									</svg>
 								</button>
 							</div>
 						</div>
 					{:else}
 						<!-- Descrição para SubAdmin sem GISE -->
-						<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-md mx-auto">
-							Você está no ambiente de gestão do Portal de Escalas. Por aqui, você poderá criar e gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final de semana de sua unidade, bem como confirmar sua presença na escala GISE, quando estiver escalado.
+						<p
+							class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-md mx-auto"
+						>
+							Você está no ambiente de gestão do Portal de Escalas. Por aqui, você poderá criar e
+							gerenciar as escalas ordinárias (mensal) de plantão e expediente e a escala de final
+							de semana de sua unidade, bem como confirmar sua presença na escala GISE, quando
+							estiver escalado.
 						</p>
 
 						<!-- Action para SubAdmin sem GISE -->
@@ -278,7 +369,8 @@
 				<!-- Descrição Original para Policial -->
 				<p class="text-sm text-surface-600 dark:text-surface-300 leading-relaxed max-w-md mx-auto">
 					Você está no ambiente de gestão ordinária do Portal de Escalas. Planeje plantões,
-					expedientes e controle as assinaturas digitais de sua unidade administrativa com facilidade.
+					expedientes e controle as assinaturas digitais de sua unidade administrativa com
+					facilidade.
 				</p>
 
 				<!-- Action Original para Policial -->
