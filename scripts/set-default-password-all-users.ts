@@ -17,32 +17,11 @@
  */
 
 import { execSync } from 'node:child_process';
+// Mesma função do app ($lib/auth re-exporta deste módulo PURO) — sem cópia local
+// que poderia divergir (item C6 da auditoria).
+import { hashSenha } from '../src/lib/crypto/password-hash';
 
 const DB_NAME = 'escalas-db';
-// v2 (formato atual de $lib/auth) — emitir v1 disparava re-hash no login.
-const PBKDF2_PREFIX = 'pbkdf2v2:';
-const PBKDF2_ITERATIONS = 100_000;
-
-function toHex(bytes: Uint8Array): string {
-	return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashSenha(senha: string): Promise<string> {
-	const salt = crypto.getRandomValues(new Uint8Array(16));
-	const keyMaterial = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode(senha),
-		'PBKDF2',
-		false,
-		['deriveBits']
-	);
-	const hashBuffer = await crypto.subtle.deriveBits(
-		{ name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-		keyMaterial,
-		256
-	);
-	return `${PBKDF2_PREFIX}${PBKDF2_ITERATIONS}:${toHex(salt)}:${toHex(new Uint8Array(hashBuffer))}`;
-}
 
 async function main() {
 	const isRemote = process.argv.includes('--remote');
@@ -74,7 +53,11 @@ async function main() {
 		process.exit(1);
 	}
 
-	const hash = await hashSenha(DEFAULT_PASSWORD);
+	// Pepper-aware: com PASSWORD_PEPPER no ambiente, as senhas já nascem v3
+	// (mesma proteção do app). Sem ele, emite v2 e o login migra para v3 depois.
+	// Rode com o MESMO PASSWORD_PEPPER de produção para o app conseguir verificar.
+	const pepper = process.env.PASSWORD_PEPPER?.trim() || undefined;
+	const hash = await hashSenha(DEFAULT_PASSWORD, pepper);
 	// primeiro_acesso=1: senha compartilhada é provisória — força a troca (e a
 	// verificação de e-mail pessoal) no primeiro login de cada usuário.
 	const sql = [

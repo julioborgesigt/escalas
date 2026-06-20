@@ -11,6 +11,7 @@
  */
 
 import forge from 'node-forge';
+import { bytesToHex } from '$lib/crypto/hex';
 import { logger } from './logger';
 import {
 	avaliarCoberturaAssinatura,
@@ -379,9 +380,7 @@ export async function verificarECarimbarAssinatura(
 	// UnsignedAttribute TST) — já o temos em memória em `cmsDerComTst`.
 	const cmsDerFinal = cmsDerComTst;
 	const cmsHashBuf = await crypto.subtle.digest('SHA-256', cmsDerFinal as unknown as ArrayBuffer);
-	const cmsSha256 = Array.from(new Uint8Array(cmsHashBuf))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	const cmsSha256 = bytesToHex(new Uint8Array(cmsHashBuf));
 
 	// 8. Metadados do certificado
 	const cn = (cms.certificate.subject.getField('CN')?.value as string) || '';

@@ -6,6 +6,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { bytesToHex } from '$lib/crypto/hex';
 import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
@@ -94,9 +95,7 @@ export const POST: RequestHandler = async ({
 
 		// Hash do PDF assinado (para controle no banco).
 		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const arquivo_hash = Array.from(new Uint8Array(hashBuffer))
-			.map((b) => b.toString(16).padStart(2, '0'))
-			.join('');
+		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const gise = giseAuth;
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');

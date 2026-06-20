@@ -12,6 +12,7 @@
  */
 
 import { timingSafeEqual } from 'node:crypto';
+import { bytesToHex } from '$lib/crypto/hex';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import { webhookNonces } from './schema';
 import { logger } from './logger';
@@ -66,9 +67,7 @@ export async function hmacSha256Valido(
 		['sign']
 	);
 	const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
-	const computedHex = Array.from(new Uint8Array(sig))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
+	const computedHex = bytesToHex(new Uint8Array(sig));
 
 	if (computedHex.length !== expectedHex.length) return false;
 	return timingSafeEqual(Buffer.from(computedHex), Buffer.from(expectedHex));
