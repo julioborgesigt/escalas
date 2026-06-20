@@ -110,7 +110,9 @@ describe('tentarLogin — fail-closed do 2º fator (A1)', () => {
 	});
 
 	it('POLICIAL com e-mail e fora do primeiro acesso → 2FA pendente', async () => {
-		const db = fakeDb({ policial: basePolicial({ email: 'fulano@exemplo.com', primeiro_acesso: 0 }) });
+		const db = fakeDb({
+			policial: basePolicial({ email: 'fulano@exemplo.com', primeiro_acesso: 0 })
+		});
 		const r = await tentarLogin({
 			db,
 			ip: '1.2.3.4',

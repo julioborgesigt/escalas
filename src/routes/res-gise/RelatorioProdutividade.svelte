@@ -181,8 +181,7 @@
 						rows="4"
 						placeholder="Descreva detalhadamente..."
 						class="w-full px-4 py-3 rounded-2xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-medium focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
-						bind:value={respostas[q.key]}
-					></textarea>
+						bind:value={respostas[q.key]}></textarea>
 				{:else if q.tipo === 'mandados_maiores' || q.tipo === 'prisoes_maiores' || q.tipo === 'apreensoes_menores' || q.tipo === 'celulares_complex' || q.tipo === 'analise_complex' || q.tipo === 'relatorios_seint_complex' || q.tipo === 'foragidos_complex' || q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'}
 					{@const isPura = q.tipo === 'operacoes_seint_pura'}
 					<div class="space-y-4">

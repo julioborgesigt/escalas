@@ -102,9 +102,9 @@ describe('isHashLegado', () => {
 	it('com pepper ativo, v2/v1/legado viram legado (sobem para v3)', () => {
 		expect(isHashLegado('pbkdf2v2:100000:abc123:def456', true)).toBe(true);
 		expect(isHashLegado('pbkdf2v1:abc:def', true)).toBe(true);
-		expect(isHashLegado('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f', true)).toBe(
-			true
-		);
+		expect(
+			isHashLegado('ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f', true)
+		).toBe(true);
 	});
 
 	it('v3 nunca é legado (com ou sem pepper) — não rebaixa', () => {
