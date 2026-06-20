@@ -5,26 +5,55 @@ Este runbook descreve o que é necessário para colocar e manter o sistema em pr
 ## Pré-requisitos
 
 - Conta Cloudflare com **Pages**, **D1** e **R2** habilitados.
-- Node.js 20+ (alinhado ao [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
+- Node.js **22+** (alinhado ao `engines` do `package.json` e ao [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
 - API token da Cloudflare com permissão de deploy em Pages (e acesso à conta).
 
 ## Variáveis e secrets
 
-Configurar no projeto Pages (**Settings → Environment variables**) ou via `wrangler secret`, conforme o fluxo da equipe. Referência de tipos: [`src/app.d.ts`](src/app.d.ts).
+Configurar no projeto Pages (**Settings → Environment variables**) ou via `wrangler secret`, conforme o fluxo da equipe. A **lista completa e comentada** de todas as variáveis está em [`.env.example`](.env.example) (fonte autoritativa); os tipos em [`src/app.d.ts`](src/app.d.ts). A tabela abaixo cobre as **mais importantes / não-óbvias**.
 
 | Variável | Obrigatório | Uso |
 |----------|-------------|-----|
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Se envio de e-mail estiver ativo | SMTP Gmail (2FA, redefinição de senha, etc.) |
+| `PASSWORD_PEPPER` | **Recomendado (ver aviso)** | Pepper de senha (achado A3): HMAC-SHA256 aplicado à senha antes do PBKDF2 (formato `pbkdf2v3`). Neutraliza brute-force offline se o D1 vazar. **CRÍTICO:** uma vez ligado, hashes v3 só verificam com este exato valor — **guarde em cofre e NUNCA rotacione** sem plano de migração (trocá-lo invalida todos os logins v3). Ver [Hashing de senha e o pepper](#hashing-de-senha-e-o-password_pepper). Gere com `openssl rand -hex 32`. |
+| **E-mail** (2FA / primeiro acesso / reset) | Sim, para login | Binding `EMAIL` (Cloudflare Email Sending — Settings → Functions/Bindings) como primário **ou** `RESEND_API_KEY` + `RESEND_FROM_EMAIL` como fallback. `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` habilitam o caminho via API da Cloudflare. **Sem e-mail funcionando, o 2FA (fail-closed A1) e o primeiro acesso travam.** |
 | `SYNC_TOKEN` | Sim, para webhooks | Bearer token usado por [`/api/webhook/sync-policiais`](src/routes/api/webhook/sync-policiais/+server.ts) e [`/api/webhook/sync-unidades`](src/routes/api/webhook/sync-unidades/+server.ts) |
 | `RESET_TOKEN` | **Apenas** se quiser permitir reset destrutivo | Segredo **separado**, distinto do `SYNC_TOKEN`, exigido por [`/api/webhook/reset-policiais`](src/routes/api/webhook/reset-policiais/+server.ts). Sem ele configurado, o endpoint sempre retorna 401 (fail-closed). |
-| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login admin via env (ver [`api/auth/login`](src/routes/api/auth/login/+server.ts)). A senha pode (e DEVE) ser informada como **hash PBKDF2** no formato `pbkdf2v2:...` em vez de texto claro — gere com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts`. Texto claro continua aceito por compatibilidade. O mesmo vale para `SUPER_ADMIN_SENHA`. |
+| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | Bootstrap / break-glass | Conta root de emergência via env. `SUPER_ADMIN_EMAIL` (recomendado) passa a exigir 2FA no login root. A senha pode (e DEVE) ser um **hash PBKDF2 v2** em vez de texto claro — gere com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts` (emite v2 **de propósito**: o break-glass NÃO depende do `PASSWORD_PEPPER`, então o root entra mesmo se o pepper for perdido). |
+| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login de Admin Geral via env. Mesma regra de hash do `SUPER_ADMIN_SENHA` acima. |
 | `RATE_LIMIT_IP_SALT` | Recomendado em produção | Segredo (`openssl rand -hex 32`) que muda a chave de rate-limit de "/24 anonimizada" para **hash salteado do IP completo**. Sem ele, 5 falhas de login bloqueiam a /24 inteira (ex.: o NAT da corporação — DoS barato e lockout mútuo). Com ele, o bloqueio é por endereço, sem persistir IP em claro (LGPD ok). |
+| `APP_ORIGIN` | Recomendado em produção | Origem canônica (`https://...`) usada nos links de e-mail, fechando host-header injection. Sem ela, usa a origem da requisição. |
+| `HEALTH_DETAIL_TOKEN` | Recomendado | Sem ele, `/api/health` devolve só `{status}`. Com `?detail=<token>`, devolve o detalhe (D1/R2/retenção) — ver [Failsafe](#failsafe-da-limpeza-de-retenção). |
 | `SENTRY_*` / DSN | Se Sentry estiver ligado | Erros no worker (`@sentry/cloudflare`). Logins via credenciais de bootstrap (SUPER_ADMIN/ADMIN_GERAL) geram evento `warning` no Sentry. |
+| `SESSION_CACHE_TTL_SECONDS` | Opcional | TTL (s) do cache edge de sessão (default 60, clamp [0,300]). `0` desliga (revogação imediata, mais queries D1). |
 | `WEBHOOK_REPLAY_ENFORCE` | Após rollout (ver abaixo) | Quando truthy (`1`, `true`, `yes`, `on`), webhooks rejeitam requisições sem `X-Webhook-Timestamp` + `X-Webhook-Nonce`. Default: aceita por compatibilidade, mas loga `info` para cada chamada sem headers. |
+
+> **Outras** (assinatura/GISE/flags) estão em `.env.example` e nas seções específicas: `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`/`EXIGIR_TSA_QUALIFICADA`, `EMBED_PADES_LT_DSS`, `PA_AD_RB_HASH_HEX`, `SELO_INSTITUCIONAL_PEM`, `GISE_BASE_EQUIPE_*`, `WEBHOOK_ALLOW_PAPEL_CHANGES`.
+>
+> **Legado removido:** `GMAIL_USER`/`GMAIL_APP_PASSWORD` (SMTP via Gmail) **não são mais lidos** — podem ser apagados do ambiente. O envio usa o binding `EMAIL` + Resend.
 
 **Secrets sensíveis:** nunca commitar `.dev.vars` com valores reais; usar apenas localmente ou CI.
 
 > **Importante:** `RESET_TOKEN` deve ser **estritamente diferente** de `SYNC_TOKEN`. O design separa os dois para que comprometer o token de webhook não baste para apagar o banco. Gere com `openssl rand -hex 32` e armazene apenas no Cloudflare + na planilha de operações.
+
+### Hashing de senha e o `PASSWORD_PEPPER`
+
+As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (formato versionado em [`src/lib/crypto/password-hash.ts`](src/lib/crypto/password-hash.ts), re-exportado por `$lib/auth`):
+
+| Formato | Quando |
+|---|---|
+| `pbkdf2v1:` | Legado (100k implícito) — aceito, migra no login. |
+| `pbkdf2v2:` | Atual sem pepper. |
+| `pbkdf2v3:` | **Atual com pepper** — `PBKDF2( HMAC-SHA256(PASSWORD_PEPPER, senha) )`. |
+
+**Por que pepper e não "600k iterações" (achado A3):** o runtime da Cloudflare (workerd — o mesmo no Pages e no Workers) impõe um **teto rígido de 100 000 iterações** na API `crypto.subtle`; pedir mais lança erro. O pepper (HMAC com um segredo global do ambiente, custo de CPU ~zero) resolve o brute-force offline **sem** depender de iterações altas. A migração para Workers foi avaliada e **arquivada** por causa disso — ver [`docs/MIGRACAO-WORKERS.md`](docs/MIGRACAO-WORKERS.md).
+
+**Operação do `PASSWORD_PEPPER`:**
+
+- Com o segredo setado, `hashSenha` emite `pbkdf2v3`; no login bem-sucedido, hashes `v1`/`v2` **re-hasham para v3** progressivamente (sem big-bang no banco).
+- ⚠️ **É load-bearing:** hashes `v3` só verificam com **este exato valor**. **Guarde em cofre e NUNCA rotacione** sem um plano de migração — trocar/perder o valor invalida **todos** os logins v3 (todos os usuários precisariam redefinir a senha). Gere uma única vez com `openssl rand -hex 32`.
+- O login de **break-glass** (`SUPER_ADMIN`/`ADMIN_GERAL` por env) **não** depende do pepper (compara o segredo da env, aceitando `pbkdf2v2` ou texto) — continua funcionando mesmo se o pepper for perdido.
+
+**Hashes pré-PBKDF2 (SHA-256 sem salt) NÃO são mais aceitos** (o suporte legado foi removido). Contas que ainda estejam nesse formato **não autenticam por senha** e precisam ser resetadas para primeiro acesso — ver [Primeiro acesso e reset em massa (go-live)](#primeiro-acesso-e-reset-em-massa-go-live).
 
 ### Endpoint destrutivo `/api/webhook/reset-policiais`
 
@@ -84,66 +113,30 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 
 ## Separação staging vs produção
 
-> **Status: scaffold no repositório; resta a ação de infra do operador.** O `wrangler.toml` já separa os ambientes — as bindings de **produção** ficam no top-level (inalteradas) e a seção **`[env.preview]`** aponta o ambiente de preview/staging do Cloudflare Pages para um D1/R2 **dedicado** (`escalas-db-staging` / `escalas-docs-staging`). O `scripts/migrate.ts` ganhou o alvo `--staging` (`npm run db:migrate:staging`). **Produção não é afetada** (lê as bindings top-level, idênticas às anteriores). Enquanto o `database_id` de staging for o placeholder `<STAGING_DATABASE_ID>`, os deploys de **preview** falham ao bindar — proposital (fail-safe): melhor o preview quebrar do que escrever em produção. Os passos abaixo são o que falta do operador. O bloco TOML de exemplo é ilustrativo; **a configuração real e atual está no próprio `wrangler.toml`**.
+**Status: configurado.** Staging é o ambiente **Preview** do projeto Pages, com D1/R2 **dedicados** (`escalas-db-staging` / `escalas-docs-staging`), declarados na seção **`[env.preview]`** do [`wrangler.toml`](wrangler.toml). As bindings de **produção** ficam no top-level (inalteradas) — produção nunca escreve no banco de staging e vice-versa.
 
-### Como separar (recomendado antes do go-live)
+- **Deploy de staging:** push para a branch **`staging`** → o [`deploy.yml`](.github/workflows/deploy.yml) roda `pages deploy --branch=staging` (um *preview deployment* do mesmo projeto Pages).
+- **Migrações de staging:** `npm run db:migrate:staging` (alvo `--staging` do [`scripts/migrate.ts`](scripts/migrate.ts)).
+- **Secrets de staging:** configurar no Pages → Settings → Environment variables, escopo **Preview**. Para o staging exercitar o caminho `pbkdf2v3`, defina também o `PASSWORD_PEPPER` no escopo Preview (pode ser um valor de teste, distinto do de produção — o D1 é isolado).
+- **Guarda de produção:** só a **migração remota de produção** (`npm run db:migrate:prod`) exige `-- --yes`, abortando antes de tocar o D1 sem confirmação explícita.
 
-1. **Criar D1 e R2 dedicados ao staging:**
+> **Migração Pages → Workers (arquivada).** Houve uma avaliação de migrar para Cloudflare Workers (para subir o PBKDF2 a 600k); ela foi **descartada** porque o teto de 100k iterações é do runtime (idêntico em Pages e Workers) — o A3 foi resolvido pelo pepper. Histórico completo em [`docs/MIGRACAO-WORKERS.md`](docs/MIGRACAO-WORKERS.md). **O stack é Cloudflare Pages.**
 
-	```bash
-	wrangler d1 create escalas-db-staging
-	wrangler r2 bucket create escalas-docs-staging
-	```
+## Primeiro acesso e reset em massa (go-live)
 
-	Anote os `database_id` retornados.
+No go-live (ou ao limpar dados de teste), reset todos os **policiais** para o fluxo de primeiro acesso — eles definem a própria senha (que nasce em `pbkdf2v3`) e verificam o e-mail pessoal:
 
-2. **Editar `wrangler.toml` para usar environments:**
+```sh
+npm run users:clear-passwords-non-admins:prod   # zera senha + primeiro_acesso=1 (PRESERVA admins)
+```
 
-	```toml
-	# wrangler.toml — exemplo após a separação
-	name = "escalas"
-	compatibility_date = "2026-04-01"
-	compatibility_flags = ["nodejs_compat"]
-	pages_build_output_dir = ".svelte-kit/cloudflare"
+**Antes de rodar para toda a base:**
 
-	[env.production]
-	[[env.production.d1_databases]]
-	binding = "escalas_db"
-	database_name = "escalas-db"
-	database_id = "dc86ec72-..."  # ID atual (produção)
-	migrations_dir = "migrations"
+1. **E-mail funcionando em produção** (binding `EMAIL` ou `RESEND_API_KEY`) — o primeiro acesso e o 2FA (fail-closed A1) **dependem** de envio de e-mail.
+2. **Teste com UMA conta** o ciclo completo: primeiro acesso → define senha → verifica e-mail → 2FA → login → **logout → login de novo** (o 2º login confirma o caminho `v3`+pepper de ponta a ponta).
+3. Só então rode o script acima e **comunique** aos policiais como fazer o primeiro acesso.
 
-	[[env.production.r2_buckets]]
-	binding = "escalas_docs"
-	bucket_name = "escalas-docs"
-
-	[env.staging]
-	[[env.staging.d1_databases]]
-	binding = "escalas_db"
-	database_name = "escalas-db-staging"
-	database_id = "<ID-DO-STAGING>"
-	migrations_dir = "migrations"
-
-	[[env.staging.r2_buckets]]
-	binding = "escalas_docs"
-	bucket_name = "escalas-docs-staging"
-	```
-
-3. **Atualizar `scripts/migrate.ts`** para aceitar `--env staging|production` em vez de só `--remote`, e ajustar os scripts `npm run db:migrate*` correspondentes.
-
-4. **Atualizar `.github/workflows/deploy.yml`** para passar `--env staging` / `--env production` no `pages deploy` (ou usar projetos de Pages separados — `escalas` e `escalas-staging`).
-
-5. **Configurar variáveis de ambiente separadas** no Cloudflare Pages para staging (SENTRY_DSN com `SENTRY_ENVIRONMENT=staging`, GMAIL_* dedicado, etc.).
-
-6. **Sincronizar schema** do staging executando todas as migrações: `wrangler d1 migrations apply escalas-db-staging --env staging --remote`.
-
-7. **Validar**: deploy de teste para staging, conferir no Cloudflare Dashboard que o tráfego escreve no `escalas-db-staging`, não no `escalas-db`.
-
-### Defesas já no código
-
-- ✅ `wrangler.toml` com `[env.preview]` dedicado (produção top-level inalterada).
-- ✅ `scripts/migrate.ts --staging` + `npm run db:migrate:staging`; só **produção remota** exige `-- --yes` (aborta antes de tocar no D1 sem confirmação).
-- Até o operador concluir os passos acima, um deploy de **preview** sem o `database_id` de staging preenchido **falha ao bindar** — não escreve em produção.
+> Para **re-habilitar** uma senha-padrão compartilhada em ambiente de teste (não produção real), use `SET_PASSWORD=... PASSWORD_PEPPER=<valor> npm run users:set-default-password:prod` — o script é pepper-aware e grava em `pbkdf2v3`.
 
 ## Backup, restauração e rollback (D1 + R2)
 
@@ -315,13 +308,16 @@ Para esses, qualquer upgrade major precisa ser feito manualmente após testar o 
 ## Checklist rápido de release
 
 1. Migrações D1 aplicadas no ambiente alvo.
-2. Variáveis e secrets conferidos no dashboard Cloudflare:
+2. Variáveis e secrets conferidos no dashboard Cloudflare (lista completa em [`.env.example`](.env.example)):
+   - `PASSWORD_PEPPER` definido **e guardado em cofre** (nunca rotacionar — ver [aviso](#hashing-de-senha-e-o-password_pepper)).
+   - **E-mail funcionando**: binding `EMAIL` **ou** `RESEND_API_KEY` (sem ele, 2FA e primeiro acesso travam).
    - `SYNC_TOKEN` definido.
    - `RESET_TOKEN` definido **e diferente do SYNC_TOKEN** (ou intencionalmente vazio para desabilitar reset).
-   - `GMAIL_USER` / `GMAIL_APP_PASSWORD` se for enviar e-mail.
-3. Smoke manual: login, rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
-4. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).
-5. Monitorar logs no dashboard Workers/Pages e alertas no Sentry, se configurado.
+   - `RATE_LIMIT_IP_SALT` e (se aplicável) `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`.
+3. **Login real validado** (não só o bootstrap): logar → logout → logar de novo, confirmando a migração para `pbkdf2v3`.
+4. Smoke manual: rota protegida, `/api/health`, fluxo crítico de negócio (ex.: validação pública se aplicável).
+5. Conferir que o admin consegue alterar flags em `/api/configuracoes/assinatura` e que a próxima assinatura reflete a mudança em ≤ 5 min (TTL do cache edge).
+6. Monitorar logs no dashboard Pages e alertas no Sentry, se configurado.
 
 ## Versão
 
