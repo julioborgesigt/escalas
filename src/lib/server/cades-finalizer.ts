@@ -12,6 +12,7 @@
 
 import forge from 'node-forge';
 import { bytesToHex } from '$lib/crypto/hex';
+import { binStringToBytes } from '$lib/crypto/bin';
 import { logger } from './logger';
 import {
 	avaliarCoberturaAssinatura,
@@ -332,10 +333,7 @@ export async function verificarECarimbarAssinatura(
 			if (snap.responseDerB64) {
 				try {
 					const der = forge.util.decode64(snap.responseDerB64);
-					ocspDerParaDss = new Uint8Array(der.length);
-					for (let i = 0; i < der.length; i++) {
-						ocspDerParaDss[i] = der.charCodeAt(i) & 0xff;
-					}
+					ocspDerParaDss = binStringToBytes(der);
 				} catch {
 					/* ignore */
 				}
@@ -413,9 +411,7 @@ export async function verificarECarimbarAssinatura(
 		// Adiciona o issuer (intermediário da AC) se identificado.
 		if (issuerCertParaDss) {
 			const der = forge.asn1.toDer(forge.pki.certificateToAsn1(issuerCertParaDss)).getBytes();
-			const arr = new Uint8Array(der.length);
-			for (let i = 0; i < der.length; i++) arr[i] = der.charCodeAt(i) & 0xff;
-			certsDer.push(arr);
+			certsDer.push(binStringToBytes(der));
 		}
 		// Adiciona raiz se trust store disponível e o issuer não é raiz.
 		if (issuerCertParaDss) {
@@ -427,9 +423,7 @@ export async function verificarECarimbarAssinatura(
 			);
 			if (rootMatch && rootMatch !== issuerCertParaDss) {
 				const der = forge.asn1.toDer(forge.pki.certificateToAsn1(rootMatch)).getBytes();
-				const arr = new Uint8Array(der.length);
-				for (let i = 0; i < der.length; i++) arr[i] = der.charCodeAt(i) & 0xff;
-				certsDer.push(arr);
+				certsDer.push(binStringToBytes(der));
 			}
 		}
 
