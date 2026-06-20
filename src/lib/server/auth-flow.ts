@@ -98,11 +98,10 @@ export function cookieOptions(url: URL) {
 async function verificarSenhaBootstrap(
 	senha: string,
 	envValor: string,
-	db: Database,
 	pepper?: string
 ): Promise<boolean> {
 	if (envValor.startsWith('pbkdf2v')) {
-		return verificarSenha(senha, envValor, db, pepper);
+		return verificarSenha(senha, envValor, pepper);
 	}
 	return compararSegredoUtf8TimingSafe(senha, envValor);
 }
@@ -298,7 +297,7 @@ export async function tentarLogin({
 		const superSenha = _env?.SUPER_ADMIN_SENHA ?? '';
 
 		if (superLogin && superSenha && matricula === superLogin) {
-			if (!(await verificarSenhaBootstrap(senha, superSenha, db, pepper))) {
+			if (!(await verificarSenhaBootstrap(senha, superSenha, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
@@ -465,7 +464,7 @@ export async function tentarLogin({
 				ip
 			);
 
-			if (!(await verificarSenhaBootstrap(senha, envSenha, db, pepper))) {
+			if (!(await verificarSenhaBootstrap(senha, envSenha, pepper))) {
 				await recordAttempt(db, ip, false, identHash);
 				await registrarAuditComContexto(db, {
 					usuario: null,
@@ -534,7 +533,7 @@ export async function tentarLogin({
 			.from(administradores)
 			.where(eq(administradores.login, matricula))
 			.get();
-		if (!admin || !(await verificarSenha(senha, admin.senha, db, pepper))) {
+		if (!admin || !(await verificarSenha(senha, admin.senha, pepper))) {
 			await recordAttempt(db, ip, false, identHash);
 			return {
 				sucesso: false,
@@ -610,7 +609,7 @@ export async function tentarLogin({
 		.where(and(eq(policiais.matricula, matricula), eq(policiais.ativo, 1)))
 		.get();
 
-	if (!policial || !(await verificarSenha(senha, policial.senha, db, pepper))) {
+	if (!policial || !(await verificarSenha(senha, policial.senha, pepper))) {
 		await recordAttempt(db, ip, false, identHash);
 		return {
 			sucesso: false,

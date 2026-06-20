@@ -35,7 +35,7 @@ interface SessaoCacheada {
 }
 
 /** TTL padrão (s) quando `SESSION_CACHE_TTL_SECONDS` não está definido. */
-export const SESSION_CACHE_TTL_DEFAULT = 60;
+const SESSION_CACHE_TTL_DEFAULT = 60;
 /** Teto do TTL — acima disso a janela de revogação ficaria longa demais. */
 const SESSION_CACHE_TTL_MAX = 300;
 

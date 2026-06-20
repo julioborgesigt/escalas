@@ -13,12 +13,6 @@ Este arquivo descreve o objetivo de cada script utilitário e os comandos de ata
   - Local: `npx tsx scripts/migrate.ts`
   - Remoto: `npx tsx scripts/migrate.ts --remote`
 
-### `renumber-migrations.ps1`
-- **Função:** utilitário PowerShell para renumerar/reorganizar arquivos de migration.
-- **Atalho npm:** não possui.
-- **Comando direto (PowerShell):**
-  - `.\scripts\renumber-migrations.ps1`
-
 ## Senhas / usuários
 
 ### `set-default-password-all-users.ts`
