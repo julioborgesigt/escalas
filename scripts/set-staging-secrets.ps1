@@ -75,7 +75,9 @@ $ref.Add("# NAO comitar. Guarde a senha do super admin.")
 $ref.Add("")
 
 Write-Host "-> Secrets internos (gerados aleatoriamente para teste):"
-foreach ($nome in @("SYNC_TOKEN", "RESET_TOKEN", "RATE_LIMIT_IP_SALT", "HEALTH_DETAIL_TOKEN", "GISE_BASE_EQUIPE_SECRET")) {
+# PASSWORD_PEPPER (A3): em STAGING um valor aleatorio e ok; em PRODUCAO gere UMA
+# vez e guarde em cofre (troca-lo invalida hashes v3).
+foreach ($nome in @("SYNC_TOKEN", "RESET_TOKEN", "RATE_LIMIT_IP_SALT", "HEALTH_DETAIL_TOKEN", "GISE_BASE_EQUIPE_SECRET", "PASSWORD_PEPPER")) {
 	$v = New-HexToken 32
 	$secrets[$nome] = $v
 	$ref.Add("$nome=$v")

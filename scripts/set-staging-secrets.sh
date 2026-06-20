@@ -63,7 +63,9 @@ put_ext() {
 echo "→ Secrets internos (gerados aleatoriamente para teste):"
 
 # Tokens/salts internos — sem contraparte externa para um smoke test básico.
-for nome in SYNC_TOKEN RESET_TOKEN RATE_LIMIT_IP_SALT HEALTH_DETAIL_TOKEN GISE_BASE_EQUIPE_SECRET; do
+# PASSWORD_PEPPER (A3): em STAGING um valor aleatório é ok; em PRODUÇÃO o pepper
+# deve ser gerado UMA vez e guardado em cofre (trocá-lo invalida hashes v3).
+for nome in SYNC_TOKEN RESET_TOKEN RATE_LIMIT_IP_SALT HEALTH_DETAIL_TOKEN GISE_BASE_EQUIPE_SECRET PASSWORD_PEPPER; do
 	v="$(openssl rand -hex 32)"
 	put "$nome" "$v"
 	echo "$nome=$v" >>"$REF"

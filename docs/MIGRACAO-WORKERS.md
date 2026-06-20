@@ -10,6 +10,30 @@
 
 ---
 
+> ## ⚠️ ATUALIZAÇÃO (Fase 2 — junho/2026): a premissa do A3 estava ERRADA
+>
+> A validação em staging (Worker `escalas-staging`) provou empiricamente que
+> **600k iterações de PBKDF2 são IMPOSSÍVEIS no runtime da Cloudflare**, e **não
+> por CPU**: a API `crypto.subtle` do **workerd** impõe um **teto rígido de
+> 100.000 iterações** (erro literal: `Pbkdf2 failed: iteration counts above
+> 100000 are not supported`). Como **Pages e Workers rodam o mesmo workerd**,
+> esse teto é **idêntico** nos dois — **migrar de plataforma NÃO destrava 600k**
+> e o `cpu_ms` não ajuda (o erro é de API, não de tempo).
+>
+> **O A3 foi resolvido por outro caminho — o PEPPER** (formato de hash
+> `pbkdf2v3` = HMAC-SHA256 com `PASSWORD_PEPPER` antes do PBKDF2-100k),
+> implementado em `src/lib/auth.ts`. Custo de CPU ~zero, dentro do teto da API,
+> e neutraliza brute-force offline em caso de vazamento do D1. **Não depende
+> desta migração** e funciona no Pages atual. Ver `.env.example` →
+> `PASSWORD_PEPPER` e os testes em `src/lib/__tests__/auth.test.ts`.
+>
+> **Consequência para este plano:** a migração Pages→Workers **perde o A3 como
+> justificativa**. Seguir com ela passa a valer apenas pelos **ganhos
+> secundários** (Cron Triggers nativos, headroom de CPU para PDF/assinatura).
+> A **Fase 4 (subir para 600k) está CANCELADA** — substituída pelo pepper.
+
+---
+
 ## 1. Por que migrar (e o que NÃO se ganha)
 
 ### Motivação primária — teto de CPU
