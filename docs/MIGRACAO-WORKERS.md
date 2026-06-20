@@ -10,6 +10,38 @@
 
 ---
 
+> # 🗄️ DECISÃO FINAL (jun/2026): migração ARQUIVADA — staging revertido para Pages
+>
+> Este documento é mantido como **registro histórico**. A migração Pages→Workers
+> foi **avaliada na prática (staging) e descartada**. O que aprendemos:
+>
+> 1. **A premissa do A3 estava errada.** O bloqueio do PBKDF2 600k **não é CPU**:
+>    a API `crypto.subtle` do runtime da Cloudflare (**workerd**, o MESMO no Pages
+>    e no Workers) impõe um **teto rígido de 100.000 iterações** — pedir 600k lança
+>    `Pbkdf2 failed: iteration counts above 100000 are not supported` (confirmado
+>    em staging via `wrangler tail`). Migrar de plataforma **não destrava 600k** e
+>    `cpu_ms` não ajuda (o erro é de API, não de tempo).
+> 2. **O A3 foi resolvido pelo PEPPER**, não pela migração: formato de hash
+>    `pbkdf2v3` = HMAC-SHA256(`PASSWORD_PEPPER`, senha) antes do PBKDF2-100k
+>    (`src/lib/auth.ts`). Custo de CPU ~zero, dentro do teto da API, e **roda no
+>    Pages atual**. Neutraliza brute-force offline em caso de vazamento do D1.
+>    Ver `.env.example` → `PASSWORD_PEPPER`.
+> 3. **Sem o A3, a migração perdeu a justificativa.** Os ganhos restantes (Cron
+>    Triggers nativos, headroom de CPU para PDF/assinatura) não justificavam o
+>    risco do cutover, sem nenhum problema de CPU medido em produção. Além disso,
+>    manter staging em Workers e produção em Pages tornava o staging um espelho
+>    **infiel** (limites de CPU e roteamento de assets diferentes) e dobrava a
+>    manutenção de config.
+>
+> **Resultado:** o pepper foi mantido (fix do A3, agnóstico de plataforma);
+> **staging voltou a ser um preview do Pages** (config única, espelho fiel da
+> produção). Os artefatos da migração (`wrangler.workers.toml`, scripts de
+> staging-Workers) foram removidos — continuam no histórico do git se um dia a
+> migração for retomada por um motivo concreto (ex.: necessidade de Cron nativo
+> ou uma rota realmente estourando o teto de CPU do Pages).
+
+---
+
 ## 1. Por que migrar (e o que NÃO se ganha)
 
 ### Motivação primária — teto de CPU
