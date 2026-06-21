@@ -43,6 +43,7 @@ type AcaoAudit =
 	| 'login_bootstrap'
 	| 'solicitar_redefinicao_senha'
 	| 'redefinir_senha'
+	| 'primeiro_acesso_link'
 	| 'aceitar_termos'
 	| 'limpeza_retencao'
 	| 'exportar_escala'
