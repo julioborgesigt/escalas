@@ -21,6 +21,9 @@ import { logger } from '$lib/server/logger';
 import { administradores, policiais, loginAttempts } from '$lib/server/schema';
 import type { Database } from '$lib/db';
 import { chaveRateLimitIp } from '$lib/server/recovery-rate-limit';
+import { mascararEmail } from '$lib/utils';
+
+export { mascararEmail };
 
 // ---- Rate limit e utilitários (antes em login-helpers) ----
 
@@ -47,28 +50,7 @@ const SEM_EMAIL_2FA_MSG =
 	'Sua conta não possui e-mail cadastrado para o segundo fator de autenticação. ' +
 	'Contate o administrador para cadastrar seu e-mail ou entre com certificado digital (Token A3).';
 
-export function mascararEmail(email: string): string {
-	const at = email.indexOf('@');
-	if (at <= 0) return email;
-	const local = email.slice(0, at);
-	const domain = email.slice(at + 1);
-	let masked: string;
-	if (local.length === 1) {
-		masked = local;
-	} else if (local.length === 2) {
-		masked = local[0] + '*';
-	} else {
-		const showStart = Math.min(2, Math.floor(local.length / 2));
-		masked =
-			local.slice(0, showStart) +
-			'*'.repeat(local.length - showStart - 1) +
-			local[local.length - 1];
-	}
-	// Ocultar domínio para não revelar provedor (ex: gmail.com → ***.com)
-	const dotIdx = domain.lastIndexOf('.');
-	const maskedDomain = dotIdx > 0 ? '***' + domain.slice(dotIdx) : '***';
-	return masked + '@' + maskedDomain;
-}
+
 
 /**
  * Opções de cookie de sessão pós-login (httpOnly, sameSite, secure).

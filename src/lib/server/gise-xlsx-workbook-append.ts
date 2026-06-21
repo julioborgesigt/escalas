@@ -59,7 +59,7 @@ export function createAppendGiseXlsxState(): AppendGiseXlsxState {
 	return { usedWorksheetNames: new Set<string>() };
 }
 
-function styleTitle(ws: ExcelJS.Worksheet, row: ExcelJS.Row, color: string) {
+function styleTitle(row: ExcelJS.Row, color: string) {
 	row.height = 25;
 	row.eachCell((cell) => {
 		cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
@@ -197,7 +197,7 @@ export async function appendGiseDetalhadoToXlsxWorkbook(
 				const unitTitle = unidade.nome || sec.seccional_nome;
 				const titleRow = ws.addRow([unitTitle]);
 				ws.mergeCells(titleRow.number, 1, titleRow.number, HEADERS_DETALHE_EQUIPE.length);
-				styleTitle(ws, titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
+				styleTitle(titleRow, equipe.tipo === 'operacional' ? 'FF1A5C57' : 'FF3B3B76');
 
 				const headerRow = ws.addRow([...HEADERS_DETALHE_EQUIPE]);
 				styleHeader(headerRow);

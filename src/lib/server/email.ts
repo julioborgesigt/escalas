@@ -11,7 +11,7 @@
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
 import { logger } from './logger';
-import { mascararEmail } from './auth-flow';
+import { mascararEmail } from '$lib/utils';
 
 function escapeHtml(value: string): string {
 	return value

@@ -11,7 +11,7 @@
  * o envio de e-mail (fire-and-forget) é mockado para não tocar a rede.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { loginAttempts, policiais, administradores } from '$lib/server/schema';
+import { administradores, policiais } from '$lib/server/schema';
 import { hashSenha } from '$lib/auth';
 import type { Database } from '$lib/db';
 

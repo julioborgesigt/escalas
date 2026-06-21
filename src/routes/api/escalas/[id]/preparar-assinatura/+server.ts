@@ -106,7 +106,6 @@ export const POST: RequestHandler = async ({
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,
 		finalSignerName,
-		finalSignerCpf,
 		'right',
 		verificationHash,
 		verificationUrl,
