@@ -4,6 +4,7 @@ import type { Database } from '../core';
 import { getNowBR } from '../../utils';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent } from '../../server/document-utils';
+import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 function gps2(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
@@ -76,8 +77,12 @@ export async function salvarSaidaGise(
 		.where(and(eq(gisePresencas.gise_id, giseId), eq(gisePresencas.policial_id, policialId)));
 }
 
-export async function buscarPresencasGise(db: Database, giseId: number) {
-	return db
+export async function buscarPresencasGise(
+	db: Database,
+	giseId: number,
+	env: CpfCriptoEnv | undefined
+) {
+	const rows = await db
 		.select({
 			id: gisePresencas.id,
 			gise_id: gisePresencas.gise_id,
@@ -103,4 +108,11 @@ export async function buscarPresencasGise(db: Database, giseId: number) {
 		.innerJoin(policiais, eq(gisePresencas.policial_id, policiais.id))
 		.where(eq(gisePresencas.gise_id, giseId))
 		.all();
+	// CPF é cifrado em repouso (LGPD) — decifra para assinatura/exibição do GISE.
+	return Promise.all(
+		rows.map(async (r) => ({
+			...r,
+			policial_cpf: (await decifrarCpfDoDB(r.policial_cpf, env)) || null
+		}))
+	);
 }

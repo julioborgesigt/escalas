@@ -140,7 +140,7 @@ export const POST: RequestHandler = async ({
 			if (!evid.ok) return apiError(evid.error, evid.status, ErrorCode.VALIDATION);
 		}
 
-		const presencas = await buscarPresencasGise(db, giseIdNum);
+		const presencas = await buscarPresencasGise(db, giseIdNum, platform?.env);
 
 		const mockSignature = {
 			assinante_nome: signerName || u.nome,

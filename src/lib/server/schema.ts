@@ -27,6 +27,9 @@ export const policiais = sqliteTable(
 		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade', 'admin_geral'] }),
 		// Unidade/Seccional sob responsabilidade do papel (FK a unidades.id)
 		papel_unidade_id: integer('papel_unidade_id'),
+		// Achado LGPD: `cpf` guarda o CPF cifrado (AES-GCM, `enc:v1:...`); este é
+		// o índice cego HMAC para lookup (login por certificado) sem decifrar.
+		cpf_index: text('cpf_index'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`),
@@ -37,7 +40,8 @@ export const policiais = sqliteTable(
 	(table) => [
 		index('idx_policiais_lotacao').on(table.lotacao),
 		index('idx_policiais_cargo').on(table.cargo),
-		index('idx_policiais_ativo').on(table.ativo)
+		index('idx_policiais_ativo').on(table.ativo),
+		index('idx_policiais_cpf_index').on(table.cpf_index)
 	]
 );
 

@@ -102,7 +102,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 	let equipeResumo: { total: number; confirmados: number } | null = null;
 	if (documento.tipo_doc === 'gise_relatorio' && documento.seccional_id) {
 		try {
-			const todasPresencas = await buscarPresencasGise(db, documento.escala_id);
+			const todasPresencas = await buscarPresencasGise(db, documento.escala_id, platform?.env);
 			const presencaMap = new Map(todasPresencas.map((p) => [p.policial_id, p]));
 
 			const supExtra = await secIdEhSupervisaoExtra(db, documento.seccional_id);
@@ -136,7 +136,8 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 				membrosSec = await buscarGiseSeccionalMembros(
 					db,
 					documento.escala_id,
-					documento.seccional_id
+					documento.seccional_id,
+					platform?.env
 				);
 			}
 

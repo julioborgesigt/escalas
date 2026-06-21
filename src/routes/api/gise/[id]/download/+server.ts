@@ -128,7 +128,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 			// Não privilegiado: regenera o relatório (sem manifesto forense) + rodapé/QR.
 			try {
-				const presencas = await buscarPresencasGise(db, id);
+				const presencas = await buscarPresencasGise(db, id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
 					await import('$lib/server/export');
@@ -189,7 +189,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		}
 
 		try {
-			const presencas = await buscarPresencasGise(db, id);
+			const presencas = await buscarPresencasGise(db, id, platform?.env);
 			const isSupervisaoExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 			const { gerarRelatorioExtraordinarioPdf, gerarRelatorioExtraordinarioSupervisaoPdf } =
 				await import('$lib/server/export');

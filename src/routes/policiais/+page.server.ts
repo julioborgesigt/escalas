@@ -13,6 +13,7 @@ import {
 import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
@@ -43,8 +44,17 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		listarUnidades(db)
 	]);
 
+	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
+	// inline da lista (público restrito a Admin Geral).
+	const policiaisComCpf = await Promise.all(
+		resultado.policiais.map(async (p) => ({
+			...p,
+			cpf: (await decifrarCpfDoDB(p.cpf, platform?.env)) || null
+		}))
+	);
+
 	return {
-		policiais: resultado.policiais,
+		policiais: policiaisComCpf,
 		pagination: {
 			page: resultado.page,
 			limit: resultado.limit,
@@ -139,11 +149,15 @@ export const actions: Actions = {
 		}
 
 		try {
-			await criarPolicial(db, {
-				...parsed.data,
-				email: email || null,
-				email_pessoal: emailPessoal || null
-			});
+			await criarPolicial(
+				db,
+				{
+					...parsed.data,
+					email: email || null,
+					email_pessoal: emailPessoal || null
+				},
+				platform?.env
+			);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_policial',
@@ -266,12 +280,17 @@ export const actions: Actions = {
 					? policialAtual.email_pessoal_verificado
 					: 0;
 
-			await atualizarPolicial(db, policialId, {
-				...parsed.data,
-				email: email || null,
-				email_pessoal: emailPessoalNormalizado,
-				email_pessoal_verificado: emailPessoalVerificado
-			});
+			await atualizarPolicial(
+				db,
+				policialId,
+				{
+					...parsed.data,
+					email: email || null,
+					email_pessoal: emailPessoalNormalizado,
+					email_pessoal_verificado: emailPessoalVerificado
+				},
+				platform?.env
+			);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'editar_policial',

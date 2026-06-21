@@ -33,6 +33,21 @@ declare global {
 		 * `openssl rand -hex 32`.
 		 */
 		PASSWORD_PEPPER?: string;
+		/**
+		 * Cifragem de CPF em repouso (LGPD). Chave AES-256-GCM em hex de 32 bytes
+		 * (`openssl rand -hex 32`). Quando definida, o CPF é gravado cifrado
+		 * (`enc:v1:...`) em `policiais.cpf` e decifrado em memória ao montar a
+		 * sessão / exibir. Sem ela, grava em texto (fallback). LOAD-BEARING como o
+		 * PASSWORD_PEPPER: trocar invalida os CPFs cifrados (exige re-cifrar ou
+		 * wipe + re-sincronizar).
+		 */
+		CPF_ENCRYPTION_KEY?: string;
+		/**
+		 * Chave do índice cego de CPF (lookup do login por certificado). HMAC-SHA256
+		 * em hex de 32 bytes, **distinta** da CPF_ENCRYPTION_KEY. Gera `cpf_index`
+		 * determinístico para `WHERE cpf_index = ?` sem decifrar. LOAD-BEARING.
+		 */
+		CPF_INDEX_KEY?: string;
 		RESEND_API_KEY?: string;
 		RESEND_FROM_EMAIL?: string;
 		CLOUDFLARE_API_TOKEN?: string;

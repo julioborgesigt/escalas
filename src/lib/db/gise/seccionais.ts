@@ -12,6 +12,7 @@ import {
 	policiais
 } from '../../server/schema';
 import type { Database } from '../core';
+import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 export async function upsertGiseSeccional(
 	db: Database,
@@ -93,9 +94,10 @@ export async function excluirGiseSeccional(db: Database, id: number) {
 export async function buscarGiseSeccionalMembros(
 	db: Database,
 	giseId: number,
-	seccionalId: number
+	seccionalId: number,
+	env: CpfCriptoEnv | undefined
 ) {
-	return db
+	const rows = await db
 		.select({
 			id: giseMembros.id,
 			equipe_id: giseMembros.equipe_id,
@@ -109,6 +111,13 @@ export async function buscarGiseSeccionalMembros(
 		.innerJoin(giseSeccionais, eq(giseEquipes.gise_seccional_id, giseSeccionais.id))
 		.where(and(eq(giseSeccionais.gise_id, giseId), eq(giseSeccionais.seccional_id, seccionalId)))
 		.all();
+	// CPF cifrado em repouso (LGPD) — decifra para assinatura/exibição.
+	return Promise.all(
+		rows.map(async (r) => ({
+			...r,
+			policial_cpf: (await decifrarCpfDoDB(r.policial_cpf, env)) || null
+		}))
+	);
 }
 
 /**
@@ -131,7 +140,8 @@ export async function revogarAssinaturasSeccional(
 		);
 
 	// 2. Localizar todos os policiais vinculados a esta seccional na GISE
-	const membros = await buscarGiseSeccionalMembros(db, giseId, seccionalId);
+	// env undefined: aqui só usamos policial_id (não o CPF), sem decifrar.
+	const membros = await buscarGiseSeccionalMembros(db, giseId, seccionalId, undefined);
 	const policialIds = membros.map((m) => m.policial_id);
 
 	if (policialIds.length > 0) {
