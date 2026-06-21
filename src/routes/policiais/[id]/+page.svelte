@@ -219,13 +219,16 @@
 					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Papel</span>
 					<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
 						<option value={null}>Servidor (sem papel)</option>
+						{#if isAdmin}
+							<option value="admin_geral">Admin Geral</option>
+						{/if}
 						{#if isAdminOrSeccional}
 							<option value="admin_seccional">Admin Seccional</option>
 						{/if}
 						<option value="admin_unidade">Admin Unidade</option>
 					</select>
 				</label>
-				{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
+				{#if papel && papel !== 'admin_geral' && !(isAdminUnidade && papel === 'admin_unidade')}
 					<label class="label sm:col-span-7">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">
 							{papel === 'admin_seccional'
