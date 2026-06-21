@@ -99,6 +99,31 @@ Para flagrar isso sem nova tabela nem armazenamento extra, `GET /api/health?deta
 
 **Ação do operador:** aponte um monitor externo (UptimeRobot, Better Stack, etc.) para essa URL e alerte quando `retencao.atrasada` for `true` (ou `status` for `degraded`). A tolerância padrão é 48h (o cron roda a cada 24h). A liveness pública (`/api/health` sem `detail`) **não** muda por causa da defasagem — continua `200 ok` enquanto D1/R2 respondem.
 
+## Papéis e privilégios de administrador
+
+Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `tipo='admin'` + `isSuperAdmin`), então faz tudo que o Admin Geral faz **mais** a coluna exclusiva. Os dois admins de banco (`administradores`) nascem **só** dos bootstraps por env (`SUPER_ADMIN_*` / `ADMIN_GERAL_*`); **não há tela para criá-los**. Já os admins **operacionais** (Seccional/Unidade) são **policiais promovidos** — e só o **Super Admin** promove.
+
+| Capacidade | Super Admin | Admin Geral | Admin Seccional | Admin Unidade |
+|---|:---:|:---:|:---:|:---:|
+| **Promover/alterar papéis** (criar admins) | ✅ | ❌ | ❌ | ❌ |
+| **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV) | ✅ | ❌ | ❌ | ❌ |
+| **Gerenciar unidades/seccionais** (CRUD) | ✅ | ❌ | ❌ | ❌ |
+| **Configurar política de assinatura** (foto/GPS/código/smartphone) | ✅ | ❌ | ❌ | ❌ |
+| **Baixar PDF forense íntegro** (CPF/IP/GPS/selfie/liveness) | ✅ | ❌ | ❌ | ❌ |
+| Escalas — **escopo** | global | global | sua seccional | sua unidade |
+| GISE (finalizar/reabrir/exportar histórico) | ✅ | ✅ | ❌ | ❌ |
+| LGPD / Auditoria / Compliance / incidentes / direitos dos titulares | ✅ | ✅ | ❌ | ❌ |
+| Alternar módulo (escalas ↔ GISE) | ✅ | ✅ | ❌ | ❌ |
+| Receber a **cópia de conferência** dos documentos | ✅ | ✅ | ✅ | ✅ (e policiais) |
+
+**Leitura rápida:**
+
+- **Super Admin** = *dono/configurador*: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único com o **forense íntegro**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
+- **Admin Geral** = *operador global*: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
+- **Admin Seccional / Unidade** = *operador com escopo*: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade).
+
+> **Para criar um admin operacional:** logado como Super Admin, abra `/policiais/[id]` da pessoa (que precisa existir como policial — via sync da planilha ou `/policiais/upload`), defina o **papel** (Admin Seccional/Unidade) e salve. Ela passa a logar por matrícula+senha (que nasce `pbkdf2v3`) + 2FA.
+
 ## Banco de dados (D1)
 
 - Configuração de binding: [`wrangler.toml`](wrangler.toml) (`escalas_db`, diretório `migrations/`).
