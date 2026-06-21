@@ -19,6 +19,12 @@ database_name = "escalas-db"
 database_id = "dc86ec72-7ed4-4e8c-9d29-67a4e509ea49"
 migrations_dir = "migrations"
 
+[[d1_databases]]
+binding = "escalas_db_prod"
+database_name = "escalas-db-prod"
+database_id = "94c698c8-3fa6-43c6-8ae7-5627cb41ebae"
+migrations_dir = "migrations"
+
 [[r2_buckets]]
 binding = "escalas_docs"
 bucket_name = "escalas-docs"
