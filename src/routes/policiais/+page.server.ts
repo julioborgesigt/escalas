@@ -8,7 +8,8 @@ import {
 	atualizarPolicial,
 	excluirPolicial,
 	listarUnidades,
-	registrarAuditComContexto
+	registrarAuditComContexto,
+	desvincularAdminGeral
 } from '$lib/db';
 import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
@@ -330,6 +331,9 @@ export const actions: Actions = {
 			return fail(403, { error: 'Sem permissão para excluir este policial' });
 		}
 
+		// Remove também a conta Admin Geral vinculada (se houver), evitando um
+		// login admin órfão apontando para um policial inexistente.
+		await desvincularAdminGeral(db, policialId);
 		await excluirPolicial(db, policialId);
 		return { success: true };
 	}

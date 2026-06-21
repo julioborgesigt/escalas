@@ -96,8 +96,8 @@ export function requireAuth(locals: App.Locals): UsuarioLogado | Response {
 export function requireAdmin(locals: App.Locals): UsuarioLogado | Response {
 	const usuario = requireAuth(locals);
 	if (usuario instanceof Response) return usuario;
-	// Admin Geral inclui a conta de bootstrap (tipo === 'admin') E policiais
-	// promovidos a `papel === 'admin_geral'` — ambos têm os mesmos poderes.
+	// Admin Geral = sessão de admin (tipo === 'admin'): bootstrap por env OU
+	// policial promovido (linha vinculada em `administradores`, logado como admin).
 	if (!isAdminGeral(usuario)) {
 		return apiError('Acesso restrito a administradores', 403, ErrorCode.FORBIDDEN);
 	}

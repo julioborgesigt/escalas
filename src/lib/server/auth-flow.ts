@@ -544,7 +544,28 @@ export async function tentarLogin({
 			.from(administradores)
 			.where(eq(administradores.login, matricula))
 			.get();
-		if (!admin || !(await verificarSenha(senha, admin.senha, pepper))) {
+
+		// Admin Geral VINCULADO: a linha admin não tem senha própria — autentica
+		// contra as credenciais do policial vinculado (mesma senha/e-mail/2FA).
+		// Standalone (bootstrap por env): usa a própria linha.
+		const credPol =
+			admin?.policial_id != null
+				? await db
+						.select()
+						.from(policiais)
+						.where(and(eq(policiais.id, admin.policial_id), eq(policiais.ativo, 1)))
+						.get()
+				: undefined;
+		const vinculado = admin?.policial_id != null;
+		const credSenha = credPol ? credPol.senha : admin?.senha;
+		const credEmail = credPol ? credPol.email : admin?.email;
+		const credPrimeiroAcesso = credPol ? credPol.primeiro_acesso : admin?.primeiro_acesso;
+
+		if (
+			!admin ||
+			(vinculado && !credPol) ||
+			!(await verificarSenha(senha, credSenha ?? '', pepper))
+		) {
 			await recordAttempt(db, ip, false, identHash);
 			return {
 				sucesso: false,
@@ -554,20 +575,24 @@ export async function tentarLogin({
 			};
 		}
 
-		if (isHashLegado(admin.senha, !!pepper)) {
+		if (isHashLegado(credSenha ?? '', !!pepper)) {
 			const novoHash = await hashSenha(senha, pepper);
-			await db
-				.update(administradores)
-				.set({ senha: novoHash })
-				.where(eq(administradores.id, admin.id));
+			if (credPol) {
+				await db.update(policiais).set({ senha: novoHash }).where(eq(policiais.id, credPol.id));
+			} else {
+				await db
+					.update(administradores)
+					.set({ senha: novoHash })
+					.where(eq(administradores.id, admin.id));
+			}
 		}
 
 		await recordAttempt(db, ip, true, identHash);
 
-		if (admin.email && admin.primeiro_acesso !== 1) {
+		if (credEmail && credPrimeiroAcesso !== 1) {
 			const codigo = gerarCodigo2FA();
 			const desafioId = await criarDesafio2FA(db, 'admin', admin.id, codigo);
-			const emailJob = enviarCodigo2FA(admin.email, codigo, admin.nome, platform).catch((err) => {
+			const emailJob = enviarCodigo2FA(credEmail, codigo, admin.nome, platform).catch((err) => {
 				logger.error('[2FA] Falha ao enviar e-mail (admin)', {
 					error: err instanceof Error ? err.message : String(err)
 				});
@@ -579,8 +604,8 @@ export async function tentarLogin({
 				pendente2FA: {
 					desafioId,
 					nome: admin.nome,
-					primeiroAcesso: admin.primeiro_acesso === 1,
-					emailMascarado: mascararEmail(admin.email),
+					primeiroAcesso: credPrimeiroAcesso === 1,
+					emailMascarado: mascararEmail(credEmail),
 					tipoUsuario2FA: 'admin'
 				},
 				setAdminModuloPendingCookie: isForm
@@ -590,7 +615,7 @@ export async function tentarLogin({
 		// Fail-closed do 2º fator (A1): sem e-mail para enviar o código e fora do
 		// onboarding, a senha sozinha não concede sessão. primeiro_acesso continua
 		// permitido (sessão confinada a /alterar-senha, onde o e-mail é cadastrado).
-		if (!admin.email && admin.primeiro_acesso !== 1) {
+		if (!credEmail && credPrimeiroAcesso !== 1) {
 			logger.warn('[login] Bloqueado: admin sem e-mail para 2FA', { adminId: admin.id });
 			return {
 				sucesso: false,
@@ -607,9 +632,9 @@ export async function tentarLogin({
 			statusCode: 200,
 			token,
 			nome: admin.nome,
-			primeiroAcesso: admin.primeiro_acesso === 1,
+			primeiroAcesso: credPrimeiroAcesso === 1,
 			role: 'admin',
-			formRedirect: isForm ? (admin.primeiro_acesso === 1 ? '/alterar-senha' : dest) : undefined,
+			formRedirect: isForm ? (credPrimeiroAcesso === 1 ? '/alterar-senha' : dest) : undefined,
 			adminModuloCookie: isForm ? adminModulo : undefined
 		};
 	}

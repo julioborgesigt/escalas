@@ -262,7 +262,7 @@
 
 	// Valor "base" de lotação para o papel atual (o que deve estar ao limpar filtros)
 	// admin_unidade: sua própria lotação (filtro fixo, não pode limpar)
-	// admin_seccional / admin_geral: '' (o servidor aplica o escopo automaticamente)
+	// admin_seccional: '' (o servidor aplica o escopo automaticamente)
 	const filtroLotacaoBase = $derived(isAdminUnidade ? (data.lotacaoUsuario ?? '') : '');
 
 	function limparFiltros() {
@@ -494,16 +494,13 @@
 								<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">Papel</span>
 								<select class="select py-1 px-3 text-sm" bind:value={papel}>
 									<option value={null}>Servidor (sem papel)</option>
-									{#if isAdmin}
-										<option value="admin_geral">Admin Geral</option>
-									{/if}
 									{#if isAdminOrSeccional}
 										<option value="admin_seccional">Admin Seccional</option>
 									{/if}
 									<option value="admin_unidade">Admin Unidade</option>
 								</select>
 							</label>
-							{#if papel && papel !== 'admin_geral' && !(isAdminUnidade && papel === 'admin_unidade')}
+							{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
 								<label class="label sm:col-span-7">
 									<span class="label-text text-[0.7rem] font-bold opacity-70 ml-1">
 										{papel === 'admin_seccional' ? 'Seccional de resp.' : 'Unidade de resp.'}

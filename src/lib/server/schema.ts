@@ -23,8 +23,9 @@ export const policiais = sqliteTable(
 		email_pessoal: text('email_pessoal'),
 		email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
-		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
-		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade', 'admin_geral'] }),
+		// RBAC operacional (cumulativo com Admin Geral, que é a linha vinculada em
+		// `administradores`): papel scoped do servidor.
+		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
 		// Unidade/Seccional sob responsabilidade do papel (FK a unidades.id)
 		papel_unidade_id: integer('papel_unidade_id'),
 		// Achado LGPD: `cpf` guarda o CPF cifrado (AES-GCM, `enc:v1:...`); este é
@@ -116,6 +117,10 @@ export const administradores = sqliteTable('administradores', {
 	email_pessoal: text('email_pessoal'),
 	email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
 	primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
+	// Admin Geral VINCULADO: quando preenchido, esta conta admin não tem senha
+	// própria — o login autentica contra as credenciais do policial vinculado
+	// (mesma senha/e-mail/2FA). Nulo = admin standalone (bootstrap por env).
+	policial_id: integer('policial_id'),
 	created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
 });
 

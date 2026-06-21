@@ -28,6 +28,12 @@ export {
 } from './db/configuracoes';
 
 export {
+	vincularAdminGeral,
+	desvincularAdminGeral,
+	ehAdminGeralVinculado
+} from './db/admin-vinculado';
+
+export {
 	listarPoliciais,
 	buscarPolicial,
 	criarPolicial,

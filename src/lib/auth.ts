@@ -31,8 +31,15 @@ export interface UsuarioLogado {
 	lotacao?: string;
 	primeiro_acesso: boolean;
 	isSuperAdmin?: boolean;
-	// RBAC
-	papel?: 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null;
+	/**
+	 * Sessão de admin VINCULADO a um policial (Admin Geral vinculado): id do
+	 * policial cuja credencial autentica esta conta admin. Operações de
+	 * credencial (troca de senha) miram este policial. Nulo/ausente = admin
+	 * standalone (bootstrap por env).
+	 */
+	adminPolicialId?: number | null;
+	// RBAC operacional (papel scoped do servidor; cumulativo com Admin Geral)
+	papel?: 'admin_seccional' | 'admin_unidade' | null;
 	papel_unidade_id?: number | null;
 	cargo?: 'DPC' | 'OIP';
 	cpf?: string | null;
@@ -54,18 +61,14 @@ export type TipoDesafio2FA =
 	| 'login_certificado';
 
 /**
- * Retorna true se o usuário possui poder de Admin Geral.
- *
- * Duas origens, mesmos poderes:
- *  - `tipo === 'admin'`: conta da tabela `administradores` (bootstrap por env).
- *  - policial com `papel === 'admin_geral'`: promovido por outro Admin Geral
- *    (via /policiais/[id] → salvarPapel). Permite delegar a administração geral
- *    sem depender da conta de bootstrap. NÃO concede os poderes EXCLUSIVOS do
- *    Super Admin (`isSuperAdmin`), que segue sendo a raiz estrutural.
+ * Retorna true se o usuário possui poder de Admin Geral — i.e., está numa
+ * SESSÃO de admin (`tipo === 'admin'`). Pode ser o admin de bootstrap (env) ou
+ * um policial promovido a Admin Geral via linha vinculada em `administradores`
+ * (que loga escolhendo "Administrador"). NÃO concede os poderes EXCLUSIVOS do
+ * Super Admin (`isSuperAdmin`).
  */
 export function isAdminGeral(u: UsuarioLogado | null): boolean {
-	if (u?.tipo === 'admin') return true;
-	return u?.tipo === 'policial' && u.papel === 'admin_geral';
+	return u?.tipo === 'admin';
 }
 
 /** Retorna true se o usuário é Admin Seccional */
@@ -209,7 +212,8 @@ function mapearAdmin(
 		tipo: 'admin' as const,
 		nome: admin.nome,
 		primeiro_acesso: admin.primeiro_acesso === 1,
-		isSuperAdmin
+		isSuperAdmin,
+		adminPolicialId: admin.policial_id ?? null
 	};
 }
 
@@ -534,9 +538,6 @@ export async function verificarDesafio2FA(
 export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null): string {
 	if (u.tipo === 'admin') {
 		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
-	}
-	if (u.papel === 'admin_geral') {
-		return '/escalas/bem-vindo';
 	}
 	if (u.papel === 'admin_seccional') {
 		return '/escalas/bem-vindo';

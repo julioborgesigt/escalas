@@ -12,7 +12,7 @@ export function useAutorizacao() {
 	return {
 		get isAdmin() {
 			const u = page.data.usuario;
-			return u?.tipo === 'admin' || u?.papel === 'admin_geral';
+			return u?.tipo === 'admin';
 		},
 		get isAdminSeccional() {
 			return page.data.usuario?.papel === 'admin_seccional';
@@ -22,7 +22,7 @@ export function useAutorizacao() {
 		},
 		get isAdminOrSeccional() {
 			const u = page.data.usuario;
-			return u?.tipo === 'admin' || u?.papel === 'admin_geral' || u?.papel === 'admin_seccional';
+			return u?.tipo === 'admin' || u?.papel === 'admin_seccional';
 		},
 		get tipoUsuario() {
 			return page.data.usuario?.tipo ?? null;

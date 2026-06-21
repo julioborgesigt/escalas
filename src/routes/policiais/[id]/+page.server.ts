@@ -6,7 +6,10 @@ import {
 	atualizarPolicial,
 	listarLotacoes,
 	listarUnidades,
-	promoverPolicial
+	promoverPolicial,
+	vincularAdminGeral,
+	desvincularAdminGeral,
+	ehAdminGeralVinculado
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
@@ -32,9 +35,10 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const isSeccional = isAdminSeccional(u);
 	const isUnidade = isAdminUnidade(u);
 
-	const [lotacoes, todasUnidades] = await Promise.all([
+	const [lotacoes, todasUnidades, ehAdminGeral] = await Promise.all([
 		isAdm ? listarLotacoes(db) : Promise.resolve<string[]>([]),
-		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([])
+		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([]),
+		ehAdminGeralVinculado(db, id)
 	]);
 
 	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
@@ -52,7 +56,8 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		unidades: todasUnidades,
 		isAdmin: isAdm,
 		isAdminOrSeccional: isAdm || isSeccional,
-		isAdminUnidade: isUnidade
+		isAdminUnidade: isUnidade,
+		ehAdminGeral
 	};
 };
 
@@ -132,16 +137,51 @@ export const actions: Actions = {
 		const papel = (formData.get('papel')?.toString() || null) as
 			| 'admin_seccional'
 			| 'admin_unidade'
-			| 'admin_geral'
 			| null;
-		// Admin Geral é global (sem unidade de responsabilidade) — ignora qualquer
-		// papel_unidade_id enviado para esse papel.
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
-		const papelUnidadeId =
-			papel === 'admin_geral' ? null : papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
+		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 
 		const db = getDB(platform);
 		await promoverPolicial(db, id, papel, papelUnidadeId);
 		return { success: true };
+	},
+
+	// Admin Geral agora é uma conta VINCULADA em `administradores` (login pela
+	// matrícula, sem senha própria). O policial passa a poder logar escolhendo
+	// "Administrador" com a mesma matrícula/senha. Cumulativo com o `papel`.
+	toggleAdminGeral: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u || !isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Admin Geral pode conceder Admin Geral' });
+
+		const id = Number(params.id);
+		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
+
+		const ativar = formData2Bool((await request.formData()).get('ativar'));
+		const db = getDB(platform);
+		const policial = await buscarPolicial(db, id);
+		if (!policial) return fail(404, { error: 'Policial não encontrado' });
+
+		try {
+			if (ativar) {
+				await vincularAdminGeral(db, policial);
+			} else {
+				await desvincularAdminGeral(db, id);
+			}
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+			if (msg.includes('UNIQUE')) {
+				return fail(409, {
+					error: 'Já existe um administrador com este login/matrícula.'
+				});
+			}
+			return fail(500, { error: 'Erro ao atualizar a condição de Admin Geral' });
+		}
+		return { success: true };
 	}
 };
+
+function formData2Bool(v: FormDataEntryValue | null): boolean {
+	const s = String(v ?? '').toLowerCase();
+	return s === '1' || s === 'true' || s === 'on';
+}

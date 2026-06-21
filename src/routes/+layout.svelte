@@ -37,9 +37,9 @@
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 
-	// Admin Geral: conta de bootstrap (tipo 'admin') OU policial promovido a
-	// `papel === 'admin_geral'`. Ambos acessam a gestão de policiais/papéis.
-	const isAdmGeral = $derived(usuario?.tipo === 'admin' || usuario?.papel === 'admin_geral');
+	// Admin Geral = sessão de admin (tipo 'admin'): bootstrap por env OU policial
+	// promovido (linha vinculada em `administradores`, logado como Administrador).
+	const isAdmGeral = $derived(usuario?.tipo === 'admin');
 
 	// Mostra aba Escalas para: admin_seccional, admin_unidade (admin geral não tem mais acesso à aba Arquivo)
 	const showEscalasPoliciais = $derived(
