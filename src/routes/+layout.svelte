@@ -37,6 +37,10 @@
 	const isSupervisaoGise = $derived(page.data.isSupervisaoGise ?? false);
 	const adminModulo = $derived((page.data.adminModulo as 'ambas' | 'gise' | 'escalas') ?? 'ambas');
 
+	// Admin Geral: conta de bootstrap (tipo 'admin') OU policial promovido a
+	// `papel === 'admin_geral'`. Ambos acessam a gestão de policiais/papéis.
+	const isAdmGeral = $derived(usuario?.tipo === 'admin' || usuario?.papel === 'admin_geral');
+
 	// Mostra aba Escalas para: admin_seccional, admin_unidade (admin geral não tem mais acesso à aba Arquivo)
 	const showEscalasPoliciais = $derived(
 		usuario?.papel === 'admin_seccional' || usuario?.papel === 'admin_unidade'
@@ -604,13 +608,13 @@
 			{/if}
 			<!-- end showGrupo2 -->
 
-			<!-- Separador 2 (só super admin) -->
-			{#if usuario?.isSuperAdmin}
+			<!-- Separador 2 (Admin Geral: acesso à gestão de policiais) -->
+			{#if isAdmGeral}
 				<hr class="!my-3 border-surface-200 dark:border-white/10" />
 			{/if}
 
-			<!-- Grupo 3: Policiais · Unidades (exclusivo Super Admin) -->
-			{#if usuario?.isSuperAdmin}
+			<!-- Grupo 3: Policiais (Admin Geral) · Unidades (exclusivo Super Admin) -->
+			{#if isAdmGeral}
 				<a
 					href="/policiais"
 					data-sveltekit-preload-data="hover"

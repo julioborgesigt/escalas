@@ -2,11 +2,11 @@ import { fail, redirect } from '@sveltejs/kit';
 import { getDB, listarUnidades } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
 import { limparMatricula, normalizarTexto } from '$lib/utils';
-import { gerarSenhaAleatoriaHash } from '$lib/auth';
+import { gerarSenhaAleatoriaHash, isAdminGeral } from '$lib/auth';
 import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.usuario || !locals.usuario.isSuperAdmin) {
+	if (!isAdminGeral(locals.usuario)) {
 		throw redirect(302, '/');
 	}
 };
@@ -56,7 +56,7 @@ function parseCSV(text: string): string[][] {
 
 export const actions = {
 	upload: async ({ request, platform, locals }) => {
-		if (!locals.usuario || !locals.usuario.isSuperAdmin) {
+		if (!isAdminGeral(locals.usuario)) {
 			return fail(403, { error: 'Não autorizado', errorType: 'auth' });
 		}
 		let db;
