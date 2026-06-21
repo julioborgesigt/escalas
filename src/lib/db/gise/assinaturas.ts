@@ -3,6 +3,7 @@ import { giseAssinaturasRelatorios, policiais } from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent } from '../../server/document-utils';
+import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 function gps2(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
@@ -86,19 +87,22 @@ export async function salvarAssinaturaRelatorioGise(
 		ocsp_response_b64?: string | null;
 		ocsp_consultado_em?: string | null;
 		tst_token_b64?: string | null;
-	}
+	},
+	env?: CpfCriptoEnv
 ) {
 	const ipAnonimizado = anonimizarIp(data.ip_address) ?? undefined;
 	const uaResumido = data.user_agent ? parseUserAgent(data.user_agent) : undefined;
 	const uaRaw = data.user_agent ? data.user_agent.slice(0, 1024) : undefined;
 	const lat2 = gps2(data.latitude ?? undefined);
 	const lng2 = gps2(data.longitude ?? undefined);
+	// CPF cifrado em repouso (LGPD Fase 2). Coluna NOT NULL → fallback ''.
+	const cpfArmazenado = (await cifrarCpfParaArmazenar(data.assinante_cpf, env)) ?? '';
 	return db
 		.insert(giseAssinaturasRelatorios)
 		.values({
 			...data,
 			assinante_id: data.assinante_id ?? null,
-			assinante_cpf: data.assinante_cpf ?? '',
+			assinante_cpf: cpfArmazenado,
 			ip_address: ipAnonimizado,
 			user_agent: uaResumido,
 			user_agent_raw: uaRaw,
@@ -114,7 +118,7 @@ export async function salvarAssinaturaRelatorioGise(
 			set: {
 				assinante_id: data.assinante_id ?? null,
 				assinante_nome: data.assinante_nome,
-				assinante_cpf: data.assinante_cpf ?? '',
+				assinante_cpf: cpfArmazenado,
 				tipo_assinatura: data.tipo_assinatura,
 				rubrica: data.rubrica,
 				verification_hash: data.verification_hash,

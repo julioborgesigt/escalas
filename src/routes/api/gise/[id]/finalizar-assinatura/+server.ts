@@ -118,7 +118,8 @@ export const POST: RequestHandler = async ({
 			arquivoHash,
 			assinanteEmail,
 			result.tipoCarimboTempo,
-			result.metadata
+			result.metadata,
+			platform?.env
 		);
 
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });

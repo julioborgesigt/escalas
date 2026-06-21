@@ -254,7 +254,7 @@ export const POST: RequestHandler = async ({
 			selfie_key: selfieKey,
 			r2_key: `${prefixBase}_assinada.pdf`,
 			arquivo_hash: arquivo_hash
-		});
+		}, platform?.env);
 
 		await tentarPromoverGiseProntaParaFinalizar(db, giseIdNum);
 

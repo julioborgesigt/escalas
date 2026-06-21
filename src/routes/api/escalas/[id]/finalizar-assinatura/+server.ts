@@ -112,7 +112,8 @@ export const POST: RequestHandler = async ({
 			arquivoHash,
 			assinanteEmail ?? undefined,
 			result.tipoCarimboTempo,
-			result.metadata
+			result.metadata,
+			platform?.env
 		);
 
 		await registrarAuditComContexto(db, {

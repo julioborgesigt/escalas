@@ -7,6 +7,7 @@ import {
 	buscarGiseSeccionalMembros,
 	buscarPresencasGise
 } from '$lib/db';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
@@ -221,8 +222,10 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 	// CPF: 3 primeiros + 2 últimos dígitos (ex: 123.***.***-01). Nome do
 	// assinante: mascarado. IP, user-agent e GPS: omitidos — desnecessários para
 	// validação pública e permitem rastreamento individual.
-	const cpfMascarado = documento.assinante_cpf
-		? documento.assinante_cpf.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
+	// CPF cifrado em repouso (LGPD) — decifra antes de mascarar p/ exibição pública.
+	const cpfClaroAssinante = await decifrarCpfDoDB(documento.assinante_cpf, platform?.env);
+	const cpfMascarado = cpfClaroAssinante
+		? cpfClaroAssinante.replace(/^(\d{3})\d{5}(\d{2})$/, '$1.***.***-$2')
 		: null;
 
 	// Visitante autenticado? Só então a página mostra o botão de download do PDF

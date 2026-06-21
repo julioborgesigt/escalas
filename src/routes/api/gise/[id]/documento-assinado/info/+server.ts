@@ -13,6 +13,7 @@ import { requireAuth, badRequest, notFound, forbidden } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
 import { podeBaixarForense } from '$lib/server/copia-conferencia';
 import { mascararCPF } from '$lib/utils';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
 	const u = requireAuth(locals);
@@ -45,7 +46,8 @@ export const GET: RequestHandler = async ({ params, locals, platform }) => {
 
 	// A2/LGPD: CPF completo do assinante só para o Super Admin; os demais (mesmo
 	// com permissão na GISE) recebem o CPF mascarado, como na página /validar.
-	const cpf = doc.assinante_cpf ?? '';
+	// CPF cifrado em repouso (LGPD) — decifra antes de exibir/mascarar.
+	const cpf = await decifrarCpfDoDB(doc.assinante_cpf, platform?.env);
 	const cpfExibido = podeBaixarForense(u) ? cpf : mascararCPF(cpf);
 
 	return json({

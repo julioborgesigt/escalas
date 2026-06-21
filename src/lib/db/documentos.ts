@@ -3,6 +3,7 @@ import { escalaDocumentos, giseDocumentos } from '../server/schema';
 import type * as schema from '../server/schema';
 import type { Database } from './core';
 import * as fullSchema from '../server/schema';
+import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import { anonimizarIp } from './audit';
 import { parseUserAgent } from '../server/document-utils';
 
@@ -41,16 +42,19 @@ export async function salvarDocumentoEscala(
 	arquivoHash?: string,
 	assinanteEmail?: string,
 	tipoCarimboTempo?: string,
-	cadesMeta?: AssinaturaCadesMetadata
+	cadesMeta?: AssinaturaCadesMetadata,
+	env?: CpfCriptoEnv
 ) {
 	const meta = cadesMeta ?? {};
+	// CPF cifrado em repouso (LGPD Fase 2).
+	const cpfArmazenado = (await cifrarCpfParaArmazenar(assinanteCpf, env)) ?? '';
 	return db
 		.insert(escalaDocumentos)
 		.values({
 			escala_id: escalaId,
 			r2_key: r2Key,
 			assinante_nome: assinanteNome,
-			assinante_cpf: assinanteCpf || '',
+			assinante_cpf: cpfArmazenado,
 			verificacao_hash: verificacaoHash,
 			selfie_key: selfieKey,
 			arquivo_hash: arquivoHash,
@@ -75,7 +79,7 @@ export async function salvarDocumentoEscala(
 			set: {
 				r2_key: r2Key,
 				assinante_nome: assinanteNome,
-				assinante_cpf: assinanteCpf || '',
+				assinante_cpf: cpfArmazenado,
 				verificacao_hash: verificacaoHash,
 				selfie_key: selfieKey,
 				arquivo_hash: arquivoHash,

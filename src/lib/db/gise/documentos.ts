@@ -4,6 +4,7 @@ import type * as schema from '../../server/schema';
 import type { Database } from '../core';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent } from '../../server/document-utils';
+import { cifrarCpfParaArmazenar, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
 
 function gps2(v?: number): number | undefined {
 	return v !== undefined ? Math.round(v * 100) / 100 : undefined;
@@ -29,9 +30,12 @@ export async function salvarGiseDocumento(
 	arquivoHash?: string,
 	assinanteEmail?: string,
 	tipoCarimboTempo?: string,
-	cadesMeta?: AssinaturaCadesMetadata
+	cadesMeta?: AssinaturaCadesMetadata,
+	env?: CpfCriptoEnv
 ) {
 	const meta = cadesMeta ?? {};
+	// CPF cifrado em repouso (LGPD Fase 2).
+	const cpfArmazenado = await cifrarCpfParaArmazenar(assinanteCpf, env);
 	return db
 		.insert(giseDocumentos)
 		.values({
@@ -39,7 +43,7 @@ export async function salvarGiseDocumento(
 			r2_key: r2Key,
 			assinante_id: assinanteId,
 			assinante_nome: assinanteNome,
-			assinante_cpf: assinanteCpf,
+			assinante_cpf: cpfArmazenado ?? '',
 			assinante_email: assinanteEmail ?? null,
 			verificacao_hash: verificacaoHash,
 			selfie_key: selfieKey,
@@ -66,7 +70,7 @@ export async function salvarGiseDocumento(
 				r2_key: r2Key,
 				assinante_id: assinanteId,
 				assinante_nome: assinanteNome,
-				assinante_cpf: assinanteCpf,
+				assinante_cpf: cpfArmazenado ?? '',
 				assinante_email: assinanteEmail ?? null,
 				verificacao_hash: verificacaoHash,
 				selfie_key: selfieKey,
