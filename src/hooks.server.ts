@@ -163,11 +163,15 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	// Rotas livres do bloqueio do termo: a própria /aceitar-termo, /termo/[versao]
 	// (consulta pública), /api/auth/logout (permitir sair) e a rota raiz pós-login.
+	// `/alterar-senha` também é livre: o primeiro acesso resolve a SENHA antes do
+	// termo (ordem documentada abaixo). Sem isto, um usuário em primeiro_acesso
+	// sem aceite entra em loop /alterar-senha ⇄ /aceitar-termo.
 	// Calculado ANTES da validação de sessão: quando o termo será exigido, a query
 	// de aceite entra no MESMO batch D1 da busca do usuário (1 round-trip a menos
 	// em todo request autenticado — ver validarSessaoComAceite).
 	const rotasLivresTermo =
 		pathname.startsWith('/aceitar-termo') ||
+		pathname.startsWith('/alterar-senha') ||
 		pathname.startsWith('/termo/') ||
 		pathname.startsWith('/api/termos/') ||
 		pathname.startsWith('/api/auth/');
