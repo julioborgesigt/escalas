@@ -16,7 +16,7 @@ export const policialSchema = z.object({
 	lotacao: z.string().max(200).default(''),
 	regime: z.enum(['plantao', 'expediente']).default('plantao'),
 	classe: z.string().max(100).default(''),
-	papel: z.enum(['admin_seccional', 'admin_unidade', 'admin_geral']).nullable().optional(),
+	papel: z.enum(['admin_seccional', 'admin_unidade']).nullable().optional(),
 	papel_unidade_id: z.number().nullable().optional(),
 	email: z.string().email('E-mail inválido').or(z.literal('')).nullable().optional().default(null),
 	email_pessoal: z

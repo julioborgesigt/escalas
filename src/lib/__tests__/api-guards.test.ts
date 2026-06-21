@@ -34,15 +34,6 @@ const admin: Partial<UsuarioLogado> = {
 	primeiro_acesso: false
 };
 const superAdmin: Partial<UsuarioLogado> = { ...admin, id: 3, isSuperAdmin: true };
-// Policial promovido a Admin Geral (papel === 'admin_geral'): tipo 'policial',
-// mas com poderes de Admin Geral.
-const policialAdminGeral: Partial<UsuarioLogado> = {
-	id: 4,
-	tipo: 'policial',
-	nome: 'Policial Admin Geral',
-	papel: 'admin_geral',
-	primeiro_acesso: false
-};
 
 describe('requireAuth', () => {
 	it('devolve o usuário quando autenticado', () => {
@@ -66,13 +57,7 @@ describe('requireAdmin', () => {
 		expect((r as UsuarioLogado).tipo).toBe('admin');
 	});
 
-	it('aceita policial promovido a papel admin_geral', () => {
-		const r = requireAdmin(locals(policialAdminGeral));
-		expect(r).not.toBeInstanceOf(Response);
-		expect((r as UsuarioLogado).papel).toBe('admin_geral');
-	});
-
-	it('rejeita policial com papel admin_seccional (não é Admin Geral)', () => {
+	it('rejeita policial com papel admin_seccional (não é sessão de admin)', () => {
 		const r = requireAdmin(locals({ ...policial, papel: 'admin_seccional' }));
 		expect(r).toBeInstanceOf(Response);
 		expect((r as Response).status).toBe(403);

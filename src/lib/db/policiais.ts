@@ -175,7 +175,7 @@ export async function criarPolicial(
 		classe: data.classe || '',
 		senha: senhaHash,
 		primeiro_acesso: 1,
-		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null) || null,
+		papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 		papel_unidade_id: data.papel_unidade_id || null,
 		email: data.email || null,
 		email_pessoal: data.email_pessoal || null,
@@ -221,7 +221,7 @@ export async function upsertPolicial(
 			classe: data.classe || '',
 			senha: senhaHash,
 			primeiro_acesso: 1,
-			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null) || null,
+			papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 			papel_unidade_id: data.papel_unidade_id ?? null,
 			email: data.email || null,
 			email_pessoal: data.email_pessoal || null,
@@ -239,7 +239,7 @@ export async function upsertPolicial(
 				lotacao: data.lotacao || '',
 				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
 				classe: data.classe || '',
-				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null) || null,
+				papel: (data.papel as 'admin_seccional' | 'admin_unidade' | null) || null,
 				papel_unidade_id: data.papel_unidade_id ?? null,
 				email: data.email ? data.email : sql`email`,
 				email_pessoal: data.email_pessoal ? data.email_pessoal : sql`email_pessoal`,
@@ -263,7 +263,7 @@ export async function atualizarPolicial(
 		ativo: number;
 		regime: string;
 		classe: string;
-		papel: 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null;
+		papel: 'admin_seccional' | 'admin_unidade' | null;
 		papel_unidade_id: number | null;
 		email: string | null;
 		email_pessoal: string | null;
@@ -314,7 +314,7 @@ export async function listarLotacoes(db: Database): Promise<string[]> {
 export async function promoverPolicial(
 	db: Database,
 	policialId: number,
-	papel: 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null,
+	papel: 'admin_seccional' | 'admin_unidade' | null,
 	papelUnidadeId: number | null
 ) {
 	return db

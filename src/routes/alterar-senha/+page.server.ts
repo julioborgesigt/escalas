@@ -42,19 +42,24 @@ export const actions = {
 			return fail(400, { error: parsed.error.issues[0].message });
 		}
 
+		// Admin Geral VINCULADO: a credencial vive na linha de `policiais`. Em modo
+		// admin, operações de senha miram o policial vinculado (adminPolicialId),
+		// não a linha admin (que tem só um placeholder).
+		const alvoEhPolicial = usuario.tipo === 'policial' || usuario.adminPolicialId != null;
+		const alvoId = usuario.adminPolicialId ?? usuario.id;
+
 		if (usuario.primeiro_acesso) {
-			const registroEmail =
-				usuario.tipo === 'admin'
-					? await db
-							.select({ email_pessoal_verificado: administradores.email_pessoal_verificado })
-							.from(administradores)
-							.where(eq(administradores.id, usuario.id))
-							.get()
-					: await db
-							.select({ email_pessoal_verificado: policiais.email_pessoal_verificado })
-							.from(policiais)
-							.where(eq(policiais.id, usuario.id))
-							.get();
+			const registroEmail = alvoEhPolicial
+				? await db
+						.select({ email_pessoal_verificado: policiais.email_pessoal_verificado })
+						.from(policiais)
+						.where(eq(policiais.id, alvoId))
+						.get()
+				: await db
+						.select({ email_pessoal_verificado: administradores.email_pessoal_verificado })
+						.from(administradores)
+						.where(eq(administradores.id, alvoId))
+						.get();
 
 			if (!registroEmail || registroEmail.email_pessoal_verificado !== 1) {
 				return fail(400, {
@@ -85,18 +90,17 @@ export const actions = {
 				});
 			}
 
-			const registro =
-				usuario.tipo === 'admin'
-					? await db
-							.select({ senha: administradores.senha })
-							.from(administradores)
-							.where(eq(administradores.id, usuario.id))
-							.get()
-					: await db
-							.select({ senha: policiais.senha })
-							.from(policiais)
-							.where(eq(policiais.id, usuario.id))
-							.get();
+			const registro = alvoEhPolicial
+				? await db
+						.select({ senha: policiais.senha })
+						.from(policiais)
+						.where(eq(policiais.id, alvoId))
+						.get()
+				: await db
+						.select({ senha: administradores.senha })
+						.from(administradores)
+						.where(eq(administradores.id, alvoId))
+						.get();
 			if (!registro || !(await verificarSenha(senha_atual, registro.senha, pepper))) {
 				await registrarRecoveryAttempt(db, chaveThrottle, 'alterar_senha');
 				return fail(401, { error: 'Senha atual incorreta' });
@@ -105,16 +109,16 @@ export const actions = {
 
 		const novaSenhaHash = await hashSenha(parsed.data.nova_senha, pepper);
 
-		if (usuario.tipo === 'admin') {
-			await db
-				.update(administradores)
-				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(administradores.id, usuario.id));
-		} else {
+		if (alvoEhPolicial) {
 			await db
 				.update(policiais)
 				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
-				.where(eq(policiais.id, usuario.id));
+				.where(eq(policiais.id, alvoId));
+		} else {
+			await db
+				.update(administradores)
+				.set({ senha: novaSenhaHash, primeiro_acesso: 0 })
+				.where(eq(administradores.id, alvoId));
 		}
 
 		// Rotação completa: invalida TODAS as sessões (inclusive a atual) e cria

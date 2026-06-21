@@ -75,6 +75,22 @@
 		};
 	}
 
+	const ehAdminGeral = $derived(data.ehAdminGeral);
+
+	function handleToggleAdminGeral() {
+		loading.show('Atualizando condição de Admin Geral...');
+		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
+			if (result.type === 'success') {
+				toaster.create({ title: 'Condição de Admin Geral atualizada!', type: 'success' });
+				await invalidateAll();
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				if (d?.error) toaster.create({ title: String(d.error), type: 'error' });
+			}
+		};
+	}
+
 	const classesDisponiveis = $derived(
 		cargo === 'DPC' ? ['1ª', '2ª', '3ª', 'ESPECIAL'] : ['A', 'B', 'C', 'D']
 	);
@@ -219,16 +235,13 @@
 					<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">Papel</span>
 					<select class="select py-1 px-3 text-sm" name="papel" bind:value={papel}>
 						<option value={null}>Servidor (sem papel)</option>
-						{#if isAdmin}
-							<option value="admin_geral">Admin Geral</option>
-						{/if}
 						{#if isAdminOrSeccional}
 							<option value="admin_seccional">Admin Seccional</option>
 						{/if}
 						<option value="admin_unidade">Admin Unidade</option>
 					</select>
 				</label>
-				{#if papel && papel !== 'admin_geral' && !(isAdminUnidade && papel === 'admin_unidade')}
+				{#if papel && !(isAdminUnidade && papel === 'admin_unidade')}
 					<label class="label sm:col-span-7">
 						<span class="label-text text-[0.7rem] font-bold uppercase opacity-70 ml-1">
 							{papel === 'admin_seccional'
@@ -262,5 +275,36 @@
 				</button>
 			</div>
 		</form>
+	</div>
+{/if}
+
+{#if isAdmin}
+	<div class="card-glass p-3 sm:p-4 rounded-xl mt-4">
+		<h2 class="text-base font-bold mb-1 text-surface-700 dark:text-surface-300">Admin Geral</h2>
+		<p class="text-xs text-surface-500 mb-3">
+			Concede acesso de Administrador Geral. A pessoa loga com a <b>mesma matrícula e senha</b>,
+			escolhendo <b>"Administrador"</b> na tela de login. É cumulativo com o papel acima.
+		</p>
+		<div class="flex items-center gap-3 flex-wrap">
+			<span
+				class="text-xs font-bold px-2 py-1 rounded-lg {ehAdminGeral
+					? 'bg-success-500/15 text-success-700 dark:text-success-400'
+					: 'bg-surface-500/10 text-surface-500'}"
+			>
+				{ehAdminGeral ? 'É Admin Geral' : 'Não é Admin Geral'}
+			</span>
+			<form method="POST" action="?/toggleAdminGeral" use:enhance={handleToggleAdminGeral}>
+				<input type="hidden" name="ativar" value={ehAdminGeral ? '0' : '1'} />
+				<button
+					type="submit"
+					class="btn btn-sm {ehAdminGeral
+						? 'preset-outlined-error-500'
+						: 'preset-filled-primary-500'} flex items-center gap-2"
+					disabled={loading.active}
+				>
+					{ehAdminGeral ? 'Revogar Admin Geral' : 'Conceder Admin Geral'}
+				</button>
+			</form>
+		</div>
 	</div>
 {/if}

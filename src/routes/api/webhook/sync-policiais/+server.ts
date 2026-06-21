@@ -103,12 +103,10 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 					const papelLower = item.papel?.toLowerCase() || '';
 					if (papelLower.includes('seccional')) papelMap = 'admin_seccional';
 					else if (papelLower.includes('unidade')) papelMap = 'admin_unidade';
-					else if (papelLower.includes('geral')) papelMap = 'admin_geral';
+					// Admin Geral NÃO vem pela planilha: é uma conta vinculada em
+					// `administradores`, concedida manualmente em /policiais/[id].
 
-					if (papelMap === 'admin_geral') {
-						// Admin Geral é global — não tem unidade de exercício.
-						papelUnidadeId = null;
-					} else if (papelMap) {
+					if (papelMap) {
 						const papelUnidadeNome = String(item.papel_unidade || lotacaoMap).trim();
 						if (!papelUnidadeNome) {
 							throw new Error('Papel administrativo informado sem lotação/unidade de exercício.');
