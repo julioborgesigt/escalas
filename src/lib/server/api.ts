@@ -14,6 +14,7 @@
 import { json } from '@sveltejs/kit';
 import type { z } from 'zod';
 import type { UsuarioLogado } from '$lib/auth';
+import { isAdminGeral } from '$lib/auth';
 import { logger } from './logger';
 
 // ---- ErrorCode tipado --------------------------------------------------
@@ -95,7 +96,9 @@ export function requireAuth(locals: App.Locals): UsuarioLogado | Response {
 export function requireAdmin(locals: App.Locals): UsuarioLogado | Response {
 	const usuario = requireAuth(locals);
 	if (usuario instanceof Response) return usuario;
-	if (usuario.tipo !== 'admin') {
+	// Admin Geral inclui a conta de bootstrap (tipo === 'admin') E policiais
+	// promovidos a `papel === 'admin_geral'` — ambos têm os mesmos poderes.
+	if (!isAdminGeral(usuario)) {
 		return apiError('Acesso restrito a administradores', 403, ErrorCode.FORBIDDEN);
 	}
 	return usuario;

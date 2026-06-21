@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	if (!u.isSuperAdmin) {
+	if (!isAdminGeral(u)) {
 		throw redirect(302, '/');
 	}
 
@@ -54,7 +54,7 @@ export const actions: Actions = {
 	salvar: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!u.isSuperAdmin) {
+		if (!isAdminGeral(u)) {
 			return fail(403, { error: 'Sem permissão para editar policiais' });
 		}
 
@@ -111,8 +111,8 @@ export const actions: Actions = {
 
 	salvarPapel: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
-		if (!u || !u.isSuperAdmin)
-			return fail(403, { error: 'Apenas o Super Administrador pode alterar papéis' });
+		if (!u || !isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Admin Geral pode alterar papéis' });
 
 		const id = Number(params.id);
 		if (isNaN(id)) return fail(400, { error: 'ID inválido' });
@@ -121,9 +121,13 @@ export const actions: Actions = {
 		const papel = (formData.get('papel')?.toString() || null) as
 			| 'admin_seccional'
 			| 'admin_unidade'
+			| 'admin_geral'
 			| null;
+		// Admin Geral é global (sem unidade de responsabilidade) — ignora qualquer
+		// papel_unidade_id enviado para esse papel.
 		const papelUnidadeIdStr = formData.get('papel_unidade_id')?.toString();
-		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
+		const papelUnidadeId =
+			papel === 'admin_geral' ? null : papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 
 		const db = getDB(platform);
 		await promoverPolicial(db, id, papel, papelUnidadeId);

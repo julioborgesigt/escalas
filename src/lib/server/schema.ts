@@ -24,7 +24,7 @@ export const policiais = sqliteTable(
 		email_pessoal_verificado: integer('email_pessoal_verificado').notNull().default(0),
 		primeiro_acesso: integer('primeiro_acesso').notNull().default(1),
 		// RBAC: papel promovido pelo Admin Geral ou Admin Seccional
-		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade'] }),
+		papel: text('papel', { enum: ['admin_seccional', 'admin_unidade', 'admin_geral'] }),
 		// Unidade/Seccional sob responsabilidade do papel (FK a unidades.id)
 		papel_unidade_id: integer('papel_unidade_id'),
 		created_at: text('created_at')

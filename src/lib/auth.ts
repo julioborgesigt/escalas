@@ -31,7 +31,7 @@ export interface UsuarioLogado {
 	primeiro_acesso: boolean;
 	isSuperAdmin?: boolean;
 	// RBAC
-	papel?: 'admin_seccional' | 'admin_unidade' | null;
+	papel?: 'admin_seccional' | 'admin_unidade' | 'admin_geral' | null;
 	papel_unidade_id?: number | null;
 	cargo?: 'DPC' | 'OIP';
 	cpf?: string | null;
@@ -52,9 +52,19 @@ export type TipoDesafio2FA =
 	// usuario_id = 0 até o CPF ser resolvido; codigo = hash do nonce.
 	| 'login_certificado';
 
-/** Retorna true se o usuário possui poder de Admin Geral */
+/**
+ * Retorna true se o usuário possui poder de Admin Geral.
+ *
+ * Duas origens, mesmos poderes:
+ *  - `tipo === 'admin'`: conta da tabela `administradores` (bootstrap por env).
+ *  - policial com `papel === 'admin_geral'`: promovido por outro Admin Geral
+ *    (via /policiais/[id] → salvarPapel). Permite delegar a administração geral
+ *    sem depender da conta de bootstrap. NÃO concede os poderes EXCLUSIVOS do
+ *    Super Admin (`isSuperAdmin`), que segue sendo a raiz estrutural.
+ */
 export function isAdminGeral(u: UsuarioLogado | null): boolean {
-	return u?.tipo === 'admin';
+	if (u?.tipo === 'admin') return true;
+	return u?.tipo === 'policial' && u.papel === 'admin_geral';
 }
 
 /** Retorna true se o usuário é Admin Seccional */
@@ -516,6 +526,9 @@ export async function verificarDesafio2FA(
 export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null): string {
 	if (u.tipo === 'admin') {
 		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
+	}
+	if (u.papel === 'admin_geral') {
+		return '/escalas/bem-vindo';
 	}
 	if (u.papel === 'admin_seccional') {
 		return '/escalas/bem-vindo';

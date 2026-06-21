@@ -49,6 +49,12 @@ declare global {
 		/** Login admin via variáveis de ambiente (opcional) */
 		ADMIN_GERAL_LOGIN?: string;
 		ADMIN_GERAL_SENHA?: string;
+		/**
+		 * Opcional. Quando definido, o login do Admin Geral via bootstrap por env
+		 * passa a exigir 2FA por e-mail (código enviado a este endereço) — espelha
+		 * o `SUPER_ADMIN_EMAIL`. Sem ele, mantém o login direto (sem 2FA).
+		 */
+		ADMIN_GERAL_EMAIL?: string;
 		SUPER_ADMIN_LOGIN?: string;
 		SUPER_ADMIN_SENHA?: string;
 		/**

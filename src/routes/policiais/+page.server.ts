@@ -18,12 +18,12 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
 
-	if (!u.isSuperAdmin) {
+	if (!isAdminGeral(u)) {
 		throw redirect(302, '/');
 	}
 
 	const db = getDB(platform);
-	const isAdmin = u.tipo === 'admin';
+	const isAdmin = isAdminGeral(u);
 	const lotacaoParam = url.searchParams.get('lotacao') || undefined;
 	const cargo = url.searchParams.get('cargo') || undefined;
 	const busca = url.searchParams.get('busca') || undefined;
@@ -67,8 +67,8 @@ export const actions: Actions = {
 	criar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!u.isSuperAdmin) {
-			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar policiais' });
+		if (!isAdminGeral(u)) {
+			return fail(403, { error: 'Apenas o Admin Geral pode cadastrar policiais' });
 		}
 
 		const data = await request.formData();
@@ -190,7 +190,7 @@ export const actions: Actions = {
 	atualizar: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!u.isSuperAdmin) {
+		if (!isAdminGeral(u)) {
 			return fail(403, { error: 'Sem permissão para editar policiais' });
 		}
 
@@ -292,8 +292,8 @@ export const actions: Actions = {
 	excluir: async ({ request, locals, platform }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
-		if (!u.isSuperAdmin)
-			return fail(403, { error: 'Apenas o Super Administrador pode excluir policiais' });
+		if (!isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Admin Geral pode excluir policiais' });
 
 		const data = await request.formData();
 		const policialId = Number(data.get('policial_id'));
