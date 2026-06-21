@@ -139,7 +139,7 @@ export const POST: RequestHandler = async ({
 			ocsp_response_b64: result.metadata.ocsp_response_b64,
 			ocsp_consultado_em: result.metadata.ocsp_consultado_em,
 			tst_token_b64: result.metadata.tst_token_b64
-		});
+		}, platform?.env);
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);
 

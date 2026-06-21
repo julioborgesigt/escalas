@@ -8,6 +8,7 @@ import {
 	buscarRestringirSmartphone
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { adminParticipaDaGise } from '$lib/server/gise-permissao';
@@ -48,6 +49,14 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 	try {
 		const gise = await buscarGiseDetalhado(db, id);
 		if (!gise) throw error(404, 'Escala GISE não encontrada');
+
+		// CPF do documento assinado é cifrado em repouso (LGPD) — decifra p/ exibição.
+		if (gise.documento) {
+			gise.documento.assinante_cpf = await decifrarCpfDoDB(
+				gise.documento.assinante_cpf,
+				platform?.env
+			);
+		}
 
 		const supportIds = [
 			gise.supervisor_id,

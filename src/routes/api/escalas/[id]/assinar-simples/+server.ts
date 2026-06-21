@@ -192,7 +192,11 @@ export const POST: RequestHandler = async ({
 			validatedEv.latitude ?? undefined,
 			validatedEv.longitude ?? undefined,
 			selfieKey,
-			arquivoHash
+			arquivoHash,
+			undefined, // assinanteEmail
+			undefined, // tipoCarimboTempo
+			undefined, // cadesMeta
+			platform?.env
 		);
 
 		await registrarAuditComContexto(db, {

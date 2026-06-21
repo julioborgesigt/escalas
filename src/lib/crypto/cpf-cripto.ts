@@ -164,3 +164,19 @@ export async function decifrarCpfDoDB(
 	if (!encKey) return String(armazenado ?? '');
 	return decifrarCPF(armazenado, encKey);
 }
+
+/**
+ * Cifra um CPF para colunas de PROVENIÊNCIA (ex.: `assinante_cpf`) que não
+ * precisam de índice de busca. Devolve `enc:v1:...` (ou o CPF normalizado em
+ * texto, fallback sem chave) ou `null` quando vazio. Para colunas NOT NULL use
+ * `(await cifrarCpfParaArmazenar(...)) ?? ''`.
+ */
+export async function cifrarCpfParaArmazenar(
+	cpfPlain: string | null | undefined,
+	env: CpfCriptoEnv | undefined
+): Promise<string | null> {
+	const norm = normalizarCPF(cpfPlain);
+	if (!norm) return null;
+	const { encKey } = cpfKeys(env);
+	return encKey ? cifrarCPF(norm, encKey) : norm;
+}

@@ -1,5 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import {
 	getDB,
 	buscarEscala,
@@ -90,12 +91,13 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 	const [escala, policiaisEscala, docInfo] = await Promise.all([
 		buscarEscala(db, escalaId),
 		listarPoliciaisEscala(db, escalaId),
-		buscarDocumentoEscala(db, escalaId).then((d) =>
+		buscarDocumentoEscala(db, escalaId).then(async (d) =>
 			d
 				? {
 						existe: true,
 						assinante_nome: d.assinante_nome,
-						assinante_cpf: d.assinante_cpf,
+						// CPF cifrado em repouso (LGPD) — decifra para exibição.
+						assinante_cpf: await decifrarCpfDoDB(d.assinante_cpf, platform?.env),
 						data: d.created_at
 					}
 				: { existe: false }
