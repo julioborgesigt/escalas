@@ -11,6 +11,29 @@
 	let confirmarSenha = $state('');
 	let erroForm = $state('');
 
+	// Primeiro acesso por link = magic login: auto-submete para autenticar e
+	// seguir ao /alterar-senha (onde senha + e-mail pessoal são definidos).
+	let magicForm = $state<HTMLFormElement | undefined>();
+	let jaEnviou = $state(false);
+	$effect(() => {
+		if (data.valido && data.primeiroAcesso && magicForm && !jaEnviou) {
+			jaEnviou = true;
+			magicForm.requestSubmit();
+		}
+	});
+	function handleMagic() {
+		loading.show('Entrando...');
+		return async ({ result }: { result: ActionResult }) => {
+			loading.hide();
+			if (result.type === 'redirect') {
+				await goto(result.location, { invalidateAll: true });
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				erroForm = String(d?.error || 'Erro ao iniciar o primeiro acesso.');
+			}
+		};
+	}
+
 	const temMinimo = $derived(novaSenha.length >= 8);
 	const temMaiuscula = $derived(/[A-Z]/.test(novaSenha));
 	const temMinuscula = $derived(/[a-z]/.test(novaSenha));
@@ -70,6 +93,56 @@
 					<a href="/login" class="btn preset-filled-primary-500 w-full no-underline justify-center">
 						Ir para o login
 					</a>
+				</div>
+			{:else if data.primeiroAcesso}
+				<!-- Primeiro acesso: magic link → /alterar-senha (senha + e-mail pessoal) -->
+				<div class="text-center">
+					<div
+						class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/20 mb-4"
+					>
+						<svg
+							class="w-7 h-7 text-primary-500 animate-pulse"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="1.8"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+							/>
+						</svg>
+					</div>
+					<h1 class="text-xl font-bold mb-2">Primeiro acesso</h1>
+					<p class="text-sm text-surface-500 mb-6">
+						Validando seu link e preparando a definição de senha e a confirmação do seu e-mail
+						pessoal…
+					</p>
+
+					{#if erroForm}
+						<div
+							class="flex items-center gap-2 p-3 mb-4 rounded-xl bg-error-500/10 border border-error-500/25 text-error-700 dark:text-error-300 text-sm"
+						>
+							{erroForm}
+						</div>
+					{/if}
+
+					<form
+						bind:this={magicForm}
+						method="POST"
+						action="?/redefinir"
+						use:enhance={handleMagic}
+					>
+						<input type="hidden" name="token" value={data.token} />
+						<button
+							type="submit"
+							class="btn preset-filled-primary-500 w-full py-3 font-semibold justify-center"
+							disabled={loading.active}
+						>
+							{loading.active ? 'Entrando…' : 'Continuar primeiro acesso'}
+						</button>
+					</form>
 				</div>
 			{:else}
 				<!-- Formulário de nova senha -->
