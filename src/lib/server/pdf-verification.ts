@@ -13,6 +13,7 @@
  */
 
 import forge from 'node-forge';
+import { binStringToBytes } from '$lib/crypto/bin';
 import { PDFDocument } from 'pdf-lib';
 import { logger } from './logger';
 import { loadTrustStore, trustStoreRequerido } from './icp-brasil/trust-store';
@@ -881,8 +882,7 @@ export async function verificarTimestampToken(
 	try {
 		// O TST (ContentInfo) é um CMS — reusa o parser do CMS principal.
 		const tstDerStr = forge.asn1.toDer(tstWrapper).getBytes();
-		const tstDer = new Uint8Array(tstDerStr.length);
-		for (let i = 0; i < tstDerStr.length; i++) tstDer[i] = tstDerStr.charCodeAt(i) & 0xff;
+		const tstDer = binStringToBytes(tstDerStr);
 		const parsed = parseCms(tstDer);
 		if (!parsed) return null;
 

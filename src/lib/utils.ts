@@ -176,3 +176,26 @@ export function mascararCPF(cpf: string | undefined): string {
 	// Exibe apenas os dígitos centrais (4º, 5º e 6º)
 	return `***.${limpo.slice(3, 6)}.***-**`;
 }
+
+export function mascararEmail(email: string): string {
+	const at = email.indexOf('@');
+	if (at <= 0) return email;
+	const local = email.slice(0, at);
+	const domain = email.slice(at + 1);
+	let masked: string;
+	if (local.length === 1) {
+		masked = local;
+	} else if (local.length === 2) {
+		masked = local[0] + '*';
+	} else {
+		const showStart = Math.min(2, Math.floor(local.length / 2));
+		masked =
+			local.slice(0, showStart) +
+			'*'.repeat(local.length - showStart - 1) +
+			local[local.length - 1];
+	}
+	// Ocultar domínio para não revelar provedor (ex: gmail.com → ***.com)
+	const dotIdx = domain.lastIndexOf('.');
+	const maskedDomain = dotIdx > 0 ? '***' + domain.slice(dotIdx) : '***';
+	return masked + '@' + maskedDomain;
+}

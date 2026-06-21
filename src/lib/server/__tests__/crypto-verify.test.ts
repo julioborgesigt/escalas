@@ -25,7 +25,6 @@ function gerarCertRsaSelfSigned(): forge.pki.Certificate {
 
 /** Sign(SHA-256 + RSA PKCS#1 v1.5) sobre o SET DER passado. */
 function signRsaPkcs1(
-	cert: forge.pki.Certificate,
 	privKey: forge.pki.rsa.PrivateKey,
 	signedAttrsAsSet: forge.asn1.Asn1
 ): string {
@@ -72,7 +71,7 @@ describe('verificarAssinaturaCms — RSA PKCS#1 v1.5', () => {
 			]
 		);
 
-		const signatureValue = signRsaPkcs1(cert, keys.privateKey, signedAttrsAsSet);
+		const signatureValue = signRsaPkcs1(keys.privateKey, signedAttrsAsSet);
 
 		const ok = await verificarAssinaturaCms({
 			cert,
@@ -141,7 +140,7 @@ describe('verificarAssinaturaCms — rsaEncryption puro (OID 1.1.1)', () => {
 				])
 			]
 		);
-		const signatureValue = signRsaPkcs1(cert, keys.privateKey, signedAttrsAsSet);
+		const signatureValue = signRsaPkcs1(keys.privateKey, signedAttrsAsSet);
 		return { cert, signedAttrsAsSet, signatureValue };
 	}
 

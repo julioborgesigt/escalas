@@ -537,7 +537,6 @@ interface PrepareResult {
 export async function prepararPdfParaAssinatura(
 	pdfBytes: Uint8Array,
 	signerName: string,
-	signerCpf?: string,
 	alignment: 'center' | 'right' = 'right',
 	verificationHash?: string,
 	verificationUrl?: string,
