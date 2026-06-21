@@ -11,16 +11,11 @@
 	let confirmarSenha = $state('');
 	let erroForm = $state('');
 
-	// Primeiro acesso por link = magic login: auto-submete para autenticar e
-	// seguir ao /alterar-senha (onde senha + e-mail pessoal são definidos).
-	let magicForm = $state<HTMLFormElement | undefined>();
-	let jaEnviou = $state(false);
-	$effect(() => {
-		if (data.valido && data.primeiroAcesso && magicForm && !jaEnviou) {
-			jaEnviou = true;
-			magicForm.requestSubmit();
-		}
-	});
+	// Primeiro acesso por link: ao clicar em "Continuar", autentica (sessão
+	// one-time) e segue ao /alterar-senha. NÃO auto-submeter: scanners de e-mail
+	// (Safe Links/gateways) abrem o link num sandbox e executam o JS — um
+	// auto-submit consumiria o token de uso único antes de o usuário clicar.
+	// Exigir o clique explícito evita esse consumo (scanners não clicam botões).
 	function handleMagic() {
 		loading.show('Entrando...');
 		return async ({ result }: { result: ActionResult }) => {
@@ -116,8 +111,8 @@
 					</div>
 					<h1 class="text-xl font-bold mb-2">Primeiro acesso</h1>
 					<p class="text-sm text-surface-500 mb-6">
-						Validando seu link e preparando a definição de senha e a confirmação do seu e-mail
-						pessoal…
+						Para concluir seu primeiro acesso, clique no botão abaixo. Em seguida você definirá sua
+						senha e confirmará seu e-mail pessoal.
 					</p>
 
 					{#if erroForm}
@@ -128,12 +123,7 @@
 						</div>
 					{/if}
 
-					<form
-						bind:this={magicForm}
-						method="POST"
-						action="?/redefinir"
-						use:enhance={handleMagic}
-					>
+					<form method="POST" action="?/redefinir" use:enhance={handleMagic}>
 						<input type="hidden" name="token" value={data.token} />
 						<button
 							type="submit"
