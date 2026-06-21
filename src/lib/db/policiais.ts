@@ -1,8 +1,9 @@
 import { eq, and, or, isNull, asc, sql, like } from 'drizzle-orm';
 import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
-import { limparMatricula, limparCPF } from '../utils';
+import { limparMatricula } from '../utils';
 import { gerarSenhaAleatoriaHash } from '../auth';
+import { prepararCpfParaDB, type CpfCriptoEnv } from '../crypto/cpf-cripto';
 import type { Database } from './core';
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
@@ -81,6 +82,7 @@ export async function listarPoliciais(
 			matricula: policiais.matricula,
 			cargo: policiais.cargo,
 			cpf: policiais.cpf,
+			cpf_index: policiais.cpf_index,
 			telefone: policiais.telefone,
 			lotacao: policiais.lotacao,
 			ativo: policiais.ativo,
@@ -156,14 +158,17 @@ export async function criarPolicial(
 		email?: string | null;
 		email_pessoal?: string | null;
 		ativo?: number;
-	}
+	},
+	env?: CpfCriptoEnv
 ) {
 	const senhaHash = await gerarSenhaAleatoriaHash();
+	const { cpf, cpf_index } = await prepararCpfParaDB(data.cpf, env);
 	return db.insert(policiais).values({
 		nome: data.nome,
 		matricula: limparMatricula(data.matricula),
 		cargo: data.cargo as 'DPC' | 'OIP',
-		cpf: data.cpf ? limparCPF(data.cpf) : null,
+		cpf,
+		cpf_index,
 		telefone: data.telefone || '',
 		lotacao: data.lotacao || '',
 		regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
@@ -195,10 +200,11 @@ export async function upsertPolicial(
 		email?: string | null;
 		email_pessoal?: string | null;
 		ativo?: number;
-	}
+	},
+	env?: CpfCriptoEnv
 ) {
 	const matriculaLimpa = limparMatricula(data.matricula);
-	const cpfLimpo = data.cpf ? limparCPF(data.cpf) : null;
+	const { cpf, cpf_index } = await prepararCpfParaDB(data.cpf, env);
 	const senhaHash = await gerarSenhaAleatoriaHash();
 
 	return db
@@ -207,7 +213,8 @@ export async function upsertPolicial(
 			nome: data.nome,
 			matricula: matriculaLimpa,
 			cargo: data.cargo as 'DPC' | 'OIP',
-			cpf: cpfLimpo,
+			cpf,
+			cpf_index,
 			telefone: data.telefone || '',
 			lotacao: data.lotacao || '',
 			regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
@@ -226,7 +233,8 @@ export async function upsertPolicial(
 			set: {
 				nome: data.nome,
 				cargo: data.cargo as 'DPC' | 'OIP',
-				cpf: cpfLimpo,
+				cpf,
+				cpf_index,
 				telefone: data.telefone || '',
 				lotacao: data.lotacao || '',
 				regime: (data.regime as 'plantao' | 'expediente') || 'plantao',
@@ -260,14 +268,19 @@ export async function atualizarPolicial(
 		email: string | null;
 		email_pessoal: string | null;
 		email_pessoal_verificado: number;
-	}>
+	}>,
+	env?: CpfCriptoEnv
 ) {
 	const updateData: Record<string, unknown> = {};
 
 	if (data.nome !== undefined) updateData.nome = data.nome;
 	if (data.matricula !== undefined) updateData.matricula = limparMatricula(data.matricula);
 	if (data.cargo !== undefined) updateData.cargo = data.cargo;
-	if (data.cpf !== undefined) updateData.cpf = data.cpf ? limparCPF(data.cpf) : null;
+	if (data.cpf !== undefined) {
+		const prep = await prepararCpfParaDB(data.cpf, env);
+		updateData.cpf = prep.cpf;
+		updateData.cpf_index = prep.cpf_index;
+	}
 	if (data.telefone !== undefined) updateData.telefone = data.telefone;
 	if (data.lotacao !== undefined) updateData.lotacao = data.lotacao;
 	if (data.ativo !== undefined) updateData.ativo = data.ativo;

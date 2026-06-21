@@ -78,7 +78,7 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
-	const presencas = await buscarPresencasGise(db, id);
+	const presencas = await buscarPresencasGise(db, id, platform?.env);
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
@@ -149,7 +149,7 @@ export const POST: RequestHandler = async ({
 
 	const membrosSec = isSupervisaoExtra
 		? listarPoliciaisSupervisaoExtra(gise).map((r) => ({ policial_id: r.policial_id }))
-		: await buscarGiseSeccionalMembros(db, id, secIdNum);
+		: await buscarGiseSeccionalMembros(db, id, secIdNum, platform?.env);
 	const idsMembros = new Set(membrosSec.map((m) => m.policial_id));
 	const presencasFiltradas = presencas.filter((p) => idsMembros.has(p.policial_id));
 

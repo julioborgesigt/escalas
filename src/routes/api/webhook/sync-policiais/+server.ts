@@ -168,7 +168,7 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 					regime: regimeMap,
 					papel: papelMap,
 					papel_unidade_id: papelUnidadeId
-				});
+				}, env);
 				successCount++;
 			} catch (err: unknown) {
 				errors.push(`${rowId}: ${err instanceof Error ? err.message : String(err)}`);

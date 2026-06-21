@@ -16,6 +16,7 @@ import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-f
 import { verificarRespostaDesafioCertificado } from '$lib/server/cert-login';
 import { loadTrustStore } from '$lib/server/icp-brasil/trust-store';
 import { limparCPF } from '$lib/utils';
+import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
 import { logger } from '$lib/server/logger';
 import forge from 'node-forge';
 import type { RequestHandler } from './$types';
@@ -127,11 +128,17 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
-	// Buscar policial pelo CPF
+	// Buscar policial pelo CPF. Como o `cpf` é cifrado em repouso (LGPD, GCM
+	// não-determinístico), a busca usa o índice cego `cpf_index` quando a chave
+	// está configurada; sem chave (fail-open), cai no `cpf` em texto.
+	const { indexKey } = cpfKeys(platform?.env);
+	const cpfFilter = indexKey
+		? eq(policiais.cpf_index, await indiceCPF(cpfLimpo, indexKey))
+		: eq(policiais.cpf, cpfLimpo);
 	const policial = await db
 		.select()
 		.from(policiais)
-		.where(and(eq(policiais.cpf, cpfLimpo), eq(policiais.ativo, 1)))
+		.where(and(cpfFilter, eq(policiais.ativo, 1)))
 		.get();
 
 	if (!policial) {

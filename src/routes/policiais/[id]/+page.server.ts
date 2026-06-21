@@ -11,6 +11,7 @@ import {
 import { policialUpdateSchema } from '$lib/schemas/policial';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lotacoesAdministradas, lotacaoNoEscopo } from '$lib/server/policial-permissao';
+import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 
 export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	const u = locals.usuario;
@@ -36,9 +37,14 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 		isAdm || isSeccional || isUnidade ? listarUnidades(db) : Promise.resolve([])
 	]);
 
+	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
+	// (público restrito a Admin Geral).
+	const cpfClaro = await decifrarCpfDoDB(policial.cpf, platform?.env);
+
 	return {
 		policial: {
 			...policial,
+			cpf: cpfClaro || null,
 			papel: policial.papel ?? null,
 			papel_unidade_id: policial.papel_unidade_id ?? null
 		},
@@ -98,7 +104,12 @@ export const actions: Actions = {
 		}
 
 		try {
-			await atualizarPolicial(db, id, { ...parsed.data, email: data.email ?? undefined });
+			await atualizarPolicial(
+				db,
+				id,
+				{ ...parsed.data, email: data.email ?? undefined },
+				platform?.env
+			);
 			return { success: true };
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Erro desconhecido';

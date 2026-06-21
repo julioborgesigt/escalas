@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ locals, params, platform, depends, 
 			db.select().from(unidades).orderBy(asc(unidades.nome)),
 			buscarAssinaturasRelatoriosGise(db, id),
 			buscarRestringirSmartphone(db),
-			buscarPresencasGise(db, id),
+			buscarPresencasGise(db, id, platform?.env),
 			buscarUnidadeIdSupervisaoExtra(db),
 			seintIdsParaRelatorio.length
 				? db

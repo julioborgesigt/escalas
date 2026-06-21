@@ -11,6 +11,7 @@ import {
 import type { Database } from './db';
 import { aceiteEhVigente } from './db/termos';
 import { bytesToHex } from './crypto/hex';
+import { decifrarCpfDoDB } from './crypto/cpf-cripto';
 
 // Hashing de senha (PBKDF2 + pepper) vive em ./crypto/password-hash — módulo
 // PURO compartilhado com os scripts/e2e (item C6 da auditoria). Re-exportado
@@ -212,7 +213,14 @@ function mapearAdmin(
 	};
 }
 
-function mapearPolicial(policial: typeof policiais.$inferSelect): UsuarioLogado {
+async function mapearPolicial(
+	policial: typeof policiais.$inferSelect,
+	platform?: App.Platform
+): Promise<UsuarioLogado> {
+	// CPF é cifrado em repouso (LGPD). Decifra aqui, no ponto único de montagem
+	// da sessão, para que todo o restante (assinatura, exibição) receba o CPF em
+	// claro em memória. Sem chave configurada, devolve o valor como está.
+	const cpf = await decifrarCpfDoDB(policial.cpf, platform?.env as Env | undefined);
 	return {
 		id: policial.id,
 		tipo: 'policial' as const,
@@ -223,7 +231,7 @@ function mapearPolicial(policial: typeof policiais.$inferSelect): UsuarioLogado 
 		papel: policial.papel ?? null,
 		papel_unidade_id: policial.papel_unidade_id ?? null,
 		cargo: policial.cargo as 'DPC' | 'OIP',
-		cpf: policial.cpf ?? null,
+		cpf: cpf || null,
 		email: policial.email ?? null
 	};
 }
@@ -253,7 +261,7 @@ export async function validarSessao(
 		.from(policiais)
 		.where(and(eq(policiais.id, sessao.usuario_id), eq(policiais.ativo, 1)))
 		.get();
-	return policial ? mapearPolicial(policial) : null;
+	return policial ? await mapearPolicial(policial, platform) : null;
 }
 
 /**
@@ -318,7 +326,7 @@ export async function validarSessaoComAceite(
 		const [pols, aceites] = slidingUpdate
 			? await db.batch([userQuery, aceiteQuery, slidingUpdate])
 			: await db.batch([userQuery, aceiteQuery]);
-		usuario = pols[0] ? mapearPolicial(pols[0]) : null;
+		usuario = pols[0] ? await mapearPolicial(pols[0], platform) : null;
 		ultimoAceite = aceites[0];
 	}
 

@@ -256,7 +256,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 			let finalPdf: Uint8Array;
 
 			if (relTipo === 'extraordinario') {
-				const presencas = await buscarPresencasGise(db, documento.escala_id);
+				const presencas = await buscarPresencasGise(db, documento.escala_id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
 				const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
 				const result = isSupExtra
