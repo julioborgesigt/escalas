@@ -482,6 +482,36 @@ export async function tentarLogin({
 				return { sucesso: false, statusCode: 500, erro: 'Erro ao inicializar administrador.' };
 			}
 
+			// 2FA no bootstrap ADMIN_GERAL — espelha o SUPER_ADMIN: quando
+			// ADMIN_GERAL_EMAIL está configurado, exigimos o 2º fator também aqui,
+			// fechando o login direto (sem 2FA) da conta de bootstrap.
+			const adminGeralEmail = _env?.ADMIN_GERAL_EMAIL?.trim() ?? '';
+			if (adminGeralEmail) {
+				await recordAttempt(db, ip, true, identHash);
+				const codigo = gerarCodigo2FA();
+				const desafioId = await criarDesafio2FA(db, 'admin', envAdmin.id, codigo);
+				const emailJob = enviarCodigo2FA(adminGeralEmail, codigo, envAdmin.nome, platform).catch(
+					(err) => {
+						logger.error('[2FA] Falha ao enviar e-mail (admin geral)', {
+							error: err instanceof Error ? err.message : String(err)
+						});
+					}
+				);
+				platform?.ctx?.waitUntil(emailJob);
+				return {
+					sucesso: false,
+					statusCode: 200,
+					pendente2FA: {
+						desafioId,
+						nome: envAdmin.nome,
+						primeiroAcesso: false,
+						emailMascarado: mascararEmail(adminGeralEmail),
+						tipoUsuario2FA: 'admin'
+					},
+					setAdminModuloPendingCookie: isForm
+				};
+			}
+
 			await recordAttempt(db, ip, true, identHash);
 			// Rastreabilidade forense (A7): registra o uso do bootstrap ADMIN_GERAL
 			// (sem 2FA) no audit log consultável. try/catch — não pode quebrar o login.
