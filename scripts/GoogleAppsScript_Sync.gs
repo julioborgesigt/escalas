@@ -385,20 +385,38 @@ function fullSyncUnits() {
   const seccionaisComPai = parsedRows.filter((p) => p.nivel === 'SECCIONAL');
   const delegacias = parsedRows.filter((p) => p.nivel === 'DELEGACIA');
 
-  function sendChunked(list) {
+  const allErrors = [];
+
+  function sendChunked(list, label) {
     const chunkSize = 50;
     for (let i = 0; i < list.length; i += chunkSize) {
-      sendToAPI('/sync-unidades', list.slice(i, i + chunkSize));
+      const res = sendToAPI('/sync-unidades', list.slice(i, i + chunkSize));
+      if (res) {
+        if (res.error) allErrors.push(`${label} (lote ${i}): ${res.error}`);
+        else if (res.success === false && res.details)
+          allErrors.push(`${label} (lote ${i}): ${res.details}`);
+      } else {
+        allErrors.push(`${label} (lote ${i}): Falha silenciosa de comunicação com o servidor.`);
+      }
+      Utilities.sleep(300); // Mitiga rate limit do Cloudflare
     }
   }
 
-  if (departamentos.length > 0) sendChunked(departamentos);
-  if (subDepartamentos.length > 0) sendChunked(subDepartamentos);
-  if (seccionaisRaiz.length > 0) sendChunked(seccionaisRaiz);
-  if (seccionaisComPai.length > 0) sendChunked(seccionaisComPai);
-  if (delegacias.length > 0) sendChunked(delegacias);
+  if (departamentos.length > 0) sendChunked(departamentos, 'Departamentos');
+  if (subDepartamentos.length > 0) sendChunked(subDepartamentos, 'Subdepartamentos');
+  if (seccionaisRaiz.length > 0) sendChunked(seccionaisRaiz, 'Seccionais (raiz)');
+  if (seccionaisComPai.length > 0) sendChunked(seccionaisComPai, 'Seccionais');
+  if (delegacias.length > 0) sendChunked(delegacias, 'Delegacias');
 
-  ui.alert('Sucesso', 'Departamentos, seccionais e delegacias sincronizados (ordem respeitada).', ui.ButtonSet.OK);
+  if (allErrors.length > 0) {
+    let report = 'Resumo da Sincronização de Unidades:\n';
+    report += '- Falhas identificadas: ' + allErrors.length + '\n\n';
+    report += 'Detalhes (Visão Parcial):\n';
+    report += allErrors.slice(0, 15).join('\n');
+    ui.alert('Concluído com Alertas', report, ui.ButtonSet.OK);
+  } else {
+    ui.alert('Sucesso', 'Departamentos, seccionais e delegacias sincronizados (ordem respeitada).', ui.ButtonSet.OK);
+  }
 }
 
 function fullSyncServers() {
