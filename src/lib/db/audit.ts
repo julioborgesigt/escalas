@@ -21,6 +21,7 @@ import { auditLog } from '../server/schema';
 import type { Database } from './core';
 import type { AuditLog } from '../server/schema';
 import { logger } from '../server/logger';
+import { getRequestCtx } from '../server/request-context';
 import { cifrarTexto } from '../crypto/field-cripto';
 import { bytesToHex, hexToBytes } from '../crypto/hex';
 
@@ -524,12 +525,15 @@ function ehViolacaoSeq(err: unknown): boolean {
 export async function auditar(
 	db: Database,
 	evento: AuditEvento,
-	ctx?: { env?: AuditCriptoEnv }
+	// `env` é `unknown` para aceitar o `App.Platform['env']` real (tipo `Env`
+	// completo do Cloudflare) sem cast nos call sites; convertido internamente.
+	ctx?: { env?: unknown }
 ): Promise<void> {
 	try {
 		const meta = metaDaAcao(evento.acao);
-		const ipKey = lerChave(ctx?.env?.AUDIT_IP_ENCRYPTION_KEY);
-		const chainKey = lerChave(ctx?.env?.AUDIT_CHAIN_KEY);
+		const cryptoEnv = ctx?.env as AuditCriptoEnv | undefined;
+		const ipKey = lerChave(cryptoEnv?.AUDIT_IP_ENCRYPTION_KEY);
+		const chainKey = lerChave(cryptoEnv?.AUDIT_CHAIN_KEY);
 
 		const ipCompleto = evento.ip ?? null;
 		let ip_cifrado: string | null = null;
@@ -542,6 +546,13 @@ export async function auditar(
 				});
 			}
 		}
+
+		// Fallback de contexto: mesmo chamadas que não passam request_id/rota
+		// (as ~25 legadas) herdam esses campos do AsyncLocalStorage da request,
+		// populado em hooks.server.ts. Mantém a trilha consistente sem tocar todos
+		// os call sites. IP/user-agent não vivem no store — ficam por conta de quem
+		// passa o contexto (contextoDeEvento).
+		const reqCtx = getRequestCtx();
 
 		const base = {
 			actor_tipo: evento.actor_tipo ?? evento.usuario?.tipo ?? (evento.usuario ? null : 'sistema'),
@@ -564,8 +575,8 @@ export async function auditar(
 			ip: anonimizarIp(ipCompleto),
 			ip_cifrado,
 			user_agent: evento.user_agent ?? null,
-			request_id: evento.request_id ?? null,
-			rota: evento.rota ?? null,
+			request_id: evento.request_id ?? reqCtx?.requestId ?? null,
+			rota: evento.rota ?? reqCtx?.path ?? null,
 			metodo: evento.metodo ?? null,
 			created_at: agoraUtc()
 		} as const;
@@ -626,7 +637,7 @@ export async function registrarAuditComContexto(
 		request_id?: string | null;
 		rota?: string | null;
 		metodo?: string | null;
-		env?: AuditCriptoEnv;
+		env?: unknown;
 	}
 ): Promise<void> {
 	return auditar(

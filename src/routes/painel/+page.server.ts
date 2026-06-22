@@ -1,6 +1,12 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, listarUnidades, excluirEscala, registrarAuditComContexto } from '$lib/db';
+import {
+	getDB,
+	listarUnidades,
+	excluirEscala,
+	registrarAuditComContexto,
+	contextoDeEvento
+} from '$lib/db';
 import type { Database } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import { and, gte, lte, inArray } from 'drizzle-orm';
@@ -255,7 +261,8 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 };
 
 export const actions: Actions = {
-	excluirEscala: async ({ request, locals, platform }) => {
+	excluirEscala: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (u?.tipo !== 'admin') return fail(403, { error: 'Não autorizado' });
 
@@ -266,12 +273,17 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		await excluirEscala(db, escalaId);
 
+		const { contexto, env } = contextoDeEvento(event);
 		await registrarAuditComContexto(db, {
 			usuario: u,
 			acao: 'excluir_escala',
 			entidade: 'escala',
 			entidade_id: escalaId,
-			detalhes: `Escala excluída do painel de compliance: ID ${escalaId}`
+			alvo_tipo: 'escala',
+			alvo_id: escalaId,
+			detalhes: `Escala excluída do painel de compliance: ID ${escalaId}`,
+			...contexto,
+			env
 		});
 
 		return { success: true };

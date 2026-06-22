@@ -11,7 +11,8 @@ import {
 	excluirDocumentoEscala,
 	getR2,
 	hasR2,
-	registrarAuditComContexto
+	registrarAuditComContexto,
+	contextoDeEvento
 } from '$lib/db';
 import { unidades as unidadesTable } from '$lib/server/schema';
 
@@ -94,7 +95,8 @@ export const actions: Actions = {
 		return { success: true, escalaId, visto };
 	},
 
-	excluir: async ({ request, locals, platform }) => {
+	excluir: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (u?.tipo !== 'admin') return fail(403, { error: 'Não autorizado' });
 
@@ -113,12 +115,17 @@ export const actions: Actions = {
 		await excluirDocumentoEscala(db, escalaId);
 		await excluirEscala(db, escalaId);
 
+		const { contexto, env } = contextoDeEvento(event);
 		await registrarAuditComContexto(db, {
 			usuario: u,
 			acao: 'excluir_escala',
 			entidade: 'escala',
 			entidade_id: escalaId,
-			detalhes: `Escala excluída da cx. de entrada: ID ${escalaId}`
+			alvo_tipo: 'escala',
+			alvo_id: escalaId,
+			detalhes: `Escala excluída da cx. de entrada: ID ${escalaId}`,
+			...contexto,
+			env
 		});
 
 		return { success: true };

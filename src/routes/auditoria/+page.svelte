@@ -119,7 +119,8 @@
 		<div class="flex items-center gap-2">
 			<a
 				href="/auditoria/export?{queryString()}"
-				class="btn preset-tonal-surface text-sm"
+				class="btn preset-outlined-surface-500 text-sm"
+				data-sveltekit-reload
 				data-sveltekit-preload-data="off"
 			>
 				Exportar CSV
@@ -257,7 +258,7 @@
 				<option value="negado" selected={data.filtros.resultado === 'negado'}>Negado</option>
 			</select>
 		</label>
-		<label class="flex flex-col gap-1 text-sm lg:col-span-2">
+		<label class="flex flex-col gap-1 text-sm">
 			<span class="text-surface-500 dark:text-surface-400">Busca (ator / detalhes / alvo)</span>
 			<input
 				name="busca"
@@ -274,16 +275,19 @@
 			<span class="text-surface-500 dark:text-surface-400">Até</span>
 			<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
 		</label>
-		<div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2">
+		<div class="flex items-end gap-2">
 			<button type="submit" class="btn preset-filled-primary-500 text-sm">Filtrar</button>
 			{#if filtrosAtivos > 0}
-				<a href="/auditoria" class="btn preset-tonal-surface text-sm">Limpar ({filtrosAtivos})</a>
+				<a href="/auditoria" class="btn preset-outlined-surface-500 text-sm"
+					>Limpar ({filtrosAtivos})</a
+				>
 			{/if}
-			<span class="ml-auto text-sm text-surface-500 dark:text-surface-400">
-				{data.total.toLocaleString('pt-BR')} resultado(s)
-			</span>
 		</div>
 	</form>
+
+	<div class="flex justify-end -mb-2 text-sm text-surface-500 dark:text-surface-400">
+		{data.total.toLocaleString('pt-BR')} resultado(s)
+	</div>
 
 	<!-- Tabela -->
 	<div
@@ -435,7 +439,10 @@
 	{#if data.totalPages > 1}
 		<div class="flex items-center justify-center gap-2">
 			{#if data.page > 1}
-				<a href="?{queryString({ page: data.page - 1 })}" class="btn preset-tonal-surface text-sm">
+				<a
+					href="?{queryString({ page: data.page - 1 })}"
+					class="btn preset-outlined-surface-500 text-sm"
+				>
 					Anterior
 				</a>
 			{/if}
@@ -443,7 +450,10 @@
 				Página {data.page} de {data.totalPages}
 			</span>
 			{#if data.page < data.totalPages}
-				<a href="?{queryString({ page: data.page + 1 })}" class="btn preset-tonal-surface text-sm">
+				<a
+					href="?{queryString({ page: data.page + 1 })}"
+					class="btn preset-outlined-surface-500 text-sm"
+				>
 					Próxima
 				</a>
 			{/if}

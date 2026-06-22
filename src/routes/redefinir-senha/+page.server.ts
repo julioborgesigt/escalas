@@ -108,7 +108,9 @@ export const actions: Actions = {
 				acao: 'primeiro_acesso_link',
 				entidade: tipo === 'policial' ? 'policiais' : 'administradores',
 				entidade_id: usuarioId,
-				ip: getClientAddress()
+				ip: getClientAddress(),
+				user_agent: request.headers.get('user-agent'),
+				env: platform?.env
 			});
 			throw redirect(303, '/alterar-senha');
 		}
@@ -170,7 +172,11 @@ export const actions: Actions = {
 			acao: 'redefinir_senha',
 			entidade: tipo === 'policial' ? 'policiais' : 'administradores',
 			entidade_id: usuarioId,
-			ip: getClientAddress()
+			alvo_tipo: tipo,
+			alvo_id: usuarioId,
+			ip: getClientAddress(),
+			user_agent: request.headers.get('user-agent'),
+			env: platform?.env
 		});
 
 		throw redirect(303, '/login?resetado=1');
