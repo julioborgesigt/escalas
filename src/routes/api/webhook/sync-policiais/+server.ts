@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { upsertPolicial, buscarPolicialPorMatricula } from '$lib/db/policiais';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
@@ -29,7 +29,8 @@ function papelChangesAllowed(env: unknown): boolean {
 	return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
 
-export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, platform, getClientAddress } = event;
 	const env = platform?.env as Env | undefined;
 	const SYNC_TOKEN = env?.SYNC_TOKEN;
 	const rawBody = await request.text();
@@ -151,27 +152,52 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 					}
 				}
 
-				await upsertPolicial(db, {
-					matricula: String(item.matricula).trim(),
-					nome: String(item.nome).trim(),
-					cargo: cargo as 'DPC' | 'OIP',
-					telefone: telefoneMap,
-					cpf: String(item.cpf || '').trim(),
-					classe: String(item.classe || '').trim(),
-					lotacao: lotacaoMap,
-					ativo: statusMap,
-					email: String(item.email || '')
-						.toLowerCase()
-						.trim(),
-					regime: regimeMap,
-					papel: papelMap,
-					papel_unidade_id: papelUnidadeId
-				}, env);
+				await upsertPolicial(
+					db,
+					{
+						matricula: String(item.matricula).trim(),
+						nome: String(item.nome).trim(),
+						cargo: cargo as 'DPC' | 'OIP',
+						telefone: telefoneMap,
+						cpf: String(item.cpf || '').trim(),
+						classe: String(item.classe || '').trim(),
+						lotacao: lotacaoMap,
+						ativo: statusMap,
+						email: String(item.email || '')
+							.toLowerCase()
+							.trim(),
+						regime: regimeMap,
+						papel: papelMap,
+						papel_unidade_id: papelUnidadeId
+					},
+					env
+				);
 				successCount++;
 			} catch (err: unknown) {
 				errors.push(`${rowId}: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
+
+		const { contexto, env: cryptoEnv } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'sync_policiais',
+				usuario: null,
+				actor_tipo: 'webhook',
+				entidade: 'policial',
+				resultado: errors.length === 0 ? 'sucesso' : 'falha',
+				detalhes: `Sync de policiais: ${successCount}/${data.length} importados, ${errors.length} falha(s)`,
+				metadados: {
+					processed: data.length,
+					imported: successCount,
+					failed: errors.length,
+					papelLiberado
+				},
+				...contexto
+			},
+			{ env: cryptoEnv }
+		);
 
 		return json({
 			success: errors.length === 0,

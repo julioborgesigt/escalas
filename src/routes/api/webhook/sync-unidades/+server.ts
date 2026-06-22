@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { upsertUnidade, buscarUnidadePorNome } from '$lib/db/unidades';
 import {
 	validarWebhookSync,
@@ -31,7 +31,8 @@ function trimCol(item: Record<string, unknown>, key: string): string {
 	return String(item[key] ?? '').trim();
 }
 
-export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, platform, getClientAddress } = event;
 	const env = platform?.env as Env | undefined;
 	const SYNC_TOKEN = env?.SYNC_TOKEN;
 	const rawBody = await request.text();
@@ -210,6 +211,22 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 				errors.push(`Delegacia ${trimCol(item, 'unidade')}: ${messageFromUnknown(err)}`);
 			}
 		}
+
+		const { contexto, env: cryptoEnv } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'sync_unidades',
+				usuario: null,
+				actor_tipo: 'webhook',
+				entidade: 'unidade',
+				resultado: errors.length === 0 ? 'sucesso' : 'falha',
+				detalhes: `Sync de unidades: ${successCount}/${data.length} importadas, ${errors.length} falha(s)`,
+				metadados: { processed: data.length, imported: successCount, failed: errors.length },
+				...contexto
+			},
+			{ env: cryptoEnv }
+		);
 
 		return json({
 			success: true,

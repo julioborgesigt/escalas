@@ -18,7 +18,7 @@
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { count } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
 import {
@@ -59,7 +59,8 @@ function dataIsoHojeUtc(): string {
 	return `${yyyy}-${mm}-${dd}`;
 }
 
-export const POST: RequestHandler = async ({ request, platform, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, platform, getClientAddress } = event;
 	// `platform.env` resolve para `Env` em runtime Cloudflare, mas o tipo
 	// gerado pelo svelte-kit local não enxerga isso sem cast.
 	const env = (platform?.env ?? {}) as Env;
@@ -181,6 +182,25 @@ export const POST: RequestHandler = async ({ request, platform, getClientAddress
 		await db.delete(unidades);
 
 		logger.warn('[reset-policiais] reset concluído', { ip, snapshot });
+
+		// A trilha de auditoria (audit_log) NÃO está na lista de deleção acima, então
+		// este registro sobrevive ao reset e preserva o snapshot pré-deleção como
+		// prova forense da operação destrutiva.
+		const { contexto, env: cryptoEnv } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'reset_policiais',
+				usuario: null,
+				actor_tipo: 'webhook',
+				entidade: 'sistema',
+				severidade: 'critico',
+				detalhes: 'Reset completo do banco operacional (policiais, unidades, escalas e GISE)',
+				metadados: { snapshot },
+				...contexto
+			},
+			{ env: cryptoEnv }
+		);
 
 		return json({
 			success: true,
