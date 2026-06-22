@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, salvarConfiguracao } from '$lib/db';
+import { getDB, salvarConfiguracao, auditar, contextoDeEvento } from '$lib/db';
 import { assinaturaConfigSchema } from '$lib/schemas';
 import { invalidarFlagsAssinatura, lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { requireSuperAdmin, badRequest, validateBody } from '$lib/server/api';
@@ -21,7 +21,8 @@ export const GET: RequestHandler = async ({ platform }) => {
 	});
 };
 
-export const PUT: RequestHandler = async ({ platform, request, locals }) => {
+export const PUT: RequestHandler = async (event) => {
+	const { platform, request, locals } = event;
 	const u = requireSuperAdmin(locals);
 	if (u instanceof Response) return u;
 
@@ -66,6 +67,20 @@ export const PUT: RequestHandler = async ({ platform, request, locals }) => {
 	// Invalida o cache edge server-side para que toda assinatura subsequente
 	// leia os novos valores do D1 (não mais do cliente).
 	await invalidarFlagsAssinatura();
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'salvar_config_assinatura',
+			usuario: u,
+			entidade: 'configuracao',
+			detalhes: 'Configuração de assinatura alterada',
+			dados_depois: data,
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({ ok: true });
 };

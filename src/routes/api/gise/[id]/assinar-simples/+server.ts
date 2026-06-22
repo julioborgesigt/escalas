@@ -24,7 +24,9 @@ import {
 	buscarGiseEscala,
 	buscarGiseDetalhado,
 	salvarGiseDocumento,
-	atualizarGiseEscala
+	atualizarGiseEscala,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { assinarSimplesSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/signature-service';
@@ -40,14 +42,8 @@ import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 
-export const POST: RequestHandler = async ({
-	platform,
-	params,
-	locals,
-	url,
-	request,
-	getClientAddress
-}) => {
+export const POST: RequestHandler = async (event) => {
+	const { platform, params, locals, url, request, getClientAddress } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -222,6 +218,28 @@ export const POST: RequestHandler = async ({
 			),
 			atualizarGiseEscala(db, id, { status: 'em_andamento' })
 		]);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'assinar_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: id,
+				alvo_tipo: 'gise',
+				alvo_id: id,
+				detalhes: `GISE ${id} assinada (assinatura simples)`,
+				metadados: {
+					tipo: 'simples',
+					verificationHash,
+					data_inicio: gise.data_inicio,
+					arquivo_hash
+				},
+				...contexto
+			},
+			{ env }
+		);
 
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
 		return new Response(pdfParaSalvar as unknown as BodyInit, {

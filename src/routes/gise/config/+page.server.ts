@@ -1,6 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getDB, salvarVagasPadraoEquipesGise, buscarVagasPadraoEquipesGise } from '$lib/db';
+import {
+	getDB,
+	salvarVagasPadraoEquipesGise,
+	buscarVagasPadraoEquipesGise,
+	auditar,
+	contextoDeEvento
+} from '$lib/db';
 import { buscarConfiguracao, salvarConfiguracao } from '$lib/db/configuracoes';
 import {
 	getBreveRelatorioEnvMergido,
@@ -51,7 +57,8 @@ function parseN(v: FormDataEntryValue | null, d: number): number {
 }
 
 export const actions: Actions = {
-	salvar: async ({ request, locals, platform }) => {
+	salvar: async (event) => {
+		const { request, locals, platform } = event;
 		if (locals.usuario?.tipo !== 'admin') return fail(403, { error: 'Sem permissão' });
 		const fd = await request.formData();
 		const vOpDpc = parseN(fd.get('op_dpc'), 1);
@@ -105,6 +112,24 @@ export const actions: Actions = {
 			logger.error('[gise/config] salvar', { error: msg });
 			return fail(500, { error: 'Erro ao salvar' });
 		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'salvar_config_gise',
+				usuario: locals.usuario,
+				entidade: 'configuracao',
+				detalhes: 'Configuração do GISE alterada (vagas padrão, breve relatório, horários)',
+				dados_depois: {
+					vagas: { op_dpc: vOpDpc, op_oip: vOpOip, seint_dpc: vSeDpc, seint_oip: vSeOip },
+					default_hora_entrada: defaultHoraEntrada,
+					default_hora_saida: defaultHoraSaida
+				},
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	}
 };

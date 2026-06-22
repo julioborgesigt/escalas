@@ -6,7 +6,9 @@ import {
 	buscarPolicial,
 	criarSolicitacaoAssinatura,
 	buscarSolicitacaoAssinatura,
-	excluirSolicitacaoAssinatura
+	excluirSolicitacaoAssinatura,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { z } from 'zod';
 import { requireAuth, badRequest, forbidden, notFound, validateBody } from '$lib/server/api';
@@ -23,7 +25,8 @@ function podeOIPSolicitar(u: App.Locals['usuario']) {
 	return (u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'OIP';
 }
 
-export const POST: RequestHandler = async ({ params, locals, platform, request }) => {
+export const POST: RequestHandler = async (event) => {
+	const { params, locals, platform, request } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 	if (!podeOIPSolicitar(u)) return forbidden('Sem permissão');
@@ -68,6 +71,23 @@ export const POST: RequestHandler = async ({ params, locals, platform, request }
 	}
 
 	await criarSolicitacaoAssinatura(db, id, u.id, tipo, destinatario_id);
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'solicitar_assinatura_escala',
+			usuario: u,
+			entidade: 'escala',
+			entidade_id: id,
+			alvo_tipo: 'escala',
+			alvo_id: id,
+			detalhes: `Solicitação de assinatura (${tipo}) para a escala ${id}`,
+			metadados: { tipo, destinatario_id: destinatario_id ?? null },
+			...contexto
+		},
+		{ env }
+	);
 	return json({ success: true });
 };
 
