@@ -352,6 +352,7 @@
 			<Dialog.Title class="h3 font-bold mb-5">{modalTitle}</Dialog.Title>
 
 			<form
+				id="policialForm"
 				method="POST"
 				action={editingPolicialId ? '?/atualizar' : '?/criar'}
 				use:enhance={handleSalvarPolicial}
@@ -538,39 +539,32 @@
 						</div>
 					</div>
 				{/if}
-
-				{#if !editingPolicialId && isAdmin}
-					<label
-						class="flex items-start gap-2 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer"
-					>
-						<input type="checkbox" name="conceder_admin_geral" value="1" class="checkbox mt-0.5" />
-						<span class="text-xs">
-							<b class="block">Conceder Admin Geral</b>
-							<span class="text-surface-500">
-								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
-								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
-							</span>
-						</span>
-					</label>
-				{/if}
-
-				<div class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-white/5">
-					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
-						>Cancelar</Dialog.CloseTrigger
-					>
-					<button
-						type="submit"
-						class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
-						disabled={pendingCadastro}
-					>
-						{pendingCadastro ? submitLoadingLabel : submitLabel}
-					</button>
-				</div>
 			</form>
+
+			{#if !editingPolicialId && isAdmin}
+				<label
+					class="mt-3 flex items-start gap-2 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer"
+				>
+					<input
+						type="checkbox"
+						name="conceder_admin_geral"
+						value="1"
+						form="policialForm"
+						class="checkbox mt-0.5"
+					/>
+					<span class="text-xs">
+						<b class="block">Conceder Admin Geral</b>
+						<span class="text-surface-500">
+							Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
+							matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+						</span>
+					</span>
+				</label>
+			{/if}
 
 			{#if editingPolicialId && isAdmin}
 				<div
-					class="mt-4 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex items-center gap-3 flex-wrap"
+					class="mt-3 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex items-center gap-3 flex-wrap"
 				>
 					<div class="flex-1 min-w-[12rem]">
 						<h4 class="text-[0.7rem] font-bold uppercase opacity-60">Admin Geral</h4>
@@ -600,6 +594,20 @@
 					</form>
 				</div>
 			{/if}
+
+			<div class="flex justify-end gap-2 pt-4 mt-3 border-t border-surface-200 dark:border-white/5">
+				<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
+					>Cancelar</Dialog.CloseTrigger
+				>
+				<button
+					type="submit"
+					form="policialForm"
+					class="btn btn-sm sm:btn-md preset-filled-primary-500 w-full flex items-center justify-center gap-2"
+					disabled={pendingCadastro}
+				>
+					{pendingCadastro ? submitLoadingLabel : submitLabel}
+				</button>
+			</div>
 		</div>
 	</Dialog.Content>
 </Dialog>
