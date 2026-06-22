@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { toaster } from '$lib/toast';
 
 	const { data, form } = $props();
 
@@ -90,7 +91,43 @@
 
 	let expandido = $state<number | null>(null);
 	let verificando = $state(false);
+	let baixando = $state(false);
 	const integridade = $derived(form?.integridade);
+
+	/**
+	 * Baixa um export (CSV/PDF) via fetch + blob — evita o "carregando" eterno do
+	 * router e permite tratar o limite de janela (HTTP 400) com um toast claro.
+	 */
+	async function baixar(format: 'csv' | 'pdf', extra: Record<string, string | number> = {}) {
+		if (baixando) return;
+		baixando = true;
+		try {
+			const resp = await fetch(`/auditoria/export?${queryString({ format, ...extra })}`);
+			if (!resp.ok) {
+				let msg = 'Não foi possível gerar o arquivo.';
+				try {
+					msg = (await resp.json()).error ?? msg;
+				} catch {
+					/* corpo não-JSON */
+				}
+				toaster.error({ title: 'Exportação', description: msg });
+				return;
+			}
+			const blob = await resp.blob();
+			const cd = resp.headers.get('content-disposition') ?? '';
+			const nome = cd.match(/filename="([^"]+)"/)?.[1] ?? `auditoria.${format}`;
+			const href = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = href;
+			a.download = nome;
+			a.click();
+			URL.revokeObjectURL(href);
+		} catch {
+			toaster.error({ title: 'Exportação', description: 'Erro de rede ao exportar.' });
+		} finally {
+			baixando = false;
+		}
+	}
 
 	const filtrosAtivos = $derived(
 		[
@@ -117,14 +154,22 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<a
-				href="/auditoria/export?{queryString()}"
+			<button
+				type="button"
+				onclick={() => baixar('csv')}
+				disabled={baixando}
 				class="btn preset-outlined-surface-500 text-sm"
-				data-sveltekit-reload
-				data-sveltekit-preload-data="off"
 			>
 				Exportar CSV
-			</a>
+			</button>
+			<button
+				type="button"
+				onclick={() => baixar('pdf')}
+				disabled={baixando}
+				class="btn preset-outlined-surface-500 text-sm"
+			>
+				Exportar PDF
+			</button>
 			<form
 				method="POST"
 				action="?/verificar"
@@ -420,6 +465,16 @@
 											</div>
 										{/if}
 									</div>
+								</div>
+								<div class="mt-3 flex justify-end">
+									<button
+										type="button"
+										onclick={() => baixar('pdf', { id: log.id })}
+										disabled={baixando}
+										class="btn preset-outlined-surface-500 text-xs"
+									>
+										Exportar este evento (PDF)
+									</button>
 								</div>
 							</td>
 						</tr>
