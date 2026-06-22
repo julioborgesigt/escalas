@@ -6,7 +6,9 @@ import {
 	buscarGiseEscala,
 	atualizarGiseEscala,
 	reabrirGiseEscala,
-	verificarConflitoHorarioPorGise
+	verificarConflitoHorarioPorGise,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral } from '$lib/auth';
 import { invalidarPapelGiseMultiplos, coletarAfetadosGise } from '$lib/server/gise-papel-cache';
@@ -28,7 +30,8 @@ import { eq } from 'drizzle-orm';
 type Event = RequestEvent<{ id: string }>;
 
 export const actionsEscala = {
-	salvarSupervisores: async ({ request, locals, platform, params }: Event) => {
+	salvarSupervisores: async (event: Event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u)) return fail(403, { error: 'Apenas Admin Geral pode editar' });
@@ -138,6 +141,34 @@ export const actionsEscala = {
 			gise.seint2_id,
 			seint2Id
 		]);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'editar_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseId,
+				alvo_tipo: 'gise',
+				alvo_id: giseId,
+				detalhes: `Quadro de supervisão da GISE ${giseId} definido`,
+				dados_antes: {
+					supervisor_id: gise.supervisor_id,
+					assessor_id: gise.assessor_id,
+					seint1_id: gise.seint1_id,
+					seint2_id: gise.seint2_id
+				},
+				dados_depois: {
+					supervisor_id: supervisorId,
+					assessor_id: assessorId,
+					seint1_id: seint1Id,
+					seint2_id: seint2Id
+				},
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true };
 	},

@@ -8,13 +8,14 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, atualizarGiseEscala } from '$lib/db';
+import { getDB, buscarGiseEscala, atualizarGiseEscala, auditar, contextoDeEvento } from '$lib/db';
 import { coletarAfetadosGise, invalidarPapelGiseMultiplos } from '$lib/server/gise-papel-cache';
 import { agendarSyncBaseEquipeAposFinalizar } from '$lib/server/gise-base-equipe-sync';
 import { giseIdParamSchema } from '$lib/schemas';
 import { requireAdmin, badRequest, notFound, conflict } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({ locals, params, platform }) => {
+export const POST: RequestHandler = async (event) => {
+	const { locals, params, platform } = event;
 	const u = requireAdmin(locals);
 	if (u instanceof Response) return u;
 
@@ -41,6 +42,23 @@ export const POST: RequestHandler = async ({ locals, params, platform }) => {
 	await invalidarPapelGiseMultiplos(afetados);
 
 	agendarSyncBaseEquipeAposFinalizar(platform, db, id);
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'finalizar_gise',
+			usuario: u,
+			entidade: 'gise',
+			entidade_id: id,
+			alvo_tipo: 'gise',
+			alvo_id: id,
+			detalhes: `GISE ${id} finalizada (status anterior: ${gise.status})`,
+			metadados: { status_anterior: gise.status, data_inicio: gise.data_inicio },
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({ ok: true });
 };

@@ -1,6 +1,14 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, listarUnidades, criarUnidade, atualizarUnidade, excluirUnidade } from '$lib/db';
+import {
+	getDB,
+	listarUnidades,
+	criarUnidade,
+	atualizarUnidade,
+	excluirUnidade,
+	auditar,
+	contextoDeEvento
+} from '$lib/db';
 import { unidadeSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades, escalas, type Unidade } from '$lib/server/schema';
@@ -23,7 +31,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 };
 
 export const actions: Actions = {
-	criar: async ({ request, locals, platform }) => {
+	criar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u || !u.isSuperAdmin)
 			return fail(403, { error: 'Apenas o Super Administrador pode cadastrar unidades' });
@@ -57,6 +66,31 @@ export const actions: Actions = {
 		const db = getDB(platform);
 		try {
 			await criarUnidade(db, parsed.data);
+			const novaId =
+				(
+					await db
+						.select({ id: unidades.id })
+						.from(unidades)
+						.where(eq(unidades.nome, nome.trim()))
+						.get()
+				)?.id ?? null;
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'criar_unidade',
+					usuario: u,
+					entidade: 'unidade',
+					entidade_id: novaId,
+					alvo_tipo: 'unidade',
+					alvo_id: novaId,
+					alvo_nome: nome.trim(),
+					detalhes: `Unidade criada: ${nome.trim()}`,
+					dados_depois: parsed.data,
+					...contexto
+				},
+				{ env }
+			);
 			return { success: true };
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Erro desconhecido';
@@ -67,7 +101,8 @@ export const actions: Actions = {
 		}
 	},
 
-	editar: async ({ request, locals, platform }) => {
+	editar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u || !u.isSuperAdmin)
 			return fail(403, { error: 'Apenas o Super Administrador pode editar unidades' });
@@ -97,8 +132,27 @@ export const actions: Actions = {
 		}
 
 		const db = getDB(platform);
+		const antes = await db.select().from(unidades).where(eq(unidades.id, id)).get();
 		try {
 			await atualizarUnidade(db, id, parsed.data);
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'editar_unidade',
+					usuario: u,
+					entidade: 'unidade',
+					entidade_id: id,
+					alvo_tipo: 'unidade',
+					alvo_id: id,
+					alvo_nome: parsed.data.nome.trim(),
+					detalhes: `Unidade editada: ${parsed.data.nome.trim()}`,
+					dados_antes: antes ?? undefined,
+					dados_depois: parsed.data,
+					...contexto
+				},
+				{ env }
+			);
 			return { success: true };
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Erro desconhecido';
@@ -109,7 +163,8 @@ export const actions: Actions = {
 		}
 	},
 
-	excluir: async ({ request, locals, platform }) => {
+	excluir: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u || !u.isSuperAdmin)
 			return fail(403, { error: 'Apenas o Super Administrador pode excluir unidades' });
@@ -120,12 +175,8 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		// Buscar nome da unidade
-		const unidade = await db
-			.select({ nome: unidades.nome })
-			.from(unidades)
-			.where(eq(unidades.id, id))
-			.get();
+		// Buscar a unidade completa (nome + estado para o diff de auditoria)
+		const unidade = await db.select().from(unidades).where(eq(unidades.id, id)).get();
 		if (!unidade) return fail(404, { error: 'Unidade não encontrada' });
 
 		// Verificar se há escalas vinculadas
@@ -142,6 +193,23 @@ export const actions: Actions = {
 		}
 
 		await excluirUnidade(db, id);
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'excluir_unidade',
+				usuario: u,
+				entidade: 'unidade',
+				entidade_id: id,
+				alvo_tipo: 'unidade',
+				alvo_id: id,
+				alvo_nome: unidade.nome,
+				detalhes: `Unidade excluída: ${unidade.nome}`,
+				dados_antes: unidade,
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	}
 };

@@ -6,7 +6,9 @@ import {
 	buscarGiseAtiva,
 	criarGiseEscala,
 	clonarGiseParaData,
-	upsertGiseSeccional
+	upsertGiseSeccional,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
@@ -119,7 +121,8 @@ function parseDatasCriacaoGise(
 }
 
 export const actions: Actions = {
-	criar: async ({ request, locals, platform }) => {
+	criar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!isAdminGeral(u))
 			return fail(403, { error: 'Apenas o Administrador Geral pode criar escalas GISE' });
@@ -182,6 +185,21 @@ export const actions: Actions = {
 					})
 				);
 			}
+
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'criar_gise',
+					usuario: u,
+					entidade: 'gise',
+					entidade_id: ids[0] ?? null,
+					detalhes: `${ids.length} escala(s) GISE criada(s) (modo ${modo})`,
+					metadados: { count: ids.length, ids, datas: parsed.dias.map((d) => d.data), modo },
+					...contexto
+				},
+				{ env }
+			);
 
 			return { success: true, count: ids.length, ids, datas: parsed.dias.map((d) => d.data) };
 		} catch (e: unknown) {

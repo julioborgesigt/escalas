@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { criarSessao } from '$lib/auth';
 import { doisFatoresTokens, policiais } from '$lib/server/schema';
 import {
@@ -21,13 +21,8 @@ import { logger } from '$lib/server/logger';
 import forge from 'node-forge';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({
-	platform,
-	request,
-	cookies,
-	url,
-	getClientAddress
-}) => {
+export const POST: RequestHandler = async (event) => {
+	const { platform, request, cookies, url, getClientAddress } = event;
 	const db = getDB(platform);
 	const ip = getClientAddress();
 
@@ -156,6 +151,24 @@ export const POST: RequestHandler = async ({
 
 	const token = await criarSessao(db, 'policial', policial.id);
 	cookies.set('session_token', token, cookieOptions(url));
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'login_certificado',
+			usuario: { id: policial.id, nome: policial.nome, tipo: 'policial' },
+			entidade: 'policial',
+			entidade_id: policial.id,
+			alvo_tipo: 'policial',
+			alvo_id: policial.id,
+			alvo_nome: policial.nome,
+			detalhes: 'Login por certificado digital (Token A3 / ICP-Brasil)',
+			metadados: { via: 'certificado_a3' },
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({
 		success: true,

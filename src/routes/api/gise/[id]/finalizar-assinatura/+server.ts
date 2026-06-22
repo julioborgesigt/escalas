@@ -7,7 +7,14 @@
 
 import type { RequestHandler } from './$types';
 import { bytesToHex } from '$lib/crypto/hex';
-import { getDB, buscarGiseEscala, salvarGiseDocumento, atualizarGiseEscala } from '$lib/db';
+import {
+	getDB,
+	buscarGiseEscala,
+	salvarGiseDocumento,
+	atualizarGiseEscala,
+	auditar,
+	contextoDeEvento
+} from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
 import { getR2 } from '$lib/server/platform';
@@ -23,13 +30,8 @@ import {
 	validateBody
 } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({
-	platform,
-	params,
-	locals,
-	request,
-	getClientAddress
-}) => {
+export const POST: RequestHandler = async (event) => {
+	const { platform, params, locals, request, getClientAddress } = event;
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = requireAuth(locals);
@@ -123,6 +125,29 @@ export const POST: RequestHandler = async ({
 		);
 
 		await atualizarGiseEscala(db, id, { status: 'em_andamento' });
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'assinar_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: id,
+				alvo_tipo: 'gise',
+				alvo_id: id,
+				detalhes: `GISE ${id} assinada com certificado digital (A3/qualificada)`,
+				metadados: {
+					tipo: 'qualificada',
+					verificationHash,
+					data_inicio: gise.data_inicio,
+					arquivo_hash: arquivoHash,
+					tipo_carimbo_tempo: result.tipoCarimboTempo
+				},
+				...contexto
+			},
+			{ env }
+		);
 
 		return new Response(result.pdfFinal as unknown as BodyInit, {
 			headers: {

@@ -11,7 +11,9 @@ import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
 	buscarGiseEscala,
-	tentarPromoverGiseProntaParaFinalizar
+	tentarPromoverGiseProntaParaFinalizar,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
@@ -28,13 +30,8 @@ import {
 	validateBody
 } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({
-	platform,
-	params,
-	locals,
-	request,
-	getClientAddress
-}) => {
+export const POST: RequestHandler = async (event) => {
+	const { platform, params, locals, request, getClientAddress } = event;
 	const p = platform as App.Platform | undefined;
 	const db = getDB(p);
 	const u = requireAuth(locals);
@@ -110,38 +107,64 @@ export const POST: RequestHandler = async ({
 			await r2.put(r2Key, result.pdfFinal, { contentType: 'application/pdf' });
 		}
 
-		await salvarAssinaturaRelatorioGise(db, {
-			gise_id: id,
-			seccional_id: secIdNum,
-			tipo: 'extraordinario',
-			assinante_id: u.tipo === 'policial' ? u.id : null,
-			assinante_nome: result.signerName,
-			assinante_cpf: result.signerCpf || null,
-			tipo_assinatura: type,
-			rubrica: rubrica,
-			verification_hash: verificationHash,
-			ip_address: ip,
-			user_agent: ua,
-			latitude,
-			longitude,
-			selfie_key: undefined,
-			r2_key: r2Key,
-			// arquivo_hash = hash do PDF FINAL assinado (o que a /validar reconfere);
-			// não usamos o documentHash enviado pelo cliente (A4).
-			arquivo_hash,
-			assinante_email: assinanteEmail ?? u.email,
-			tipo_carimbo_tempo: result.tipoCarimboTempo,
-			cert_issuer: result.metadata.cert_issuer,
-			cert_serial: result.metadata.cert_serial,
-			cert_valido_de: result.metadata.cert_valido_de,
-			cert_valido_ate: result.metadata.cert_valido_ate,
-			cms_sha256: result.metadata.cms_sha256,
-			ocsp_response_b64: result.metadata.ocsp_response_b64,
-			ocsp_consultado_em: result.metadata.ocsp_consultado_em,
-			tst_token_b64: result.metadata.tst_token_b64
-		}, platform?.env);
+		await salvarAssinaturaRelatorioGise(
+			db,
+			{
+				gise_id: id,
+				seccional_id: secIdNum,
+				tipo: 'extraordinario',
+				assinante_id: u.tipo === 'policial' ? u.id : null,
+				assinante_nome: result.signerName,
+				assinante_cpf: result.signerCpf || null,
+				tipo_assinatura: type,
+				rubrica: rubrica,
+				verification_hash: verificationHash,
+				ip_address: ip,
+				user_agent: ua,
+				latitude,
+				longitude,
+				selfie_key: undefined,
+				r2_key: r2Key,
+				// arquivo_hash = hash do PDF FINAL assinado (o que a /validar reconfere);
+				// não usamos o documentHash enviado pelo cliente (A4).
+				arquivo_hash,
+				assinante_email: assinanteEmail ?? u.email,
+				tipo_carimbo_tempo: result.tipoCarimboTempo,
+				cert_issuer: result.metadata.cert_issuer,
+				cert_serial: result.metadata.cert_serial,
+				cert_valido_de: result.metadata.cert_valido_de,
+				cert_valido_ate: result.metadata.cert_valido_ate,
+				cms_sha256: result.metadata.cms_sha256,
+				ocsp_response_b64: result.metadata.ocsp_response_b64,
+				ocsp_consultado_em: result.metadata.ocsp_consultado_em,
+				tst_token_b64: result.metadata.tst_token_b64
+			},
+			platform?.env
+		);
 
 		await tentarPromoverGiseProntaParaFinalizar(db, id);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'assinar_relatorio_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: id,
+				alvo_tipo: 'seccional',
+				alvo_id: secIdNum,
+				detalhes: `Relatório extraordinário da GISE ${id} assinado com certificado digital (A3, seccional ${secIdNum})`,
+				metadados: {
+					tipo_assinatura: 'qualificada',
+					verification_hash: verificationHash,
+					arquivo_hash,
+					tipo_carimbo_tempo: result.tipoCarimboTempo
+				},
+				...contexto
+			},
+			{ env }
+		);
 
 		return new Response(result.pdfFinal as unknown as BodyInit, {
 			headers: {

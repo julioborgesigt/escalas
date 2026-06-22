@@ -9,7 +9,7 @@
 
 import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
 import { administradores, policiais } from '$lib/server/schema';
 import { requireAuth, badRequest, forbidden, rateLimited, validateBody } from '$lib/server/api';
@@ -18,7 +18,8 @@ import type { RequestHandler } from './$types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const POST: RequestHandler = async ({ request, platform, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, platform, locals } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
@@ -68,6 +69,26 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			.set({ email_pessoal: emailNormalizado, email_pessoal_verificado: 1 })
 			.where(eq(policiais.id, u.id));
 	}
+
+	// E-mail mascarado por privacidade (LGPD): só a 1ª letra + domínio.
+	const [parteLocal, dominio] = emailNormalizado.split('@');
+	const emailMascarado = `${parteLocal.slice(0, 1)}***@${dominio ?? ''}`;
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'verificar_email_pessoal',
+			usuario: u,
+			entidade: u.tipo,
+			entidade_id: u.id,
+			alvo_tipo: u.tipo,
+			alvo_id: u.id,
+			alvo_nome: u.nome,
+			detalhes: `E-mail pessoal verificado e cadastrado (${emailMascarado})`,
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({ ok: true });
 };

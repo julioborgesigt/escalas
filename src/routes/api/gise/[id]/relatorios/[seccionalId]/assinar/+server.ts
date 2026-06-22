@@ -7,7 +7,9 @@ import {
 	buscarGiseDetalhado,
 	buscarPresencasGise,
 	tentarPromoverGiseProntaParaFinalizar,
-	verificarSaidaCompletaSeccional
+	verificarSaidaCompletaSeccional,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { getNowBR } from '$lib/utils';
 import {
@@ -38,14 +40,8 @@ import {
 	validateBody
 } from '$lib/server/api';
 
-export const POST: RequestHandler = async ({
-	locals,
-	params,
-	request,
-	platform,
-	getClientAddress,
-	url
-}) => {
+export const POST: RequestHandler = async (event) => {
+	const { locals, params, request, platform, getClientAddress, url } = event;
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 	if (u.tipo !== 'policial' && u.tipo !== 'admin') {
@@ -237,26 +233,47 @@ export const POST: RequestHandler = async ({
 			}
 		}
 
-		await salvarAssinaturaRelatorioGise(db, {
-			gise_id: giseIdNum,
-			seccional_id: secIdNum,
-			tipo: 'extraordinario',
-			assinante_id: u.tipo === 'policial' ? u.id : null,
-			assinante_nome: signerName || u.nome,
-			assinante_cpf: signerCpf || u.cpf || null,
-			tipo_assinatura: (type as 'simples' | 'webpki' | 'serpro' | undefined) ?? 'simples',
-			rubrica: rubrica || '',
-			verification_hash: hash,
-			ip_address: ip,
-			user_agent: ua,
-			latitude: latitude ?? undefined,
-			longitude: longitude ?? undefined,
-			selfie_key: selfieKey,
-			r2_key: `${prefixBase}_assinada.pdf`,
-			arquivo_hash: arquivo_hash
-		}, platform?.env);
+		await salvarAssinaturaRelatorioGise(
+			db,
+			{
+				gise_id: giseIdNum,
+				seccional_id: secIdNum,
+				tipo: 'extraordinario',
+				assinante_id: u.tipo === 'policial' ? u.id : null,
+				assinante_nome: signerName || u.nome,
+				assinante_cpf: signerCpf || u.cpf || null,
+				tipo_assinatura: (type as 'simples' | 'webpki' | 'serpro' | undefined) ?? 'simples',
+				rubrica: rubrica || '',
+				verification_hash: hash,
+				ip_address: ip,
+				user_agent: ua,
+				latitude: latitude ?? undefined,
+				longitude: longitude ?? undefined,
+				selfie_key: selfieKey,
+				r2_key: `${prefixBase}_assinada.pdf`,
+				arquivo_hash: arquivo_hash
+			},
+			platform?.env
+		);
 
 		await tentarPromoverGiseProntaParaFinalizar(db, giseIdNum);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'assinar_relatorio_gise',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseIdNum,
+				alvo_tipo: 'seccional',
+				alvo_id: secIdNum,
+				detalhes: `Relatório extraordinário da GISE ${id} assinado (seccional ${seccionalId})`,
+				metadados: { tipo_assinatura: type ?? 'simples', verification_hash: hash },
+				...contexto
+			},
+			{ env }
+		);
 
 		return json({ success: true });
 	} catch (e) {

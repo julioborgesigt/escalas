@@ -12,7 +12,9 @@ import {
 	buscarGiseDocumento,
 	buscarGiseEscala,
 	buscarGiseDetalhado,
-	reabrirGiseEscala
+	reabrirGiseEscala,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import {
 	contentDisposition,
@@ -94,7 +96,8 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 	});
 };
 
-export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
+export const DELETE: RequestHandler = async (event) => {
+	const { platform, params, locals } = event;
 	const u = requireAdmin(locals);
 	if (u instanceof Response) return u;
 
@@ -113,6 +116,23 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 
 	// Reabrir escala (deleta documento, reseta seccionais, volta status)
 	await reabrirGiseEscala(db, id);
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'revogar_assinatura',
+			usuario: u,
+			entidade: 'gise',
+			entidade_id: id,
+			alvo_tipo: 'gise',
+			alvo_id: id,
+			detalhes: `Assinatura da GISE ${id} revogada (assinante: ${documento.assinante_nome})`,
+			metadados: { verificacao_hash: documento.verificacao_hash },
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({ success: true, message: 'Assinatura digital revogada com sucesso' });
 };

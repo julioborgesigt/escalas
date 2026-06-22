@@ -1,6 +1,13 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getDB, criarEscala, verificarEscalaExistente, listarLotacoes } from '$lib/db';
+import {
+	getDB,
+	criarEscala,
+	verificarEscalaExistente,
+	listarLotacoes,
+	auditar,
+	contextoDeEvento
+} from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
 import { eq } from 'drizzle-orm';
 import { unidades } from '$lib/server/schema';
@@ -44,7 +51,8 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 };
 
 export const actions: Actions = {
-	criar: async ({ request, locals, platform }) => {
+	criar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -117,7 +125,32 @@ export const actions: Actions = {
 				tipo: validated.tipo
 			});
 
-			return { success: true, id: result[0]?.id };
+			const novaId = result[0]?.id ?? null;
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'criar_escala',
+					usuario: u,
+					entidade: 'escala',
+					entidade_id: novaId,
+					alvo_tipo: 'escala',
+					alvo_id: novaId,
+					alvo_nome: validated.titulo,
+					detalhes: `Escala criada: ${validated.titulo} (${validated.tipo ?? '—'}, ${validated.lotacao})`,
+					dados_depois: {
+						titulo: validated.titulo,
+						tipo: validated.tipo,
+						lotacao: validated.lotacao,
+						data_inicio: validated.data_inicio,
+						data_fim: validated.data_fim
+					},
+					...contexto
+				},
+				{ env }
+			);
+
+			return { success: true, id: novaId };
 		} catch (err) {
 			logger.error('[escalas/nova/criar] Erro interno ao criar escala', {
 				lotacao,
