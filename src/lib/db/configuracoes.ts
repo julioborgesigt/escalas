@@ -11,6 +11,10 @@ export const LGPD_RETENCAO_AUDIT_LOG_ANOS = 'lgpd.retencao.audit_log_anos';
 export const LGPD_RETENCAO_RECOVERY_ATTEMPTS_DIAS = 'lgpd.retencao.recovery_attempts_dias';
 export const LGPD_RETENCAO_WEBHOOK_NONCES_DIAS = 'lgpd.retencao.webhook_nonces_dias';
 
+/** Provedor de e-mail padrão (o outro assume por fallback quando este falha/extrapola cota). */
+export const EMAIL_PROVEDOR_PADRAO = 'email.provedor_padrao';
+export type EmailProvedor = 'cloudflare' | 'resend';
+
 export async function buscarConfiguracao(db: Database, chave: string): Promise<string | null> {
 	const row = await db.select().from(configuracoes).where(eq(configuracoes.chave, chave)).get();
 	return row?.valor ?? null;
@@ -52,4 +56,10 @@ export async function buscarExigirCodigoEmailAssinatura(db: Database): Promise<b
 export async function buscarRestringirSmartphone(db: Database): Promise<boolean> {
 	const val = await buscarConfiguracao(db, 'restringir_smartphone');
 	return val !== '0'; // Default = true (current system behavior)
+}
+
+/** Provedor de e-mail padrão. Default 'cloudflare' (comportamento histórico). */
+export async function buscarProvedorEmailPadrao(db: Database): Promise<EmailProvedor> {
+	const val = await buscarConfiguracao(db, EMAIL_PROVEDOR_PADRAO);
+	return val === 'resend' ? 'resend' : 'cloudflare';
 }

@@ -200,6 +200,11 @@ export const CATALOGO_ACOES = {
 		categoria: 'configuracao',
 		severidade: 'aviso'
 	},
+	salvar_config_geral: {
+		label: 'Alteração de configuração geral',
+		categoria: 'configuracao',
+		severidade: 'aviso'
+	},
 
 	// LGPD
 	registrar_incidente: {
