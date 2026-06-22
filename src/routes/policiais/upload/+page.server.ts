@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { getDB, listarUnidades } from '$lib/db';
+import { getDB, listarUnidades, auditar, contextoDeEvento } from '$lib/db';
 import { policiais as policiaisTable } from '$lib/server/schema';
 import { limparMatricula, normalizarTexto } from '$lib/utils';
 import { gerarSenhaAleatoriaHash, isAdminGeral } from '$lib/auth';
@@ -55,7 +55,8 @@ function parseCSV(text: string): string[][] {
 }
 
 export const actions = {
-	upload: async ({ request, platform, locals }) => {
+	upload: async (event) => {
+		const { request, platform, locals } = event;
 		if (!isAdminGeral(locals.usuario)) {
 			return fail(403, { error: 'Não autorizado', errorType: 'auth' });
 		}
@@ -230,6 +231,27 @@ export const actions = {
 				});
 			}
 		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'importar_policiais',
+				usuario: locals.usuario,
+				entidade: 'policial',
+				resultado: imported > 0 ? 'sucesso' : 'falha',
+				detalhes: `Importação em massa de policiais: ${imported} importado(s), ${skipped} ignorado(s), ${errors.length} erro(s)`,
+				metadados: {
+					imported,
+					skipped,
+					erros: errors.length,
+					total: dataRows.length,
+					arquivo: file.name
+				},
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true, imported, skipped, errors, total: dataRows.length };
 	}
