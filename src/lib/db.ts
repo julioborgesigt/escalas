@@ -37,6 +37,7 @@ export {
 export {
 	listarPoliciais,
 	buscarPolicial,
+	buscarPolicialPorMatricula,
 	criarPolicial,
 	atualizarPolicial,
 	excluirPolicial,

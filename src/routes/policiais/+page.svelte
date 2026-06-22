@@ -539,6 +539,21 @@
 					</div>
 				{/if}
 
+				{#if !editingPolicialId && isAdmin}
+					<label
+						class="flex items-start gap-2 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 cursor-pointer"
+					>
+						<input type="checkbox" name="conceder_admin_geral" value="1" class="checkbox mt-0.5" />
+						<span class="text-xs">
+							<b class="block">Conceder Admin Geral</b>
+							<span class="text-surface-500">
+								Cria a conta de Administrador Geral vinculada. A pessoa loga com a mesma
+								matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+							</span>
+						</span>
+					</label>
+				{/if}
+
 				<div class="flex justify-end gap-2 pt-4 border-t border-surface-200 dark:border-white/5">
 					<Dialog.CloseTrigger class="btn btn-sm preset-outlined-surface-500"
 						>Cancelar</Dialog.CloseTrigger
