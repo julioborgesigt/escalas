@@ -69,7 +69,10 @@ export const actions: Actions = {
 			usuario: u,
 			acao: 'aceitar_termos',
 			entidade: 'termo_uso',
-			detalhes: `Versão ${VERSAO} (hash ${hash.slice(0, 16)}…)`
+			detalhes: `Versão ${VERSAO} (hash ${hash.slice(0, 16)}…)`,
+			ip,
+			user_agent: ua,
+			env: platform?.env
 		});
 
 		// O cache edge de sessão guarda `aceiteVigente` — sem invalidar aqui,

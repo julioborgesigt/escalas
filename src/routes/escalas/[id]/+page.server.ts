@@ -12,6 +12,7 @@ import {
 	criarEscala,
 	verificarEscalaExistente,
 	registrarAuditComContexto,
+	contextoDeEvento,
 	finalizarEscalaFDS,
 	desfinalizarEscalaFDS,
 	buscarSolicitacaoAssinatura
@@ -305,7 +306,8 @@ export const actions: Actions = {
 		}
 	},
 
-	gerarProximoMes: async ({ locals, platform, params }) => {
+	gerarProximoMes: async (event) => {
+		const { locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -418,12 +420,17 @@ export const actions: Actions = {
 				await db.insert(escalaPoliciais).values(linhasParaInserir);
 			}
 
+			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_escala',
 				entidade: 'escala',
 				entidade_id: novaEscalaId,
-				detalhes: `Escala do próximo mês gerada a partir da escala ${escalaId}`
+				alvo_tipo: 'escala',
+				alvo_id: novaEscalaId,
+				detalhes: `Escala do próximo mês gerada a partir da escala ${escalaId}`,
+				...contexto,
+				env
 			});
 
 			return {
@@ -701,7 +708,8 @@ export const actions: Actions = {
 		};
 	},
 
-	finalizar: async ({ request, locals, platform, params }) => {
+	finalizar: async (event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -751,12 +759,18 @@ export const actions: Actions = {
 				});
 			}
 
+			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'finalizar_escala_fds',
 				entidade: 'escala',
 				entidade_id: escalaId,
-				detalhes: `Escala de FDS finalizada e enviada para ${emailDestino}: ${escala.titulo}`
+				alvo_tipo: 'escala',
+				alvo_id: escalaId,
+				detalhes: `Escala de FDS finalizada e enviada para ${emailDestino}: ${escala.titulo}`,
+				metadados: { emailDestino, emailEnviado },
+				...contexto,
+				env
 			});
 			return { success: true, emailDestino, emailEnviado };
 		} catch {

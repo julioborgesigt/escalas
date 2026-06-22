@@ -11,7 +11,7 @@ import {
 	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto } from '$lib/db';
+import { registrarAuditComContexto, contextoDeEvento } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {
@@ -364,7 +364,8 @@ export const actions: Actions = {
 		}
 	},
 
-	excluir: async ({ request, locals, platform }) => {
+	excluir: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -401,12 +402,17 @@ export const actions: Actions = {
 		await excluirEscala(db, escalaId);
 
 		if (u) {
+			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'excluir_escala',
 				entidade: 'escala',
 				entidade_id: escalaId,
-				detalhes: `Escala excluída: ID ${escalaId}`
+				alvo_tipo: 'escala',
+				alvo_id: escalaId,
+				detalhes: `Escala excluída: ID ${escalaId}`,
+				...contexto,
+				env
 			});
 		}
 

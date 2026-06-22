@@ -10,6 +10,8 @@ import {
 	excluirPolicial,
 	listarUnidades,
 	registrarAuditComContexto,
+	auditar,
+	contextoDeEvento,
 	vincularAdminGeral,
 	desvincularAdminGeral,
 	listarPolicialIdsAdminGeral
@@ -80,7 +82,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 };
 
 export const actions: Actions = {
-	criar: async ({ request, locals, platform }) => {
+	criar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u)) {
@@ -173,11 +176,16 @@ export const actions: Actions = {
 				const novo = await buscarPolicialPorMatricula(db, matricula);
 				if (novo) await vincularAdminGeral(db, novo);
 			}
+			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_policial',
 				entidade: 'policial',
-				detalhes: `Criado policial: ${nome} (matrícula: ${matricula})`
+				alvo_tipo: 'policial',
+				alvo_nome: nome,
+				detalhes: `Criado policial: ${nome} (matrícula: ${matricula})`,
+				...contexto,
+				env
 			});
 			return { success: true };
 		} catch (e: unknown) {
@@ -216,7 +224,8 @@ export const actions: Actions = {
 			});
 		}
 	},
-	atualizar: async ({ request, locals, platform }) => {
+	atualizar: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u)) {
@@ -306,12 +315,18 @@ export const actions: Actions = {
 				},
 				platform?.env
 			);
+			const { contexto, env } = contextoDeEvento(event);
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'editar_policial',
 				entidade: 'policial',
 				entidade_id: policialId,
-				detalhes: `Atualizado policial: ${nome} (matrícula: ${matricula})`
+				alvo_tipo: 'policial',
+				alvo_id: policialId,
+				alvo_nome: nome,
+				detalhes: `Atualizado policial: ${nome} (matrícula: ${matricula})`,
+				...contexto,
+				env
 			});
 			return { success: true };
 		} catch (e: unknown) {
@@ -323,7 +338,8 @@ export const actions: Actions = {
 		}
 	},
 
-	excluir: async ({ request, locals, platform }) => {
+	excluir: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u))
@@ -349,12 +365,30 @@ export const actions: Actions = {
 		// login admin órfão apontando para um policial inexistente.
 		await desvincularAdminGeral(db, policialId);
 		await excluirPolicial(db, policialId);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'excluir_policial',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: policialId,
+				alvo_tipo: 'policial',
+				alvo_id: policialId,
+				alvo_nome: policial.nome,
+				detalhes: `Policial excluído: ${policial.nome} (mat. ${policial.matricula})`,
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	},
 
 	// Concede/revoga a condição de Admin Geral (conta vinculada em
 	// `administradores`). Cumulativo com o papel. Só Admin Geral pode.
-	toggleAdminGeral: async ({ request, locals, platform }) => {
+	toggleAdminGeral: async (event) => {
+		const { request, locals, platform } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u))
@@ -379,6 +413,24 @@ export const actions: Actions = {
 			}
 			return fail(500, { error: 'Erro ao atualizar a condição de Admin Geral' });
 		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'toggle_admin_geral',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: policialId,
+				alvo_tipo: 'policial',
+				alvo_id: policialId,
+				alvo_nome: policial.nome,
+				detalhes: `${ativar ? 'Concedido' : 'Removido'} Admin Geral para ${policial.nome} (mat. ${policial.matricula})`,
+				metadados: { ativar },
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	}
 };
