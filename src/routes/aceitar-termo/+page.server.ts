@@ -8,6 +8,7 @@ import {
 } from '$lib/server/termo/termo-vigente';
 import { sanitizeTermoHtml } from '$lib/server/termo/sanitize';
 import { invalidarSessaoCache } from '$lib/server/session-cache';
+import { obterRotaBemVindo } from '$lib/auth';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -75,7 +76,9 @@ export const actions: Actions = {
 		// o redirect abaixo voltaria para /aceitar-termo por até 60s.
 		await invalidarSessaoCache(cookies.get('session_token'));
 
-		// Redireciona para a área principal conforme tipo de usuário.
-		throw redirect(303, u.tipo === 'admin' ? '/painel' : '/escalas');
+		// Redireciona para a página de boas-vindas correta (mesmo destino do
+		// pós-login), conforme tipo de usuário e módulo admin selecionado.
+		const adminModulo = cookies.get('admin_modulo');
+		throw redirect(303, obterRotaBemVindo(u, adminModulo));
 	}
 };
