@@ -30,7 +30,8 @@ export {
 export {
 	vincularAdminGeral,
 	desvincularAdminGeral,
-	ehAdminGeralVinculado
+	ehAdminGeralVinculado,
+	listarPolicialIdsAdminGeral
 } from './db/admin-vinculado';
 
 export {

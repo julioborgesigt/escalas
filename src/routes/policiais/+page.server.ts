@@ -9,7 +9,9 @@ import {
 	excluirPolicial,
 	listarUnidades,
 	registrarAuditComContexto,
-	desvincularAdminGeral
+	vincularAdminGeral,
+	desvincularAdminGeral,
+	listarPolicialIdsAdminGeral
 } from '$lib/db';
 import { policialSchema } from '$lib/schemas/policial';
 import { isAdminGeral } from '$lib/auth';
@@ -34,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const seccional = url.searchParams.get('seccional');
 	const seccionalId = seccional && seccional !== 'todas' ? Number(seccional) : undefined;
 
-	const [resultado, unidades] = await Promise.all([
+	const [resultado, unidades, adminGeralIds] = await Promise.all([
 		listarPoliciais(db, lotacaoParam, false, {
 			busca,
 			cargo,
@@ -42,7 +44,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			page,
 			limit: 20
 		}),
-		listarUnidades(db)
+		listarUnidades(db),
+		listarPolicialIdsAdminGeral(db)
 	]);
 
 	// CPF é cifrado em repouso (LGPD) — decifra para o formulário de edição
@@ -70,6 +73,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			seccional: seccional ?? 'todas'
 		},
 		isAdmin,
+		adminGeralIds,
 		lotacaoUsuario: u.lotacao
 	};
 };
@@ -335,6 +339,36 @@ export const actions: Actions = {
 		// login admin órfão apontando para um policial inexistente.
 		await desvincularAdminGeral(db, policialId);
 		await excluirPolicial(db, policialId);
+		return { success: true };
+	},
+
+	// Concede/revoga a condição de Admin Geral (conta vinculada em
+	// `administradores`). Cumulativo com o papel. Só Admin Geral pode.
+	toggleAdminGeral: async ({ request, locals, platform }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+		if (!isAdminGeral(u))
+			return fail(403, { error: 'Apenas o Admin Geral pode conceder Admin Geral' });
+
+		const data = await request.formData();
+		const policialId = Number(data.get('policial_id'));
+		if (Number.isNaN(policialId)) return fail(400, { error: 'Policial inválido' });
+		const ativar = ['1', 'true', 'on'].includes(String(data.get('ativar') ?? '').toLowerCase());
+
+		const db = getDB(platform);
+		const policial = await buscarPolicial(db, policialId);
+		if (!policial) return fail(404, { error: 'Policial não encontrado' });
+
+		try {
+			if (ativar) await vincularAdminGeral(db, policial);
+			else await desvincularAdminGeral(db, policialId);
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+			if (msg.includes('UNIQUE')) {
+				return fail(409, { error: 'Já existe um administrador com este login/matrícula.' });
+			}
+			return fail(500, { error: 'Erro ao atualizar a condição de Admin Geral' });
+		}
 		return { success: true };
 	}
 };
