@@ -18,6 +18,7 @@ export type { Database } from './db/core';
 export {
 	auditar,
 	registrarAuditComContexto,
+	contextoDeEvento,
 	listarAuditLog,
 	verificarIntegridadeAudit,
 	metaDaAcao,

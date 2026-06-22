@@ -9,7 +9,9 @@ import {
 	promoverPolicial,
 	vincularAdminGeral,
 	desvincularAdminGeral,
-	ehAdminGeralVinculado
+	ehAdminGeralVinculado,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { policialUpdateSchema } from '$lib/schemas/policial';
 import { isAdminGeral, isAdminSeccional, isAdminUnidade } from '$lib/auth';
@@ -61,8 +63,18 @@ export const load: PageServerLoad = async ({ locals, params, platform }) => {
 	};
 };
 
+/** Remove campos sensíveis (CPF/senha) antes de gravar um snapshot no log. */
+function semCamposSensiveis(o: Record<string, unknown>): Record<string, unknown> {
+	const copia: Record<string, unknown> = { ...o };
+	delete copia.cpf;
+	delete copia.senha;
+	delete copia.cpf_index;
+	return copia;
+}
+
 export const actions: Actions = {
-	salvar: async ({ request, locals, platform, params }) => {
+	salvar: async (event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 		if (!isAdminGeral(u)) {
@@ -115,6 +127,24 @@ export const actions: Actions = {
 				{ ...parsed.data, email: data.email ?? undefined },
 				platform?.env
 			);
+			const { contexto, env } = contextoDeEvento(event);
+			await auditar(
+				db,
+				{
+					acao: 'editar_policial',
+					usuario: u,
+					entidade: 'policial',
+					entidade_id: id,
+					alvo_tipo: 'policial',
+					alvo_id: id,
+					alvo_nome: parsed.data.nome,
+					detalhes: `Policial editado: ${parsed.data.nome} (mat. ${parsed.data.matricula})`,
+					dados_antes: semCamposSensiveis(alvo),
+					dados_depois: semCamposSensiveis({ ...parsed.data, email: data.email ?? undefined }),
+					...contexto
+				},
+				{ env }
+			);
 			return { success: true };
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : 'Erro desconhecido';
@@ -125,7 +155,8 @@ export const actions: Actions = {
 		}
 	},
 
-	salvarPapel: async ({ request, locals, platform, params }) => {
+	salvarPapel: async (event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u))
 			return fail(403, { error: 'Apenas o Admin Geral pode alterar papéis' });
@@ -142,14 +173,38 @@ export const actions: Actions = {
 		const papelUnidadeId = papelUnidadeIdStr ? Number(papelUnidadeIdStr) : null;
 
 		const db = getDB(platform);
+		const alvo = await buscarPolicial(db, id);
 		await promoverPolicial(db, id, papel, papelUnidadeId);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'mudar_papel',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: alvo?.nome ?? null,
+				detalhes: `Papel alterado para ${papel ?? 'nenhum'}${papelUnidadeId ? ` (unidade ${papelUnidadeId})` : ''}`,
+				dados_antes: {
+					papel: alvo?.papel ?? null,
+					papel_unidade_id: alvo?.papel_unidade_id ?? null
+				},
+				dados_depois: { papel, papel_unidade_id: papelUnidadeId },
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	},
 
 	// Admin Geral agora é uma conta VINCULADA em `administradores` (login pela
 	// matrícula, sem senha própria). O policial passa a poder logar escolhendo
 	// "Administrador" com a mesma matrícula/senha. Cumulativo com o `papel`.
-	toggleAdminGeral: async ({ request, locals, platform, params }) => {
+	toggleAdminGeral: async (event) => {
+		const { request, locals, platform, params } = event;
 		const u = locals.usuario;
 		if (!u || !isAdminGeral(u))
 			return fail(403, { error: 'Apenas o Admin Geral pode conceder Admin Geral' });
@@ -177,6 +232,25 @@ export const actions: Actions = {
 			}
 			return fail(500, { error: 'Erro ao atualizar a condição de Admin Geral' });
 		}
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'toggle_admin_geral',
+				usuario: u,
+				entidade: 'policial',
+				entidade_id: id,
+				alvo_tipo: 'policial',
+				alvo_id: id,
+				alvo_nome: policial.nome,
+				resultado: 'sucesso',
+				detalhes: `${ativar ? 'Concedido' : 'Removido'} Admin Geral para ${policial.nome} (mat. ${policial.matricula})`,
+				metadados: { ativar },
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true };
 	}
 };

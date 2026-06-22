@@ -465,6 +465,48 @@ export interface AuditEvento {
 	metodo?: string | null;
 }
 
+/** Forma mínima de um RequestEvent do SvelteKit consumida pela auditoria. */
+export interface EventoRequestLike {
+	request: { method: string; headers: { get(name: string): string | null } };
+	url: { pathname: string };
+	getClientAddress?: () => string;
+	locals?: { requestId?: string };
+	// `env` fica `unknown` para aceitar o `App.Platform` real (cujo `env` é o tipo
+	// `Env` completo do Cloudflare) sem acoplar a auditoria a ele — o cast para
+	// `AuditCriptoEnv` acontece dentro de `contextoDeEvento`.
+	platform?: { env?: unknown } | null;
+}
+
+/**
+ * Extrai de um RequestEvent o contexto comum de auditoria (IP, user-agent,
+ * request_id, rota, método) e a `env` de criptografia. Reduz a instrumentação
+ * de cada handler a:
+ *
+ *   const { contexto, env } = contextoDeEvento(event);
+ *   await auditar(db, { acao, usuario, entidade, ...contexto }, { env });
+ */
+export function contextoDeEvento(event: EventoRequestLike): {
+	contexto: Pick<AuditEvento, 'ip' | 'user_agent' | 'request_id' | 'rota' | 'metodo'>;
+	env?: AuditCriptoEnv;
+} {
+	let ip: string | null = null;
+	try {
+		ip = event.getClientAddress?.() ?? null;
+	} catch {
+		// getClientAddress pode lançar fora do contexto de uma request; mantém null.
+	}
+	return {
+		contexto: {
+			ip,
+			user_agent: event.request.headers.get('user-agent'),
+			request_id: event.locals?.requestId ?? null,
+			rota: event.url.pathname,
+			metodo: event.request.method
+		},
+		env: (event.platform?.env ?? undefined) as AuditCriptoEnv | undefined
+	};
+}
+
 const MAX_TENTATIVAS_CHAIN = 5;
 
 function ehViolacaoSeq(err: unknown): boolean {

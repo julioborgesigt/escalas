@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { hashSenha, verificarSenha, criarSessao } from '$lib/auth';
 import { administradores, policiais, sessoes } from '$lib/server/schema';
 import { alterarSenhaSchema } from '$lib/schemas';
@@ -22,7 +22,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions = {
-	alterar: async ({ request, platform, locals, cookies, url }) => {
+	alterar: async (event) => {
+		const { request, platform, locals, cookies, url } = event;
 		const db = getDB(platform);
 		const usuario = locals.usuario;
 
@@ -135,6 +136,26 @@ export const actions = {
 
 		const novoToken = await criarSessao(db, usuario.tipo, usuario.id);
 		cookies.set('session_token', novoToken, cookieOptions(url));
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'alterar_senha',
+				usuario,
+				entidade: alvoEhPolicial ? 'policial' : 'admin',
+				entidade_id: alvoId,
+				alvo_tipo: alvoEhPolicial ? 'policial' : 'admin',
+				alvo_id: alvoId,
+				alvo_nome: usuario.nome,
+				detalhes: usuario.primeiro_acesso
+					? 'Senha definida no primeiro acesso'
+					: 'Senha alterada pelo próprio usuário',
+				metadados: { primeiro_acesso: usuario.primeiro_acesso },
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true };
 	}
