@@ -16,7 +16,9 @@ import {
 	buscarExigirCodigoEmailAssinatura,
 	buscarRestringirSmartphone,
 	isSupervisaoGiseAtiva,
-	isSupervisorGiseAtiva
+	isSupervisorGiseAtiva,
+	auditar,
+	contextoDeEvento
 } from '$lib/db';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
@@ -613,7 +615,8 @@ export const actions: Actions = {
 		return { success: true, giseId, equipeId };
 	},
 
-	salvarEntrada: async ({ request, locals, platform, getClientAddress }) => {
+	salvarEntrada: async (event) => {
+		const { request, locals, platform, getClientAddress } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -670,10 +673,29 @@ export const actions: Actions = {
 
 		await salvarEntradaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'presenca_gise_entrada',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseId,
+				alvo_tipo: 'policial',
+				alvo_id: u.id,
+				alvo_nome: u.nome,
+				detalhes: `Registro de entrada na GISE ${giseId}`,
+				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				...contexto
+			},
+			{ env }
+		);
 		return { success: true, giseId };
 	},
 
-	salvarSaida: async ({ request, locals, platform, getClientAddress }) => {
+	salvarSaida: async (event) => {
+		const { request, locals, platform, getClientAddress } = event;
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
 
@@ -729,6 +751,24 @@ export const actions: Actions = {
 		await salvarSaidaGise(db, giseId, u.id, rubrica, ip, ua, latitude, longitude, selfieKey);
 
 		await sincronizarStatusGiseAposPresencaRelatorios(db, giseId);
+
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'presenca_gise_saida',
+				usuario: u,
+				entidade: 'gise',
+				entidade_id: giseId,
+				alvo_tipo: 'policial',
+				alvo_id: u.id,
+				alvo_nome: u.nome,
+				detalhes: `Registro de saída na GISE ${giseId}`,
+				metadados: { temSelfie: !!selfieKey, temGps: latitude != null && longitude != null },
+				...contexto
+			},
+			{ env }
+		);
 
 		return { success: true, giseId };
 	},
