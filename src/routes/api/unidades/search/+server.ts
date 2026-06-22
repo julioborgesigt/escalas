@@ -1,15 +1,28 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { asc, eq, like, and } from 'drizzle-orm';
+import { asc, eq, like, and, inArray } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { unidades } from '$lib/server/schema';
 import { requireAuth } from '$lib/server/api';
+
+const TIPOS_VALIDOS = ['delegacia', 'seccional', 'departamento', 'sub_departamento'] as const;
+type TipoUnidade = (typeof TIPOS_VALIDOS)[number];
+
+function ehTipoValido(t: string): t is TipoUnidade {
+	return (TIPOS_VALIDOS as readonly string[]).includes(t);
+}
 
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const u = requireAuth(locals);
 	if (u instanceof Response) return u;
 
 	const q = (url.searchParams.get('q') ?? '').trim();
-	const tipo = (url.searchParams.get('tipo') ?? '').trim();
+	// `tipo` aceita um único valor ou uma lista separada por vírgula
+	// (ex.: `tipo=delegacia,seccional`) para campos que abrangem mais de
+	// um tipo de unidade — como a lotação, que inclui delegacias E seccionais.
+	const tipos = (url.searchParams.get('tipo') ?? '')
+		.split(',')
+		.map((t) => t.trim())
+		.filter(ehTipoValido);
 	const limitRaw = Number(url.searchParams.get('limit') ?? '20');
 	const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;
 
@@ -19,13 +32,10 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	if (q) {
 		conditions.push(like(unidades.nome, `%${q}%`));
 	}
-	if (
-		tipo === 'delegacia' ||
-		tipo === 'seccional' ||
-		tipo === 'departamento' ||
-		tipo === 'sub_departamento'
-	) {
-		conditions.push(eq(unidades.tipo, tipo));
+	if (tipos.length === 1) {
+		conditions.push(eq(unidades.tipo, tipos[0]));
+	} else if (tipos.length > 1) {
+		conditions.push(inArray(unidades.tipo, tipos));
 	}
 
 	const rows = await db
