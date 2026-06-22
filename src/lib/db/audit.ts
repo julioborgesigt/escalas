@@ -812,6 +812,13 @@ export interface ResultadoIntegridade {
 	primeiroProblemaSeq?: number;
 	/** Descrição da inconsistência. */
 	problema?: string;
+	/** Âncora atual: `seq` da última linha encadeada (cabeça da cadeia). */
+	ultimoSeq?: number;
+	/**
+	 * Hash da cabeça da cadeia. O operador pode registrá-lo externamente
+	 * (anchoring): se o log for adulterado depois, este valor não bate mais.
+	 */
+	ultimoHash?: string;
 }
 
 /**
@@ -945,5 +952,32 @@ export async function verificarIntegridadeAudit(
 		anterior = { seq, hash_registro: hashRegistro };
 	}
 
-	return { ok: true, verificados: rows.length };
+	return {
+		ok: true,
+		verificados: rows.length,
+		ultimoSeq: anterior?.seq,
+		ultimoHash: anterior?.hash_registro
+	};
+}
+
+/**
+ * Eventos críticos recentes (para o painel de destaque do console). Não pagina —
+ * é um resumo curto dos sinais de segurança mais relevantes.
+ */
+export async function eventosCriticosRecentes(
+	db: Database,
+	limite = 5
+): Promise<Pick<AuditLog, 'id' | 'acao' | 'usuario_nome' | 'detalhes' | 'created_at'>[]> {
+	return db
+		.select({
+			id: auditLog.id,
+			acao: auditLog.acao,
+			usuario_nome: auditLog.usuario_nome,
+			detalhes: auditLog.detalhes,
+			created_at: auditLog.created_at
+		})
+		.from(auditLog)
+		.where(eq(auditLog.severidade, 'critico'))
+		.orderBy(desc(auditLog.created_at), desc(auditLog.id))
+		.limit(Math.min(20, Math.max(1, limite)));
 }

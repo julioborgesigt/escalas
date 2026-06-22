@@ -12,6 +12,7 @@ import {
 	getDB,
 	listarAuditLog,
 	resumoAuditoria,
+	eventosCriticosRecentes,
 	verificarIntegridadeAudit,
 	CATALOGO_ACOES,
 	type AuditCriptoEnv
@@ -46,9 +47,10 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		page: q.get('page') ? Math.max(1, Number(q.get('page'))) : 1
 	};
 
-	const [resultado, resumo] = await Promise.all([
+	const [resultado, resumo, criticosRecentes] = await Promise.all([
 		listarAuditLog(db, { ...filtros, ate: fimDoDia(q.get('ate')), limit: PER_PAGE }),
-		resumoAuditoria(db)
+		resumoAuditoria(db),
+		eventosCriticosRecentes(db, 5)
 	]);
 
 	// Facetas derivadas do catálogo central de ações.
@@ -57,7 +59,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		.map(([valor, m]) => ({ valor, label: m.label, categoria: m.categoria }))
 		.sort((a, b) => a.label.localeCompare(b.label));
 
-	return { ...resultado, resumo, filtros, facetas: { categorias, acoes } };
+	return { ...resultado, resumo, criticosRecentes, filtros, facetas: { categorias, acoes } };
 };
 
 export const actions: Actions = {

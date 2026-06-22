@@ -149,7 +149,18 @@
 				: 'border-error-500/30 bg-error-500/10 text-error-800 dark:text-error-300'}"
 		>
 			{#if integridade.ok}
-				✓ Cadeia íntegra — {integridade.verificados} registro(s) encadeado(s) verificado(s) sem adulteração.
+				<p>
+					✓ Cadeia íntegra — {integridade.verificados} registro(s) encadeado(s) verificado(s) sem adulteração.
+				</p>
+				{#if integridade.ultimoHash}
+					<p class="mt-1 text-xs font-mono break-all opacity-80">
+						Âncora atual: seq {integridade.ultimoSeq} · {integridade.ultimoHash}
+					</p>
+					<p class="mt-1 text-xs opacity-70">
+						Registre esta âncora externamente — se o log for adulterado depois, este valor não bate
+						mais.
+					</p>
+				{/if}
 			{:else}
 				⚠ Inconsistência detectada{integridade.primeiroProblemaSeq
 					? ` (seq ${integridade.primeiroProblemaSeq})`
@@ -181,6 +192,29 @@
 		{@render kpi('Eventos críticos (7d)', data.resumo.criticos7d, true)}
 		{@render kpi('Último evento', fmtData(data.resumo.ultimoEvento))}
 	</div>
+
+	<!-- Destaques de segurança -->
+	{#if data.criticosRecentes.length > 0}
+		<div class="rounded-xl border border-error-500/30 bg-error-500/5 p-4">
+			<div
+				class="text-xs font-semibold uppercase tracking-wide text-error-700 dark:text-error-400 mb-2"
+			>
+				Destaques de segurança · eventos críticos recentes
+			</div>
+			<ul class="space-y-1 text-sm">
+				{#each data.criticosRecentes as ev (ev.id)}
+					<li class="flex flex-wrap items-baseline gap-x-2">
+						<span class="text-surface-400 text-xs whitespace-nowrap">{fmtData(ev.created_at)}</span>
+						<span class="font-medium text-surface-900 dark:text-white">{rotuloAcao(ev.acao)}</span>
+						<span class="text-surface-600 dark:text-surface-300">— {ev.usuario_nome || '—'}</span>
+						{#if ev.detalhes}
+							<span class="text-surface-500 dark:text-surface-400 text-xs">· {ev.detalhes}</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 
 	<!-- Filtros (GET → URL) -->
 	<form

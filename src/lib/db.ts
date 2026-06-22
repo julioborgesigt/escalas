@@ -21,6 +21,7 @@ export {
 	contextoDeEvento,
 	listarAuditLog,
 	resumoAuditoria,
+	eventosCriticosRecentes,
 	verificarIntegridadeAudit,
 	metaDaAcao,
 	CATALOGO_ACOES
