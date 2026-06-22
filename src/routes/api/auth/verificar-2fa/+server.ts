@@ -6,7 +6,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -30,7 +30,8 @@ import { logger } from '$lib/server/logger';
 const VERIFICAR_2FA_MAX = 10;
 const VERIFICAR_2FA_WINDOW_MIN = 15;
 
-export const POST = async ({ platform, request, cookies, url, getClientAddress }: RequestEvent) => {
+export const POST = async (event: RequestEvent) => {
+	const { platform, request, cookies, url, getClientAddress } = event;
 	const db = getDB(platform);
 	const ip = getClientAddress();
 
@@ -103,6 +104,7 @@ export const POST = async ({ platform, request, cookies, url, getClientAddress }
 
 	// Verificar se o usuário ainda está ativo e buscar primeiro_acesso
 	let primeiroAcesso: boolean;
+	let nomeUsuario: string;
 	if (tipo === 'admin') {
 		const admin = await db
 			.select()
@@ -111,16 +113,33 @@ export const POST = async ({ platform, request, cookies, url, getClientAddress }
 			.get();
 		if (!admin) return notFound('Usuário');
 		primeiroAcesso = admin.primeiro_acesso === 1;
+		nomeUsuario = admin.nome;
 	} else {
 		const policial = await db.select().from(policiais).where(eq(policiais.id, usuarioId)).get();
 		if (!policial || policial.ativo === 0) {
 			return forbidden('Usuário inativo');
 		}
 		primeiroAcesso = policial.primeiro_acesso === 1;
+		nomeUsuario = policial.nome;
 	}
 
 	const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
 	cookies.set('session_token', token, cookieOptions(url));
+
+	const { contexto, env } = contextoDeEvento(event);
+	await auditar(
+		db,
+		{
+			acao: 'login',
+			usuario: { id: usuarioId, nome: nomeUsuario, tipo: tipo as 'policial' | 'admin' },
+			entidade: tipo,
+			entidade_id: usuarioId,
+			detalhes: `Login com 2FA por e-mail (${tipo})`,
+			metadados: { via: '2fa' },
+			...contexto
+		},
+		{ env }
+	);
 
 	return json({ success: true, primeiro_acesso: primeiroAcesso });
 };
