@@ -15,7 +15,25 @@
 export { getDB, getR2, hasR2 } from './db/core';
 export type { Database } from './db/core';
 
-export { registrarAuditComContexto, listarAuditLog } from './db/audit';
+export {
+	auditar,
+	registrarAuditComContexto,
+	listarAuditLog,
+	verificarIntegridadeAudit,
+	metaDaAcao,
+	CATALOGO_ACOES
+} from './db/audit';
+export type {
+	AuditEvento,
+	AcaoAudit,
+	AuditCategoria,
+	AuditSeveridade,
+	AuditResultado,
+	AuditActorTipo,
+	AuditCriptoEnv,
+	ListarAuditOpts,
+	ResultadoIntegridade
+} from './db/audit';
 
 export { registrarAceite } from './db/termos';
 

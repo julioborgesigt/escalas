@@ -690,21 +690,54 @@ export const webhookNonces = sqliteTable(
 	(table) => [index('idx_webhook_nonces_received_at').on(table.received_at)]
 );
 
-// ---- Log de Auditoria ----
+// ---- Log de Auditoria (trilha forense) ----
+//
+// Evento estruturado e à prova de adulteração. Os campos `seq`/`hash_anterior`/
+// `hash_registro` formam uma cadeia de hash encadeada (tamper-evidence); ver
+// `auditar` e `verificarIntegridadeAudit` em `src/lib/db/audit.ts`. Colunas além
+// das do log original (migração 0000) entraram nullable na migração 0033 — as
+// linhas antigas e as ~25 chamadas legadas continuam válidas.
 
 export const auditLog = sqliteTable(
 	'audit_log',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
+		// ---- Ator (quem executou) ----
 		usuario_id: integer('usuario_id'),
 		usuario_nome: text('usuario_nome').notNull().default(''),
 		usuario_papel: text('usuario_papel'),
+		actor_tipo: text('actor_tipo', { enum: ['policial', 'admin', 'sistema', 'webhook'] }),
+		// ---- Ação e classificação ----
 		acao: text('acao').notNull(),
+		categoria: text('categoria'),
+		severidade: text('severidade', { enum: ['info', 'aviso', 'critico'] }),
+		resultado: text('resultado', { enum: ['sucesso', 'falha', 'negado'] }),
+		// ---- Entidade afetada (compat) + Alvo explícito (quem/o que sofreu a ação) ----
 		entidade: text('entidade').notNull(),
 		entidade_id: integer('entidade_id'),
+		alvo_tipo: text('alvo_tipo'),
+		alvo_id: integer('alvo_id'),
+		alvo_nome: text('alvo_nome'),
+		// ---- Conteúdo ----
 		detalhes: text('detalhes'),
+		/** JSON livre com contexto adicional do evento. */
+		metadados: text('metadados'),
+		/** JSON: snapshot do estado ANTES de uma edição (diff). */
+		dados_antes: text('dados_antes'),
+		/** JSON: snapshot do estado DEPOIS de uma edição (diff). */
+		dados_depois: text('dados_depois'),
+		// ---- Contexto de request / correlação ----
 		ip: text('ip'),
+		/** IP completo cifrado (AES-GCM); `ip` acima fica anonimizado p/ exibição. */
+		ip_cifrado: text('ip_cifrado'),
 		user_agent: text('user_agent'),
+		request_id: text('request_id'),
+		rota: text('rota'),
+		metodo: text('metodo'),
+		// ---- Tamper-evidence (cadeia de hash) ----
+		seq: integer('seq'),
+		hash_anterior: text('hash_anterior'),
+		hash_registro: text('hash_registro'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now'))`)
@@ -713,7 +746,12 @@ export const auditLog = sqliteTable(
 		index('idx_audit_usuario').on(table.usuario_id, table.created_at),
 		index('idx_audit_entidade').on(table.entidade, table.entidade_id),
 		index('idx_audit_acao').on(table.acao),
-		index('idx_audit_created_at').on(table.created_at)
+		index('idx_audit_created_at').on(table.created_at),
+		unique('uq_audit_seq').on(table.seq),
+		index('idx_audit_categoria').on(table.categoria, table.created_at),
+		index('idx_audit_severidade').on(table.severidade, table.created_at),
+		index('idx_audit_resultado').on(table.resultado, table.created_at),
+		index('idx_audit_alvo').on(table.alvo_tipo, table.alvo_id)
 	]
 );
 
