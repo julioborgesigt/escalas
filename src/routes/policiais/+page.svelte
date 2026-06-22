@@ -145,6 +145,22 @@
 	const submitLabel = $derived(editingPolicialId ? 'Salvar Alterações' : 'Cadastrar Policial');
 	const submitLoadingLabel = $derived(editingPolicialId ? 'Salvando...' : 'Cadastrando...');
 
+	const ehAdminGeralSelecionado = $derived(
+		editingPolicialId != null && (data.adminGeralIds ?? []).includes(editingPolicialId)
+	);
+
+	function handleToggleAdminGeral() {
+		return async ({ result }: { result: ActionResult }) => {
+			if (result.type === 'success') {
+				toaster.create({ title: 'Condição de Admin Geral atualizada!', type: 'success' });
+				await invalidateAll();
+			} else if (result.type === 'failure') {
+				const d = result.data as Record<string, unknown> | undefined;
+				toaster.create({ title: String(d?.error || 'Erro ao atualizar'), type: 'error' });
+			}
+		};
+	}
+
 	function resetForm() {
 		editingPolicialId = null;
 		nome = '';
@@ -536,6 +552,39 @@
 					</button>
 				</div>
 			</form>
+
+			{#if editingPolicialId && isAdmin}
+				<div
+					class="mt-4 p-3 rounded-xl bg-surface-500/5 border border-surface-500/10 flex items-center gap-3 flex-wrap"
+				>
+					<div class="flex-1 min-w-[12rem]">
+						<h4 class="text-[0.7rem] font-bold uppercase opacity-60">Admin Geral</h4>
+						<p class="text-xs text-surface-500">
+							Loga com a mesma matrícula/senha escolhendo "Administrador". Cumulativo com o papel.
+						</p>
+					</div>
+					<span
+						class="text-xs font-bold px-2 py-1 rounded-lg {ehAdminGeralSelecionado
+							? 'bg-success-500/15 text-success-700 dark:text-success-400'
+							: 'bg-surface-500/10 text-surface-500'}"
+					>
+						{ehAdminGeralSelecionado ? 'É Admin Geral' : 'Não é Admin Geral'}
+					</span>
+					<form method="POST" action="?/toggleAdminGeral" use:enhance={handleToggleAdminGeral}>
+						<input type="hidden" name="policial_id" value={editingPolicialId} />
+						<input type="hidden" name="ativar" value={ehAdminGeralSelecionado ? '0' : '1'} />
+						<button
+							type="submit"
+							class="btn btn-sm {ehAdminGeralSelecionado
+								? 'preset-outlined-error-500'
+								: 'preset-filled-primary-500'}"
+							disabled={pendingCadastro}
+						>
+							{ehAdminGeralSelecionado ? 'Revogar' : 'Conceder'}
+						</button>
+					</form>
+				</div>
+			{/if}
 		</div>
 	</Dialog.Content>
 </Dialog>
