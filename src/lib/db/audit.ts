@@ -763,6 +763,45 @@ export async function listarAuditLog(
 	return { logs, total, page, limit, totalPages };
 }
 
+export interface ResumoAuditoria {
+	total: number;
+	falhasLogin24h: number;
+	criticos7d: number;
+	ultimoEvento: string | null;
+}
+
+/** Indicadores para o cabeçalho do console de auditoria (KPIs). */
+export async function resumoAuditoria(db: Database): Promise<ResumoAuditoria> {
+	const agora = Date.now();
+	const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+	const h24 = fmt(agora - 24 * 3_600_000);
+	const d7 = fmt(agora - 7 * 86_400_000);
+
+	const [tot, fl, cr, ult] = await Promise.all([
+		db.select({ n: sql<number>`count(*)` }).from(auditLog),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(auditLog)
+			.where(and(eq(auditLog.acao, 'falha_login'), gte(auditLog.created_at, h24))),
+		db
+			.select({ n: sql<number>`count(*)` })
+			.from(auditLog)
+			.where(and(eq(auditLog.severidade, 'critico'), gte(auditLog.created_at, d7))),
+		db
+			.select({ c: auditLog.created_at })
+			.from(auditLog)
+			.orderBy(desc(auditLog.created_at), desc(auditLog.id))
+			.limit(1)
+	]);
+
+	return {
+		total: tot[0]?.n ?? 0,
+		falhasLogin24h: fl[0]?.n ?? 0,
+		criticos7d: cr[0]?.n ?? 0,
+		ultimoEvento: ult[0]?.c ?? null
+	};
+}
+
 // ---- Verificação de integridade (tamper-evidence) --------------------------
 
 export interface ResultadoIntegridade {

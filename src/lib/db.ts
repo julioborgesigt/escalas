@@ -20,6 +20,7 @@ export {
 	registrarAuditComContexto,
 	contextoDeEvento,
 	listarAuditLog,
+	resumoAuditoria,
 	verificarIntegridadeAudit,
 	metaDaAcao,
 	CATALOGO_ACOES
@@ -33,7 +34,8 @@ export type {
 	AuditActorTipo,
 	AuditCriptoEnv,
 	ListarAuditOpts,
-	ResultadoIntegridade
+	ResultadoIntegridade,
+	ResumoAuditoria
 } from './db/audit';
 
 export { registrarAceite } from './db/termos';
