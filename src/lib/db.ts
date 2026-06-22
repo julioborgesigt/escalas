@@ -45,11 +45,15 @@ export { registrarAceite } from './db/termos';
 
 export {
 	salvarConfiguracao,
+	buscarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
 	buscarExigirCodigoEmailAssinatura,
-	buscarRestringirSmartphone
+	buscarRestringirSmartphone,
+	buscarProvedorEmailPadrao,
+	EMAIL_PROVEDOR_PADRAO
 } from './db/configuracoes';
+export type { EmailProvedor } from './db/configuracoes';
 
 export {
 	vincularAdminGeral,

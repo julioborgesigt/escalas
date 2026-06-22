@@ -1,17 +1,20 @@
 /**
- * Envio de e-mail com fallback automático:
- *   1º — Cloudflare Email Sending (binding nativo, cota 200/dia)
- *   2º — Resend API (HTTP REST, fallback quando cota CF esgotada ou binding ausente)
+ * Envio de e-mail com PROVEDOR PADRÃO configurável e fallback automático:
+ *   - O provedor padrão (Cloudflare ou Resend) é definido em Configurações Gerais
+ *     (`email.provedor_padrao`; default 'cloudflare').
+ *   - O OUTRO provedor assume automaticamente quando o padrão falha — inclusive
+ *     quando a cota do padrão é extrapolada (erro/429 cai no fallback).
  *
  * Configuração necessária (wrangler.toml / .dev.vars):
- *   EMAIL binding            ← Cloudflare Email Sending (primário)
- *   RESEND_API_KEY=re_...    ← Chave de API do Resend (fallback)
+ *   EMAIL binding            ← Cloudflare Email Sending
+ *   RESEND_API_KEY=re_...    ← Chave de API do Resend
  *   RESEND_FROM_EMAIL=...    ← Remetente verificado no Resend
  */
 
 import { montarHtmlEmailNotificacaoAssessorGise } from './gise-assessor-notificacao-text';
 import { logger } from './logger';
 import { mascararEmail } from '$lib/utils';
+import { getDB, buscarProvedorEmailPadrao, type EmailProvedor } from '$lib/db';
 
 function escapeHtml(value: string): string {
 	return value
@@ -183,22 +186,47 @@ async function dispararEmailResend(
 
 // ─── Dispatcher com fallback ─────────────────────────────────────────────────
 
+type EnvioFn = (p: App.Platform | undefined, o: EmailOptions) => Promise<{ messageId: string }>;
+
+/**
+ * Provedor PADRÃO é configurável (Configurações Gerais → `email.provedor_padrao`);
+ * default 'cloudflare'. O OUTRO provedor assume automaticamente como fallback
+ * quando o padrão falha — inclusive quando a cota do padrão é extrapolada
+ * (o provedor devolve erro/429, que cai no catch abaixo).
+ */
 async function dispararEmail(
 	platform: App.Platform | undefined,
 	options: EmailOptions
 ): Promise<{ messageId: string }> {
+	let preferido: EmailProvedor = 'cloudflare';
 	try {
-		const result = await dispararEmailCloudflare(platform, options);
-		logger.debug('[email] Enviado via Cloudflare Email Sending');
+		preferido = await buscarProvedorEmailPadrao(getDB(platform));
+	} catch {
+		// Sem DB/config acessível: mantém o padrão histórico (cloudflare).
+	}
+
+	const cloudflare: [string, EnvioFn] = ['Cloudflare', dispararEmailCloudflare];
+	const resend: [string, EnvioFn] = ['Resend', dispararEmailResend];
+	const [[primNome, primFn], [secNome, secFn]] =
+		preferido === 'resend' ? [resend, cloudflare] : [cloudflare, resend];
+
+	try {
+		const result = await primFn(platform, options);
+		logger.debug(`[email] Enviado via ${primNome} (provedor padrão)`);
 		return result;
-	} catch (cfErr) {
-		const motivo = cfErr instanceof Error ? cfErr.message : String(cfErr);
+	} catch (errPrim) {
+		const motivo = errPrim instanceof Error ? errPrim.message : String(errPrim);
+		// Binding do CF ausente é silencioso (config esperada em alguns ambientes);
+		// qualquer outra falha — inclusive cota estourada — loga e cai no fallback.
 		if (motivo !== 'CF_EMAIL_BINDING_ABSENT') {
-			logger.warn('[email] Falha no Cloudflare Email Sending, usando Resend como fallback', {
-				motivo
-			});
+			logger.warn(
+				`[email] Falha no provedor padrão (${primNome}); usando ${secNome} como fallback`,
+				{
+					motivo
+				}
+			);
 		}
-		return dispararEmailResend(platform, options);
+		return secFn(platform, options);
 	}
 }
 
