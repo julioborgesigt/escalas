@@ -86,7 +86,6 @@ export function isAnyAdmin(u: UsuarioLogado | null): boolean {
 	return isAdminGeral(u) || isAdminSeccional(u) || isAdminUnidade(u);
 }
 
-
 export function gerarToken(): string {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
@@ -124,7 +123,6 @@ export function compararSegredoUtf8TimingSafe(input: string, expected: string): 
 	const sameLen = a.length === b.length;
 	return match && sameLen;
 }
-
 
 /** Tempo de vida da sessão (8h). Toda atividade reseta o relógio (sliding). */
 export const SESSION_TTL_MS = 8 * 60 * 60 * 1000;

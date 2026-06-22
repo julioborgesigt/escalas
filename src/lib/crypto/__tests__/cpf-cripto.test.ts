@@ -58,7 +58,10 @@ describe('cpf-cripto', () => {
 	});
 
 	it('prepararCpfParaDB com CPF vazio devolve nulls', async () => {
-		const { cpf, cpf_index } = await prepararCpfParaDB('', { CPF_ENCRYPTION_KEY: ENC, CPF_INDEX_KEY: IDX });
+		const { cpf, cpf_index } = await prepararCpfParaDB('', {
+			CPF_ENCRYPTION_KEY: ENC,
+			CPF_INDEX_KEY: IDX
+		});
 		expect(cpf).toBeNull();
 		expect(cpf_index).toBeNull();
 	});

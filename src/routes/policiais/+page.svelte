@@ -200,9 +200,9 @@
 	}
 
 	async function loadLotacoes(query: string, signal: AbortSignal) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		// Lotação inclui delegacias (unidades operacionais) E seccionais,
 		// pois as seccionais têm efetivo próprio.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams({
 			tipo: 'delegacia,seccional',
 			limit: '30'
