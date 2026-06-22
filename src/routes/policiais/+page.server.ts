@@ -4,6 +4,7 @@ import {
 	getDB,
 	listarPoliciais,
 	buscarPolicial,
+	buscarPolicialPorMatricula,
 	criarPolicial,
 	atualizarPolicial,
 	excluirPolicial,
@@ -163,6 +164,15 @@ export const actions: Actions = {
 				},
 				platform?.env
 			);
+			// Conceder Admin Geral já no cadastro (cria a conta vinculada). Como o
+			// id só existe após o insert, busca pela matrícula.
+			const concederAdminGeral = ['1', 'true', 'on'].includes(
+				String(data.get('conceder_admin_geral') ?? '').toLowerCase()
+			);
+			if (concederAdminGeral) {
+				const novo = await buscarPolicialPorMatricula(db, matricula);
+				if (novo) await vincularAdminGeral(db, novo);
+			}
 			await registrarAuditComContexto(db, {
 				usuario: u,
 				acao: 'criar_policial',
