@@ -22,6 +22,8 @@ export {
 	listarAuditLog,
 	resumoAuditoria,
 	eventosCriticosRecentes,
+	buscarAuditLog,
+	cabecaCadeiaAudit,
 	verificarIntegridadeAudit,
 	metaDaAcao,
 	CATALOGO_ACOES

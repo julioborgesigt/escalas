@@ -813,6 +813,24 @@ export async function resumoAuditoria(db: Database): Promise<ResumoAuditoria> {
 	};
 }
 
+/** Busca um único evento de auditoria pelo id (para exportar/inspecionar). */
+export async function buscarAuditLog(db: Database, id: number): Promise<AuditLog | undefined> {
+	return db.select().from(auditLog).where(eq(auditLog.id, id)).get();
+}
+
+/** Cabeça atual da cadeia de hash (âncora) — usada nos rodapés de exportação. */
+export async function cabecaCadeiaAudit(
+	db: Database
+): Promise<{ seq: number; hash: string } | null> {
+	const [t] = await db
+		.select({ seq: auditLog.seq, hash: auditLog.hash_registro })
+		.from(auditLog)
+		.where(isNotNull(auditLog.seq))
+		.orderBy(desc(auditLog.seq))
+		.limit(1);
+	return t?.seq != null && t.hash ? { seq: t.seq, hash: t.hash } : null;
+}
+
 // ---- Verificação de integridade (tamper-evidence) --------------------------
 
 export interface ResultadoIntegridade {

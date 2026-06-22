@@ -1,13 +1,26 @@
 /**
- * GET /auditoria/export — exporta a trilha de auditoria filtrada em CSV.
- * Restrito ao Admin Geral. Honra os mesmos filtros do console.
+ * GET /auditoria/export — exporta a trilha de auditoria. Restrito ao Admin Geral.
+ *
+ * Parâmetros:
+ *   - format = csv | pdf          (default csv)
+ *   - id = <n>                    exporta UM único evento (ignora a janela)
+ *   - filtros + de/ate            mesmos do console
+ *
+ * Limite de janela (evita exportações gigantes):
+ *   - CSV: no máximo 1 ano (366 dias)   · até 10.000 linhas
+ *   - PDF: no máximo 1 mês  (31 dias)   · até 2.000 linhas
+ * Sem `de`/`ate`, assume a janela máxima terminando hoje.
  */
 import type { RequestHandler } from './$types';
-import { getDB, listarAuditLog, metaDaAcao } from '$lib/db';
+import { getDB, listarAuditLog, buscarAuditLog, cabecaCadeiaAudit, metaDaAcao } from '$lib/db';
 import type { AuditLog } from '$lib/server/schema';
-import { requireAdmin, contentDisposition } from '$lib/server/api';
+import { gerarAuditPdfTabela, gerarAuditPdfEvento } from '$lib/server/audit-pdf';
+import { requireAdmin, contentDisposition, badRequest, notFound } from '$lib/server/api';
 
-const MAX_EXPORT = 5000;
+const MAX_DIAS_CSV = 366;
+const MAX_DIAS_PDF = 31;
+const MAX_LINHAS_CSV = 10_000;
+const MAX_LINHAS_PDF = 2_000;
 
 /** Célula CSV: neutraliza fórmulas (CSV injection) e escapa aspas. */
 function csvCell(v: unknown): string {
@@ -41,13 +54,83 @@ const COLUNAS: [string, (l: AuditLog) => unknown][] = [
 	['hash_registro', (l) => l.hash_registro]
 ];
 
+function montarCsv(logs: AuditLog[]): string {
+	const header = COLUNAS.map(([h]) => h).join(',');
+	const linhas = logs.map((l) => COLUNAS.map(([, f]) => csvCell(f(l))).join(','));
+	// BOM para o Excel reconhecer UTF-8; CRLF é o padrão de fim de linha em CSV.
+	return '﻿' + [header, ...linhas].join('\r\n');
+}
+
+function diaStr(ms: number): string {
+	return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Resolve e valida a janela [de, ate]; aplica default e impõe o máximo. */
+function resolverJanela(
+	deRaw: string | null,
+	ateRaw: string | null,
+	maxDias: number
+): { de: string; ate: string } | { erro: string } {
+	const ate = ateRaw || diaStr(Date.now());
+	const ateMs = Date.parse(`${ate}T00:00:00Z`);
+	if (Number.isNaN(ateMs)) return { erro: 'Data "Até" inválida.' };
+	const de = deRaw || diaStr(ateMs - maxDias * 86_400_000);
+	const deMs = Date.parse(`${de}T00:00:00Z`);
+	if (Number.isNaN(deMs)) return { erro: 'Data "De" inválida.' };
+	const spanDias = (ateMs - deMs) / 86_400_000;
+	if (spanDias < 0) return { erro: 'Intervalo inválido: "De" é posterior a "Até".' };
+	if (spanDias > maxDias) {
+		return {
+			erro: `Período muito longo para exportação (máximo ${maxDias} dias). Refine "De" e "Até".`
+		};
+	}
+	return { de, ate };
+}
+
+function respostaArquivo(corpo: Uint8Array | string, tipo: string, nome: string): Response {
+	return new Response(corpo as unknown as BodyInit, {
+		headers: {
+			'Content-Type': tipo,
+			'Content-Disposition': contentDisposition(nome),
+			'Cache-Control': 'private, no-store'
+		}
+	});
+}
+
 export const GET: RequestHandler = async ({ locals, platform, url }) => {
 	const u = requireAdmin(locals);
 	if (u instanceof Response) return u;
 
 	const db = getDB(platform);
 	const q = url.searchParams;
-	const ate = q.get('ate');
+	const format = q.get('format') === 'pdf' ? 'pdf' : 'csv';
+	const hoje = diaStr(Date.now());
+
+	// --- Evento único (id) — ignora janela; sempre 1 linha ---
+	const idRaw = q.get('id');
+	if (idRaw) {
+		const id = Number(idRaw);
+		if (!Number.isInteger(id) || id <= 0) return badRequest('ID inválido');
+		const evento = await buscarAuditLog(db, id);
+		if (!evento) return notFound('Evento de auditoria');
+		if (format === 'pdf') {
+			const pdf = gerarAuditPdfEvento(evento, u.nome);
+			return respostaArquivo(pdf, 'application/pdf', `auditoria-evento-${id}.pdf`);
+		}
+		return respostaArquivo(
+			montarCsv([evento]),
+			'text/csv; charset=utf-8',
+			`auditoria-evento-${id}.csv`
+		);
+	}
+
+	// --- Exportação em lote (com janela limitada) ---
+	const janela = resolverJanela(
+		q.get('de'),
+		q.get('ate'),
+		format === 'pdf' ? MAX_DIAS_PDF : MAX_DIAS_CSV
+	);
+	if ('erro' in janela) return badRequest(janela.erro);
 
 	const { logs } = await listarAuditLog(db, {
 		categoria: q.get('categoria') || undefined,
@@ -56,23 +139,24 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 		resultado: q.get('resultado') || undefined,
 		actor_tipo: q.get('actor_tipo') || undefined,
 		busca: q.get('busca') || undefined,
-		de: q.get('de') || undefined,
-		ate: ate && ate.length === 10 ? `${ate} 23:59:59` : ate || undefined,
+		de: janela.de,
+		ate: `${janela.ate} 23:59:59`,
 		page: 1,
-		limit: MAX_EXPORT
+		limit: format === 'pdf' ? MAX_LINHAS_PDF : MAX_LINHAS_CSV
 	});
 
-	const header = COLUNAS.map(([h]) => h).join(',');
-	const linhas = logs.map((l) => COLUNAS.map(([, f]) => csvCell(f(l))).join(','));
-	// BOM para o Excel reconhecer UTF-8; CRLF é o padrão de fim de linha em CSV.
-	const csv = '﻿' + [header, ...linhas].join('\r\n');
+	if (format === 'pdf') {
+		const ancora = await cabecaCadeiaAudit(db);
+		const pdf = gerarAuditPdfTabela(logs, {
+			geradoPor: u.nome,
+			de: janela.de,
+			ate: janela.ate,
+			total: logs.length,
+			ancoraSeq: ancora?.seq,
+			ancoraHash: ancora?.hash
+		});
+		return respostaArquivo(pdf, 'application/pdf', `auditoria-${hoje}.pdf`);
+	}
 
-	const nome = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
-	return new Response(csv, {
-		headers: {
-			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': contentDisposition(nome),
-			'Cache-Control': 'private, no-store'
-		}
-	});
+	return respostaArquivo(montarCsv(logs), 'text/csv; charset=utf-8', `auditoria-${hoje}.csv`);
 };
