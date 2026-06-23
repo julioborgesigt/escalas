@@ -17,10 +17,9 @@ import {
 	contextoDeEvento,
 	type EmailProvedor
 } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
-	if (!isAdminGeral(locals.usuario)) throw redirect(302, '/');
+	if (!locals.usuario?.isSuperAdmin) throw redirect(302, '/');
 
 	const db = getDB(platform);
 	const provedorEmail = await buscarProvedorEmailPadrao(db);
@@ -36,7 +35,8 @@ export const actions: Actions = {
 	salvarEmail: async (event) => {
 		const { request, locals, platform } = event;
 		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Acesso restrito ao Admin Geral' });
+		if (!u || !u.isSuperAdmin)
+			return fail(403, { error: 'Acesso restrito ao Super Administrador' });
 
 		const data = await request.formData();
 		const provedor = String(data.get('provedor') ?? '');
