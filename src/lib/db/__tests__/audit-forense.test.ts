@@ -103,6 +103,13 @@ describe('calcularHashRegistro — cadeia de hash', () => {
 		expect(h1).not.toBe(h2);
 	});
 
+	it('resiliência: chave HMAC inválida cai para SHA-256 (não lança)', async () => {
+		const c = canonicalAudit(linhaBase());
+		// Chave fora do tamanho (não é 32 bytes hex) — não pode derrubar a auditoria.
+		const h = await calcularHashRegistro('GENESIS', c, 'chave-invalida');
+		expect(h.startsWith('s:')).toBe(true);
+	});
+
 	it('é reproduzível (verificação posterior recalcula o mesmo hash)', async () => {
 		const c = canonicalAudit(linhaBase({ seq: 5, hash_anterior: 's:abc' }));
 		const a = await calcularHashRegistro('s:abc', c, CHAIN_KEY);
