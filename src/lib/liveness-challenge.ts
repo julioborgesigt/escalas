@@ -9,8 +9,17 @@
  *
  * Esta camada exige que o usuário execute uma AÇÃO ALEATÓRIA dentro de uma
  * janela curta (~10 s). Cada assinatura sorteia um challenge diferente
- * (`blink`, `smile`), tornando inviável o uso de mídia pré-gravada — o
+ * (`head_turn`, `smile`), tornando inviável o uso de mídia pré-gravada — o
  * atacante não sabe o desafio antes de iniciar a captura.
+ *
+ * NOTA DE DESIGN (substituição do `blink`): o desafio de PISCAR foi removido.
+ * A lógica de contagem (EAR) estava correta, mas o face-api em celular não
+ * consegue AMOSTRAR o frame de olho fechado de forma confiável: o pipeline de
+ * landmarks leva 200-400 ms por frame, e a fase fechada de uma piscada natural
+ * dura só ~100-150 ms — ela cai ENTRE dois frames e nunca é observada. Os dois
+ * desafios sobreviventes são SUSTENTADOS (durar ≥ 1 s), imunes à amostragem
+ * lenta: `smile` (estado de expressão segurado) e `head_turn` (movimento
+ * lateral da cabeça, medido por geometria estável de mandíbula+nariz).
  *
  * Não é defesa contra deepfake em tempo real (Nível 3 ou 4 fariam) — mas
  * resolve o ataque oportunístico mais comum em fraudes de assinatura em
@@ -29,7 +38,7 @@
 // Tipos
 // ---------------------------------------------------------------------------
 
-type ChallengeTipo = 'blink' | 'smile';
+type ChallengeTipo = 'head_turn' | 'smile';
 
 export interface ChallengeDefinicao {
 	tipo: ChallengeTipo;
@@ -43,11 +52,11 @@ export interface ChallengeDefinicao {
 
 export interface ChallengeProgresso {
 	tipo: ChallengeTipo;
-	/** 0 a 1 — progresso do challenge (ex.: blinks contados / esperados). */
+	/** 0 a 1 — progresso do challenge (ex.: amplitude do giro / amplitude exigida). */
 	progresso: number;
 	/** Quando true, o challenge foi cumprido nesta iteração. */
 	concluido: boolean;
-	/** Mensagem dinâmica para a UI ("Pisque 1 vez mais", "Sorria com mais ênfase"). */
+	/** Mensagem dinâmica para a UI ("Vire um pouco mais", "Sorria com mais ênfase"). */
 	mensagem: string;
 }
 
@@ -58,15 +67,19 @@ export interface ChallengeProgresso {
 /**
  * Lista de challenges disponíveis. Cada assinatura sorteia 1.
  *
- * Não incluímos `head_turn` (girar a cabeça) por enquanto — exige cálculo de
- * pose 3D mais elaborado e UX é confusa em smartphone na vertical. Pode ser
- * adicionado em iteração futura.
+ * Ambos são SUSTENTADOS (≥ 1 s), o que os torna robustos à amostragem lenta do
+ * face-api em celular — ver nota de design no topo do arquivo sobre por que o
+ * `blink` (evento rápido, < 150 ms) foi removido.
+ *
+ * `head_turn` NÃO usa pose 3D: mede um proxy 2D de guinada (yaw) pela posição
+ * horizontal do nariz entre os extremos da mandíbula — geometria estável,
+ * sem depender da precisão fina dos landmarks de olho.
  */
 export const CHALLENGES_DISPONIVEIS: ChallengeDefinicao[] = [
 	{
-		tipo: 'blink',
-		instrucao: 'Pisque os olhos 2 vezes',
-		hint: 'Pisque devagar, fechando bem os olhos',
+		tipo: 'head_turn',
+		instrucao: 'Vire a cabeça para os lados',
+		hint: 'Gire o rosto devagar para a esquerda e depois para a direita',
 		timeoutMs: 10_000
 	},
 	{
@@ -92,126 +105,116 @@ export function sortearChallenge(): ChallengeDefinicao {
 }
 
 // ---------------------------------------------------------------------------
-// Eye Aspect Ratio (EAR) — blink detection
+// Head turn — detecção de guinada (yaw) por geometria 2D
 // ---------------------------------------------------------------------------
 
-/**
- * Calcula o EAR de um olho a partir dos 6 landmarks do face-api
- * (índices 36-41 para olho direito; 42-47 para olho esquerdo).
- *
- * Algoritmo clássico de Soukupová & Čech (2016):
- *
- *           |p2 - p6| + |p3 - p5|
- *   EAR  =  ─────────────────────
- *                2 · |p1 - p4|
- *
- * Olho aberto: EAR ≈ 0.25–0.35.
- * Olho fechado (blink): EAR cai abruptamente para < 0.20.
- */
 interface LandmarkPoint {
 	x: number;
 	y: number;
 }
 
-function dist(a: LandmarkPoint, b: LandmarkPoint): number {
-	const dx = a.x - b.x;
-	const dy = a.y - b.y;
-	return Math.sqrt(dx * dx + dy * dy);
-}
-
-function ear(eye: LandmarkPoint[]): number {
-	if (eye.length !== 6) return NaN; // sem dados → sentinela (frame ignorado)
-	const vert1 = dist(eye[1], eye[5]);
-	const vert2 = dist(eye[2], eye[4]);
-	const horiz = dist(eye[0], eye[3]);
-	if (horiz === 0) return NaN;
-	return (vert1 + vert2) / (2.0 * horiz);
-}
-
 /**
- * Limiares ABSOLUTOS de fallback — usados só antes da baseline calibrar (ou se a
- * calibração falhar). O EAR de olho aberto varia muito por pessoa/câmera/óculos/
- * distância, então a detecção principal é RELATIVA à baseline (ver `BlinkCounter`).
- */
-const EAR_FECHADO = 0.2;
-const EAR_ABERTO = 0.25;
-/** Quantos blinks consecutivos exigir para considerar o challenge cumprido. */
-const BLINKS_NECESSARIOS = 2;
-
-/** Frames de olho aberto coletados para estimar a baseline do usuário. */
-const CALIB_FRAMES = 5;
-/** Olho "fechado" quando o EAR cai abaixo de baseline × este fator. */
-const RATIO_FECHADO = 0.75;
-/** Olho "aberto" de novo quando o EAR sobe acima de baseline × este fator (histerese). */
-const RATIO_ABERTO = 0.85;
-
-/**
- * Máquina de estados para detecção de blink com BASELINE ADAPTATIVO.
+ * Proxy 2D de guinada (yaw) da cabeça, normalizado em [-1, 1] e centrado em ~0
+ * quando o rosto está de frente.
  *
- * Em vez de limiares fixos (frágeis: olhos pequenos podem nunca cair abaixo de
- * 0.2), calibra a abertura de olho do próprio usuário nos primeiros frames e
- * detecta a piscada por queda RELATIVA. Conta UM blink quando o EAR cai abaixo
- * de `baseline × RATIO_FECHADO` e depois sobe acima de `baseline × RATIO_ABERTO`
- * (histerese proporcional). Antes da calibração, recorre aos limiares absolutos.
+ * Usa só a coordenada X de 3 pontos MUITO estáveis do modelo de 68 landmarks:
+ *   - extremo esquerdo da mandíbula (`getJawOutline()[0]`  = landmark 0)
+ *   - extremo direito da mandíbula  (`getJawOutline()[16]` = landmark 16)
+ *   - ponta do nariz                (`getNose()[3]`        = landmark 30)
+ *
+ *        dEsq = nariz.x − mandíbulaEsq.x
+ *        dDir = mandíbulaDir.x − nariz.x
+ *        razão = (dEsq − dDir) / (dEsq + dDir)
+ *
+ * De frente o nariz fica ~equidistante → razão ≈ 0. Ao virar a cabeça, o nariz
+ * se aproxima de um lado e a razão tende a ±1. É invariante a escala e
+ * translação (o denominador é a largura horizontal do rosto), então não importa
+ * a distância à câmera nem o enquadramento.
+ *
+ * @returns razão em [-1, 1], ou NaN se os landmarks necessários faltarem.
  */
-export class BlinkCounter {
-	private estado: 'aberto' | 'fechado' = 'aberto';
-	private blinksDetectados = 0;
-	private baseline: number | null = null;
-	private amostrasCalib: number[] = [];
+function yawRatio(jaw: LandmarkPoint[], nose: LandmarkPoint[]): number {
+	if (jaw.length < 17 || nose.length < 4) return NaN; // sem dados → frame ignorado
+	const esqX = jaw[0].x;
+	const dirX = jaw[16].x;
+	const narizX = nose[3].x;
+	const dEsq = narizX - esqX;
+	const dDir = dirX - narizX;
+	const larguraX = dEsq + dDir;
+	if (larguraX <= 0) return NaN; // landmarks degenerados
+	return (dEsq - dDir) / larguraX;
+}
+
+/** Suavização exponencial (EMA) do yaw — corta jitter de landmark frame-a-frame. */
+const SMOOTH_ALPHA = 0.5;
+/**
+ * Amplitude mínima de movimento (max − min do yaw suavizado) para considerar a
+ * cabeça "virada". Um giro real esquerda↔direita produz amplitude > 0.3; o
+ * jitter de um rosto parado fica < ~0.05 após a EMA, então 0.18 dá larga
+ * margem contra falso-positivo de foto estática sem exigir um giro exagerado.
+ */
+const TURN_RANGE = 0.18;
+/** Frames válidos mínimos antes de poder concluir (evita conclusão instantânea). */
+const MIN_FRAMES = 4;
+
+/**
+ * Detector de "virar a cabeça". Diferente do blink (evento rápido que a
+ * amostragem do face-api perdia), o giro é um MOVIMENTO SUSTENTADO: basta medir
+ * a AMPLITUDE do yaw ao longo da sessão. Não precisa de calibração de pose
+ * inicial — mede o quanto a cabeça se moveu lateralmente a partir de onde
+ * começou, o que é exatamente o sinal de vivacidade desejado (uma foto parada
+ * tem amplitude ~0).
+ */
+export class HeadTurnDetector {
+	private yawSuave: number | null = null;
+	private min = Infinity;
+	private max = -Infinity;
+	private framesValidos = 0;
+	private confirmado = false;
 
 	/**
-	 * Alimenta um frame com landmarks do face-api.
+	 * Alimenta um frame com os landmarks de mandíbula e nariz do face-api.
 	 *
-	 * @param leftEye - 6 pontos (landmarks 36-41 do modelo 68)
-	 * @param rightEye - 6 pontos (landmarks 42-47)
-	 * @returns Progresso atualizado.
+	 * @param jaw - `landmarks.getJawOutline()` (17 pontos, landmarks 0-16)
+	 * @param nose - `landmarks.getNose()` (9 pontos, landmarks 27-35; ponta = índice 3)
 	 */
-	feed(leftEye: LandmarkPoint[], rightEye: LandmarkPoint[]): ChallengeProgresso {
-		const earMedio = (ear(leftEye) + ear(rightEye)) / 2;
+	feed(jaw: LandmarkPoint[], nose: LandmarkPoint[]): ChallengeProgresso {
+		const yaw = yawRatio(jaw, nose);
 
-		// Sem medição confiável (landmarks ausentes → ear()=NaN): ignora o frame,
-		// não calibra nem muda de estado.
-		const semMedida = !Number.isFinite(earMedio);
-
-		if (!semMedida) {
-			// Calibração: coleta as primeiras amostras válidas e usa o MÁXIMO como
-			// baseline de olho aberto — robusto a uma piscada acidental durante a
-			// janela (o frame baixo não vira a baseline).
-			if (this.baseline === null) {
-				this.amostrasCalib.push(earMedio);
-				if (this.amostrasCalib.length >= CALIB_FRAMES) {
-					this.baseline = Math.max(...this.amostrasCalib);
-				}
-			}
-
-			const limFechado = this.baseline !== null ? this.baseline * RATIO_FECHADO : EAR_FECHADO;
-			const limAberto = this.baseline !== null ? this.baseline * RATIO_ABERTO : EAR_ABERTO;
-
-			if (this.estado === 'aberto' && earMedio < limFechado) {
-				this.estado = 'fechado';
-			} else if (this.estado === 'fechado' && earMedio > limAberto) {
-				this.estado = 'aberto';
-				this.blinksDetectados++;
-			}
+		// Sem medição confiável (landmarks ausentes → NaN): ignora o frame.
+		if (Number.isFinite(yaw)) {
+			this.yawSuave = this.yawSuave === null ? yaw : SMOOTH_ALPHA * yaw + (1 - SMOOTH_ALPHA) * this.yawSuave;
+			if (this.yawSuave < this.min) this.min = this.yawSuave;
+			if (this.yawSuave > this.max) this.max = this.yawSuave;
+			this.framesValidos++;
 		}
 
-		const concluido = this.blinksDetectados >= BLINKS_NECESSARIOS;
+		const amplitude = this.max > this.min ? this.max - this.min : 0;
+		if (amplitude >= TURN_RANGE && this.framesValidos >= MIN_FRAMES) {
+			this.confirmado = true;
+		}
+
+		const progresso = this.confirmado ? 1 : Math.min(1, amplitude / TURN_RANGE);
 		return {
-			tipo: 'blink',
-			progresso: Math.min(1, this.blinksDetectados / BLINKS_NECESSARIOS),
-			concluido,
-			mensagem: concluido
-				? '✅ Piscadas detectadas'
-				: `Pisque mais ${BLINKS_NECESSARIOS - this.blinksDetectados}× (${this.blinksDetectados}/${BLINKS_NECESSARIOS})`
+			tipo: 'head_turn',
+			progresso,
+			concluido: this.confirmado,
+			mensagem: this.confirmado
+				? '✅ Movimento detectado'
+				: this.framesValidos === 0
+					? 'Posicione o rosto de frente para começar'
+					: progresso > 0.4
+						? 'Continue virando a cabeça...'
+						: 'Vire a cabeça devagar para o lado'
 		};
 	}
 
 	reset(): void {
-		this.estado = 'aberto';
-		this.blinksDetectados = 0;
-		this.baseline = null;
-		this.amostrasCalib = [];
+		this.yawSuave = null;
+		this.min = Infinity;
+		this.max = -Infinity;
+		this.framesValidos = 0;
+		this.confirmado = false;
 	}
 }
 

@@ -189,9 +189,9 @@ export interface AuditTrailOptions {
 	/** Tipo do carimbo de tempo: 'servidor' (sistema), 'act_icp' (ACT ICP-Brasil)
 	 *  ou 'tsa_externa' (TSA RFC 3161 não-ICP, ex.: DigiCert). */
 	tipoCarimoTempo?: TipoCarimoTempo;
-	/** Resultado do liveness challenge (blink/smile) — registrado para auditoria. */
+	/** Resultado do liveness challenge (head_turn/smile) — registrado para auditoria. */
 	livenessChallenge?: {
-		tipo: 'blink' | 'smile';
+		tipo: 'blink' | 'smile' | 'head_turn';
 		cumprido: boolean;
 		tentativas: number;
 		duracaoMs: number;
@@ -500,8 +500,13 @@ export async function adicionarPaginaAuditoria(
 				s.latitude && s.longitude
 					? `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`
 					: 'Não capturado';
+			const livenessLabels: Record<string, string> = {
+				blink: 'Piscar',
+				smile: 'Sorrir',
+				head_turn: 'Virar cabeça'
+			};
 			const livenessTexto = s.livenessChallenge
-				? `${s.livenessChallenge.tipo === 'blink' ? 'Piscar' : 'Sorrir'} ${
+				? `${livenessLabels[s.livenessChallenge.tipo] ?? s.livenessChallenge.tipo} ${
 						s.livenessChallenge.cumprido ? 'OK' : 'FALHOU'
 					}${
 						s.livenessChallenge.tentativas > 1

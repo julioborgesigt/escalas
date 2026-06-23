@@ -14,12 +14,16 @@ Hoje o `SignaturePad.svelte` usa `loadFromUri('/face-api/')`.
 | Arquivo | Uso |
 |---|---|
 | `tiny_face_detector_*` | Detecção de presença de rosto (sempre carregado) |
-| `face_landmark_68_*` | 68 landmarks faciais — Eye Aspect Ratio (EAR) para blink challenge e pose 3D para head turn challenge |
+| `face_landmark_68_*` | 68 landmarks faciais — mandíbula + ponta do nariz para o desafio **head_turn** (proxy 2D de guinada/yaw) |
 | `face_expression_*` | Reconhecimento de expressões (smile challenge — happy probability > 0.7) |
 
 Os 3 são usados pela **liveness ativa** (challenge-response) em
-`SignaturePad.svelte` — pisque/sorria/vire-a-cabeça aleatório a cada
-assinatura para barrar foto/vídeo pré-gravado.
+`SignaturePad.svelte` — sorria/vire-a-cabeça aleatório a cada assinatura para
+barrar foto/vídeo pré-gravado. O desafio de **piscar (blink/EAR) foi aposentado**:
+em celular o pipeline de landmarks (200-400 ms/frame) não amostra de forma
+confiável a fase fechada da piscada (~100-150 ms). Os desafios atuais são
+**sustentados** (≥ 1 s), imunes à amostragem lenta — ver
+`src/lib/liveness-challenge.ts`.
 
 ## Como atualizar
 

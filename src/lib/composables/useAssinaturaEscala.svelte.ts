@@ -147,7 +147,7 @@ export function useAssinaturaEscala({ getParams, onDocumentoAssinado }: UseAssin
 		selfie?: string | null,
 		codigoValidação?: string,
 		desafioId?: string,
-		// Resultado do desafio ativo (blink/smile) — exigido pelo servidor
+		// Resultado do desafio ativo (head_turn/smile) — exigido pelo servidor
 		// quando a flag exigirFotoAssinatura está ligada. Tipo intencionalmente
 		// `unknown` para não acoplar este composable ao formato exato; o
 		// servidor valida via Zod (livenessChallengeSchema).

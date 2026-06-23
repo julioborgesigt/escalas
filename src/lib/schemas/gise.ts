@@ -32,7 +32,7 @@ export const giseSignatureSchema = z.object({
 	/** Liveness challenge cumprido — exigido quando exigirFoto está ativo. */
 	livenessChallenge: optionalNullable(
 		z.object({
-			tipo: z.enum(['blink', 'smile']),
+			tipo: z.enum(['blink', 'smile', 'head_turn']),
 			cumprido: z.boolean(),
 			tentativas: z.number().int().min(1).max(20),
 			iniciadoEm: z

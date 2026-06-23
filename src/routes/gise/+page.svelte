@@ -384,7 +384,7 @@
 			selfie,
 			codigoEmail: codigo,
 			desafioId,
-			// Resultado do desafio ativo (blink/smile) capturado pelo SignaturePad.
+			// Resultado do desafio ativo (head_turn/smile) capturado pelo SignaturePad.
 			// Quando a flag exigirFotoAssinatura esta ligada no servidor, este
 			// campo e OBRIGATORIO — sem ele o endpoint retorna 400 "Comprovacao
 			// de presenca ativa ausente (liveness challenge)".
