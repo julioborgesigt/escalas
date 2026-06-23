@@ -624,6 +624,18 @@ export async function tentarLogin({
 		}
 
 		const token = await criarSessao(db, 'admin', admin.id);
+		// Login de primeiro acesso (onboarding) entra direto, sem 2FA — registra na
+		// trilha como qualquer outro login (o 2FA normal é auditado nos handlers).
+		await registrarAuditComContexto(db, {
+			usuario: { id: admin.id, nome: admin.nome, tipo: 'admin' },
+			acao: 'login',
+			entidade: 'admin',
+			entidade_id: admin.id,
+			detalhes: 'Login (primeiro acesso, sem 2FA)',
+			metadados: { via: 'primeiro_acesso' },
+			ip,
+			env: platform?.env
+		});
 		const dest = adminDestino(adminModulo);
 		return {
 			sucesso: true,
@@ -698,6 +710,17 @@ export async function tentarLogin({
 	}
 
 	const token = await criarSessao(db, 'policial', policial.id);
+	// Login de primeiro acesso (onboarding) entra direto, sem 2FA — registra na trilha.
+	await registrarAuditComContexto(db, {
+		usuario: { id: policial.id, nome: policial.nome, tipo: 'policial' },
+		acao: 'login',
+		entidade: 'policial',
+		entidade_id: policial.id,
+		detalhes: 'Login (primeiro acesso, sem 2FA)',
+		metadados: { via: 'primeiro_acesso' },
+		ip,
+		env: platform?.env
+	});
 	return {
 		sucesso: true,
 		statusCode: 200,
