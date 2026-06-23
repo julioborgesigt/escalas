@@ -14,11 +14,11 @@
 
 import { json } from '@sveltejs/kit';
 import { getDB, listarAuditLog } from '$lib/db';
-import { requireAdmin } from '$lib/server/api';
+import { requireSuperAdmin } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ platform, url, locals }) => {
-	const usuario = requireAdmin(locals);
+	const usuario = requireSuperAdmin(locals);
 	if (usuario instanceof Response) return usuario;
 
 	const db = getDB(platform);

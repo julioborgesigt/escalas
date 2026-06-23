@@ -17,7 +17,6 @@ import {
 	CATALOGO_ACOES,
 	type AuditCriptoEnv
 } from '$lib/db';
-import { isAdminGeral } from '$lib/auth';
 
 const PER_PAGE = 25;
 
@@ -30,7 +29,7 @@ function fimDoDia(s: string | null): string | undefined {
 export const load: PageServerLoad = async ({ locals, platform, url }) => {
 	const u = locals.usuario;
 	if (!u) throw redirect(302, '/login');
-	if (!isAdminGeral(u)) throw redirect(302, '/');
+	if (!u.isSuperAdmin) throw redirect(302, '/');
 
 	const db = getDB(platform);
 	const q = url.searchParams;
@@ -65,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 export const actions: Actions = {
 	verificar: async ({ locals, platform }) => {
 		const u = locals.usuario;
-		if (!u || !isAdminGeral(u)) return fail(403, { error: 'Acesso restrito' });
+		if (!u || !u.isSuperAdmin) return fail(403, { error: 'Acesso restrito' });
 		const db = getDB(platform);
 		const integridade = await verificarIntegridadeAudit(
 			db,
