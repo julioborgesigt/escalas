@@ -534,6 +534,10 @@ export async function verificarDesafio2FA(
  * Retorna a rota de boas-vindas adequada para o usuário e módulo selecionado.
  */
 export function obterRotaBemVindo(u: UsuarioLogado, adminModulo?: string | null): string {
+	// Super Admin tem console próprio (administração do sistema + auditoria).
+	if (u.isSuperAdmin) {
+		return '/super-admin';
+	}
 	if (u.tipo === 'admin') {
 		return adminModulo === 'gise' ? '/gise/bem-vindo' : '/escalas/bem-vindo';
 	}

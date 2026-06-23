@@ -365,10 +365,10 @@
 			{#if usuario?.isSuperAdmin}
 				<!-- Super Admin: menu exclusivo — apenas estas 6 abas, nesta ordem. -->
 				<a
-					href="/escalas/bem-vindo"
+					href="/super-admin"
 					data-sveltekit-preload-data="hover"
 					class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all no-underline
-						{isActive('/escalas/bem-vindo')
+						{isActive('/super-admin')
 						? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 						: 'text-surface-600 dark:text-surface-300 hover:bg-surface-200/50 dark:hover:bg-surface-800/50 border border-transparent'}"
 					onclick={() => (sidebarOpen = false)}
