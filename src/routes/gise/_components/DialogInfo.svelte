@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
+	type AcaoDialog = { label: string; fn: () => void };
+
 	type DialogInfo = {
 		titulo: string;
 		linhas: string[];
-		acao?: { label: string; fn: () => void };
+		acao?: AcaoDialog;
+		acaoSecundaria?: AcaoDialog;
 	};
 
 	const {
@@ -81,23 +84,53 @@
 					{/each}
 				</ul>
 
-				<div class="flex justify-end gap-3 pt-1">
-					<button
-						type="button"
-						class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold"
-						onclick={onClose}
-					>
-						{dialogInfo.acao ? 'Cancelar' : 'Entendi'}
-					</button>
-					{#if dialogInfo.acao}
+				<div class="flex flex-col gap-2 pt-1">
+					{#if dialogInfo.acao && dialogInfo.acaoSecundaria}
 						{@const acao = dialogInfo.acao}
+						{@const acaoSec = dialogInfo.acaoSecundaria}
+						<div class="flex gap-2">
+							<button
+								type="button"
+								class="btn flex-1 preset-filled-tertiary-500 rounded-xl px-3 py-2 text-sm font-bold"
+								onclick={acao.fn}
+							>
+								{acao.label}
+							</button>
+							<button
+								type="button"
+								class="btn flex-1 preset-outlined-tertiary-500 rounded-xl px-3 py-2 text-sm font-semibold"
+								onclick={acaoSec.fn}
+							>
+								{acaoSec.label}
+							</button>
+						</div>
 						<button
 							type="button"
-							class="btn preset-filled-tertiary-500 rounded-xl px-4 py-2 text-sm font-bold"
-							onclick={acao.fn}
+							class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold w-full"
+							onclick={onClose}
 						>
-							{acao.label}
+							Cancelar
 						</button>
+					{:else}
+						<div class="flex justify-end gap-3">
+							<button
+								type="button"
+								class="btn preset-tonal-surface-500 rounded-xl px-4 py-2 text-sm font-semibold"
+								onclick={onClose}
+							>
+								{dialogInfo.acao ? 'Cancelar' : 'Entendi'}
+							</button>
+							{#if dialogInfo.acao}
+								{@const acao = dialogInfo.acao}
+								<button
+									type="button"
+									class="btn preset-filled-tertiary-500 rounded-xl px-4 py-2 text-sm font-bold"
+									onclick={acao.fn}
+								>
+									{acao.label}
+								</button>
+							{/if}
+						</div>
 					{/if}
 				</div>
 			</div>

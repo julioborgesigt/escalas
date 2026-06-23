@@ -12,7 +12,7 @@ import {
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
-import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
 import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
 import { registrarAuditComContexto } from '$lib/db/audit';
 
@@ -31,16 +31,14 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 	if (!perm.permitido) return forbidden(perm.motivo ?? 'Sem permissão para baixar esta escala');
 
 	const format = url.searchParams.get('format')?.toLowerCase() || 'pdf';
+	const querManifesto = url.searchParams.get('manifesto') === 'true';
 
-	// Para o PDF de uma escala assinada decidimos cedo quem recebe o quê:
-	// Super Admin → blob forense do R2 (com manifesto); demais → cópia de
-	// conferência (regenerada, sem manifesto). Registramos a distinção na auditoria.
 	const querPdfAssinavel =
 		format === 'pdf' && (escala.tipo === 'expediente' || escala.tipo === 'plantao');
 	const docAssinado = querPdfAssinavel ? await buscarDocumentoEscala(db, id) : undefined;
-	const privilegiado = podeBaixarForense(u);
+	const comManifesto = querManifesto && podeBaixarComManifesto(u);
 	const copiaInfo = docAssinado?.r2_key
-		? privilegiado
+		? comManifesto
 			? ' · Cópia: forense'
 			: ' · Cópia: conferencia'
 		: '';
@@ -58,8 +56,8 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 	try {
 		// ── PDF de escala assinada ───────────────────────────────────────────
 		if (querPdfAssinavel && docAssinado?.r2_key) {
-			if (privilegiado) {
-				// Super Admin: blob forense íntegro (com manifesto) do R2.
+			if (comManifesto) {
+				// Admin com ?manifesto=true: blob forense íntegro (com manifesto) do R2.
 				const r2 = getR2(platform);
 				if (r2) {
 					try {
@@ -68,7 +66,9 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 							return new Response(await r2Obj.arrayBuffer(), {
 								headers: {
 									'Content-Type': 'application/pdf',
-									'Content-Disposition': contentDisposition(filename),
+									'Content-Disposition': contentDisposition(
+										filename.replace('.pdf', '_manifesto.pdf')
+									),
 									'Cache-Control': 'no-cache'
 								}
 							});
@@ -80,26 +80,25 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 						});
 					}
 				}
-				// R2 ausente/falhou: cai no rascunho regenerado (sem manifesto) abaixo.
-			} else {
-				// Demais usuários: cópia de conferência (sem manifesto forense).
-				const policiaisConf = await listarPoliciaisEscala(db, id);
-				const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform);
-				const hash = docAssinado.verificacao_hash ?? undefined;
-				const buffer = await gerarCopiaConferencia({
-					pdfRascunho: rascunho,
-					assinanteNome: docAssinado.assinante_nome,
-					verificationHash: hash,
-					verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
-				});
-				return new Response(buffer as BodyInit, {
-					headers: {
-						'Content-Type': 'application/pdf',
-						'Content-Disposition': contentDisposition(`conferencia_${filename}`),
-						'Cache-Control': 'no-cache'
-					}
-				});
+				// R2 ausente/falhou: cai na cópia de conferência abaixo.
 			}
+			// Padrão (sem manifesto): cópia de conferência para todos os usuários.
+			const policiaisConf = await listarPoliciaisEscala(db, id);
+			const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform);
+			const hash = docAssinado.verificacao_hash ?? undefined;
+			const buffer = await gerarCopiaConferencia({
+				pdfRascunho: rascunho,
+				assinanteNome: docAssinado.assinante_nome,
+				verificationHash: hash,
+				verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
+			});
+			return new Response(buffer as BodyInit, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': contentDisposition(`conferencia_${filename}`),
+					'Cache-Control': 'no-cache'
+				}
+			});
 		}
 
 		const policiais = await listarPoliciaisEscala(db, id);

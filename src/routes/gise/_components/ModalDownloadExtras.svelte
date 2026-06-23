@@ -66,16 +66,17 @@
 
 	const disponiveis = $derived(items.filter((i) => i.disponivel));
 
-	function baixarItem(id: number) {
+	function baixarItem(id: number, comManifesto = false) {
 		if (!gise) return;
-		window.open(`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${id}`, '_blank');
+		const url = `/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${id}${comManifesto ? '&manifesto=true' : ''}`;
+		window.open(url, '_blank');
 	}
 
-	async function baixarTodos() {
+	async function baixarTodos(comManifesto = false) {
 		if (!gise || disponiveis.length === 0) return;
 		for (const item of disponiveis) {
 			const a = document.createElement('a');
-			a.href = `/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${item.id}`;
+			a.href = `/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${item.id}${comManifesto ? '&manifesto=true' : ''}`;
 			a.target = '_blank';
 			a.click();
 			await new Promise((resolve) => setTimeout(resolve, 250));
@@ -164,18 +165,36 @@
 								</div>
 							</div>
 
-							<button
-								type="button"
-								class="btn btn-sm rounded-lg p-1.5 transition-all shrink-0
-									{item.disponivel
-									? 'bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400'
-									: 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-700 cursor-not-allowed'}"
-								disabled={!item.disponivel}
-								onclick={() => baixarItem(item.id)}
-								title={item.disponivel ? 'Baixar relatório' : 'Aguardando assinatura'}
-							>
-								<Download size={16} />
-							</button>
+							{#if item.disponivel}
+								<div class="flex gap-1 shrink-0">
+									<button
+										type="button"
+										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-[0.6rem] font-bold leading-tight"
+										onclick={() => baixarItem(item.id, false)}
+										title="Baixar sem manifesto (para impressão)"
+									>
+										<Download size={13} class="shrink-0" />
+									</button>
+									<button
+										type="button"
+										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-[0.6rem] font-bold leading-tight"
+										onclick={() => baixarItem(item.id, true)}
+										title="Baixar com manifesto (folha de auditoria)"
+									>
+										<Download size={13} class="shrink-0" />
+										<span class="hidden sm:inline">+</span>
+									</button>
+								</div>
+							{:else}
+								<button
+									type="button"
+									class="btn btn-sm rounded-lg p-1.5 transition-all shrink-0 bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-700 cursor-not-allowed"
+									disabled
+									title="Aguardando assinatura"
+								>
+									<Download size={16} />
+								</button>
+							{/if}
 						</div>
 					{/each}
 				{/if}
@@ -187,7 +206,7 @@
 				<div class="text-[0.7rem] text-surface-500 font-medium text-center sm:text-left flex-1">
 					{disponiveis.length} de {items.length} relatórios disponíveis
 				</div>
-				<div class="flex justify-end gap-2 w-full sm:w-auto">
+				<div class="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
 					<button
 						type="button"
 						class="btn preset-outlined-surface-500 text-xs px-4 py-2 rounded-xl w-full sm:w-auto font-semibold"
@@ -197,12 +216,23 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 text-xs px-4 py-2 rounded-xl w-full sm:w-auto font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
-						onclick={baixarTodos}
+						onclick={() => baixarTodos(false)}
+						title="Baixar todos sem manifesto (para impressão)"
 					>
 						<Download size={14} />
-						Baixar todos
+						Todos s/ manifesto
+					</button>
+					<button
+						type="button"
+						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						disabled={disponiveis.length === 0}
+						onclick={() => baixarTodos(true)}
+						title="Baixar todos com manifesto (folha de auditoria)"
+					>
+						<Download size={14} />
+						Todos c/ manifesto
 					</button>
 				</div>
 			</div>

@@ -288,41 +288,86 @@
 					? 'flex w-full flex-col gap-2'
 					: 'flex w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2'}
 			>
-				<a
-					class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
-						checkAllSigned(sec) &&
-						(assRel || isAdminGeral || isSeccional || isSupervisor)
-					)
-						? 'pointer-events-none opacity-60 border-primary-500/30'
-						: 'no-underline'} {assRel
-						? 'preset-filled-primary-500 border-primary-600/30 hover:border-primary-600'
-						: 'preset-tonal-primary border-primary-500/30 hover:border-primary-500'} {compact
-						? 'w-full'
-						: 'w-full min-[400px]:w-auto'}"
-					href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
-					target="_blank"
-					rel="noopener noreferrer"
-					title={!checkAllSigned(sec)
-						? getFaltandoRubrica(sec)
-						: assRel
-							? `Assinado por ${assRel.assinante_nome}`
+				{#if assRel}
+					<div class="flex gap-2 {compact ? 'w-full' : 'w-full min-[400px]:w-auto'}">
+						<a
+							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
+							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							title={`Sem manifesto — assinado por ${assRel.assinante_nome}`}
+						>
+							<svg
+								class="w-3 h-3 shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/></svg
+							>
+							<span class="whitespace-nowrap">S/ manifesto</span>
+						</a>
+						<a
+							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-outlined-primary-500 border-primary-500/30 hover:border-primary-500"
+							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}&manifesto=true`}
+							target="_blank"
+							rel="noopener noreferrer"
+							title="Com manifesto — inclui folha de auditoria"
+						>
+							<svg
+								class="w-3 h-3 shrink-0"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								><path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/></svg
+							>
+							<span class="whitespace-nowrap">C/ manifesto</span>
+						</a>
+					</div>
+				{:else}
+					<a
+						class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 flex items-center justify-center gap-2 transition-all {!(
+							checkAllSigned(sec) &&
+							(isAdminGeral || isSeccional || isSupervisor)
+						)
+							? 'pointer-events-none opacity-60 border-primary-500/30'
+							: 'no-underline'} preset-tonal-primary border-primary-500/30 hover:border-primary-500 {compact
+							? 'w-full'
+							: 'w-full min-[400px]:w-auto'}"
+						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
+						target="_blank"
+						rel="noopener noreferrer"
+						title={!checkAllSigned(sec)
+							? getFaltandoRubrica(sec)
 							: 'Aguardando assinatura do supervisor (escala)'}
-				>
-					<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-						><path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-						/></svg
 					>
-					<span class="whitespace-nowrap">Relat. Extra</span>
-					{#if !assRel}
+						<svg
+							class="w-3.5 h-3.5 shrink-0"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+							/></svg
+						>
+						<span class="whitespace-nowrap">Relat. Extra</span>
 						<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
 							>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
 						>
-					{/if}
-				</a>
+					</a>
+				{/if}
 				{#if isSupervisor && !assRel && checkAllSigned(sec)}
 					<div
 						class={compact

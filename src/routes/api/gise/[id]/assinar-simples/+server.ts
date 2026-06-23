@@ -241,8 +241,10 @@ export const POST: RequestHandler = async (event) => {
 			{ env }
 		);
 
+		// Auto-download após assinar: cópia de conferência (sem manifesto forense).
+		// O PDF forense completo fica no R2 e pode ser baixado via ?manifesto=true.
 		const filename = `gise_${gise.data_inicio}_confirmada.pdf`;
-		return new Response(pdfParaSalvar as unknown as BodyInit, {
+		return new Response(pdfComRodape as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
 				'Content-Disposition': contentDisposition(filename)
