@@ -141,6 +141,7 @@
 		titulo: string;
 		linhas: string[];
 		acao?: { label: string; fn: () => void };
+		acaoSecundaria?: { label: string; fn: () => void };
 	};
 	let dialogInfo = $state<DialogInfoType | null>(null);
 
