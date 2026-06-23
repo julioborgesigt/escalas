@@ -1,7 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { eq, and } from 'drizzle-orm';
-import { getDB } from '$lib/db';
+import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import {
 	verificarDesafio2FA,
 	criarSessao,
@@ -149,7 +149,8 @@ export const actions: Actions = {
 		};
 	},
 
-	verificar2FA: async ({ request, cookies, platform, url, getClientAddress }) => {
+	verificar2FA: async (event) => {
+		const { request, cookies, platform, url, getClientAddress } = event;
 		const db = getDB(platform);
 		const ip = getClientAddress();
 		const formData = await request.formData();
@@ -243,6 +244,24 @@ export const actions: Actions = {
 
 		const token = await criarSessao(db, tipo as 'policial' | 'admin', usuarioId);
 		cookies.set('session_token', token, cookieOptions(url));
+
+		// Auditoria do login. ESTE é o caminho que a tela de login usa (form action),
+		// paralelo à rota JSON /api/auth/verificar-2fa. Sem este registro, logins pelo
+		// formulário não apareciam na trilha (só os logouts, via /api/auth/logout).
+		const { contexto, env } = contextoDeEvento(event);
+		await auditar(
+			db,
+			{
+				acao: 'login',
+				usuario: { id: usuarioId, nome: mappedUser.nome, tipo: tipo as 'policial' | 'admin' },
+				entidade: tipo,
+				entidade_id: usuarioId,
+				detalhes: `Login com 2FA por e-mail (${tipo})`,
+				metadados: { via: '2fa' },
+				...contexto
+			},
+			{ env }
+		);
 
 		if (tipo === 'admin') {
 			const pendingModulo = cookies.get('admin_modulo_pending') || 'ambas';

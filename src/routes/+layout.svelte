@@ -818,23 +818,25 @@
 									? 'ESCALAS'
 									: 'GERAL'}
 						</span>
-						<button
-							type="button"
-							class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md active:scale-95 transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
-							onclick={alternarModulo}
-							title="Alternar Módulo (GISE / Escalas)"
-							aria-label="Alternar Módulo"
-							disabled={switchingModule}
-						>
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-								/>
-							</svg>
-						</button>
+						{#if !usuario?.isSuperAdmin}
+							<button
+								type="button"
+								class="btn-icon btn-sm preset-outlined-primary-500 hover:bg-primary-500/10 rounded-md active:scale-95 transition-all text-primary-600 dark:text-primary-400 flex items-center justify-center cursor-pointer p-1"
+								onclick={alternarModulo}
+								title="Alternar Módulo (GISE / Escalas)"
+								aria-label="Alternar Módulo"
+								disabled={switchingModule}
+							>
+								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2.5"
+										d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+									/>
+								</svg>
+							</button>
+						{/if}
 					{/if}
 					{#if usuario?.papel === 'admin_seccional'}
 						<span
