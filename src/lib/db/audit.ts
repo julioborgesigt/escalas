@@ -374,6 +374,10 @@ export function canonicalAudit(l: LinhaHashavel): string {
  * Calcula `hash_registro` a partir do hash anterior e do payload canônico.
  * Prefixo de algoritmo (`h:` HMAC / `s:` SHA-256) torna a cadeia verificável
  * mesmo se a chave HMAC for adotada no meio da vida do log.
+ *
+ * Resiliência: uma `AUDIT_CHAIN_KEY` inválida (hex fora do tamanho) NÃO pode
+ * derrubar a auditoria inteira — neste caso caímos para SHA-256 (tag `s:`) e
+ * registramos um aviso. Melhor uma cadeia degradada do que perder o evento.
  */
 export async function calcularHashRegistro(
 	hashAnterior: string,
@@ -381,7 +385,15 @@ export async function calcularHashRegistro(
 	chainKey?: string
 ): Promise<string> {
 	const material = hashAnterior + '\n' + canonical;
-	if (chainKey) return 'h:' + (await hmacHex(chainKey, material));
+	if (chainKey) {
+		try {
+			return 'h:' + (await hmacHex(chainKey, material));
+		} catch (err) {
+			logger.warn('[audit] AUDIT_CHAIN_KEY inválida — usando SHA-256 neste registro', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
 	return 's:' + (await sha256Hex(material));
 }
 
