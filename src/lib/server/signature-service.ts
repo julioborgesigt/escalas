@@ -79,7 +79,7 @@ interface QualifiedFinalization {
 }
 
 interface LivenessResult {
-	tipo: 'blink' | 'smile';
+	tipo: 'blink' | 'smile' | 'head_turn';
 	cumprido: boolean;
 	tentativas: number;
 	iniciadoEm: string | null;

@@ -147,14 +147,17 @@ export const finalizarAssinaturaGiseSchema = z.object({
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Resultado do challenge de liveness ativa (eye blink, smile, ...).
+ * Resultado do challenge de liveness ativa (head_turn, smile, ...).
  *
  * Quando `exigirFoto` está ativo, o cliente DEVE enviar este campo. O servidor
  * rejeita `cumprido=false` ou ausência total (sinal de bypass do front).
+ *
+ * `blink` é aceito por compatibilidade com assinaturas históricas (o desafio
+ * foi aposentado no cliente por ser inviável de amostrar em celular).
  */
 const livenessChallengeSchema = optionalNullable(
 	z.object({
-		tipo: z.enum(['blink', 'smile']),
+		tipo: z.enum(['blink', 'smile', 'head_turn']),
 		cumprido: z.boolean(),
 		tentativas: z.number().int().min(1).max(20),
 		iniciadoEm: z

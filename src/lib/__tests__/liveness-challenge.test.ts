@@ -6,66 +6,35 @@
 import { describe, it, expect } from 'vitest';
 import {
 	sortearChallenge,
-	BlinkCounter,
+	HeadTurnDetector,
 	SmileDetector,
 	CHALLENGES_DISPONIVEIS
 } from '../liveness-challenge';
 
 // ---------------------------------------------------------------------------
-// Helpers de fixture — landmarks de olho
+// Helpers de fixture — landmarks de mandíbula + nariz (head_turn)
 // ---------------------------------------------------------------------------
 
-/** Olho aberto: pontos verticais distantes da horizontal → EAR alto (~0.33). */
-function olhoAberto() {
-	return [
-		{ x: 0, y: 0 }, // p1 (canto externo)
-		{ x: 1, y: -1 }, // p2 (sup esq)
-		{ x: 2, y: -1 }, // p3 (sup dir)
-		{ x: 3, y: 0 }, // p4 (canto interno)
-		{ x: 2, y: 1 }, // p5 (inf dir)
-		{ x: 1, y: 1 } // p6 (inf esq)
-	];
-}
-
-/** Olho fechado: pontos verticais colados → EAR baixo (~0.05). */
-function olhoFechado() {
-	return [
-		{ x: 0, y: 0 },
-		{ x: 1, y: -0.05 },
-		{ x: 2, y: -0.05 },
-		{ x: 3, y: 0 },
-		{ x: 2, y: 0.05 },
-		{ x: 1, y: 0.05 }
-	];
+/**
+ * Mandíbula (17 pontos). O detector só usa os extremos horizontais: índice 0
+ * (esquerda, x=0) e índice 16 (direita, x=100). Os demais são irrelevantes.
+ */
+function jaw() {
+	const pts = Array.from({ length: 17 }, () => ({ x: 50, y: 0 }));
+	pts[0] = { x: 0, y: 0 };
+	pts[16] = { x: 100, y: 0 };
+	return pts;
 }
 
 /**
- * Olho PEQUENO aberto: EAR ≈ 0.22 — ABAIXO do antigo limiar absoluto de
- * "aberto" (0.25). Com a lógica fixa anterior, depois de uma piscada o olho
- * nunca era reconhecido como reaberto (0.22 < 0.25) → contador travava em 0/2.
- * Este é exatamente o caso que a baseline adaptativa conserta.
+ * Nariz (9 pontos). O detector usa só a ponta = índice 3. `noseX` controla a
+ * posição horizontal: 50 = centrado (yaw ≈ 0); >50 vira p/ um lado; <50 p/ o
+ * outro. yawRatio = (noseX·2 − 100) / 100.
  */
-function olhoPequenoAberto() {
-	return [
-		{ x: 0, y: 0 },
-		{ x: 1, y: -0.33 },
-		{ x: 2, y: -0.33 },
-		{ x: 3, y: 0 },
-		{ x: 2, y: 0.33 },
-		{ x: 1, y: 0.33 }
-	];
-}
-
-/** Olho PEQUENO fechado: EAR ≈ 0.08. */
-function olhoPequenoFechado() {
-	return [
-		{ x: 0, y: 0 },
-		{ x: 1, y: -0.12 },
-		{ x: 2, y: -0.12 },
-		{ x: 3, y: 0 },
-		{ x: 2, y: 0.12 },
-		{ x: 1, y: 0.12 }
-	];
+function nose(noseX: number) {
+	const pts = Array.from({ length: 9 }, () => ({ x: 50, y: 0 }));
+	pts[3] = { x: noseX, y: 0 };
+	return pts;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,113 +64,77 @@ describe('sortearChallenge', () => {
 });
 
 // ---------------------------------------------------------------------------
-// BlinkCounter
+// HeadTurnDetector
 // ---------------------------------------------------------------------------
 
-describe('BlinkCounter', () => {
-	it('não conta blink em olhos sempre abertos', () => {
-		const counter = new BlinkCounter();
-		for (let i = 0; i < 10; i++) {
-			counter.feed(olhoAberto(), olhoAberto());
-		}
-		const r = counter.feed(olhoAberto(), olhoAberto());
+describe('HeadTurnDetector', () => {
+	it('não conclui com rosto sempre centrado (yaw ≈ 0)', () => {
+		const det = new HeadTurnDetector();
+		let r = det.feed(jaw(), nose(50));
+		for (let i = 0; i < 20; i++) r = det.feed(jaw(), nose(50));
 		expect(r.concluido).toBe(false);
 		expect(r.progresso).toBe(0);
 	});
 
-	it('conta 1 blink após sequência aberto→fechado→aberto', () => {
-		const counter = new BlinkCounter();
-		counter.feed(olhoAberto(), olhoAberto());
-		counter.feed(olhoFechado(), olhoFechado());
-		const r = counter.feed(olhoAberto(), olhoAberto());
-		expect(r.progresso).toBe(0.5); // 1 de 2 blinks
-		expect(r.concluido).toBe(false);
-	});
-
-	it('confirma challenge após 2 blinks consecutivos', () => {
-		const counter = new BlinkCounter();
-		counter.feed(olhoAberto(), olhoAberto());
-		counter.feed(olhoFechado(), olhoFechado()); // blink 1 começa
-		counter.feed(olhoAberto(), olhoAberto()); // blink 1 confirma
-		counter.feed(olhoFechado(), olhoFechado()); // blink 2 começa
-		const r = counter.feed(olhoAberto(), olhoAberto()); // blink 2 confirma
+	it('conclui após giro amplo de um lado ao outro', () => {
+		const det = new HeadTurnDetector();
+		det.feed(jaw(), nose(50)); // de frente
+		det.feed(jaw(), nose(80)); // vira p/ um lado
+		det.feed(jaw(), nose(80));
+		const r = det.feed(jaw(), nose(20)); // vira p/ o outro → amplitude grande
 		expect(r.concluido).toBe(true);
 		expect(r.progresso).toBe(1);
 		expect(r.mensagem).toContain('✅');
 	});
 
-	it('reset zera o contador', () => {
-		const counter = new BlinkCounter();
-		counter.feed(olhoFechado(), olhoFechado());
-		counter.feed(olhoAberto(), olhoAberto());
-		counter.reset();
-		const r = counter.feed(olhoAberto(), olhoAberto());
-		expect(r.progresso).toBe(0);
+	it('exige MIN_FRAMES: amplitude atingida cedo demais ainda não conclui', () => {
+		const det = new HeadTurnDetector();
+		det.feed(jaw(), nose(50)); // frame 1
+		det.feed(jaw(), nose(85)); // frame 2
+		const r3 = det.feed(jaw(), nose(85)); // frame 3 — amplitude já grande, mas < MIN_FRAMES
+		expect(r3.concluido).toBe(false);
+		const r4 = det.feed(jaw(), nose(85)); // frame 4 → conclui
+		expect(r4.concluido).toBe(true);
 	});
 
-	it('histerese: oscilação no limite não conta dupla', () => {
-		const counter = new BlinkCounter();
-		// Olho "meio fechado" — EAR ~0.22 (entre os dois limiares).
-		// Não deve disparar contagem nem para fechado nem para aberto.
-		const olhoMeio = [
-			{ x: 0, y: 0 },
-			{ x: 1, y: -0.7 },
-			{ x: 2, y: -0.7 },
-			{ x: 3, y: 0 },
-			{ x: 2, y: 0.7 },
-			{ x: 1, y: 0.7 }
-		];
-		for (let i = 0; i < 20; i++) {
-			counter.feed(olhoMeio, olhoMeio);
+	it('jitter pequeno de rosto parado não dispara falso-positivo', () => {
+		const det = new HeadTurnDetector();
+		let r = det.feed(jaw(), nose(50));
+		// Oscilação de ±2px na ponta do nariz (yaw ±0.04) por muitos frames.
+		for (let i = 0; i < 30; i++) {
+			r = det.feed(jaw(), nose(i % 2 === 0 ? 52 : 48));
 		}
-		const r = counter.feed(olhoMeio, olhoMeio);
 		expect(r.concluido).toBe(false);
 	});
 
-	it('REGRESSÃO: conta 2 piscadas em olho pequeno (EAR aberto ~0.22 < limiar fixo antigo)', () => {
-		const counter = new BlinkCounter();
-		// Calibra a baseline (~0.22) com 5 frames de olho aberto pequeno.
-		for (let i = 0; i < 5; i++) counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		// Duas piscadas: fechado→aberto ×2 (limiares agora relativos à baseline).
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // blink 1
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
-		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // blink 2
-		expect(r.concluido).toBe(true);
-		expect(r.progresso).toBe(1);
-	});
-
-	it('baseline usa o MÁXIMO: uma piscada durante a calibração não a corrompe', () => {
-		const counter = new BlinkCounter();
-		// Calibração com uma piscada acidental no meio (frame fechado).
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado()); // piscada acidental
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // baseline = max ≈ 0.22
-		// Agora 2 piscadas devem contar normalmente.
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
-		counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado());
-		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		expect(r.concluido).toBe(true);
-	});
-
-	it('ignora frames sem landmarks (arrays vazios) sem contar piscada falsa', () => {
-		const counter = new BlinkCounter();
-		for (let i = 0; i < 5; i++) counter.feed([], []); // sem dados → ignorado
-		const r = counter.feed([], []);
+	it('ignora frames sem landmarks suficientes (arrays vazios)', () => {
+		const det = new HeadTurnDetector();
+		for (let i = 0; i < 6; i++) det.feed([], []);
+		const r = det.feed([], []);
 		expect(r.progresso).toBe(0);
 		expect(r.concluido).toBe(false);
 	});
 
-	it('frame sem landmarks no meio de uma piscada não a interrompe', () => {
-		const counter = new BlinkCounter();
-		for (let i = 0; i < 5; i++) counter.feed(olhoPequenoAberto(), olhoPequenoAberto());
-		counter.feed(olhoPequenoFechado(), olhoPequenoFechado()); // fecha
-		counter.feed([], []); // frame perdido (ignorado, mantém estado "fechado")
-		const r = counter.feed(olhoPequenoAberto(), olhoPequenoAberto()); // reabre → blink 1
-		expect(r.progresso).toBe(0.5);
+	it('frame sem landmarks no meio do giro não interrompe a amplitude acumulada', () => {
+		const det = new HeadTurnDetector();
+		det.feed(jaw(), nose(50));
+		det.feed(jaw(), nose(85)); // vira
+		det.feed([], []); // frame perdido — ignorado, não zera min/max
+		det.feed(jaw(), nose(15)); // vira p/ o outro lado
+		const r = det.feed(jaw(), nose(50));
+		expect(r.concluido).toBe(true);
+	});
+
+	it('reset zera o detector', () => {
+		const det = new HeadTurnDetector();
+		det.feed(jaw(), nose(50));
+		det.feed(jaw(), nose(85));
+		det.feed(jaw(), nose(85));
+		det.feed(jaw(), nose(20)); // concluiria
+		det.reset();
+		const r = det.feed(jaw(), nose(50));
+		expect(r.progresso).toBe(0);
+		expect(r.concluido).toBe(false);
 	});
 });
 

@@ -31,7 +31,7 @@
 	import CodigoTimer from './CodigoTimer.svelte';
 	import {
 		sortearChallenge,
-		BlinkCounter,
+		HeadTurnDetector,
 		SmileDetector,
 		type ChallengeDefinicao,
 		type ChallengeProgresso
@@ -87,14 +87,14 @@
 	let lastErrorCode = $state<string | null>(null); // Erros de captura final
 
 	// Liveness ATIVA (challenge-response) — barra foto/vídeo pré-gravado.
-	// Sorteia 1 challenge (blink ou smile) por sessão. O usuário precisa
+	// Sorteia 1 challenge (head_turn ou smile) por sessão. O usuário precisa
 	// cumprir antes do botão "tirar foto" ser liberado.
 	let challengeAtual = $state<ChallengeDefinicao | null>(null);
 	let challengeProgresso = $state<ChallengeProgresso | null>(null);
 	let challengeIniciadoEm = $state<string | null>(null);
 	let challengeConcluidoEm = $state<string | null>(null);
 	let challengeTentativas = $state(0);
-	const blinkCounter = new BlinkCounter();
+	const headTurnDetector = new HeadTurnDetector();
 	const smileDetector = new SmileDetector();
 
 	// Estados do Email Code
@@ -152,7 +152,7 @@
 			challengeIniciadoEm = null;
 			challengeConcluidoEm = null;
 			challengeTentativas = 0;
-			blinkCounter.reset();
+			headTurnDetector.reset();
 			smileDetector.reset();
 		}
 
@@ -176,7 +176,7 @@
 				//
 				// Carrega 3 modelos:
 				//  - tinyFaceDetector: presença e localização do rosto
-				//  - faceLandmark68Net: 68 pontos faciais (EAR para blink challenge)
+				//  - faceLandmark68Net: 68 pontos faciais (mandíbula+nariz p/ head_turn)
 				//  - faceExpressionNet: probabilidades de happy/sad/etc (smile challenge)
 				await Promise.all([
 					faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/'),
@@ -191,7 +191,7 @@
 				challengeAtual = sortearChallenge();
 				challengeIniciadoEm = new Date().toISOString();
 				challengeTentativas = 1;
-				blinkCounter.reset();
+				headTurnDetector.reset();
 				smileDetector.reset();
 			}
 
@@ -221,7 +221,7 @@
 		challengeIniciadoEm = new Date().toISOString();
 		challengeConcluidoEm = null;
 		challengeTentativas += 1;
-		blinkCounter.reset();
+		headTurnDetector.reset();
 		smileDetector.reset();
 	}
 
@@ -236,19 +236,20 @@
 			if (emAndamento) return;
 			emAndamento = true;
 			try {
-				// Pipeline MÍNIMA por desafio: o blink só precisa dos 68 landmarks
-				// (em maior resolução p/ olhos nítidos); o smile só das expressões.
-				// Rodar apenas a rede necessária compensa, em CPU, a amostragem mais
-				// rápida — antes rodava landmarks E expressions em todo frame.
+				// Pipeline MÍNIMA por desafio: head_turn só precisa dos 68 landmarks
+				// (mandíbula + nariz); o smile só das expressões. Rodar apenas a rede
+				// necessária mantém a cadência alta. inputSize 224 basta para ambos —
+				// head_turn usa geometria grosseira de pose, não detalhe fino (era o
+				// blink, aposentado, que pedia 320 p/ olhos nítidos).
 				const tipo = challengeAtual?.tipo;
 				const opts = new faceapi.TinyFaceDetectorOptions({
-					inputSize: tipo === 'blink' ? 320 : 224,
+					inputSize: 224,
 					scoreThreshold: 0.5
 				});
 
 				let box: { x: number; y: number; width: number } | null = null;
-				let eyesLeft: { x: number; y: number }[] | null = null;
-				let eyesRight: { x: number; y: number }[] | null = null;
+				let jaw: { x: number; y: number }[] | null = null;
+				let nose: { x: number; y: number }[] | null = null;
 				let happy: number | null = null;
 
 				if (tipo === 'smile') {
@@ -258,12 +259,12 @@
 						happy = det.expressions.happy ?? 0;
 					}
 				} else {
-					// blink (e fallback enquanto o challenge ainda não sorteou): landmarks.
+					// head_turn (e fallback enquanto o challenge ainda não sorteou): landmarks.
 					const det = await faceapi.detectSingleFace(videoElement, opts).withFaceLandmarks();
 					if (det) {
 						box = det.detection.box;
-						eyesLeft = det.landmarks.getLeftEye();
-						eyesRight = det.landmarks.getRightEye();
+						jaw = det.landmarks.getJawOutline();
+						nose = det.landmarks.getNose();
 					}
 				}
 
@@ -278,6 +279,13 @@
 
 				faceDetected = true;
 
+				// Durante o head_turn ATIVO o rosto SE MOVE de propósito — não faz
+				// sentido alertar "segure firme" nem marcar isMoving (que bloquearia o
+				// feedback visual de pronto). Após o desafio concluir, a checagem de
+				// estabilidade volta a valer para a foto final (+ countdown de 3s).
+				const headTurnAtivo =
+					challengeAtual?.tipo === 'head_turn' && !challengeProgresso?.concluido;
+
 				if (lastBox) {
 					const dx = box.x - lastBox.x;
 					const dy = box.y - lastBox.y;
@@ -289,7 +297,7 @@
 					const threshold = Math.max(14, box.width * 0.09);
 					const movedValue = dist > threshold;
 
-					if (movedValue) {
+					if (movedValue && !headTurnAtivo) {
 						movingFrames++;
 						stableFrames = 0;
 						// Histerese: só declara "movendo" após 2 frames consecutivos
@@ -304,18 +312,22 @@
 						stableFrames++;
 						if (stableFrames >= 2) {
 							isMoving = false;
-							faceStatusMessage = 'Rosto Detectado ✅';
+							faceStatusMessage = headTurnAtivo
+								? 'Vire a cabeça conforme o desafio'
+								: 'Rosto Detectado ✅';
 						}
 					}
 				} else {
-					faceStatusMessage = 'Rosto Detectado ✅';
+					faceStatusMessage = headTurnAtivo
+						? 'Vire a cabeça conforme o desafio'
+						: 'Rosto Detectado ✅';
 				}
 				lastBox = box;
 
 				// Alimentar o challenge ativo com os dados desta frame.
 				if (challengeAtual && !challengeProgresso?.concluido) {
-					if (challengeAtual.tipo === 'blink' && eyesLeft && eyesRight) {
-						challengeProgresso = blinkCounter.feed(eyesLeft, eyesRight);
+					if (challengeAtual.tipo === 'head_turn' && jaw && nose) {
+						challengeProgresso = headTurnDetector.feed(jaw, nose);
 					} else if (challengeAtual.tipo === 'smile' && happy !== null) {
 						challengeProgresso = smileDetector.feed(happy);
 					}
@@ -328,8 +340,9 @@
 			} finally {
 				emAndamento = false;
 			}
-			// ~150ms: rápido o bastante para capturar o frame de olho fechado de uma
-			// piscada natural (~150-300ms), que a cadência antiga de 400ms perdia.
+			// ~150ms: cadência alta para acompanhar com fluidez o giro da cabeça e o
+			// sorriso. Os desafios sobreviventes são sustentados (≥ 1s), então não
+			// dependem de pegar um frame instantâneo — só de amostrar o movimento.
 		}, 150);
 	}
 
