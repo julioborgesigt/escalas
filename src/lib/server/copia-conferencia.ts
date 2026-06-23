@@ -29,10 +29,21 @@ export function podeBaixarForense(u: UsuarioLogado | null): boolean {
 
 /**
  * Quem pode solicitar download com manifesto (`?manifesto=true`).
- * Mais amplo que `podeBaixarForense`: inclui qualquer admin (não só Super Admin).
+ *
+ * Regras (cumulativas — basta uma ser verdadeira):
+ * - ADM Geral ou Super Admin (`tipo === 'admin'`).
+ * - Policial com cargo DPC que seja o próprio assinante do documento
+ *   (`assinanteId` é o `id` do usuário que assinou; passar `null`/`undefined`
+ *   implica que a identidade do assinante não está disponível → acesso negado
+ *   para esta regra, mas as anteriores ainda se aplicam).
  */
-export function podeBaixarComManifesto(u: UsuarioLogado | null): boolean {
-	return u?.tipo === 'admin';
+export function podeBaixarComManifesto(
+	u: UsuarioLogado | null,
+	assinanteId?: number | null
+): boolean {
+	if (u?.tipo === 'admin') return true;
+	if (u?.cargo === 'DPC' && assinanteId != null && u.id === assinanteId) return true;
+	return false;
 }
 
 interface CopiaConferenciaOpts {
