@@ -85,10 +85,10 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 			'extraordinario'
 		);
 
-		// 1. Se existir assinatura: admin com ?manifesto=true recebe o blob forense
-		//    íntegro do R2; os demais recebem a cópia de conferência regenerada.
+		// 1. Se existir assinatura: admin/DPC-assinante com ?manifesto=true recebe o
+		//    blob forense íntegro do R2; os demais recebem a cópia de conferência.
 		if (reportSignature?.verification_hash) {
-			if (manifesto && podeBaixarComManifesto(u)) {
+			if (manifesto && podeBaixarComManifesto(u, reportSignature.assinante_id)) {
 				if (!r2) {
 					return serverError('[gise/download] R2 não configurado', new Error('R2_NOT_CONFIGURED'));
 				}
@@ -236,8 +236,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 	if (format === 'pdf') {
 		const docGise = gise.documento;
 
-		// Admin com ?manifesto=true e documento assinado: blob forense íntegro do R2.
-		if (docGise?.r2_key && manifesto && podeBaixarComManifesto(u)) {
+		// Admin ou DPC-assinante com ?manifesto=true: blob forense íntegro do R2.
+		if (docGise?.r2_key && manifesto && podeBaixarComManifesto(u, docGise.assinante_id)) {
 			const r2 = getR2(platform);
 			if (r2) {
 				try {

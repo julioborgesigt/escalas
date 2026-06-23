@@ -49,8 +49,8 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 
 	const querManifesto = url.searchParams.get('manifesto') === 'true';
 
-	// Admin com ?manifesto=true: blob forense íntegro (com CPF/IP/GPS/selfie) do R2.
-	if (querManifesto && podeBaixarComManifesto(u)) {
+	// Admin ou DPC-assinante com ?manifesto=true: blob forense íntegro do R2.
+	if (querManifesto && podeBaixarComManifesto(u, documento.assinante_id)) {
 		if (!hasR2(platform)) {
 			return serverError(
 				'[gise/documento-assinado] R2 não configurado',
