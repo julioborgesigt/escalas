@@ -61,7 +61,11 @@ export const giseIdParamSchema = z.object({
 export const giseDownloadSchema = z.object({
 	format: z.enum(['xlsx', 'pdf', 'extraordinario', 'produtividade']).default('xlsx'),
 	seccionalId: z.coerce.number().optional(),
-	equipeType: z.enum(['operacional', 'seint']).nullable().optional()
+	equipeType: z.enum(['operacional', 'seint']).nullable().optional(),
+	manifesto: z
+		.enum(['true', 'false'])
+		.optional()
+		.transform((v) => v === 'true')
 });
 
 /** Query string do export agregado do histórico GISE (admin geral). */

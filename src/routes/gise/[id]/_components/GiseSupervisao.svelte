@@ -228,9 +228,16 @@
 	);
 
 	const urlDocumentoAssinado = $derived(`/api/gise/${gise.id}/documento-assinado`);
+	const urlDocumentoAssinadoManifesto = $derived(
+		`/api/gise/${gise.id}/documento-assinado?manifesto=true`
+	);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
+	const urlDownloadPdfManifesto = $derived(`/api/gise/${gise.id}/download?format=pdf&manifesto=true`);
 	const urlDownloadExtra = $derived(
 		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`
+	);
+	const urlDownloadExtraManifesto = $derived(
+		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}&manifesto=true`
 	);
 
 	let expandirEscala = $state(false);
@@ -996,10 +1003,21 @@
 													<a
 														href={urlDocumentoAssinado}
 														target="_blank"
-														class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5"
+														class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1"
+														title="Baixar sem manifesto (para impressão)"
 													>
 														<FileDown size={13} class="shrink-0" />
-														Baixar PDF
+														S/ manifesto
+													</a>
+													<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+													<a
+														href={urlDocumentoAssinadoManifesto}
+														target="_blank"
+														class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1"
+														title="Baixar com manifesto (folha de auditoria)"
+													>
+														<FileDown size={13} class="shrink-0" />
+														C/ manifesto
 													</a>
 												{:else}
 													{#if isSupervisor || isAdminGeral}
@@ -1140,10 +1158,20 @@
 											<a
 												href={urlDocumentoAssinado}
 												target="_blank"
-												class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all"
+												class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												title="Baixar sem manifesto (para impressão)"
 											>
 												<FileDown size={13} class="shrink-0" />
-												Baixar PDF
+												S/ manifesto
+											</a>
+											<a
+												href={urlDocumentoAssinadoManifesto}
+												target="_blank"
+												class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all"
+												title="Baixar com manifesto (folha de auditoria)"
+											>
+												<FileDown size={13} class="shrink-0" />
+												C/ manifesto
 											</a>
 										{:else}
 											{#if isSupervisor || isAdminGeral}
@@ -1354,12 +1382,24 @@
 														<a
 															href={urlDownloadExtra}
 															target="_blank"
-															class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 {!downloadExtraSupHabilitado
+															class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
 																? 'pointer-events-none opacity-60'
 																: ''}"
+															title="Baixar sem manifesto (para impressão)"
 														>
 															<FileDown size={13} class="shrink-0" />
-															Baixar PDF
+															S/ manifesto
+														</a>
+														<a
+															href={urlDownloadExtraManifesto}
+															target="_blank"
+															class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 {!downloadExtraSupHabilitado
+																? 'pointer-events-none opacity-60'
+																: ''}"
+															title="Baixar com manifesto (folha de auditoria)"
+														>
+															<FileDown size={13} class="shrink-0" />
+															C/ manifesto
 														</a>
 													{:else}
 														<a
@@ -1504,12 +1544,24 @@
 												<a
 													href={urlDownloadExtra}
 													target="_blank"
-													class="btn btn-xs preset-filled-primary-500 px-3 py-1.5 text-xs font-bold rounded-lg no-underline flex items-center gap-1.5 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+													class="btn btn-xs preset-filled-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
 														? 'pointer-events-none opacity-60'
 														: ''}"
+													title="Baixar sem manifesto (para impressão)"
 												>
 													<FileDown size={13} class="shrink-0" />
-													Baixar PDF
+													S/ manifesto
+												</a>
+												<a
+													href={urlDownloadExtraManifesto}
+													target="_blank"
+													class="btn btn-xs preset-outlined-primary-500 px-2.5 py-1.5 text-[0.65rem] font-bold rounded-lg no-underline flex items-center gap-1 hover:scale-[1.02] active:scale-95 transition-all {!downloadExtraSupHabilitado
+														? 'pointer-events-none opacity-60'
+														: ''}"
+													title="Baixar com manifesto (folha de auditoria)"
+												>
+													<FileDown size={13} class="shrink-0" />
+													C/ manifesto
 												</a>
 											{:else}
 												<a

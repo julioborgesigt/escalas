@@ -26,7 +26,7 @@ import {
 	serverError
 } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
-import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
 import { gerarRascunhoGisePdf } from '$lib/server/conferencia-pdf';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
@@ -38,11 +38,6 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 
 	const db = getDB(platform);
 
-	// Antes da P0.3 desta auditoria, GET só checava login: qualquer usuário
-	// autenticado conseguia baixar o PDF assinado de qualquer GISE trocando
-	// o [id]. Agora aplica o mesmo modelo de permissão usado por /download:
-	// admin, quadro de supervisão (supervisor/assessor/seint1/seint2) ou
-	// membro de equipe da própria GISE.
 	const gise = await buscarGiseEscala(db, id);
 	if (!gise) return notFound('Escala GISE');
 
@@ -52,46 +47,44 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 	const documento = await buscarGiseDocumento(db, id);
 	if (!documento) return notFound('Documento assinado');
 
-	// A2: o blob forense íntegro (manifesto com CPF/IP/GPS/selfie) é restrito ao
-	// Super Admin. Os demais (mesmo com permissão na GISE) recebem a cópia de
-	// conferência regenerada, sem manifesto.
-	if (!podeBaixarForense(u)) {
-		const giseDetalhado = await buscarGiseDetalhado(db, id);
-		if (!giseDetalhado) return notFound('Escala GISE');
-		const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
-		const hash = documento.verificacao_hash ?? undefined;
-		// A rubrica já aparece no campo de assinatura do corpo (gerarPdfGise) —
-		// não repetir no rodapé para evitar rubrica duplicada.
-		const buffer = await gerarCopiaConferencia({
-			pdfRascunho: rascunho,
-			assinanteNome: documento.assinante_nome,
-			verificationHash: hash,
-			verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
-		});
-		return new Response(buffer as unknown as BodyInit, {
+	const querManifesto = url.searchParams.get('manifesto') === 'true';
+
+	// Admin com ?manifesto=true: blob forense íntegro (com CPF/IP/GPS/selfie) do R2.
+	if (querManifesto && podeBaixarComManifesto(u)) {
+		if (!hasR2(platform)) {
+			return serverError(
+				'[gise/documento-assinado] R2 não configurado',
+				new Error('R2_NOT_CONFIGURED')
+			);
+		}
+		const bucket = getR2(platform);
+		const object = await bucket.get(documento.r2_key);
+		if (!object) return notFound('Arquivo PDF no Storage');
+		return new Response(object.body as unknown as BodyInit, {
 			headers: {
 				'Content-Type': 'application/pdf',
-				'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
+				'Content-Disposition': contentDisposition(`gise_${id}_assinada_manifesto.pdf`),
 				'Cache-Control': 'private, no-store'
 			}
 		});
 	}
 
-	if (!hasR2(platform)) {
-		return serverError(
-			'[gise/documento-assinado] R2 não configurado',
-			new Error('R2_NOT_CONFIGURED')
-		);
-	}
-
-	const bucket = getR2(platform);
-	const object = await bucket.get(documento.r2_key);
-	if (!object) return notFound('Arquivo PDF no Storage');
-
-	return new Response(object.body as unknown as BodyInit, {
+	// Padrão: cópia de conferência (sem manifesto forense).
+	const giseDetalhado = await buscarGiseDetalhado(db, id);
+	if (!giseDetalhado) return notFound('Escala GISE');
+	const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
+	const hash = documento.verificacao_hash ?? undefined;
+	const buffer = await gerarCopiaConferencia({
+		pdfRascunho: rascunho,
+		assinanteNome: documento.assinante_nome,
+		verificationHash: hash,
+		verificationUrl: hash ? `${url.origin}/validar/${hash}` : undefined
+	});
+	return new Response(buffer as unknown as BodyInit, {
 		headers: {
 			'Content-Type': 'application/pdf',
-			'Content-Disposition': contentDisposition(documento.r2_key)
+			'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
+			'Cache-Control': 'private, no-store'
 		}
 	});
 };

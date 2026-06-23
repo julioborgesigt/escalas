@@ -251,19 +251,35 @@
 							</button>
 
 							{#if menuExpandidoId === esc.id}
-								<div class="flex flex-row gap-2 w-full mt-1" transition:slide={{ duration: 200 }}>
-									<a
-										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
-										href="/api/escalas/{esc.id}/download?format=pdf"
-										target="_blank">PDF (conferência)</a
-									>
-									<a
-										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm {!esc.is_assinada
-											? 'opacity-50 pointer-events-none'
-											: ''}"
-										href="/api/escalas/{esc.id}/documento-assinado"
-										target="_blank">PDF assinado</a
-									>
+								<div class="flex flex-col gap-1.5 w-full mt-1" transition:slide={{ duration: 200 }}>
+									{#if esc.is_assinada}
+										<div class="flex flex-row gap-2 w-full">
+											<a
+												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												href="/api/escalas/{esc.id}/documento-assinado"
+												target="_blank"
+												title="PDF para impressão e distribuição (sem folha de auditoria)"
+											>
+												Sem manifesto
+											</a>
+											<a
+												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												href="/api/escalas/{esc.id}/documento-assinado?manifesto=true"
+												target="_blank"
+												title="PDF com folha de auditoria (evidências da assinatura)"
+											>
+												Com manifesto
+											</a>
+										</div>
+									{:else}
+										<a
+											class="btn w-full justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											href="/api/escalas/{esc.id}/download?format=pdf"
+											target="_blank"
+										>
+											PDF (rascunho)
+										</a>
+									{/if}
 								</div>
 							{/if}
 						</div>

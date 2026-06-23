@@ -251,13 +251,21 @@
 				titulo: 'Download de Escala Assinada',
 				linhas: [
 					'Esta escala já foi assinada digitalmente.',
-					'O download será do documento oficial com as assinaturas digitais.'
+					'"Sem manifesto" gera o documento para impressão e distribuição.',
+					'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
 				],
 				acao: {
-					label: 'Confirmar Download',
+					label: 'Sem manifesto',
 					fn: () => {
 						dialogInfo = null;
 						window.open(`/api/gise/${ativa.id}/download?format=pdf`, '_blank');
+					}
+				},
+				acaoSecundaria: {
+					label: 'Com manifesto',
+					fn: () => {
+						dialogInfo = null;
+						window.open(`/api/gise/${ativa.id}/download?format=pdf&manifesto=true`, '_blank');
 					}
 				}
 			};
@@ -293,14 +301,25 @@
 					titulo: 'Download de Relatório de Extra Assinado',
 					linhas: [
 						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-						'O download será do documento oficial com as assinaturas digitais.'
+						'"Sem manifesto" gera o documento para impressão e distribuição.',
+						'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
 					],
 					acao: {
-						label: 'Confirmar Download',
+						label: 'Sem manifesto',
 						fn: () => {
 							dialogInfo = null;
 							window.open(
 								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`,
+								'_blank'
+							);
+						}
+					},
+					acaoSecundaria: {
+						label: 'Com manifesto',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}&manifesto=true`,
 								'_blank'
 							);
 						}
@@ -334,14 +353,25 @@
 					titulo: 'Download de Relatório de Extra Assinado',
 					linhas: [
 						'Este relatório de serviço extraordinário já foi assinado digitalmente.',
-						'O download será do documento oficial com as assinaturas digitais.'
+						'"Sem manifesto" gera o documento para impressão e distribuição.',
+						'"Com manifesto" inclui a folha de auditoria (evidências da assinatura).'
 					],
 					acao: {
-						label: 'Confirmar Download',
+						label: 'Sem manifesto',
 						fn: () => {
 							dialogInfo = null;
 							window.open(
 								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}`,
+								'_blank'
+							);
+						}
+					},
+					acaoSecundaria: {
+						label: 'Com manifesto',
+						fn: () => {
+							dialogInfo = null;
+							window.open(
+								`/api/gise/${giseId}/download?format=extraordinario&seccionalId=${minhaSeccionalId}&manifesto=true`,
 								'_blank'
 							);
 						}
