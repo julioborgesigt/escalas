@@ -1,5 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { 
+		Shield, 
+		Calendar, 
+		TrendingUp, 
+		Sliders, 
+		FileText, 
+		ArrowRight 
+	} from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);
@@ -22,7 +30,7 @@
 	class="welcome-wrapper flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in"
 >
 	<div
-		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-secondary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl {cardWidthClass} w-full text-center space-y-6"
+		class="welcome-card relative overflow-hidden rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-secondary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl {cardWidthClass} w-full text-center space-y-6"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-secondary-500/10 via-transparent to-primary-500/5 z-0"
@@ -31,9 +39,9 @@
 		<div class="relative z-10 space-y-6">
 			<!-- Logo / Icon -->
 			<div
-				class="mx-auto w-16 h-16 rounded-2xl bg-secondary-500/10 text-secondary-500 flex items-center justify-center text-3xl shadow-inner animate-pulse"
+				class="mx-auto w-14 h-14 rounded-2xl bg-secondary-500/10 text-secondary-500 flex items-center justify-center border border-secondary-500/20 shadow-sm"
 			>
-				🛡️
+				<Shield class="w-7 h-7" />
 			</div>
 
 			<!-- Title / Greeting -->
@@ -64,11 +72,11 @@
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 					<!-- Card Escalas GISE -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">📅</span>
+							<div class="flex items-center gap-2 text-secondary-500">
+								<Calendar class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Escalas GISE
 								</h3>
@@ -84,24 +92,17 @@
 							onclick={() => goto('/gise')}
 						>
 							Acessar Escalas GISE
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 
 					<!-- Card Produtividade -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">📊</span>
+							<div class="flex items-center gap-2 text-secondary-500">
+								<TrendingUp class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Produtividade
 								</h3>
@@ -117,24 +118,17 @@
 							onclick={() => goto('/produtividade')}
 						>
 							Acessar Produtividade
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 
 					<!-- Card Conf. Gise -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">⚙️</span>
+							<div class="flex items-center gap-2 text-secondary-500">
+								<Sliders class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Conf. Gise
 								</h3>
@@ -150,24 +144,17 @@
 							onclick={() => goto('/gise/config')}
 						>
 							Acessar Conf. Gise
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 
 					<!-- Card Conf. Form. -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">📄</span>
+							<div class="flex items-center gap-2 text-secondary-500">
+								<FileText class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Conf. Form.
 								</h3>
@@ -183,14 +170,7 @@
 							onclick={() => goto('/res-gise')}
 						>
 							Acessar Conf. Form.
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 				</div>
@@ -216,11 +196,11 @@
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 							<!-- Card Escalas GISE -->
 							<div
-								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+								class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 							>
 								<div class="space-y-2">
-									<div class="flex items-center gap-2">
-										<span class="text-xl">📅</span>
+									<div class="flex items-center gap-2 text-secondary-500">
+										<Calendar class="w-5 h-5" />
 										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 											Escalas GISE
 										</h3>
@@ -241,24 +221,17 @@
 									onclick={() => goto('/gise')}
 								>
 									Acessar Escalas GISE
-									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2.5"
-											d="M9 5l7 7-7 7"
-										/>
-									</svg>
+									<ArrowRight class="w-3.5 h-3.5" />
 								</button>
 							</div>
 
 							<!-- Card Presença GISE -->
 							<div
-								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
+								class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-secondary-500/30 transition-colors"
 							>
 								<div class="space-y-2">
-									<div class="flex items-center gap-2">
-										<span class="text-xl">🛡️</span>
+									<div class="flex items-center gap-2 text-secondary-500">
+										<Shield class="w-5 h-5" />
 										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 											Presença GISE
 										</h3>
@@ -274,14 +247,7 @@
 									onclick={() => goto('/res-gise')}
 								>
 									Acessar Presença GISE
-									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2.5"
-											d="M9 5l7 7-7 7"
-										/>
-									</svg>
+									<ArrowRight class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -310,14 +276,7 @@
 								onclick={() => goto('/gise')}
 							>
 								Entrar no Painel GISE
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M13 5l7 7-7 7M5 5l7 7-7 7"
-									/></svg
-								>
+								<ArrowRight class="w-4 h-4" />
 							</button>
 						</div>
 					{/if}
@@ -339,14 +298,7 @@
 							onclick={() => goto('/gise')}
 						>
 							Entrar no Painel GISE
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-								><path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M13 5l7 7-7 7M5 5l7 7-7 7"
-								/></svg
-							>
+							<ArrowRight class="w-4 h-4" />
 						</button>
 					</div>
 				{/if}

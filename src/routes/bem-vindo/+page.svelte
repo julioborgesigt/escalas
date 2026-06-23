@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { User } from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);
@@ -18,7 +19,7 @@
 	class="welcome-wrapper flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in"
 >
 	<div
-		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-surface-200 dark:border-white/10 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-xl w-full text-center space-y-6"
+		class="welcome-card relative overflow-hidden rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-surface-200 dark:border-white/10 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-lg w-full text-center space-y-6"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-teal-500/5 z-0"
@@ -27,9 +28,9 @@
 		<div class="relative z-10 space-y-6">
 			<!-- Logo / Icon -->
 			<div
-				class="mx-auto w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-3xl shadow-inner animate-pulse"
+				class="mx-auto w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-500/20 shadow-sm"
 			>
-				👮
+				<User class="w-7 h-7" />
 			</div>
 
 			<!-- Title / Greeting -->

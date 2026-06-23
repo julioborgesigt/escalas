@@ -1,12 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { 
+		ShieldCheck, 
+		Building, 
+		Users, 
+		Key, 
+		Settings, 
+		History, 
+		ArrowRight 
+	} from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);
 
 	const acoes = [
 		{
-			icone: '🏢',
+			icone: Building,
 			titulo: 'Unidades',
 			descricao:
 				'Cadastre e gerencie a estrutura organizacional: departamentos, seccionais e delegacias.',
@@ -14,7 +23,7 @@
 			cta: 'Gerenciar Unidades'
 		},
 		{
-			icone: '👥',
+			icone: Users,
 			titulo: 'Policiais',
 			descricao:
 				'Gerencie o cadastro de policiais, papéis administrativos (RBAC) e a concessão de Admin Geral.',
@@ -22,7 +31,7 @@
 			cta: 'Gerenciar Policiais'
 		},
 		{
-			icone: '✍️',
+			icone: Key,
 			titulo: 'Config. de Assinatura',
 			descricao:
 				'Defina os requisitos das assinaturas eletrônicas (foto, GPS e código por e-mail / 2FA).',
@@ -30,7 +39,7 @@
 			cta: 'Abrir Config. Ass.'
 		},
 		{
-			icone: '⚙️',
+			icone: Settings,
 			titulo: 'Configurações Gerais',
 			descricao:
 				'Ajustes globais do sistema, como o provedor de e-mail padrão (Cloudflare / Resend) com fallback.',
@@ -38,7 +47,7 @@
 			cta: 'Abrir Config. Geral'
 		},
 		{
-			icone: '🛡️',
+			icone: History,
 			titulo: 'Auditoria',
 			descricao:
 				'Trilha forense de ações do sistema: filtros, verificação de integridade e exportação (CSV/PDF).',
@@ -56,7 +65,7 @@
 	class="welcome-wrapper flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in"
 >
 	<div
-		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-primary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-5xl w-full text-center space-y-6"
+		class="welcome-card relative overflow-hidden rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-primary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl max-w-5xl w-full text-center space-y-6"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-primary-500/10 via-transparent to-warning-500/5 z-0"
@@ -64,9 +73,9 @@
 
 		<div class="relative z-10 space-y-6">
 			<div
-				class="mx-auto w-16 h-16 rounded-2xl bg-primary-500/10 text-primary-500 flex items-center justify-center text-3xl shadow-inner"
+				class="mx-auto w-14 h-14 rounded-2xl bg-primary-500/10 text-primary-500 flex items-center justify-center border border-primary-500/20 shadow-sm"
 			>
-				🛡️
+				<ShieldCheck class="w-7 h-7" />
 			</div>
 
 			<div class="space-y-2">
@@ -93,12 +102,13 @@
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 text-left">
 				{#each acoes as acao (acao.rota)}
+					{@const Icon = acao.icone}
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">{acao.icone}</span>
+							<div class="flex items-center gap-2 text-primary-500">
+								<Icon class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									{acao.titulo}
 								</h3>
@@ -113,14 +123,7 @@
 							onclick={() => goto(acao.rota)}
 						>
 							{acao.cta}
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 				{/each}

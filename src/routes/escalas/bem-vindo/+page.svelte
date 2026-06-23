@@ -1,5 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { 
+		Calendar, 
+		LayoutDashboard, 
+		Inbox, 
+		Shield, 
+		FileCheck, 
+		ArrowRight 
+	} from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);
@@ -32,7 +40,7 @@
 	class="welcome-wrapper flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in"
 >
 	<div
-		class="welcome-card relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-primary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl {cardWidthClass} w-full text-center space-y-6"
+		class="welcome-card relative overflow-hidden rounded-2xl sm:rounded-3xl p-5 sm:p-10 border border-primary-500/20 shadow-2xl bg-white/40 dark:bg-surface-900/40 backdrop-blur-xl {cardWidthClass} w-full text-center space-y-6"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-primary-500/10 via-transparent to-warning-500/5 z-0"
@@ -41,9 +49,9 @@
 		<div class="relative z-10 space-y-6">
 			<!-- Logo / Icon -->
 			<div
-				class="mx-auto w-16 h-16 rounded-2xl bg-primary-500/10 text-primary-500 flex items-center justify-center text-3xl shadow-inner animate-pulse"
+				class="mx-auto w-14 h-14 rounded-2xl bg-primary-500/10 text-primary-500 flex items-center justify-center border border-primary-500/20 shadow-sm"
 			>
-				📅
+				<Calendar class="w-7 h-7" />
 			</div>
 
 			<!-- Title / Greeting -->
@@ -74,11 +82,11 @@
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 					<!-- Card Painel -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">📊</span>
+							<div class="flex items-center gap-2 text-primary-500">
+								<LayoutDashboard class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Painel de Compliance
 								</h3>
@@ -94,24 +102,17 @@
 							onclick={() => goto('/painel')}
 						>
 							Acessar Painel
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 
 					<!-- Card Caixa de Entrada -->
 					<div
-						class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+						class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 					>
 						<div class="space-y-2">
-							<div class="flex items-center gap-2">
-								<span class="text-xl">📥</span>
+							<div class="flex items-center gap-2 text-primary-500">
+								<Inbox class="w-5 h-5" />
 								<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 									Caixa de Entrada
 								</h3>
@@ -127,14 +128,7 @@
 							onclick={() => goto('/recebidos')}
 						>
 							Acessar Cx. de Entrada
-							<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2.5"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
+							<ArrowRight class="w-3.5 h-3.5" />
 						</button>
 					</div>
 				</div>
@@ -156,11 +150,11 @@
 					>
 						<!-- Card Escalas -->
 						<div
-							class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+							class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 						>
 							<div class="space-y-2">
-								<div class="flex items-center gap-2">
-									<span class="text-xl">📅</span>
+								<div class="flex items-center gap-2 text-primary-500">
+									<Calendar class="w-5 h-5" />
 									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 										Escalas Ordinárias
 									</h3>
@@ -176,24 +170,17 @@
 								onclick={() => goto('/escalas')}
 							>
 								Acessar Escalas
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M9 5l7 7-7 7"
-									/>
-								</svg>
+								<ArrowRight class="w-3.5 h-3.5" />
 							</button>
 						</div>
 
 						<!-- Card Escalas GISE -->
 						<div
-							class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+							class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 						>
 							<div class="space-y-2">
-								<div class="flex items-center gap-2">
-									<span class="text-xl">🛡️</span>
+								<div class="flex items-center gap-2 text-primary-500">
+									<Shield class="w-5 h-5" />
 									<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 										Escalas GISE
 									</h3>
@@ -209,25 +196,18 @@
 								onclick={() => goto('/gise')}
 							>
 								Acessar Escalas GISE
-								<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M9 5l7 7-7 7"
-									/>
-								</svg>
+								<ArrowRight class="w-3.5 h-3.5" />
 							</button>
 						</div>
 
 						<!-- Card Presença GISE (Condicional) -->
 						{#if showResGise}
 							<div
-								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+								class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 							>
 								<div class="space-y-2">
-									<div class="flex items-center gap-2">
-										<span class="text-xl">📝</span>
+									<div class="flex items-center gap-2 text-primary-500">
+										<FileCheck class="w-5 h-5" />
 										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 											Presença GISE
 										</h3>
@@ -243,14 +223,7 @@
 									onclick={() => goto('/res-gise')}
 								>
 									Confirmar Presença
-									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2.5"
-											d="M9 5l7 7-7 7"
-										/>
-									</svg>
+									<ArrowRight class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						{/if}
@@ -270,11 +243,11 @@
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 text-left">
 							<!-- Card Escalas -->
 							<div
-								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+								class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 							>
 								<div class="space-y-2">
-									<div class="flex items-center gap-2">
-										<span class="text-xl">📅</span>
+									<div class="flex items-center gap-2 text-primary-500">
+										<Calendar class="w-5 h-5" />
 										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 											Gestão de Escalas
 										</h3>
@@ -290,24 +263,17 @@
 									onclick={() => goto('/escalas')}
 								>
 									Acessar Escalas
-									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2.5"
-											d="M9 5l7 7-7 7"
-										/>
-									</svg>
+									<ArrowRight class="w-3.5 h-3.5" />
 								</button>
 							</div>
 
 							<!-- Card Presença GISE -->
 							<div
-								class="p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
+								class="p-4 sm:p-5 rounded-2xl border border-surface-200 dark:border-white/10 bg-surface-50/50 dark:bg-surface-800/50 flex flex-col justify-between space-y-4 hover:border-primary-500/30 transition-colors"
 							>
 								<div class="space-y-2">
-									<div class="flex items-center gap-2">
-										<span class="text-xl">🛡️</span>
+									<div class="flex items-center gap-2 text-primary-500">
+										<FileCheck class="w-5 h-5" />
 										<h3 class="font-bold text-surface-900 dark:text-surface-50 text-base">
 											Presença GISE
 										</h3>
@@ -323,14 +289,7 @@
 									onclick={() => goto('/res-gise')}
 								>
 									Acessar Presença GISE
-									<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2.5"
-											d="M9 5l7 7-7 7"
-										/>
-									</svg>
+									<ArrowRight class="w-3.5 h-3.5" />
 								</button>
 							</div>
 						</div>
@@ -353,14 +312,7 @@
 								onclick={() => goto('/escalas')}
 							>
 								Entrar no Painel de Escalas
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2.5"
-										d="M13 5l7 7-7 7M5 5l7 7-7 7"
-									/></svg
-								>
+								<ArrowRight class="w-4 h-4" />
 							</button>
 						</div>
 					{/if}
@@ -381,14 +333,7 @@
 						onclick={() => goto('/escalas')}
 					>
 						Entrar no Painel de Escalas
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-							><path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2.5"
-								d="M13 5l7 7-7 7M5 5l7 7-7 7"
-							/></svg
-						>
+						<ArrowRight class="w-4 h-4" />
 					</button>
 				</div>
 			{/if}
