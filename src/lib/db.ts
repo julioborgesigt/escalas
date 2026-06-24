@@ -150,6 +150,7 @@ export {
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise,
 	salvarTermoPresencaGise,
+	buscarTermosPresencaGise,
 	resolverParticipacaoGisePolicial,
 	horarioGiseLiberado,
 	verificarSaidaCompletaSeccional,

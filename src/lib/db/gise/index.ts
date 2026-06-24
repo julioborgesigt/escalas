@@ -64,7 +64,9 @@ export {
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
 	salvarAssinaturaRelatorioGise,
-	salvarTermoPresencaGise
+	salvarTermoPresencaGise,
+	buscarTermosPresencaGise,
+	type TermoPresencaEvidencia
 } from './assinaturas';
 
 export {

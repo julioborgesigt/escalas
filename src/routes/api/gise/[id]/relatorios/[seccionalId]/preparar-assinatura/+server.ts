@@ -11,6 +11,7 @@ import {
 	buscarGiseDetalhado,
 	buscarPresencasGise,
 	buscarGiseSeccionalMembros,
+	buscarTermosPresencaGise,
 	verificarSaidaCompletaSeccional
 } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
@@ -190,43 +191,54 @@ export const POST: RequestHandler = async ({
 		selfieMap.set(`${r.prId}-${r.type}`, r.data);
 	}
 
+	// Presenças confirmadas por Token A3 (desktop) têm um termo qualificado em
+	// `gise_presenca_termos`. Cruzamos por (policial, tipo) para que o manifesto
+	// classifique cada rubrica como QUALIFICADA (ICP) ou AVANÇADA (tela/mobile),
+	// em vez de marcar todas como avançada.
+	const termosPresenca = await buscarTermosPresencaGise(db, id);
+
+	const adicionarPresenca = (
+		pr: (typeof presencasFiltradas)[number],
+		tipo: 'entrada' | 'saida'
+	) => {
+		const rubricaPresenca = tipo === 'entrada' ? pr.entrada_rubrica : pr.saida_rubrica;
+		if (!rubricaPresenca) return;
+
+		const termo = termosPresenca.get(`${pr.policial_id}-${tipo}`);
+		const qualificada = !!termo;
+		const sufixo = tipo === 'entrada' ? 'E' : 'S';
+		const ts = tipo === 'entrada' ? pr.entrada_timestamp : pr.saida_timestamp;
+		// Quando qualificada, o hash de verificação é o do PRÓPRIO termo assinado
+		// (resolve em /validar para o PDF qualificado); senão, o pseudo-hash da presença.
+		const vHash =
+			qualificada && termo!.verification_hash ? termo!.verification_hash : `PRES-${pr.id}-${sufixo}`;
+
+		signers.push({
+			signerName: `${pr.policial_nome} (${tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'})`,
+			signerCpf: pr.policial_cpf ?? undefined,
+			signingTime: new Date(ts || Date.now()),
+			verificationHash: vHash,
+			verificationUrl: `${url.origin}/validar/${vHash}`,
+			ip: pr.ip_address ?? undefined,
+			userAgent: pr.user_agent ?? undefined,
+			latitude: pr.latitude ?? undefined,
+			longitude: pr.longitude ?? undefined,
+			// Qualificada (Token A3): a prova é o termo/certificado — o cartão não
+			// exibe rúbrica/selfie. Avançada (tela): mantém rúbrica e prova de vida.
+			rubricBase64: qualificada ? undefined : (rubricaPresenca ?? undefined),
+			selfieBase64: qualificada ? undefined : selfieMap.get(`${pr.id}-${tipo}`),
+			signatureLevel: qualificada ? 'qualificada' : 'avancada',
+			tipoCarimoTempo: qualificada
+				? ((termo!.tipo_carimbo_tempo ?? 'servidor') as AuditTrailOptions['tipoCarimoTempo'])
+				: undefined,
+			documentName: `Relatório Extraordinário - GISE ${id}`,
+			documentHash
+		});
+	};
+
 	for (const pr of presencasFiltradas) {
-		if (pr.entrada_rubrica) {
-			signers.push({
-				signerName: `${pr.policial_nome} (ENTRADA)`,
-				signerCpf: pr.policial_cpf ?? undefined,
-				signingTime: new Date(pr.entrada_timestamp || Date.now()),
-				verificationHash: `PRES-${pr.id}-E`,
-				verificationUrl: `${url.origin}/validar/PRES-${pr.id}-E`,
-				ip: pr.ip_address ?? undefined,
-				userAgent: pr.user_agent ?? undefined,
-				latitude: pr.latitude ?? undefined,
-				longitude: pr.longitude ?? undefined,
-				rubricBase64: pr.entrada_rubrica ?? undefined,
-				selfieBase64: selfieMap.get(`${pr.id}-entrada`),
-				signatureLevel: 'avancada',
-				documentName: `Relatório Extraordinário - GISE ${id}`,
-				documentHash
-			});
-		}
-		if (pr.saida_rubrica) {
-			signers.push({
-				signerName: `${pr.policial_nome} (SAÍDA)`,
-				signerCpf: pr.policial_cpf ?? undefined,
-				signingTime: new Date(pr.saida_timestamp || Date.now()),
-				verificationHash: `PRES-${pr.id}-S`,
-				verificationUrl: `${url.origin}/validar/PRES-${pr.id}-S`,
-				ip: pr.ip_address ?? undefined,
-				userAgent: pr.user_agent ?? undefined,
-				latitude: pr.latitude ?? undefined,
-				longitude: pr.longitude ?? undefined,
-				rubricBase64: pr.saida_rubrica ?? undefined,
-				selfieBase64: selfieMap.get(`${pr.id}-saida`),
-				signatureLevel: 'avancada',
-				documentName: `Relatório Extraordinário - GISE ${id}`,
-				documentHash
-			});
-		}
+		adicionarPresenca(pr, 'entrada');
+		adicionarPresenca(pr, 'saida');
 	}
 
 	// Assinatura do Supervisor (qualificada via token A3)
