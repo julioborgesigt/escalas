@@ -85,7 +85,23 @@ for (const file of files) {
 			console.log(`  ⏭️  ${file} (documental, sem DDL — no-op)`);
 			success++;
 		} else {
-			console.error(`  ❌ ${file}: ${stderr.slice(0, 200)}`);
+			// Mostra o erro REAL e completo. O `wrangler` polui o stderr com banner,
+			// barra de progresso e o aviso "database will be unavailable"; filtramos
+			// essas linhas para não truncar/escondê-la a mensagem de fato útil.
+			const motivo =
+				stderr
+					.split('\n')
+					.map((l) => l.replace(/\s+$/, ''))
+					.filter(
+						(l) =>
+							l.trim() &&
+							!l.includes('may take some time') &&
+							!l.includes('unavailable to serve queries') &&
+							!/^[─━\s]*$/.test(l)
+					)
+					.join('\n')
+					.trim() || stderr.trim();
+			console.error(`  ❌ ${file}:\n${motivo}\n`);
 			failed++;
 		}
 	}
