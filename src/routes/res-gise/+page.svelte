@@ -31,10 +31,17 @@
 	// `minhaRubrica` espelha `data.minhaRubrica` mas pode mudar localmente após
 	// salvar/excluir sem exigir reload.
 	let cadastrandoRubrica = $state(false);
+	// Só consideramos "tem rubrica" quando o valor é um dataURL de imagem real.
+	// Um valor vazio/corrompido (ex.: `data:image/png;base64,` sem conteúdo, ou
+	// lixo persistido) é tratado como AUSÊNCIA — evita cair no ramo "rubrica
+	// cadastrada" e renderizar uma imagem quebrada no lugar do estado vazio.
+	function rubricaValida(v: string | null | undefined): string | null {
+		return typeof v === 'string' && v.startsWith('data:image/') && v.length > 100 ? v : null;
+	}
 	// eslint-disable-next-line svelte/prefer-writable-derived
-	let minhaRubrica = $state<string | null>(untrack(() => data.minhaRubrica ?? null));
+	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
 	$effect(() => {
-		minhaRubrica = data.minhaRubrica ?? null;
+		minhaRubrica = rubricaValida(data.minhaRubrica);
 	});
 
 	function voltarParaLista() {

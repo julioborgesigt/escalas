@@ -140,16 +140,34 @@
 					Gerenciar rubrica
 				</button>
 			{:else}
-				<p class="text-xs text-surface-500 leading-snug">
-					Para confirmar a {rotulo} pelo computador com seu <strong>Token A3</strong>, cadastre
-					primeiro a sua <strong>rubrica</strong> — ela será usada como sua assinatura gráfica.
-				</p>
+				<div
+					class="bg-warning-500/10 border border-warning-500/30 rounded-xl p-3 flex items-start gap-2"
+				>
+					<svg
+						class="w-4 h-4 text-warning-500 shrink-0 mt-0.5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+						/>
+					</svg>
+					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
+						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} pelo
+						computador com seu <strong>Token A3</strong>, é necessário cadastrar primeiro a sua
+						rubrica — ela será usada como sua assinatura gráfica.
+					</p>
+				</div>
 				<button
 					type="button"
 					class="btn btn-sm preset-filled-tertiary-500 rounded-xl text-xs font-bold uppercase w-full shadow-sm"
 					onclick={abrirCadastroRubrica}
 				>
-					Cadastrar Rubrica
+					Entendi — cadastrar rubrica
 				</button>
 			{/if}
 			<p class="text-[0.65rem] text-surface-400 italic leading-snug">
