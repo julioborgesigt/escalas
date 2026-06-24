@@ -68,6 +68,8 @@ export type ResGisePageData = {
 	equipeIdSelected: number | null;
 	respostas: Record<string, unknown>;
 	restringirSmartphone: boolean;
+	/** Rubrica reutilizável cadastrada pelo policial (PNG dataURL) ou `null`. */
+	minhaRubrica?: string | null;
 	modeloOperacional: GiseModeloPerguntaConfig[];
 	modeloSeint: GiseModeloPerguntaConfig[];
 	modeloPadraoOperacional: GiseModeloPerguntaConfig[];

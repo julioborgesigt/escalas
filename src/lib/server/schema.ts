@@ -31,6 +31,12 @@ export const policiais = sqliteTable(
 		// Achado LGPD: `cpf` guarda o CPF cifrado (AES-GCM, `enc:v1:...`); este é
 		// o índice cego HMAC para lookup (login por certificado) sem decifrar.
 		cpf_index: text('cpf_index'),
+		// Rubrica reutilizável (PNG transparente em dataURL) cadastrada pelo policial
+		// para assinatura por Token A3 no computador. LGPD: nova finalidade com
+		// consentimento próprio (`rubrica_consentimento_em`); excluível pelo titular.
+		rubrica: text('rubrica'),
+		rubrica_atualizada_em: text('rubrica_atualizada_em'),
+		rubrica_consentimento_em: text('rubrica_consentimento_em'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`),

@@ -11,12 +11,16 @@
 		isAdminGeral,
 		isMobile,
 		restringirSmartphone,
+		minhaRubrica = null,
+		abrirCadastroRubrica,
 		voltarParaLista
 	}: {
 		resGise: ResGise;
 		isAdminGeral: boolean;
 		isMobile: boolean;
 		restringirSmartphone: boolean;
+		minhaRubrica?: string | null;
+		abrirCadastroRubrica: () => void;
 		voltarParaLista: () => void;
 	} = $props();
 </script>
@@ -63,6 +67,66 @@
 		{#if iconPath}{@render btnIcon(iconPath)}{/if}
 		<span>{loading.active && loadingState ? 'Carregando...' : label}</span>
 	</button>
+{/snippet}
+
+{#snippet blocoRestritoDesktop(contexto: string)}
+	<div class="flex flex-col gap-3 max-w-md mx-auto">
+		<div class="bg-tertiary-500/5 border border-tertiary-500/25 p-4 rounded-2xl space-y-3">
+			<div class="flex items-center gap-2">
+				<svg
+					class="w-5 h-5 text-tertiary-500 shrink-0"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+					/>
+				</svg>
+				<p class="text-sm font-bold text-surface-700 dark:text-surface-200 leading-tight">
+					Assinar pelo computador <span class="text-[0.6rem] font-black text-tertiary-500 uppercase"
+						>Token A3 · ICP-Brasil</span
+					>
+				</p>
+			</div>
+
+			{#if minhaRubrica}
+				<div
+					class="bg-white rounded-lg border border-surface-200 p-2 flex items-center justify-center"
+				>
+					<img src={minhaRubrica} alt="Sua rubrica cadastrada" class="h-12 object-contain" />
+				</div>
+				<p class="text-xs text-success-600 dark:text-success-400 font-semibold">
+					✓ Rubrica cadastrada. A confirmação de {contexto} por Token A3 no computador usará esta rubrica.
+				</p>
+				<button
+					type="button"
+					class="btn btn-sm preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase w-full"
+					onclick={abrirCadastroRubrica}
+				>
+					Gerenciar rubrica
+				</button>
+			{:else}
+				<p class="text-xs text-surface-500 leading-snug">
+					Para confirmar a {contexto} pelo computador com seu <strong>Token A3</strong>, cadastre
+					primeiro a sua <strong>rubrica</strong> — ela será usada como sua assinatura gráfica.
+				</p>
+				<button
+					type="button"
+					class="btn btn-sm preset-filled-tertiary-500 rounded-xl text-xs font-bold uppercase w-full shadow-sm"
+					onclick={abrirCadastroRubrica}
+				>
+					Cadastrar Rubrica
+				</button>
+			{/if}
+			<p class="text-[0.65rem] text-surface-400 italic leading-snug">
+				Pelo celular, a confirmação continua disponível com foto (prova de vida) e GPS.
+			</p>
+		</div>
+	</div>
 {/snippet}
 
 {#if resGise.escalaSelecionada}
@@ -181,17 +245,7 @@
 						'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
 					)}
 				{:else}
-					<div class="flex flex-col gap-4 max-w-sm mx-auto">
-						<div class="bg-error-500/10 border border-error-500/20 p-4 rounded-xl text-center">
-							<p class="text-[0.85rem] text-error-600 font-bold uppercase tracking-wider mb-1">
-								Uso Restrito a Smartphone
-							</p>
-							<p class="text-[0.8rem] text-error-700/80">
-								O registro de entrada requer geolocalização e câmera do celular. Por favor, acesse
-								via dispositivo móvel.
-							</p>
-						</div>
-					</div>
+					{@render blocoRestritoDesktop('entrada')}
 				{/if}
 			</div>
 		{:else}
@@ -422,16 +476,7 @@
 								'w-full py-4 text-lg shadow-xl shadow-primary-500/20'
 							)}
 						{:else}
-							<div class="flex flex-col gap-3">
-								<div class="bg-error-500/10 border border-error-500/20 p-3 rounded-xl text-center">
-									<p class="text-[0.85rem] text-error-600 font-bold uppercase tracking-wider mb-1">
-										Uso Restrito a Smartphone
-									</p>
-									<p class="text-[0.8rem] text-error-700/80">
-										Requer câmera e GPS de um celular para concluir a saída.
-									</p>
-								</div>
-							</div>
+							{@render blocoRestritoDesktop('saída')}
 						{/if}
 					{:else}
 						<div
