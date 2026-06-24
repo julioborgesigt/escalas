@@ -91,7 +91,10 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 		lotacao = escala.lotacao;
 	} else {
 		// GISE
-		titulo = 'Escala GISE';
+		titulo =
+			documento.tipo_doc === 'gise_presenca'
+				? 'Termo de Confirmação de Presença — GISE'
+				: 'Escala GISE';
 		cidade = 'Iguatu';
 		data_fim = undefined;
 		lotacao = 'Sertão Central / Centro Sul';

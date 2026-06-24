@@ -175,6 +175,16 @@ export const CATALOGO_ACOES = {
 		categoria: 'gise',
 		severidade: 'info'
 	},
+	rubrica_cadastrada: {
+		label: 'Cadastro/atualização de rubrica reutilizável',
+		categoria: 'policial',
+		severidade: 'info'
+	},
+	rubrica_excluida: {
+		label: 'Exclusão de rubrica reutilizável',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
 	exportar_gise: { label: 'Exportação de GISE', categoria: 'gise', severidade: 'info' },
 	salvar_config_gise: {
 		label: 'Alteração de configuração do GISE',

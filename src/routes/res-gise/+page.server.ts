@@ -37,7 +37,8 @@ import {
 	giseDocumentos,
 	unidades,
 	giseAssinaturasRelatorios,
-	giseRespostasFormulario
+	giseRespostasFormulario,
+	policiais
 } from '$lib/server/schema';
 import { eq, and, inArray, desc, like, sql } from 'drizzle-orm';
 
@@ -524,21 +525,30 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		? parseInt(url.searchParams.get('equipeId')!)
 		: null;
 
-	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone] = await Promise.all([
-		Promise.all([
-			buscarGiseModeloFormulario(db, 'operacional'),
-			buscarGiseModeloFormulario(db, 'seint')
-		]),
-		giseIdSelected && !isNaN(giseIdSelected)
-			? buscarRespostaGise(
-					db,
-					giseIdSelected,
-					u.tipo === 'policial' ? u.id : null,
-					equipeIdSelected ?? undefined
-				)
-			: Promise.resolve(null),
-		buscarRestringirSmartphone(db)
-	]);
+	const [[modeloOp, modeloSeintRow], respostaRow, restringirSmartphone, rubricaRow] =
+		await Promise.all([
+			Promise.all([
+				buscarGiseModeloFormulario(db, 'operacional'),
+				buscarGiseModeloFormulario(db, 'seint')
+			]),
+			giseIdSelected && !isNaN(giseIdSelected)
+				? buscarRespostaGise(
+						db,
+						giseIdSelected,
+						u.tipo === 'policial' ? u.id : null,
+						equipeIdSelected ?? undefined
+					)
+				: Promise.resolve(null),
+			buscarRestringirSmartphone(db),
+			// Rubrica reutilizável do policial (cadastro p/ assinatura A3 no desktop).
+			u.tipo === 'policial'
+				? db
+						.select({ rubrica: policiais.rubrica })
+						.from(policiais)
+						.where(eq(policiais.id, u.id))
+						.get()
+				: Promise.resolve(null)
+		]);
 
 	let respostasData: Record<string, unknown> = {};
 	if (respostaRow?.respostas) {
@@ -579,6 +589,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		equipeIdSelected,
 		respostas: respostasData,
 		restringirSmartphone,
+		minhaRubrica: rubricaRow?.rubrica ?? null,
 		modeloOperacional,
 		modeloSeint,
 		modeloPadraoOperacional: defaultGiseQuestions,

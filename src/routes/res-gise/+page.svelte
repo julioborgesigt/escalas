@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import { useAutorizacao, useMobile } from '$lib/composables';
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import { useResGise } from './useResGise.svelte';
 	import { loading } from '$lib/loading.svelte';
 	import ConfigurarFormulario from './ConfigurarFormulario.svelte';
@@ -23,6 +25,16 @@
 		if (resGise.capturandoRubrica) {
 			signatureStep = 'signature';
 		}
+	});
+
+	// Cadastro de rubrica reutilizável (assinatura por Token A3 no computador).
+	// `minhaRubrica` espelha `data.minhaRubrica` mas pode mudar localmente após
+	// salvar/excluir sem exigir reload.
+	let cadastrandoRubrica = $state(false);
+	// eslint-disable-next-line svelte/prefer-writable-derived
+	let minhaRubrica = $state<string | null>(untrack(() => data.minhaRubrica ?? null));
+	$effect(() => {
+		minhaRubrica = data.minhaRubrica ?? null;
 	});
 
 	function voltarParaLista() {
@@ -347,6 +359,8 @@
 									{isAdminGeral}
 									{isMobile}
 									restringirSmartphone={data.restringirSmartphone}
+									{minhaRubrica}
+									abrirCadastroRubrica={() => (cadastrandoRubrica = true)}
 									{voltarParaLista}
 								/>
 							</section>
@@ -449,3 +463,10 @@
 		{/if}
 	</Dialog.Content>
 </Dialog>
+
+<!-- Modal de cadastro/gestão da rubrica reutilizável (assinatura Token A3 no computador) -->
+<ModalCadastrarRubrica
+	bind:open={cadastrandoRubrica}
+	rubricaAtual={minhaRubrica}
+	onSaved={(nova) => (minhaRubrica = nova)}
+/>

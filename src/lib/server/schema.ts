@@ -31,6 +31,12 @@ export const policiais = sqliteTable(
 		// Achado LGPD: `cpf` guarda o CPF cifrado (AES-GCM, `enc:v1:...`); este é
 		// o índice cego HMAC para lookup (login por certificado) sem decifrar.
 		cpf_index: text('cpf_index'),
+		// Rubrica reutilizável (PNG transparente em dataURL) cadastrada pelo policial
+		// para assinatura por Token A3 no computador. LGPD: nova finalidade com
+		// consentimento próprio (`rubrica_consentimento_em`); excluível pelo titular.
+		rubrica: text('rubrica'),
+		rubrica_atualizada_em: text('rubrica_atualizada_em'),
+		rubrica_consentimento_em: text('rubrica_consentimento_em'),
 		created_at: text('created_at')
 			.notNull()
 			.default(sql`(datetime('now', '-3 hours'))`),
@@ -517,6 +523,45 @@ export const giseAssinaturasRelatorios = sqliteTable(
 		unique('uq_gise_ass_rel').on(table.gise_id, table.seccional_id, table.tipo),
 		index('idx_gise_ass_rel_gise').on(table.gise_id)
 	]
+);
+
+// ---- Termos de presença assinados por Token A3 (desktop) ----
+// Presença confirmada no computador gera um PDF qualificado (CAdES-LT). Tabela
+// dedicada para que /validar reconheça o termo sem afetar a detecção de
+// relatório/escala assinados.
+export const gisePresencaTermos = sqliteTable(
+	'gise_presenca_termos',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		gise_id: integer('gise_id')
+			.notNull()
+			.references(() => giseEscalas.id, { onDelete: 'cascade' }),
+		policial_id: integer('policial_id').notNull(),
+		tipo: text('tipo', { enum: ['entrada', 'saida'] }).notNull(),
+		assinante_nome: text('assinante_nome').notNull(),
+		assinante_cpf: text('assinante_cpf'),
+		assinante_email: text('assinante_email'),
+		verification_hash: text('verification_hash').unique(),
+		r2_key: text('r2_key'),
+		arquivo_hash: text('arquivo_hash'),
+		ip_address: text('ip_address'),
+		user_agent: text('user_agent'),
+		/** User-Agent BRUTO (não-parseado) — preservado para perícia forense. */
+		user_agent_raw: text('user_agent_raw'),
+		latitude: real('latitude'),
+		longitude: real('longitude'),
+		tipo_carimbo_tempo: text('tipo_carimbo_tempo').default('servidor'),
+		cert_issuer: text('cert_issuer'),
+		cert_serial: text('cert_serial'),
+		cert_valido_de: text('cert_valido_de'),
+		cert_valido_ate: text('cert_valido_ate'),
+		cms_sha256: text('cms_sha256'),
+		ocsp_response_b64: text('ocsp_response_b64'),
+		ocsp_consultado_em: text('ocsp_consultado_em'),
+		tst_token_b64: text('tst_token_b64'),
+		created_at: text('created_at').default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [index('idx_gise_presenca_termos_gise').on(table.gise_id)]
 );
 
 // ---- Aceites do Termo de Uso e Política de Privacidade ----

@@ -63,5 +63,12 @@ export { buscarVagasPadraoEquipesGise, salvarVagasPadraoEquipesGise } from './va
 export {
 	buscarAssinaturasRelatoriosGise,
 	buscarAssinaturaRelatorioGise,
-	salvarAssinaturaRelatorioGise
+	salvarAssinaturaRelatorioGise,
+	salvarTermoPresencaGise
 } from './assinaturas';
+
+export {
+	resolverParticipacaoGisePolicial,
+	horarioGiseLiberado,
+	type ParticipacaoGise
+} from './participacao';

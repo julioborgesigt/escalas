@@ -24,7 +24,10 @@ export async function listarPoliciais(
 		limit?: number;
 	}
 ): Promise<{
-	policiais: Omit<schema.Policial, 'senha'>[];
+	policiais: Omit<
+		schema.Policial,
+		'senha' | 'rubrica' | 'rubrica_atualizada_em' | 'rubrica_consentimento_em'
+	>[];
 	total: number;
 	page: number;
 	limit: number;
