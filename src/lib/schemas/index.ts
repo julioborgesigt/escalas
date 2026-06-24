@@ -25,6 +25,8 @@ export {
 	prepararAssinaturaSchema,
 	finalizarAssinaturaEscalasSchema,
 	finalizarAssinaturaGiseSchema,
+	prepararPresencaSchema,
+	finalizarPresencaSchema,
 	assinarSimplesSchema
 } from './assinatura-pdf';
 export {

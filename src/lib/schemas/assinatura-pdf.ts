@@ -92,6 +92,36 @@ export const prepararAssinaturaSchema = z.object({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PRESENÇA GISE via Token A3 (desktop) — preparar/finalizar
+// Diferente dos demais: NÃO recebe `rubrica` do cliente (usa a rubrica
+// cadastrada do policial, lida no servidor). `tipo` indica entrada/saída.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const prepararPresencaSchema = z.object({
+	signerName: nomeAssinanteSchema,
+	signerCpf: cpfAssinanteSchema,
+	latitude: latitudeSchema,
+	longitude: longitudeSchema,
+	tipo: z.enum(['entrada', 'saida'])
+});
+
+export const finalizarPresencaSchema = z.object({
+	preparedPdf: pdfBase64Schema,
+	serproCms: optionalNullable(base64Schema),
+	serproResponse: optionalNullable(z.record(z.string(), z.unknown())),
+	messageDigest: optionalNullable(hashHexSchema),
+	signingTimeISO: optionalNullable(isoTimestampSchema),
+	signerName: nomeAssinanteSchema,
+	signerCpf: cpfAssinanteSchema,
+	verificationHash: codigoVerificacaoSchema,
+	documentHash: optionalNullable(hashHexSchema),
+	assinanteEmail: emailAssinanteSchema,
+	latitude: latitudeSchema,
+	longitude: longitudeSchema,
+	tipo: z.enum(['entrada', 'saida'])
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FINALIZAR-ASSINATURA — escalas (usa nomes "signature" / "certificate" / "messageDigestHex")
 // ─────────────────────────────────────────────────────────────────────────────
 

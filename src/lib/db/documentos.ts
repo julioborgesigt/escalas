@@ -115,20 +115,55 @@ export async function excluirDocumentoEscala(db: Database, escalaId: number) {
 }
 
 export async function buscarDocumentoPorHash(db: Database, hash: string) {
-	// Query all 3 tables in parallel instead of sequentially
-	const [esc, gise, rel] = await Promise.all([
+	// Query all 4 tables in parallel instead of sequentially
+	const [esc, gise, rel, termo] = await Promise.all([
 		db.select().from(escalaDocumentos).where(eq(escalaDocumentos.verificacao_hash, hash)).get(),
 		db.select().from(giseDocumentos).where(eq(giseDocumentos.verificacao_hash, hash)).get(),
 		db
 			.select()
 			.from(fullSchema.giseAssinaturasRelatorios)
 			.where(eq(fullSchema.giseAssinaturasRelatorios.verification_hash, hash))
+			.get(),
+		db
+			.select()
+			.from(fullSchema.gisePresencaTermos)
+			.where(eq(fullSchema.gisePresencaTermos.verification_hash, hash))
 			.get()
 	]);
 
 	if (esc) return { ...esc, tipo_doc: 'escala' as const };
 	if (gise)
 		return { ...gise, escala_id: gise.gise_id, r2_key: gise.r2_key, tipo_doc: 'gise' as const };
+	if (termo) {
+		// Termo de presença (Token A3 no desktop). Tipo qualificado: a verificação
+		// criptográfica em /validar usa r2_key + arquivo_hash + cms_sha256.
+		return {
+			id: termo.id,
+			escala_id: termo.gise_id,
+			assinante_nome: termo.assinante_nome,
+			assinante_cpf: termo.assinante_cpf,
+			assinante_email: termo.assinante_email,
+			created_at: termo.created_at,
+			tipo_doc: 'gise_presenca' as const,
+			presenca_tipo: termo.tipo,
+			tipo_assinatura: 'serpro' as const,
+			ip_address: termo.ip_address,
+			user_agent: termo.user_agent,
+			latitude: termo.latitude,
+			longitude: termo.longitude,
+			r2_key: termo.r2_key,
+			arquivo_hash: termo.arquivo_hash,
+			tipo_carimbo_tempo: termo.tipo_carimbo_tempo,
+			cert_issuer: termo.cert_issuer,
+			cert_serial: termo.cert_serial,
+			cert_valido_de: termo.cert_valido_de,
+			cert_valido_ate: termo.cert_valido_ate,
+			cms_sha256: termo.cms_sha256,
+			ocsp_response_b64: termo.ocsp_response_b64,
+			ocsp_consultado_em: termo.ocsp_consultado_em,
+			tst_token_b64: termo.tst_token_b64
+		};
+	}
 	if (rel) {
 		return {
 			id: rel.id,
