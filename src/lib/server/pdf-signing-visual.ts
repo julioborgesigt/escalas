@@ -520,10 +520,14 @@ export async function adicionarPaginaAuditoria(
 			drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
 			drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
 
-			// Coluna direita
+			// Coluna direita. LOCALIZAÇÃO e PROVA DE VIDA são evidências do ato
+			// presencial (tela/mobile); não se aplicam à assinatura qualificada A3,
+			// cuja prova é o certificado — ficam fora do cartão qualificado.
 			drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
-			drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
-			drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
+			if (!isQualified) {
+				drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
+				drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
+			}
 
 			// E-mail abaixo (largura total) se disponível
 			if (s.signerEmail) {
