@@ -138,17 +138,24 @@ export const POST: RequestHandler = async ({
 	];
 	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, signers);
 
-	// 4. Estampa a rubrica + carimbo na página do termo (índice 0), centralizado.
+	// 4. Estampa a rubrica + carimbo na página do termo (índice 0).
 	const pageW = 595.28;
-	const rubW_pts = 130;
-	const rx_pts = (pageW - rubW_pts) / 2;
-	const ry_pts = signatureLineY + 6;
-	const boxY_pts = signatureLineY + 14;
+	// A rubrica (manuscrito) assenta SOBRE a linha de assinatura, centrada na
+	// faixa à esquerda; o carimbo ICP vai à DIREITA — assim a rubrica não se
+	// sobrepõe ao selo. `prepararPdfParaAssinatura` desenha a rubrica com 100pt.
+	const margin = 56;
+	const rubW_pts = 100;
+	const boxW_pts = 158; // largura do carimbo dentro de prepararPdfParaAssinatura
+	const boxLeft_pts = pageW * 0.75 - boxW_pts / 2; // carimbo no modo 'right'
+	// Centro da faixa livre entre a margem esquerda e a borda esquerda do carimbo.
+	const rx_pts = (margin + boxLeft_pts - rubW_pts) / 2;
+	const ry_pts = signatureLineY + 2; // assenta sobre a linha
+	const boxY_pts = signatureLineY + 6; // carimbo logo acima da linha, à direita
 
 	const prep = await prepararPdfParaAssinatura(
 		pdfWithAudit,
 		finalSignerName,
-		'center',
+		'right',
 		verificationHash,
 		verificationUrl,
 		boxY_pts,
