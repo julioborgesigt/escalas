@@ -1,13 +1,21 @@
 /**
  * Script de migração automática do D1.
  *
- * Lê todos os arquivos SQL em migrations/ em ordem e executa
- * sequencialmente via wrangler CLI.
+ * Lê todos os arquivos SQL em migrations/ em ordem e executa as que ainda NÃO
+ * foram aplicadas, registrando cada uma numa tabela de controle
+ * (`_migrations_aplicadas`). Isso evita re-executar migrations que não são
+ * idempotentes (ex.: rebuilds de tabela que recriam um CHECK mais estreito e
+ * regrediriam o schema).
  *
  * Uso:
- *   npm run db:migrate               → executa localmente (--local)
- *   npm run db:migrate:staging       → executa no D1 de STAGING (--remote --staging)
- *   npm run db:migrate:prod -- --yes → executa em PRODUÇÃO (--remote)
+ *   npm run db:migrate                      → executa localmente (--local)
+ *   npm run db:migrate:staging              → STAGING (--remote --staging)
+ *   npm run db:migrate:prod -- --yes        → PRODUÇÃO (--remote)
+ *   npm run db:migrate:prod -- --yes --baseline
+ *       → ADOÇÃO ÚNICA: marca TODAS as migrations atuais como aplicadas SEM
+ *         executá-las. Use uma vez num banco que já está migrado (como a
+ *         produção atual) para "adotar" o controle sem re-rodar nada. Depois
+ *         disso, só migrations novas serão executadas.
  *
  * Alvos: `--staging` aponta para `escalas-db-staging` (banco dedicado, ver
  * wrangler.toml [env.preview]); sem ele, `--remote` aponta para PRODUÇÃO
@@ -23,9 +31,12 @@ const MIGRATIONS_DIR = resolve(import.meta.dirname, '../migrations');
 const REMOTE = process.argv.includes('--remote');
 const STAGING = process.argv.includes('--staging');
 const CONFIRMED = process.argv.includes('--yes');
+const BASELINE = process.argv.includes('--baseline');
 const DB_NAME = STAGING ? 'escalas-db-staging' : 'escalas-db';
 const FLAG = REMOTE ? '--remote' : '--local';
 const ALVO = !REMOTE ? 'LOCAL' : STAGING ? 'STAGING (remoto)' : 'PRODUÇÃO (remoto)';
+
+const CONTROL_TABLE = '_migrations_aplicadas';
 
 // Só produção remota (--remote sem --staging) exige confirmação explícita.
 // Staging tem banco dedicado (seguro); local é descartável.
@@ -39,10 +50,49 @@ if (REMOTE && !STAGING && !CONFIRMED) {
 	process.exit(1);
 }
 
-console.log(`\n🚀 Executando migrations no D1 (${ALVO}) — banco ${DB_NAME}...\n`);
+/** Executa um comando SQL avulso (não-arquivo) e devolve o stdout cru. */
+function d1Command(sql: string, json = false): string {
+	const escaped = sql.replace(/"/g, '\\"');
+	return execSync(
+		`npx wrangler d1 execute ${DB_NAME} ${FLAG} ${json ? '--json ' : ''}--command "${escaped}"`,
+		{ stdio: ['ignore', 'pipe', 'pipe'] }
+	).toString();
+}
+
+/** Garante a tabela de controle (idempotente). */
+function ensureControlTable(): void {
+	d1Command(
+		`CREATE TABLE IF NOT EXISTS ${CONTROL_TABLE} (` +
+			`nome TEXT PRIMARY KEY, ` +
+			`aplicada_em TEXT NOT NULL DEFAULT (datetime('now')))`
+	);
+}
+
+/** Conjunto de migrations já registradas como aplicadas. */
+function getApplied(): Set<string> {
+	try {
+		const out = d1Command(`SELECT nome FROM ${CONTROL_TABLE}`, true);
+		const start = out.indexOf('[');
+		if (start < 0) return new Set();
+		const parsed = JSON.parse(out.slice(start)) as Array<{
+			results?: Array<{ nome?: string }>;
+		}>;
+		const rows = parsed[0]?.results ?? [];
+		return new Set(rows.map((r) => r.nome).filter((n): n is string => typeof n === 'string'));
+	} catch {
+		// Sem tabela ainda ou falha de parse: trata como "nada aplicado".
+		return new Set();
+	}
+}
+
+/** Registra (idempotente) uma migration como aplicada. */
+function recordApplied(file: string): void {
+	const safe = file.replace(/'/g, "''");
+	d1Command(`INSERT OR IGNORE INTO ${CONTROL_TABLE} (nome) VALUES ('${safe}')`);
+}
 
 const files = readdirSync(MIGRATIONS_DIR)
-	.filter(f => f.endsWith('.sql'))
+	.filter((f) => f.endsWith('.sql'))
 	.sort();
 
 if (files.length === 0) {
@@ -50,20 +100,53 @@ if (files.length === 0) {
 	process.exit(0);
 }
 
-console.log(`📋 ${files.length} migrations encontradas:\n`);
-files.forEach(f => console.log(`   ${f}`));
+// --- Modo BASELINE: adota o controle num banco já migrado, sem executar nada ---
+if (BASELINE) {
+	console.log(
+		`\n🏷️  BASELINE no D1 (${ALVO}) — banco ${DB_NAME}\n` +
+			`   Marcando ${files.length} migrations como aplicadas SEM executá-las.\n`
+	);
+	ensureControlTable();
+	const jaAplicadas = getApplied();
+	let novas = 0;
+	for (const file of files) {
+		if (jaAplicadas.has(file)) {
+			console.log(`  ⏭️  ${file} (já registrada)`);
+		} else {
+			recordApplied(file);
+			console.log(`  🏷️  ${file} (registrada como aplicada)`);
+			novas++;
+		}
+	}
+	console.log(`\n📊 Baseline concluído: ${novas} registradas, ${files.length - novas} já existiam.\n`);
+	process.exit(0);
+}
+
+console.log(`\n🚀 Executando migrations no D1 (${ALVO}) — banco ${DB_NAME}...\n`);
+
+ensureControlTable();
+const aplicadas = getApplied();
+
+const pendentes = files.filter((f) => !aplicadas.has(f));
+console.log(
+	`📋 ${files.length} migrations no diretório — ${aplicadas.size} já aplicadas, ` +
+		`${pendentes.length} pendentes.\n`
+);
+if (pendentes.length === 0) {
+	console.log('✅ Nada a fazer: banco já está em dia.\n');
+	process.exit(0);
+}
+pendentes.forEach((f) => console.log(`   ${f}`));
 console.log('');
 
 let success = 0;
 let failed = 0;
 
-for (const file of files) {
+for (const file of pendentes) {
 	const filePath = join(MIGRATIONS_DIR, file);
 	try {
-		execSync(
-			`npx wrangler d1 execute ${DB_NAME} ${FLAG} --file="${filePath}"`,
-			{ stdio: 'pipe' }
-		);
+		execSync(`npx wrangler d1 execute ${DB_NAME} ${FLAG} --file="${filePath}"`, { stdio: 'pipe' });
+		recordApplied(file);
 		console.log(`  ✅ ${file}`);
 		success++;
 	} catch (err) {
@@ -78,11 +161,10 @@ for (const file of files) {
 		// o caminho nativo (`wrangler d1 migrations apply`, no CI) também as ignora.
 		const isNoOp = stderr.includes('did not contain a statement');
 
-		if (isAlreadyApplied) {
-			console.log(`  ⏭️  ${file} (já aplicada)`);
-			success++;
-		} else if (isNoOp) {
-			console.log(`  ⏭️  ${file} (documental, sem DDL — no-op)`);
+		if (isAlreadyApplied || isNoOp) {
+			// Estado já presente no banco: registra para não tentar de novo.
+			recordApplied(file);
+			console.log(`  ⏭️  ${file} (${isNoOp ? 'documental, sem DDL — no-op' : 'já aplicada'})`);
 			success++;
 		} else {
 			// Mostra o erro REAL e completo. O `wrangler` polui o stderr com banner,
