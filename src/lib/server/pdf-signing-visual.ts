@@ -208,7 +208,12 @@ export async function adicionarPaginaAuditoria(
 	options: AuditTrailOptions | AuditTrailOptions[]
 ): Promise<Uint8Array> {
 	const allSigners = Array.isArray(options) ? options : [options];
-	const first = allSigners[0];
+	// O cabeçalho do manifesto (Identificador + QR) deve referenciar a assinatura
+	// PRIMÁRIA do documento — a que assina o PDF criptograficamente e é registrada
+	// em /validar. Em manifestos multi-assinante (relatório extra = presenças +
+	// supervisor) essa é a ÚLTIMA adicionada; em single-signer, é a única. Usar
+	// allSigners[0] apontava o QR para a 1ª presença (hash que não resolve no doc).
+	const principal = allSigners[allSigners.length - 1];
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -272,7 +277,7 @@ export async function adicionarPaginaAuditoria(
 
 		// Documento: nome pode ser longo — quebra antes de atingir o QR code (x ≈ width-105)
 		{
-			const docName = first.documentName || 'Extraordinário - GISE';
+			const docName = principal.documentName || 'Extraordinário - GISE';
 			const maxW = width - 105 - 160 - 15; // espaço disponível antes do QR
 			const nameW = font.widthOfTextAtSize(docName, 8.5);
 			page.drawText('Documento:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
@@ -299,12 +304,14 @@ export async function adicionarPaginaAuditoria(
 			}
 		}
 
-		currY = drawMetaData('Identificador', first.verificationHash, currY);
+		currY = drawMetaData('Identificador', principal.verificationHash, currY);
 
 		// Hash SHA-256 — exibir completo em duas linhas quando disponível
 		const hashReal =
-			first.documentHash && first.documentHash !== 'undefined' && first.documentHash !== 'N/A'
-				? first.documentHash
+			principal.documentHash &&
+			principal.documentHash !== 'undefined' &&
+			principal.documentHash !== 'N/A'
+				? principal.documentHash
 				: null;
 		if (hashReal && hashReal.length > 32) {
 			// Linha 1: primeiros 32 chars
@@ -341,10 +348,10 @@ export async function adicionarPaginaAuditoria(
 		}
 
 		// QR Code de Validação no canto superior direito
-		if (first.verificationUrl) {
+		if (principal.verificationUrl) {
 			try {
 				const qrSize = 65;
-				const qr = QRCode.create(first.verificationUrl, { errorCorrectionLevel: 'H' });
+				const qr = QRCode.create(principal.verificationUrl, { errorCorrectionLevel: 'H' });
 				const moduleCount = qr.modules.size;
 				const dotSize = qrSize / moduleCount;
 				for (let r = 0; r < moduleCount; r++) {
@@ -673,7 +680,7 @@ export async function adicionarPaginaAuditoria(
 				{ x: 40, y: footerY + 12, size: 7, font, color: cGray }
 			);
 		}
-		const hashTrunc = first.documentHash ? first.documentHash.slice(0, 16) + '...' : '';
+		const hashTrunc = principal.documentHash ? principal.documentHash.slice(0, 16) + '...' : '';
 		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, {
 			x: 40,
 			y: footerY,
