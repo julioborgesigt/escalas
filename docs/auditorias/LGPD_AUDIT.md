@@ -50,6 +50,8 @@ O projeto demonstra boa intenção de conformidade — Termo de Uso sólido, con
 | Endereço IP | Dados de localização | login_attempts, escala_documentos, gise_presencas, aceites_termos | **Não** (exceto audit_log) | Implícito em auditoria |
 | Geolocalização (lat/lng) | Dados de localização | escala_documentos, gise_documentos, gise_presencas, gise_assinaturas_relatorios | Não | Consentimento explícito |
 | Selfie / Rubrica | **Biométrico** | R2 (Cloudflare) via chave | Não documentado | Consentimento explícito |
+| Rubrica reutilizável (assinatura gráfica) | **Biométrico comportamental** (grafo de assinatura) | policiais (`rubrica`) | PNG transparente sem EXIF; em repouso no D1 | **Consentimento específico (art. 8º)** — registrado em `rubrica_consentimento_em`; excluível pelo titular |
+| Termo de presença qualificado (Token A3) | Comum + localização | gise_presenca_termos | CPF **cifrado**, IP **anonimizado**, GPS 2 casas (~1 km), UA resumido | Exercício regular de direito / obrigação legal (art. 7º) + assinatura qualificada ICP-Brasil |
 | User-Agent | Identificação de dispositivo | audit_log, aceites_termos, escala_documentos | Não | Implícito — sem finalidade declarada |
 | Data/hora de acesso | Comum | Todas as tabelas de auditoria | Não | Auditoria |
 
@@ -58,6 +60,8 @@ O projeto demonstra boa intenção de conformidade — Termo de Uso sólido, con
 Não foram identificados dados sensíveis em sentido estrito (saúde, religião, origem racial, etc.).
 
 A **selfie** é dado biométrico, mas enquadrada na Lei 14.063/2020 como componente de autenticação avançada — base defensável. Recomenda-se documentação explícita no Termo.
+
+A **rubrica reutilizável** (cadastro do policial para assinatura por Token A3 no desktop) é um grafo de assinatura — dado biométrico comportamental. Diferentemente da selfie/rubrica de ato, ela é **persistida e reutilizada**, o que constitui finalidade própria e exige **consentimento específico** (art. 8º), implementado com aceite destacado e **direito de exclusão** pelo titular (ver Adendo 2026-06-25).
 
 ### 1.3 Dados de Crianças e Adolescentes (Art. 14)
 
@@ -516,6 +520,8 @@ O projeto demonstra maturidade técnica em várias áreas:
 | Anti-replay em webhook destrutivo | Validação de data UTC + tokens duplos em `/reset-policiais` | Bem protegido |
 | Verificação OCSP/CAdES-LT | Snapshot de resposta OCSP para validação offline | Conforme |
 | Trust Store ICP-Brasil | Certificados raiz/intermediários integrados | Correto |
+| Rubrica reutilizável com consentimento granular | Aceite específico (art. 8º) + endpoint de exclusão `DELETE /api/perfil/rubrica` | Modelo a replicar (contrasta com M1 e Art. 18) |
+| `gise_presenca_termos` por *privacy-by-design* | CPF cifrado, IP anonimizado, GPS 2 casas (~1 km), UA resumido + bruto só p/ perícia | Aplica as recomendações de A1, M2 e M5 na origem |
 
 ---
 
@@ -654,6 +660,44 @@ O projeto demonstra maturidade técnica em várias áreas:
 - [ ] Auditoria de exports ativa
 - [ ] RIPD documentado e aprovado pelo jurídico
 - [ ] Revisão de conformidade trimestral agendada
+
+---
+
+## Adendo — 2026-06-25: Assinatura por Token A3 no desktop (rubrica reutilizável + termo de presença qualificado)
+
+Este adendo documenta o tratamento introduzido pelo fluxo de **assinatura qualificada por Token A3 no computador** (desktop), em complemento — não substituição — à auditoria de 15/05/2026.
+
+### A. Rubrica reutilizável (`policiais.rubrica`)
+
+- **Finalidade:** elemento gráfico de assinatura reaproveitado nas assinaturas qualificadas do titular (carimbo visual no PDF), evitando redesenho a cada ato. É finalidade **distinta** da rubrica de um ato isolado.
+- **Base legal:** **consentimento específico e destacado** (art. 7º, I + art. 8º). O aceite é exigido no cadastro (checkbox próprio com referência ao art. 18) e o momento é registrado em `rubrica_consentimento_em`. A atualização registra `rubrica_atualizada_em`.
+- **Dados e minimização:** PNG transparente processado **no navegador** (re-render que descarta EXIF/GPS, recorte e remoção de fundo); o servidor valida formato/tamanho e persiste. Sem selfie/biometria facial associada a este cadastro.
+- **Retenção:** atrelada ao **vínculo funcional** — enquanto o policial mantém cadastro ativo e não revoga o consentimento. Não há prazo fixo porque é um dado de conveniência sob controle do titular.
+- **Direito de exclusão (art. 18, VI e IX):** `DELETE /api/perfil/rubrica` zera os três campos (`rubrica`, `rubrica_atualizada_em`, `rubrica_consentimento_em`) a pedido do titular, a qualquer momento, e gera evento de auditoria `rubrica_excluida`. A exclusão não afeta documentos já assinados (o grafo já incorporado a PDFs assinados é imutável por natureza da assinatura).
+
+### B. Termo de Confirmação de Presença qualificado (`gise_presenca_termos`)
+
+- **Finalidade:** comprovar entrada/saída no serviço por assinatura qualificada (CAdES-LT/PAdES, Token A3), com termo em PDF verificável em `/validar`.
+- **Base legal:** exercício regular de direito em processo administrativo / cumprimento de obrigação (art. 7º, II e VI) + Lei 14.063/2020 e MP 2.200-2/2001 para a assinatura.
+- **Privacy-by-design (proteções na origem):**
+  - **CPF cifrado** em repouso (`cifrarCpfParaArmazenar`) — não em texto plano;
+  - **IP anonimizado** (`anonimizarIp`) — endereça o achado A1 nesta tabela nova;
+  - **Geolocalização reduzida** a 2 casas decimais (~1 km) — aplica a recomendação M5;
+  - **User-Agent resumido** + bruto (`user_agent_raw`) preservado apenas para perícia forense — coerente com M2;
+  - metadados de validação (cert_issuer/serial/validade, OCSP, carimbo de tempo) para reconferência offline.
+- **Retenção:** vinculada ao documento funcional (relatórios da GISE) e ao prazo legal aplicável aos atos de serviço; o PDF assinado reside no R2 sob chave que oculta o `policial_id`.
+- **Exposição pública:** a página `/validar/[hash]` é compartilhada e **já aplica a mitigação C2** — decifra e **mascara o CPF** (`123.***.***-99`), mascara o nome e **omite IP, user-agent e coordenadas** na resposta ao cliente. O termo de presença herda automaticamente essa proteção.
+
+### C. Reflexo nos achados existentes
+
+| Achado | Efeito deste tratamento |
+|--------|-------------------------|
+| M1 (consentimento não granular) | A rubrica reutilizável adota **consentimento próprio e destacado** — modelo a estender às demais finalidades. |
+| A1 (IP não anonimizado) | A tabela nova `gise_presenca_termos` **já anonimiza** o IP na origem. |
+| M2 (UA fingerprinting) | UA armazenado **resumido**; o bruto fica isolado em campo dedicado para perícia. |
+| M5 (geo de alta precisão) | Coordenadas gravadas com **2 casas decimais** (~1 km). |
+| Art. 18 (direitos do titular) | Passo concreto: **exclusão autosserviço** da rubrica pelo titular (`DELETE /api/perfil/rubrica`). |
+| C2 (`/validar` expunha CPF/IP/geo) | **Mitigado** no endpoint compartilhado (CPF mascarado, IP/UA/GPS omitidos); o termo de presença já é coberto automaticamente. |
 
 ---
 
