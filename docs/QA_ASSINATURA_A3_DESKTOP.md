@@ -62,6 +62,7 @@ Abrir o PDF baixado:
 4. ✅ O grid do cartão qualificado é **2×2** (Identificação · IP | Dispositivo · Carimbo de Tempo), sem coluna vazia.
 5. 🐞 O texto vertical do selo aponta para o **domínio real** do ambiente (não `escalas.pages.dev` fixo).
 6. ✅ O **QR/Identificador do topo** do manifesto resolve para **este** documento (não para um hash `PRES-…`).
+7. 🐞 **Horário (fuso):** a hora no cabeçalho do termo ("Data/Hora da Confirmação") e a hora "Assinado em" no manifesto devem ser **iguais entre si** e corresponder ao **horário de Brasília** real da assinatura (não 3h a menos nem a mais).
 
 ---
 
@@ -92,6 +93,7 @@ Abrir o PDF baixado:
    - ✅ As presenças confirmadas por **tela/mobile** permanecem na seção **AVANÇADAS**, com rubrica e prova de vida.
    - ✅ A assinatura do **supervisor** aparece como qualificada.
    - 🐞 O **Identificador/QR do topo** referencia a assinatura do **documento** (supervisor), não a 1ª presença.
+   - 🐞 **Horários (fuso):** entrada, saída e supervisor mostram o **horário de Brasília** real e **coerente entre si** (sem a antiga diferença de 3h das rubricas).
 
 ---
 
