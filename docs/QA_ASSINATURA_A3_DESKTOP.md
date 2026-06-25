@@ -23,18 +23,21 @@ Desktop SERPRO, do navegador com a extensão e de um Token A3 físico).
 ## 1. Cadastro da rubrica reutilizável
 
 ### 1.1 Estado vazio (sem rubrica) — 🐞 regressão corrigida
+
 1. Entrar em **Presença GISE** → selecionar a escala → tela de **Confirmação de Entrada**.
 2. ✅ Deve aparecer o **aviso** "Você ainda não cadastrou sua rubrica…" e o botão **"Entendi — cadastrar rubrica"**.
 3. 🐞 **NÃO** deve aparecer imagem quebrada nem o botão "Confirmar com Token A3" (bug do estado vazio tratado como imagem).
 4. Clicar no botão → ✅ abre o modal **Cadastrar Rubrica**.
 
 ### 1.2 Desenhar e salvar — 🐞 erro 500 corrigido (era migração ausente)
+
 1. Aba **Desenhar** → desenhar a rubrica → marcar o **consentimento LGPD** → **Salvar rubrica**.
 2. ✅ Toast "Rubrica cadastrada com sucesso."; **sem erro 500**.
 3. Recarregar a tela → ✅ a rubrica aparece no quadro branco "Assinar pelo computador".
 4. ⚠️ Tentar salvar **sem** marcar o consentimento → ✅ bloqueado com aviso.
 
 ### 1.3 Enviar imagem
+
 1. Reabrir **Gerenciar rubrica** → aba **Enviar imagem** → enviar foto de assinatura em papel.
 2. Ajustar recorte e o slider de remoção de fundo → ✅ pré-visualização com fundo transparente.
 3. Salvar → ✅ substitui a rubrica anterior.
@@ -46,11 +49,13 @@ Desktop SERPRO, do navegador com a extensão e de um Token A3 físico).
 1. Na tela de entrada, com rubrica cadastrada, clicar **"Confirmar entrada com Token A3"**.
 2. ✅ O Assinador SERPRO abre; selecionar o certificado do Token e informar o PIN.
 3. ✅ Ao concluir: toast "Entrada confirmada com Token A3.".
-4. 🐞 **O container muda de estado SEM precisar recarregar a página** (stepper marca Entrada ✓ e libera Produtividade). *(Regressão do `invalidateAll` sem repatch corrigida.)*
+4. 🐞 **O container muda de estado SEM precisar recarregar a página** (stepper marca Entrada ✓ e libera Produtividade). _(Regressão do `invalidateAll` sem repatch corrigida.)_
 5. ⚠️ O PDF do **termo** é devolvido/baixado (`termo_presenca_entrada.pdf`).
 
 ### 2.1 Conferência visual do termo (PDF) — 🐞 sobreposição corrigida
+
 Abrir o PDF baixado:
+
 1. 🐞 A **rubrica** assenta sobre a linha de assinatura à **esquerda**; o **selo ICP** fica à **direita**. **Não** há sobreposição entre rubrica e selo.
 2. ✅ Página do **Manifesto**: a assinatura aparece na seção **"ASSINATURAS QUALIFICADAS (ICP-BRASIL)"**.
 3. 🐞 O cartão qualificado **não** mostra quadros de **rubrica** nem **foto**, e **não** mostra **Localização** nem **Prova de Vida**.
@@ -113,14 +118,14 @@ Abrir o PDF baixado:
 
 ## 8. Registro do resultado
 
-| Seção | Resultado (OK/NOK) | Observações |
-|-------|--------------------|-------------|
-| 1. Cadastro de rubrica |  |  |
-| 2. Entrada A3 + termo |  |  |
-| 3. Saída A3 + termo |  |  |
-| 4. Validação pública |  |  |
-| 5. Relatório extra (manifesto) |  |  |
-| 6. Exclusão de rubrica |  |  |
-| 7. Casos de borda |  |  |
+| Seção                          | Resultado (OK/NOK) | Observações |
+| ------------------------------ | ------------------ | ----------- |
+| 1. Cadastro de rubrica         |                    |             |
+| 2. Entrada A3 + termo          |                    |             |
+| 3. Saída A3 + termo            |                    |             |
+| 4. Validação pública           |                    |             |
+| 5. Relatório extra (manifesto) |                    |             |
+| 6. Exclusão de rubrica         |                    |             |
+| 7. Casos de borda              |                    |             |
 
 > Anexar os PDFs de termo (entrada/saída) e do relatório extraordinário usados no teste.
