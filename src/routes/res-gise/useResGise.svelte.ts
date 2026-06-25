@@ -205,8 +205,39 @@ export function useResGise(getData: () => ResGisePageData) {
 		};
 	}
 
-	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
-		const {
+	/**
+	 * Re-sincroniza `escalaSelecionada` após uma confirmação de presença feita
+	 * FORA do fluxo de `salvarEntrada`/`salvarSaida` — caso do Token A3 no
+	 * desktop, em que o PainelAssinaturaToken posta direto na API. Sem isto, o
+	 * container fica preso no objeto antigo e só muda de estado após reload.
+	 */
+	async function sincronizarPresencaAtual(tipo: 'entrada' | 'saida') {
+		const sel = escalaSelecionada;
+		if (!sel) return;
+		await invalidateAll();
+		const atualizada = data.minhasEscalas?.find(
+			(e) => e.id === sel.id && e.equipe_id === sel.equipe_id
+		);
+		if (atualizada) {
+			// Entrada (e saída que continua visível): pega a versão fresca da lista.
+			escalaSelecionada = atualizada;
+		} else {
+			// Saída finaliza a escala e a remove de 'ativas'; aplica o timestamp
+			// localmente para a UI mostrar "confirmada" sem reload.
+			const prev = 'presenca' in sel && sel.presenca ? sel.presenca : undefined;
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const ts = new Date().toISOString();
+			escalaSelecionada = {
+				...sel,
+				presenca: {
+					...prev,
+					...(tipo === 'entrada' ? { entrada_timestamp: ts } : { saida_timestamp: ts })
+				} as GisePresenca
+			} as ResGiseEscalaSelecionavel;
+		}
+	}
+
+	async function salvarEntrada(payload: SignaturePadConfirmPayload) {		const {
 			rubrica,
 			lat: latitude,
 			lng: longitude,
@@ -463,6 +494,7 @@ export function useResGise(getData: () => ResGisePageData) {
 		handleSalvarResposta,
 		salvarEntrada,
 		salvarSaida,
+		sincronizarPresencaAtual,
 		baixarRelatorio,
 		baixarRelatorioExtra,
 		fmtDate,

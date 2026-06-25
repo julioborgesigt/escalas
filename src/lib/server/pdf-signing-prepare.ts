@@ -851,10 +851,24 @@ export async function prepararPdfParaAssinatura(
 
 	// 9 — Texto de verificação vertical na margem esquerda
 	if (verificationHash) {
-		lastPage.drawText(
-			`Para verificar acesse https://escalas.pages.dev/validar · Código: ${verificationHash}`,
-			{ x: 9, y: 32, size: 5, font, color: rgb(0.55, 0.55, 0.55), rotate: degrees(90) }
-		);
+		// Deriva o domínio do próprio verificationUrl (não fixa "escalas.pages.dev",
+		// que quebraria num domínio próprio); cai num texto genérico se ausente.
+		let baseValidar = 'o portal de validação';
+		if (verificationUrl) {
+			try {
+				baseValidar = new URL(verificationUrl).origin + '/validar';
+			} catch {
+				baseValidar = verificationUrl.replace(`/${verificationHash}`, '');
+			}
+		}
+		lastPage.drawText(`Para verificar acesse ${baseValidar} · Código: ${verificationHash}`, {
+			x: 9,
+			y: 32,
+			size: 5,
+			font,
+			color: rgb(0.55, 0.55, 0.55),
+			rotate: degrees(90)
+		});
 	}
 
 	// Widget de assinatura visível — sobreposto à caixa ICP. Ao clicar, o Adobe

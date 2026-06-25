@@ -206,3 +206,56 @@ export async function salvarTermoPresencaGise(
 		created_at: sql`datetime('now', '-3 hours')`
 	});
 }
+
+/** Evidência mínima de um termo de presença qualificado (Token A3), para o
+ *  manifesto do relatório extraordinário distinguir avançada × qualificada. */
+export interface TermoPresencaEvidencia {
+	verification_hash: string | null;
+	tipo_carimbo_tempo: string | null;
+	created_at: string | null;
+	ip_address: string | null;
+	user_agent: string | null;
+	latitude: number | null;
+	longitude: number | null;
+}
+
+/**
+ * Mapa das presenças confirmadas por Token A3 (qualificadas) de uma GISE,
+ * indexado por `${policial_id}-${tipo}` (tipo: 'entrada' | 'saida'). A ausência
+ * de chave significa que aquela presença foi de tela/mobile (avançada).
+ */
+export async function buscarTermosPresencaGise(
+	db: Database,
+	giseId: number
+): Promise<Map<string, TermoPresencaEvidencia>> {
+	const rows = await db
+		.select({
+			policial_id: gisePresencaTermos.policial_id,
+			tipo: gisePresencaTermos.tipo,
+			verification_hash: gisePresencaTermos.verification_hash,
+			tipo_carimbo_tempo: gisePresencaTermos.tipo_carimbo_tempo,
+			created_at: gisePresencaTermos.created_at,
+			ip_address: gisePresencaTermos.ip_address,
+			user_agent: gisePresencaTermos.user_agent,
+			latitude: gisePresencaTermos.latitude,
+			longitude: gisePresencaTermos.longitude
+		})
+		.from(gisePresencaTermos)
+		.where(eq(gisePresencaTermos.gise_id, giseId))
+		.all();
+
+	const map = new Map<string, TermoPresencaEvidencia>();
+	for (const r of rows) {
+		// Re-confirmação: o último registro inserido prevalece.
+		map.set(`${r.policial_id}-${r.tipo}`, {
+			verification_hash: r.verification_hash,
+			tipo_carimbo_tempo: r.tipo_carimbo_tempo,
+			created_at: r.created_at,
+			ip_address: r.ip_address,
+			user_agent: r.user_agent,
+			latitude: r.latitude,
+			longitude: r.longitude
+		});
+	}
+	return map;
+}

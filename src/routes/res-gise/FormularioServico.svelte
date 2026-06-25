@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
 	import RelatorioProdutividade from './RelatorioProdutividade.svelte';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { loading } from '$lib/loading.svelte';
@@ -192,7 +191,7 @@
 			disabled={loading.active}
 			onSuccess={async () => {
 				toaster.success({ title: 'Entrada confirmada com Token A3.' });
-				await invalidateAll();
+				await resGise.sincronizarPresencaAtual('entrada');
 			}}
 		/>
 		<PainelAssinaturaToken
@@ -207,7 +206,7 @@
 			disabled={loading.active}
 			onSuccess={async () => {
 				toaster.success({ title: 'Saída confirmada com Token A3.' });
-				await invalidateAll();
+				await resGise.sincronizarPresencaAtual('saida');
 			}}
 		/>
 	</div>

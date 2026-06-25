@@ -208,7 +208,12 @@ export async function adicionarPaginaAuditoria(
 	options: AuditTrailOptions | AuditTrailOptions[]
 ): Promise<Uint8Array> {
 	const allSigners = Array.isArray(options) ? options : [options];
-	const first = allSigners[0];
+	// O cabeçalho do manifesto (Identificador + QR) deve referenciar a assinatura
+	// PRIMÁRIA do documento — a que assina o PDF criptograficamente e é registrada
+	// em /validar. Em manifestos multi-assinante (relatório extra = presenças +
+	// supervisor) essa é a ÚLTIMA adicionada; em single-signer, é a única. Usar
+	// allSigners[0] apontava o QR para a 1ª presença (hash que não resolve no doc).
+	const principal = allSigners[allSigners.length - 1];
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -272,7 +277,7 @@ export async function adicionarPaginaAuditoria(
 
 		// Documento: nome pode ser longo — quebra antes de atingir o QR code (x ≈ width-105)
 		{
-			const docName = first.documentName || 'Extraordinário - GISE';
+			const docName = principal.documentName || 'Extraordinário - GISE';
 			const maxW = width - 105 - 160 - 15; // espaço disponível antes do QR
 			const nameW = font.widthOfTextAtSize(docName, 8.5);
 			page.drawText('Documento:', { x: 40, y: currY, size: 8, font: fontBold, color: cText });
@@ -299,12 +304,14 @@ export async function adicionarPaginaAuditoria(
 			}
 		}
 
-		currY = drawMetaData('Identificador', first.verificationHash, currY);
+		currY = drawMetaData('Identificador', principal.verificationHash, currY);
 
 		// Hash SHA-256 — exibir completo em duas linhas quando disponível
 		const hashReal =
-			first.documentHash && first.documentHash !== 'undefined' && first.documentHash !== 'N/A'
-				? first.documentHash
+			principal.documentHash &&
+			principal.documentHash !== 'undefined' &&
+			principal.documentHash !== 'N/A'
+				? principal.documentHash
 				: null;
 		if (hashReal && hashReal.length > 32) {
 			// Linha 1: primeiros 32 chars
@@ -341,10 +348,10 @@ export async function adicionarPaginaAuditoria(
 		}
 
 		// QR Code de Validação no canto superior direito
-		if (first.verificationUrl) {
+		if (principal.verificationUrl) {
 			try {
 				const qrSize = 65;
-				const qr = QRCode.create(first.verificationUrl, { errorCorrectionLevel: 'H' });
+				const qr = QRCode.create(principal.verificationUrl, { errorCorrectionLevel: 'H' });
 				const moduleCount = qr.modules.size;
 				const dotSize = qrSize / moduleCount;
 				for (let r = 0; r < moduleCount; r++) {
@@ -381,9 +388,9 @@ export async function adicionarPaginaAuditoria(
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
-			// Qualificada não tem rúbrica/foto → cartão mais baixo.
-			// Avançada com e-mail ocupa uma linha extra no grid → +22 pts.
-			const boxH = isQualified ? 130 : s.signerEmail ? 262 : 240;
+			// Qualificada não tem rúbrica/foto → cartão mais baixo. Grid 2×2 (2 linhas;
+			// +1 linha quando há e-mail). Avançada com e-mail ganha uma linha no grid.
+			const boxH = isQualified ? (s.signerEmail ? 122 : 104) : s.signerEmail ? 262 : 240;
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -515,19 +522,31 @@ export async function adicionarPaginaAuditoria(
 					} - ${(s.livenessChallenge.duracaoMs / 1000).toFixed(1)}s`
 				: 'Não exigida';
 
-			// Coluna esquerda
-			drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
-			drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
-			drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
+			if (isQualified) {
+				// Grid 2×2 balanceado: sem evidências presenciais (rúbrica/foto/GPS/
+				// liveness), as 4 informações da assinatura A3 distribuem-se simétricas.
+				drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
+				drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
+				drawField('DISPOSITIVO', dispositivoTexto, colRightX, gridTopY);
+				drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY - rowGap);
+				if (s.signerEmail) {
+					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 2);
+				}
+			} else {
+				// Coluna esquerda
+				drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
+				drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
+				drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
 
-			// Coluna direita
-			drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
-			drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
-			drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
+				// Coluna direita — evidências do ato presencial (tela/mobile).
+				drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
+				drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
+				drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
 
-			// E-mail abaixo (largura total) se disponível
-			if (s.signerEmail) {
-				drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
+				// E-mail abaixo (largura total) se disponível
+				if (s.signerEmail) {
+					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
+				}
 			}
 
 			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
@@ -669,7 +688,7 @@ export async function adicionarPaginaAuditoria(
 				{ x: 40, y: footerY + 12, size: 7, font, color: cGray }
 			);
 		}
-		const hashTrunc = first.documentHash ? first.documentHash.slice(0, 16) + '...' : '';
+		const hashTrunc = principal.documentHash ? principal.documentHash.slice(0, 16) + '...' : '';
 		page.drawText(`Manifesto vinculado ao documento de hash ${hashTrunc}`, {
 			x: 40,
 			y: footerY,
