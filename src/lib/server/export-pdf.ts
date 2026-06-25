@@ -1043,9 +1043,9 @@ export async function gerarRelatorioExtraordinarioPdf(
 		m.policial_matricula,
 		m.policial_classe || '',
 		m.policial_lotacao || m.seccional,
-		`${formatarData(gise.data_inicio)}\n${m.presencaData?.entrada_timestamp ? new Date(m.presencaData.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+		`${formatarData(gise.data_inicio)}\n${m.presencaData?.entrada_timestamp ? new Date(m.presencaData.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
 		{ content: '', image: m.presencaData?.entrada_rubrica },
-		`${formatarData(dataSaidaEfetiva)}\n${m.presencaData?.saida_timestamp ? new Date(m.presencaData.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+		`${formatarData(dataSaidaEfetiva)}\n${m.presencaData?.saida_timestamp ? new Date(m.presencaData.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
 		{ content: '', image: m.presencaData?.saida_rubrica }
 	]);
 
@@ -1344,9 +1344,9 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 			m.matricula,
 			m.classe || '',
 			m.lotacao,
-			`${formatarData(gise.data_inicio)}\n${pres?.entrada_timestamp ? new Date(pres.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+			`${formatarData(gise.data_inicio)}\n${pres?.entrada_timestamp ? new Date(pres.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
 			{ content: '', image: pres?.entrada_rubrica },
-			`${formatarData(dataSaidaEfetiva)}\n${pres?.saida_timestamp ? new Date(pres.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}`,
+			`${formatarData(dataSaidaEfetiva)}\n${pres?.saida_timestamp ? new Date(pres.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
 			{ content: '', image: pres?.saida_rubrica }
 		];
 	});

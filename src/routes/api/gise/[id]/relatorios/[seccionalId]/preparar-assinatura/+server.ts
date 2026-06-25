@@ -208,11 +208,9 @@ export const POST: RequestHandler = async ({
 		const qualificada = !!termo;
 		const sufixo = tipo === 'entrada' ? 'E' : 'S';
 		const ts = tipo === 'entrada' ? pr.entrada_timestamp : pr.saida_timestamp;
-		// entrada/saida_timestamp foram gravados via getNowBR().toISOString() — i.e.
-		// o instante real MENOS 3h, rotulado como UTC (Z). O manifesto formata em
-		// America/Sao_Paulo; sem recuperar o instante REAL (+3h), o horário sai 3h a
-		// menos, inconsistente com a assinatura qualificada (que usa new Date()).
-		const signingTime = ts ? new Date(new Date(ts).getTime() + 3 * 60 * 60 * 1000) : new Date();
+		// entrada/saida_timestamp são UTC real (ISO Z); o manifesto formata em
+		// America/Sao_Paulo. Fallback para new Date() se ausente.
+		const signingTime = ts ? new Date(ts) : new Date();
 		// Quando qualificada, o hash de verificação é o do PRÓPRIO termo assinado
 		// (resolve em /validar para o PDF qualificado); senão, o pseudo-hash da presença.
 		const vHash =

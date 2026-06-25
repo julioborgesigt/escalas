@@ -156,9 +156,9 @@
 						/>
 					</svg>
 					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
-						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} pelo
-						computador com seu <strong>Token A3</strong>, é necessário cadastrar primeiro a sua
-						rubrica — ela será usada como sua assinatura gráfica.
+						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} pelo computador
+						com seu <strong>Token A3</strong>, é necessário cadastrar primeiro a sua rubrica — ela
+						será usada como sua assinatura gráfica.
 					</p>
 				</div>
 				<button
@@ -355,7 +355,8 @@
 							</p>
 							<p class="text-[0.65rem] text-success-600 dark:text-success-500">
 								{new Date(resGise.escalaSelecionada.presenca.entrada_timestamp).toLocaleString(
-									'pt-BR'
+									'pt-BR',
+									{ timeZone: 'America/Sao_Paulo' }
 								)}
 							</p>
 						</div>
@@ -574,7 +575,8 @@
 								</p>
 								<p class="text-[0.65rem] text-surface-600 dark:text-surface-500">
 									{new Date(resGise.escalaSelecionada.presenca.saida_timestamp).toLocaleString(
-										'pt-BR'
+										'pt-BR',
+										{ timeZone: 'America/Sao_Paulo' }
 									)}
 								</p>
 							</div>

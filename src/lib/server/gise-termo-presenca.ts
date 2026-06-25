@@ -96,7 +96,11 @@ export async function gerarTermoPresencaPdf(
 	};
 
 	const dt = new Date(input.timestampISO);
-	const dataHora = isNaN(dt.getTime()) ? input.timestampISO : dt.toLocaleString('pt-BR');
+	// timestampISO é UTC real; o runtime do Worker é UTC, então é obrigatório
+	// fixar o fuso de Brasília para o termo não exibir o horário em UTC.
+	const dataHora = isNaN(dt.getTime())
+		? input.timestampISO
+		: dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
 	campo('TIPO DE REGISTRO', `Confirmação de ${acao} no serviço`);
 	campo('SERVIDOR', input.signerName);
