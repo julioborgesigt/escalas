@@ -388,9 +388,9 @@ export async function adicionarPaginaAuditoria(
 		for (let i = 0; i < group.signers.length; i++) {
 			const s = group.signers[i];
 			const isQualified = s.signatureLevel === 'qualificada';
-			// Qualificada não tem rúbrica/foto → cartão mais baixo.
-			// Avançada com e-mail ocupa uma linha extra no grid → +22 pts.
-			const boxH = isQualified ? 130 : s.signerEmail ? 262 : 240;
+			// Qualificada não tem rúbrica/foto → cartão mais baixo. Grid 2×2 (2 linhas;
+			// +1 linha quando há e-mail). Avançada com e-mail ganha uma linha no grid.
+			const boxH = isQualified ? (s.signerEmail ? 122 : 104) : s.signerEmail ? 262 : 240;
 
 			if (currY - boxH < 90) {
 				page = pdfDoc.addPage();
@@ -522,23 +522,31 @@ export async function adicionarPaginaAuditoria(
 					} - ${(s.livenessChallenge.duracaoMs / 1000).toFixed(1)}s`
 				: 'Não exigida';
 
-			// Coluna esquerda
-			drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
-			drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
-			drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
+			if (isQualified) {
+				// Grid 2×2 balanceado: sem evidências presenciais (rúbrica/foto/GPS/
+				// liveness), as 4 informações da assinatura A3 distribuem-se simétricas.
+				drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
+				drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
+				drawField('DISPOSITIVO', dispositivoTexto, colRightX, gridTopY);
+				drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY - rowGap);
+				if (s.signerEmail) {
+					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 2);
+				}
+			} else {
+				// Coluna esquerda
+				drawField('IDENTIFICAÇÃO', cpfTexto, colLeftX, gridTopY);
+				drawField('IP', ipTexto, colLeftX, gridTopY - rowGap);
+				drawField('DISPOSITIVO', dispositivoTexto, colLeftX, gridTopY - rowGap * 2);
 
-			// Coluna direita. LOCALIZAÇÃO e PROVA DE VIDA são evidências do ato
-			// presencial (tela/mobile); não se aplicam à assinatura qualificada A3,
-			// cuja prova é o certificado — ficam fora do cartão qualificado.
-			drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
-			if (!isQualified) {
+				// Coluna direita — evidências do ato presencial (tela/mobile).
+				drawField('CARIMBO DE TEMPO', carimboTexto, colRightX, gridTopY);
 				drawField('LOCALIZAÇÃO', localizacaoTexto, colRightX, gridTopY - rowGap);
 				drawField('PROVA DE VIDA', livenessTexto, colRightX, gridTopY - rowGap * 2);
-			}
 
-			// E-mail abaixo (largura total) se disponível
-			if (s.signerEmail) {
-				drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
+				// E-mail abaixo (largura total) se disponível
+				if (s.signerEmail) {
+					drawField('E-MAIL', s.signerEmail, colLeftX, gridTopY - rowGap * 3);
+				}
 			}
 
 			// --- Bloco de evidências visuais (só assinaturas avançadas) ---
