@@ -1,7 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { gisePresencas, policiais } from '../../server/schema';
 import type { Database } from '../core';
-import { getNowBR } from '../../utils';
 import { anonimizarIp } from '../audit';
 import { parseUserAgent } from '../../server/document-utils';
 import { decifrarCpfDoDB, type CpfCriptoEnv } from '../../crypto/cpf-cripto';
@@ -21,7 +20,11 @@ export async function salvarEntradaGise(
 	longitude?: number,
 	selfieKey?: string
 ) {
-	const now = getNowBR().toISOString();
+	// Instante REAL em UTC (ISO com Z). A formatação para horário de Brasília é
+	// responsabilidade de cada exibição (Intl com timeZone America/Sao_Paulo).
+	// NÃO usar getNowBR().toISOString() aqui: gravava o horário de Brasília
+	// rotulado como UTC, causando -3h em quem reformatava para America/Sao_Paulo.
+	const now = new Date().toISOString();
 	return db
 		.insert(gisePresencas)
 		.values({
@@ -65,7 +68,7 @@ export async function salvarSaidaGise(
 	return db
 		.update(gisePresencas)
 		.set({
-			saida_timestamp: getNowBR().toISOString(),
+			saida_timestamp: new Date().toISOString(), // UTC real (ver salvarEntradaGise)
 			saida_rubrica: rubrica,
 			saida_selfie_key: selfieKey,
 			ip_address: anonimizarIp(ipAddress) ?? undefined,

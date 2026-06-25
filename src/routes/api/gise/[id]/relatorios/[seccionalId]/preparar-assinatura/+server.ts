@@ -208,15 +208,20 @@ export const POST: RequestHandler = async ({
 		const qualificada = !!termo;
 		const sufixo = tipo === 'entrada' ? 'E' : 'S';
 		const ts = tipo === 'entrada' ? pr.entrada_timestamp : pr.saida_timestamp;
+		// entrada/saida_timestamp são UTC real (ISO Z); o manifesto formata em
+		// America/Sao_Paulo. Fallback para new Date() se ausente.
+		const signingTime = ts ? new Date(ts) : new Date();
 		// Quando qualificada, o hash de verificação é o do PRÓPRIO termo assinado
 		// (resolve em /validar para o PDF qualificado); senão, o pseudo-hash da presença.
 		const vHash =
-			qualificada && termo!.verification_hash ? termo!.verification_hash : `PRES-${pr.id}-${sufixo}`;
+			qualificada && termo!.verification_hash
+				? termo!.verification_hash
+				: `PRES-${pr.id}-${sufixo}`;
 
 		signers.push({
 			signerName: `${pr.policial_nome} (${tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA'})`,
 			signerCpf: pr.policial_cpf ?? undefined,
-			signingTime: new Date(ts || Date.now()),
+			signingTime,
 			verificationHash: vHash,
 			verificationUrl: `${url.origin}/validar/${vHash}`,
 			ip: pr.ip_address ?? undefined,

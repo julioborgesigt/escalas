@@ -38,7 +38,7 @@ import {
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
-import { gerarCodigoValidacao, getNowBR } from '$lib/utils';
+import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 
@@ -143,7 +143,9 @@ export const POST: RequestHandler = async (event) => {
 		const pdfFinal = await adicionarPaginaAuditoria(pdfComRodape, {
 			signerName: u.nome,
 			signerCpf: u.cpf ?? undefined,
-			signingTime: getNowBR(),
+			// new Date() (UTC real): o manifesto formata em America/Sao_Paulo. Usar
+			// getNowBR() (já −3h) faria o horário sair 3h a menos.
+			signingTime: new Date(),
 			verificationHash,
 			verificationUrl: `${url.origin}/validar/${verificationHash}`,
 			ip,

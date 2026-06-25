@@ -11,7 +11,6 @@ import {
 	auditar,
 	contextoDeEvento
 } from '$lib/db';
-import { getNowBR } from '$lib/utils';
 import {
 	gerarRelatorioExtraordinarioPdf,
 	gerarRelatorioExtraordinarioSupervisaoPdf,
@@ -187,7 +186,8 @@ export const POST: RequestHandler = async (event) => {
 		finalPdf = await adicionarPaginaAuditoria(finalPdf, {
 			signerName: signerName || u.nome,
 			signerCpf: signerCpf || u.cpf || undefined,
-			signingTime: getNowBR(),
+			// new Date() (UTC real): o manifesto formata em America/Sao_Paulo.
+			signingTime: new Date(),
 			verificationHash: hash,
 			verificationUrl: qrUrl,
 			ip,
