@@ -117,6 +117,7 @@ export async function indiceCPF(cpfPlain: string, indexKeyHex: string): Promise<
 }
 
 // Workaround para o SvelteKit/Cloudflare inferir platform?.env como unknown
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CpfCriptoEnv = any;
 
 /** Extrai as chaves do env (trim; undefined quando ausente/vazia). */

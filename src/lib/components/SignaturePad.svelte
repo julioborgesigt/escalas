@@ -1,10 +1,3 @@
-<script lang="ts" module>
-	// Payload entregue ao callback `onConfirm`. Objeto único (em vez de
-	// argumentos posicionais) evita que consumidores percam silenciosamente
-	// campos novos — adicionar uma chave aqui produz erro de tipo nos
-	// destructurings em todo lugar, ao invés de undefined silencioso.
-	export type { SignaturePadLivenessResultado, SignaturePadConfirmPayload } from './SignaturePadTypes';
-</script>
 
 <script lang="ts">
 	import type { SignaturePadLivenessResultado, SignaturePadConfirmPayload } from './SignaturePadTypes';
