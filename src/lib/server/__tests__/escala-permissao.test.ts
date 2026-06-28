@@ -36,11 +36,12 @@ function user(overrides: Partial<UsuarioLogado>): NonNullable<App.Locals['usuari
 
 describe('verificarPermissaoEscala', () => {
 	beforeEach(() => {
-		vi.mocked(temSolicitacaoParaDpcAdmin).mockClear();
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockReset();
 		vi.mocked(lotacoesAdministradas).mockReset();
 		// Default: escopo vazio (sem unidades). Testes que exercitam o ramo DPC
 		// sobrescrevem com o conjunto relevante.
 		vi.mocked(lotacoesAdministradas).mockResolvedValue(new Set());
+		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValue(false);
 	});
 
 	it('admin geral SEMPRE pode (mesmo de outra lotação)', async () => {
@@ -64,7 +65,7 @@ describe('verificarPermissaoEscala', () => {
 	});
 
 	it('admin seccional DPC de outra lotação pode SE houver solicitação para ele', async () => {
-		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['DELEGACIA X']));
+		vi.mocked(lotacoesAdministradas).mockResolvedValueOnce(new Set(['OUTRA']));
 		vi.mocked(temSolicitacaoParaDpcAdmin).mockResolvedValueOnce(true);
 		const u = user({
 			lotacao: 'SECCIONAL A',
@@ -78,7 +79,7 @@ describe('verificarPermissaoEscala', () => {
 			fakeDb,
 			42,
 			u.id,
-			['DELEGACIA X'],
+			['OUTRA'],
 			'DELEGACIA X'
 		);
 	});

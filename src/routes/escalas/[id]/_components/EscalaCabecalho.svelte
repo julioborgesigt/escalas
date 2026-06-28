@@ -11,7 +11,8 @@
 		documentoAssinadoExiste,
 		finalizadaEm,
 		solicitacaoAtual,
-		modoEdicao = $bindable(false)
+		modoEdicao = $bindable(false),
+		onFinalizarEdicao
 	}: {
 		escala: Escala;
 		isFDS: boolean;
@@ -21,6 +22,7 @@
 		finalizadaEm: string | null;
 		solicitacaoAtual: { tipo: string } | null;
 		modoEdicao: boolean;
+		onFinalizarEdicao?: () => void;
 	} = $props();
 </script>
 
@@ -53,14 +55,24 @@
 		</p>
 	</div>
 	<div class="flex items-center gap-2 shrink-0">
-		{#if podeEditar && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual && !modoEdicao}
-			<button
-				type="button"
-				class="btn preset-filled-primary-500 active:scale-95 transition-all"
-				onclick={() => (modoEdicao = true)}
-			>
-				Editar escala
-			</button>
+		{#if podeEditar && !documentoAssinadoExiste && !finalizadaEm && !solicitacaoAtual}
+			{#if !modoEdicao}
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 active:scale-95 transition-all"
+					onclick={() => (modoEdicao = true)}
+				>
+					Editar escala
+				</button>
+			{:else if !isFDS && (isExpediente || escala.tipo === 'plantao')}
+				<button
+					type="button"
+					class="btn preset-filled-success-500 active:scale-95 transition-all"
+					onclick={onFinalizarEdicao}
+				>
+					Finalizar edição
+				</button>
+			{/if}
 		{/if}
 		<button
 			type="button"

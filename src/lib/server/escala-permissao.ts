@@ -26,16 +26,17 @@ export async function verificarPermissaoEscala(
 	// Mesma lotação: acesso direto
 	if (u.lotacao === escalaLotacao) return { permitido: true };
 
-	// DPC admin: verifica solicitação de assinatura
+	// Verifica se a lotação está no escopo de administração (seccional/unidade)
+	const escopo = await lotacoesAdministradas(db, u);
+	if (escopo === null || escopo.has(escalaLotacao)) {
+		return { permitido: true };
+	}
+
+	// DPC admin: verifica solicitação de assinatura (ex: respondência fora do escopo normal)
 	const isDpcAdmin =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
 
 	if (isDpcAdmin) {
-		// Escopo de unidades que este admin DPC administra. Passado para que o ramo
-		// `unidade` de `temSolicitacaoParaDpcAdmin` só conceda acesso a escalas
-		// DENTRO do escopo (fecha o IDOR cross-unidade/seccional). A `respondencia`
-		// nominal continua valendo mesmo fora do escopo.
-		const escopo = await lotacoesAdministradas(db, u);
 		const lotacoesPermitidas = escopo === null ? undefined : Array.from(escopo);
 		const temAcesso = await temSolicitacaoParaDpcAdmin(
 			db,

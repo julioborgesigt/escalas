@@ -4,6 +4,8 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
+	import { invalidateAll } from '$app/navigation';
+	import { csrfHeaders } from '$lib/csrf';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import PainelAssinaturaEscala from '$lib/components/PainelAssinaturaEscala.svelte';
@@ -58,7 +60,7 @@
 	const isFDS = $derived(escala?.tipo === 'fds');
 	const isExpediente = $derived(escala?.tipo === 'expediente');
 
-	let modoEdicao = $state(false);
+	let modoEdicao = $state(true);
 	const podeEditar = $derived(
 		data.podeOIPSolicitar ||
 			((page.data.usuario?.papel === 'admin_seccional' ||
@@ -104,6 +106,44 @@
 				toaster.create({ title: String(d?.error || 'Erro ao remover'), type: 'error' });
 			}
 		};
+	}
+
+	let confirmFinalizarEdicaoOpen = $state(false);
+	let enviandoSolicitacao = $state(false);
+
+	async function confirmarFinalizarEdicao() {
+		if (enviandoSolicitacao) return;
+		enviandoSolicitacao = true;
+		try {
+			const res = await fetch(`/api/escalas/${data.escalaId}/solicitar-assinatura`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ tipo: 'unidade' })
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				toaster.create({ title: err.error || 'Erro ao solicitar assinatura', type: 'error' });
+				return;
+			}
+			toaster.create({ title: 'Edição finalizada e solicitação enviada!', type: 'success' });
+			solicitacaoAtual = { tipo: 'unidade' };
+			modoEdicao = false;
+			confirmFinalizarEdicaoOpen = false;
+			await invalidateAll();
+		} catch {
+			toaster.create({ title: 'Erro ao finalizar edição', type: 'error' });
+		} finally {
+			enviandoSolicitacao = false;
+		}
+	}
+
+	function handleConfirmarFinalizacao() {
+		if (page.data.usuario?.cargo === 'DPC') {
+			modoEdicao = false;
+			confirmFinalizarEdicaoOpen = false;
+		} else {
+			confirmarFinalizarEdicao();
+		}
 	}
 
 	let modoSelecao = $state(false);
@@ -186,6 +226,7 @@
 		{finalizadaEm}
 		{solicitacaoAtual}
 		bind:modoEdicao
+		onFinalizarEdicao={() => (confirmFinalizarEdicaoOpen = true)}
 	/>
 
 	<PainelAssinaturaEscala
@@ -264,6 +305,26 @@
 		{/snippet}
 	</ModalConfirmar>
 
+	<ModalConfirmar bind:open={confirmFinalizarEdicaoOpen} title="Finalizar Edição?">
+		{#snippet description()}
+			{#if page.data.usuario?.cargo === 'DPC'}
+				Tem certeza que deseja finalizar a edição desta escala?
+			{:else}
+				Tem certeza que deseja finalizar a edição desta escala? A assinatura do delegado seccional (DPC) será solicitada automaticamente.
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			<button
+				type="button"
+				class="btn preset-filled-primary-500 active:scale-95 transition-all"
+				onclick={handleConfirmarFinalizacao}
+				disabled={enviandoSolicitacao}
+			>
+				{enviandoSolicitacao ? 'Enviando...' : 'Confirmar'}
+			</button>
+		{/snippet}
+	</ModalConfirmar>
+
 	<FormAdicionarServidores
 		{escala}
 		{isFDS}
@@ -273,6 +334,7 @@
 		documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 		{finalizadaEm}
 		{solicitacaoAtual}
+		{policiaisEscalaLocal}
 		onPoliciaisAtualizados={(p) => (policiaisEscalaLocal = p)}
 	/>
 

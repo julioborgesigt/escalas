@@ -187,23 +187,7 @@
 										<input type="hidden" name="hora_saida" value="23:59" />
 										<input type="hidden" name="data_plantao" value={editDataEntrada} />
 										<input type="hidden" name="data_saida" value={editDataSaida} />
-										<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
-											<span class="label-text text-[0.7rem] block mb-0.5">Data Início</span>
-											<input
-												type="date"
-												class="input text-xs h-8 px-2 rounded-lg w-full"
-												bind:value={editDataEntrada}
-											/>
-										</div>
-										<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
-											<span class="label-text text-[0.7rem] block mb-0.5">Data Fim</span>
-											<input
-												type="date"
-												class="input text-xs h-8 px-2 rounded-lg w-full"
-												bind:value={editDataSaida}
-											/>
-										</div>
-										<div class="w-full">
+										<div class="basis-full min-w-0">
 											<span class="label-text text-[0.7rem] block mb-0.5">Observações</span>
 											<input
 												type="text"
@@ -425,10 +409,22 @@
 								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>Telefone</th
 								>
+								{#if isExpediente}
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+										>Classe</th
+									>
+								{/if}
 								<th class="!py-4 text-surface-500 font-medium uppercase tracking-tight">Lotação</th>
-								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
-									>Data</th
-								>
+								{#if isExpediente}
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+										>Regime</th
+									>
+								{/if}
+								{#if !isExpediente}
+									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+										>Data</th
+									>
+								{/if}
 								<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 									>{isExpediente ? 'Observações' : 'Horário'}</th
 								>
@@ -453,31 +449,11 @@
 											>
 												<input type="hidden" name="item_id" value={editingId} />
 												{#if isExpediente}
-													<!-- Expediente: editar datas e observações (sem horário) -->
+													<!-- Expediente: editar apenas observações -->
 													<input type="hidden" name="hora_entrada" value="00:00" />
 													<input type="hidden" name="hora_saida" value="23:59" />
 													<input type="hidden" name="data_plantao" value={editDataEntrada} />
 													<input type="hidden" name="data_saida" value={editDataSaida} />
-													<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
-														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Data Início</span>
-															<input
-																type="date"
-																class="input text-xs h-8 px-2 rounded-lg w-full"
-																bind:value={editDataEntrada}
-															/>
-														</label>
-													</div>
-													<div class="flex-1 min-w-0 sm:flex-none sm:min-w-[120px]">
-														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Data Fim</span>
-															<input
-																type="date"
-																class="input text-xs h-8 px-2 rounded-lg w-full"
-																bind:value={editDataSaida}
-															/>
-														</label>
-													</div>
 													<div class="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
 														<label class="label mb-1">
 															<span class="label-text text-[0.7rem]">Observações</span>
@@ -636,16 +612,28 @@
 										<td class="!py-4 text-center align-middle text-surface-500 whitespace-nowrap"
 											>{p.telefone || '-'}</td
 										>
+										{#if isExpediente}
+											<td class="!py-4 text-center align-middle text-surface-500 whitespace-nowrap"
+												>{p.classe || '-'}</td
+											>
+										{/if}
 										<td class="!py-4 align-middle text-surface-500 leading-tight max-w-[150px]"
 											>{p.lotacao || '-'}</td
 										>
-										<td class="!py-4 text-center align-middle">
-											<div
-												class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.7rem] whitespace-nowrap font-mono tabular-nums"
+										{#if isExpediente}
+											<td class="!py-4 text-center align-middle text-surface-500 whitespace-nowrap"
+												>{p.regime || '-'}</td
 											>
-												{formatarDataPlantao(p)}
-											</div>
-										</td>
+										{/if}
+										{#if !isExpediente}
+											<td class="!py-4 text-center align-middle">
+												<div
+													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.7rem] whitespace-nowrap font-mono tabular-nums"
+												>
+													{formatarDataPlantao(p)}
+												</div>
+											</td>
+										{/if}
 										<td class="!py-4 text-center align-middle max-w-[200px]">
 											{#if isExpediente}
 												<span class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic">

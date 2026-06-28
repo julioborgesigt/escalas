@@ -16,6 +16,7 @@
 		documentoAssinadoExiste,
 		finalizadaEm,
 		solicitacaoAtual,
+		policiaisEscalaLocal,
 		onPoliciaisAtualizados
 	}: {
 		escala: Escala;
@@ -26,6 +27,7 @@
 		documentoAssinadoExiste: boolean;
 		finalizadaEm: string | null;
 		solicitacaoAtual: { tipo: string } | null;
+		policiaisEscalaLocal: EscalaPolicialComDados[];
 		onPoliciaisAtualizados: (policiais: EscalaPolicialComDados[]) => void;
 	} = $props();
 
@@ -49,6 +51,23 @@
 	// eslint-disable-next-line svelte/prefer-writable-derived
 	let addDatasSelecionadas = $state<string[]>([]);
 	let addObservacoes = $state('');
+
+	let activeEquipeForm = $state<string | null>(null);
+
+	const equipesAtuais = $derived.by(() => {
+		const eq = new Set<string>();
+		for (const p of policiaisEscalaLocal || []) {
+			if (p.equipe) eq.add(p.equipe);
+		}
+		return Array.from(eq).sort();
+	});
+
+	const equipesDisponiveis = $derived.by(() => {
+		const eq = new Set<string>();
+		for (let i = 1; i <= 5; i++) eq.add(String(i));
+		for (const e of equipesAtuais) eq.delete(e);
+		return Array.from(eq).sort();
+	});
 
 	let pendingAdd = $state(false);
 	let pendingPlantao = $state(false);
@@ -261,127 +280,174 @@
 	<div class="card-glass p-4 sm:p-6 mb-4 rounded-3xl">
 		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
 		{#if escala.tipo === 'plantao'}
-			<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
-				<input type="hidden" name="datas" value={datasPlantaoJson} />
-				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-					<label class="label">
-						<span class="label-text">Cargo</span>
-						<select
-							class="select"
-							bind:value={cargoBusca}
-							onchange={() => {
-								policialId = '';
-							}}
+			{#if equipesAtuais.length > 0}
+				<div class="space-y-4 mb-6">
+					{#each equipesAtuais as equipe}
+						<div
+							class="p-4 border border-surface-200 dark:border-white/10 rounded-xl bg-surface-50/50 dark:bg-surface-800/30"
 						>
-							<option value="">Selecione...</option>
-							<option value="DPC">DPC - Delegado de Polícia Civil</option>
-							<option value="OIP">OIP - Oficial Investigador de Polícia</option>
-						</select>
-					</label>
-					<label class="label lg:col-span-2">
-						<span class="label-text">Servidor</span>
-						{#key cargoBusca}
-							<SearchableSelect
-								name="policial_id"
-								bind:value={policialId}
-								disabled={!cargoBusca}
-								loadOptions={buscarPoliciaisAsync}
-								placeholder={cargoBusca
-									? 'Digite para buscar servidor...'
-									: 'Selecione o cargo primeiro'}
-								class="w-full"
-							/>
-						{/key}
-					</label>
-					<label class="label">
-						<span class="label-text">Equipe</span>
-						<select class="select" name="equipe" bind:value={addEquipe}>
-							{#each ['1', '2', '3', '4', '5'] as n (n)}<option value={n}>Equipe {n}</option>{/each}
-						</select>
-					</label>
-					<label class="label">
-						<span class="label-text">Tipo de Escala</span>
-						<select class="select" bind:value={addTipoEscala}>
-							<option value="1x3">1×3 — 24h serviço, 3 dias folga</option>
-							<option value="2x6">2×6 — 48h serviço, 6 dias folga</option>
-						</select>
-					</label>
-				</div>
-				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-					<label class="label">
-						<span class="label-text">Primeiro plantão do mês</span>
-						<input
-							type="date"
-							class="input"
-							bind:value={addPrimeiroPlantao}
-							min={escala.data_inicio}
-							max={escala.data_fim}
-							required
-						/>
-					</label>
-					<div class="flex flex-col gap-1">
-						<span class="label-text text-xs">Hora Entrada</span>
-						<div class="flex gap-1">
-							<select
-								class="select flex-1 h-9 py-0 px-2"
-								name="hora_entrada"
-								bind:value={addHoraEntrada}
-								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-							>
-							<select
-								class="select flex-1 h-9 py-0 px-2"
-								name="minuto_entrada"
-								bind:value={addMinutoEntrada}
-								>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-							>
-						</div>
-					</div>
-					<div class="flex flex-col gap-1">
-						<span class="label-text text-xs">Hora Saída</span>
-						<div class="flex gap-1">
-							<select
-								class="select flex-1 h-9 py-0 px-2"
-								name="hora_saida"
-								bind:value={addHoraSaida}
-								>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
-							>
-							<select
-								class="select flex-1 h-9 py-0 px-2"
-								name="minuto_saida"
-								bind:value={addMinutoSaida}
-								>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
-							>
-						</div>
-					</div>
-				</div>
-				{#if addPrimeiroPlantao}
-					<div class="mb-4">
-						<p class="text-xs font-semibold text-surface-600 dark:text-surface-400 mb-2">
-							Datas calculadas ({datasCalc.length} dias):
-						</p>
-						<div class="flex flex-wrap gap-1.5">
-							{#each datasCalc as d (d)}
+							<div class="flex items-center justify-between mb-3">
+								<h4 class="font-bold text-sm text-primary-700 dark:text-primary-400">
+									Equipe {equipe}
+								</h4>
+							</div>
+							{#if activeEquipeForm !== equipe}
 								<button
 									type="button"
-									class="px-2 py-1 text-[0.65rem] font-bold rounded-md border transition-all {addDatasSelecionadas.includes(
-										d
-									)
-										? 'bg-primary-500 text-white border-primary-500'
-										: 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border-surface-200 dark:border-white/10 hover:border-primary-500/50'}"
-									onclick={() => toggleDataPlantao(d)}>{formatarData(d)}</button
+									class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto"
+									onclick={() => {
+										activeEquipeForm = equipe;
+										cargoBusca = 'OIP';
+										policialId = '';
+										addPrimeiroPlantao = '';
+										addEquipe = equipe;
+									}}
 								>
-							{/each}
+									+ Adicionar OIP à Equipe {equipe}
+								</button>
+							{:else}
+								<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
+									<input type="hidden" name="equipe" value={equipe} />
+									<input type="hidden" name="datas" value={datasPlantaoJson} />
+
+									<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4 items-end">
+										<label class="label sm:col-span-5">
+											<span class="label-text">Policial (OIP)</span>
+											{#key cargoBusca}
+												<SearchableSelect
+													name="policial_id"
+													bind:value={policialId}
+													loadOptions={buscarPoliciaisAsync}
+													placeholder="Buscar servidor..."
+													class="w-full h-9"
+												/>
+											{/key}
+										</label>
+										<label class="label sm:col-span-3">
+											<span class="label-text">Tipo de Escala</span>
+											<select class="select h-9 py-0 px-2" bind:value={addTipoEscala}>
+												<option value="1x3">1×3</option>
+												<option value="2x6">2×6</option>
+											</select>
+										</label>
+										<label class="label sm:col-span-4">
+											<span class="label-text">1º dia de plantão</span>
+											<input
+												type="date"
+												class="input h-9"
+												bind:value={addPrimeiroPlantao}
+												min={escala.data_inicio}
+												max={escala.data_fim}
+												required
+											/>
+										</label>
+									</div>
+									<div class="flex gap-2">
+										<button
+											type="submit"
+											class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+											disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
+										>
+											{pendingPlantao ? 'Adicionando...' : 'Adicionar OIP'}
+										</button>
+										<button
+											type="button"
+											class="btn btn-sm preset-outlined-surface-500"
+											onclick={() => (activeEquipeForm = null)}
+										>
+											Cancelar
+										</button>
+									</div>
+								</form>
+							{/if}
 						</div>
-					</div>
-				{/if}
-				<button
-					type="submit"
-					class="btn preset-filled-primary-500 w-full sm:w-auto active:scale-95 transition-all"
-					disabled={pendingPlantao || !policialId || addDatasSelecionadas.length === 0}
+					{/each}
+				</div>
+			{/if}
+
+			{#if equipesDisponiveis.length > 0}
+				<div
+					class="p-4 border border-surface-200 dark:border-white/10 rounded-xl bg-surface-50/50 dark:bg-surface-800/30"
 				>
-					{pendingPlantao ? 'Adicionando...' : 'Adicionar à Escala'}
-				</button>
-			</form>
+					{#if activeEquipeForm !== 'nova'}
+						<button
+							type="button"
+							class="btn preset-filled-primary-500 w-full sm:w-auto"
+							onclick={() => {
+								activeEquipeForm = 'nova';
+								cargoBusca = 'DPC';
+								policialId = '';
+								addPrimeiroPlantao = '';
+								addEquipe = equipesDisponiveis[0];
+							}}
+						>
+							+ Criar Nova Equipe
+						</button>
+					{:else}
+						<h4 class="font-bold text-sm text-primary-700 dark:text-primary-400 mb-3">
+							Criar Nova Equipe
+						</h4>
+						<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
+							<input type="hidden" name="datas" value={datasPlantaoJson} />
+
+							<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4 items-end">
+								<label class="label sm:col-span-2">
+									<span class="label-text">Equipe</span>
+									<select class="select h-9 py-0 px-2" name="equipe" bind:value={addEquipe}>
+										{#each equipesDisponiveis as n (n)}<option value={n}>Equipe {n}</option>{/each}
+									</select>
+								</label>
+								<label class="label sm:col-span-4">
+									<span class="label-text">DPC Chefe</span>
+									{#key cargoBusca}
+										<SearchableSelect
+											name="policial_id"
+											bind:value={policialId}
+											loadOptions={buscarPoliciaisAsync}
+											placeholder="Buscar DPC..."
+											class="w-full h-9"
+										/>
+									{/key}
+								</label>
+								<label class="label sm:col-span-3">
+									<span class="label-text">Tipo de Escala</span>
+									<select class="select h-9 py-0 px-2" bind:value={addTipoEscala}>
+										<option value="1x3">1×3</option>
+										<option value="2x6">2×6</option>
+									</select>
+								</label>
+								<label class="label sm:col-span-3">
+									<span class="label-text">1º dia (DPC)</span>
+									<input
+										type="date"
+										class="input h-9"
+										bind:value={addPrimeiroPlantao}
+										min={escala.data_inicio}
+										max={escala.data_fim}
+										required
+									/>
+								</label>
+							</div>
+							<div class="flex gap-2">
+								<button
+									type="submit"
+									class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+									disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
+								>
+									{pendingPlantao ? 'Criando...' : 'Criar Equipe'}
+								</button>
+								<button
+									type="button"
+									class="btn btn-sm preset-outlined-surface-500"
+									onclick={() => (activeEquipeForm = null)}
+								>
+									Cancelar
+								</button>
+							</div>
+						</form>
+					{/if}
+				</div>
+			{/if}
 		{:else if isExpediente}
 			<form method="POST" action="?/adicionar" use:enhance={handleAdd}>
 				<input type="hidden" name="data_plantao" value={escala.data_inicio} />
