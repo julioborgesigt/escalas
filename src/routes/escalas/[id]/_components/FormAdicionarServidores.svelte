@@ -300,103 +300,12 @@
 	</div>
 {/if}
 
-{#if visivel && !isFDS}
+{#if visivel && (escala.tipo === 'expediente' || (escala.tipo === 'plantao' && equipesDisponiveis.length > 0))}
 	<div class="card-glass p-4 sm:p-6 mb-4 rounded-3xl">
-		<h3 class="font-semibold text-sm mb-3">Adicionar DPC/OIP à Escala</h3>
+		<h3 class="font-semibold text-sm mb-3">
+			{escala.tipo === 'plantao' ? 'Criar Nova Equipe na Escala' : 'Adicionar DPC/OIP à Escala'}
+		</h3>
 		{#if escala.tipo === 'plantao'}
-			{#if equipesAtuais.length > 0}
-				<div class="space-y-4 mb-6">
-					{#each equipesAtuais as equipe (equipe)}
-						<div
-							class="p-4 border border-surface-200 dark:border-white/10 rounded-xl bg-surface-50/50 dark:bg-surface-800/30"
-						>
-							<div class="flex items-center justify-between mb-3">
-								<h4 class="font-bold text-sm text-primary-700 dark:text-primary-400">
-									Equipe {equipe}
-								</h4>
-							</div>
-							{#if activeEquipeForm !== equipe}
-								<div class="flex justify-end">
-									<button
-										type="button"
-										class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto"
-										onclick={() => {
-											activeEquipeForm = equipe;
-											cargoBusca = 'OIP';
-											policialId = '';
-											addPrimeiroDia = '';
-											addPrimeiroPlantao = '';
-											addEquipe = equipe;
-										}}
-									>
-										+ Adicionar OIP à Equipe {equipe}
-									</button>
-								</div>
-							{:else}
-								<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
-									<input type="hidden" name="equipe" value={equipe} />
-									<input type="hidden" name="datas" value={datasPlantaoJson} />
-
-									<div class="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4 items-end">
-										<label class="label sm:col-span-5">
-											<span class="label-text">Policial (OIP)</span>
-											{#key cargoBusca}
-												<SearchableSelect
-													name="policial_id"
-													bind:value={policialId}
-													loadOptions={buscarPoliciaisAsync}
-													placeholder="Buscar servidor..."
-													class="w-full h-9"
-												/>
-											{/key}
-										</label>
-										<label class="label sm:col-span-2">
-											<span class="label-text">Tipo de Escala</span>
-											<select class="select h-9 py-0 px-2" bind:value={addTipoEscala}>
-												<option value="1x3">1×3</option>
-												<option value="2x6">2×6</option>
-											</select>
-										</label>
-										<div class="sm:col-span-2">
-											<span class="label-text block text-sm mb-1">1º dia</span>
-											<div class="flex items-center gap-1 h-9">
-												<input
-													type="number"
-													class="input h-9 w-12 text-center p-1"
-													bind:value={addPrimeiroDia}
-													min="1"
-													max={ultimoDiaMes(escala.data_inicio)}
-													required
-												/>
-												<span class="text-sm font-medium opacity-70"
-													>/ {mesAnoFormatado(escala.data_inicio)}</span
-												>
-											</div>
-										</div>
-										<div class="sm:col-span-3 flex gap-2 h-9 items-center">
-											<button
-												type="submit"
-												class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all flex-1"
-												disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
-											>
-												{pendingPlantao ? 'Salvando...' : 'Adicionar OIP'}
-											</button>
-											<button
-												type="button"
-												class="btn btn-sm preset-outlined-surface-500"
-												onclick={() => (activeEquipeForm = null)}
-											>
-												Cancelar
-											</button>
-										</div>
-									</div>
-								</form>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			{/if}
-
 			{#if equipesDisponiveis.length > 0}
 				<div
 					class="p-4 border border-surface-200 dark:border-white/10 rounded-xl bg-surface-50/50 dark:bg-surface-800/30"

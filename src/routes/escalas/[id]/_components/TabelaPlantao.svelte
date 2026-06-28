@@ -3,6 +3,7 @@
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import ModalEditarPlantao from './ModalEditarPlantao.svelte';
+	import FormInlineAdicionarOip from './FormInlineAdicionarOip.svelte';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
@@ -31,6 +32,7 @@
 	}: Props = $props();
 
 	let modalEditarOpen = $state(false);
+	let addingOipEquipe = $state<string | null>(null);
 	let editIds = $state<number[]>([]);
 	let editDiasIniciais = $state<string[]>([]);
 	let editHoraEntradaInicial = $state('08:00');
@@ -271,6 +273,32 @@
 						</tbody>
 					</table>
 				</div>
+
+				{#if !modoSelecao && !documentoAssinadoExiste && !finalizadaEm}
+					{#if addingOipEquipe === equipe}
+						<FormInlineAdicionarOip
+							{escala}
+							{equipe}
+							onCancel={() => (addingOipEquipe = null)}
+							onSuccess={(policiais) => {
+								policiaisEscalaLocal = policiais;
+								addingOipEquipe = null;
+							}}
+						/>
+					{:else}
+						<div
+							class="px-4 py-3 bg-surface-50/50 dark:bg-surface-800/30 rounded-b-2xl border-t border-surface-100 dark:border-white/5 flex justify-end"
+						>
+							<button
+								type="button"
+								class="btn btn-sm preset-outlined-primary-500"
+								onclick={() => (addingOipEquipe = equipe)}
+							>
+								+ Adicionar OIP à Equipe {equipe}
+							</button>
+						</div>
+					{/if}
+				{/if}
 			</div>
 		{/each}
 	</div>
