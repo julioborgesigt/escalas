@@ -116,10 +116,8 @@ export async function indiceCPF(cpfPlain: string, indexKeyHex: string): Promise<
 	return bytesToHex(sig);
 }
 
-export interface CpfCriptoEnv {
-	CPF_ENCRYPTION_KEY?: string;
-	CPF_INDEX_KEY?: string;
-}
+// Workaround para o SvelteKit/Cloudflare inferir platform?.env como unknown
+export type CpfCriptoEnv = any;
 
 /** Extrai as chaves do env (trim; undefined quando ausente/vazia). */
 export function cpfKeys(env: CpfCriptoEnv | undefined): { encKey?: string; indexKey?: string } {

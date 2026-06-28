@@ -3,27 +3,11 @@
 	// argumentos posicionais) evita que consumidores percam silenciosamente
 	// campos novos — adicionar uma chave aqui produz erro de tipo nos
 	// destructurings em todo lugar, ao invés de undefined silencioso.
-	export type SignaturePadLivenessResultado = {
-		tipo: string;
-		cumprido: boolean;
-		tentativas: number;
-		iniciadoEm: string | null;
-		concluidoEm: string | null;
-		duracaoMs: number;
-	};
-
-	export type SignaturePadConfirmPayload = {
-		rubrica: string;
-		lat?: number;
-		lng?: number;
-		selfie: string | null;
-		codigoEmail?: string;
-		desafioId?: string;
-		liveness: SignaturePadLivenessResultado | null;
-	};
+	export type { SignaturePadLivenessResultado, SignaturePadConfirmPayload } from './SignaturePadTypes';
 </script>
 
 <script lang="ts">
+	import type { SignaturePadLivenessResultado, SignaturePadConfirmPayload } from './SignaturePadTypes';
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';

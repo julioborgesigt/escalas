@@ -3,7 +3,8 @@
 	import { slide } from 'svelte/transition';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import PainelAssinaturaToken from './PainelAssinaturaToken.svelte';
-	import SignaturePad, { type SignaturePadConfirmPayload } from './SignaturePad.svelte';
+	import SignaturePad from './SignaturePad.svelte';
+	import type { SignaturePadConfirmPayload } from './SignaturePadTypes';
 	import type { UsuarioLogado } from '$lib/auth';
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';

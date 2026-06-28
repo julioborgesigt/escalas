@@ -15,9 +15,8 @@
 		useAssinaturaEscala,
 		useMobile
 	} from '$lib/composables';
-	import SignaturePad, {
-		type SignaturePadConfirmPayload
-	} from '$lib/components/SignaturePad.svelte';
+	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import { page } from '$app/state';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';

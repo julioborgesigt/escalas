@@ -11,7 +11,7 @@ import type {
 	ResGisePageData
 } from '$lib/types';
 import type { GisePresenca } from '$lib/server/schema';
-import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
+import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 
 function messageFromUnknown(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);

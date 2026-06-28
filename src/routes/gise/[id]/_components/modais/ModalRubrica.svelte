@@ -1,7 +1,6 @@
 <script lang="ts">
-	import SignaturePad, {
-		type SignaturePadConfirmPayload
-	} from '$lib/components/SignaturePad.svelte';
+	import SignaturePad from '$lib/components/SignaturePad.svelte';
+	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {

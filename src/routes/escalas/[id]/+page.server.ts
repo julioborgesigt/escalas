@@ -527,34 +527,7 @@ export const actions: Actions = {
 		}
 	},
 
-	removerSelecionados: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
 
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
-		if ('erro' in ctx) return ctx.erro;
-		const { db, escalaId } = ctx;
-
-		const data = await request.formData();
-		const idsJson = data.get('ids')?.toString() || '[]';
-		let ids: number[];
-		try {
-			ids = JSON.parse(idsJson);
-		} catch {
-			return fail(400, { error: 'IDs inválidos' });
-		}
-		if (ids.length === 0) return fail(400, { error: 'Nenhum item selecionado' });
-
-		try {
-			const [, policiais] = await db.batch([
-				db.delete(escalaPoliciais).where(inArray(escalaPoliciais.id, ids)),
-				listarPoliciaisEscalaQuery(db, escalaId)
-			]);
-			return { success: true, policiais, removidos: ids.length };
-		} catch {
-			return fail(500, { error: 'Erro ao remover servidores' });
-		}
-	},
 
 	repetir: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;

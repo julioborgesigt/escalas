@@ -412,7 +412,7 @@
 			bind:policiaisEscalaLocal
 			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
 			{finalizadaEm}
-			bind:modoSelecao
+			{modoSelecao}
 			bind:selecionados
 			{escala}
 			{horas}

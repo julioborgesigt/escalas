@@ -9,7 +9,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { conectarSerpro } from '$lib/serpro';
 	import ModalRubrica from './[id]/_components/modais/ModalRubrica.svelte';
-	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
+	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 	import PainelAssinaturaToken from '$lib/components/PainelAssinaturaToken.svelte';
 	import CardGiseAtiva from './_components/CardGiseAtiva.svelte';
 	import SecaoHistorico from './_components/SecaoHistorico.svelte';

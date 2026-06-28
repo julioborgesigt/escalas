@@ -16,7 +16,7 @@ import { toaster } from '$lib/toast';
 import { loading } from '$lib/loading.svelte';
 import { csrfHeaders } from '$lib/csrf';
 import { conectarSerpro, type SerproSignerClient } from '$lib/serpro';
-import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePad.svelte';
+import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
 
 type PendenteExtra = {
 	seccionalId: number;
