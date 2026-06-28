@@ -1,6 +1,8 @@
-
 <script lang="ts">
-	import type { SignaturePadLivenessResultado, SignaturePadConfirmPayload } from './SignaturePadTypes';
+	import type {
+		SignaturePadLivenessResultado,
+		SignaturePadConfirmPayload
+	} from './SignaturePadTypes';
 	import { csrfHeaders } from '$lib/csrf';
 	import { toaster } from '$lib/toast';
 	import Spinner from './Spinner.svelte';

@@ -48,6 +48,28 @@
 	let addEquipe = $state('1');
 	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
 	let addPrimeiroPlantao = $state('');
+	let addPrimeiroDia = $state('');
+
+	$effect(() => {
+		if (addPrimeiroDia && escala.data_inicio) {
+			const [ano, mes] = escala.data_inicio.split('-');
+			addPrimeiroPlantao = `${ano}-${mes}-${addPrimeiroDia.toString().padStart(2, '0')}`;
+		} else {
+			addPrimeiroPlantao = '';
+		}
+	});
+
+	function ultimoDiaMes(dataStr: string) {
+		if (!dataStr) return 31;
+		const [ano, mes] = dataStr.split('-');
+		return new Date(Number(ano), Number(mes), 0).getDate();
+	}
+
+	function mesAnoFormatado(dataStr: string) {
+		if (!dataStr) return '';
+		const [ano, mes] = dataStr.split('-');
+		return `${mes}/${ano}`;
+	}
 	// eslint-disable-next-line svelte/prefer-writable-derived
 	let addDatasSelecionadas = $state<string[]>([]);
 	let addObservacoes = $state('');
@@ -294,19 +316,22 @@
 								</h4>
 							</div>
 							{#if activeEquipeForm !== equipe}
-								<button
-									type="button"
-									class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto"
-									onclick={() => {
-										activeEquipeForm = equipe;
-										cargoBusca = 'OIP';
-										policialId = '';
-										addPrimeiroPlantao = '';
-										addEquipe = equipe;
-									}}
-								>
-									+ Adicionar OIP à Equipe {equipe}
-								</button>
+								<div class="flex justify-end">
+									<button
+										type="button"
+										class="btn btn-sm preset-outlined-primary-500 w-full sm:w-auto"
+										onclick={() => {
+											activeEquipeForm = equipe;
+											cargoBusca = 'OIP';
+											policialId = '';
+											addPrimeiroDia = '';
+											addPrimeiroPlantao = '';
+											addEquipe = equipe;
+										}}
+									>
+										+ Adicionar OIP à Equipe {equipe}
+									</button>
+								</div>
 							{:else}
 								<form method="POST" action="?/adicionarPlantao" use:enhance={handlePlantao}>
 									<input type="hidden" name="equipe" value={equipe} />
@@ -325,40 +350,45 @@
 												/>
 											{/key}
 										</label>
-										<label class="label sm:col-span-3">
+										<label class="label sm:col-span-2">
 											<span class="label-text">Tipo de Escala</span>
 											<select class="select h-9 py-0 px-2" bind:value={addTipoEscala}>
 												<option value="1x3">1×3</option>
 												<option value="2x6">2×6</option>
 											</select>
 										</label>
-										<label class="label sm:col-span-4">
-											<span class="label-text">1º dia de plantão</span>
-											<input
-												type="date"
-												class="input h-9"
-												bind:value={addPrimeiroPlantao}
-												min={escala.data_inicio}
-												max={escala.data_fim}
-												required
-											/>
-										</label>
-									</div>
-									<div class="flex gap-2">
-										<button
-											type="submit"
-											class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
-											disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
-										>
-											{pendingPlantao ? 'Adicionando...' : 'Adicionar OIP'}
-										</button>
-										<button
-											type="button"
-											class="btn btn-sm preset-outlined-surface-500"
-											onclick={() => (activeEquipeForm = null)}
-										>
-											Cancelar
-										</button>
+										<div class="sm:col-span-2">
+											<span class="label-text block text-sm mb-1">1º dia</span>
+											<div class="flex items-center gap-1 h-9">
+												<input
+													type="number"
+													class="input h-9 w-12 text-center p-1"
+													bind:value={addPrimeiroDia}
+													min="1"
+													max={ultimoDiaMes(escala.data_inicio)}
+													required
+												/>
+												<span class="text-sm font-medium opacity-70"
+													>/ {mesAnoFormatado(escala.data_inicio)}</span
+												>
+											</div>
+										</div>
+										<div class="sm:col-span-3 flex gap-2 h-9 items-center">
+											<button
+												type="submit"
+												class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all flex-1"
+												disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
+											>
+												{pendingPlantao ? 'Salvando...' : 'Adicionar OIP'}
+											</button>
+											<button
+												type="button"
+												class="btn btn-sm preset-outlined-surface-500"
+												onclick={() => (activeEquipeForm = null)}
+											>
+												Cancelar
+											</button>
+										</div>
 									</div>
 								</form>
 							{/if}
@@ -379,6 +409,7 @@
 								activeEquipeForm = 'nova';
 								cargoBusca = 'DPC';
 								policialId = '';
+								addPrimeiroDia = '';
 								addPrimeiroPlantao = '';
 								addEquipe = equipesDisponiveis[0];
 							}}
@@ -411,40 +442,45 @@
 										/>
 									{/key}
 								</label>
-								<label class="label sm:col-span-3">
+								<label class="label sm:col-span-2">
 									<span class="label-text">Tipo de Escala</span>
 									<select class="select h-9 py-0 px-2" bind:value={addTipoEscala}>
 										<option value="1x3">1×3</option>
 										<option value="2x6">2×6</option>
 									</select>
 								</label>
-								<label class="label sm:col-span-3">
-									<span class="label-text">1º dia (DPC)</span>
-									<input
-										type="date"
-										class="input h-9"
-										bind:value={addPrimeiroPlantao}
-										min={escala.data_inicio}
-										max={escala.data_fim}
-										required
-									/>
-								</label>
-							</div>
-							<div class="flex gap-2">
-								<button
-									type="submit"
-									class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
-									disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
-								>
-									{pendingPlantao ? 'Criando...' : 'Criar Equipe'}
-								</button>
-								<button
-									type="button"
-									class="btn btn-sm preset-outlined-surface-500"
-									onclick={() => (activeEquipeForm = null)}
-								>
-									Cancelar
-								</button>
+								<div class="sm:col-span-2">
+									<span class="label-text block text-sm mb-1">1º dia (DPC)</span>
+									<div class="flex items-center gap-1 h-9">
+										<input
+											type="number"
+											class="input h-9 w-12 text-center p-1"
+											bind:value={addPrimeiroDia}
+											min="1"
+											max={ultimoDiaMes(escala.data_inicio)}
+											required
+										/>
+										<span class="text-sm font-medium opacity-70"
+											>/ {mesAnoFormatado(escala.data_inicio)}</span
+										>
+									</div>
+								</div>
+								<div class="sm:col-span-2 flex gap-2 h-9 items-center">
+									<button
+										type="submit"
+										class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all flex-1"
+										disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
+									>
+										{pendingPlantao ? 'Criando...' : 'Criar'}
+									</button>
+									<button
+										type="button"
+										class="btn btn-sm preset-outlined-surface-500"
+										onclick={() => (activeEquipeForm = null)}
+									>
+										Cancelar
+									</button>
+								</div>
 							</div>
 						</form>
 					{/if}

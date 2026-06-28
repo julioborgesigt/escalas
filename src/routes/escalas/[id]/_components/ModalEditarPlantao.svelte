@@ -225,10 +225,16 @@
 					<label class="flex-1 min-w-0">
 						<span class="label-text text-[0.7rem] mb-1 block">Entrada</span>
 						<div class="flex gap-1">
-							<select class="select text-xs h-8 py-0 rounded-lg px-1 flex-1" bind:value={editHoraEntrada}>
+							<select
+								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+								bind:value={editHoraEntrada}
+							>
 								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 							</select>
-							<select class="select text-xs h-8 py-0 rounded-lg px-1 flex-1" bind:value={editMinutoEntrada}>
+							<select
+								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+								bind:value={editMinutoEntrada}
+							>
 								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
 							</select>
 						</div>
@@ -236,10 +242,16 @@
 					<label class="flex-1 min-w-0">
 						<span class="label-text text-[0.7rem] mb-1 block">Saída</span>
 						<div class="flex gap-1">
-							<select class="select text-xs h-8 py-0 rounded-lg px-1 flex-1" bind:value={editHoraSaida}>
+							<select
+								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+								bind:value={editHoraSaida}
+							>
 								{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 							</select>
-							<select class="select text-xs h-8 py-0 rounded-lg px-1 flex-1" bind:value={editMinutoSaida}>
+							<select
+								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
+								bind:value={editMinutoSaida}
+							>
 								{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
 							</select>
 						</div>

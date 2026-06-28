@@ -527,8 +527,6 @@ export const actions: Actions = {
 		}
 	},
 
-
-
 	repetir: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -630,7 +628,7 @@ export const actions: Actions = {
 		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
 		const hora_saida = data.get('hora_saida')?.toString() || '08:00';
 		const observacoes = data.get('observacoes')?.toString() || '';
-		
+
 		let ids: number[];
 		let datasStr: string[];
 		try {
