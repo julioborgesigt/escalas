@@ -45,7 +45,6 @@ export { registrarAceite } from './db/termos';
 
 export {
 	salvarConfiguracao,
-	buscarConfiguracao,
 	buscarExigirFotoAssinatura,
 	buscarExigirGpsAssinatura,
 	buscarExigirCodigoEmailAssinatura,

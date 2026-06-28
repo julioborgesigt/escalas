@@ -243,6 +243,7 @@
 												<IconTooltip label="Editar">
 													<button
 														type="button"
+														aria-label="Editar"
 														class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
 														onclick={() => startEdit(p)}
 													>

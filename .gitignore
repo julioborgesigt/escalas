@@ -30,6 +30,11 @@ vite.config.ts.timestamp-*
 worker-configuration.d.ts
 tsconfig.tsbuildinfo
 bundle-stats.html
+eslint.json
+fallow_deadcode.txt
+fallow_results.json
+knip_output*.txt
+tsc_output.txt
 
 # Selo institucional: bloqueia a CHAVE PRIVADA (nunca versionar). O certificado
 # PÚBLICO (selo-institucional.cert.pem) PODE ser versionado p/ conferência de terceiros.

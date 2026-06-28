@@ -1,6 +1,6 @@
 {
 	"$schema": "https://unpkg.com/knip@5/schema.json",
-	"entry": ["scripts/**/*.{ts,mjs,cjs,js}"],
+	"entry": ["src/lib/db.ts", "src/lib/db/gise/index.ts", "scripts/**/*.{ts,mjs,cjs,js}"],
 	"project": ["src/**/*.{ts,svelte}", "scripts/**/*.{ts,mjs,cjs,js}"],
 	"ignoreDependencies": ["tailwindcss", "@skeletonlabs/skeleton"]
 }

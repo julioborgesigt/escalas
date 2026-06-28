@@ -3,6 +3,7 @@
 	import { toaster } from '$lib/toast';
 	import { proximoDia } from '$lib/utils';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+	import { SvelteDate, SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
@@ -14,7 +15,7 @@
 		onSuccess: (policiais: EscalaPolicialComDados[]) => void;
 	}
 
-	let { escala, equipe, onCancel, onSuccess }: Props = $props();
+	const { escala, equipe, onCancel, onSuccess }: Props = $props();
 
 	let policialId = $state('');
 	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
@@ -54,7 +55,7 @@
 		const datas: string[] = [];
 		const inicio = new Date(escala.data_inicio + 'T00:00:00');
 		const fim = new Date(escala.data_fim + 'T00:00:00');
-		const d = new Date(primeiroPlantao + 'T00:00:00');
+		const d = new SvelteDate(primeiroPlantao + 'T00:00:00');
 		if (tipo === '1x3') {
 			while (d <= fim) {
 				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
@@ -63,7 +64,7 @@
 		} else {
 			while (d <= fim) {
 				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-				const d2 = new Date(d);
+				const d2 = new SvelteDate(d);
 				d2.setDate(d2.getDate() + 1);
 				if (d2 <= fim && d2 >= inicio) datas.push(d2.toISOString().split('T')[0]);
 				d.setDate(d.getDate() + 8);
@@ -86,7 +87,7 @@
 	let pendingPlantao = $state(false);
 
 	async function buscarPoliciaisAsync(q: string, sig: AbortSignal) {
-		const params = new URLSearchParams({ cargo: 'OIP', limit: '50' });
+		const params = new SvelteURLSearchParams({ cargo: 'OIP', limit: '50' });
 		if (q) params.set('q', q);
 		const res = await fetch(`/api/policiais/search?${params}`, { signal: sig });
 		if (!res.ok) {
