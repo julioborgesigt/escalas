@@ -542,6 +542,8 @@
 				{@const res = RESULTADO[log.resultado ?? 'sucesso'] ?? RESULTADO.sucesso}
 				{@const mudancas = diff(log.dados_antes, log.dados_depois)}
 
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
 					class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-3 cursor-pointer transition-colors active:bg-surface-100 dark:active:bg-surface-800/40"
 					onclick={() => (expandido = expandido === log.id ? null : log.id)}
@@ -601,6 +603,8 @@
 					</div>
 
 					{#if expandido === log.id}
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
 							class="border-t border-surface-200/60 dark:border-white/10 pt-3 mt-3 space-y-4 text-xs"
 							onclick={(e) => e.stopPropagation()}
