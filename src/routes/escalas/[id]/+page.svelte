@@ -16,13 +16,14 @@
 	import ToolbarSelecao from './_components/ToolbarSelecao.svelte';
 	import ListaFds from './_components/ListaFds.svelte';
 	import TabelaServidores from './_components/TabelaServidores.svelte';
+	import TabelaPlantao from './_components/TabelaPlantao.svelte';
 
 	const { data } = $props();
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
-	const confirmDialog = useConfirmationDialog<{ itemId: number; nome: string }>();
+	const confirmDialog = useConfirmationDialog<{ itemId: number | number[]; nome: string }>();
 
 	const escala = $derived(data.escala);
 	// eslint-disable-next-line svelte/prefer-writable-derived
@@ -83,7 +84,7 @@
 		return days;
 	});
 
-	function solicitarRemocao(itemId: number, nome: string) {
+	function solicitarRemocao(itemId: number | number[], nome: string) {
 		confirmDialog.openDialog({ itemId, nome });
 	}
 
@@ -91,7 +92,11 @@
 		const itemNome = confirmDialog.currentItem?.nome;
 		const itemId = confirmDialog.currentItem?.itemId;
 		const backup = [...policiaisEscalaLocal];
-		policiaisEscalaLocal = policiaisEscalaLocal.filter((p) => p.id !== itemId);
+		if (Array.isArray(itemId)) {
+			policiaisEscalaLocal = policiaisEscalaLocal.filter((p) => !itemId.includes(p.id));
+		} else {
+			policiaisEscalaLocal = policiaisEscalaLocal.filter((p) => p.id !== itemId);
+		}
 		confirmDialog.closeDialog();
 		return async ({ result }: { result: ActionResult }) => {
 			if (result.type === 'success') {
@@ -250,12 +255,30 @@
 			Tem certeza que deseja remover o policial "{confirmDialog.currentItem?.nome}" desta escala?
 		{/snippet}
 		{#snippet actions()}
-			<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
-				<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
-				<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
-					Remover
-				</button>
-			</form>
+			{#if Array.isArray(confirmDialog.currentItem?.itemId)}
+				<form
+					method="POST"
+					action="?/removerSelecionados"
+					use:enhance={handleRemover}
+					class="contents"
+				>
+					<input
+						type="hidden"
+						name="ids"
+						value={JSON.stringify(confirmDialog.currentItem?.itemId)}
+					/>
+					<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
+						Remover
+					</button>
+				</form>
+			{:else}
+				<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
+					<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
+					<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
+						Remover
+					</button>
+				</form>
+			{/if}
 		{/snippet}
 	</ModalConfirmar>
 
@@ -384,6 +407,19 @@
 		<div class="text-center py-12 text-surface-500">
 			<p>Nenhum policial nesta escala ainda.</p>
 		</div>
+	{:else if !isExpediente && !isFDS}
+		<TabelaPlantao
+			bind:policiaisEscalaLocal
+			documentoAssinadoExiste={documentoAssinadoInfo?.existe ?? false}
+			{finalizadaEm}
+			bind:modoSelecao
+			bind:selecionados
+			{escala}
+			{horas}
+			{minutos}
+			onSolicitarRemocao={solicitarRemocao}
+			onToggleSelecionar={toggleSelecionar}
+		/>
 	{:else}
 		<TabelaServidores
 			bind:policiaisEscalaLocal

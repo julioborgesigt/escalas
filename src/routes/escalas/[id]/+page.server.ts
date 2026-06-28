@@ -527,6 +527,35 @@ export const actions: Actions = {
 		}
 	},
 
+	removerSelecionados: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
+		const data = await request.formData();
+		const idsJson = data.get('ids')?.toString() || '[]';
+		let ids: number[];
+		try {
+			ids = JSON.parse(idsJson);
+		} catch {
+			return fail(400, { error: 'IDs inválidos' });
+		}
+		if (ids.length === 0) return fail(400, { error: 'Nenhum item selecionado' });
+
+		try {
+			const [, policiais] = await db.batch([
+				db.delete(escalaPoliciais).where(inArray(escalaPoliciais.id, ids)),
+				listarPoliciaisEscalaQuery(db, escalaId)
+			]);
+			return { success: true, policiais, removidos: ids.length };
+		} catch {
+			return fail(500, { error: 'Erro ao remover servidores' });
+		}
+	},
+
 	repetir: async ({ request, locals, platform, params }) => {
 		const u = locals.usuario;
 		if (!u) return fail(401, { error: 'Não autorizado' });
@@ -611,6 +640,92 @@ export const actions: Actions = {
 			return { success: true, policiais, conflitantes };
 		} catch {
 			return fail(500, { error: 'Erro ao repetir servidor na escala' });
+		}
+	},
+
+	editarPlantaoAgrupado: async ({ request, locals, platform, params }) => {
+		const u = locals.usuario;
+		if (!u) return fail(401, { error: 'Não autorizado' });
+
+		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		if ('erro' in ctx) return ctx.erro;
+		const { db, escalaId } = ctx;
+
+		const data = await request.formData();
+		const idsJson = data.get('ids')?.toString() || '[]';
+		const datasJson = data.get('datas')?.toString() || '[]';
+		const hora_entrada = data.get('hora_entrada')?.toString() || '08:00';
+		const hora_saida = data.get('hora_saida')?.toString() || '08:00';
+		const observacoes = data.get('observacoes')?.toString() || '';
+		
+		let ids: number[];
+		let datasStr: string[];
+		try {
+			ids = JSON.parse(idsJson);
+			datasStr = JSON.parse(datasJson);
+		} catch {
+			return fail(400, { error: 'Dados inválidos' });
+		}
+
+		if (ids.length === 0) return fail(400, { error: 'IDs de origem não fornecidos' });
+		if (datasStr.length === 0) return fail(400, { error: 'Selecione pelo menos uma data' });
+
+		const origin = await db
+			.select({ policial_id: escalaPoliciais.policial_id, equipe: escalaPoliciais.equipe })
+			.from(escalaPoliciais)
+			.where(eq(escalaPoliciais.id, ids[0]))
+			.get();
+		if (!origin) return fail(404, { error: 'Registro não encontrado' });
+
+		const policial_id = origin.policial_id;
+		const equipe = origin.equipe || '';
+
+		const oldRows = await db
+			.select()
+			.from(escalaPoliciais)
+			.where(inArray(escalaPoliciais.id, ids))
+			.all();
+		await db.delete(escalaPoliciais).where(inArray(escalaPoliciais.id, ids));
+
+		const conflitosMap = await verificarConflitoGlobalBatch(
+			db,
+			policial_id,
+			datasStr,
+			hora_entrada,
+			hora_saida,
+			-1
+		);
+		const datasLimpas = datasStr.filter((d) => !conflitosMap.has(d));
+		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({
+			data,
+			motivo
+		}));
+
+		if (datasLimpas.length === 0) {
+			await db.insert(escalaPoliciais).values(oldRows);
+			const primeiro = conflitantes[0];
+			return fail(409, {
+				error: `Choque de horário em todas as datas. Ex: ${primeiro.data} — ${primeiro.motivo}`
+			});
+		}
+
+		try {
+			const linhasParaInserir = datasLimpas.map((d) => ({
+				escala_id: escalaId,
+				policial_id,
+				data_plantao: d,
+				data_saida: calcularDataSaidaInicial(d, hora_entrada, hora_saida),
+				hora_entrada,
+				hora_saida,
+				equipe,
+				observacoes
+			}));
+			await db.insert(escalaPoliciais).values(linhasParaInserir);
+			const policiais = await listarPoliciaisEscala(db, escalaId);
+			return { success: true, policiais, conflitantes };
+		} catch {
+			await db.insert(escalaPoliciais).values(oldRows);
+			return fail(500, { error: 'Erro ao salvar alterações' });
 		}
 	},
 
