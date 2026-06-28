@@ -297,11 +297,7 @@
 							rel="noopener noreferrer"
 							title={`Sem manifesto — assinado por ${assRel.assinante_nome}`}
 						>
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 								><path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -318,11 +314,7 @@
 							rel="noopener noreferrer"
 							title="Com manifesto — inclui folha de auditoria"
 						>
-							<svg
-								class="w-3 h-3 shrink-0"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+							<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 								><path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -350,11 +342,7 @@
 							? getFaltandoRubrica(sec)
 							: 'Aguardando assinatura do supervisor (escala)'}
 					>
-						<svg
-							class="w-3.5 h-3.5 shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+						<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
 							><path
 								stroke-linecap="round"
 								stroke-linejoin="round"

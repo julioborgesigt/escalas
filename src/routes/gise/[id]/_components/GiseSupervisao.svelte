@@ -232,7 +232,9 @@
 		`/api/gise/${gise.id}/documento-assinado?manifesto=true`
 	);
 	const urlDownloadPdf = $derived(`/api/gise/${gise.id}/download?format=pdf`);
-	const urlDownloadPdfManifesto = $derived(`/api/gise/${gise.id}/download?format=pdf&manifesto=true`);
+	const urlDownloadPdfManifesto = $derived(
+		`/api/gise/${gise.id}/download?format=pdf&manifesto=true`
+	);
 	const urlDownloadExtra = $derived(
 		`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${supervisaoExtraUnidadeId}`
 	);

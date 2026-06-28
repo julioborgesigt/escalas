@@ -410,18 +410,21 @@
 									>Telefone</th
 								>
 								{#if isExpediente}
-									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+									<th
+										class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 										>Classe</th
 									>
 								{/if}
 								<th class="!py-4 text-surface-500 font-medium uppercase tracking-tight">Lotação</th>
 								{#if isExpediente}
-									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+									<th
+										class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 										>Regime</th
 									>
 								{/if}
 								{#if !isExpediente}
-									<th class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
+									<th
+										class="!py-4 text-center text-surface-500 font-medium uppercase tracking-tight"
 										>Data</th
 									>
 								{/if}

@@ -310,7 +310,8 @@
 			{#if page.data.usuario?.cargo === 'DPC'}
 				Tem certeza que deseja finalizar a edição desta escala?
 			{:else}
-				Tem certeza que deseja finalizar a edição desta escala? A assinatura do delegado seccional (DPC) será solicitada automaticamente.
+				Tem certeza que deseja finalizar a edição desta escala? A assinatura do delegado seccional
+				(DPC) será solicitada automaticamente.
 			{/if}
 		{/snippet}
 		{#snippet actions()}

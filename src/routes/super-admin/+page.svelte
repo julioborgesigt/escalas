@@ -1,14 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { 
-		ShieldCheck, 
-		Building, 
-		Users, 
-		Key, 
-		Settings, 
-		History, 
-		ArrowRight 
-	} from 'lucide-svelte';
+	import { ShieldCheck, Building, Users, Key, Settings, History, ArrowRight } from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);

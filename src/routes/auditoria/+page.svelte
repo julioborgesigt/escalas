@@ -192,7 +192,11 @@
 					};
 				}}
 			>
-				<button type="submit" class="btn preset-filled-primary-500 text-sm w-full justify-center" disabled={verificando}>
+				<button
+					type="submit"
+					class="btn preset-filled-primary-500 text-sm w-full justify-center"
+					disabled={verificando}
+				>
 					{verificando ? 'Verificando…' : 'Verificar integridade'}
 				</button>
 			</form>
@@ -275,13 +279,16 @@
 	{/if}
 
 	<!-- Filtros (GET → URL) -->
-	<div class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-4">
+	<div
+		class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-4"
+	>
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2">
 				<span class="font-semibold text-surface-900 dark:text-white">Filtros</span>
 				{#if filtrosAtivos > 0}
 					<span class="badge preset-filled-primary-500 text-xs">
-						{filtrosAtivos} {filtrosAtivos === 1 ? 'ativo' : 'ativos'}
+						{filtrosAtivos}
+						{filtrosAtivos === 1 ? 'ativo' : 'ativos'}
 					</span>
 				{/if}
 			</div>
@@ -302,7 +309,9 @@
 
 		<form
 			method="GET"
-			class="{filtrosExpandidos ? 'grid' : 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
+			class="{filtrosExpandidos
+				? 'grid'
+				: 'hidden lg:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
 		>
 			<label class="flex flex-col gap-1 text-sm">
 				<span class="text-surface-500 dark:text-surface-400">Categoria</span>
@@ -358,7 +367,9 @@
 				<input type="date" name="ate" class="input" value={data.filtros.ate ?? ''} />
 			</label>
 			<div class="flex items-end gap-2 pt-2 lg:pt-0 col-span-1 sm:col-span-2 lg:col-span-1">
-				<button type="submit" class="btn preset-filled-primary-500 text-sm flex-1 justify-center">Filtrar</button>
+				<button type="submit" class="btn preset-filled-primary-500 text-sm flex-1 justify-center"
+					>Filtrar</button
+				>
 				{#if filtrosAtivos > 0}
 					<a href="/auditoria" class="btn preset-outlined-surface-500 text-sm flex-1 justify-center"
 						>Limpar</a
@@ -530,7 +541,7 @@
 				{@const sev = SEVERIDADE[log.severidade ?? 'info'] ?? SEVERIDADE.info}
 				{@const res = RESULTADO[log.resultado ?? 'sucesso'] ?? RESULTADO.sucesso}
 				{@const mudancas = diff(log.dados_antes, log.dados_depois)}
-				
+
 				<div
 					class="rounded-xl border border-surface-200 dark:border-white/10 bg-surface-50 dark:bg-surface-900 p-4 space-y-3 cursor-pointer transition-colors active:bg-surface-100 dark:active:bg-surface-800/40"
 					onclick={() => (expandido = expandido === log.id ? null : log.id)}
@@ -575,7 +586,9 @@
 						</div>
 					</div>
 
-					<div class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-400">
+					<div
+						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-400"
+					>
 						<span>{fmtData(log.created_at)}</span>
 						<span class="flex items-center gap-0.5 text-primary-500 font-medium">
 							{expandido === log.id ? 'Recolher' : 'Detalhes'}
@@ -588,34 +601,52 @@
 					</div>
 
 					{#if expandido === log.id}
-						<div class="border-t border-surface-200/60 dark:border-white/10 pt-3 mt-3 space-y-4 text-xs" onclick={(e) => e.stopPropagation()}>
+						<div
+							class="border-t border-surface-200/60 dark:border-white/10 pt-3 mt-3 space-y-4 text-xs"
+							onclick={(e) => e.stopPropagation()}
+						>
 							<div class="space-y-2">
 								{#if log.detalhes}
-									<p class="text-sm text-surface-800 dark:text-surface-100 font-medium">{log.detalhes}</p>
+									<p class="text-sm text-surface-800 dark:text-surface-100 font-medium">
+										{log.detalhes}
+									</p>
 								{/if}
-								
+
 								<div class="bg-surface-100/50 dark:bg-surface-800/40 rounded-lg p-3">
-									<dl class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300">
+									<dl
+										class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300"
+									>
 										<dt class="font-semibold text-surface-400">Entidade</dt>
-										<dd class="text-surface-800 dark:text-surface-200">{log.entidade}{log.entidade_id ? ` #${log.entidade_id}` : ''}</dd>
-										
+										<dd class="text-surface-800 dark:text-surface-200">
+											{log.entidade}{log.entidade_id ? ` #${log.entidade_id}` : ''}
+										</dd>
+
 										<dt class="font-semibold text-surface-400">IP</dt>
-										<dd class="text-surface-800 dark:text-surface-200">{log.ip ?? '—'}{log.ip_cifrado ? ' (completo cifrado)' : ''}</dd>
-										
+										<dd class="text-surface-800 dark:text-surface-200">
+											{log.ip ?? '—'}{log.ip_cifrado ? ' (completo cifrado)' : ''}
+										</dd>
+
 										<dt class="font-semibold text-surface-400">Rota</dt>
-										<dd class="text-surface-800 dark:text-surface-200">{log.metodo ?? ''} {log.rota ?? '—'}</dd>
-										
+										<dd class="text-surface-800 dark:text-surface-200">
+											{log.metodo ?? ''}
+											{log.rota ?? '—'}
+										</dd>
+
 										<dt class="font-semibold text-surface-400">Request ID</dt>
-										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">{log.request_id ?? '—'}</dd>
-										
+										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
+											{log.request_id ?? '—'}
+										</dd>
+
 										<dt class="font-semibold text-surface-400">Seq / Hash</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
 											{log.seq ?? '—'} · {log.hash_registro?.slice(0, 18) ?? '—'}…
 										</dd>
-										
+
 										{#if log.user_agent}
 											<dt class="font-semibold text-surface-400">User-Agent</dt>
-											<dd class="break-all text-surface-700 dark:text-surface-300">{log.user_agent}</dd>
+											<dd class="break-all text-surface-700 dark:text-surface-300">
+												{log.user_agent}
+											</dd>
 										{/if}
 									</dl>
 								</div>
@@ -623,24 +654,35 @@
 
 							{#if mudancas.length > 0}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">
-										Alterações
-									</div>
-									<div class="border border-surface-200 dark:border-white/10 rounded-lg overflow-hidden">
+									<div class="font-semibold text-surface-500 dark:text-surface-400">Alterações</div>
+									<div
+										class="border border-surface-200 dark:border-white/10 rounded-lg overflow-hidden"
+									>
 										<table class="w-full text-xs">
-											<thead class="bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400">
+											<thead
+												class="bg-surface-100 dark:bg-surface-800 text-surface-500 dark:text-surface-400"
+											>
 												<tr>
 													<th class="px-2 py-1.5 text-left font-medium">Campo</th>
 													<th class="px-2 py-1.5 text-left font-medium">De</th>
 													<th class="px-2 py-1.5 text-left font-medium">Para</th>
 												</tr>
 											</thead>
-											<tbody class="divide-y divide-surface-200/60 dark:divide-white/5 bg-surface-50 dark:bg-surface-900">
+											<tbody
+												class="divide-y divide-surface-200/60 dark:divide-white/5 bg-surface-50 dark:bg-surface-900"
+											>
 												{#each mudancas as m (m.campo)}
 													<tr>
-														<td class="px-2 py-1.5 font-medium text-surface-800 dark:text-surface-200">{m.campo}</td>
-														<td class="px-2 py-1.5 text-error-600 dark:text-error-400 break-all">{val(m.de)}</td>
-														<td class="px-2 py-1.5 text-success-700 dark:text-success-400 break-all">{val(m.para)}</td>
+														<td
+															class="px-2 py-1.5 font-medium text-surface-800 dark:text-surface-200"
+															>{m.campo}</td
+														>
+														<td class="px-2 py-1.5 text-error-600 dark:text-error-400 break-all"
+															>{val(m.de)}</td
+														>
+														<td class="px-2 py-1.5 text-success-700 dark:text-success-400 break-all"
+															>{val(m.para)}</td
+														>
 													</tr>
 												{/each}
 											</tbody>
@@ -651,10 +693,9 @@
 
 							{#if parseJson(log.metadados)}
 								<div class="space-y-1">
-									<div class="font-semibold text-surface-500 dark:text-surface-400">
-										Metadados
-									</div>
-									<pre class="text-xs bg-surface-200/50 dark:bg-surface-950/50 rounded-lg p-2.5 overflow-x-auto text-surface-800 dark:text-surface-200 font-mono">{JSON.stringify(
+									<div class="font-semibold text-surface-500 dark:text-surface-400">Metadados</div>
+									<pre
+										class="text-xs bg-surface-200/50 dark:bg-surface-950/50 rounded-lg p-2.5 overflow-x-auto text-surface-800 dark:text-surface-200 font-mono">{JSON.stringify(
 											parseJson(log.metadados),
 											null,
 											2
@@ -678,7 +719,9 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 text-sm">
+		<div
+			class="rounded-xl border border-surface-200 dark:border-white/10 p-10 text-center bg-surface-50 dark:bg-surface-900 text-surface-500 dark:text-surface-400 text-sm"
+		>
 			Nenhum evento encontrado para os filtros atuais.
 		</div>
 	{/if}

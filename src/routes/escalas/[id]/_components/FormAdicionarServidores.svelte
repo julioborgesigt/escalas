@@ -55,6 +55,7 @@
 	let activeEquipeForm = $state<string | null>(null);
 
 	const equipesAtuais = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const eq = new Set<string>();
 		for (const p of policiaisEscalaLocal || []) {
 			if (p.equipe) eq.add(p.equipe);
@@ -63,6 +64,7 @@
 	});
 
 	const equipesDisponiveis = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const eq = new Set<string>();
 		for (let i = 1; i <= 5; i++) eq.add(String(i));
 		for (const e of equipesAtuais) eq.delete(e);
@@ -282,7 +284,7 @@
 		{#if escala.tipo === 'plantao'}
 			{#if equipesAtuais.length > 0}
 				<div class="space-y-4 mb-6">
-					{#each equipesAtuais as equipe}
+					{#each equipesAtuais as equipe (equipe)}
 						<div
 							class="p-4 border border-surface-200 dark:border-white/10 rounded-xl bg-surface-50/50 dark:bg-surface-800/30"
 						>

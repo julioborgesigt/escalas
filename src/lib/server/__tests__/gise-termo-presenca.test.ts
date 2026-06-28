@@ -34,7 +34,11 @@ describe('gerarTermoPresencaPdf', () => {
 	});
 
 	it('não quebra com data em formato inesperado', async () => {
-		const { pdf } = await gerarTermoPresencaPdf({ ...base, dataInicio: 'sem-data', timestampISO: 'x' });
+		const { pdf } = await gerarTermoPresencaPdf({
+			...base,
+			dataInicio: 'sem-data',
+			timestampISO: 'x'
+		});
 		expect(pdf.byteLength).toBeGreaterThan(500);
 	});
 });

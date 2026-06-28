@@ -183,7 +183,8 @@ export class HeadTurnDetector {
 
 		// Sem medição confiável (landmarks ausentes → NaN): ignora o frame.
 		if (Number.isFinite(yaw)) {
-			this.yawSuave = this.yawSuave === null ? yaw : SMOOTH_ALPHA * yaw + (1 - SMOOTH_ALPHA) * this.yawSuave;
+			this.yawSuave =
+				this.yawSuave === null ? yaw : SMOOTH_ALPHA * yaw + (1 - SMOOTH_ALPHA) * this.yawSuave;
 			if (this.yawSuave < this.min) this.min = this.yawSuave;
 			if (this.yawSuave > this.max) this.max = this.yawSuave;
 			this.framesValidos++;

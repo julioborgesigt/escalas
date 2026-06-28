@@ -237,7 +237,8 @@ export function useResGise(getData: () => ResGisePageData) {
 		}
 	}
 
-	async function salvarEntrada(payload: SignaturePadConfirmPayload) {		const {
+	async function salvarEntrada(payload: SignaturePadConfirmPayload) {
+		const {
 			rubrica,
 			lat: latitude,
 			lng: longitude,

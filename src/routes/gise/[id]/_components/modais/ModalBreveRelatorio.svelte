@@ -92,7 +92,8 @@
 						rows="3"
 						bind:value={textoSeccional}
 						class="w-full px-2 py-1.5 text-sm rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900"
-						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SECCIONAL}></textarea>
+						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SECCIONAL}
+					></textarea>
 				</div>
 				<div>
 					<label class="block text-sm font-medium mb-1" for="br_modal_sup"
@@ -104,7 +105,8 @@
 						rows="3"
 						bind:value={textoSupervisao}
 						class="w-full px-2 py-1.5 text-sm rounded-xl border border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900"
-						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO}></textarea>
+						placeholder={DEFAULT_BREVE_RELATORIO_TEXTO_SUPERVISAO}
+					></textarea>
 				</div>
 				<div
 					class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2 border-t border-surface-200 dark:border-surface-700 shrink-0"

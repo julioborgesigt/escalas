@@ -333,8 +333,7 @@
 							<ol class="text-xs text-surface-500 list-decimal list-inside space-y-1">
 								<li>Assine com caneta escura em uma <strong>folha branca</strong>, sem pauta.</li>
 								<li>
-									Fotografe de cima, com <strong>boa luz</strong> e sem sombras, enquadrando só a
-									assinatura.
+									Fotografe de cima, com <strong>boa luz</strong> e sem sombras, enquadrando só a assinatura.
 								</li>
 								<li>Envie a foto abaixo — você poderá recortar e limpar o fundo.</li>
 							</ol>
@@ -375,7 +374,11 @@
 								class="relative w-full select-none rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700 bg-[repeating-conic-gradient(#e5e7eb_0%_25%,#f9fafb_0%_50%)] bg-[length:20px_20px]"
 							>
 								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								<img src={srcDataUrl} alt="Assinatura enviada" class="w-full block pointer-events-none" />
+								<img
+									src={srcDataUrl}
+									alt="Assinatura enviada"
+									class="w-full block pointer-events-none"
+								/>
 								<div
 									role="presentation"
 									class="absolute border-2 border-primary-500 bg-primary-500/10 cursor-move touch-none"
@@ -451,9 +454,9 @@
 			>
 				<input type="checkbox" bind:checked={consentimento} class="mt-0.5 shrink-0" />
 				<span class="text-[0.7rem] text-surface-500 leading-snug">
-					Autorizo o registro e o armazenamento desta rubrica para reutilização como elemento gráfico
-					nas minhas assinaturas de documentos funcionais. Posso solicitar sua exclusão a qualquer
-					momento (LGPD, Lei 13.709/2018, art. 18).
+					Autorizo o registro e o armazenamento desta rubrica para reutilização como elemento
+					gráfico nas minhas assinaturas de documentos funcionais. Posso solicitar sua exclusão a
+					qualquer momento (LGPD, Lei 13.709/2018, art. 18).
 				</span>
 			</label>
 

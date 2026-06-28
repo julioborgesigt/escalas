@@ -129,9 +129,8 @@ export const POST: RequestHandler = async ({
 			token: crypto.randomUUID(),
 			documentName: `Termo de Presença - GISE ${giseId}`,
 			signatureLevel: 'qualificada',
-			tipoCarimoTempo: (
-				platform?.env as unknown as Record<string, string | undefined> | undefined
-			)?.TSA_URL
+			tipoCarimoTempo: (platform?.env as unknown as Record<string, string | undefined> | undefined)
+				?.TSA_URL
 				? 'tsa_externa'
 				: 'servidor'
 		}

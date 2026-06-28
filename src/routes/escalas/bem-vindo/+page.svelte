@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { 
-		Calendar, 
-		LayoutDashboard, 
-		Inbox, 
-		Shield, 
-		FileCheck, 
-		ArrowRight 
-	} from 'lucide-svelte';
+	import { Calendar, LayoutDashboard, Inbox, Shield, FileCheck, ArrowRight } from 'lucide-svelte';
 
 	const { data } = $props();
 	const usuario = $derived(data.usuario);

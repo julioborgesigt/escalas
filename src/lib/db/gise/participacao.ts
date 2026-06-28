@@ -8,7 +8,13 @@
 
 import { and, eq, or } from 'drizzle-orm';
 import type { Database } from '../core';
-import { giseEscalas, giseMembros, giseEquipes, giseSeccionais, unidades } from '../../server/schema';
+import {
+	giseEscalas,
+	giseMembros,
+	giseEquipes,
+	giseSeccionais,
+	unidades
+} from '../../server/schema';
 
 export interface ParticipacaoGise {
 	participa: boolean;
