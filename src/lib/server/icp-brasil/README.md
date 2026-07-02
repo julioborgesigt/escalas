@@ -96,11 +96,15 @@ Se o script falhar (mudança de URL no ITI, por exemplo):
 
 ## Estado atual
 
-⚠️ Os arquivos `roots.pem` e `intermediates.pem` neste commit estão **vazios**
-(apenas com comentários explicativos). O loader detecta isso e retorna
-`{ disponivel: false }` — a verificação de cadeia exibe "indisponível"
-até que a equipe execute `./update-trust-store.sh` (ou rode o procedimento
-manual) e commite os PEMs populados.
+✅ Os arquivos `roots.pem` e `intermediates.pem` estão **populados** (raízes
+ACRaiz v5/v10 + ACs intermediárias credenciadas pela ITI). Um GitHub Action
+mensal ([`update-icp-brasil-trust-store.yml`](../../../../.github/workflows/update-icp-brasil-trust-store.yml))
+abre PR automaticamente quando a ITI publica mudanças.
+
+Se os PEMs algum dia ficarem vazios, o loader detecta e retorna
+`{ disponivel: false }` — a verificação de cadeia exibe "indisponível". Em
+produção, mantenha `ICP_BRASIL_TRUST_STORE_REQUIRED=1` para que trust store
+vazio seja **hard error** em vez de warning (ver `DEPLOY.md`).
 
 ## Frequência de atualização
 
