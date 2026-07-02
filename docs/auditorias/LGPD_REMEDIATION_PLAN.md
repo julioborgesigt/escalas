@@ -1,3 +1,5 @@
+> 📌 **Registro histórico (mai/2026).** Plano derivado do [`LGPD_AUDIT.md`](LGPD_AUDIT.md). A maior parte dos itens já foi implementada — ver a reavaliação na [auditoria geral de 28/jun/2026](AUDITORIA_GERAL_2026-06-28.md) e as migrações `0017`–`0027` (anonimização de IPs, retenção, incidentes, solicitações de titulares, consentimento granular).
+
 # Plano de Implementação LGPD — Sistema de Escalas PCCE
 
 **Baseado em:** `LGPD_AUDIT.md`  

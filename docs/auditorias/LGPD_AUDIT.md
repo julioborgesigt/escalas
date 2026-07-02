@@ -1,3 +1,5 @@
+> 📌 **Registro histórico (mai/2026).** Os achados abaixo refletem o estado do sistema na data da auditoria. A maior parte foi remediada nas semanas seguintes (plano em [`LGPD_REMEDIATION_PLAN.md`](LGPD_REMEDIATION_PLAN.md)); a auditoria geral de [28/jun/2026](AUDITORIA_GERAL_2026-06-28.md) reavaliou a dimensão LGPD como "excepcional" (CPF cifrado, IPs anonimizados, retenção automatizada). Não use este documento como estado atual.
+
 # Relatório de Auditoria de Conformidade LGPD
 
 ## Sistema de Gestão de Escalas — Polícia Civil do Estado do Ceará (PCCE)

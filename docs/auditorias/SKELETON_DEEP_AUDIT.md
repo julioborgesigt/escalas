@@ -1,3 +1,5 @@
+> ⚠️ **SUPERSEDIDA.** Esta auditoria foi consolidada — junto com `SKELETON_AUDIT.md` — em [`skeleton_audit_final.md`](skeleton_audit_final.md), que é a referência atual. Este arquivo é mantido apenas como registro histórico.
+
 # Relatório de Auditoria Visual Profunda: Skeleton UI v4 & Tailwind CSS v4
 
 Este relatório apresenta uma auditoria detalhada e aprofundada de toda a camada visual e interface de usuário (**UI/UX**) do projeto **Escalas de Plantão Policial (DPI SUL)**. O objetivo principal é mapear inconsistências visuais, identificar oportunidades avançadas de componentes ricos e prover planos de ação precisos para extrair 100% de proveito do ecossistema do **Skeleton UI v4** e do **Tailwind CSS v4** usando **Svelte 5 (Runes)**.

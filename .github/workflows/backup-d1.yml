@@ -1,0 +1,126 @@
+name: Backup D1 (export diário cifrado)
+
+# O Cloudflare Pages não tem cron nativo, então o backup lógico do D1 roda
+# aqui (mesmo molde do cleanup-retencao.yml). Fluxo:
+#
+#   wrangler d1 export → sanity check → gzip → cifra com age (chave pública)
+#   → upload no bucket R2 privado `escalas-backups`
+#
+# O dump contém dados pessoais (nome, e-mail, telefone de ~7 mil policiais) —
+# por isso ele é cifrado ANTES de sair do runner e NUNCA é anexado como
+# artifact do GitHub Actions. Só quem tem a chave privada `age` (guardada em
+# cofre, fora do CI) consegue ler os backups.
+#
+# Retenção/imutabilidade ficam no próprio bucket (fora deste workflow):
+#   - lifecycle: apagar `d1/diario/` após 90 dias; `d1/mensal/` após 12 meses
+#   - lock de retenção do bucket: impede deleção mesmo com token comprometido
+#
+# Secrets necessários (Settings → Secrets and variables → Actions):
+#   - CLOUDFLARE_ACCOUNT_ID       : o mesmo já usado pelo deploy.yml
+#   - CLOUDFLARE_BACKUP_API_TOKEN : token DEDICADO, escopo mínimo:
+#                                   D1 read + R2 write só no bucket escalas-backups
+#                                   (não reutilize o token de deploy)
+#   - BACKUP_AGE_PUBLIC_KEY       : chave PÚBLICA age (age1...), gerada com
+#                                   `age-keygen`; a privada fica em cofre offline
+#
+# Restauração: ver DEPLOY.md → "Backup, restauração e rollback".
+
+on:
+  schedule:
+    # 05:43 UTC ≈ 02:43 America/Fortaleza. Horário "quebrado" para fugir do
+    # pico de :00 nos agendadores do GitHub.
+    - cron: '43 5 * * *'
+  workflow_dispatch: {} # permite disparo manual pela aba Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-d1
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BACKUP_API_TOKEN }}
+    steps:
+      # O checkout dá contexto (wrangler.toml) ao wrangler; o export em si
+      # referencia o banco pelo nome via API.
+      - uses: actions/checkout@v6
+
+      - name: Validar secrets
+        run: |
+          faltando=0
+          for s in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_BACKUP_API_TOKEN BACKUP_AGE_PUBLIC_KEY; do
+            case "$s" in
+              CLOUDFLARE_ACCOUNT_ID)       v='${{ secrets.CLOUDFLARE_ACCOUNT_ID }}' ;;
+              CLOUDFLARE_BACKUP_API_TOKEN) v='${{ secrets.CLOUDFLARE_BACKUP_API_TOKEN }}' ;;
+              BACKUP_AGE_PUBLIC_KEY)       v='${{ secrets.BACKUP_AGE_PUBLIC_KEY }}' ;;
+            esac
+            if [ -z "$v" ]; then
+              echo "::error::Secret $s não configurado."
+              faltando=1
+            fi
+          done
+          exit $faltando
+
+      - name: Instalar age
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q age
+
+      - name: Exportar D1 de produção
+        run: npx --yes wrangler@4 d1 export escalas-db --remote --output=backup.sql
+
+      - name: Sanity check do dump
+        # Um backup vazio "bem-sucedido" é pior que uma falha barulhenta:
+        # valida piso de tamanho e presença das tabelas-chave antes de subir.
+        run: |
+          set -euo pipefail
+          tamanho=$(stat -c %s backup.sql)
+          echo "Tamanho do dump: ${tamanho} bytes"
+          if [ "$tamanho" -lt 102400 ]; then
+            echo "::error::Dump suspeito de estar vazio/truncado (< 100 KB). Abortando upload."
+            exit 1
+          fi
+          for tabela in policiais escala_documentos escalas; do
+            if ! grep -Eq "CREATE TABLE (IF NOT EXISTS )?\"?${tabela}\"?" backup.sql; then
+              echo "::error::Dump sem CREATE TABLE de '${tabela}'. Abortando upload."
+              exit 1
+            fi
+          done
+          if ! grep -Eq 'INSERT INTO "?policiais"?' backup.sql; then
+            echo "::error::Dump sem nenhum INSERT em 'policiais' (banco vazio?). Abortando upload."
+            exit 1
+          fi
+
+      - name: Comprimir e cifrar
+        run: |
+          set -euo pipefail
+          echo "SHA-256 do dump (correlação forense):"
+          sha256sum backup.sql
+          gzip -9 backup.sql
+          age -r '${{ secrets.BACKUP_AGE_PUBLIC_KEY }}' -o backup.sql.gz.age backup.sql.gz
+          rm backup.sql.gz
+          echo "SHA-256 do artefato cifrado:"
+          sha256sum backup.sql.gz.age
+
+      - name: Enviar para o R2 (escalas-backups)
+        run: |
+          set -euo pipefail
+          dia=$(date -u +%F)
+          npx --yes wrangler@4 r2 object put \
+            "escalas-backups/d1/diario/backup-d1-${dia}.sql.gz.age" \
+            --file=backup.sql.gz.age --remote \
+            --content-type=application/octet-stream
+          # Snapshot mensal (dia 1º): prefixo com retenção mais longa no lifecycle.
+          if [ "$(date -u +%d)" = "01" ]; then
+            npx --yes wrangler@4 r2 object put \
+              "escalas-backups/d1/mensal/backup-d1-$(date -u +%Y-%m).sql.gz.age" \
+              --file=backup.sql.gz.age --remote \
+              --content-type=application/octet-stream
+          fi
+          echo "Backup enviado: d1/diario/backup-d1-${dia}.sql.gz.age"

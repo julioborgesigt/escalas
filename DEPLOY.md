@@ -167,9 +167,39 @@ npm run users:clear-passwords-non-admins:prod   # zera senha + primeiro_acesso=1
 
 Sistema com valor jurídico (assinaturas) exige plano de recuperação. Resumo dos mecanismos e procedimentos.
 
-### D1 — backup lógico (export)
+### D1 — backup lógico automatizado (export diário cifrado)
 
-Export periódico do banco inteiro (esquema + dados) para um arquivo SQL:
+O workflow [`backup-d1.yml`](.github/workflows/backup-d1.yml) roda **diariamente** (05:43 UTC): exporta o banco de produção com `wrangler d1 export`, valida o dump (piso de tamanho + tabelas-chave — um export vazio falha o job em vez de subir silencioso), comprime, **cifra com [`age`](https://github.com/FiloSottile/age)** e grava no bucket R2 privado `escalas-backups`:
+
+- `d1/diario/backup-d1-AAAA-MM-DD.sql.gz.age` — um por dia
+- `d1/mensal/backup-d1-AAAA-MM.sql.gz.age` — snapshot do dia 1º (retenção mais longa)
+
+O dump contém dados pessoais em claro (nome, e-mail, telefone) — por isso é cifrado **antes** de sair do runner, com a **chave pública** `age`; a chave privada nunca passa pelo CI. Falha do workflow gera a notificação padrão do GitHub Actions (aba Actions + e-mail para quem assina o repositório).
+
+**Setup (uma vez, pelo operador):**
+
+1. **Par de chaves age:** `age-keygen -o backup-key.txt` — guarde o arquivo (chave privada) em cofre **offline**; a linha `# public key: age1...` é o valor do secret `BACKUP_AGE_PUBLIC_KEY`. ⚠️ Sem a chave privada, os backups são ilegíveis — trate-a como o `PASSWORD_PEPPER`.
+2. **Bucket:** crie `escalas-backups` no R2 e configure no dashboard:
+   - **Lifecycle:** apagar objetos de `d1/diario/` após **90 dias** e de `d1/mensal/` após **12 meses**;
+   - **Lock de retenção** (Settings do bucket): impede deleção dentro da janela mesmo com token comprometido.
+3. **Token dedicado:** crie um API token com escopo mínimo (**D1 read** + **R2 write restrito ao bucket `escalas-backups`**) e cadastre como secret `CLOUDFLARE_BACKUP_API_TOKEN`. **Não reutilize** o token de deploy.
+4. Confira os 3 secrets em Settings → Secrets and variables → Actions (`CLOUDFLARE_ACCOUNT_ID` já existe do deploy) e rode o workflow manualmente (aba Actions → *Backup D1* → Run workflow) para validar ponta a ponta.
+
+**Restauração** (para um banco novo/vazio — nunca por cima de produção sem export prévio):
+
+```bash
+# 1. Baixar o backup do R2
+npx wrangler r2 object get escalas-backups/d1/diario/backup-d1-AAAA-MM-DD.sql.gz.age \
+  --file=backup.sql.gz.age --remote
+# 2. Decifrar (exige a chave privada, fora do CI) e descomprimir
+age -d -i backup-key.txt backup.sql.gz.age | gunzip > backup.sql
+# 3. Aplicar no banco de destino
+npx wrangler d1 execute <db-destino> --remote --file=backup.sql
+```
+
+> Faça um **teste de restauração** após o setup (num D1 descartável) e depois periodicamente — backup que nunca foi restaurado não é backup.
+
+**Export manual avulso** (fallback / pré-migração):
 
 ```bash
 # Produção
@@ -178,7 +208,7 @@ npx wrangler d1 export escalas-db --remote --output=backup-$(date +%F).sql
 npx wrangler d1 export escalas-db-staging --remote --output=backup-staging-$(date +%F).sql
 ```
 
-Guarde o `.sql` em local seguro e **privado** — contém dados pessoais; trate como o `dump.sql` (que é git-ignored). Cadência recomendada: **diária**, automatizável por um GitHub Action agendado (mesmo molde de `cleanup-retencao.yml`) que grave o artefato num storage com retenção. Restaurar para um banco novo/vazio: `npx wrangler d1 execute <db-destino> --remote --file=backup-AAAA-MM-DD.sql`.
+Guarde o `.sql` manual em local seguro e **privado** — contém dados pessoais; trate como o `dump.sql` (que é git-ignored).
 
 ### D1 — Time Travel (point-in-time recovery, ~30 dias)
 

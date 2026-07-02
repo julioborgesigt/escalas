@@ -1,3 +1,5 @@
+> ⚠️ **SUPERSEDIDA.** Esta auditoria foi consolidada — junto com `SKELETON_DEEP_AUDIT.md` — em [`skeleton_audit_final.md`](skeleton_audit_final.md), que é a referência atual. Este arquivo é mantido apenas como registro histórico.
+
 # Relatório de Auditoria: Uso do Skeleton UI v4 & Tailwind CSS v4
 
 Este documento apresenta uma auditoria detalhada sobre a integração do **Skeleton UI v4** (utilizando `@skeletonlabs/skeleton-svelte` e `@skeletonlabs/skeleton`) combinados com **Tailwind CSS v4** e **Svelte 5** no projeto **Escalas de Plantão Policial (DPI SUL)**.
