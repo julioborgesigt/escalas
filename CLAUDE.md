@@ -1,5 +1,17 @@
 # Diretrizes para este Projeto
 
+## Mapa da documentação
+
+O índice completo está em [`docs/README.md`](docs/README.md). Referências rápidas:
+
+- [`README.md`](README.md) — setup, arquitetura, módulos, padrões de código
+- [`DEPLOY.md`](DEPLOY.md) — runbook de produção (envs/secrets, papéis de admin, backup/rollback, go-live)
+- [`.env.example`](.env.example) — fonte autoritativa de variáveis de ambiente
+- [`TESTING.md`](TESTING.md) — roteiro de regressão manual
+- `docs/auditorias/` — **registros históricos** (não refletem o estado atual; achados A1–A8, I-1…I-4, M-3/M-4 citados em comentários do código vêm daí)
+
+Documentos vivos (README/DEPLOY/TESTING) devem ser atualizados **no mesmo PR** que mudar o comportamento correspondente.
+
 ## Svelte 5 e SvelteKit — Documentação Oficial
 
 Antes de implementar qualquer solução envolvendo Svelte ou SvelteKit, **consulte a documentação oficial mais recente**:

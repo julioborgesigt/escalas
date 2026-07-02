@@ -1,5 +1,9 @@
 # Testes Manuais — ESCALAS
 
+Roteiro de regressão manual dos fluxos de negócio. Use antes de releases importantes, em complemento aos testes automatizados (`npm run test` e `npx playwright test`).
+
+> **Fluxo Token A3 (presença GISE no desktop):** roteiro dedicado em [`docs/QA_ASSINATURA_A3_DESKTOP.md`](docs/QA_ASSINATURA_A3_DESKTOP.md) — exige Assinador SERPRO + token físico e não roda em CI.
+
 ## 1. Autenticação e Sessão
 
 ### 1.1 Login com 2FA (Fluxo Principal)
@@ -135,7 +139,7 @@ Verificar cada transição de status:
 
 ## 5. Assinatura Digital — Escalas
 
-### 5.1 Assinatura Simples (Nome/CPF)
+### 5.1 Assinatura Simples (Nome/CPF) — descontinuada, restrita a fluxos FDS legados
 - [ ] Preparar assinatura → PDF gerado com sucesso
 - [ ] Assinar com nome e CPF → documento assinado
 - [ ] Hash de verificação gerado após assinatura
@@ -273,10 +277,13 @@ Verificar cada transição de status:
 
 ## 12. Configurações de Assinatura (`/conf-ass`)
 
-- [ ] Visualizar configuração atual do método de assinatura
-- [ ] Alterar para `simples` → salvo e refletido no fluxo
-- [ ] Alterar para `webpki` → salvo e refletido no fluxo
-- [ ] Alterar para `serpro` → salvo e refletido no fluxo
+> Acesso exclusivo do **Super Admin**. As flags são cacheadas no edge por até 5 min — a alteração deve refletir no fluxo de assinatura em ≤ 5 min.
+
+- [ ] Visualizar configuração atual das flags de assinatura
+- [ ] Ligar/desligar `exigir_foto_assinatura` → refletido na próxima assinatura
+- [ ] Ligar/desligar `exigir_gps_assinatura` → refletido na próxima assinatura
+- [ ] Ligar/desligar `restringir_smartphone` → em desktop, fluxo A3 oferecido
+- [ ] Tentar desligar `exigir_codigo_email_assinatura` → **bloqueado** (2FA por e-mail é requisito legal mínimo; o PUT rejeita `exigirCodigoEmail=false`)
 
 ---
 
@@ -299,12 +306,15 @@ Verificar cada transição de status:
 
 | Papel | Deve acessar | Não deve acessar |
 |-------|-------------|-----------------|
-| Admin Geral | Tudo | — |
+| Super Admin | Tudo (inclusive gestão de policiais/unidades, `/conf-ass`, promoção de admins e PDF forense íntegro) | — |
+| Admin Geral | Operação global (escalas, GISE, LGPD, `/painel`) | Gestão de policiais/unidades, `/conf-ass`, promoção de admins |
 | Admin Seccional | Escalas/policiais da seccional | `/painel` |
 | Admin Unidade | Escalas/policiais da unidade | `/painel`, dados de outras unidades |
 | Supervisor GISE | `/gise/[id]` da sua GISE | Outras GISE |
 | Membro GISE | `/res-gise` | `/gise/[id]` (visão admin) |
 | Policial sem papel | Suas escalas | Qualquer gestão |
+
+> A matriz completa de capacidades está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador).
 
 - [ ] Testar cada papel tentando acessar rota não autorizada → redirecionamento ou erro 403
 

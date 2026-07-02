@@ -25,25 +25,27 @@ Plataforma de gestão de escalas de plantão, expediente e GISE (Grupo de Interv
 
 ## 1. Stack Tecnológico
 
-| Camada | Tecnologia | Versão |
-|--------|-----------|--------|
-| Meta-framework | SvelteKit | 2.63.1 |
-| UI | Svelte 5 (runes) | 5.56.3 |
-| Estilização | Tailwind CSS v4 + Skeleton UI v4 | 4.2.2 / 4.13.0 |
-| ORM | Drizzle ORM | 0.45.1 |
+> As versões exatas estão no [`package.json`](package.json) — a tabela abaixo indica apenas a versão _major_ adotada.
+
+| Camada | Tecnologia | Major |
+|--------|-----------|-------|
+| Meta-framework | SvelteKit | 2 |
+| UI | Svelte (runes) | 5 |
+| Estilização | Tailwind CSS + Skeleton UI | 4 / 4 |
+| ORM | Drizzle ORM | 0.4x |
 | Banco de dados | Cloudflare D1 (SQLite serverless) | — |
 | Armazenamento | Cloudflare R2 (PDFs, selfies, documentos) | — |
 | Hospedagem | Cloudflare Pages (edge runtime) | — |
-| Validação | Zod | 4.4.3 |
+| Validação | Zod | 4 |
 | Assinatura digital | pdf-lib + @signpdf + node-forge + web-pki | — |
-| Reconhecimento facial | @vladmandic/face-api (TensorFlow.js) | 1.7.15 |
-| E-mail | Nodemailer (SMTP Gmail) | 8.0.4 |
+| Reconhecimento facial | @vladmandic/face-api (TensorFlow.js) | 1 |
+| E-mail | Cloudflare Email Sending (binding `EMAIL`) + Resend (fallback) | — |
 | Geração de documentos | jsPDF + ExcelJS + docx | — |
-| Monitoramento | Sentry (Cloudflare Workers) | 10.47.0 |
-| Testes unitários | Vitest | 4.1.0 |
-| Testes E2E | Playwright | 1.59.1 |
-| Build | Vite | 7.3.1 |
-| Linguagem | TypeScript | 5.9.3 |
+| Monitoramento | Sentry (Cloudflare Workers) | 10 |
+| Testes unitários | Vitest | 4 |
+| Testes E2E | Playwright | 1 |
+| Build | Vite | 8 |
+| Linguagem | TypeScript | 5 |
 
 ---
 
@@ -51,7 +53,7 @@ Plataforma de gestão de escalas de plantão, expediente e GISE (Grupo de Interv
 
 Antes de começar, certifique-se de ter instalado:
 
-- **Node.js v20+** — [nodejs.org](https://nodejs.org)
+- **Node.js v22+** (alinhado ao `engines` do `package.json`) — [nodejs.org](https://nodejs.org)
 - **npm** (vem com o Node.js)
 - **Wrangler CLI** (para interagir com Cloudflare localmente):
   ```bash
@@ -89,9 +91,9 @@ Edite `.dev.vars` com os valores mínimos para desenvolvimento:
 ```ini
 SYNC_TOKEN=qualquer-string-para-dev
 RESET_TOKEN=outra-string-diferente-do-sync-token
-# Opcional — só se quiser testar envio de e-mail:
-# GMAIL_USER=seu-email@gmail.com
-# GMAIL_APP_PASSWORD=senha-de-app-16-chars
+# Opcional — só se quiser testar envio de e-mail (2FA, primeiro acesso):
+# RESEND_API_KEY=re_...
+# RESEND_FROM_EMAIL=onboarding@resend.dev
 ```
 
 > Veja a seção [Variáveis de Ambiente](#4-variáveis-de-ambiente) para a lista completa.
@@ -144,18 +146,25 @@ npm run test       # testes unitários
 
 ### Arquivo `.dev.vars` (local) / Cloudflare Pages → Settings → Environment Variables (produção)
 
+> **Fonte autoritativa:** a lista completa e comentada de todas as variáveis está em [`.env.example`](.env.example); os tipos em [`src/app.d.ts`](src/app.d.ts). Para o detalhe operacional de cada uma (avisos, rotação, go-live), veja [`DEPLOY.md`](DEPLOY.md). A tabela abaixo resume as principais.
+
 | Variável | Obrigatória | Descrição |
 |----------|:-----------:|-----------|
 | `SYNC_TOKEN` | ✅ | Bearer token para os webhooks de sincronização (`/api/webhook/sync-policiais`, `/api/webhook/sync-unidades`). Gere com `openssl rand -hex 32`. |
 | `RESET_TOKEN` | ⚠️ | Token **separado** do `SYNC_TOKEN` para o endpoint destrutivo `/api/webhook/reset-policiais`. Se não definido, o endpoint retorna 401 (fail-closed seguro). |
-| `GMAIL_USER` | ⚠️ | Endereço de e-mail para envio via SMTP do Gmail. Recomenda-se uma conta de serviço dedicada. |
-| `GMAIL_APP_PASSWORD` | ⚠️ | [App Password do Gmail](https://support.google.com/accounts/answer/185833) (16 caracteres). **Nunca use a senha normal da conta.** |
-| `ADMIN_GERAL_LOGIN` | ❌ | Login do Admin Geral via env (apenas para bootstrap inicial). **Remova em produção** — essa conta bypassa o 2FA. |
-| `ADMIN_GERAL_SENHA` | ❌ | Senha do Admin Geral via env (apenas para bootstrap inicial). |
+| E-mail (binding `EMAIL` ou `RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | ✅ produção | Envio de 2FA, primeiro acesso e reset de senha. **Sem e-mail funcionando, o login com 2FA trava (fail-closed).** |
+| `PASSWORD_PEPPER` | ⚠️ produção | Pepper de senha (HMAC antes do PBKDF2, formato `pbkdf2v3`). **Nunca rotacionar** sem plano de migração — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper). |
+| `CPF_ENCRYPTION_KEY` / `CPF_INDEX_KEY` | ⚠️ produção | Cifra de CPF em repouso (AES-256-GCM) + índice cego para lookup (LGPD). |
+| `RATE_LIMIT_IP_SALT` | ⚠️ produção | Muda a chave do rate-limit de "/24 anonimizada" para hash salteado do IP completo (evita lockout do NAT corporativo). |
+| `APP_ORIGIN` | ⚠️ produção | Origem canônica (`https://...`) usada nos links de e-mail. |
+| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | ❌ | Conta root de break-glass via env. Prefira senha em hash PBKDF2 e defina o e-mail para exigir 2FA — ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets). |
+| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | ❌ | Login de Admin Geral via env (bootstrap). Logins por credencial de bootstrap são auditados (`login_bootstrap`). |
 | `GISE_BASE_EQUIPE_WEBHOOK_URL` | ❌ | URL do Google Apps Script que popula a aba `Base_Equipe` da planilha. Ex: `https://script.google.com/macros/s/AKfy.../exec` |
 | `GISE_BASE_EQUIPE_SECRET` | ❌ | Segredo compartilhado com `ScriptProperties.BASE_EQUIPE_SECRET` no Apps Script. Gere com `openssl rand -hex 32`. |
 
 > **Dica:** Use `openssl rand -hex 32` para gerar qualquer token seguro de 256 bits.
+>
+> **Legado:** `GMAIL_USER`/`GMAIL_APP_PASSWORD` (SMTP Gmail) não são mais lidos — o envio de e-mail usa o binding `EMAIL` da Cloudflare com fallback Resend.
 
 ### Bindings Cloudflare (`wrangler.toml`)
 
@@ -205,6 +214,9 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 # Aplicar migrações localmente
 npm run db:migrate
 
+# Aplicar migrações em staging (D1 dedicado escalas-db-staging)
+npm run db:migrate:staging
+
 # Aplicar migrações em produção (requer Wrangler autenticado; --yes obrigatório)
 npm run db:migrate:prod -- --yes
 
@@ -216,25 +228,7 @@ npx drizzle-kit generate --dialect sqlite
 
 ### Histórico de migrações
 
-| # | Arquivo | O que faz |
-|---|---------|-----------|
-| 0 | `0000_initial_schema.sql` | Schema completo inicial |
-| 1 | `0001_lat_lng_real_normalize.sql` | Normaliza lat/lng para `REAL` |
-| 2 | `0002_auth_legacy_password_deadline.sql` | Deadline para hashes SHA-256 legados |
-| 3 | `0003_gise_supervisao_extra_unidade.sql` | Supervisão extra por unidade |
-| 4 | `0004_unidades_departamentos.sql` | Hierarquia de departamentos |
-| 5 | `0005_supervisao_extra_para_departamento.sql` | Supervisão extra por departamento |
-| 6 | `0006_seed_departamento_supervisao_extra.sql` | Seed inicial de departamentos |
-| 7 | `0007_gise_escalas_feriado.sql` | Coluna `feriado` em GISE |
-| 8 | `0008_gise_breve_relatorio_textos.sql` | Configuração de breve relatório |
-| 9 | `0009_gise_planilha_base_equipe_alimentada.sql` | Timestamp de sincronização com planilha |
-| 10 | `0010_expandir_tipos_dois_fatores_tokens.sql` | Novos tipos de desafio 2FA |
-| 11 | `0011_gise_assessor_email_notificacao.sql` | E-mail customizado de notificação GISE |
-| 12 | `0012_signature_verification_metadata.sql` | Metadados CAdES-LT (issuer, serial, OCSP, TST) |
-| 13 | `0013_termos_uso.sql` | Versionamento de termos de uso |
-| 14 | `0014_fds_finalizada.sql` | Status de FDS finalizada |
-| 15 | `0015_fds_email_envio.sql` | E-mail de envio de FDS |
-| 16 | `0016_escala_solicitacoes_assinatura.sql` | Solicitações de assinatura |
+O histórico completo está na própria pasta [`migrations/`](migrations/) — os nomes dos arquivos são autoexplicativos (`0000_initial_schema.sql` … `0033_audit_forense.sql`) e o `migrations/meta/_journal.json` rastreia o que já foi aplicado em cada ambiente. Para entender uma migração específica, leia o SQL dela e o trecho correspondente do [`src/lib/server/schema.ts`](src/lib/server/schema.ts).
 
 ---
 
@@ -249,17 +243,21 @@ npm run preview            # Pré-visualização local da build
 # Qualidade de código
 npm run check              # Type-check (Svelte Check + TypeScript)
 npm run check:watch        # Type-check contínuo
-npm run lint               # ESLint (falha com qualquer warning)
+npm run lint               # ESLint
+npm run lint:strict        # ESLint falhando com qualquer warning
+npm run lint:ci            # ESLint com o teto de warnings usado no CI (ratchet)
 npm run lint:fix           # ESLint com auto-fix
 npm run format             # Prettier (formata todos os arquivos)
 npm run format:check       # Prettier sem alterar (só verifica)
+npm run knip               # Detecção de código/exports mortos
 
 # Testes
 npm run test               # Vitest (run once)
 npm run test:watch         # Vitest (watch mode)
 
 # Banco de dados
-npm run db:migrate              # Aplica migrações localmente
+npm run db:migrate               # Aplica migrações localmente
+npm run db:migrate:staging       # Aplica migrações no D1 de staging
 npm run db:migrate:prod -- --yes # Aplica migrações em produção (--yes obrigatório)
 
 # Utilitários de usuários (scripts/)
@@ -324,7 +322,7 @@ escalas/
 │   │   │   ├── pdf-signing.ts      # Geração e assinatura de PDFs
 │   │   │   ├── pdf-verification.ts # Validação de assinaturas (OCSP, CAdES)
 │   │   │   ├── icp-brasil/         # Trust store ICP-Brasil
-│   │   │   ├── email.ts            # Envio de e-mail via Nodemailer
+│   │   │   ├── email.ts            # Envio de e-mail (binding EMAIL / Resend)
 │   │   │   ├── termo/              # Conteúdo e hash do termo de uso vigente
 │   │   │   └── ...
 │   │   ├── db/                     # Camada de acesso ao banco (queries tipadas)
@@ -357,6 +355,10 @@ escalas/
 │   ├── clear-passwords-non-admins.ts
 │   └── GoogleAppsScript_Sync.gs   # Google Apps Script (sync planilha)
 ├── e2e/                            # Testes E2E Playwright
+├── docs/                           # Documentação complementar (ver docs/README.md)
+│   ├── QA_ASSINATURA_A3_DESKTOP.md # Roteiro de QA manual do fluxo Token A3
+│   ├── MIGRACAO-WORKERS.md         # Avaliação Pages→Workers (arquivada)
+│   └── auditorias/                 # Relatórios de auditoria (registros históricos)
 ├── static/
 │   └── face-api/                   # Modelos ML do face-api (servidos localmente)
 ├── wrangler.toml                   # Config Cloudflare (D1, R2, adapter)
@@ -369,6 +371,8 @@ escalas/
 ├── TESTING.md                      # Roteiros de testes manuais (100+ casos)
 └── CLAUDE.md                       # Diretrizes de código para o projeto
 ```
+
+> **Mapa da documentação:** o índice completo (o que é vivo × registro histórico) está em [`docs/README.md`](docs/README.md).
 
 ---
 
@@ -401,8 +405,10 @@ Três modalidades suportadas:
 | Modalidade | Mecanismo | Dados coletados |
 |-----------|-----------|-----------------|
 | **Qualificada** | e-CPF ICP-Brasil via WebPKI (Lacuna) ou Assinador SERPRO Desktop | Certificado, OCSP, carimbo de tempo (CAdES-LT) |
-| **Avançada** | Selfie + rubrica gráfica + GPS + IP | Foto, coordenadas, user-agent, timestamp |
-| **Simples** | Confirmação textual | IP, user-agent, timestamp |
+| **Avançada** | 2FA por e-mail (sempre) + selfie com liveness + rubrica gráfica + GPS + selo institucional | Foto, coordenadas, user-agent, timestamp |
+| **Simples** | Confirmação textual — **descontinuada** (restrita a fluxos FDS legados) | IP, user-agent, timestamp |
+
+O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está em [`docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md`](docs/auditorias/ANALISE_JURIDICA_ASSINATURAS.md).
 
 ### Validação Pública
 
@@ -415,10 +421,12 @@ A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa p
 ### Fluxo de login
 
 1. Usuário informa matrícula + senha
-2. Servidor verifica com PBKDF2 (100k iterações, salt 16 bytes, timing-safe)
-3. Se `exigir_2fa` habilitado: gera código de 6 dígitos e envia por e-mail (válido por 10 min)
+2. Servidor verifica com PBKDF2-HMAC-SHA256 (100k iterações — teto do runtime da Cloudflare —, salt 16 bytes, timing-safe). Em produção, a senha passa antes por HMAC com o `PASSWORD_PEPPER` (formato `pbkdf2v3`) — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper)
+3. 2FA: gera código de 6 dígitos e envia por e-mail (fail-closed — conta sem e-mail cadastrado não recebe sessão)
 4. Sessão criada com token de 256 bits, expira em 12 horas
 5. Sessão armazenada em cookie `session_token` (httpOnly, secure, SameSite=strict)
+
+Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail.
 
 ### Primeiro acesso
 
@@ -432,12 +440,13 @@ O aceite do termo de uso é obrigatório a cada nova versão. Qualquer mudança 
 
 | Tipo | Papel | Acesso |
 |------|-------|--------|
-| `admin` | — | Acesso total ao sistema (painel, policiais, unidades, GISE, escalas) |
+| `admin` + `isSuperAdmin` | Super Admin | Tudo do Admin Geral **mais**: promover admins, gerenciar policiais/unidades, configurar política de assinatura, baixar PDF forense íntegro |
+| `admin` | Admin Geral | Operação global (escalas, GISE, LGPD/auditoria) em todas as unidades — não remodela a base |
 | `policial` | `admin_seccional` | Gerencia escalas e policiais da sua seccional |
 | `policial` | `admin_unidade` | Gerencia escalas da sua unidade |
 | `policial` | — | Acessa apenas suas próprias escalas e GISE |
 
-Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
+A matriz completa de capacidades por papel está em [`DEPLOY.md`](DEPLOY.md#papéis-e-privilégios-de-administrador). Membros de GISE têm papéis adicionais (`supervisor`, `assessor/SEINT`, `membro`) calculados dinamicamente a partir da tabela `gise_membros`.
 
 ### Proteção CSRF
 
@@ -556,12 +565,11 @@ npm run test          # Executa uma vez
 npm run test:watch    # Watch mode (recomendado durante desenvolvimento)
 ```
 
-Arquivos de teste ficam em `src/` com o padrão `*.test.ts`:
+Arquivos de teste ficam em `src/` com o padrão `*.test.ts`, distribuídos em pastas `__tests__/` junto do código testado (40+ arquivos, 470+ testes). Os principais grupos:
 
-- `src/lib/__tests__/auth.test.ts` — lógica de autenticação (PBKDF2, sessões, 2FA)
-- `src/lib/__tests__/security.test.ts` — CSRF, headers de segurança
-- `src/lib/__tests__/utils.test.ts` — funções utilitárias
-- `src/lib/__tests__/api-helpers.test.ts` — helpers de API
+- `src/lib/__tests__/` — autenticação (PBKDF2/pepper, sessões, 2FA), CSRF, headers de segurança, utilitários
+- `src/lib/server/__tests__/` — fluxo de login, assinatura (CAdES, OCSP, TSA, trust store), permissões, webhooks, Sentry/PII
+- `src/lib/schemas/__tests__/` — schemas Zod (LGPD, formulários)
 
 ### Testes E2E (Playwright)
 
@@ -601,12 +609,13 @@ O arquivo [`TESTING.md`](TESTING.md) contém mais de 100 casos de teste document
 
 Faça push ou abra PR para as branches `main` ou `staging`. O GitHub Actions (`.github/workflows/deploy.yml`) executa automaticamente:
 
-1. `npm run lint` + `npm run format:check`
-2. `npm run check`
-3. `npm run test`
-4. `npx playwright test`
-5. `npm run build`
-6. `wrangler pages deploy`
+1. `npm run lint:ci` + `npm run format:check`
+2. `npx svelte-check --threshold error`
+3. `npx vitest run`
+4. `npm run build`
+5. Guards de padrão (erros de API via `$lib/server/api`, permissão de documento assinado)
+6. Migrações D1 locais + `npx playwright test` (E2E)
+7. `wrangler pages deploy` (push em `staging` gera um _preview deployment_ com D1/R2 dedicados)
 
 ### Deploy manual
 
@@ -672,13 +681,13 @@ Alternativa ao SERPRO para assinatura qualificada. Requer extensão do navegador
 
 ### Google Apps Script (sincronização de planilha)
 
-O arquivo `scripts/GoogleAppsScript_Sync.gs` é um Apps Script configurado em uma planilha Google que sincroniza policiais e unidades. Ele chama os webhooks da aplicação autenticado pelo `SYNC_TOKEN`.
+O arquivo [`scripts/GoogleAppsScript_Sync.gs`](scripts/GoogleAppsScript_Sync.gs) é um Apps Script configurado em uma planilha Google que sincroniza policiais e unidades. Ele chama os webhooks da aplicação autenticado pelo `SYNC_TOKEN` (com replay protection — ver [`DEPLOY.md`](DEPLOY.md#replay-protection-dos-webhooks-p13)).
 
 Para configurar:
-1. Abra a planilha Google no modo de script
-2. Cole o conteúdo de `Código.gs`
-3. Configure `PropertiesService` com `SYNC_TOKEN`, `RESET_TOKEN` e a URL da aplicação
-4. Publique como Web App (acesso: "Somente eu")
+1. Abra a planilha Google em `Extensões → Apps Script`
+2. Cole o conteúdo de `scripts/GoogleAppsScript_Sync.gs`
+3. Use o menu "🚀 Sincronização D1" → "⚙️ Configurar tokens" para gravar `SYNC_TOKEN` (e `RESET_TOKEN`, se for usar reset) no `PropertiesService`
+4. Para a integração `Base_Equipe` (GISE), publique como Web App — detalhes em [`scripts/README.md`](scripts/README.md)
 
 ### Reconhecimento facial (face-api)
 
@@ -686,14 +695,11 @@ Os modelos de IA do `@vladmandic/face-api` estão em `static/face-api/` e são *
 
 Para atualizar os modelos: siga as instruções em `static/face-api/README.md`.
 
-### SMTP Gmail
+### E-mail transacional (2FA, primeiro acesso, reset de senha)
 
-Configure uma conta de serviço dedicada para envio de e-mails:
+O envio de e-mail usa o **binding `EMAIL`** (Cloudflare Email Sending, configurado em Pages → Settings → Bindings) como caminho primário, com **Resend** como fallback (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`). A implementação está em `src/lib/server/email.ts`.
 
-1. Crie uma conta Gmail específica para o sistema
-2. Ative a verificação em dois fatores
-3. Gere uma [App Password](https://support.google.com/accounts/answer/185833) de 16 caracteres
-4. Configure `GMAIL_USER` e `GMAIL_APP_PASSWORD` nas variáveis de ambiente
+> **Importante:** sem e-mail funcionando, o 2FA (fail-closed) e o primeiro acesso travam. Ver [`DEPLOY.md`](DEPLOY.md#variáveis-e-secrets).
 
 ---
 
