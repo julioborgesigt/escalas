@@ -86,13 +86,17 @@ jobs:
             echo "::error::Dump suspeito de estar vazio/truncado (< 100 KB). Abortando upload."
             exit 1
           fi
+          # As migrações do Drizzle criam tabelas com crase (`policiais`) e o
+          # export preserva o formato — o padrão aceita crase, aspas ou nada,
+          # exigindo um delimitador após o nome para não casar prefixos
+          # (ex.: 'escalas' não pode casar 'gise_escalas').
           for tabela in policiais escala_documentos escalas; do
-            if ! grep -Eq "CREATE TABLE (IF NOT EXISTS )?\"?${tabela}\"?" backup.sql; then
+            if ! grep -Eq "CREATE TABLE (IF NOT EXISTS )?[\`\"]?${tabela}[\`\" (]" backup.sql; then
               echo "::error::Dump sem CREATE TABLE de '${tabela}'. Abortando upload."
               exit 1
             fi
           done
-          if ! grep -Eq 'INSERT INTO "?policiais"?' backup.sql; then
+          if ! grep -Eq "INSERT INTO [\`\"]?policiais[\`\" (]" backup.sql; then
             echo "::error::Dump sem nenhum INSERT em 'policiais' (banco vazio?). Abortando upload."
             exit 1
           fi
