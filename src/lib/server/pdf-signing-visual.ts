@@ -770,10 +770,31 @@ export async function adicionarRodapeUniversal(
 
 	const hashAbrev = documentHash ? documentHash.slice(0, 16) + '...' + documentHash.slice(-8) : '';
 
+	const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
+
 	for (let i = 0; i <= lastContentIdx; i++) {
 		const page = pages[i];
 		const { width } = page.getSize();
 		const footerY = 18;
+		// Na página do campo de assinatura, a esquerda do rodapé é ocupada pelo
+		// bloco de identidade + QR; então SHA-256 e base legal vão juntos à direita
+		// e o separador é omitido (cruzaria o bloco). Nas demais, rodapé fino padrão.
+		const ehPaginaAssinatura = !!signerName && i === lastContentIdx;
+
+		if (ehPaginaAssinatura) {
+			const linha = `SHA-256: ${hashAbrev}  ·  ${legalText}`;
+			const w =
+				fontMono.widthOfTextAtSize(`SHA-256: ${hashAbrev}  ·  `, 5.5) +
+				font.widthOfTextAtSize(legalText, 5.5);
+			page.drawText(linha, {
+				x: width - w - 20,
+				y: footerY,
+				size: 5.5,
+				font: fontMono,
+				color: cGray
+			});
+			continue;
+		}
 
 		// Linha separadora
 		page.drawLine({
@@ -782,7 +803,6 @@ export async function adicionarRodapeUniversal(
 			thickness: 0.3,
 			color: cLightLine
 		});
-
 		// Hash abreviado (esquerda)
 		page.drawText(`SHA-256: ${hashAbrev}`, {
 			x: 20,
@@ -791,9 +811,7 @@ export async function adicionarRodapeUniversal(
 			font: fontMono,
 			color: cGray
 		});
-
 		// Base legal (direita)
-		const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
 		const legalW = font.widthOfTextAtSize(legalText, 5.5);
 		page.drawText(legalText, {
 			x: width - legalW - 20,
@@ -806,15 +824,16 @@ export async function adicionarRodapeUniversal(
 
 	// Bloco de identidade + QR na página do campo de assinatura (estilo 'rubrica'):
 	// como o campo agora carrega SÓ a rubrica, o "Assinado digitalmente por…", o
-	// código e o QR de validação passam a viver aqui, logo acima do rodapé fino.
+	// código e o QR de validação passam a viver aqui, no canto inferior esquerdo.
+	// COMPACTO (QR ~33pt, y 18..51) para caber abaixo da linha "cidade, data" que a
+	// própria escala imprime no rodapé (~y 57 quando a assinatura fica no pé).
 	if (signerName) {
 		const page = pages[lastContentIdx];
 		const label = options.signatureLabel ?? 'Assinado digitalmente por';
-		const qrSize = 40;
+		const qrSize = 33;
 		const qrX = 20;
-		const qrY = 32; // QR ocupa y 32..72, acima do rodapé fino (separador em y=28)
+		const qrY = 17;
 
-		// QR de validação (canto inferior esquerdo). Permanece inalterado.
 		if (verificationUrl) {
 			try {
 				const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
@@ -849,13 +868,13 @@ export async function adicionarRodapeUniversal(
 
 		// Bloco de texto (5 linhas) ao lado do QR.
 		const tx = qrX + qrSize + 8;
-		page.drawText(`${label}:`, { x: tx, y: 72, size: 6, font, color: cGray });
+		page.drawText(`${label}:`, { x: tx, y: 47, size: 5.5, font, color: cGray });
 
 		const mat = options.signerMatricula ? ` - Mat.: ${options.signerMatricula}` : '';
 		page.drawText(`${signerName.toUpperCase()}${mat}`, {
 			x: tx,
-			y: 62,
-			size: 8,
+			y: 39,
+			size: 7,
 			font: fontBold,
 			color: cDark
 		});
@@ -863,8 +882,8 @@ export async function adicionarRodapeUniversal(
 		const dataAss = formatarDataBR(options.signedAtISO);
 		page.drawText(`Assinado em ${dataAss} – MP 2.200-2/2001 – ICP Brasil`, {
 			x: tx,
-			y: 53,
-			size: 5.5,
+			y: 31.5,
+			size: 5,
 			font,
 			color: cGray
 		});
@@ -872,8 +891,8 @@ export async function adicionarRodapeUniversal(
 		if (verificationHash) {
 			page.drawText(`Código verificador: ${verificationHash}`, {
 				x: tx,
-				y: 44,
-				size: 6,
+				y: 24.5,
+				size: 5.5,
 				font: fontMono,
 				color: cGray
 			});
@@ -881,7 +900,7 @@ export async function adicionarRodapeUniversal(
 
 		if (verificationUrl) {
 			const cleanUrl = verificationUrl.replace(/^https?:\/\//, '');
-			page.drawText(`Validar em ${cleanUrl}`, { x: tx, y: 35, size: 5.5, font, color: cGray });
+			page.drawText(`Validar em ${cleanUrl}`, { x: tx, y: 18, size: 5, font, color: cGray });
 		}
 	}
 
