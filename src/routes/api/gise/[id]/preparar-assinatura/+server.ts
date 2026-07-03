@@ -8,7 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarGiseEscala, buscarGiseDetalhado } from '$lib/db';
+import { getDB, buscarGiseEscala, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -49,7 +49,8 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	const { signerName, signerCpf, rubrica, latitude, longitude } = validated.data;
+	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
+	const { signerName, signerCpf, latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -107,7 +108,15 @@ export const POST: RequestHandler = async ({
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : '';
 	const assinanteEmail = u.email ?? undefined;
 
-	// 2. Adicionar rodapé universal nas páginas de conteúdo
+	// Rubrica + matrícula do supervisor (signatário). Rubrica vai no campo de
+	// assinatura (estilo 'rubrica'); matrícula, no rodapé de identidade. `rubrica`
+	// do body é ignorada — a fonte é o cadastro do perfil.
+	const polAss = await buscarPolicial(db, u.id);
+	const rubricaAssinatura = polAss?.rubrica ?? undefined;
+	const matriculaAssinatura = u.matricula ?? polAss?.matricula ?? undefined;
+
+	// 2. Adicionar rodapé universal nas páginas de conteúdo (+ bloco de identidade
+	//    com QR na página do campo de assinatura).
 	const origDoc = await PDFDocument.load(pdfBytes);
 	const contentPageCount = origDoc.getPageCount();
 
@@ -115,7 +124,10 @@ export const POST: RequestHandler = async ({
 		documentHash,
 		verificationUrl,
 		verificationHash,
-		contentPageCount
+		contentPageCount,
+		signerName: finalSignerName,
+		signerMatricula: matriculaAssinatura,
+		signedAtISO: new Date().toISOString()
 	});
 
 	// 3. Adicionar folha de auditoria ANTES de assinar (preserva validade criptográfica)
@@ -142,7 +154,8 @@ export const POST: RequestHandler = async ({
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	const boxY_pts = (210 - sigY) * 2.8346 + 1.5;
+	// Campo da rubrica logo acima da linha; piso baixo (campo à direita, rodapé à esquerda).
+	const boxY_pts = Math.max((210 - sigY) * 2.8346 + 3, 40);
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,
@@ -151,10 +164,11 @@ export const POST: RequestHandler = async ({
 		verificationHash,
 		verificationUrl,
 		boxY_pts,
-		rubrica || undefined,
+		rubricaAssinatura,
 		undefined,
 		undefined,
-		contentPageIndex
+		contentPageIndex,
+		'rubrica'
 	);
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
