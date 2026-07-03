@@ -714,6 +714,16 @@ interface RodapeUniversalOptions {
 	verificationHash: string;
 	/** Índice da última página de conteúdo (0-based). A página seguinte é a de auditoria. */
 	contentPageCount?: number;
+	/**
+	 * Nome do signatário. Quando presente, a ÚLTIMA página de conteúdo (onde vai o
+	 * campo de assinatura) recebe um bloco de identidade com QR de validação +
+	 * "Assinado digitalmente por: NOME" + código/URL. É aqui que a identidade
+	 * passa a viver quando o carimbo usa o estilo `'rubrica'` (campo só com a
+	 * rubrica). Sem ele, o rodapé mantém apenas hash + base legal.
+	 */
+	signerName?: string;
+	/** Rótulo da identidade (default "Assinado digitalmente por"). */
+	signatureLabel?: string;
 }
 
 /**
@@ -731,13 +741,15 @@ export async function adicionarRodapeUniversal(
 	pdfBytes: Uint8Array,
 	options: RodapeUniversalOptions
 ): Promise<Uint8Array> {
-	const { documentHash, contentPageCount } = options;
+	const { documentHash, contentPageCount, signerName, verificationHash, verificationUrl } = options;
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
 
 	const cGray = rgb(0.55, 0.55, 0.6);
+	const cDark = rgb(0.1, 0.14, 0.28);
 	const cLightLine = rgb(0.8, 0.85, 0.92);
 
 	const pages = pdfDoc.getPages();
@@ -778,6 +790,80 @@ export async function adicionarRodapeUniversal(
 			font,
 			color: cGray
 		});
+	}
+
+	// Bloco de identidade + QR na página do campo de assinatura (estilo 'rubrica'):
+	// como o campo agora carrega SÓ a rubrica, o "Assinado digitalmente por…", o
+	// código e o QR de validação passam a viver aqui, logo acima do rodapé fino.
+	if (signerName) {
+		const page = pages[lastContentIdx];
+		const { width } = page.getSize();
+		const label = options.signatureLabel ?? 'Assinado digitalmente por';
+		const bandY = 34; // acima do rodapé fino (footerY 18 + linha em 28)
+		const qrSize = 34;
+		const qrX = 20;
+
+		// QR de validação (canto inferior esquerdo).
+		if (verificationUrl) {
+			try {
+				const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+				const moduleCount = qr.modules.size;
+				const dot = qrSize / moduleCount;
+				page.drawRectangle({
+					x: qrX - 1.5,
+					y: bandY - 1.5,
+					width: qrSize + 3,
+					height: qrSize + 3,
+					color: rgb(1, 1, 1)
+				});
+				for (let row = 0; row < moduleCount; row++) {
+					for (let col = 0; col < moduleCount; col++) {
+						if (qr.modules.get(row, col)) {
+							page.drawRectangle({
+								x: qrX + col * dot,
+								y: bandY + (moduleCount - row - 1) * dot,
+								width: dot + 0.1,
+								height: dot + 0.1,
+								color: rgb(0, 0, 0)
+							});
+						}
+					}
+				}
+			} catch (err) {
+				logger.error('Erro ao gerar QR no rodapé de identidade', {
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
+		}
+
+		const tx = qrX + qrSize + 8;
+		page.drawText(`${label}:`, { x: tx, y: bandY + qrSize - 8, size: 6, font, color: cGray });
+		page.drawText(signerName.toUpperCase(), {
+			x: tx,
+			y: bandY + qrSize - 17,
+			size: 8,
+			font: fontBold,
+			color: cDark
+		});
+		if (verificationHash) {
+			page.drawText(`Código: ${verificationHash}`, {
+				x: tx,
+				y: bandY + qrSize - 26,
+				size: 6,
+				font: fontMono,
+				color: cGray
+			});
+		}
+		if (verificationUrl) {
+			const cleanUrl = verificationUrl.replace(/^https?:\/\//, '');
+			page.drawText(`Validar em ${cleanUrl} · MP 2.200-2/2001 — ICP-Brasil`, {
+				x: tx,
+				y: bandY - 1,
+				size: 5,
+				font,
+				color: cGray
+			});
+		}
 	}
 
 	return pdfDoc.save();

@@ -530,12 +530,11 @@ interface PrepareResult {
 }
 
 /**
- * Desenha o campo de assinatura no estilo LIMPO (`'rubrica'`): moldura fina,
- * a rubrica do signatário centralizada (quando houver) e uma legenda enxuta
- * (nome + data + base legal). Sem faixa navy, QR ou hash fantasma — estes
- * migram para o rodapé universal e a página de manifesto. Quando não há
- * rubrica, fica só a moldura vazia, espelhando o campo do documento impresso
- * para conferência.
+ * Desenha o campo de assinatura no estilo LIMPO (`'rubrica'`): apenas a rubrica
+ * do signatário, ajustada para caber na área do campo. Sem moldura, nome, faixa
+ * navy, QR ou hash — a identidade ("Assinado digitalmente por…"), o código e o
+ * QR vivem no rodapé universal + na página de manifesto. Quando não há rubrica,
+ * o campo fica EM BRANCO, espelhando o documento impresso para conferência.
  */
 async function desenharCampoRubricaLimpo(
 	pdfDoc: PDFDocument,
@@ -545,84 +544,31 @@ async function desenharCampoRubricaLimpo(
 		boxY: number;
 		boxW: number;
 		boxH: number;
-		signerName: string;
-		dataHora: string;
 		rubricBase64?: string;
 		customRubricX?: number;
 		customRubricY?: number;
-		font: PDFFont;
-		fontBold: PDFFont;
-		cDark: ReturnType<typeof rgb>;
-		cGray: ReturnType<typeof rgb>;
 	}
 ): Promise<void> {
+	if (!o.rubricBase64) return; // sem rubrica → campo em branco (igual ao impresso)
 	const { boxX, boxY, boxW, boxH } = o;
-	const cFrame = rgb(0.62, 0.66, 0.74);
-	const legendaH = 15; // faixa inferior reservada para nome/data/base legal
-
-	// Moldura fina do campo (o "campo acima da assinatura", como no impresso).
-	page.drawRectangle({
-		x: boxX,
-		y: boxY,
-		width: boxW,
-		height: boxH,
-		borderColor: cFrame,
-		borderWidth: 0.6
-	});
-
-	// Rubrica centralizada na área acima da legenda (quando cadastrada).
-	if (o.rubricBase64) {
-		try {
-			const rubricImage = o.rubricBase64.includes('image/jpeg')
-				? await pdfDoc.embedJpg(o.rubricBase64)
-				: await pdfDoc.embedPng(o.rubricBase64);
-			const areaW = boxW - 12;
-			const areaH = boxH - legendaH - 8;
-			// Ajuste proporcional para caber na área (sem distorcer nem estourar).
-			const escala = Math.min(areaW / rubricImage.width, areaH / rubricImage.height, 1);
-			const rubW = rubricImage.width * escala;
-			const rubH = rubricImage.height * escala;
-			const rx = o.customRubricX !== undefined ? o.customRubricX : boxX + (boxW - rubW) / 2;
-			const ry =
-				o.customRubricY !== undefined ? o.customRubricY : boxY + legendaH + (areaH - rubH) / 2 + 4;
-			page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
-		} catch (err) {
-			logger.error('Erro ao embutir rubrica no campo limpo', {
-				error: err instanceof Error ? err.message : String(err)
-			});
-		}
+	try {
+		const rubricImage = o.rubricBase64.includes('image/jpeg')
+			? await pdfDoc.embedJpg(o.rubricBase64)
+			: await pdfDoc.embedPng(o.rubricBase64);
+		const areaW = boxW - 12;
+		const areaH = boxH - 12;
+		// Ajuste proporcional para caber na área (sem distorcer nem estourar).
+		const escala = Math.min(areaW / rubricImage.width, areaH / rubricImage.height, 1);
+		const rubW = rubricImage.width * escala;
+		const rubH = rubricImage.height * escala;
+		const rx = o.customRubricX !== undefined ? o.customRubricX : boxX + (boxW - rubW) / 2;
+		const ry = o.customRubricY !== undefined ? o.customRubricY : boxY + (boxH - rubH) / 2;
+		page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
+	} catch (err) {
+		logger.error('Erro ao embutir rubrica no campo limpo', {
+			error: err instanceof Error ? err.message : String(err)
+		});
 	}
-
-	// Linha divisória sutil acima da legenda.
-	page.drawLine({
-		start: { x: boxX + 6, y: boxY + legendaH },
-		end: { x: boxX + boxW - 6, y: boxY + legendaH },
-		thickness: 0.4,
-		color: cFrame
-	});
-
-	// Legenda: nome do signatário (accountability) + data + base legal.
-	const nome = o.signerName.toUpperCase();
-	const nomeSize = 6;
-	let nomeTxt = nome;
-	while (nomeTxt.length > 4 && o.fontBold.widthOfTextAtSize(nomeTxt, nomeSize) > boxW - 12) {
-		nomeTxt = nomeTxt.slice(0, -1);
-	}
-	if (nomeTxt !== nome) nomeTxt = nomeTxt.slice(0, -1) + '…';
-	page.drawText(nomeTxt, {
-		x: boxX + 6,
-		y: boxY + legendaH - 6.5,
-		size: nomeSize,
-		font: o.fontBold,
-		color: o.cDark
-	});
-	page.drawText(`Assinado digitalmente em ${o.dataHora} · MP 2.200-2/2001 — ICP-Brasil`, {
-		x: boxX + 6,
-		y: boxY + 3.5,
-		size: 4,
-		font: o.font,
-		color: o.cGray
-	});
 }
 
 /**
@@ -697,15 +643,9 @@ export async function prepararPdfParaAssinatura(
 			boxY,
 			boxW,
 			boxH,
-			signerName,
-			dataHora,
 			rubricBase64,
 			customRubricX,
-			customRubricY,
-			font,
-			fontBold,
-			cDark,
-			cGray
+			customRubricY
 		});
 		return finalizarPreparacao(pdfDoc, {
 			reason: 'Assinatura da escala de plantão',
