@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage, type PDFFont } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
@@ -530,6 +530,50 @@ interface PrepareResult {
 }
 
 /**
+ * Desenha o campo de assinatura no estilo LIMPO (`'rubrica'`): apenas a rubrica
+ * do signatário, ajustada para caber na área do campo. Sem moldura, nome, faixa
+ * navy, QR ou hash — a identidade ("Assinado digitalmente por…"), o código e o
+ * QR vivem no rodapé universal + na página de manifesto. Quando não há rubrica,
+ * o campo fica EM BRANCO, espelhando o documento impresso para conferência.
+ */
+async function desenharCampoRubricaLimpo(
+	pdfDoc: PDFDocument,
+	page: PDFPage,
+	o: {
+		boxX: number;
+		boxY: number;
+		boxW: number;
+		boxH: number;
+		rubricBase64?: string;
+		customRubricX?: number;
+		customRubricY?: number;
+	}
+): Promise<void> {
+	if (!o.rubricBase64) return; // sem rubrica → campo em branco (igual ao impresso)
+	const { boxX, boxY, boxW, boxH } = o;
+	try {
+		const rubricImage = o.rubricBase64.includes('image/jpeg')
+			? await pdfDoc.embedJpg(o.rubricBase64)
+			: await pdfDoc.embedPng(o.rubricBase64);
+		const areaW = boxW - 12;
+		const areaH = boxH - 12;
+		// Ajuste proporcional para caber na área (sem distorcer nem estourar).
+		const escala = Math.min(areaW / rubricImage.width, areaH / rubricImage.height, 1);
+		const rubW = rubricImage.width * escala;
+		const rubH = rubricImage.height * escala;
+		const rx = o.customRubricX !== undefined ? o.customRubricX : boxX + (boxW - rubW) / 2;
+		// Ancorada junto ao PÉ do campo (logo acima da linha de assinatura), como
+		// uma rubrica manuscrita sobre a linha — e não flutuando no meio do campo.
+		const ry = o.customRubricY !== undefined ? o.customRubricY : boxY + 5;
+		page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
+	} catch (err) {
+		logger.error('Erro ao embutir rubrica no campo limpo', {
+			error: err instanceof Error ? err.message : String(err)
+		});
+	}
+}
+
+/**
  * Adiciona carimbo visual + placeholder de assinatura ao PDF,
  * constrói os SignedAttributes do CMS e retorna o hash que o
  * cliente deve assinar via Web PKI.
@@ -544,7 +588,16 @@ export async function prepararPdfParaAssinatura(
 	rubricBase64?: string,
 	customRubricX?: number,
 	customRubricY?: number,
-	targetPageIndex?: number
+	targetPageIndex?: number,
+	/**
+	 * Estilo do carimbo visual sobre o campo de assinatura:
+	 *   - `'selo-icp'` (default): caixa ICP-Brasil completa (faixa navy + QR +
+	 *     hash fantasma). Preservado para GISE, relatórios e presença.
+	 *   - `'rubrica'`: campo LIMPO — só a rubrica do signatário (ou moldura vazia
+	 *     quando não houver), unificando com a cópia de conferência impressa. QR,
+	 *     código e base legal migram para o rodapé universal + página de manifesto.
+	 */
+	estilo: 'selo-icp' | 'rubrica' = 'selo-icp'
 ): Promise<PrepareResult> {
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 
@@ -580,6 +633,33 @@ export async function prepararPdfParaAssinatura(
 	const cDark = rgb(0.05, 0.08, 0.22);
 	const cGray = rgb(0.4, 0.4, 0.45);
 	const cWhite = rgb(1, 1, 1);
+
+	// ── Estilo 'rubrica' (campo limpo) ─────────────────────────────────────────
+	// Auto-contido: desenha só a rubrica (ou moldura vazia) + legenda enxuta e
+	// retorna, deixando TODO o caminho ornamentado abaixo intocado (zero regressão
+	// para GISE/relatórios/presença, que seguem em 'selo-icp'). O QR e o código de
+	// verificação passam a viver no rodapé universal + na página de manifesto.
+	if (estilo === 'rubrica') {
+		await desenharCampoRubricaLimpo(pdfDoc, lastPage, {
+			boxX,
+			boxY,
+			boxW,
+			boxH,
+			rubricBase64,
+			customRubricX,
+			customRubricY
+		});
+		return finalizarPreparacao(pdfDoc, {
+			reason: 'Assinatura da escala de plantão',
+			name: signerName,
+			widgetRect: [
+				Math.round(boxX),
+				Math.round(boxY),
+				Math.round(boxX + boxW),
+				Math.round(boxY + boxH)
+			]
+		});
+	}
 
 	// 1 — Fundo azul claro (DESENHADO ANTES DA RUBRICA PARA NÃO COBRIR)
 	lastPage.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, color: cBg });

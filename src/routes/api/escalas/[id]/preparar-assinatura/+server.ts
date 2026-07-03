@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarEscala, listarPoliciaisEscala } from '$lib/db';
+import { getDB, buscarEscala, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
@@ -27,7 +27,9 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	const { signerName, signerCpf, rubrica, latitude, longitude } = validated.data;
+	// `rubrica` do body é ignorada de propósito: a rubrica vem do cadastro do
+	// perfil (server-side), não do cliente.
+	const { signerName, signerCpf, latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -63,10 +65,26 @@ export const POST: RequestHandler = async ({
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
 	const assinanteEmail = u.email ?? undefined;
 
+	// Rubrica + matrícula do SIGNATÁRIO (o próprio usuário logado, cujo token
+	// assina — o vínculo CPF token↔usuário é reforçado no finalizar). A rubrica
+	// vai no campo de assinatura (estilo 'rubrica'); a matrícula, no rodapé de
+	// identidade. Admin sem policial vinculado (ou policial sem rubrica) → campo
+	// em branco, espelhando o documento impresso. `rubrica` do body é ignorada:
+	// a fonte é o cadastro do perfil (server-side).
+	const policialId = u.tipo === 'policial' ? u.id : (u.adminPolicialId ?? null);
+	let rubricaAssinatura: string | undefined;
+	let matriculaAssinatura = u.matricula;
+	if (policialId != null) {
+		const pol = await buscarPolicial(db, policialId);
+		rubricaAssinatura = pol?.rubrica ?? undefined;
+		matriculaAssinatura = matriculaAssinatura ?? pol?.matricula;
+	}
+
 	// 1. Hash SHA-256 do PDF original (antes de qualquer modificação visual)
 	const documentHash = await calcularHashBuffer(pdfBytes);
 
-	// 2. Rodapé universal em todas as páginas de conteúdo
+	// 2. Rodapé universal em todas as páginas de conteúdo (+ bloco de identidade
+	//    com QR na página do campo de assinatura).
 	const origDoc = await PDFDocument.load(pdfBytes);
 	const contentPageCount = origDoc.getPageCount();
 
@@ -74,7 +92,10 @@ export const POST: RequestHandler = async ({
 		documentHash,
 		verificationUrl,
 		verificationHash,
-		contentPageCount
+		contentPageCount,
+		signerName: finalSignerName,
+		signerMatricula: matriculaAssinatura,
+		signedAtISO: new Date().toISOString()
 	});
 
 	// 3. Folha de auditoria ANTES de assinar (preserva validade criptográfica)
@@ -101,7 +122,11 @@ export const POST: RequestHandler = async ({
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	const boxY_pts = (pageHeightMm - sigY) * 2.8346 + 1.5;
+	// Campo da rubrica logo ACIMA da linha de assinatura (que a escala desenha em
+	// sigY). O campo fica à DIREITA e o rodapé de identidade à ESQUERDA, então não
+	// há colisão horizontal — não é preciso o piso alto de antes. Piso baixo (40pt)
+	// só evita o campo encostar no rodapé fino caso a assinatura fique no extremo pé.
+	const boxY_pts = Math.max((pageHeightMm - sigY) * 2.8346 + 3, 40);
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,
@@ -110,10 +135,11 @@ export const POST: RequestHandler = async ({
 		verificationHash,
 		verificationUrl,
 		boxY_pts,
-		rubrica || undefined,
+		rubricaAssinatura,
 		undefined,
 		undefined,
-		contentPageIndex
+		contentPageIndex,
+		'rubrica'
 	);
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =

@@ -714,6 +714,28 @@ interface RodapeUniversalOptions {
 	verificationHash: string;
 	/** Índice da última página de conteúdo (0-based). A página seguinte é a de auditoria. */
 	contentPageCount?: number;
+	/**
+	 * Nome do signatário. Quando presente, a ÚLTIMA página de conteúdo (onde vai o
+	 * campo de assinatura) recebe um bloco de identidade com QR de validação +
+	 * "Assinado digitalmente por: NOME" + matrícula/data/código/URL. É aqui que a
+	 * identidade passa a viver quando o carimbo usa o estilo `'rubrica'` (campo só
+	 * com a rubrica). Sem ele, o rodapé mantém apenas hash + base legal.
+	 */
+	signerName?: string;
+	/** Matrícula do signatário, exibida ao lado do nome (ex.: "301.095-1-1"). */
+	signerMatricula?: string;
+	/** ISO 8601 da assinatura — exibida como DATA (sem horário) no fuso -03. */
+	signedAtISO?: string;
+	/** Rótulo da identidade (default "Assinado digitalmente por"). */
+	signatureLabel?: string;
+}
+
+/** Formata um ISO como DD/MM/AAAA no fuso de Brasília (UTC-3), sem horário. */
+function formatarDataBR(iso?: string): string {
+	const d = iso ? new Date(iso) : new Date();
+	if (isNaN(d.getTime())) return '';
+	const br = new Date(d.getTime() - 3 * 3600 * 1000);
+	return `${String(br.getUTCDate()).padStart(2, '0')}/${String(br.getUTCMonth() + 1).padStart(2, '0')}/${br.getUTCFullYear()}`;
 }
 
 /**
@@ -731,13 +753,15 @@ export async function adicionarRodapeUniversal(
 	pdfBytes: Uint8Array,
 	options: RodapeUniversalOptions
 ): Promise<Uint8Array> {
-	const { documentHash, contentPageCount } = options;
+	const { documentHash, contentPageCount, signerName, verificationHash, verificationUrl } = options;
 
 	const pdfDoc = await PDFDocument.load(pdfBytes);
 	const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+	const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 	const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
 
 	const cGray = rgb(0.55, 0.55, 0.6);
+	const cDark = rgb(0.1, 0.14, 0.28);
 	const cLightLine = rgb(0.8, 0.85, 0.92);
 
 	const pages = pdfDoc.getPages();
@@ -746,10 +770,31 @@ export async function adicionarRodapeUniversal(
 
 	const hashAbrev = documentHash ? documentHash.slice(0, 16) + '...' + documentHash.slice(-8) : '';
 
+	const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
+
 	for (let i = 0; i <= lastContentIdx; i++) {
 		const page = pages[i];
 		const { width } = page.getSize();
 		const footerY = 18;
+		// Na página do campo de assinatura, a esquerda do rodapé é ocupada pelo
+		// bloco de identidade + QR; então SHA-256 e base legal vão juntos à direita
+		// e o separador é omitido (cruzaria o bloco). Nas demais, rodapé fino padrão.
+		const ehPaginaAssinatura = !!signerName && i === lastContentIdx;
+
+		if (ehPaginaAssinatura) {
+			const linha = `SHA-256: ${hashAbrev}  ·  ${legalText}`;
+			const w =
+				fontMono.widthOfTextAtSize(`SHA-256: ${hashAbrev}  ·  `, 5.5) +
+				font.widthOfTextAtSize(legalText, 5.5);
+			page.drawText(linha, {
+				x: width - w - 20,
+				y: footerY,
+				size: 5.5,
+				font: fontMono,
+				color: cGray
+			});
+			continue;
+		}
 
 		// Linha separadora
 		page.drawLine({
@@ -758,7 +803,6 @@ export async function adicionarRodapeUniversal(
 			thickness: 0.3,
 			color: cLightLine
 		});
-
 		// Hash abreviado (esquerda)
 		page.drawText(`SHA-256: ${hashAbrev}`, {
 			x: 20,
@@ -767,9 +811,7 @@ export async function adicionarRodapeUniversal(
 			font: fontMono,
 			color: cGray
 		});
-
 		// Base legal (direita)
-		const legalText = 'Assinatura Eletrônica — Lei 14.063/2020';
 		const legalW = font.widthOfTextAtSize(legalText, 5.5);
 		page.drawText(legalText, {
 			x: width - legalW - 20,
@@ -778,6 +820,88 @@ export async function adicionarRodapeUniversal(
 			font,
 			color: cGray
 		});
+	}
+
+	// Bloco de identidade + QR na página do campo de assinatura (estilo 'rubrica'):
+	// como o campo agora carrega SÓ a rubrica, o "Assinado digitalmente por…", o
+	// código e o QR de validação passam a viver aqui, no canto inferior esquerdo.
+	// COMPACTO (QR ~33pt, y 18..51) para caber abaixo da linha "cidade, data" que a
+	// própria escala imprime no rodapé (~y 57 quando a assinatura fica no pé).
+	if (signerName) {
+		const page = pages[lastContentIdx];
+		const label = options.signatureLabel ?? 'Assinado digitalmente por';
+		const qrSize = 33;
+		const qrX = 20;
+		const qrY = 17;
+
+		if (verificationUrl) {
+			try {
+				const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
+				const moduleCount = qr.modules.size;
+				const dot = qrSize / moduleCount;
+				page.drawRectangle({
+					x: qrX - 1.5,
+					y: qrY - 1.5,
+					width: qrSize + 3,
+					height: qrSize + 3,
+					color: rgb(1, 1, 1)
+				});
+				for (let row = 0; row < moduleCount; row++) {
+					for (let col = 0; col < moduleCount; col++) {
+						if (qr.modules.get(row, col)) {
+							page.drawRectangle({
+								x: qrX + col * dot,
+								y: qrY + (moduleCount - row - 1) * dot,
+								width: dot + 0.1,
+								height: dot + 0.1,
+								color: rgb(0, 0, 0)
+							});
+						}
+					}
+				}
+			} catch (err) {
+				logger.error('Erro ao gerar QR no rodapé de identidade', {
+					error: err instanceof Error ? err.message : String(err)
+				});
+			}
+		}
+
+		// Bloco de texto (5 linhas) ao lado do QR.
+		const tx = qrX + qrSize + 8;
+		page.drawText(`${label}:`, { x: tx, y: 47, size: 5.5, font, color: cGray });
+
+		const mat = options.signerMatricula ? ` - Mat.: ${options.signerMatricula}` : '';
+		page.drawText(`${signerName.toUpperCase()}${mat}`, {
+			x: tx,
+			y: 39,
+			size: 7,
+			font: fontBold,
+			color: cDark
+		});
+
+		const dataAss = formatarDataBR(options.signedAtISO);
+		page.drawText(`Assinado em ${dataAss} – MP 2.200-2/2001 – ICP Brasil`, {
+			x: tx,
+			y: 31.5,
+			size: 5,
+			font,
+			color: cGray
+		});
+
+		if (verificationHash) {
+			page.drawText(`Código verificador: ${verificationHash}`, {
+				x: tx,
+				y: 24.5,
+				size: 5.5,
+				font: fontMono,
+				color: cGray
+			});
+		}
+
+		if (verificationUrl) {
+			const cleanUrl = verificationUrl.replace(/^https?:\/\//, '');
+			page.drawText(`Validar em ${cleanUrl}`, { x: tx, y: 18, size: 5, font, color: cGray });
+		}
 	}
 
 	return pdfDoc.save();
