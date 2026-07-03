@@ -12,20 +12,20 @@ Este runbook descreve o que é necessário para colocar e manter o sistema em pr
 
 Configurar no projeto Pages (**Settings → Environment variables**) ou via `wrangler secret`, conforme o fluxo da equipe. A **lista completa e comentada** de todas as variáveis está em [`.env.example`](.env.example) (fonte autoritativa); os tipos em [`src/app.d.ts`](src/app.d.ts). A tabela abaixo cobre as **mais importantes / não-óbvias**.
 
-| Variável | Obrigatório | Uso |
-|----------|-------------|-----|
-| `PASSWORD_PEPPER` | **Recomendado (ver aviso)** | Pepper de senha (achado A3): HMAC-SHA256 aplicado à senha antes do PBKDF2 (formato `pbkdf2v3`). Neutraliza brute-force offline se o D1 vazar. **CRÍTICO:** uma vez ligado, hashes v3 só verificam com este exato valor — **guarde em cofre e NUNCA rotacione** sem plano de migração (trocá-lo invalida todos os logins v3). Ver [Hashing de senha e o pepper](#hashing-de-senha-e-o-password_pepper). Gere com `openssl rand -hex 32`. |
-| **E-mail** (2FA / primeiro acesso / reset) | Sim, para login | Binding `EMAIL` (Cloudflare Email Sending — Settings → Functions/Bindings) como primário **ou** `RESEND_API_KEY` + `RESEND_FROM_EMAIL` como fallback. `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` habilitam o caminho via API da Cloudflare. **Sem e-mail funcionando, o 2FA (fail-closed A1) e o primeiro acesso travam.** |
-| `SYNC_TOKEN` | Sim, para webhooks | Bearer token usado por [`/api/webhook/sync-policiais`](src/routes/api/webhook/sync-policiais/+server.ts) e [`/api/webhook/sync-unidades`](src/routes/api/webhook/sync-unidades/+server.ts) |
-| `RESET_TOKEN` | **Apenas** se quiser permitir reset destrutivo | Segredo **separado**, distinto do `SYNC_TOKEN`, exigido por [`/api/webhook/reset-policiais`](src/routes/api/webhook/reset-policiais/+server.ts). Sem ele configurado, o endpoint sempre retorna 401 (fail-closed). |
-| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | Bootstrap / break-glass | Conta root de emergência via env. `SUPER_ADMIN_EMAIL` (recomendado) passa a exigir 2FA no login root. A senha pode (e DEVE) ser um **hash PBKDF2 v2** em vez de texto claro — gere com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts` (emite v2 **de propósito**: o break-glass NÃO depende do `PASSWORD_PEPPER`, então o root entra mesmo se o pepper for perdido). |
-| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA` | Opcional / ambiente admin | Login de Admin Geral via env. Mesma regra de hash do `SUPER_ADMIN_SENHA` acima. |
-| `RATE_LIMIT_IP_SALT` | Recomendado em produção | Segredo (`openssl rand -hex 32`) que muda a chave de rate-limit de "/24 anonimizada" para **hash salteado do IP completo**. Sem ele, 5 falhas de login bloqueiam a /24 inteira (ex.: o NAT da corporação — DoS barato e lockout mútuo). Com ele, o bloqueio é por endereço, sem persistir IP em claro (LGPD ok). |
-| `APP_ORIGIN` | Recomendado em produção | Origem canônica (`https://...`) usada nos links de e-mail, fechando host-header injection. Sem ela, usa a origem da requisição. |
-| `HEALTH_DETAIL_TOKEN` | Recomendado | Sem ele, `/api/health` devolve só `{status}`. Com `?detail=<token>`, devolve o detalhe (D1/R2/retenção) — ver [Failsafe](#failsafe-da-limpeza-de-retenção). |
-| `SENTRY_*` / DSN | Se Sentry estiver ligado | Erros no worker (`@sentry/cloudflare`). Logins via credenciais de bootstrap (SUPER_ADMIN/ADMIN_GERAL) geram evento `warning` no Sentry. |
-| `SESSION_CACHE_TTL_SECONDS` | Opcional | TTL (s) do cache edge de sessão (default 60, clamp [0,300]). `0` desliga (revogação imediata, mais queries D1). |
-| `WEBHOOK_REPLAY_ENFORCE` | Após rollout (ver abaixo) | Quando truthy (`1`, `true`, `yes`, `on`), webhooks rejeitam requisições sem `X-Webhook-Timestamp` + `X-Webhook-Nonce`. Default: aceita por compatibilidade, mas loga `info` para cada chamada sem headers. |
+| Variável                                                        | Obrigatório                                    | Uso                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORD_PEPPER`                                               | **Recomendado (ver aviso)**                    | Pepper de senha (achado A3): HMAC-SHA256 aplicado à senha antes do PBKDF2 (formato `pbkdf2v3`). Neutraliza brute-force offline se o D1 vazar. **CRÍTICO:** uma vez ligado, hashes v3 só verificam com este exato valor — **guarde em cofre e NUNCA rotacione** sem plano de migração (trocá-lo invalida todos os logins v3). Ver [Hashing de senha e o pepper](#hashing-de-senha-e-o-password_pepper). Gere com `openssl rand -hex 32`. |
+| **E-mail** (2FA / primeiro acesso / reset)                      | Sim, para login                                | Binding `EMAIL` (Cloudflare Email Sending — Settings → Functions/Bindings) como primário **ou** `RESEND_API_KEY` + `RESEND_FROM_EMAIL` como fallback. `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` habilitam o caminho via API da Cloudflare. **Sem e-mail funcionando, o 2FA (fail-closed A1) e o primeiro acesso travam.**                                                                                                          |
+| `SYNC_TOKEN`                                                    | Sim, para webhooks                             | Bearer token usado por [`/api/webhook/sync-policiais`](src/routes/api/webhook/sync-policiais/+server.ts) e [`/api/webhook/sync-unidades`](src/routes/api/webhook/sync-unidades/+server.ts)                                                                                                                                                                                                                                              |
+| `RESET_TOKEN`                                                   | **Apenas** se quiser permitir reset destrutivo | Segredo **separado**, distinto do `SYNC_TOKEN`, exigido por [`/api/webhook/reset-policiais`](src/routes/api/webhook/reset-policiais/+server.ts). Sem ele configurado, o endpoint sempre retorna 401 (fail-closed).                                                                                                                                                                                                                      |
+| `SUPER_ADMIN_LOGIN` / `SUPER_ADMIN_SENHA` / `SUPER_ADMIN_EMAIL` | Bootstrap / break-glass                        | Conta root de emergência via env. `SUPER_ADMIN_EMAIL` (recomendado) passa a exigir 2FA no login root. A senha pode (e DEVE) ser um **hash PBKDF2 v2** em vez de texto claro — gere com `HASH_PASSWORD=SENHA npx tsx scripts/hash-password.ts` (emite v2 **de propósito**: o break-glass NÃO depende do `PASSWORD_PEPPER`, então o root entra mesmo se o pepper for perdido).                                                            |
+| `ADMIN_GERAL_LOGIN` / `ADMIN_GERAL_SENHA`                       | Opcional / ambiente admin                      | Login de Admin Geral via env. Mesma regra de hash do `SUPER_ADMIN_SENHA` acima.                                                                                                                                                                                                                                                                                                                                                         |
+| `RATE_LIMIT_IP_SALT`                                            | Recomendado em produção                        | Segredo (`openssl rand -hex 32`) que muda a chave de rate-limit de "/24 anonimizada" para **hash salteado do IP completo**. Sem ele, 5 falhas de login bloqueiam a /24 inteira (ex.: o NAT da corporação — DoS barato e lockout mútuo). Com ele, o bloqueio é por endereço, sem persistir IP em claro (LGPD ok).                                                                                                                        |
+| `APP_ORIGIN`                                                    | Recomendado em produção                        | Origem canônica (`https://...`) usada nos links de e-mail, fechando host-header injection. Sem ela, usa a origem da requisição.                                                                                                                                                                                                                                                                                                         |
+| `HEALTH_DETAIL_TOKEN`                                           | Recomendado                                    | Sem ele, `/api/health` devolve só `{status}`. Com `?detail=<token>`, devolve o detalhe (D1/R2/retenção) — ver [Failsafe](#failsafe-da-limpeza-de-retenção).                                                                                                                                                                                                                                                                             |
+| `SENTRY_*` / DSN                                                | Se Sentry estiver ligado                       | Erros no worker (`@sentry/cloudflare`). Logins via credenciais de bootstrap (SUPER_ADMIN/ADMIN_GERAL) geram evento `warning` no Sentry.                                                                                                                                                                                                                                                                                                 |
+| `SESSION_CACHE_TTL_SECONDS`                                     | Opcional                                       | TTL (s) do cache edge de sessão (default 60, clamp [0,300]). `0` desliga (revogação imediata, mais queries D1).                                                                                                                                                                                                                                                                                                                         |
+| `WEBHOOK_REPLAY_ENFORCE`                                        | Após rollout (ver abaixo)                      | Quando truthy (`1`, `true`, `yes`, `on`), webhooks rejeitam requisições sem `X-Webhook-Timestamp` + `X-Webhook-Nonce`. Default: aceita por compatibilidade, mas loga `info` para cada chamada sem headers.                                                                                                                                                                                                                              |
 
 > **Outras** (assinatura/GISE/flags) estão em `.env.example` e nas seções específicas: `ICP_BRASIL_TRUST_STORE_REQUIRED`, `TSA_*`/`EXIGIR_TSA_QUALIFICADA`, `EMBED_PADES_LT_DSS`, `PA_AD_RB_HASH_HEX`, `SELO_INSTITUCIONAL_PEM`, `GISE_BASE_EQUIPE_*`, `WEBHOOK_ALLOW_PAPEL_CHANGES`.
 >
@@ -39,10 +39,10 @@ Configurar no projeto Pages (**Settings → Environment variables**) ou via `wra
 
 As senhas são hasheadas com **PBKDF2-HMAC-SHA256, 100 000 iterações** (formato versionado em [`src/lib/crypto/password-hash.ts`](src/lib/crypto/password-hash.ts), re-exportado por `$lib/auth`):
 
-| Formato | Quando |
-|---|---|
-| `pbkdf2v1:` | Legado (100k implícito) — aceito, migra no login. |
-| `pbkdf2v2:` | Atual sem pepper. |
+| Formato     | Quando                                                                  |
+| ----------- | ----------------------------------------------------------------------- |
+| `pbkdf2v1:` | Legado (100k implícito) — aceito, migra no login.                       |
+| `pbkdf2v2:` | Atual sem pepper.                                                       |
 | `pbkdf2v3:` | **Atual com pepper** — `PBKDF2( HMAC-SHA256(PASSWORD_PEPPER, senha) )`. |
 
 **Por que pepper e não "600k iterações" (achado A3):** o runtime da Cloudflare (workerd — o mesmo no Pages e no Workers) impõe um **teto rígido de 100 000 iterações** na API `crypto.subtle`; pedir mais lança erro. O pepper (HMAC com um segredo global do ambiente, custo de CPU ~zero) resolve o brute-force offline **sem** depender de iterações altas. A migração para Workers foi avaliada e **arquivada** por causa disso — ver [`docs/MIGRACAO-WORKERS.md`](docs/MIGRACAO-WORKERS.md).
@@ -71,10 +71,10 @@ Antes de deletar, o endpoint registra no logger estruturado um snapshot com a co
 
 Além da autenticação HMAC/Bearer, todos os webhooks (`sync-policiais`, `sync-unidades`, `reset-policiais`) suportam dois headers extras para impedir reenvio de payload capturado:
 
-| Header | Valor |
-|--------|-------|
-| `X-Webhook-Timestamp` | Unix em segundos (10 dígitos), milissegundos (13 dígitos), ou ISO 8601. Servidor aceita janela de ±5 min (clock skew). |
-| `X-Webhook-Nonce` | Único por requisição, ≥16 chars. UUID v4 ou similar. Persistido em `webhook_nonces` (PRIMARY KEY) — reenvio do mesmo nonce devolve 401. |
+| Header                | Valor                                                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Webhook-Timestamp` | Unix em segundos (10 dígitos), milissegundos (13 dígitos), ou ISO 8601. Servidor aceita janela de ±5 min (clock skew).                  |
+| `X-Webhook-Nonce`     | Único por requisição, ≥16 chars. UUID v4 ou similar. Persistido em `webhook_nonces` (PRIMARY KEY) — reenvio do mesmo nonce devolve 401. |
 
 O `scripts/GoogleAppsScript_Sync.gs` já envia ambos os headers em todas as chamadas a partir do `sendToAPI()`. **Republicar a Web App do Apps Script após o deploy é o que ativa a geração desses headers no caller.**
 
@@ -93,8 +93,11 @@ O Cloudflare Pages não tem cron nativo, então a limpeza depende do agendador e
 Para flagrar isso sem nova tabela nem armazenamento extra, `GET /api/health?detail=<HEALTH_DETAIL_TOKEN>` reporta o campo `retencao` derivado do último `audit_log` de limpeza:
 
 ```json
-{ "status": "degraded", "checks": { "limpezaRetencao": "stale" },
-  "retencao": { "ultimaExecucao": "...", "horasDesdeUltima": 73.2, "atrasada": true } }
+{
+	"status": "degraded",
+	"checks": { "limpezaRetencao": "stale" },
+	"retencao": { "ultimaExecucao": "...", "horasDesdeUltima": 73.2, "atrasada": true }
+}
 ```
 
 **Ação do operador:** aponte um monitor externo (UptimeRobot, Better Stack, etc.) para essa URL e alerte quando `retencao.atrasada` for `true` (ou `status` for `degraded`). A tolerância padrão é 48h (o cron roda a cada 24h). A liveness pública (`/api/health` sem `detail`) **não** muda por causa da defasagem — continua `200 ok` enquanto D1/R2 respondem.
@@ -103,24 +106,24 @@ Para flagrar isso sem nova tabela nem armazenamento extra, `GET /api/health?deta
 
 Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `tipo='admin'` + `isSuperAdmin`), então faz tudo que o Admin Geral faz **mais** a coluna exclusiva. Os dois admins de banco (`administradores`) nascem **só** dos bootstraps por env (`SUPER_ADMIN_*` / `ADMIN_GERAL_*`); **não há tela para criá-los**. Já os admins **operacionais** (Seccional/Unidade) são **policiais promovidos** — e só o **Super Admin** promove.
 
-| Capacidade | Super Admin | Admin Geral | Admin Seccional | Admin Unidade |
-|---|:---:|:---:|:---:|:---:|
-| **Promover/alterar papéis** (criar admins) | ✅ | ❌ | ❌ | ❌ |
-| **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV) | ✅ | ❌ | ❌ | ❌ |
-| **Gerenciar unidades/seccionais** (CRUD) | ✅ | ❌ | ❌ | ❌ |
-| **Configurar política de assinatura** (foto/GPS/código/smartphone) | ✅ | ❌ | ❌ | ❌ |
-| **Baixar PDF forense íntegro** (CPF/IP/GPS/selfie/liveness) | ✅ | ❌ | ❌ | ❌ |
-| Escalas — **escopo** | global | global | sua seccional | sua unidade |
-| GISE (finalizar/reabrir/exportar histórico) | ✅ | ✅ | ❌ | ❌ |
-| LGPD / Auditoria / Compliance / incidentes / direitos dos titulares | ✅ | ✅ | ❌ | ❌ |
-| Alternar módulo (escalas ↔ GISE) | ✅ | ✅ | ❌ | ❌ |
-| Receber a **cópia de conferência** dos documentos | ✅ | ✅ | ✅ | ✅ (e policiais) |
+| Capacidade                                                          | Super Admin | Admin Geral | Admin Seccional |  Admin Unidade   |
+| ------------------------------------------------------------------- | :---------: | :---------: | :-------------: | :--------------: |
+| **Promover/alterar papéis** (criar admins)                          |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Gerenciar policiais** (cadastrar/editar/excluir/upload CSV)       |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Gerenciar unidades/seccionais** (CRUD)                            |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Configurar política de assinatura** (foto/GPS/código/smartphone)  |     ✅      |     ❌      |       ❌        |        ❌        |
+| **Baixar PDF forense íntegro** (CPF/IP/GPS/selfie/liveness)         |     ✅      |     ❌      |       ❌        |        ❌        |
+| Escalas — **escopo**                                                |   global    |   global    |  sua seccional  |   sua unidade    |
+| GISE (finalizar/reabrir/exportar histórico)                         |     ✅      |     ✅      |       ❌        |        ❌        |
+| LGPD / Auditoria / Compliance / incidentes / direitos dos titulares |     ✅      |     ✅      |       ❌        |        ❌        |
+| Alternar módulo (escalas ↔ GISE)                                    |     ✅      |     ✅      |       ❌        |        ❌        |
+| Receber a **cópia de conferência** dos documentos                   |     ✅      |     ✅      |       ✅        | ✅ (e policiais) |
 
 **Leitura rápida:**
 
-- **Super Admin** = *dono/configurador*: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único com o **forense íntegro**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
-- **Admin Geral** = *operador global*: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
-- **Admin Seccional / Unidade** = *operador com escopo*: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade).
+- **Super Admin** = _dono/configurador_: define **quem existe** (policiais), **a estrutura** (unidades), **quem é admin** (papéis) e **a política de assinatura**; único com o **forense íntegro**. **Insubstituível** — sem ele, não há como promover admins nem recriá-lo pela interface. Mantenha-o lacrado (senha em hash `pbkdf2v2` + `SUPER_ADMIN_EMAIL` para 2FA).
+- **Admin Geral** = _operador global_: opera **toda a operação** (escalas/GISE/LGPD) em **todas** as unidades, mas **não remodela a base** (não cadastra policial/unidade, não promove, não configura assinatura). Dispensável após o setup — ver [bootstrap dos admins por env](#variáveis-e-secrets).
+- **Admin Seccional / Unidade** = _operador com escopo_: policiais promovidos pelo Super Admin; operam **escalas** dentro da própria seccional/unidade (fecha IDOR cross-unidade).
 
 > **Para criar um admin operacional:** logado como Super Admin, abra `/policiais/[id]` da pessoa (que precisa existir como policial — via sync da planilha ou `/policiais/upload`), defina o **papel** (Admin Seccional/Unidade) e salve. Ela passa a logar por matrícula+senha (que nasce `pbkdf2v3`) + 2FA.
 
@@ -140,7 +143,7 @@ Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já us
 
 **Status: configurado.** Staging é o ambiente **Preview** do projeto Pages, com D1/R2 **dedicados** (`escalas-db-staging` / `escalas-docs-staging`), declarados na seção **`[env.preview]`** do [`wrangler.toml`](wrangler.toml). As bindings de **produção** ficam no top-level (inalteradas) — produção nunca escreve no banco de staging e vice-versa.
 
-- **Deploy de staging:** push para a branch **`staging`** → o [`deploy.yml`](.github/workflows/deploy.yml) roda `pages deploy --branch=staging` (um *preview deployment* do mesmo projeto Pages).
+- **Deploy de staging:** push para a branch **`staging`** → o [`deploy.yml`](.github/workflows/deploy.yml) roda `pages deploy --branch=staging` (um _preview deployment_ do mesmo projeto Pages).
 - **Migrações de staging:** `npm run db:migrate:staging` (alvo `--staging` do [`scripts/migrate.ts`](scripts/migrate.ts)).
 - **Secrets de staging:** configurar no Pages → Settings → Environment variables, escopo **Preview**. Para o staging exercitar o caminho `pbkdf2v3`, defina também o `PASSWORD_PEPPER` no escopo Preview (pode ser um valor de teste, distinto do de produção — o D1 é isolado).
 - **Guarda de produção:** só a **migração remota de produção** (`npm run db:migrate:prod`) exige `-- --yes`, abortando antes de tocar o D1 sem confirmação explícita.
@@ -183,7 +186,7 @@ O dump contém dados pessoais em claro (nome, e-mail, telefone) — por isso é 
    - **Lifecycle:** apagar objetos de `d1/diario/` após **90 dias** e de `d1/mensal/` após **12 meses**;
    - **Lock de retenção** (Settings do bucket): impede deleção dentro da janela mesmo com token comprometido.
 3. **Token dedicado:** crie um API token com escopo mínimo (**D1 read** + **R2 write restrito ao bucket `escalas-backups`**) e cadastre como secret `CLOUDFLARE_BACKUP_API_TOKEN`. **Não reutilize** o token de deploy.
-4. Confira os 3 secrets em Settings → Secrets and variables → Actions (`CLOUDFLARE_ACCOUNT_ID` já existe do deploy) e rode o workflow manualmente (aba Actions → *Backup D1* → Run workflow) para validar ponta a ponta.
+4. Confira os 3 secrets em Settings → Secrets and variables → Actions (`CLOUDFLARE_ACCOUNT_ID` já existe do deploy) e rode o workflow manualmente (aba Actions → _Backup D1_ → Run workflow) para validar ponta a ponta.
 
 **Restauração** (para um banco novo/vazio — nunca por cima de produção sem export prévio):
 
@@ -295,6 +298,8 @@ Provedores credenciados ICP-Brasil: Bry, Soluti, Certisign, AC Safeweb, ICP-EDU.
 
 > **Aviso:** sem `EXIGIR_TSA_QUALIFICADA=1`, o sistema aceita assinaturas com apenas o `signingTime` do servidor — sem oponibilidade a terceiros conforme DOC-ICP-15.
 
+> ⚠️ **Armadilha — não ligue `EXIGIR_TSA_QUALIFICADA=1` sem trocar a `TSA_URL`.** O default embarcado em `wrangler.toml` é a DigiCert (`timestamp.digicert.com`), que **não é ACT ICP-Brasil** → o carimbo é sempre `tsa_externa`, nunca `act_icp`. Com o flag ligado e a `TSA_URL` ainda na DigiCert, o [`cades-finalizer.ts`](src/lib/server/cades-finalizer.ts) **rejeita 100% das assinaturas qualificadas com HTTP 422**. Ligue o flag **somente** depois de apontar `TSA_URL` para uma ACT credenciada. O `cades-finalizer` detecta essa combinação e emite `[CADES][CONFIG]` no log (configure alerta no Sentry).
+
 ## Sincronização Google Sheets
 
 O script [`scripts/GoogleAppsScript_Sync.gs`](scripts/GoogleAppsScript_Sync.gs) faz o upsert de servidores e unidades a partir de uma planilha. Ele consome `SYNC_TOKEN` (e opcionalmente `RESET_TOKEN`) via `PropertiesService` da própria planilha — **nunca** colocados no código-fonte.
@@ -346,11 +351,11 @@ PRs do bot:
 
 O `dependabot.yml` ignora **upgrades major** de algumas dependências críticas:
 
-| Dependência | Por quê |
-|---|---|
-| `node-forge` | Mudança pode alterar validação de cadeia ICP-Brasil |
-| `pdf-lib` | Caminho da assinatura digital — pode quebrar PDFs já assinados |
-| `@signpdf/*` | Idem — placeholder/embed pode mudar formato |
+| Dependência  | Por quê                                                        |
+| ------------ | -------------------------------------------------------------- |
+| `node-forge` | Mudança pode alterar validação de cadeia ICP-Brasil            |
+| `pdf-lib`    | Caminho da assinatura digital — pode quebrar PDFs já assinados |
+| `@signpdf/*` | Idem — placeholder/embed pode mudar formato                    |
 
 Para esses, qualquer upgrade major precisa ser feito manualmente após testar o fluxo de assinatura ponta-a-ponta em staging.
 

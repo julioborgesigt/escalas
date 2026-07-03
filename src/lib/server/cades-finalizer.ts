@@ -52,6 +52,74 @@ export function exigirTsa(env?: Record<string, string | undefined>): boolean {
 }
 
 /**
+ * Hosts de TSA públicas conhecidamente NÃO credenciadas na ICP-Brasil. São
+ * endpoints gratuitos úteis para ancorar CAdES-T (tempo real, custo zero), mas
+ * cujo carimbo é sempre classificado como `tsa_externa` — nunca `act_icp`.
+ *
+ * O `wrangler.toml` embarca `TSA_URL = timestamp.digicert.com` como default.
+ */
+const TSA_PUBLICAS_NAO_ICP = [
+	'timestamp.digicert.com',
+	'timestamp.sectigo.com',
+	'timestamp.entrust.net',
+	'timestamp.apple.com',
+	'timestamp.globalsign.com',
+	'freetsa.org',
+	'time.certum.pl'
+];
+
+/**
+ * Diagnostica a coerência entre `TSA_URL` e `EXIGIR_TSA_QUALIFICADA`.
+ *
+ * Armadilha alvo: o `wrangler.toml` embarca `TSA_URL = timestamp.digicert.com`
+ * (não-ICP) e o `DEPLOY.md` recomenda ligar `EXIGIR_TSA_QUALIFICADA=1` em
+ * produção. Combinados SEM trocar a TSA, o carimbo nunca vira `act_icp` e o
+ * finalizador rejeita 100% das assinaturas qualificadas com 422 — sintoma que
+ * só aparece em produção.
+ *
+ * Retorna `coerente:false` + `motivo` quando a combinação é a armadilha. NÃO
+ * bloqueia nada por si — o caller usa isto para avisar o operador (log/Sentry)
+ * com texto acionável. É deliberadamente conservador: só acusa hosts de não-ICP
+ * conhecidos, evitando falso-positivo numa ACT ICP legítima cujo host não
+ * reconhecemos (essa cai no ramo `coerente:true`, e o 422 real — se houver —
+ * traz a mensagem genérica).
+ */
+export function avaliarConfiguracaoTsa(env?: Record<string, string | undefined>): {
+	coerente: boolean;
+	motivo?: string;
+} {
+	if (!exigirTsa(env)) return { coerente: true };
+	const url = env?.TSA_URL ?? (typeof process !== 'undefined' ? process.env?.TSA_URL : undefined);
+	if (!url || !url.trim()) {
+		return {
+			coerente: false,
+			motivo:
+				'EXIGIR_TSA_QUALIFICADA está ligado mas TSA_URL não está configurada — toda ' +
+				'assinatura qualificada sem TST embarcado pelo cliente será rejeitada (422). ' +
+				'Aponte TSA_URL para uma ACT credenciada ICP-Brasil.'
+		};
+	}
+	let host: string;
+	try {
+		host = new URL(url).hostname.toLowerCase();
+	} catch {
+		return { coerente: false, motivo: `TSA_URL inválida: ${url}` };
+	}
+	const naoIcp = TSA_PUBLICAS_NAO_ICP.some((h) => host === h || host.endsWith('.' + h));
+	if (naoIcp) {
+		return {
+			coerente: false,
+			motivo:
+				`EXIGIR_TSA_QUALIFICADA=1 com TSA_URL não-ICP (${host}): o carimbo será sempre ` +
+				'classificado como tsa_externa, nunca act_icp — o finalizador rejeitará TODA ' +
+				'assinatura qualificada com 422. Aponte TSA_URL para uma ACT credenciada ' +
+				'ICP-Brasil (ex.: Bry, Soluti, Certisign) ou desligue EXIGIR_TSA_QUALIFICADA.'
+		};
+	}
+	return { coerente: true };
+}
+
+/**
  * Rótulo do carimbo a partir do resultado da verificação do TST.
  *
  * `null` (carimbo NÃO verificável) → `'servidor'`: no fluxo de assinatura o TST
@@ -283,6 +351,18 @@ export async function verificarECarimbarAssinatura(
 	}
 
 	if (tipoCarimboTempo !== 'act_icp' && exigirTsa(options.env)) {
+		// Surface a armadilha de configuração no log do operador (greppável em
+		// Sentry): quando TSA_URL é uma TSA não-ICP conhecida, ESTE 422 vai
+		// rejeitar TODAS as assinaturas qualificadas até a TSA ser trocada.
+		const cfg = avaliarConfiguracaoTsa(options.env);
+		if (!cfg.coerente) {
+			logger.error(
+				'[CADES][CONFIG] Configuração de TSA incoerente — assinatura qualificada bloqueada',
+				{
+					motivo: cfg.motivo
+				}
+			);
+		}
 		return {
 			ok: false,
 			status: 422,

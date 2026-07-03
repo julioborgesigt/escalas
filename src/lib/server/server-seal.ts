@@ -37,7 +37,8 @@ import {
 	parseCms,
 	verificarIntegridadePdf,
 	verificarAssinaturaCmsAsync,
-	verificarTimestampToken
+	verificarTimestampToken,
+	avaliarCoberturaAssinatura
 } from './pdf-verification';
 import { solicitarCarimboTempo } from './tsa';
 import { adicionarTimestampTokenAoCms } from './cms-tst';
@@ -210,7 +211,13 @@ export async function selarPdfInstitucional(
 export interface ResultadoVerificacaoSelo {
 	/** O PDF contém um CMS (selo) embarcado. */
 	presente: boolean;
-	/** Integridade do byte-range + assinatura RSA conferem (documento não adulterado). */
+	/**
+	 * Integridade completa: byte-range confere com o messageDigest, assinatura
+	 * RSA do selo confere E o /ByteRange cobre o arquivo inteiro (sem conteúdo
+	 * anexado após a região assinada). A cobertura é o que fecha o *shadow
+	 * attack* — sem ela, bytes acrescentados após a assinatura passariam pela
+	 * checagem de hash (que só cobre os trechos que o próprio PDF declara).
+	 */
 	integro: boolean;
 	/** O certificado do selo é EXATAMENTE o desta instituição (bate com a env atual). */
 	autentico: boolean;
@@ -224,8 +231,15 @@ export interface ResultadoVerificacaoSelo {
 /**
  * Verifica o selo institucional embarcado num PDF do fluxo avançado (usado pela
  * página /validar). NÃO valida cadeia ICP-Brasil (o selo é autoassinado de
- * propósito) — valida (1) integridade do documento, (2) assinatura RSA do selo
- * e (3) se o certificado bate com o selo configurado neste servidor (autêntico).
+ * propósito) — valida (1) integridade do documento, (2) cobertura do /ByteRange
+ * (anti shadow-attack), (3) assinatura RSA do selo e (4) se o certificado bate
+ * com o selo configurado neste servidor (autêntico).
+ *
+ * A cobertura (2) equipara este verificador ao fluxo qualificado
+ * (`verificarAssinaturaCompleta`): sem ela, o selo prometeria "à prova de
+ * adulteração, independente do servidor" mas aceitaria um PDF com conteúdo
+ * anexado após a região assinada — `verificarIntegridadePdf` só confere os
+ * trechos que o próprio PDF declara no /ByteRange.
  *
  * Documento sem CMS (rodapé honesto puro, sem chave configurada) → `presente:false`.
  */
@@ -240,6 +254,9 @@ export async function verificarSeloInstitucional(
 	if (!cms) return vazio;
 
 	const integridade = await verificarIntegridadePdf(extra.bytesAssinados, cms.messageDigest);
+	// Cobertura do /ByteRange: mesma defesa anti shadow-attack do fluxo qualificado.
+	// Tolera apenas incremental update DSS legítimo (PAdES-LT) após a assinatura.
+	const cobertura = await avaliarCoberturaAssinatura(pdfBytes, extra.byteRange);
 	const rsaOk = await verificarAssinaturaCmsAsync(
 		cms.certificate,
 		cms.sigAlgOid,
@@ -279,7 +296,7 @@ export async function verificarSeloInstitucional(
 
 	return {
 		presente: true,
-		integro: integridade && rsaOk,
+		integro: integridade && rsaOk && cobertura.ok,
 		autentico,
 		cn,
 		momento,

@@ -159,6 +159,33 @@ describe('verificarSeloInstitucional', () => {
 		expect(v.integro).toBe(false);
 	});
 
+	it('shadow-attack (conteúdo anexado após a assinatura) → não íntegro', async () => {
+		// Regressão da lacuna do parecer: sem a checagem de cobertura, bytes
+		// acrescentados após a região assinada passavam por verificarIntegridadePdf
+		// (que só cobre o /ByteRange declarado) e o selo reportava integro:true.
+		const r = await selarPdfInstitucional(await pdfMinimo(), 'FULANO', {
+			env: { SELO_INSTITUCIONAL_PEM: bundle }
+		});
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+
+		const injecao = new TextEncoder().encode('\n% conteudo injetado apos a assinatura\n');
+		const comShadow = new Uint8Array(r.pdf.length + injecao.length);
+		comShadow.set(r.pdf, 0);
+		comShadow.set(injecao, r.pdf.length);
+
+		// O byte-range assinado permanece intacto → integridade "local" ainda passa...
+		const extra = extrairCmsDoPdf(comShadow);
+		expect(extra).not.toBeNull();
+		const cms = parseCms(extra!.cmsDer);
+		expect(await verificarIntegridadePdf(extra!.bytesAssinados, cms!.messageDigest)).toBe(true);
+
+		// ...mas a cobertura pega o conteúdo anexado e o selo é reprovado.
+		const v = await verificarSeloInstitucional(comShadow, { SELO_INSTITUCIONAL_PEM: bundle });
+		expect(v.presente).toBe(true);
+		expect(v.integro).toBe(false);
+	});
+
 	it('PDF sem selo (rodapé honesto puro) → presente:false', async () => {
 		const v = await verificarSeloInstitucional(await pdfMinimo(), {
 			SELO_INSTITUCIONAL_PEM: bundle
