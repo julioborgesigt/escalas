@@ -19,7 +19,8 @@ import {
 	escalas as escalasTable,
 	escalaPoliciais,
 	escalaDocumentos,
-	escalaSolicitacoesAssinatura
+	escalaSolicitacoesAssinatura,
+	policiais as policiaisTable
 } from '$lib/server/schema';
 import {
 	calcularProximoMesDias,
@@ -102,6 +103,19 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 
 	const podeAssinar =
 		(u.papel === 'admin_seccional' || u.papel === 'admin_unidade') && u.cargo === 'DPC';
+
+	// Rubrica reutilizável do signatário — para o prompt de cadastro (Lógica 2a):
+	// quem pode assinar por token mas ainda não cadastrou a rubrica é convidado a
+	// cadastrá-la (não-bloqueante). Só consulta para quem assina.
+	let minhaRubrica: string | null = null;
+	if (podeAssinar) {
+		const rubRow = await db
+			.select({ rubrica: policiaisTable.rubrica })
+			.from(policiaisTable)
+			.where(eq(policiaisTable.id, u.id))
+			.get();
+		minhaRubrica = rubRow?.rubrica ?? null;
+	}
 
 	// OIP admin pode solicitar assinatura (mas não assinar diretamente)
 	const podeOIPSolicitar =
@@ -260,6 +274,7 @@ export const load: PageServerLoad = async ({ locals, platform, url, depends }) =
 		escalasExistentes,
 		initialView,
 		podeAssinar,
+		minhaRubrica,
 		podeOIPSolicitar,
 		solicitacoesMap,
 		escalasParaAssinar: escalasParaAssinar as Array<{

@@ -3,8 +3,43 @@ import { policiais, unidades } from '../server/schema';
 import type * as schema from '../server/schema';
 import { limparMatricula } from '../utils';
 import { gerarSenhaAleatoriaHash } from '../auth';
-import { prepararCpfParaDB, type CpfCriptoEnv } from '../crypto/cpf-cripto';
+import {
+	prepararCpfParaDB,
+	decifrarCpfDoDB,
+	cpfKeys,
+	indiceCPF,
+	type CpfCriptoEnv
+} from '../crypto/cpf-cripto';
 import type { Database } from './core';
+
+/**
+ * Busca a rubrica reutilizável do policial a partir do CPF CIFRADO gravado no
+ * documento (escala_documentos.assinante_cpf). Decifra, resolve pelo índice
+ * cego `cpf_index` (ou pelo `cpf` em claro no fallback sem chave) e devolve a
+ * rubrica. Best-effort: qualquer falha devolve `undefined` (campo fica vazio).
+ *
+ * Usado pela CÓPIA DE CONFERÊNCIA para desenhar a mesma rubrica do documento
+ * digital sem depender de coluna própria em escala_documentos.
+ */
+export async function buscarRubricaAssinante(
+	db: Database,
+	cpfCifrado: string | null | undefined,
+	env?: CpfCriptoEnv
+): Promise<string | undefined> {
+	if (!cpfCifrado) return undefined;
+	try {
+		const cpfClaro = await decifrarCpfDoDB(cpfCifrado, env);
+		if (!cpfClaro) return undefined;
+		const { indexKey } = cpfKeys(env);
+		const filtro = indexKey
+			? eq(policiais.cpf_index, await indiceCPF(cpfClaro, indexKey))
+			: eq(policiais.cpf, cpfClaro);
+		const row = await db.select({ rubrica: policiais.rubrica }).from(policiais).where(filtro).get();
+		return row?.rubrica ?? undefined;
+	} catch {
+		return undefined;
+	}
+}
 
 /** Escapa caracteres especiais do LIKE para evitar wildcard injection */
 function escapeLike(str: string): string {

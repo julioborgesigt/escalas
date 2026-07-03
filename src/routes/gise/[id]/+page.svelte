@@ -2,6 +2,7 @@
 	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
+	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
 	import { enhance } from '$app/forms';
@@ -24,6 +25,7 @@
 	import ModalFinalizar from './_components/modais/ModalFinalizar.svelte';
 	import ModalDatasHoras from './_components/modais/ModalDatasHoras.svelte';
 	import ModalRubrica from './_components/modais/ModalRubrica.svelte';
+	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import ModalRelatorioDigital from './_components/modais/ModalRelatorioDigital.svelte';
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
@@ -411,6 +413,26 @@
 				gise?.status === 'pronta_para_finalizar' ||
 				gise?.status === 'finalizada')
 	);
+
+	// --- Rubrica reutilizável (cadastro para assinatura por token, Lógica 2a) ---
+	function rubricaValida(v: unknown): string | null {
+		return typeof v === 'string' && v.startsWith('data:image/') ? v : null;
+	}
+	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
+	let cadastrandoRubrica = $state(false);
+	// Supervisor que vai assinar (GISE diária ou relatórios) e ainda não tem rubrica.
+	const precisaRubrica = $derived(
+		isSupervisor && !minhaRubrica && (podeAssinar || gise?.status === 'aguardando_assinatura_relat')
+	);
+	// Oferece o cadastro UMA vez por sessão (chave compartilhada com a página de
+	// escalas: a rubrica é a mesma, cadastrar uma vez cobre ambas). Não bloqueia.
+	$effect(() => {
+		if (!browser || !precisaRubrica || cadastrandoRubrica) return;
+		if (!sessionStorage.getItem('rubrica-prompt-oferecido')) {
+			sessionStorage.setItem('rubrica-prompt-oferecido', '1');
+			cadastrandoRubrica = true;
+		}
+	});
 </script>
 
 <svelte:head>
@@ -465,6 +487,38 @@
 	{#if !gise}
 		<p class="text-surface-500">Escala não encontrada.</p>
 	{:else}
+		{#if precisaRubrica}
+			<div
+				class="mb-4 rounded-xl border border-tertiary-300 bg-tertiary-50 dark:border-tertiary-700 dark:bg-tertiary-900/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+			>
+				<span class="text-2xl">✍️</span>
+				<div class="flex-1 text-sm">
+					<p class="font-bold">Cadastre sua rubrica</p>
+					<p class="text-surface-600 dark:text-surface-300">
+						Sua rubrica aparecerá no campo de assinatura dos documentos que você assinar por token.
+						É de uso pessoal e opcional — você pode assinar sem ela.
+					</p>
+				</div>
+				<button
+					type="button"
+					class="btn preset-filled-tertiary-500 whitespace-nowrap"
+					onclick={() => (cadastrandoRubrica = true)}
+				>
+					Cadastrar rubrica
+				</button>
+			</div>
+		{:else if isSupervisor}
+			<div class="mb-3 flex justify-end">
+				<button
+					type="button"
+					class="text-sm text-tertiary-600 dark:text-tertiary-400 hover:underline flex items-center gap-1"
+					onclick={() => (cadastrandoRubrica = true)}
+				>
+					✍️ {minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
+				</button>
+			</div>
+		{/if}
+
 		{#if !isSeccional || isSupervisor}
 			<GiseSupervisao
 				{gise}
@@ -770,4 +824,11 @@
 	bind:open={showDownloadExtrasModal}
 	gise={giseParaDownload}
 	supervisaoExtraUnidadeId={data.supervisaoExtraUnidadeId}
+/>
+
+<!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
+<ModalCadastrarRubrica
+	bind:open={cadastrandoRubrica}
+	rubricaAtual={minhaRubrica}
+	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
 />

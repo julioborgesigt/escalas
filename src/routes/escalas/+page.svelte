@@ -23,6 +23,7 @@
 	import ModalNovaEscala from './_components/ModalNovaEscala.svelte';
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
 	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
+	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
 	import DialogSolicitarAssinatura from './_components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
@@ -356,6 +357,25 @@
 		}>
 	);
 
+	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
+	// Só consideramos "tem rubrica" quando é um dataURL de imagem real.
+	function rubricaValida(v: unknown): string | null {
+		return typeof v === 'string' && v.startsWith('data:image/') ? v : null;
+	}
+	let minhaRubrica = $state<string | null>(untrack(() => rubricaValida(data.minhaRubrica)));
+	let cadastrandoRubrica = $state(false);
+	// Lógica 2a: quem pode assinar por token, tem pendência e NÃO tem rubrica.
+	const precisaRubrica = $derived(podeAssinar && escalasParaAssinar.length > 0 && !minhaRubrica);
+	// Oferece o cadastro UMA vez por sessão (login) — depois o banner mantém a
+	// opção visível sem incomodar a cada troca de aba. Nunca bloqueia a assinatura.
+	$effect(() => {
+		if (!browser || !precisaRubrica || cadastrandoRubrica) return;
+		if (!sessionStorage.getItem('rubrica-prompt-oferecido')) {
+			sessionStorage.setItem('rubrica-prompt-oferecido', '1');
+			cadastrandoRubrica = true;
+		}
+	});
+
 	const podeOIPSolicitar = $derived((data.podeOIPSolicitar as boolean) ?? false);
 	type SolicitacaoInfo = {
 		tipo: 'unidade' | 'respondencia';
@@ -498,6 +518,15 @@
 							>Não há escalas aguardando sua assinatura no momento.</span
 						>
 					</div>
+				{/if}
+				{#if podeAssinar}
+					<button
+						type="button"
+						class="text-sm text-tertiary-600 dark:text-tertiary-400 hover:underline flex items-center justify-center gap-1"
+						onclick={() => (cadastrandoRubrica = true)}
+					>
+						✍️ {minhaRubrica ? 'Gerenciar minha rubrica' : 'Cadastrar minha rubrica'}
+					</button>
 				{/if}
 			</div>
 		{:else}
@@ -772,6 +801,27 @@
 		/>
 	</div>
 {:else if visao === 'assinaturas'}
+	{#if precisaRubrica}
+		<div
+			class="mx-auto mb-4 max-w-3xl rounded-xl border border-tertiary-300 bg-tertiary-50 dark:border-tertiary-700 dark:bg-tertiary-900/30 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+		>
+			<span class="text-2xl">✍️</span>
+			<div class="flex-1 text-sm">
+				<p class="font-bold">Cadastre sua rubrica</p>
+				<p class="text-surface-600 dark:text-surface-300">
+					Sua rubrica aparecerá no campo de assinatura dos documentos que você assinar por token. É
+					de uso pessoal e opcional — você pode assinar sem ela.
+				</p>
+			</div>
+			<button
+				type="button"
+				class="btn preset-filled-tertiary-500 whitespace-nowrap"
+				onclick={() => (cadastrandoRubrica = true)}
+			>
+				Cadastrar rubrica
+			</button>
+		</div>
+	{/if}
 	<SecaoAssinaturas
 		{escalasParaAssinar}
 		{assinaturaTelaBloqueada}
@@ -893,5 +943,12 @@
 		</div>
 	</Dialog.Content>
 </Dialog>
+
+<!-- Cadastro/gestão da rubrica reutilizável (assinatura por token no computador) -->
+<ModalCadastrarRubrica
+	bind:open={cadastrandoRubrica}
+	rubricaAtual={minhaRubrica}
+	onSaved={(nova) => (minhaRubrica = rubricaValida(nova))}
+/>
 
 <FloatingRefresh />

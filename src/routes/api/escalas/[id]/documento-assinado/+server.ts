@@ -7,7 +7,8 @@ import {
 	buscarDocumentoEscala,
 	excluirDocumentoEscala,
 	buscarEscala,
-	listarPoliciaisEscala
+	listarPoliciaisEscala,
+	buscarRubricaAssinante
 } from '$lib/db';
 import { registrarAuditComContexto } from '$lib/db';
 import {
@@ -66,9 +67,12 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 		});
 	}
 
-	// Padrão: cópia de conferência (sem manifesto forense).
+	// Padrão: cópia de conferência (sem manifesto forense). Desenha a rubrica do
+	// signatário acima da linha (mesma do documento digital), buscando-a pelo
+	// cadastro do assinante — sem rubrica, o campo fica vazio como antes.
 	const policiais = await listarPoliciaisEscala(db, id);
-	const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform);
+	const rubricaAss = await buscarRubricaAssinante(db, documento.assinante_cpf, platform?.env);
+	const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform, rubricaAss);
 	const hash = documento.verificacao_hash ?? undefined;
 	const buffer = await gerarCopiaConferencia({
 		pdfRascunho: rascunho,

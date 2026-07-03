@@ -30,24 +30,37 @@ async function carregarLogoR2(
 	}
 }
 
-/** Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo. */
+/**
+ * Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo.
+ *
+ * `rubrica` (opcional): quando informada, é desenhada acima da linha de
+ * assinatura — usada pela CÓPIA DE CONFERÊNCIA para espelhar o documento
+ * digital assinado por token (rubrica no campo, em vez de campo vazio).
+ */
 export async function gerarRascunhoEscalaPdf(
 	escala: EscalaArg,
 	policiais: PoliciaisArg,
-	platform: App.Platform | undefined
+	platform: App.Platform | undefined,
+	rubrica?: string
 ): Promise<Uint8Array> {
 	if (escala.tipo === 'expediente') {
 		const [logoPolicia, logoCeara] = await Promise.all([
 			carregarLogoR2(platform, 'assets/logogise.jpg'),
 			carregarLogoR2(platform, 'assets/logo_ceara.jpg')
 		]);
-		const result = await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara);
+		const result = await exportLib.gerarPdfExpediente(
+			escala,
+			policiais,
+			logoPolicia,
+			logoCeara,
+			rubrica
+		);
 		return result.pdf;
 	}
 	if (escala.tipo === 'plantao') {
-		return exportLib.gerarPdfPlantao(escala, policiais).pdf;
+		return exportLib.gerarPdfPlantao(escala, policiais, rubrica).pdf;
 	}
-	return exportLib.gerarPdf(escala, policiais).pdf;
+	return exportLib.gerarPdf(escala, policiais, rubrica).pdf;
 }
 
 /** Gera o rascunho PDF de uma GISE detalhada (sem manifesto forense). */

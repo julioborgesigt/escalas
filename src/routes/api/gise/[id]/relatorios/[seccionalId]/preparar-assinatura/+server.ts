@@ -12,7 +12,8 @@ import {
 	buscarPresencasGise,
 	buscarGiseSeccionalMembros,
 	buscarTermosPresencaGise,
-	verificarSaidaCompletaSeccional
+	verificarSaidaCompletaSeccional,
+	buscarPolicial
 } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
@@ -56,7 +57,8 @@ export const POST: RequestHandler = async ({
 
 	const validated = await validateBody(request, prepararAssinaturaSchema);
 	if (!validated.ok) return validated.response;
-	const { signerName, signerCpf, rubrica, latitude, longitude } = validated.data;
+	// `rubrica` do body é ignorada: vem do cadastro do perfil (server-side).
+	const { signerName, signerCpf, latitude, longitude } = validated.data;
 	const ip = getClientAddress();
 	const ua = request.headers.get('user-agent') || '';
 
@@ -83,6 +85,11 @@ export const POST: RequestHandler = async ({
 
 	const finalSignerName = signerName && signerName.trim() ? signerName : u.nome;
 	const finalSignerCpf = signerCpf && signerCpf.trim() ? signerCpf : u.cpf || '';
+
+	// Rubrica + matrícula do signatário (supervisor) para o campo + rodapé.
+	const polAss = await buscarPolicial(db, u.id);
+	const rubricaAssinatura = polAss?.rubrica ?? undefined;
+	const matriculaAssinatura = u.matricula ?? polAss?.matricula ?? undefined;
 
 	const mockSignature = {
 		assinante_nome: finalSignerName,
@@ -139,7 +146,10 @@ export const POST: RequestHandler = async ({
 	const pdfComRodape = await adicionarRodapeUniversal(pdfBytes, {
 		documentHash,
 		verificationUrl,
-		verificationHash
+		verificationHash,
+		signerName: finalSignerName,
+		signerMatricula: matriculaAssinatura,
+		signedAtISO: new Date().toISOString()
 	});
 
 	// Usar o PDF com rodapé para os próximos passos
@@ -297,10 +307,11 @@ export const POST: RequestHandler = async ({
 		verificationHash,
 		verificationUrl,
 		boxY_pts,
-		rubrica || undefined,
+		rubricaAssinatura,
 		rx_pts,
 		ry_pts,
-		contentPageIndex
+		contentPageIndex,
+		'rubrica'
 	);
 
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
