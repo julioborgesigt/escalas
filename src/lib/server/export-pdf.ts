@@ -295,8 +295,10 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 
 	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 	const pageWidth = 297;
-	let sigY = lastY + 35;
-	if (sigY > 185) {
+	// Bloco de assinatura mais alto (offset/cap menores): deixa folga entre a
+	// assinatura e o rodapé de identidade/QR no pé da página (mesma diretriz do plantão).
+	let sigY = lastY + 20;
+	if (sigY > 173) {
 		doc.addPage();
 		sigY = 35;
 	}
@@ -599,15 +601,18 @@ export function gerarPdfPlantao(
 
 	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
 
-	let sigY = lastY + 45;
-	if (sigY > 190) {
+	// Observação logo abaixo do fim da tabela (não colada à assinatura).
+	doc.setFontSize(8);
+	doc.setFont('helvetica', 'normal');
+	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, lastY + 8);
+
+	// Bloco de assinatura mais alto (offset menor): sobe a data/linha/rubrica,
+	// deixando folga entre a assinatura e o rodapé de identidade/QR no pé da página.
+	let sigY = lastY + 28;
+	if (sigY > 178) {
 		doc.addPage();
 		sigY = 35;
 	}
-
-	doc.setFontSize(8);
-	doc.setFont('helvetica', 'normal');
-	doc.text('Obs.: Escala sujeita a alteração conforme necessidade do serviço.', margin, sigY - 10);
 
 	doc.setFontSize(9);
 	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';

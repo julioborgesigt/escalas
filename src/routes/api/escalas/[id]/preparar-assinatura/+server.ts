@@ -122,10 +122,11 @@ export const POST: RequestHandler = async ({
 
 	// contentPageIndex = índice da última página de conteúdo (para posicionar o carimbo PKI)
 	const contentPageIndex = contentPageCount - 1;
-	// Piso de 78pt: garante que o campo da rubrica nunca invada a faixa do rodapé
-	// de identidade (QR + dados, até ~72pt). Quando a linha de assinatura fica no
-	// pé da página, o campo flutua um pouco acima dela — aceitável e seguro.
-	const boxY_pts = Math.max((pageHeightMm - sigY) * 2.8346 + 1.5, 78);
+	// Campo da rubrica logo ACIMA da linha de assinatura (que a escala desenha em
+	// sigY). O campo fica à DIREITA e o rodapé de identidade à ESQUERDA, então não
+	// há colisão horizontal — não é preciso o piso alto de antes. Piso baixo (40pt)
+	// só evita o campo encostar no rodapé fino caso a assinatura fique no extremo pé.
+	const boxY_pts = Math.max((pageHeightMm - sigY) * 2.8346 + 3, 40);
 
 	const prepResult = await prepararPdfParaAssinatura(
 		pdfWithAudit,

@@ -562,7 +562,9 @@ async function desenharCampoRubricaLimpo(
 		const rubW = rubricImage.width * escala;
 		const rubH = rubricImage.height * escala;
 		const rx = o.customRubricX !== undefined ? o.customRubricX : boxX + (boxW - rubW) / 2;
-		const ry = o.customRubricY !== undefined ? o.customRubricY : boxY + (boxH - rubH) / 2;
+		// Ancorada junto ao PÉ do campo (logo acima da linha de assinatura), como
+		// uma rubrica manuscrita sobre a linha — e não flutuando no meio do campo.
+		const ry = o.customRubricY !== undefined ? o.customRubricY : boxY + 5;
 		page.drawImage(rubricImage, { x: rx, y: ry, width: rubW, height: rubH, opacity: 0.9 });
 	} catch (err) {
 		logger.error('Erro ao embutir rubrica no campo limpo', {
