@@ -717,13 +717,25 @@ interface RodapeUniversalOptions {
 	/**
 	 * Nome do signatário. Quando presente, a ÚLTIMA página de conteúdo (onde vai o
 	 * campo de assinatura) recebe um bloco de identidade com QR de validação +
-	 * "Assinado digitalmente por: NOME" + código/URL. É aqui que a identidade
-	 * passa a viver quando o carimbo usa o estilo `'rubrica'` (campo só com a
-	 * rubrica). Sem ele, o rodapé mantém apenas hash + base legal.
+	 * "Assinado digitalmente por: NOME" + matrícula/data/código/URL. É aqui que a
+	 * identidade passa a viver quando o carimbo usa o estilo `'rubrica'` (campo só
+	 * com a rubrica). Sem ele, o rodapé mantém apenas hash + base legal.
 	 */
 	signerName?: string;
+	/** Matrícula do signatário, exibida ao lado do nome (ex.: "301.095-1-1"). */
+	signerMatricula?: string;
+	/** ISO 8601 da assinatura — exibida como DATA (sem horário) no fuso -03. */
+	signedAtISO?: string;
 	/** Rótulo da identidade (default "Assinado digitalmente por"). */
 	signatureLabel?: string;
+}
+
+/** Formata um ISO como DD/MM/AAAA no fuso de Brasília (UTC-3), sem horário. */
+function formatarDataBR(iso?: string): string {
+	const d = iso ? new Date(iso) : new Date();
+	if (isNaN(d.getTime())) return '';
+	const br = new Date(d.getTime() - 3 * 3600 * 1000);
+	return `${String(br.getUTCDate()).padStart(2, '0')}/${String(br.getUTCMonth() + 1).padStart(2, '0')}/${br.getUTCFullYear()}`;
 }
 
 /**
@@ -797,13 +809,12 @@ export async function adicionarRodapeUniversal(
 	// código e o QR de validação passam a viver aqui, logo acima do rodapé fino.
 	if (signerName) {
 		const page = pages[lastContentIdx];
-		const { width } = page.getSize();
 		const label = options.signatureLabel ?? 'Assinado digitalmente por';
-		const bandY = 34; // acima do rodapé fino (footerY 18 + linha em 28)
-		const qrSize = 34;
+		const qrSize = 40;
 		const qrX = 20;
+		const qrY = 32; // QR ocupa y 32..72, acima do rodapé fino (separador em y=28)
 
-		// QR de validação (canto inferior esquerdo).
+		// QR de validação (canto inferior esquerdo). Permanece inalterado.
 		if (verificationUrl) {
 			try {
 				const qr = QRCode.create(verificationUrl, { errorCorrectionLevel: 'M' });
@@ -811,7 +822,7 @@ export async function adicionarRodapeUniversal(
 				const dot = qrSize / moduleCount;
 				page.drawRectangle({
 					x: qrX - 1.5,
-					y: bandY - 1.5,
+					y: qrY - 1.5,
 					width: qrSize + 3,
 					height: qrSize + 3,
 					color: rgb(1, 1, 1)
@@ -821,7 +832,7 @@ export async function adicionarRodapeUniversal(
 						if (qr.modules.get(row, col)) {
 							page.drawRectangle({
 								x: qrX + col * dot,
-								y: bandY + (moduleCount - row - 1) * dot,
+								y: qrY + (moduleCount - row - 1) * dot,
 								width: dot + 0.1,
 								height: dot + 0.1,
 								color: rgb(0, 0, 0)
@@ -836,33 +847,41 @@ export async function adicionarRodapeUniversal(
 			}
 		}
 
+		// Bloco de texto (5 linhas) ao lado do QR.
 		const tx = qrX + qrSize + 8;
-		page.drawText(`${label}:`, { x: tx, y: bandY + qrSize - 8, size: 6, font, color: cGray });
-		page.drawText(signerName.toUpperCase(), {
+		page.drawText(`${label}:`, { x: tx, y: 72, size: 6, font, color: cGray });
+
+		const mat = options.signerMatricula ? ` - Mat.: ${options.signerMatricula}` : '';
+		page.drawText(`${signerName.toUpperCase()}${mat}`, {
 			x: tx,
-			y: bandY + qrSize - 17,
+			y: 62,
 			size: 8,
 			font: fontBold,
 			color: cDark
 		});
+
+		const dataAss = formatarDataBR(options.signedAtISO);
+		page.drawText(`Assinado em ${dataAss} – MP 2.200-2/2001 – ICP Brasil`, {
+			x: tx,
+			y: 53,
+			size: 5.5,
+			font,
+			color: cGray
+		});
+
 		if (verificationHash) {
-			page.drawText(`Código: ${verificationHash}`, {
+			page.drawText(`Código verificador: ${verificationHash}`, {
 				x: tx,
-				y: bandY + qrSize - 26,
+				y: 44,
 				size: 6,
 				font: fontMono,
 				color: cGray
 			});
 		}
+
 		if (verificationUrl) {
 			const cleanUrl = verificationUrl.replace(/^https?:\/\//, '');
-			page.drawText(`Validar em ${cleanUrl} · MP 2.200-2/2001 — ICP-Brasil`, {
-				x: tx,
-				y: bandY - 1,
-				size: 5,
-				font,
-				color: cGray
-			});
+			page.drawText(`Validar em ${cleanUrl}`, { x: tx, y: 35, size: 5.5, font, color: cGray });
 		}
 	}
 
