@@ -110,23 +110,31 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 	if (!privilegiado) {
 		const verificationUrl = `${url.origin}/validar/${hash}`;
 		if (documento.tipo_doc === 'escala') {
-			const { buscarEscala, listarPoliciaisEscala } = await import('$lib/db');
+			const { buscarEscala, listarPoliciaisEscala, buscarRubricaAssinante } =
+				await import('$lib/db');
 			const exportLib = await import('$lib/server/export');
 			const escala = await buscarEscala(db, documento.escala_id);
 			if (!escala) return notFound('Escala');
 			const policiais = await listarPoliciaisEscala(db, documento.escala_id);
+			// Rubrica do signatário acima da linha (igual ao documento digital).
+			const rubricaAss = await buscarRubricaAssinante(
+				db,
+				(documento as { assinante_cpf?: string | null }).assinante_cpf,
+				platform?.env
+			);
 			let rascunho: Uint8Array;
 			if (escala.tipo === 'expediente') {
 				const [logoPolicia, logoCeara] = await Promise.all([
 					carregarLogoConferencia(platform, 'assets/logogise.jpg'),
 					carregarLogoConferencia(platform, 'assets/logo_ceara.jpg')
 				]);
-				rascunho = (await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara))
-					.pdf;
+				rascunho = (
+					await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara, rubricaAss)
+				).pdf;
 			} else if (escala.tipo === 'plantao') {
-				rascunho = exportLib.gerarPdfPlantao(escala, policiais).pdf;
+				rascunho = exportLib.gerarPdfPlantao(escala, policiais, rubricaAss).pdf;
 			} else {
-				rascunho = exportLib.gerarPdf(escala, policiais).pdf;
+				rascunho = exportLib.gerarPdf(escala, policiais, rubricaAss).pdf;
 			}
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,

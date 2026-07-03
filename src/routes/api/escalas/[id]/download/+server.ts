@@ -1,5 +1,11 @@
 import type { RequestHandler } from './$types';
-import { getDB, buscarEscala, listarPoliciaisEscala, buscarDocumentoEscala } from '$lib/db';
+import {
+	getDB,
+	buscarEscala,
+	listarPoliciaisEscala,
+	buscarDocumentoEscala,
+	buscarRubricaAssinante
+} from '$lib/db';
 import * as exportLib from '$lib/server/export';
 import {
 	contentDisposition,
@@ -83,8 +89,14 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 				// R2 ausente/falhou: cai na cópia de conferência abaixo.
 			}
 			// Padrão (sem manifesto): cópia de conferência para todos os usuários.
+			// Rubrica do signatário acima da linha (igual ao documento digital).
 			const policiaisConf = await listarPoliciaisEscala(db, id);
-			const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform);
+			const rubricaConf = await buscarRubricaAssinante(
+				db,
+				docAssinado.assinante_cpf,
+				platform?.env
+			);
+			const rascunho = await gerarRascunhoEscalaPdf(escala, policiaisConf, platform, rubricaConf);
 			const hash = docAssinado.verificacao_hash ?? undefined;
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,

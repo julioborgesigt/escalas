@@ -157,6 +157,35 @@ function getImgFormat(dataUrl: string): string | undefined {
 }
 
 /**
+ * Desenha a rubrica do signatário centralizada logo ACIMA da linha de assinatura
+ * (em `sigY`), preservando o aspecto natural. Usado nas escalas para a CÓPIA DE
+ * CONFERÊNCIA — assim o documento impresso mostra a mesma rubrica que o PDF
+ * digital assinado por token, em vez do campo vazio. Best-effort: nunca lança.
+ */
+function desenharRubricaSobreLinha(
+	doc: jsPDF,
+	rubrica: string,
+	sigCenterX: number,
+	sigY: number
+): void {
+	try {
+		const format = getImgFormat(rubrica);
+		const props = doc.getImageProperties(rubrica);
+		const ratio = props.width > 0 ? props.height / props.width : 22 / 60;
+		let rubW = 60;
+		let rubH = rubW * ratio;
+		const maxH = 24;
+		if (rubH > maxH) {
+			rubH = maxH;
+			rubW = ratio > 0 ? rubH / ratio : 60;
+		}
+		doc.addImage(rubrica, format || 'PNG', sigCenterX - rubW / 2, sigY - 3 - rubH, rubW, rubH);
+	} catch (e) {
+		console.error('Erro ao inserir rubrica na escala:', e);
+	}
+}
+
+/**
  * Se o cadastro do policial supervisor estiver sem matrícula, usa a matrícula do usuário da sessão
  * (mesmo id) para o PDF da escala — evita "Matrícula: —" quando o DPC assina.
  */
@@ -242,7 +271,11 @@ export function toGisePdfData(
 }
 
 // ---- PDF ----
-export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): PdfExportResult {
+export function gerarPdf(
+	escala: Escala,
+	policiais: EscalaPolicialComDados[],
+	rubrica?: string
+): PdfExportResult {
 	const dias = agruparPorData(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -313,6 +346,7 @@ export function gerarPdf(escala: Escala, policiais: EscalaPolicialComDados[]): P
 	doc.text(textoData, margin, sigY);
 
 	const sigCenterX = pageWidth * 0.75;
+	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
@@ -327,7 +361,8 @@ export async function gerarPdfExpediente(
 	escala: Escala,
 	policiais: EscalaPolicialComDados[],
 	logoPoliciaBytes?: Uint8Array,
-	logoCearaBytes?: Uint8Array
+	logoCearaBytes?: Uint8Array,
+	rubrica?: string
 ): Promise<PdfExportResult> {
 	const PAGE_H = 210; // paisagem A4
 	const PAGE_W = 297;
@@ -455,6 +490,7 @@ export async function gerarPdfExpediente(
 
 	sigY += 22;
 	const sigCenterX = PAGE_W * 0.75;
+	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.setFont('helvetica', 'normal');
@@ -525,7 +561,8 @@ export async function gerarPdfExpediente(
 // ---- PDF Plantão ----
 export function gerarPdfPlantao(
 	escala: Escala,
-	policiais: EscalaPolicialComDados[]
+	policiais: EscalaPolicialComDados[],
+	rubrica?: string
 ): PdfExportResult {
 	const equipes = agruparPlantao(policiais);
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -621,6 +658,7 @@ export function gerarPdfPlantao(
 	doc.text(textoData, margin, sigY);
 
 	const sigCenterX = pageWidth * 0.75;
+	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
 	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
 	doc.setFontSize(8);
 	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
