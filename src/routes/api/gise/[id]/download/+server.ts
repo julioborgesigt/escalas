@@ -7,7 +7,11 @@ import {
 } from '$lib/db';
 import { isAdminGeral, isAdminSeccional } from '$lib/auth';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
-import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import {
+	podeBaixarComManifesto,
+	gerarCopiaConferencia,
+	chaveConferencia
+} from '$lib/server/copia-conferencia';
 import { carregarLogosGise } from '$lib/server/gise-logos';
 import { registrarAuditComContexto } from '$lib/db/audit';
 import { getR2 } from '$lib/server/platform';
@@ -126,7 +130,24 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 				}
 			}
 
-			// Não privilegiado: regenera o relatório (sem manifesto forense) + rodapé/QR.
+			// Não privilegiado: preferimos a cópia de conferência IDÊNTICA já gravada no
+			// R2 na assinatura (mesmos bytes do relatório assinado); só regeneramos
+			// (legado) quando ela não existe.
+			if (r2) {
+				const confObj = await r2.get(chaveConferencia(reportSignature.verification_hash));
+				if (confObj) {
+					const filename = `conferencia_extraordinario_${gise.data_inicio}_sec_${seccionalId}.pdf`;
+					return new Response(await confObj.arrayBuffer(), {
+						headers: {
+							'Content-Type': 'application/pdf',
+							'Content-Disposition': contentDisposition(filename),
+							'Cache-Control': 'no-cache'
+						}
+					});
+				}
+			}
+
+			// Fallback legado: regenera o relatório (sem manifesto forense) + rodapé/QR.
 			try {
 				const presencas = await buscarPresencasGise(db, id, platform?.env);
 				const isSupExtra = await secIdEhSupervisaoExtra(db, seccionalId);
@@ -258,6 +279,25 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 					logger.warn('[gise/download] Falha ao buscar PDF assinado do R2', {
 						gise_id: id,
 						error: e instanceof Error ? e.message : String(e)
+					});
+				}
+			}
+		}
+
+		// Documento assinado: preferimos a cópia de conferência IDÊNTICA já gravada no
+		// R2 na assinatura (mesmos bytes do documento assinado). Serve direto, sem
+		// regenerar rascunho. Só quando ela não existe caímos na regeneração legada.
+		if (docGise?.r2_key && docGise.verificacao_hash) {
+			const r2Conf = getR2(platform);
+			if (r2Conf) {
+				const confObj = await r2Conf.get(chaveConferencia(docGise.verificacao_hash));
+				if (confObj) {
+					return new Response(await confObj.arrayBuffer(), {
+						headers: {
+							'Content-Type': 'application/pdf',
+							'Content-Disposition': contentDisposition(`conferencia_gise_${gise.data_inicio}.pdf`),
+							'Cache-Control': 'no-cache'
+						}
 					});
 				}
 			}

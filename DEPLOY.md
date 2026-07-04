@@ -228,6 +228,8 @@ npx wrangler d1 time-travel restore escalas-db --remote --timestamp="2026-06-05T
 
 Os PDFs/artefatos são **imutáveis por hash** (a chave deriva do conteúdo), então não há sobrescrita; o risco é **perda** (deleção). O R2 não tem PITR nativo — opções: ativar **versionamento/lock** no bucket (Dashboard → R2 → bucket → Settings) e/ou um job periódico que liste e copie os objetos para um bucket de backup. Como o `arquivo_hash` de cada documento está no D1, o backup do D1 permite **detectar objetos R2 ausentes**.
 
+> **Cópias de conferência (`conferencia/<hash>.pdf`).** Além do blob assinado (com manifesto forense), o `preparar-assinatura` de cada fluxo por token grava, _best-effort_, uma **cópia de conferência** — idêntica por construção às páginas de conteúdo do documento assinado (mesmos bytes: base + rodapé universal + rubrica), **sem** manifesto e **sem** assinatura embutida. É **não-probatória** (a fé pública fica no blob assinado + no portal `/validar`) e serve os downloads padrão. Perdê-la é inócuo: os endpoints regeneram a partir do rascunho quando ela falta (assinaturas legadas incluídas). Revogar/excluir um documento apaga também sua cópia. Uma preparação abandonada (assinatura não concluída) deixa um objeto órfão inofensivo (~dezenas de KB) sob esse prefixo.
+
 ### Rollback de um deploy ruim (Cloudflare Pages)
 
 O Pages mantém o histórico de deployments. Para reverter **código** instantaneamente (sem rebuild): Dashboard → Pages → projeto → Deployments → no último deployment bom, **"Rollback to this deployment"**. Não afeta D1/R2 (dados).

@@ -783,9 +783,11 @@ export async function adicionarRodapeUniversal(
 
 		if (ehPaginaAssinatura) {
 			const linha = `SHA-256: ${hashAbrev}  ·  ${legalText}`;
-			const w =
-				fontMono.widthOfTextAtSize(`SHA-256: ${hashAbrev}  ·  `, 5.5) +
-				font.widthOfTextAtSize(legalText, 5.5);
+			// A linha inteira é desenhada em fontMono → a largura DEVE ser medida em
+			// fontMono também (medir o legal em fonte proporcional subestimava a
+			// largura e empurrava o texto para fora da margem direita — cortava em
+			// páginas estreitas/retrato, ex.: o Termo de Presença).
+			const w = fontMono.widthOfTextAtSize(linha, 5.5);
 			page.drawText(linha, {
 				x: width - w - 20,
 				y: footerY,

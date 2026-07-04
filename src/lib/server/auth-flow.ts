@@ -48,7 +48,7 @@ const ACCOUNT_WINDOW_MINUTES = 15;
  */
 const SEM_EMAIL_2FA_MSG =
 	'Sua conta não possui e-mail cadastrado para o segundo fator de autenticação. ' +
-	'Contate o administrador para cadastrar seu e-mail ou entre com certificado digital (Token A3).';
+	'Contate o administrador para cadastrar seu e-mail ou entre com certificado digital.';
 
 /**
  * Opções de cookie de sessão pós-login (httpOnly, sameSite, secure).

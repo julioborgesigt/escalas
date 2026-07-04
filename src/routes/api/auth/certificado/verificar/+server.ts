@@ -67,7 +67,7 @@ export const POST: RequestHandler = async (event) => {
 		await recordAttempt(db, ip, false);
 		logger.warn('[cert-login] Verificação do desafio falhou', { motivo: verif.motivo });
 		return apiError(
-			'Não foi possível validar a assinatura do certificado. Refaça o login com o Token A3.',
+			'Não foi possível validar a assinatura do certificado. Refaça o login com o seu certificado digital.',
 			401,
 			ErrorCode.AUTH_REQUIRED
 		);
@@ -163,7 +163,7 @@ export const POST: RequestHandler = async (event) => {
 			alvo_tipo: 'policial',
 			alvo_id: policial.id,
 			alvo_nome: policial.nome,
-			detalhes: 'Login por certificado digital (Token A3 / ICP-Brasil)',
+			detalhes: 'Login por certificado digital (ICP-Brasil)',
 			metadados: { via: 'certificado_a3' },
 			...contexto
 		},

@@ -18,7 +18,11 @@ import {
 import { getR2 } from '$lib/server/platform';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
-import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import {
+	podeBaixarComManifesto,
+	gerarCopiaConferencia,
+	chaveConferencia
+} from '$lib/server/copia-conferencia';
 import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
 import { registrarAuditComContexto } from '$lib/db/audit';
 
@@ -89,6 +93,22 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 				// R2 ausente/falhou: cai na cópia de conferência abaixo.
 			}
 			// Padrão (sem manifesto): cópia de conferência para todos os usuários.
+			// Preferimos a cópia IDÊNTICA já gravada no R2 na assinatura (mesmos bytes
+			// do documento assinado); só regeneramos (legado) quando ela não existe.
+			const r2Conf = getR2(platform);
+			if (r2Conf && docAssinado.verificacao_hash) {
+				const confObj = await r2Conf.get(chaveConferencia(docAssinado.verificacao_hash));
+				if (confObj) {
+					return new Response(confObj.body as unknown as BodyInit, {
+						headers: {
+							'Content-Type': 'application/pdf',
+							'Content-Disposition': contentDisposition(`conferencia_${filename}`),
+							'Cache-Control': 'no-cache'
+						}
+					});
+				}
+			}
+			// Fallback legado: regenera a cópia de conferência a partir do rascunho.
 			// Rubrica do signatário acima da linha (igual ao documento digital).
 			const policiaisConf = await listarPoliciaisEscala(db, id);
 			const rubricaConf = await buscarRubricaAssinante(

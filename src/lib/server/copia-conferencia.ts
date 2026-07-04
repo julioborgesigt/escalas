@@ -46,6 +46,24 @@ export function podeBaixarComManifesto(
 	return false;
 }
 
+/**
+ * Chave R2 da CÓPIA DE CONFERÊNCIA, indexada pelo código de verificação. Fonte
+ * ÚNICA usada por quem GRAVA a cópia (no `preparar-assinatura`), por quem a SERVE
+ * (downloads de escala/GISE e portal `/validar`) e por quem a REMOVE (revogação).
+ *
+ * Namespace plano (`conferencia/<hash>.pdf`) de propósito: desacopla a cópia da
+ * estrutura de chave do documento assinado — que difere entre escala, GISE diária,
+ * relatório e presença — de modo que todos os fluxos gravem e leiam do MESMO lugar
+ * conhecendo apenas o `verificationHash` (que já é único, é a chave de `/validar`).
+ *
+ * A cópia é gerada a partir dos MESMOS bytes (base + rodapé universal + rubrica)
+ * que compõem o documento assinado, ficando idêntica por construção. É um artefato
+ * de conveniência (não-probatório): a fé pública continua no blob assinado + `/validar`.
+ */
+export function chaveConferencia(verificationHash: string): string {
+	return `conferencia/${verificationHash}.pdf`;
+}
+
 interface CopiaConferenciaOpts {
 	/** Rascunho já gerado pelo caller (gerarPdf / gerarPdfGise / relatório) — SEM manifesto. */
 	pdfRascunho: Uint8Array;

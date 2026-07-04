@@ -460,7 +460,7 @@ export class SerproSignerClient {
 		if (!rawSignature) {
 			if (dev) console.error('[SERPRO] Resposta sem assinatura:', Object.keys(o), o);
 			throw new Error(
-				'O Assinador SERPRO não retornou a assinatura. Verifique se o Token A3 está conectado e tente novamente.'
+				'O Assinador SERPRO não retornou a assinatura. Verifique se o seu certificado digital está disponível e tente novamente.'
 			);
 		}
 
@@ -549,7 +549,7 @@ export class SerproSignerClient {
 		if (!rawSignature) {
 			if (dev) console.error('[SERPRO] Resposta sem assinatura:', Object.keys(o), o);
 			throw new Error(
-				'O Assinador SERPRO não retornou a assinatura. Verifique se o Token A3 está conectado e tente novamente.'
+				'O Assinador SERPRO não retornou a assinatura. Verifique se o seu certificado digital está disponível e tente novamente.'
 			);
 		}
 
@@ -591,17 +591,17 @@ function interpretarErroSerpro(o: Record<string, unknown>): string {
 		lower.includes('computador') ||
 		lower.includes('acess')
 	) {
-		return 'Token A3 não localizado. Verifique se o Token está inserido na porta USB e que o driver do leitor de cartão está instalado.';
+		return 'Certificado digital não localizado. Verifique se o seu token está conectado ou se o certificado está instalado no computador.';
 	}
 	if (lower.includes('pin') || lower.includes('bloqueado')) {
-		return 'PIN incorreto ou Token A3 bloqueado. Verifique o PIN e tente novamente.';
+		return 'PIN/senha incorreto ou certificado bloqueado. Verifique e tente novamente.';
 	}
 	if (lower.includes('certificado') && (lower.includes('expir') || lower.includes('valid'))) {
 		return 'Certificado digital expirado. Entre em contato com a AC emissora para renovação.';
 	}
 	return raw
 		? `Erro no Assinador SERPRO: ${raw}`
-		: 'Erro no Assinador SERPRO. Verifique se o Token A3 está conectado e tente novamente.';
+		: 'Erro no Assinador SERPRO. Verifique se o seu certificado digital está disponível e tente novamente.';
 }
 
 /**
@@ -801,7 +801,7 @@ function exibirAvisoSerpro(): Promise<boolean> {
  * Aviso específico para login com Token A3.
  */
 function exibirAvisoSerproLogin(): Promise<boolean> {
-	return exibirAvisoSerproModal('pularAvisoSerproLogin', 'Login com Token A3', [
+	return exibirAvisoSerproModal('pularAvisoSerproLogin', 'Login com Certificado Digital', [
 		{
 			segmentos: [
 				'Para entrar com seu certificado digital, o aplicativo ',
@@ -811,7 +811,7 @@ function exibirAvisoSerproLogin(): Promise<boolean> {
 		},
 		{
 			segmentos: [
-				'Ele será usado para confirmar sua identidade por meio do Token A3, sem necessidade de senha. Se ainda não possui o aplicativo, ',
+				'Ele será usado para confirmar sua identidade por meio do seu certificado digital, sem necessidade de senha. Se ainda não possui o aplicativo, ',
 				{ link: 'clique aqui para baixar', href: SERPRO_DOWNLOAD_URL },
 				'.'
 			]

@@ -21,7 +21,11 @@ import {
 } from '$lib/server/api';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
-import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import {
+	podeBaixarComManifesto,
+	gerarCopiaConferencia,
+	chaveConferencia
+} from '$lib/server/copia-conferencia';
 import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
@@ -67,9 +71,26 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 		});
 	}
 
-	// Padrão: cópia de conferência (sem manifesto forense). Desenha a rubrica do
-	// signatário acima da linha (mesma do documento digital), buscando-a pelo
-	// cadastro do assinante — sem rubrica, o campo fica vazio como antes.
+	// Padrão: cópia de conferência (sem manifesto forense). Preferimos a cópia
+	// IDÊNTICA já gravada no R2 no momento da assinatura (gerada dos mesmos bytes do
+	// documento assinado). Só recorremos à regeneração legada quando ela não existe
+	// (documentos assinados antes desta mudança, ou falha de escrita na preparação).
+	if (hasR2(platform) && documento.verificacao_hash) {
+		const confObj = await getR2(platform).get(chaveConferencia(documento.verificacao_hash));
+		if (confObj) {
+			return new Response(confObj.body as unknown as BodyInit, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': contentDisposition(`conferencia_escala_${id}.pdf`),
+					'Cache-Control': 'private, no-store'
+				}
+			});
+		}
+	}
+
+	// Fallback legado: regenera a cópia de conferência a partir do rascunho. Desenha
+	// a rubrica do signatário acima da linha, buscando-a pelo cadastro do assinante —
+	// sem rubrica, o campo fica vazio como antes.
 	const policiais = await listarPoliciaisEscala(db, id);
 	const rubricaAss = await buscarRubricaAssinante(db, documento.assinante_cpf, platform?.env);
 	const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform, rubricaAss);
@@ -108,11 +129,14 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const documento = await buscarDocumentoEscala(db, id);
 	if (!documento) return notFound('Assinatura');
 
-	// Deletar do R2
+	// Deletar do R2 (blob assinado + cópia de conferência)
 	if (hasR2(platform)) {
 		const bucket = getR2(platform);
 		try {
 			await bucket.delete(documento.r2_key);
+			if (documento.verificacao_hash) {
+				await bucket.delete(chaveConferencia(documento.verificacao_hash));
+			}
 		} catch (e) {
 			logger.error('[escalas/revogar] Erro ao deletar do R2', {
 				escala_id: id,
