@@ -27,9 +27,12 @@ import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
-	adicionarRodapeUniversal
+	adicionarRodapeUniversal,
+	estamparRubricaLimpa
 } from '$lib/server/pdf-signing';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { getR2 } from '$lib/server/platform';
@@ -174,6 +177,28 @@ export const POST: RequestHandler = async ({
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
 		prepResult;
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
+
+	// Cópia de conferência IDÊNTICA (mesmos bytes: pdfComRodape + estamparRubricaLimpa,
+	// sem manifesto/placeholder), gravada no R2 sob a chave plana `conferencia/<hash>.pdf`.
+	// Best-effort: falha aqui nunca aborta a assinatura.
+	if (r2Logo) {
+		try {
+			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+				alignment: 'right',
+				customBoxY: boxY_pts,
+				rubricBase64: rubricaAssinatura,
+				targetPageIndex: contentPageIndex
+			});
+			await r2Logo.put(chaveConferencia(verificationHash), conferenciaPdf, {
+				contentType: 'application/pdf'
+			});
+		} catch (err) {
+			logger.warn('[gise/preparar-assinatura] Falha ao gerar/gravar cópia de conferência', {
+				gise_id: id,
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
 
 	return json({
 		signedAttrsHashHex,

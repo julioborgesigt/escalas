@@ -30,10 +30,14 @@ import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
 	adicionarRodapeUniversal,
+	estamparRubricaLimpa,
 	type AuditTrailOptions
 } from '$lib/server/pdf-signing';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { getR2 } from '$lib/server/platform';
+import { logger } from '$lib/server/logger';
 import { json } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async ({
@@ -160,6 +164,29 @@ export const POST: RequestHandler = async ({
 	);
 
 	const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, dataToSignBase64 } = prep;
+
+	// Cópia de conferência IDÊNTICA (mesmos bytes: pdfComRodape + estamparRubricaLimpa
+	// centrada sobre a linha, sem manifesto/placeholder), gravada no R2 sob a chave
+	// plana `conferencia/<hash>.pdf`. Best-effort: nunca aborta a assinatura.
+	const r2Conf = getR2(platform);
+	if (r2Conf) {
+		try {
+			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+				alignment: 'center',
+				customBoxY: boxY_pts,
+				rubricBase64: rubrica,
+				targetPageIndex: 0
+			});
+			await r2Conf.put(chaveConferencia(verificationHash), conferenciaPdf, {
+				contentType: 'application/pdf'
+			});
+		} catch (err) {
+			logger.warn('[gise/presenca/preparar-assinatura] Falha ao gravar cópia de conferência', {
+				gise_id: giseId,
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
 
 	return json({
 		signedAttrsHashHex,

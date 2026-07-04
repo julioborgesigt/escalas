@@ -1,15 +1,18 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDB, buscarEscala, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
+import { getDB, getR2, hasR2, buscarEscala, listarPoliciaisEscala, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import { requireAuth, badRequest, notFound, forbidden, validateBody } from '$lib/server/api';
 import { gerarPdf, gerarPdfPlantao, gerarPdfExpediente } from '$lib/server/export';
 import {
 	prepararPdfParaAssinatura,
 	adicionarPaginaAuditoria,
-	adicionarRodapeUniversal
+	adicionarRodapeUniversal,
+	estamparRubricaLimpa
 } from '$lib/server/pdf-signing';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
 import { calcularHashBuffer } from '$lib/server/document-utils';
+import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
@@ -145,6 +148,31 @@ export const POST: RequestHandler = async ({
 	const { preparedPdf, signedAttrsHashHex, messageDigest, signingTimeISO, dataToSignBase64 } =
 		prepResult;
 	const preparedPdfBase64 = Buffer.from(preparedPdf).toString('base64');
+
+	// 4. Cópia de conferência IDÊNTICA, gerada no MESMO momento a partir dos MESMOS
+	//    bytes do documento assinado: `pdfComRodape` (base + rodapé universal) +
+	//    `estamparRubricaLimpa` (mesma rubrica/geometria do campo assinado), SEM
+	//    manifesto forense e SEM placeholder de assinatura. Gravada no R2 sob a chave
+	//    plana `conferencia/<hash>.pdf`, que os downloads leem só com o verificationHash.
+	//    Best-effort: falha aqui nunca aborta a assinatura.
+	if (hasR2(platform)) {
+		try {
+			const conferenciaPdf = await estamparRubricaLimpa(pdfComRodape, {
+				alignment: 'right',
+				customBoxY: boxY_pts,
+				rubricBase64: rubricaAssinatura,
+				targetPageIndex: contentPageIndex
+			});
+			await getR2(platform).put(chaveConferencia(verificationHash), conferenciaPdf, {
+				httpMetadata: { contentType: 'application/pdf' }
+			});
+		} catch (err) {
+			logger.warn('[escalas/preparar-assinatura] Falha ao gerar/gravar cópia de conferência', {
+				escala_id: id,
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
 
 	return json({
 		signedAttrsHashHex,

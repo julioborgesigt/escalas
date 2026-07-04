@@ -11,7 +11,11 @@ import {
 } from '$lib/server/api';
 import { contarRecoveryAttempts, registrarRecoveryAttempt } from '$lib/server/recovery-rate-limit';
 import { registrarAuditComContexto } from '$lib/db/audit';
-import { podeBaixarForense, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import {
+	podeBaixarForense,
+	gerarCopiaConferencia,
+	chaveConferencia
+} from '$lib/server/copia-conferencia';
 import { carregarLogosGise } from '$lib/server/gise-logos';
 import { logger } from '$lib/server/logger';
 import type { RequestHandler } from './$types';
@@ -109,6 +113,28 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 	// manifest-free mais abaixo, então só tratamos escala/gise aqui.)
 	if (!privilegiado) {
 		const verificationUrl = `${url.origin}/validar/${hash}`;
+
+		// Preferimos a cópia de conferência IDÊNTICA gravada no R2 na assinatura
+		// (mesmos bytes do documento assinado), para todos os fluxos por token. Só
+		// quando ela não existe (legado / falha na preparação) regeneramos abaixo.
+		{
+			const r2 = getR2(platform);
+			if (r2) {
+				const confObj = await r2.get(chaveConferencia(hash));
+				if (confObj) {
+					const nome =
+						documento.tipo_doc === 'escala'
+							? `conferencia_escala_${hash}.pdf`
+							: documento.tipo_doc === 'gise'
+								? `conferencia_gise_${hash}.pdf`
+								: documento.tipo_doc === 'gise_relatorio'
+									? `conferencia_relatorio_${hash}.pdf`
+									: `conferencia_presenca_${hash}.pdf`;
+					return pdfConferencia(new Uint8Array(await confObj.arrayBuffer()), nome);
+				}
+			}
+		}
+
 		if (documento.tipo_doc === 'escala') {
 			const { buscarEscala, listarPoliciaisEscala, buscarRubricaAssinante } =
 				await import('$lib/db');

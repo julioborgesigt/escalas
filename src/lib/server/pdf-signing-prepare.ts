@@ -574,6 +574,60 @@ async function desenharCampoRubricaLimpo(
 }
 
 /**
+ * Geometria da caixa da rubrica no fluxo por token. FONTE ÚNICA usada tanto pelo
+ * documento assinado (`prepararPdfParaAssinatura`, estilo `'rubrica'`) quanto pela
+ * cópia de conferência (`estamparRubricaLimpa`) — assim o campo cai exatamente no
+ * MESMO lugar nos dois artefatos, por construção, sem drift.
+ */
+export function calcularCaixaRubrica(
+	width: number,
+	alignment: 'center' | 'right',
+	customBoxY?: number
+): { boxX: number; boxY: number; boxW: number; boxH: number } {
+	const boxW = 158;
+	const boxH = 70;
+	const boxX = alignment === 'center' ? (width - boxW) / 2 : width * 0.75 - boxW / 2;
+	const boxY = customBoxY !== undefined ? customBoxY : 40;
+	return { boxX, boxY, boxW, boxH };
+}
+
+/**
+ * Estampa APENAS a rubrica limpa sobre um PDF já pronto (tipicamente `pdfComRodape`,
+ * o mesmo insumo do documento assinado), na MESMA geometria e com o MESMO primitivo
+ * (`desenharCampoRubricaLimpo` + `calcularCaixaRubrica`) usados na preparação.
+ *
+ * É o coração da paridade da cópia de conferência: como recebe os bytes já com o
+ * rodapé universal e desenha a rubrica onde ela cai no documento digital, o
+ * resultado é visualmente idêntico às páginas de conteúdo do documento assinado —
+ * sem placeholder de assinatura e sem página de manifesto forense.
+ */
+export async function estamparRubricaLimpa(
+	pdfBytes: Uint8Array,
+	opts: {
+		alignment: 'center' | 'right';
+		customBoxY?: number;
+		rubricBase64?: string;
+		customRubricX?: number;
+		customRubricY?: number;
+		targetPageIndex?: number;
+	}
+): Promise<Uint8Array> {
+	const pdfDoc = await PDFDocument.load(pdfBytes);
+	const pages = pdfDoc.getPages();
+	const idx = opts.targetPageIndex !== undefined ? opts.targetPageIndex : pages.length - 1;
+	const page = pages[idx];
+	const { width } = page.getSize();
+	const caixa = calcularCaixaRubrica(width, opts.alignment, opts.customBoxY);
+	await desenharCampoRubricaLimpo(pdfDoc, page, {
+		...caixa,
+		rubricBase64: opts.rubricBase64,
+		customRubricX: opts.customRubricX,
+		customRubricY: opts.customRubricY
+	});
+	return pdfDoc.save();
+}
+
+/**
  * Adiciona carimbo visual + placeholder de assinatura ao PDF,
  * constrói os SignedAttributes do CMS e retorna o hash que o
  * cliente deve assinar via Web PKI.
@@ -611,19 +665,10 @@ export async function prepararPdfParaAssinatura(
 	const dataHora = formatarDataHora();
 
 	// --- Dimensões do carimbo (+5% largura conforme pedido) ---
-	const boxW = 158;
-	const boxH = 70;
-
-	const marginY = customBoxY !== undefined ? customBoxY : 40;
+	// Geometria compartilhada com a cópia de conferência (estamparRubricaLimpa) via
+	// calcularCaixaRubrica — garante que o campo caia no MESMO lugar nos dois artefatos.
+	const { boxX, boxY, boxW, boxH } = calcularCaixaRubrica(width, alignment, customBoxY);
 	const headerH = 9;
-
-	let boxX: number;
-	if (alignment === 'center') {
-		boxX = (width - boxW) / 2;
-	} else {
-		boxX = width * 0.75 - boxW / 2;
-	}
-	const boxY = marginY;
 
 	// --- Paleta ---
 	const cNavy = rgb(0.07, 0.14, 0.42);

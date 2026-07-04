@@ -26,7 +26,11 @@ import {
 	serverError
 } from '$lib/server/api';
 import { verificarPermissaoGise } from '$lib/server/gise-permissao';
-import { podeBaixarComManifesto, gerarCopiaConferencia } from '$lib/server/copia-conferencia';
+import {
+	podeBaixarComManifesto,
+	gerarCopiaConferencia,
+	chaveConferencia
+} from '$lib/server/copia-conferencia';
 import { gerarRascunhoGisePdf } from '$lib/server/conferencia-pdf';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
@@ -69,7 +73,22 @@ export const GET: RequestHandler = async ({ platform, params, locals, url }) => 
 		});
 	}
 
-	// Padrão: cópia de conferência (sem manifesto forense).
+	// Padrão: cópia de conferência (sem manifesto forense). Preferimos a cópia
+	// IDÊNTICA já gravada no R2 na assinatura (mesmos bytes do documento assinado);
+	// só regeneramos (legado) quando ela não existe.
+	if (hasR2(platform) && documento.verificacao_hash) {
+		const confObj = await getR2(platform).get(chaveConferencia(documento.verificacao_hash));
+		if (confObj) {
+			return new Response(confObj.body as unknown as BodyInit, {
+				headers: {
+					'Content-Type': 'application/pdf',
+					'Content-Disposition': contentDisposition(`conferencia_gise_${id}.pdf`),
+					'Cache-Control': 'private, no-store'
+				}
+			});
+		}
+	}
+
 	const giseDetalhado = await buscarGiseDetalhado(db, id);
 	if (!giseDetalhado) return notFound('Escala GISE');
 	const rascunho = await gerarRascunhoGisePdf(db, giseDetalhado, platform);
@@ -101,10 +120,13 @@ export const DELETE: RequestHandler = async (event) => {
 	const documento = await buscarGiseDocumento(db, id);
 	if (!documento) return notFound('Assinatura');
 
-	// Deletar do R2
+	// Deletar do R2 (blob assinado + cópia de conferência)
 	if (hasR2(platform)) {
 		const bucket = getR2(platform);
 		await bucket.delete(documento.r2_key);
+		if (documento.verificacao_hash) {
+			await bucket.delete(chaveConferencia(documento.verificacao_hash));
+		}
 	}
 
 	// Reabrir escala (deleta documento, reseta seccionais, volta status)
