@@ -105,8 +105,11 @@ export const POST: RequestHandler = async ({
 	const verificationUrl = `${url.origin}/validar/${verificationHash}`;
 	const documentHash = await calcularHashBuffer(pdf);
 
-	// 2. Rodapé universal de verificação.
+	// 2. Rodapé universal de verificação (+ bloco de identidade com QR).
 	const pdfComRodape = await adicionarRodapeUniversal(pdf, {
+		signerName: finalSignerName,
+		signerMatricula: u.matricula,
+		signedAtISO: new Date().toISOString(),
 		documentHash,
 		verificationUrl,
 		verificationHash
@@ -137,31 +140,23 @@ export const POST: RequestHandler = async ({
 	];
 	const pdfWithAudit = await adicionarPaginaAuditoria(pdfComRodape, signers);
 
-	// 4. Estampa a rubrica + carimbo na página do termo (índice 0).
-	const pageW = 595.28;
-	// A rubrica (manuscrito) assenta SOBRE a linha de assinatura, centrada na
-	// faixa à esquerda; o carimbo ICP vai à DIREITA — assim a rubrica não se
-	// sobrepõe ao selo. `prepararPdfParaAssinatura` desenha a rubrica com 100pt.
-	const margin = 56;
-	const rubW_pts = 100;
-	const boxW_pts = 158; // largura do carimbo dentro de prepararPdfParaAssinatura
-	const boxLeft_pts = pageW * 0.75 - boxW_pts / 2; // carimbo no modo 'right'
-	// Centro da faixa livre entre a margem esquerda e a borda esquerda do carimbo.
-	const rx_pts = (margin + boxLeft_pts - rubW_pts) / 2;
-	const ry_pts = signatureLineY + 2; // assenta sobre a linha
-	const boxY_pts = signatureLineY + 6; // carimbo logo acima da linha, à direita
+	// 4. Estampa SÓ a rubrica no campo de assinatura (estilo 'rubrica'), centrada
+	//    sobre a linha — agora que o selo box saiu, a largura da linha fica livre.
+	//    O QR + identidade ("Assinado digitalmente por…") vivem no rodapé.
+	const boxY_pts = signatureLineY + 3; // campo logo acima da linha
 
 	const prep = await prepararPdfParaAssinatura(
 		pdfWithAudit,
 		finalSignerName,
-		'right',
+		'center',
 		verificationHash,
 		verificationUrl,
 		boxY_pts,
 		rubrica,
-		rx_pts,
-		ry_pts,
-		0
+		undefined,
+		undefined,
+		0,
+		'rubrica'
 	);
 
 	const { signedAttrsHashHex, preparedPdf, messageDigest, signingTimeISO, dataToSignBase64 } = prep;
