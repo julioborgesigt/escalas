@@ -92,7 +92,7 @@ jobs:
       # (nao quebra o workflow) — controlado pela condicao `vars.NOTIFY ==`.
       - name: Notificar por e-mail
         if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-url != ''
-        uses: dawidd6/action-send-mail@v17
+        uses: dawidd6/action-send-mail@v18
         continue-on-error: true
         with:
           server_address: smtp.gmail.com
