@@ -417,7 +417,7 @@
 						{/if}
 					</div>
 
-					<!-- Card 2: Token A3 -->
+					<!-- Card 2: Certificado Digital (A1/A3) -->
 					<div
 						class="flex items-center justify-between px-4 py-3 rounded-xl border bg-tertiary-500/5 border-tertiary-500/20"
 					>
@@ -439,8 +439,8 @@
 								<p
 									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
 								>
-									Token A3 <span class="text-[9px] font-black text-tertiary-500 uppercase"
-										>ICP-Brasil</span
+									Certificado Digital <span
+										class="text-[9px] font-black text-tertiary-500 uppercase">ICP-Brasil</span
 									>
 								</p>
 								<p class="text-[10px] text-surface-400 mt-0.5">Via Assinador SERPRO (desktop)</p>

@@ -112,7 +112,7 @@
 				</svg>
 				<p class="text-sm font-bold text-surface-700 dark:text-surface-200 leading-tight">
 					Assinar pelo computador <span class="text-[0.6rem] font-black text-tertiary-500 uppercase"
-						>Token A3 · ICP-Brasil</span
+						>Certificado Digital · ICP-Brasil</span
 					>
 				</p>
 			</div>
@@ -129,7 +129,7 @@
 					disabled={loading.active}
 					onclick={() => confirmarPresencaA3(tipo)}
 				>
-					Confirmar {rotulo} com Token A3
+					Confirmar {rotulo} com Certificado Digital
 				</button>
 				<button
 					type="button"
@@ -157,8 +157,8 @@
 					</svg>
 					<p class="text-xs text-surface-600 dark:text-surface-300 leading-snug">
 						Você ainda <strong>não cadastrou sua rubrica</strong>. Para confirmar a {rotulo} pelo computador
-						com seu <strong>Token A3</strong>, é necessário cadastrar primeiro a sua rubrica — ela
-						será usada como sua assinatura gráfica.
+						com seu <strong>certificado digital</strong>, é necessário cadastrar primeiro a sua
+						rubrica — ela será usada como sua assinatura gráfica.
 					</p>
 				</div>
 				<button
@@ -190,7 +190,7 @@
 			extraPayload={{ tipo: 'entrada' }}
 			disabled={loading.active}
 			onSuccess={async () => {
-				toaster.success({ title: 'Entrada confirmada com Token A3.' });
+				toaster.success({ title: 'Entrada confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('entrada');
 			}}
 		/>
@@ -205,7 +205,7 @@
 			extraPayload={{ tipo: 'saida' }}
 			disabled={loading.active}
 			onSuccess={async () => {
-				toaster.success({ title: 'Saída confirmada com Token A3.' });
+				toaster.success({ title: 'Saída confirmada com certificado digital.' });
 				await resGise.sincronizarPresencaAtual('saida');
 			}}
 		/>

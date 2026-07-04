@@ -115,7 +115,7 @@ export async function gerarTermoPresencaPdf(
 	const declaracao =
 		`Declaro, para os devidos fins e sob as penas da lei, a veracidade do registro de ${acao.toLowerCase()} ` +
 		`no serviço acima identificado, confirmado de forma eletrônica por mim, mediante assinatura digital ` +
-		`qualificada (certificado ICP-Brasil, Token A3), nos termos da MP 2.200-2/2001 e da Lei 14.063/2020.`;
+		`qualificada (certificado digital ICP-Brasil), nos termos da MP 2.200-2/2001 e da Lei 14.063/2020.`;
 	for (const linha of wrap(declaracao, font, 10.5, contentW)) {
 		page.drawText(linha, { x: margin, y, size: 10.5, font, color: text });
 		y -= 16;

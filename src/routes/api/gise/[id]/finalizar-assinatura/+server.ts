@@ -136,7 +136,7 @@ export const POST: RequestHandler = async (event) => {
 				entidade_id: id,
 				alvo_tipo: 'gise',
 				alvo_id: id,
-				detalhes: `GISE ${id} assinada com certificado digital (A3/qualificada)`,
+				detalhes: `GISE ${id} assinada com certificado digital (qualificada, ICP-Brasil)`,
 				metadados: {
 					tipo: 'qualificada',
 					verificationHash,

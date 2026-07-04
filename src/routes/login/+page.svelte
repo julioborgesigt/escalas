@@ -255,7 +255,7 @@
 			const hashBuffer = await crypto.subtle.digest('SHA-256', nonceBytes);
 			const hashBase64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
 
-			loadingService.show('Aguardando PIN no Token A3...');
+			loadingService.show('Aguardando confirmação no Assinador SERPRO...');
 			const resultado = await serproClient.sign(hashBase64);
 			serproClient.disconnect();
 			serproClient = null;
@@ -281,7 +281,8 @@
 			const dest = data.primeiro_acesso ? '/alterar-senha' : '/escalas';
 			await navegarAposLogin(dest, true);
 		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : 'Erro ao autenticar com Token A3.';
+			const msg =
+				err instanceof Error ? err.message : 'Erro ao autenticar com certificado digital.';
 			loginError = msg;
 			toaster.create({ title: msg, type: 'error' });
 		} finally {
@@ -560,7 +561,7 @@
 							d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
 						/>
 					</svg>
-					Entrar com Token A3 (SERPRO)
+					Entrar com Certificado Digital (SERPRO)
 				</button>
 			{/if}
 

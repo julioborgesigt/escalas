@@ -154,7 +154,7 @@ export const POST: RequestHandler = async (event) => {
 				entidade_id: id,
 				alvo_tipo: 'seccional',
 				alvo_id: secIdNum,
-				detalhes: `Relatório extraordinário da GISE ${id} assinado com certificado digital (A3, seccional ${secIdNum})`,
+				detalhes: `Relatório extraordinário da GISE ${id} assinado com certificado digital (qualificada, seccional ${secIdNum})`,
 				metadados: {
 					tipo_assinatura: 'qualificada',
 					verification_hash: verificationHash,

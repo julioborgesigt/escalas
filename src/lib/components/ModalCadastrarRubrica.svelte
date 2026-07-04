@@ -294,7 +294,8 @@
 					Cadastrar Rubrica
 				</Dialog.Title>
 				<Dialog.Description class="text-sm text-surface-500">
-					Sua rubrica será usada como elemento gráfico ao assinar pelo computador com Token A3.
+					Sua rubrica será usada como elemento gráfico ao assinar pelo computador com certificado
+					digital.
 				</Dialog.Description>
 			</div>
 

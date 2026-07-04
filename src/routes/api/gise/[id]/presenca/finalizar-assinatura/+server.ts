@@ -179,7 +179,7 @@ export const POST: RequestHandler = async (event) => {
 				alvo_tipo: 'policial',
 				alvo_id: u.id,
 				alvo_nome: u.nome,
-				detalhes: `Confirmação de ${tipo} na GISE ${giseId} via Token A3 (qualificada)`,
+				detalhes: `Confirmação de ${tipo} na GISE ${giseId} via certificado digital (qualificada)`,
 				metadados: {
 					via: 'token_a3',
 					verification_hash: verificationHash,
