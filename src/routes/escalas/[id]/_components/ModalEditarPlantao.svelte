@@ -3,24 +3,9 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toaster } from '$lib/toast';
+	import CalendarioSelecaoDias from './CalendarioSelecaoDias.svelte';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import type { ActionResult } from '@sveltejs/kit';
-
-	const MESES = [
-		'Janeiro',
-		'Fevereiro',
-		'Março',
-		'Abril',
-		'Maio',
-		'Junho',
-		'Julho',
-		'Agosto',
-		'Setembro',
-		'Outubro',
-		'Novembro',
-		'Dezembro'
-	];
-	const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 	let {
 		open = $bindable(false),
@@ -73,50 +58,9 @@
 		}
 	});
 
-	const grade = $derived.by(() => {
-		const first = new Date(calAno, calMes, 1).getDay();
-		const n = new Date(calAno, calMes + 1, 0).getDate();
-		const cells: ({ day: number } | null)[] = [];
-		for (let i = 0; i < first; i++) cells.push(null);
-		for (let d = 1; d <= n; d++) cells.push({ day: d });
-		while (cells.length % 7 !== 0) cells.push(null);
-		while (cells.length < 42) cells.push(null);
-		return cells;
-	});
-
 	const ordenados = $derived([...selecionados].sort());
 	const diasJson = $derived(JSON.stringify(ordenados));
 	const idsJson = $derived(JSON.stringify(ids));
-
-	function isoLocal(y: number, m: number, d: number): string {
-		return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-	}
-
-	function fmtDia(iso: string): string {
-		const [, m, d] = iso.split('-');
-		return `${d}/${m}`;
-	}
-
-	function toggle(iso: string) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const set = new Set(selecionados);
-		if (set.has(iso)) set.delete(iso);
-		else set.add(iso);
-		selecionados = [...set];
-	}
-
-	function mesAnterior() {
-		if (calMes === 0) {
-			calMes = 11;
-			calAno--;
-		} else calMes--;
-	}
-	function mesProximo() {
-		if (calMes === 11) {
-			calMes = 0;
-			calAno++;
-		} else calMes++;
-	}
 
 	function handleSalvar({ cancel }: { cancel: () => void }) {
 		if (ordenados.length === 0) {
@@ -171,53 +115,7 @@
 				</Dialog.Description>
 			</div>
 
-			<!-- Calendário -->
-			<div class="rounded-xl border border-surface-200 dark:border-surface-700 p-3 space-y-2">
-				<div class="flex items-center justify-between">
-					<button
-						type="button"
-						onclick={mesAnterior}
-						class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors text-sm font-bold"
-						>‹</button
-					>
-					<span class="text-xs font-semibold text-surface-700 dark:text-surface-200">
-						{MESES[calMes]}
-						{calAno}
-					</span>
-					<button
-						type="button"
-						onclick={mesProximo}
-						class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-600 dark:text-surface-300 transition-colors text-sm font-bold"
-						>›</button
-					>
-				</div>
-				<div
-					class="grid grid-cols-7 gap-px text-center text-[0.55rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
-				>
-					{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
-				</div>
-				<div class="grid grid-cols-7 gap-0.5">
-					{#each grade as cell, i (i)}
-						{#if cell}
-							{@const iso = isoLocal(calAno, calMes, cell.day)}
-							{@const sel = selecionados.includes(iso)}
-							<button
-								type="button"
-								onclick={() => toggle(iso)}
-								class="h-9 rounded-md text-xs font-medium transition-colors border flex items-center justify-center touch-manipulation
-									{sel
-									? 'border-primary-500 bg-primary-500/15 text-primary-900 dark:text-primary-100'
-									: 'border-transparent bg-surface-100/80 dark:bg-surface-700/50 text-surface-700 dark:text-surface-200 hover:bg-surface-200/80 dark:hover:bg-surface-600'}"
-								aria-pressed={sel}
-							>
-								{cell.day}
-							</button>
-						{:else}
-							<div class="h-9"></div>
-						{/if}
-					{/each}
-				</div>
-			</div>
+			<CalendarioSelecaoDias bind:selecionados bind:ano={calAno} bind:mes={calMes} cor="primary" />
 
 			<!-- Horários e Obs -->
 			<div class="space-y-3">
