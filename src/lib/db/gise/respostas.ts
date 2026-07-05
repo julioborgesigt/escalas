@@ -28,6 +28,14 @@ interface PerguntaModelo {
 
 // ---- Formulário de Produtividade ----
 
+/**
+ * Modelo padrão OPERACIONAL — versão com rótulos CURTOS (relatórios/agregação).
+ *
+ * Os textos do FORMULÁRIO na tela são deliberadamente diferentes (instruções de
+ * preenchimento + subtextos) e vivem em `TEXTOS_FORM_OPERACIONAL` logo abaixo;
+ * `DEFAULT_QUESTIONS_FORM_OPERACIONAL` deriva ESTRUTURA daqui e só sobrepõe os
+ * textos — impossível as duas versões divergirem em ids/tipos/keys.
+ */
 const DEFAULT_QUESTIONS = [
 	{ id: 1, texto: '1. VTR E PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
 	{ id: 2, texto: '2. KM INICIAL', tipo: 'numero', key: 'km_inicial', filhos: [] },
@@ -125,6 +133,59 @@ const DEFAULT_QUESTIONS = [
 	{ id: 18, texto: '18. Nº ABORDAGENS', tipo: 'select_99', key: 'abordagens', filhos: [] },
 	{ id: 19, texto: '19. RESUMO DILIGÊNCIAS', tipo: 'textarea', key: 'descricao', filhos: [] }
 ];
+
+/**
+ * Textos do FORMULÁRIO operacional (instruções de preenchimento) por `key`.
+ * Divergência INTENCIONAL em relação aos rótulos curtos de `DEFAULT_QUESTIONS`:
+ * na tela o policial precisa de comando ("DIGITE O KM..."); no relatório, de
+ * rótulo compacto ("KM INICIAL"). Antes, a versão de formulário era uma cópia
+ * integral de ~120 linhas dentro de `/res-gise/+page.server.ts`, escondendo a
+ * relação entre as duas (achado 11.3 do docs/ARQUIVOS.md).
+ */
+const TEXTOS_FORM_OPERACIONAL: Record<
+	string,
+	Partial<Pick<PerguntaModelo, 'texto' | 'subtexto_qtd' | 'subtexto_lista' | 'subtexto_tipo'>>
+> = {
+	vtr_placa: { texto: '1. DIGITE A VTR E A PLACA' },
+	km_inicial: { texto: '2. DIGITE O KM INCIAL DA VTR' },
+	km_final: { texto: '3. DIGITE O KM FINAL DA VTR' },
+	procedimentos_flagrante_bool: { texto: '4. Houve PROCEDIMENTOS em flagrante realizados?' },
+	mandados_cumpridos: {
+		texto: '5. Houve MANDADOS cumpridos (MAIORES)?',
+		subtexto_qtd: '5.1 QUANTIDADE:',
+		subtexto_lista: '5.2 INFORMAR NOMES E MANDADOS:'
+	},
+	apreensoes_cumpridas: {
+		texto: '6. Houve APREENSÕES cumpridas (MENORES)?',
+		subtexto_qtd: '6.1 QUANTIDADE:',
+		subtexto_lista: '6.2 INFORMAR NOMES E PROCESSOS:'
+	},
+	prisoes_apreensoes_flagrante: { texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)' },
+	tentativa_mandado: { texto: '8. Houve tentativa de cumprimento de mandado?' },
+	busca_apreensao: { texto: '9. Houve mandado de busca e apreensão?' },
+	apreensoes_drogas: {
+		texto: '10. Houve apreensão de drogas?',
+		subtexto_tipo: '10.1 TIPO DE DROGA:'
+	},
+	apreensoes_armas_bool: { texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?' },
+	local_crime: { texto: '12. Local de Crime' },
+	ordem_missao: { texto: '13. Ordem de Missão Cumprida' },
+	levantamento_alvos: { texto: '14. Levantamento de Alvos' },
+	oitivas: { texto: '15. Oitivas Realizadas' },
+	representacao_prisao: { texto: '16. Representação Prisão' },
+	representacao_busca: { texto: '17. Representação Busca' },
+	abordagens: { texto: '18. Nº Abordagens' },
+	descricao: { texto: '19. Descreva resumidamente as diligências' }
+};
+
+/**
+ * Modelo padrão OPERACIONAL para a UI do formulário (`/res-gise`): mesma
+ * estrutura de `DEFAULT_QUESTIONS`, com os textos de preenchimento aplicados.
+ */
+export const DEFAULT_QUESTIONS_FORM_OPERACIONAL: PerguntaModelo[] = DEFAULT_QUESTIONS.map((q) => ({
+	...q,
+	...(TEXTOS_FORM_OPERACIONAL[q.key] ?? {})
+}));
 
 /**
  * Modelo padrão do formulário SEINT — fonte ÚNICA, usada como fallback tanto

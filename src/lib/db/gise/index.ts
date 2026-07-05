@@ -52,7 +52,8 @@ export {
 	buscarRespostaGise,
 	salvarRespostaGise,
 	listarTodasRespostasGise,
-	DEFAULT_SEINT_QUESTIONS
+	DEFAULT_SEINT_QUESTIONS,
+	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from './respostas';
 
 export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';

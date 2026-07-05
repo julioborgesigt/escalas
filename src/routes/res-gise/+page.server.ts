@@ -19,7 +19,8 @@ import {
 	isSupervisorGiseAtiva,
 	auditar,
 	contextoDeEvento,
-	DEFAULT_SEINT_QUESTIONS
+	DEFAULT_SEINT_QUESTIONS,
+	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from '$lib/db';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
@@ -285,116 +286,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			});
 		}
 	}
-
-	const defaultGiseQuestions = [
-		{ id: 1, texto: '1. DIGITE A VTR E A PLACA', tipo: 'vtr_placa', key: 'vtr_placa', filhos: [] },
-		{ id: 2, texto: '2. DIGITE O KM INCIAL DA VTR', tipo: 'numero', key: 'km_inicial', filhos: [] },
-		{ id: 3, texto: '3. DIGITE O KM FINAL DA VTR', tipo: 'numero', key: 'km_final', filhos: [] },
-		{
-			id: 4,
-			texto: '4. Houve PROCEDIMENTOS em flagrante realizados?',
-			tipo: 'prisoes_maiores',
-			key: 'procedimentos_flagrante_bool',
-			subtexto_qtd: '4.1 QUANTIDADE:',
-			subtexto_lista: '4.2 INFORMAR NOMES E PROCEDIMENTOS:',
-			filhos: []
-		},
-		{
-			id: 5,
-			texto: '5. Houve MANDADOS cumpridos (MAIORES)?',
-			tipo: 'mandados_maiores',
-			key: 'mandados_cumpridos',
-			subtexto_qtd: '5.1 QUANTIDADE:',
-			subtexto_lista: '5.2 INFORMAR NOMES E MANDADOS:',
-			filhos: []
-		},
-		{
-			id: 6,
-			texto: '6. Houve APREENSÕES cumpridas (MENORES)?',
-			tipo: 'apreensoes_menores',
-			key: 'apreensoes_cumpridas',
-			subtexto_qtd: '6.1 QUANTIDADE:',
-			subtexto_lista: '6.2 INFORMAR NOMES E PROCESSOS:',
-			filhos: []
-		},
-		{
-			id: 7,
-			texto: '7. Nº PRISÕES/APREENSÕES em flagrante (por preso)',
-			tipo: 'select_99',
-			key: 'prisoes_apreensoes_flagrante',
-			filhos: []
-		},
-		{
-			id: 8,
-			texto: '8. Houve tentativa de cumprimento de mandado?',
-			tipo: 'sim_nao',
-			key: 'tentativa_mandado',
-			filhos: []
-		},
-		{
-			id: 9,
-			texto: '9. Houve mandado de busca e apreensão?',
-			tipo: 'sim_nao',
-			key: 'busca_apreensao',
-			filhos: []
-		},
-		{
-			id: 10,
-			texto: '10. Houve apreensão de drogas?',
-			tipo: 'drogas_complex',
-			key: 'apreensoes_drogas',
-			subtexto_tipo: '10.1 TIPO DE DROGA:',
-			subtexto_detalhe: '10.1.1 PESO DA DROGA, POR TIPO:',
-			filhos: []
-		},
-		{
-			id: 11,
-			texto: '11. Houve APREENSÃO DE ARMAS/MUNIÇÕES?',
-			tipo: 'armas_complex',
-			key: 'apreensoes_armas_bool',
-			subtexto_tipo: '11.1 TIPO DE ARMA:',
-			subtexto_qtd: '11.1.1 QUANTIDADE:',
-			filhos: []
-		},
-		{ id: 12, texto: '12. Local de Crime', tipo: 'select_99', key: 'local_crime', filhos: [] },
-		{
-			id: 13,
-			texto: '13. Ordem de Missão Cumprida',
-			tipo: 'select_99',
-			key: 'ordem_missao',
-			filhos: []
-		},
-		{
-			id: 14,
-			texto: '14. Levantamento de Alvos',
-			tipo: 'select_99',
-			key: 'levantamento_alvos',
-			filhos: []
-		},
-		{ id: 15, texto: '15. Oitivas Realizadas', tipo: 'select_99', key: 'oitivas', filhos: [] },
-		{
-			id: 16,
-			texto: '16. Representação Prisão',
-			tipo: 'select_99',
-			key: 'representacao_prisao',
-			filhos: []
-		},
-		{
-			id: 17,
-			texto: '17. Representação Busca',
-			tipo: 'select_99',
-			key: 'representacao_busca',
-			filhos: []
-		},
-		{ id: 18, texto: '18. Nº Abordagens', tipo: 'select_99', key: 'abordagens', filhos: [] },
-		{
-			id: 19,
-			texto: '19. Descreva resumidamente as diligências',
-			tipo: 'textarea',
-			key: 'descricao',
-			filhos: []
-		}
-	];
 	const giseIdSelected = url.searchParams.get('giseId')
 		? parseInt(url.searchParams.get('giseId')!)
 		: null;
@@ -439,7 +330,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		}
 	}
 
-	let modeloOperacional = defaultGiseQuestions;
+	let modeloOperacional = DEFAULT_QUESTIONS_FORM_OPERACIONAL;
 	if (modeloOp?.config) {
 		try {
 			modeloOperacional = JSON.parse(modeloOp.config);
@@ -469,7 +360,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		minhaRubrica: rubricaRow?.rubrica ?? null,
 		modeloOperacional,
 		modeloSeint,
-		modeloPadraoOperacional: defaultGiseQuestions,
+		modeloPadraoOperacional: DEFAULT_QUESTIONS_FORM_OPERACIONAL,
 		modeloPadraoSeint: DEFAULT_SEINT_QUESTIONS
 	};
 };

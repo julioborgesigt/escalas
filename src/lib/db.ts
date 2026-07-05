@@ -162,5 +162,6 @@ export {
 	removerGiseSeccionalUnidade,
 	buscarVagasPadraoEquipesGise,
 	salvarVagasPadraoEquipesGise,
-	DEFAULT_SEINT_QUESTIONS
+	DEFAULT_SEINT_QUESTIONS,
+	DEFAULT_QUESTIONS_FORM_OPERACIONAL
 } from './db/gise';
