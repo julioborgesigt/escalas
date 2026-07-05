@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
+import { seedSession, cookieDeSessao, execD1Local } from './session';
 
 /**
  * Regressão da P0.1 da auditoria: o GET de
@@ -9,53 +10,50 @@ import { FIXTURE } from './global-setup';
  * PII e quebra LGPD.
  *
  * O global-setup semeia 2 unidades (DEL-A, DEL-B), 2 policiais (um em
- * cada) e 1 escala+documento em DEL-A. O teste loga como policial de
- * DEL-B (não-admin) e verifica que o servidor recusa.
+ * cada) e 1 escala+documento em DEL-A. Autenticação é por SESSÃO SEMEADA
+ * (e2e/session.ts): o login por senha dessas contas é bloqueado pelo 2FA
+ * fail-closed (sem e-mail cadastrado → 403), comportamento coberto pelo
+ * teste de sanidade abaixo.
  *
  * Se o seed do fixture falhar (D1 local indisponível), os testes pulam via
  * `test.skip()` — assim o spec não trava o build em ambientes sem wrangler.
  */
 
-async function loginAsPolicial(
-	request: import('@playwright/test').APIRequestContext,
-	matricula: string,
-	senha: string
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-	const res = await request.post('/api/auth/login', {
-		data: { matricula, senha, tipo: 'policial' }
-	});
-	if (res.status() !== 200) {
-		return { ok: false, reason: `HTTP ${res.status()}` };
-	}
-	const body = await res.json();
-	if (body.pendente2FA) {
-		// Não deveria acontecer pq email=NULL, mas se aconteceu vamos diagnosticar.
-		return { ok: false, reason: '2FA inesperado (fixture com email?)' };
-	}
-	if (!body.success) {
-		return { ok: false, reason: 'login não retornou success=true' };
-	}
-	return { ok: true };
-}
-
 test.describe('Cross-lotação — regressão P0.1', () => {
 	test.describe.configure({ mode: 'serial' });
 
-	test('login do fixture funciona (sanity check do seed)', async ({ request }) => {
-		const r = await loginAsPolicial(request, FIXTURE.policialB.matricula, FIXTURE.password);
-		if (!r.ok) {
-			test.skip(true, `Fixture não disponível: ${r.reason} — checar global-setup`);
-		}
-		expect(r.ok).toBe(true);
+	test('sanidade: login por senha é fail-closed sem e-mail; sessão semeada autentica', async ({
+		request
+	}) => {
+		// 2FA fail-closed: conta fixture (email=NULL) não recebe sessão por senha.
+		// Limpa o rate-limit antes: o auth.spec (que roda antes na suíte) estoura
+		// o limite de tentativas do IP compartilhado e mudaria o 403 para 429.
+		execD1Local('DELETE FROM login_attempts;');
+		const login = await request.post('/api/auth/login', {
+			data: { matricula: FIXTURE.policialB.matricula, senha: FIXTURE.password, tipo: 'policial' }
+		});
+		expect(login.status()).toBe(403);
+
+		// Sessão semeada no D1 local funciona (fundação de todos os specs
+		// autenticados): endpoint autenticado responde 401 sem cookie e 200 com.
+		const semSessao = await request.get('/api/policiais/search?q=fixture');
+		expect(semSessao.status()).toBe(401);
+
+		const token = seedSession(FIXTURE.policialB.id);
+		if (!token) test.skip(true, 'wrangler/D1 local indisponível — checar global-setup');
+		const res = await request.get('/api/policiais/search?q=fixture', {
+			headers: cookieDeSessao(token!)
+		});
+		expect(res.status()).toBe(200);
 	});
 
 	test('policial de DEL-B NÃO consegue baixar documento de DEL-A', async ({ request }) => {
-		const login = await loginAsPolicial(request, FIXTURE.policialB.matricula, FIXTURE.password);
-		if (!login.ok) {
-			test.skip(true, `Fixture não disponível: ${login.reason}`);
-		}
+		const token = seedSession(FIXTURE.policialB.id);
+		if (!token) test.skip(true, 'wrangler/D1 local indisponível');
 
-		const res = await request.get(`/api/escalas/${FIXTURE.escalaA.id}/documento-assinado`);
+		const res = await request.get(`/api/escalas/${FIXTURE.escalaA.id}/documento-assinado`, {
+			headers: cookieDeSessao(token!)
+		});
 		expect(res.status()).toBe(403);
 
 		const body = await res.json();
@@ -67,12 +65,12 @@ test.describe('Cross-lotação — regressão P0.1', () => {
 	});
 
 	test('policial da MESMA lotação (DEL-A) consegue baixar', async ({ request }) => {
-		const login = await loginAsPolicial(request, FIXTURE.policialA.matricula, FIXTURE.password);
-		if (!login.ok) {
-			test.skip(true, `Fixture não disponível: ${login.reason}`);
-		}
+		const token = seedSession(FIXTURE.policialA.id);
+		if (!token) test.skip(true, 'wrangler/D1 local indisponível');
 
-		const res = await request.get(`/api/escalas/${FIXTURE.escalaA.id}/documento-assinado`);
+		const res = await request.get(`/api/escalas/${FIXTURE.escalaA.id}/documento-assinado`, {
+			headers: cookieDeSessao(token!)
+		});
 		// O R2 do fixture não existe, então o handler chega no estágio R2 e
 		// devolve 404 ("Arquivo PDF no Storage"). Mas a checagem de permissão
 		// passou — que é o ponto deste teste. Aceita 200 (R2 hit) OU 404 (R2

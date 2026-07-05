@@ -1,7 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const matriculaLocator = (page: Page) =>
-	page.locator('input[name="matricula"], input[id="matricula"], input[placeholder*="matrícula" i]').first();
+	page
+		.locator('input[name="matricula"], input[id="matricula"], input[placeholder*="matrícula" i]')
+		.first();
 
 test.describe('Autenticação', () => {
 	test('redireciona para /login quando não autenticado', async ({ page }) => {
@@ -93,7 +95,9 @@ test.describe('Rotas protegidas', () => {
 });
 
 test.describe('Health check', () => {
-	test('/api/health responde sem autenticação (M-6: resposta mínima por default)', async ({ request }) => {
+	test('/api/health responde sem autenticação (M-6: resposta mínima por default)', async ({
+		request
+	}) => {
 		// Após M-6 da auditoria, a resposta pública é binária — `{ status: ok|down }`.
 		// Detalhe estruturado (checks individuais, timestamp) só com
 		// `?detail=<HEALTH_DETAIL_TOKEN>` válido, para não vazar topologia
@@ -112,7 +116,9 @@ test.describe('Health check', () => {
 test.describe('Validação pública', () => {
 	test('/validar/hash-invalido exibe documento não encontrado', async ({ page }) => {
 		await page.goto('/validar/hash-que-nao-existe');
-		await expect(page.locator('text=/não encontrado|erro/i').first()).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('text=/não encontrado|erro/i').first()).toBeVisible({
+			timeout: 5000
+		});
 	});
 });
 

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { FIXTURE } from './global-setup';
+import { autenticarPagina } from './session';
 
 /**
  * E2E do lado de VERIFICAÇÃO do ciclo de assinatura: a página pública
@@ -49,14 +50,10 @@ test.describe('Validação pública + gating do download', () => {
 	});
 
 	test('autenticado: vê o botão de download (sem aviso de login)', async ({ page }) => {
-		// Estabelece a origem antes do login por API (Origin check) e compartilha
-		// o cookie de sessão com as navegações seguintes via page.request.
-		await page.goto('/login');
-		const login = await page.request.post('/api/auth/login', {
-			data: { matricula: FIXTURE.policialA.matricula, senha: FIXTURE.password, tipo: 'policial' }
-		});
-		const body = login.status() === 200 ? await login.json().catch(() => ({})) : {};
-		if (body.success !== true) test.skip(true, 'Fixture/login indisponível');
+		// Sessão semeada (e2e/session.ts) — o login por senha da conta fixture é
+		// bloqueado pelo 2FA fail-closed (sem e-mail cadastrado).
+		const ok = await autenticarPagina(page, FIXTURE.policialA.id);
+		if (!ok) test.skip(true, 'wrangler/D1 local indisponível');
 
 		await page.goto(`/validar/${HASH}`);
 		const naoEncontrado = await page

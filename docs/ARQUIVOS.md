@@ -127,12 +127,14 @@ SQL gerado pelo Drizzle (nunca editar à mão — altere `src/lib/server/schema.
 
 ## 5. `e2e/` — testes end-to-end
 
-| Arquivo                         | O que faz                                                                                                                                                                                                      |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `global-setup.ts`               | Seed do D1 local antes dos specs: aplica migrações e cria a `FIXTURE` (2 unidades, 2 policiais com senha conhecida, 1 escala + documento assinado). Reusa `password-hash.ts` e o hash do termo do próprio app. |
-| `auth.spec.ts`                  | Login: redirect para `/login`, formulário visível, erro com credencial inválida etc.                                                                                                                           |
-| `assinatura-validacao.spec.ts`  | Lado de **verificação** do ciclo de assinatura: página pública `/validar/[hash]` e gating do download do PDF íntegro (401 para anônimo — o manifesto forense tem PII).                                         |
-| `escalas-cross-lotacao.spec.ts` | Regressão P0.1: usuário de outra lotação **não** pode baixar documento assinado de escala alheia (`verificarPermissaoEscala`).                                                                                 |
+| Arquivo                         | O que faz                                                                                                                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `global-setup.ts`               | Seed do D1 local antes dos specs: migrações, `FIXTURE` cross-lotação (2 unidades/2 policiais/1 escala+documento) e GISE ativa completa (seccional, equipe, membro, supervisor DPC), com aceites de termo. |
+| `session.ts`                    | Sessões SEMEADAS para specs autenticados: insere a linha em `sessoes` no D1 local (ISO com `T`) e injeta o cookie — o login por senha das fixtures é bloqueado pelo 2FA fail-closed (sem e-mail).         |
+| `gise.spec.ts`                  | Smoke das telas GISE: `/gise/[id]` (supervisor acessa e vê quadro/seccional; sem vínculo é redirecionado) e `/res-gise` (membro vê sua escala listada).                                                   |
+| `auth.spec.ts`                  | Login: redirect para `/login`, formulário visível, erro com credencial inválida etc.                                                                                                                      |
+| `assinatura-validacao.spec.ts`  | Lado de **verificação** do ciclo de assinatura: página pública `/validar/[hash]` e gating do download do PDF íntegro (401 para anônimo — o manifesto forense tem PII).                                    |
+| `escalas-cross-lotacao.spec.ts` | Regressão P0.1: usuário de outra lotação **não** pode baixar documento assinado de escala alheia (`verificarPermissaoEscala`).                                                                            |
 
 ## 6. `static/` — arquivos servidos como estáticos
 
