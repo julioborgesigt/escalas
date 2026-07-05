@@ -202,7 +202,7 @@ function validarPropriedadeToken(
  *   - persistir o resultado (R2 + tabela de documentos);
  *   - registrar audit log.
  */
-export async function finalizarAssinaturaQualificada(
+async function finalizarAssinaturaQualificada(
 	user: SignatureUser,
 	input: QualifiedInput,
 	options: { platform?: App.Platform } = {}
