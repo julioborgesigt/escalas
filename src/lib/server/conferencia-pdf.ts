@@ -6,29 +6,13 @@
  */
 
 import * as exportLib from '$lib/server/export';
-import { tryGetR2 } from '$lib/db';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import type { Database } from '$lib/db';
 
 type EscalaArg = Parameters<typeof exportLib.gerarPdf>[0];
 type PoliciaisArg = Parameters<typeof exportLib.gerarPdf>[1];
 type GiseDetalhado = Parameters<typeof exportLib.toGisePdfData>[0];
-
-/** Carrega um logo do R2 (best-effort; undefined em qualquer falha). */
-async function carregarLogoR2(
-	platform: App.Platform | undefined,
-	key: string
-): Promise<Uint8Array | undefined> {
-	try {
-		const r2 = tryGetR2(platform);
-		if (!r2) return undefined;
-		const obj = await r2.get(key);
-		if (!obj) return undefined;
-		return new Uint8Array(await obj.arrayBuffer());
-	} catch {
-		return undefined;
-	}
-}
 
 /**
  * Gera o rascunho PDF da escala (sem manifesto forense), conforme o tipo.
@@ -44,10 +28,7 @@ export async function gerarRascunhoEscalaPdf(
 	rubrica?: string
 ): Promise<Uint8Array> {
 	if (escala.tipo === 'expediente') {
-		const [logoPolicia, logoCeara] = await Promise.all([
-			carregarLogoR2(platform, 'assets/logogise.jpg'),
-			carregarLogoR2(platform, 'assets/logo_ceara.jpg')
-		]);
+		const { esq: logoPolicia, dir: logoCeara } = await carregarLogosGise(platform);
 		const result = await exportLib.gerarPdfExpediente(
 			escala,
 			policiais,
@@ -69,11 +50,10 @@ export async function gerarRascunhoGisePdf(
 	gise: GiseDetalhado,
 	platform: App.Platform | undefined
 ): Promise<Uint8Array> {
-	const [logoGise, logoCeara] = await Promise.all([
-		carregarLogoR2(platform, 'assets/logogise.jpg'),
-		carregarLogoR2(platform, 'assets/logo_ceara.jpg')
+	const [{ esq: logoGise, dir: logoCeara }, brEnv] = await Promise.all([
+		carregarLogosGise(platform),
+		getBreveRelatorioEnvMergido(db)
 	]);
-	const brEnv = await getBreveRelatorioEnvMergido(db);
 	const result = await exportLib.gerarPdfGise(
 		exportLib.toGisePdfData(gise, brEnv),
 		logoGise,

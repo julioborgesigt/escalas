@@ -25,22 +25,6 @@ import type { RequestHandler } from './$types';
 const VALIDAR_DOWNLOAD_MAX = 60;
 const VALIDAR_DOWNLOAD_WINDOW_MIN = 10;
 
-/** Carrega um logo do R2 para a regeneração do rascunho (best-effort). */
-async function carregarLogoConferencia(
-	platform: App.Platform | undefined,
-	key: string
-): Promise<Uint8Array | undefined> {
-	try {
-		const r2 = tryGetR2(platform);
-		if (!r2) return undefined;
-		const obj = await r2.get(key);
-		if (!obj) return undefined;
-		return new Uint8Array(await obj.arrayBuffer());
-	} catch {
-		return undefined;
-	}
-}
-
 /** Response de cópia de conferência (sem cache em proxies compartilhados). */
 function pdfConferencia(buffer: Uint8Array, filename: string): Response {
 	return new Response(buffer as unknown as BodyInit, {
@@ -138,7 +122,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		if (documento.tipo_doc === 'escala') {
 			const { buscarEscala, listarPoliciaisEscala, buscarRubricaAssinante } =
 				await import('$lib/db');
-			const exportLib = await import('$lib/server/export');
+			const { gerarRascunhoEscalaPdf } = await import('$lib/server/conferencia-pdf');
 			const escala = await buscarEscala(db, documento.escala_id);
 			if (!escala) return notFound('Escala');
 			const policiais = await listarPoliciaisEscala(db, documento.escala_id);
@@ -148,20 +132,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 				(documento as { assinante_cpf?: string | null }).assinante_cpf,
 				platform?.env
 			);
-			let rascunho: Uint8Array;
-			if (escala.tipo === 'expediente') {
-				const [logoPolicia, logoCeara] = await Promise.all([
-					carregarLogoConferencia(platform, 'assets/logogise.jpg'),
-					carregarLogoConferencia(platform, 'assets/logo_ceara.jpg')
-				]);
-				rascunho = (
-					await exportLib.gerarPdfExpediente(escala, policiais, logoPolicia, logoCeara, rubricaAss)
-				).pdf;
-			} else if (escala.tipo === 'plantao') {
-				rascunho = exportLib.gerarPdfPlantao(escala, policiais, rubricaAss).pdf;
-			} else {
-				rascunho = exportLib.gerarPdf(escala, policiais, rubricaAss).pdf;
-			}
+			const rascunho = await gerarRascunhoEscalaPdf(escala, policiais, platform, rubricaAss);
 			const buffer = await gerarCopiaConferencia({
 				pdfRascunho: rascunho,
 				assinanteNome: documento.assinante_nome,

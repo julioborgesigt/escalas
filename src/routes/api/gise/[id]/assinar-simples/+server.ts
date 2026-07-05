@@ -7,6 +7,7 @@
  */
 
 import type { RequestHandler } from './$types';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import { bytesToHex } from '$lib/crypto/hex';
 import {
 	apiError,
@@ -96,21 +97,7 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		const r2Logo = tryGetR2(platform);
-		let logoJpgBytes: Uint8Array | undefined;
-		let logoCearaBytes: Uint8Array | undefined;
-		if (r2Logo) {
-			try {
-				const [logoObj, cearaObj] = await Promise.all([
-					r2Logo.get('assets/logogise.jpg'),
-					r2Logo.get('assets/logo_ceara.jpg')
-				]);
-				if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
-				if (cearaObj) logoCearaBytes = new Uint8Array(await cearaObj.arrayBuffer());
-			} catch {
-				/* logo optional */
-			}
-		}
+		const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 		const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 		const brEnv = await getBreveRelatorioEnvMergido(db);
 		const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes, logoCearaBytes);
