@@ -73,16 +73,13 @@
 		}
 	}
 
-	const temMinimo = $derived(novaSenha.length >= 8);
-	const temMaiuscula = $derived(/[A-Z]/.test(novaSenha));
-	const temMinuscula = $derived(/[a-z]/.test(novaSenha));
-	const temNumero = $derived(/[0-9]/.test(novaSenha));
-	const senhaOk = $derived(temMinimo && temMaiuscula && temMinuscula && temNumero);
-	const confirmaOk = $derived(confirmarSenha.length > 0 && novaSenha === confirmarSenha);
+	const forca = $derived(validarForcaSenha(novaSenha, confirmarSenha));
+	const senhaOk = $derived(forca.senhaOk);
 	const emailPessoalOk = $derived(!primeiroAcesso || etapaEmailPessoal === 'verificado');
-	const podeAlterarSenha = $derived(senhaOk && confirmaOk && emailPessoalOk);
+	const podeAlterarSenha = $derived(senhaOk && forca.confirmaOk && emailPessoalOk);
 
 	import { enhance } from '$app/forms';
+	import CamposNovaSenha, { validarForcaSenha } from '$lib/components/CamposNovaSenha.svelte';
 
 	function handleAlterarSenha({ cancel }: { cancel: () => void }) {
 		error = '';
@@ -317,104 +314,12 @@
 					</label>
 				{/if}
 
-				<label class="label">
-					<span class="label-text font-medium">Nova senha</span>
-					<input
-						class="input"
-						type="password"
-						name="nova_senha"
-						bind:value={novaSenha}
-						placeholder="Digite a nova senha"
-						required
-					/>
-				</label>
-
-				<!-- Requisitos de senha -->
-				<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs px-0.5">
-					{#snippet req(ok: boolean, label: string)}
-						<div
-							class="flex items-center gap-1.5 {ok
-								? 'text-success-600 dark:text-success-400'
-								: 'text-surface-400'}"
-						>
-							{#if ok}
-								<svg
-									class="w-3.5 h-3.5 shrink-0"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="2.5"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="M4.5 12.75l6 6 9-13.5"
-									/></svg
-								>
-							{:else}
-								<svg
-									class="w-3.5 h-3.5 shrink-0 opacity-50"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									stroke-width="2"><circle cx="12" cy="12" r="9" /></svg
-								>
-							{/if}
-							{label}
-						</div>
-					{/snippet}
-					{@render req(temMinimo, 'Mínimo 8 caracteres')}
-					{@render req(temMaiuscula, 'Letra maiúscula (A-Z)')}
-					{@render req(temMinuscula, 'Letra minúscula (a-z)')}
-					{@render req(temNumero, 'Pelo menos um número')}
-				</div>
-
-				<label class="label">
-					<span class="label-text font-medium">Confirmar nova senha</span>
-					<div class="relative">
-						<input
-							class="input {confirmarSenha.length > 0
-								? confirmaOk
-									? 'border-success-500 focus:ring-success-500'
-									: 'border-error-500 focus:ring-error-500'
-								: ''}"
-							type="password"
-							bind:value={confirmarSenha}
-							placeholder="Confirme a nova senha"
-							required
-						/>
-						{#if confirmarSenha.length > 0}
-							<div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-								{#if confirmaOk}
-									<svg
-										class="w-4 h-4 text-success-500"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										stroke-width="2.5"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="M4.5 12.75l6 6 9-13.5"
-										/></svg
-									>
-								{:else}
-									<svg
-										class="w-4 h-4 text-error-500"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										stroke-width="2.5"
-										><path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="M6 18L18 6M6 6l12 12"
-										/></svg
-									>
-								{/if}
-							</div>
-						{/if}
-					</div>
-				</label>
+				<CamposNovaSenha
+					bind:novaSenha
+					bind:confirmarSenha
+					placeholderNova="Digite a nova senha"
+					placeholderConfirmar="Confirme a nova senha"
+				/>
 
 				<button
 					type="submit"
