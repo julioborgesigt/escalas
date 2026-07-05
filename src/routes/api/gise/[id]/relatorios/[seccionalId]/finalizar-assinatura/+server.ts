@@ -6,7 +6,6 @@
  */
 
 import type { RequestHandler } from './$types';
-import { bytesToHex } from '$lib/crypto/hex';
 import {
 	getDB,
 	salvarAssinaturaRelatorioGise,
@@ -16,12 +15,9 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
-import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
+import { finalizarQualificadaDoPayload, respostaPdfAssinado } from '$lib/server/signature-service';
 import { tryGetR2 } from '$lib/db';
 import {
-	apiError,
-	ErrorCode,
-	contentDisposition,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -72,27 +68,16 @@ export const POST: RequestHandler = async (event) => {
 	} = validated.data;
 
 	try {
-		// Delega ao serviço unificado.
-		const result = await finalizarAssinaturaQualificada(
+		// Delega ao serviço unificado (inclui o hash do PDF assinado).
+		const result = await finalizarQualificadaDoPayload(
 			u,
-			{
-				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-				serproCms,
-				messageDigestHex: messageDigest,
-				signingTimeISO
-			},
+			{ preparedPdf, serproCms, messageDigestHex: messageDigest, signingTimeISO },
 			{ platform: p }
 		);
-		if (!('pdfFinal' in result)) {
-			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
-			return apiError(result.error, result.status, code);
-		}
+		if (!result.ok) return result.response;
+		const { arquivoHash: arquivo_hash } = result;
 
 		const type = 'serpro' as const;
-
-		// Hash do PDF assinado (para controle no banco).
-		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const gise = giseAuth;
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
@@ -166,12 +151,7 @@ export const POST: RequestHandler = async (event) => {
 			{ env }
 		);
 
-		return new Response(result.pdfFinal as unknown as BodyInit, {
-			headers: {
-				'Content-Type': 'application/pdf',
-				'Content-Disposition': contentDisposition(filename)
-			}
-		});
+		return respostaPdfAssinado(result.pdfFinal, filename);
 	} catch (err) {
 		return serverError(
 			`[gise/relatorios/finalizar-assinatura] Falha (gise_id=${id}, seccional_id=${secIdNum})`,

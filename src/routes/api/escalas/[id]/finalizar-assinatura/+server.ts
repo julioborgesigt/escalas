@@ -1,8 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
-	apiError,
-	ErrorCode,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -19,9 +17,8 @@ import {
 	registrarAuditComContexto
 } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
-import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
+import { finalizarQualificadaDoPayload } from '$lib/server/signature-service';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
-import { calcularHashBuffer } from '$lib/server/document-utils';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -63,21 +60,15 @@ export const POST: RequestHandler = async ({
 	try {
 		// Delega TODO o fluxo criptográfico ao serviço unificado: validação de
 		// propriedade do token (CPF do cert vs CPF logado, sem bypass para
-		// admin), embed do CMS, verificação CAdES-LT, OCSP e PAdES-LT.
-		const result = await finalizarAssinaturaQualificada(
+		// admin), embed do CMS, verificação CAdES-LT, OCSP, PAdES-LT e hash
+		// do PDF final.
+		const result = await finalizarQualificadaDoPayload(
 			u,
-			{
-				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-				serproCms,
-				messageDigestHex,
-				signingTimeISO
-			},
+			{ preparedPdf, serproCms, messageDigestHex, signingTimeISO },
 			{ platform }
 		);
-		if (!('pdfFinal' in result)) {
-			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
-			return apiError(result.error, result.status, code);
-		}
+		if (!result.ok) return result.response;
+		const { arquivoHash } = result;
 
 		if (!hasR2(platform)) {
 			return serverError(
@@ -91,11 +82,6 @@ export const POST: RequestHandler = async ({
 		await bucket.put(r2Key, result.pdfFinal, {
 			httpMetadata: { contentType: 'application/pdf' }
 		});
-
-		// arquivo_hash = hash do PDF FINAL (o que está no R2 e que a /validar
-		// reconfere). Recalculado aqui em vez de confiar no `documentHash` do
-		// cliente (A4) — que é o hash do PDF ORIGINAL e não bate com o blob assinado.
-		const arquivoHash = await calcularHashBuffer(result.pdfFinal);
 
 		await salvarDocumentoEscala(
 			db,

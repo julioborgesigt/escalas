@@ -8,6 +8,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { carregarLogosGise } from '$lib/server/gise-logos';
 import { getDB, buscarGiseEscala, buscarGiseDetalhado, buscarPolicial } from '$lib/db';
 import { prepararAssinaturaSchema } from '$lib/schemas';
 import {
@@ -80,21 +81,9 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
+	// `r2Logo` continua necessário adiante (grava a cópia de conferência no R2).
 	const r2Logo = tryGetR2(platform);
-	let logoJpgBytes: Uint8Array | undefined;
-	let logoCearaBytes: Uint8Array | undefined;
-	if (r2Logo) {
-		try {
-			const [logoObj, cearaObj] = await Promise.all([
-				r2Logo.get('assets/logogise.jpg'),
-				r2Logo.get('assets/logo_ceara.jpg')
-			]);
-			if (logoObj) logoJpgBytes = new Uint8Array(await logoObj.arrayBuffer());
-			if (cearaObj) logoCearaBytes = new Uint8Array(await cearaObj.arrayBuffer());
-		} catch {
-			/* logo optional */
-		}
-	}
+	const { esq: logoJpgBytes, dir: logoCearaBytes } = await carregarLogosGise(platform);
 	const gisePdf = giseDetalhadoComMatriculaSupervisorSessao(giseDetalhado, u);
 	const brEnv = await getBreveRelatorioEnvMergido(db);
 	const result = await gerarPdfGise(toGisePdfData(gisePdf, brEnv), logoJpgBytes, logoCearaBytes);

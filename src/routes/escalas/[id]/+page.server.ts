@@ -35,16 +35,20 @@ import {
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 
 /**
- * Garante que o usuário tem permissão para mutar a escala alvo (adicionar/remover policiais etc.).
+ * Preâmbulo único das actions: autentica, valida o id e garante que o usuário
+ * tem permissão para mutar a escala alvo (adicionar/remover policiais etc.).
  * DPC admins com solicitação de assinatura podem VISUALIZAR e ASSINAR, mas não mutam
  * diretamente a escala — portanto essa função mantém a restrição por lotação para mutations.
- * Devolve a `escala` carregada para reaproveitamento; ou um `fail()` pronto para retornar.
+ * Devolve `db`/`escala`/`usuario` para reaproveitamento; ou um `fail()` pronto para retornar.
  */
 async function carregarEscalaComPermissao(
 	platform: App.Platform | undefined,
-	usuario: NonNullable<App.Locals['usuario']>,
+	usuario: App.Locals['usuario'],
 	escalaIdRaw: string | undefined
 ) {
+	if (!usuario) {
+		return { erro: fail(401, { error: 'Não autorizado' }) } as const;
+	}
 	const escalaId = Number(escalaIdRaw);
 	if (isNaN(escalaId)) {
 		return { erro: fail(400, { error: 'ID da escala inválido' }) } as const;
@@ -57,22 +61,7 @@ async function carregarEscalaComPermissao(
 	if (usuario.tipo !== 'admin' && usuario.lotacao !== escala.lotacao) {
 		return { erro: fail(403, { error: 'Sem permissão para alterar esta escala' }) } as const;
 	}
-	return { db, escala, escalaId } as const;
-}
-
-function calcularDataSaidaInicial(
-	dataEntrada: string,
-	horaEntrada: string,
-	horaSaida: string
-): string {
-	const he = Number(horaEntrada.split(':')[0]);
-	const hs = Number(horaSaida.split(':')[0]);
-	if (hs <= he) {
-		const d = new Date(dataEntrada + 'T00:00:00');
-		d.setDate(d.getDate() + 1);
-		return d.toISOString().split('T')[0];
-	}
-	return dataEntrada;
+	return { db, escala, escalaId, usuario } as const;
 }
 
 function podeOIPSolicitar(u: App.Locals['usuario']): boolean {
@@ -146,10 +135,7 @@ export const load: PageServerLoad = async ({ locals, platform, params }) => {
 
 export const actions: Actions = {
 	adicionar: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -170,7 +156,7 @@ export const actions: Actions = {
 
 		const horaEnt = `${hora_entrada}:${minuto_entrada}`;
 		const horaSai = `${hora_saida}:${minuto_saida}`;
-		const dataSaida = dataSaidaOverride || calcularDataSaidaInicial(data_plantao, horaEnt, horaSai);
+		const dataSaida = dataSaidaOverride || calcularDataSaida(data_plantao, horaEnt, horaSai);
 
 		// -1 = sem exclusão: verifica TODAS as escalas, inclusive a atual (impede duplicatas)
 		const conflito = await verificarConflitoGlobal(
@@ -205,10 +191,7 @@ export const actions: Actions = {
 	},
 
 	adicionarPlantao: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -263,10 +246,7 @@ export const actions: Actions = {
 	},
 
 	adicionarTodos: async ({ locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -279,7 +259,7 @@ export const actions: Actions = {
 		const ds =
 			escala.tipo === 'expediente'
 				? escala.data_fim
-				: calcularDataSaidaInicial(escala.data_inicio, he, hs);
+				: calcularDataSaida(escala.data_inicio, he, hs);
 
 		try {
 			const quantidade = await adicionarTodosPoliciais(
@@ -308,12 +288,9 @@ export const actions: Actions = {
 
 	gerarProximoMes: async (event) => {
 		const { locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala: escalaAtual, escalaId } = ctx;
+		const { db, escala: escalaAtual, escalaId, usuario: u } = ctx;
 
 		if (escalaAtual.tipo !== 'plantao' && escalaAtual.tipo !== 'expediente') {
 			return fail(400, { error: 'Operação inválida para este tipo de escala' });
@@ -445,10 +422,7 @@ export const actions: Actions = {
 	},
 
 	editar: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -503,10 +477,7 @@ export const actions: Actions = {
 	},
 
 	remover: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -528,10 +499,7 @@ export const actions: Actions = {
 	},
 
 	repetir: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -583,7 +551,7 @@ export const actions: Actions = {
 			.filter((d) => !conflitosMap.has(d))
 			.map((d) => ({
 				data_plantao: d,
-				data_saida: calcularDataSaidaInicial(d, hora_entrada, hora_saida)
+				data_saida: calcularDataSaida(d, hora_entrada, hora_saida)
 			}));
 		const conflitantes = Array.from(conflitosMap.entries()).map(([data, motivo]) => ({
 			data,
@@ -615,10 +583,7 @@ export const actions: Actions = {
 	},
 
 	editarPlantaoAgrupado: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -685,7 +650,7 @@ export const actions: Actions = {
 				escala_id: escalaId,
 				policial_id,
 				data_plantao: d,
-				data_saida: calcularDataSaidaInicial(d, hora_entrada, hora_saida),
+				data_saida: calcularDataSaida(d, hora_entrada, hora_saida),
 				hora_entrada,
 				hora_saida,
 				equipe,
@@ -701,10 +666,7 @@ export const actions: Actions = {
 	},
 
 	editarDiasEscala: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -796,12 +758,9 @@ export const actions: Actions = {
 
 	finalizar: async (event) => {
 		const { request, locals, platform, params } = event;
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		if (escala.tipo !== 'fds')
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
@@ -865,12 +824,9 @@ export const actions: Actions = {
 	},
 
 	reenviarEmail: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
-		const { db, escala, escalaId } = ctx;
+		const { db, escala, escalaId, usuario: u } = ctx;
 
 		if (escala.tipo !== 'fds')
 			return fail(400, { error: 'Operação válida apenas para escalas de FDS' });
@@ -920,10 +876,7 @@ export const actions: Actions = {
 	},
 
 	desfinalizar: async ({ locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escala, escalaId } = ctx;
 
@@ -939,10 +892,7 @@ export const actions: Actions = {
 	},
 
 	removerTodos: async ({ locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
@@ -955,10 +905,7 @@ export const actions: Actions = {
 	},
 
 	removerSelecionados: async ({ request, locals, platform, params }) => {
-		const u = locals.usuario;
-		if (!u) return fail(401, { error: 'Não autorizado' });
-
-		const ctx = await carregarEscalaComPermissao(platform, u, params.id);
+		const ctx = await carregarEscalaComPermissao(platform, locals.usuario, params.id);
 		if ('erro' in ctx) return ctx.erro;
 		const { db, escalaId } = ctx;
 
