@@ -21,17 +21,24 @@ export const FIXTURE = {
 	unidadeB: { id: 99002, nome: 'DELEGACIA E2E FIXTURE B' },
 	policialA: { id: 99001, matricula: 'EE990001' },
 	policialB: { id: 99002, matricula: 'EE990002' },
-	escalaA: { id: 99001 }
+	escalaA: { id: 99001 },
+	// ── GISE ativa (telas /gise/[id] e /res-gise) ─────────────────────────
+	seccional: { id: 99010, nome: 'SECCIONAL E2E FIXTURE' },
+	supervisor: { id: 99003, matricula: 'EE990003', nome: 'Supervisor Fixture DPC' },
+	membroGise: { id: 99004, matricula: 'EE990004', nome: 'Membro Fixture GISE' },
+	gise: { id: 99001, dataInicio: '2026-06-01' },
+	giseSeccional: { id: 99001 },
+	giseEquipe: { id: 99001 }
 } as const;
 
 function execSqlSafe(sql: string): boolean {
 	try {
 		// `--command` aceita múltiplos statements separados por `;`. Aspas duplas
 		// dentro do SQL precisam ser escapadas no shell.
-		execSync(
-			`npx wrangler d1 execute escalas-db --local --command "${sql.replace(/"/g, '\\"')}"`,
-			{ cwd: ROOT, stdio: 'pipe' }
-		);
+		execSync(`npx wrangler d1 execute escalas-db --local --command "${sql.replace(/"/g, '\\"')}"`, {
+			cwd: ROOT,
+			stdio: 'pipe'
+		});
 		return true;
 	} catch {
 		return false;
@@ -41,8 +48,12 @@ function execSqlSafe(sql: string): boolean {
 export default async function globalSetup() {
 	// Limpa tentativas de login no D1 local para e2e não herdarem rate limit
 	// de execuções anteriores (preview reutiliza o mesmo arquivo de estado
-	// com `reuseExistingServer`).
-	execSqlSafe('DELETE FROM login_attempts;');
+	// com `reuseExistingServer`). Sessões semeadas (e2e/session.ts) das contas
+	// fixture também são purgadas — após o primeiro uso o token é re-gravado
+	// hasheado, então a limpeza é por usuario_id, não por prefixo.
+	execSqlSafe(
+		'DELETE FROM login_attempts; DELETE FROM sessoes WHERE usuario_id BETWEEN 99000 AND 99999;'
+	);
 
 	// ── Fixture cross-lotação ────────────────────────────────────────────
 	// Cria 2 unidades + 2 policiais (cada um numa unidade) + 1 escala em
@@ -50,7 +61,8 @@ export default async function globalSetup() {
 	// que o policial de DEL-B NÃO consegue baixar o documento de DEL-A
 	// (regressão P0.1 da auditoria de segurança).
 	//
-	// email=NULL pula 2FA (auth-flow:354 exige email para mandar código).
+	// email=NULL: o 2FA fail-closed BLOQUEIA o login por senha dessas contas
+	// (403) — os specs autenticam via sessão semeada (e2e/session.ts).
 	// primeiro_acesso=0 pula redirect para /alterar-senha.
 	const senhaHash = await hashSenha(FIXTURE.password);
 	const fixtureSeed = `
@@ -72,20 +84,53 @@ export default async function globalSetup() {
 
 	const fixtureOk = execSqlSafe(fixtureSeed);
 
+	// ── Fixture GISE ativa ───────────────────────────────────────────────
+	// Uma GISE 'em_andamento' (= "ativa": status != finalizada) com seccional
+	// preenchida, 1 equipe operacional e 1 membro; supervisor DPC designado.
+	// Destrava as telas /gise/[id] (supervisor/admin) e /res-gise (membro).
+	const giseSeed = `
+		INSERT OR REPLACE INTO unidades (id, nome, tipo) VALUES
+			(${FIXTURE.seccional.id}, '${FIXTURE.seccional.nome}', 'seccional');
+		INSERT OR REPLACE INTO policiais
+			(id, matricula, nome, cargo, lotacao, senha, primeiro_acesso, email, ativo)
+		VALUES
+			(${FIXTURE.supervisor.id}, '${FIXTURE.supervisor.matricula}', '${FIXTURE.supervisor.nome}', 'DPC', '${FIXTURE.seccional.nome}', '${senhaHash}', 0, NULL, 1),
+			(${FIXTURE.membroGise.id}, '${FIXTURE.membroGise.matricula}', '${FIXTURE.membroGise.nome}', 'OIP', '${FIXTURE.unidadeA.nome}', '${senhaHash}', 0, NULL, 1);
+		INSERT OR REPLACE INTO gise_escalas (id, data_inicio, status, hora_entrada, hora_saida, supervisor_id)
+		VALUES (${FIXTURE.gise.id}, '${FIXTURE.gise.dataInicio}', 'em_andamento', '08:00', '16:00', ${FIXTURE.supervisor.id});
+		INSERT OR REPLACE INTO gise_seccionais (id, gise_id, seccional_id, status, hora_entrada, hora_saida)
+		VALUES (${FIXTURE.giseSeccional.id}, ${FIXTURE.gise.id}, ${FIXTURE.seccional.id}, 'preenchida', '08:00', '16:00');
+		INSERT OR REPLACE INTO gise_equipes (id, gise_seccional_id, tipo, slots_dpc, slots_oip)
+		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.giseSeccional.id}, 'operacional', 1, 4);
+		DELETE FROM gise_membros WHERE equipe_id = ${FIXTURE.giseEquipe.id};
+		INSERT INTO gise_membros (equipe_id, policial_id)
+		VALUES (${FIXTURE.giseEquipe.id}, ${FIXTURE.membroGise.id});
+		DELETE FROM gise_presencas WHERE gise_id = ${FIXTURE.gise.id};
+	`;
+	const giseOk = execSqlSafe(giseSeed);
+	if (!giseOk) {
+		console.warn('[global-setup] Fixture GISE não foi seedada — specs de GISE vão pular.');
+	}
+
 	// Aceite do Termo de Uso vigente para os dois fixture-users. Sem isto, o
 	// `handleAuth` em hooks.server.ts redireciona/bloqueia tudo com 403
 	// ("Aceite o Termo de Uso vigente antes de continuar") antes dos
 	// handlers de API rodarem.
 	const termoHash = await calcularHashTermo();
+	const idsFixture = [
+		FIXTURE.policialA.id,
+		FIXTURE.policialB.id,
+		FIXTURE.supervisor.id,
+		FIXTURE.membroGise.id
+	];
 	const aceitesSeed = `
 		DELETE FROM aceites_termos
 		WHERE usuario_tipo = 'policial'
-			AND usuario_id IN (${FIXTURE.policialA.id}, ${FIXTURE.policialB.id});
+			AND usuario_id IN (${idsFixture.join(', ')});
 		INSERT INTO aceites_termos
 			(usuario_tipo, usuario_id, versao_termo, hash_termo, aceitou_lgpd, aceitou_uso_email, aceitou_uso_localizacao)
 		VALUES
-			('policial', ${FIXTURE.policialA.id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1),
-			('policial', ${FIXTURE.policialB.id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1);
+			${idsFixture.map((id) => `('policial', ${id}, '${TERMO_VERSAO}', '${termoHash}', 1, 1, 1)`).join(',\n\t\t\t')};
 	`;
 	execSqlSafe(aceitesSeed);
 	if (!fixtureOk) {

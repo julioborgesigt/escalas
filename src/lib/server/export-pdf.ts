@@ -327,7 +327,6 @@ export function gerarPdf(
 	}
 
 	const lastY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
-	const pageWidth = 297;
 	// Bloco de assinatura mais alto (offset/cap menores): deixa folga entre a
 	// assinatura e o rodapé de identidade/QR no pé da página (mesma diretriz do plantão).
 	let sigY = lastY + 20;
@@ -336,7 +335,22 @@ export function gerarPdf(
 		sigY = 35;
 	}
 
+	return finalizarEscalaComAssinatura(doc, escala, sigY, rubrica);
+}
+
+/**
+ * Rodapé de assinatura das escalas (FDS e plantão): cidade + data por extenso
+ * à esquerda, rubrica opcional sobre a linha de assinatura à direita.
+ * Fonte única do bloco que era copiado nos dois geradores.
+ */
+function finalizarEscalaComAssinatura(
+	doc: jsPDF,
+	escala: Escala,
+	sigY: number,
+	rubrica?: string
+): PdfExportResult {
 	const margin = 10;
+	const pageWidth = 297;
 	doc.setFontSize(9);
 	doc.setFont('helvetica', 'normal');
 
@@ -651,21 +665,7 @@ export function gerarPdfPlantao(
 		sigY = 35;
 	}
 
-	doc.setFontSize(9);
-	const localizacao = escala.cidade && escala.cidade !== escala.lotacao ? escala.cidade : '';
-	const dataExtenso = formatarDataExtenso(new Date());
-	const textoData = localizacao ? `${localizacao}, ${dataExtenso}` : dataExtenso;
-	doc.text(textoData, margin, sigY);
-
-	const sigCenterX = pageWidth * 0.75;
-	if (rubrica) desenharRubricaSobreLinha(doc, rubrica, sigCenterX, sigY);
-	doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
-	doc.setFontSize(8);
-	doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 5, {
-		align: 'center'
-	});
-
-	return { pdf: new Uint8Array(doc.output('arraybuffer')), finalY: sigY };
+	return finalizarEscalaComAssinatura(doc, escala, sigY, rubrica);
 }
 
 // ---- PDF GISE ----
@@ -1001,20 +1001,25 @@ export function gerarRelatorioProdutividadeGisePdf(data: GiseProdutividadeData) 
 }
 
 // ---- PDF Relatório Extraordinário GISE (Seccional) ----
-export async function gerarRelatorioExtraordinarioPdf(
-	gise: GisePdfData,
-	presencas: GisePresenca[],
-	seccionalId?: number,
-	baseUrl?: string,
-	reportSignature?: RelatorioAssinatura | null,
-	qrCodeBase64?: string,
-	isPreparando = false,
-	logoEsqBytes?: Uint8Array,
-	logoDirBytes?: Uint8Array
-): Promise<PdfExportResult> {
+// ---- Blocos compartilhados dos relatórios de serviço extraordinário ----
+// (seccional × supervisão: mesma diagramação, muda só unidade/título/local)
+
+const REL_EXTRA_PAGE_WIDTH = 297;
+const REL_EXTRA_MARGIN = 10;
+
+/** Cabeçalho institucional + título + linha de DATA + caixa do breve relatório. */
+function iniciarRelatorioExtra(opts: {
+	linhaUnidade: string;
+	titulo: string;
+	data_inicio: string;
+	hora_entrada: string;
+	hora_saida: string;
+	breveTitulo: string;
+	breveConteudo: string;
+}): { doc: jsPDF; y: number; dataSaidaEfetiva: string } {
 	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-	const pageWidth = 297;
-	const margin = 10;
+	const pageWidth = REL_EXTRA_PAGE_WIDTH;
+	const margin = REL_EXTRA_MARGIN;
 
 	let y = 14;
 	doc.setFontSize(11);
@@ -1028,70 +1033,69 @@ export async function gerarRelatorioExtraordinarioPdf(
 		align: 'center'
 	});
 	y += 5;
-	const primeiraSec =
-		gise.seccionais.find((s) => s.seccional_id === seccionalId)?.seccional_nome ||
-		gise.seccionais[0]?.seccional_nome ||
-		'';
-	doc.text(`${primeiraSec.toUpperCase()}`, pageWidth / 2, y, { align: 'center' });
+	doc.text(opts.linhaUnidade, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
 	doc.setFontSize(12);
-	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO', pageWidth / 2, y, { align: 'center' });
+	doc.text(opts.titulo, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
-	const hEnt = gise.hora_entrada;
-	const hSai = gise.hora_saida;
-
-	const heVal = parseInt(hEnt.split(':')[0]);
-	const hsVal = parseInt(hSai.split(':')[0]);
-	const dataSaidaEfetiva = calcularDataSaida(gise.data_inicio, hEnt, hSai);
+	const heVal = parseInt(opts.hora_entrada.split(':')[0]);
+	const hsVal = parseInt(opts.hora_saida.split(':')[0]);
+	const dataSaidaEfetiva = calcularDataSaida(opts.data_inicio, opts.hora_entrada, opts.hora_saida);
 	let diff = hsVal - heVal;
 	if (diff <= 0) diff += 24;
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
-	const textoData = `DATA: das ${hEnt} de ${formatarData(gise.data_inicio)} às ${hSai} horas de ${formatarData(dataSaidaEfetiva)} (${diff} horas)`;
+	const textoData = `DATA: das ${opts.hora_entrada} de ${formatarData(opts.data_inicio)} às ${opts.hora_saida} horas de ${formatarData(dataSaidaEfetiva)} (${diff} horas)`;
 	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
 	y += 10;
 
-	doc.text(gise.breve_relatorio_titulo, margin, y);
+	doc.text(opts.breveTitulo, margin, y);
 	y += 5;
 	doc.setFont('helvetica', 'bold');
 	const boxY = y;
 	doc.rect(margin, boxY, pageWidth - 20, 15);
-	const relatorioTexto = gise.breve_relatorio_conteudo;
-	const splitText = doc.splitTextToSize(relatorioTexto, pageWidth - 30);
+	const splitText = doc.splitTextToSize(opts.breveConteudo, pageWidth - 30);
 	doc.text(splitText, margin + 5, boxY + 7);
 	y += 25;
 
-	const allMembros: Array<
-		GisePdfData['seccionais'][number]['equipes'][number]['membros'][number] & {
-			seccional: string;
-			presencaData: (typeof presencas)[number] | undefined;
-		}
-	> = [];
-	for (const sec of gise.seccionais) {
-		if (seccionalId && sec.seccional_id !== seccionalId) continue;
-		for (const eq of sec.equipes) {
-			for (const m of eq.membros) {
-				const pres = presencas.find((p) => p.policial_id === m.policial_id);
-				allMembros.push({ ...m, seccional: sec.seccional_nome, presencaData: pres });
-			}
-		}
-	}
+	return { doc, y, dataSaidaEfetiva };
+}
 
-	const tableData = allMembros.map((m) => [
-		m.policial_nome,
-		m.policial_cargo,
-		m.policial_matricula,
-		m.policial_classe || '',
-		m.policial_lotacao || m.seccional,
-		`${formatarData(gise.data_inicio)}\n${m.presencaData?.entrada_timestamp ? new Date(m.presencaData.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
-		{ content: '', image: m.presencaData?.entrada_rubrica },
-		`${formatarData(dataSaidaEfetiva)}\n${m.presencaData?.saida_timestamp ? new Date(m.presencaData.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
-		{ content: '', image: m.presencaData?.saida_rubrica }
-	]);
+/** Colunas de presença (hora início/rubrica/hora saída/rubrica) de uma linha da tabela. */
+function colunasPresencaRelatorio(
+	dataInicio: string,
+	dataSaidaEfetiva: string,
+	pres:
+		| Pick<
+				GisePresenca,
+				'entrada_timestamp' | 'entrada_rubrica' | 'saida_timestamp' | 'saida_rubrica'
+		  >
+		| null
+		| undefined
+) {
+	const hora = (ts: string | null | undefined) =>
+		ts
+			? new Date(ts).toLocaleTimeString('pt-BR', {
+					hour: '2-digit',
+					minute: '2-digit',
+					timeZone: 'America/Sao_Paulo'
+				})
+			: '';
+	return [
+		`${formatarData(dataInicio)}\n${hora(pres?.entrada_timestamp)}`,
+		{ content: '', image: pres?.entrada_rubrica },
+		`${formatarData(dataSaidaEfetiva)}\n${hora(pres?.saida_timestamp)}`,
+		{ content: '', image: pres?.saida_rubrica }
+	];
+}
 
+type LinhaRelatorio = Array<string | { content: string; image?: string | null }>;
+
+/** Tabela de presenças com as rubricas desenhadas nas células 6 e 8. */
+function tabelaPresencasRelatorio(doc: jsPDF, startY: number, body: LinhaRelatorio[]): number {
 	autoTable(doc, {
 		head: [
 			[
@@ -1106,10 +1110,10 @@ export async function gerarRelatorioExtraordinarioPdf(
 				'RUBRICA'
 			]
 		],
-		body: tableData,
-		startY: y,
+		body,
+		startY,
 		theme: 'grid',
-		margin: { left: margin, right: margin },
+		margin: { left: REL_EXTRA_MARGIN, right: REL_EXTRA_MARGIN },
 		styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', minCellHeight: 16 },
 		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
 		didDrawCell: (data) => {
@@ -1158,7 +1162,30 @@ export async function gerarRelatorioExtraordinarioPdf(
 			8: { cellWidth: 30 }
 		}
 	});
-	const lastAutoY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
+	return (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? startY;
+}
+
+/**
+ * Bloco de assinatura da supervisão (+ QR de verificação quando assinado).
+ * `matriculaTexto` já vem resolvido pelo caller (fallbacks diferem entre os
+ * relatórios). Devolve o `sigY` usado.
+ */
+function assinaturaRelatorioExtra(
+	doc: jsPDF,
+	lastAutoY: number,
+	opts: {
+		localData: string;
+		reportSignature?: RelatorioAssinatura | null;
+		matriculaTexto: string;
+		isPreparando: boolean;
+		qrCodeBase64?: string;
+		baseUrl?: string;
+	}
+): number {
+	const pageWidth = REL_EXTRA_PAGE_WIDTH;
+	const margin = REL_EXTRA_MARGIN;
+	const { reportSignature, isPreparando, qrCodeBase64, baseUrl } = opts;
+
 	let sigY = lastAutoY + 40;
 	if (sigY > 185) {
 		doc.addPage();
@@ -1167,14 +1194,7 @@ export async function gerarRelatorioExtraordinarioPdf(
 
 	doc.setFontSize(10);
 	doc.setFont('helvetica', 'normal');
-	const cidade =
-		gise.seccionais
-			.find((s) => s.seccional_id === seccionalId)
-			?.seccional_nome.split('-')[1]
-			?.trim() || 'Iguatu';
-	doc.text(`${cidade}/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, {
-		align: 'right'
-	});
+	doc.text(opts.localData, pageWidth - margin, sigY - 15, { align: 'right' });
 
 	const sigCenterX = pageWidth / 2;
 
@@ -1212,9 +1232,7 @@ export async function gerarRelatorioExtraordinarioPdf(
 			align: 'center'
 		});
 		doc.setFont('helvetica', 'normal');
-		doc.text(`Matrícula: ${reportSignature.assinante_matricula ?? '—'}`, sigCenterX, sigY + 8, {
-			align: 'center'
-		});
+		doc.text(`Matrícula: ${opts.matriculaTexto}`, sigCenterX, sigY + 8, { align: 'center' });
 		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, {
 			align: 'center'
 		});
@@ -1256,6 +1274,75 @@ export async function gerarRelatorioExtraordinarioPdf(
 		}
 	}
 
+	return sigY;
+}
+
+export async function gerarRelatorioExtraordinarioPdf(
+	gise: GisePdfData,
+	presencas: GisePresenca[],
+	seccionalId?: number,
+	baseUrl?: string,
+	reportSignature?: RelatorioAssinatura | null,
+	qrCodeBase64?: string,
+	isPreparando = false,
+	logoEsqBytes?: Uint8Array,
+	logoDirBytes?: Uint8Array
+): Promise<PdfExportResult> {
+	const primeiraSec =
+		gise.seccionais.find((s) => s.seccional_id === seccionalId)?.seccional_nome ||
+		gise.seccionais[0]?.seccional_nome ||
+		'';
+	const { doc, y, dataSaidaEfetiva } = iniciarRelatorioExtra({
+		linhaUnidade: primeiraSec.toUpperCase(),
+		titulo: 'RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO',
+		data_inicio: gise.data_inicio,
+		hora_entrada: gise.hora_entrada,
+		hora_saida: gise.hora_saida,
+		breveTitulo: gise.breve_relatorio_titulo,
+		breveConteudo: gise.breve_relatorio_conteudo
+	});
+
+	const allMembros: Array<
+		GisePdfData['seccionais'][number]['equipes'][number]['membros'][number] & {
+			seccional: string;
+			presencaData: (typeof presencas)[number] | undefined;
+		}
+	> = [];
+	for (const sec of gise.seccionais) {
+		if (seccionalId && sec.seccional_id !== seccionalId) continue;
+		for (const eq of sec.equipes) {
+			for (const m of eq.membros) {
+				const pres = presencas.find((p) => p.policial_id === m.policial_id);
+				allMembros.push({ ...m, seccional: sec.seccional_nome, presencaData: pres });
+			}
+		}
+	}
+
+	const tableData: LinhaRelatorio[] = allMembros.map((m) => [
+		m.policial_nome,
+		m.policial_cargo,
+		m.policial_matricula,
+		m.policial_classe || '',
+		m.policial_lotacao || m.seccional,
+		...colunasPresencaRelatorio(gise.data_inicio, dataSaidaEfetiva, m.presencaData)
+	]);
+
+	const lastAutoY = tabelaPresencasRelatorio(doc, y, tableData);
+
+	const cidade =
+		gise.seccionais
+			.find((s) => s.seccional_id === seccionalId)
+			?.seccional_nome.split('-')[1]
+			?.trim() || 'Iguatu';
+	const sigY = assinaturaRelatorioExtra(doc, lastAutoY, {
+		localData: `${cidade}/CE, ${formatarData(gise.data_inicio)}.`,
+		reportSignature,
+		matriculaTexto: `${reportSignature?.assinante_matricula ?? '—'}`,
+		isPreparando,
+		qrCodeBase64,
+		baseUrl
+	});
+
 	const pdfFinal = await embutirLogosGise(
 		new Uint8Array(doc.output('arraybuffer')),
 		logoEsqBytes,
@@ -1276,57 +1363,16 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 	logoEsqBytes?: Uint8Array,
 	logoDirBytes?: Uint8Array
 ): Promise<PdfExportResult> {
-	const breveTitulo = resolveBreveRelatorioTitulo(gise, breveEnv);
-	const breveConteudo = resolveBreveRelatorioConteudoSupervisao(gise, breveEnv);
-
-	const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-	const pageWidth = 297;
-	const margin = 10;
-
-	let y = 14;
-	doc.setFontSize(11);
-	doc.setFont('helvetica', 'bold');
-	doc.text('POLÍCIA CIVIL DO ESTADO DO CEARÁ', pageWidth / 2, y, { align: 'center' });
-	y += 5;
-	doc.text('DELEGACIA GERAL DE POLÍCIA CIVIL', pageWidth / 2, y, { align: 'center' });
-	y += 5;
-	doc.setFontSize(10);
-	doc.text('DEPARTAMENTO DE POLÍCIA DO INTERIOR SUL - DPI SUL', pageWidth / 2, y, {
-		align: 'center'
+	const { doc, y, dataSaidaEfetiva } = iniciarRelatorioExtra({
+		linhaUnidade: 'SUPERVISÃO GISE — QUADRO DE SUPERVISÃO',
+		titulo: 'RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (SUPERVISÃO)',
+		data_inicio: gise.data_inicio,
+		hora_entrada: gise.hora_entrada,
+		hora_saida: gise.hora_saida,
+		breveTitulo: resolveBreveRelatorioTitulo(gise, breveEnv),
+		breveConteudo: resolveBreveRelatorioConteudoSupervisao(gise, breveEnv)
 	});
-	y += 5;
-	doc.text('SUPERVISÃO GISE — QUADRO DE SUPERVISÃO', pageWidth / 2, y, { align: 'center' });
-	y += 10;
-
-	doc.setFontSize(12);
-	doc.text('RELATÓRIO DE SERVIÇO EXTRAORDINÁRIO (SUPERVISÃO)', pageWidth / 2, y, {
-		align: 'center'
-	});
-	y += 10;
-
-	const hEnt = gise.hora_entrada;
-	const hSai = gise.hora_saida;
-
-	const heVal = parseInt(hEnt.split(':')[0]);
-	const hsVal = parseInt(hSai.split(':')[0]);
-	const dataSaidaEfetiva = calcularDataSaida(gise.data_inicio, hEnt, hSai);
-	let diff = hsVal - heVal;
-	if (diff <= 0) diff += 24;
-
-	doc.setFontSize(10);
-	doc.setFont('helvetica', 'normal');
-	const textoData = `DATA: das ${hEnt} de ${formatarData(gise.data_inicio)} às ${hSai} horas de ${formatarData(dataSaidaEfetiva)} (${diff} horas)`;
-	doc.text(textoData, pageWidth / 2, y, { align: 'center' });
-	y += 10;
-
-	doc.text(breveTitulo, margin, y);
-	y += 5;
-	doc.setFont('helvetica', 'bold');
-	const boxY = y;
-	doc.rect(margin, boxY, pageWidth - 20, 15);
-	const splitText = doc.splitTextToSize(breveConteudo, pageWidth - 30);
-	doc.text(splitText, margin + 5, boxY + 7);
-	y += 25;
+	const margin = REL_EXTRA_MARGIN;
 
 	const slots: Array<{
 		policial_id: number;
@@ -1379,7 +1425,7 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		'Supervisão GISE — SEINT'
 	);
 
-	const tableData = slots.map((m) => {
+	const tableData: LinhaRelatorio[] = slots.map((m) => {
 		const pres = presencas.find((p) => p.policial_id === m.policial_id);
 		return [
 			m.nome,
@@ -1387,10 +1433,7 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 			m.matricula,
 			m.classe || '',
 			m.lotacao,
-			`${formatarData(gise.data_inicio)}\n${pres?.entrada_timestamp ? new Date(pres.entrada_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
-			{ content: '', image: pres?.entrada_rubrica },
-			`${formatarData(dataSaidaEfetiva)}\n${pres?.saida_timestamp ? new Date(pres.saida_timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : ''}`,
-			{ content: '', image: pres?.saida_rubrica }
+			...colunasPresencaRelatorio(gise.data_inicio, dataSaidaEfetiva, pres)
 		];
 	});
 
@@ -1405,159 +1448,20 @@ export async function gerarRelatorioExtraordinarioSupervisaoPdf(
 		return { pdf: pdfVazio, finalY: y + 10 };
 	}
 
-	autoTable(doc, {
-		head: [
-			[
-				'NOME COMPLETO',
-				'CARGO',
-				'MATRÍCULA',
-				'CLASSE',
-				'LOTAÇÃO',
-				'HORA DE INÍCIO',
-				'RUBRICA',
-				'HORA DE SAÍDA',
-				'RUBRICA'
-			]
-		],
-		body: tableData,
-		startY: y,
-		theme: 'grid',
-		margin: { left: margin, right: margin },
-		styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', minCellHeight: 16 },
-		headStyles: { fillColor: [200, 200, 200], textColor: 0, fontStyle: 'bold' },
-		didDrawCell: (data) => {
-			if ((data.column.index === 6 || data.column.index === 8) && data.cell.section === 'body') {
-				const rawCell = data.cell.raw as { image?: string; content?: string } | string | null;
-				const imgData = typeof rawCell === 'object' && rawCell !== null ? rawCell.image : rawCell;
+	const lastAutoY = tabelaPresencasRelatorio(doc, y, tableData);
 
-				const isValidBase64Image =
-					typeof imgData === 'string' &&
-					imgData.startsWith('data:image/') &&
-					imgData.includes(';base64,') &&
-					imgData.length > 200;
-
-				if (!isValidBase64Image) return;
-
-				const targetW = data.cell.width - 4;
-				const targetH = targetW / 2;
-				const xPos = data.cell.x + 2;
-				const yPos = data.cell.y + (data.cell.height - targetH) / 2;
-
-				try {
-					const format = getImgFormat(imgData);
-					if (!format) return;
-					doc.addImage(imgData, format, xPos, yPos, targetW, targetH, undefined, 'FAST');
-				} catch {
-					/* ignora rubrica inválida */
-				}
-			}
-		},
-		columnStyles: {
-			0: { halign: 'left', cellWidth: 70 },
-			1: { cellWidth: 15 },
-			2: { cellWidth: 25 },
-			3: { cellWidth: 15 },
-			4: { cellWidth: 42 },
-			5: { cellWidth: 25 },
-			6: { cellWidth: 30 },
-			7: { cellWidth: 25 },
-			8: { cellWidth: 30 }
-		}
+	const matRelSup =
+		(reportSignature?.assinante_matricula && String(reportSignature.assinante_matricula).trim()) ||
+		(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) ||
+		'—';
+	const sigY = assinaturaRelatorioExtra(doc, lastAutoY, {
+		localData: `Fortaleza/CE, ${formatarData(gise.data_inicio)}.`,
+		reportSignature,
+		matriculaTexto: matRelSup,
+		isPreparando,
+		qrCodeBase64,
+		baseUrl
 	});
-	const lastAutoY = (doc as JsPDFWithAutoTable).lastAutoTable?.finalY ?? y;
-	let sigY = lastAutoY + 40;
-	if (sigY > 185) {
-		doc.addPage();
-		sigY = 40;
-	}
-
-	doc.setFontSize(10);
-	doc.setFont('helvetica', 'normal');
-	doc.text(`Fortaleza/CE, ${formatarData(gise.data_inicio)}.`, pageWidth - margin, sigY - 15, {
-		align: 'right'
-	});
-
-	const sigCenterX = pageWidth / 2;
-
-	if (!reportSignature) {
-		if (!isPreparando) {
-			doc.line(sigCenterX - 60, sigY, sigCenterX + 45, sigY);
-			doc.setFont('helvetica', 'italic');
-			doc.setFontSize(10);
-			doc.text('Aguardando Conferência e Assinatura da Supervisão', sigCenterX, sigY + 8, {
-				align: 'center'
-			});
-		}
-	} else {
-		if (reportSignature.rubrica) {
-			try {
-				const rubW = 65;
-				const rubH = 25;
-				const rubricaFormat = getImgFormat(reportSignature.rubrica) || 'PNG';
-				doc.addImage(
-					reportSignature.rubrica,
-					rubricaFormat,
-					sigCenterX - rubW / 2,
-					sigY - rubH - 2,
-					rubW,
-					rubH
-				);
-			} catch {
-				/* ignora */
-			}
-		}
-		doc.line(sigCenterX - 45, sigY, sigCenterX + 45, sigY);
-		doc.setFontSize(8);
-		doc.setFont('helvetica', 'bold');
-		doc.text((reportSignature.assinante_nome ?? 'Supervisão').toUpperCase(), sigCenterX, sigY + 4, {
-			align: 'center'
-		});
-		doc.setFont('helvetica', 'normal');
-		const matRelSup =
-			(reportSignature.assinante_matricula && String(reportSignature.assinante_matricula).trim()) ||
-			(gise.supervisor_matricula && String(gise.supervisor_matricula).trim()) ||
-			'—';
-		doc.text(`Matrícula: ${matRelSup}`, sigCenterX, sigY + 8, { align: 'center' });
-		doc.text('Delegado(a) de Polícia / assinado digitalmente', sigCenterX, sigY + 12, {
-			align: 'center'
-		});
-	}
-
-	if (reportSignature && qrCodeBase64) {
-		try {
-			const qrSize = 14;
-			const qrX = margin;
-			const qrY = sigY - 2;
-			doc.addImage(qrCodeBase64, 'PNG', qrX, qrY, qrSize, qrSize);
-
-			const txtX = qrX + qrSize + 2;
-			doc.setFontSize(6);
-			doc.setFont('helvetica', 'bold');
-			doc.text('Confirmado eletronicamente por:', txtX, qrY + 3);
-			doc.text((reportSignature.assinante_nome ?? '').toUpperCase(), txtX, qrY + 6.5);
-
-			doc.setFont('helvetica', 'normal');
-			const dataH = reportSignature.created_at
-				? new Date(reportSignature.created_at).toLocaleString('pt-BR', {
-						timeZone: 'America/Sao_Paulo'
-					})
-				: '';
-			doc.text(
-				`Data/Hora: ${dataH} | Código: ${reportSignature.verification_hash}`,
-				txtX,
-				qrY + 10
-			);
-
-			const cleanUrl = baseUrl?.replace(/^https?:\/\//, '') || 'escalas.pages.dev';
-			doc.text(
-				`Verificável em: ${cleanUrl}/validar/${reportSignature.verification_hash}`,
-				txtX,
-				qrY + 14
-			);
-		} catch {
-			/* ignora QR */
-		}
-	}
 
 	const pdfFinal = await embutirLogosGise(
 		new Uint8Array(doc.output('arraybuffer')),
