@@ -39,9 +39,10 @@ import {
 import { normalizarTexto } from '../utils';
 import { verificarDesafio2FA } from '../auth';
 import { lerFlagsAssinatura, type FlagsAssinatura } from './cfg-ass-cache';
+import { apiError, ErrorCode, contentDisposition } from './api';
 import type { Database } from '../db/core';
 import type { AssinaturaCadesMetadata } from '../db/documentos';
-import type { TipoCarimoTempo } from './document-utils';
+import { calcularHashBuffer, type TipoCarimoTempo } from './document-utils';
 
 // ---------------------------------------------------------------------------
 // Tipos canônicos
@@ -259,6 +260,55 @@ export async function finalizarAssinaturaQualificada(
 		signerCpf: verif.signerCpf || dadosToken?.cpf || user.cpf || '',
 		padesLt: verif.padesLt
 	};
+}
+
+/**
+ * Variante de conveniência dos endpoints `finalizar-assinatura`: recebe o
+ * payload base64 já validado pelo schema Zod, executa a finalização
+ * qualificada e calcula o SHA-256 do PDF final (o `arquivo_hash` que a
+ * página /validar reconfere — nunca o hash enviado pelo cliente, A4).
+ *
+ * Em falha devolve a `Response` de erro pronta, com o mapeamento único
+ * status ≥ 500 → UPSTREAM / senão VALIDATION — antes copiado em 4 endpoints
+ * (escala, GISE diária, presença e relatório extraordinário).
+ */
+export async function finalizarQualificadaDoPayload(
+	user: SignatureUser,
+	payload: {
+		preparedPdf: string;
+		serproCms?: string | null;
+		messageDigestHex?: string | null;
+		signingTimeISO?: string | null;
+	},
+	options: { platform?: App.Platform } = {}
+): Promise<
+	{ ok: false; response: Response } | ({ ok: true; arquivoHash: string } & QualifiedFinalization)
+> {
+	const result = await finalizarAssinaturaQualificada(
+		user,
+		{
+			preparedPdf: new Uint8Array(Buffer.from(payload.preparedPdf, 'base64')),
+			serproCms: payload.serproCms,
+			messageDigestHex: payload.messageDigestHex,
+			signingTimeISO: payload.signingTimeISO
+		},
+		options
+	);
+	if (!('pdfFinal' in result)) {
+		const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
+		return { ok: false, response: apiError(result.error, result.status, code) };
+	}
+	return { ok: true, arquivoHash: await calcularHashBuffer(result.pdfFinal), ...result };
+}
+
+/** Resposta binária padrão dos endpoints que devolvem o PDF assinado. */
+export function respostaPdfAssinado(pdf: Uint8Array, filename: string): Response {
+	return new Response(pdf as unknown as BodyInit, {
+		headers: {
+			'Content-Type': 'application/pdf',
+			'Content-Disposition': contentDisposition(filename)
+		}
+	});
 }
 
 // ---------------------------------------------------------------------------

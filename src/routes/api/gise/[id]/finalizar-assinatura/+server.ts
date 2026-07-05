@@ -6,7 +6,6 @@
  */
 
 import type { RequestHandler } from './$types';
-import { bytesToHex } from '$lib/crypto/hex';
 import {
 	getDB,
 	buscarGiseEscala,
@@ -16,12 +15,9 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
-import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
+import { finalizarQualificadaDoPayload, respostaPdfAssinado } from '$lib/server/signature-service';
 import { tryGetR2 } from '$lib/db';
 import {
-	apiError,
-	ErrorCode,
-	contentDisposition,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -68,28 +64,15 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Delega ao serviço unificado: validação CPF token vs CPF logado
-		// (sem bypass), embed do CMS, verificação CAdES-LT, OCSP e PAdES-LT.
-		const result = await finalizarAssinaturaQualificada(
+		// (sem bypass), embed do CMS, verificação CAdES-LT, OCSP, PAdES-LT
+		// e hash do PDF final.
+		const result = await finalizarQualificadaDoPayload(
 			u,
-			{
-				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-				serproCms,
-				messageDigestHex: messageDigest,
-				signingTimeISO
-			},
+			{ preparedPdf, serproCms, messageDigestHex: messageDigest, signingTimeISO },
 			{ platform: p }
 		);
-		if (!('pdfFinal' in result)) {
-			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
-			return apiError(result.error, result.status, code);
-		}
-
-		// arquivo_hash = hash do PDF FINAL assinado (o que vai pro R2 e que a
-		// página /validar reconfere). Recalculado no servidor — não usamos o
-		// `documentHash` enviado pelo cliente (A4), que é o hash do PDF ORIGINAL
-		// e não bateria com o blob assinado.
-		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const arquivoHash = bytesToHex(new Uint8Array(hashBuffer));
+		if (!result.ok) return result.response;
+		const { arquivoHash } = result;
 
 		const [yyyy, mm, dd_escala] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
@@ -149,12 +132,7 @@ export const POST: RequestHandler = async (event) => {
 			{ env }
 		);
 
-		return new Response(result.pdfFinal as unknown as BodyInit, {
-			headers: {
-				'Content-Type': 'application/pdf',
-				'Content-Disposition': contentDisposition(documentKey)
-			}
-		});
+		return respostaPdfAssinado(result.pdfFinal, documentKey);
 	} catch (err) {
 		return serverError(`[gise/finalizar-assinatura] Falha (giseId=${id})`, err);
 	}

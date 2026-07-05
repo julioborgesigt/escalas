@@ -8,7 +8,6 @@
 
 import type { RequestHandler } from './$types';
 import { eq } from 'drizzle-orm';
-import { bytesToHex } from '$lib/crypto/hex';
 import {
 	getDB,
 	buscarGiseEscala,
@@ -22,12 +21,9 @@ import {
 } from '$lib/db';
 import { policiais } from '$lib/server/schema';
 import { finalizarPresencaSchema } from '$lib/schemas';
-import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
+import { finalizarQualificadaDoPayload, respostaPdfAssinado } from '$lib/server/signature-service';
 import { tryGetR2 } from '$lib/db';
 import {
-	apiError,
-	ErrorCode,
-	contentDisposition,
 	requireAuth,
 	badRequest,
 	notFound,
@@ -72,20 +68,13 @@ export const POST: RequestHandler = async (event) => {
 	const ua = request.headers.get('user-agent') || '';
 
 	try {
-		const result = await finalizarAssinaturaQualificada(
+		const result = await finalizarQualificadaDoPayload(
 			u,
-			{
-				preparedPdf: new Uint8Array(Buffer.from(preparedPdf, 'base64')),
-				serproCms,
-				messageDigestHex: messageDigest,
-				signingTimeISO
-			},
+			{ preparedPdf, serproCms, messageDigestHex: messageDigest, signingTimeISO },
 			{ platform: p }
 		);
-		if (!('pdfFinal' in result)) {
-			const code = result.status >= 500 ? ErrorCode.UPSTREAM : ErrorCode.VALIDATION;
-			return apiError(result.error, result.status, code);
-		}
+		if (!result.ok) return result.response;
+		const { arquivoHash: arquivo_hash } = result;
 
 		// Rubrica cadastrada (a mesma estampada) para gravar na presença.
 		const row = await db
@@ -94,9 +83,6 @@ export const POST: RequestHandler = async (event) => {
 			.where(eq(policiais.id, u.id))
 			.get();
 		const rubrica = row?.rubrica ?? '';
-
-		const hashBuffer = await crypto.subtle.digest('SHA-256', result.pdfFinal.slice());
-		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const folder = `gise/${yyyy}-${mm}/${dd}/${giseId}/presencas_termos`;
@@ -191,12 +177,7 @@ export const POST: RequestHandler = async (event) => {
 			{ env }
 		);
 
-		return new Response(result.pdfFinal as unknown as BodyInit, {
-			headers: {
-				'Content-Type': 'application/pdf',
-				'Content-Disposition': contentDisposition(filename)
-			}
-		});
+		return respostaPdfAssinado(result.pdfFinal, filename);
 	} catch (err) {
 		return serverError(`[gise/presenca/finalizar-assinatura] Falha (gise_id=${giseId})`, err);
 	}
