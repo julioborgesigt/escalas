@@ -1,8 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
-    "src/index.{ts,tsx,js,jsx}",
-    "src/main.{ts,tsx,js,jsx}"
+    "src/lib/db.ts",
+    "src/lib/db/gise/index.ts",
+    "src/routes/**/*.{ts,svelte}",
+    "src/hooks.server.ts",
+    "src/hooks.client.ts",
+    "scripts/**/*.{ts,mjs,cjs,js}"
   ],
   "duplicates": {
     // Hide pair-only clones; focus on widespread copy-paste

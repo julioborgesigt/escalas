@@ -35,7 +35,7 @@ import { calcularHashBuffer } from '$lib/server/document-utils';
 import { logger } from '$lib/server/logger';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -80,7 +80,7 @@ export const POST: RequestHandler = async ({
 		);
 	}
 
-	const r2Logo = getR2(platform);
+	const r2Logo = tryGetR2(platform);
 	let logoJpgBytes: Uint8Array | undefined;
 	let logoCearaBytes: Uint8Array | undefined;
 	if (r2Logo) {
@@ -190,7 +190,7 @@ export const POST: RequestHandler = async ({
 				targetPageIndex: contentPageIndex
 			});
 			await r2Logo.put(chaveConferencia(verificationHash), conferenciaPdf, {
-				contentType: 'application/pdf'
+				httpMetadata: { contentType: 'application/pdf' }
 			});
 		} catch (err) {
 			logger.warn('[gise/preparar-assinatura] Falha ao gerar/gravar cópia de conferência', {

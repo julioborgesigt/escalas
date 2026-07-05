@@ -18,7 +18,8 @@ import {
 	isSupervisaoGiseAtiva,
 	isSupervisorGiseAtiva,
 	auditar,
-	contextoDeEvento
+	contextoDeEvento,
+	DEFAULT_SEINT_QUESTIONS
 } from '$lib/db';
 import { buscarUnidadeIdSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { verificarDesafio2FA } from '$lib/auth';
@@ -394,130 +395,6 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			filhos: []
 		}
 	];
-
-	const defaultSeintQuestions = [
-		{
-			id: 1,
-			texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?',
-			tipo: 'sim_nao',
-			key: 'extracao_celulares',
-			filhos: [
-				{
-					id: 101,
-					texto: '1.1 Quantidade de aparelhos analisados (1 a 99)',
-					tipo: 'numero',
-					key: 'extracao_qtd',
-					filhos: []
-				},
-				{
-					id: 102,
-					texto: '1.2 Listagem de aparelhos analisados (Modelo, Nº proc, Delegacia, Concluída)',
-					tipo: 'textarea',
-					key: 'extracao_lista',
-					filhos: []
-				}
-			]
-		},
-		{
-			id: 2,
-			texto: '2. Houve ANÁLISE DE DADOS DE EXTRAÇÃO?',
-			tipo: 'sim_nao',
-			key: 'analise_extracao',
-			filhos: [
-				{
-					id: 201,
-					texto: '2.1 Quantidade de aparelhos analisados (1 a 99)',
-					tipo: 'numero',
-					key: 'analise_qtd',
-					filhos: []
-				},
-				{
-					id: 202,
-					texto: '2.2 Listagem de aparelhos analisados (Tamanho, Modelo, Nº proc, Delegacia)',
-					tipo: 'textarea',
-					key: 'analise_lista',
-					filhos: []
-				}
-			]
-		},
-		{
-			id: 3,
-			texto: '3. Houve PRODUÇÃO DE RELATÓRIOS?',
-			tipo: 'sim_nao',
-			key: 'producao_relatorios',
-			filhos: [
-				{
-					id: 301,
-					texto: '3.1 Quantidade de relatórios produzidos (1 a 99)',
-					tipo: 'numero',
-					key: 'relatorios_qtd',
-					filhos: []
-				},
-				{
-					id: 302,
-					texto:
-						'3.2 Listagem de relatórios produzidos (Nº Relatório, Alvos, Proc. Vinculado, Delegacia)',
-					tipo: 'textarea',
-					key: 'relatorios_lista',
-					filhos: []
-				}
-			]
-		},
-		{
-			id: 4,
-			texto: '4. Houve LEVANTAMENTO DE DADOS DE ALVOS FORAGIDOS?',
-			tipo: 'sim_nao',
-			key: 'levantamento_foragidos',
-			filhos: [
-				{
-					id: 401,
-					texto: '4.1 Quantidade de levantamentos produzidos (1 a 99)',
-					tipo: 'numero',
-					key: 'levantamentos_qtd',
-					filhos: []
-				},
-				{
-					id: 402,
-					texto:
-						'4.2 Listagem de relatórios produzidos (Nome do Alvo, Proc. Vinculado, Delegacia, Resultado)',
-					tipo: 'textarea',
-					key: 'levantamentos_lista',
-					filhos: []
-				}
-			]
-		},
-		{
-			id: 5,
-			texto: '5. Houve INTERCEPTAÇÃO TELEFÔNICA?',
-			tipo: 'sim_nao',
-			key: 'interceptacao_tel',
-			filhos: [
-				{
-					id: 501,
-					texto: '5.1 Quantidade de INTERCEPTAÇÃO TELEFÔNICA (1 a 99)',
-					tipo: 'numero',
-					key: 'interceptacao_qtd',
-					filhos: []
-				},
-				{
-					id: 502,
-					texto: '5.2 Existem OPERAÇÕES que necessitaram de acompanhamento?',
-					tipo: 'sim_nao',
-					key: 'operacoes_acompanhamento_bool',
-					filhos: [
-						{
-							id: 503,
-							texto: '5.2.1 Listagem de OPERAÇÕES (Nome da operação e Delegacia de origem)',
-							tipo: 'textarea',
-							key: 'operacoes_lista',
-							filhos: []
-						}
-					]
-				}
-			]
-		}
-	];
-
 	const giseIdSelected = url.searchParams.get('giseId')
 		? parseInt(url.searchParams.get('giseId')!)
 		: null;
@@ -570,7 +447,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 			logger.warn('[res-gise] modelo operacional JSON inválido', { err: String(err) });
 		}
 	}
-	let modeloSeint = defaultSeintQuestions;
+	let modeloSeint = DEFAULT_SEINT_QUESTIONS;
 	if (modeloSeintRow?.config) {
 		try {
 			modeloSeint = JSON.parse(modeloSeintRow.config);
@@ -593,7 +470,7 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		modeloOperacional,
 		modeloSeint,
 		modeloPadraoOperacional: defaultGiseQuestions,
-		modeloPadraoSeint: defaultSeintQuestions
+		modeloPadraoSeint: DEFAULT_SEINT_QUESTIONS
 	};
 };
 

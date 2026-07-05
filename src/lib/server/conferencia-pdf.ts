@@ -6,7 +6,7 @@
  */
 
 import * as exportLib from '$lib/server/export';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import type { Database } from '$lib/db';
 
@@ -20,7 +20,7 @@ async function carregarLogoR2(
 	key: string
 ): Promise<Uint8Array | undefined> {
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (!r2) return undefined;
 		const obj = await r2.get(key);
 		if (!obj) return undefined;

@@ -10,6 +10,7 @@ Mapa de toda a documentação do projeto, separada em **documentos vivos** (mant
 | [`DEPLOY.md`](../DEPLOY.md) (raiz) | Runbook de produção: variáveis/secrets, papéis de admin, backup/rollback, staging, trust store ICP-Brasil, TSA, go-live | Operador / responsável pelo deploy |
 | [`TESTING.md`](../TESTING.md) (raiz) | Roteiro de regressão manual (100+ casos) de todos os fluxos de negócio | QA / dev antes de release |
 | [`CLAUDE.md`](../CLAUDE.md) (raiz) | Diretrizes de código (Svelte 5 runes, padrão de erros de API) para agentes e devs | Dev / agente de IA |
+| [`ARQUIVOS.md`](ARQUIVOS.md) | Mapa arquivo-a-arquivo do repositório (o que cada arquivo faz) + achados de código morto/duplicado | Dev entrando no projeto / refatorações |
 | [`QA_ASSINATURA_A3_DESKTOP.md`](QA_ASSINATURA_A3_DESKTOP.md) | Roteiro de QA manual do fluxo de presença GISE por Token A3 (exige hardware; não roda em CI) | QA com token físico |
 | [`.env.example`](../.env.example) (raiz) | **Fonte autoritativa** de todas as variáveis de ambiente, comentadas | Dev / operador |
 | [`scripts/README.md`](../scripts/README.md) | Scripts utilitários (migrações, senhas) e setup detalhado da integração Google Sheets / Base_Equipe | Operador |

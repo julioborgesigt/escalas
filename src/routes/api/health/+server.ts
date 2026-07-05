@@ -11,7 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import { getDB } from '$lib/db';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { sql } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 import { compararSegredoUtf8TimingSafe } from '$lib/auth';
@@ -37,7 +37,7 @@ export const GET = async ({ platform, url }: RequestEvent) => {
 
 	// Check R2 bucket binding
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (r2) {
 			checks.r2 = 'ok';
 		} else {

@@ -42,6 +42,11 @@ jobs:
       # Format ainda é advisory (dívida separada — rode `npm run format`).
       - run: npm run format:check
         continue-on-error: true
+      # Código morto (knip) — advisory por ora: aparece no log sem bloquear.
+      # Quando a saída estiver estável em zero, remova o continue-on-error
+      # para virar gate (mesma estratégia ratchet do lint).
+      - run: npm run knip
+        continue-on-error: true
 
       # Gates HARD — qualquer falha aqui bloqueia merge:
       - run: npx svelte-check --threshold error

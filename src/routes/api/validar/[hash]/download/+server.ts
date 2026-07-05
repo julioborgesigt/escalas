@@ -1,6 +1,6 @@
 import { getDB, buscarDocumentoPorHash } from '$lib/db';
 import { validarSessao } from '$lib/auth';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import {
 	contentDisposition,
 	badRequest,
@@ -31,7 +31,7 @@ async function carregarLogoConferencia(
 	key: string
 ): Promise<Uint8Array | undefined> {
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (!r2) return undefined;
 		const obj = await r2.get(key);
 		if (!obj) return undefined;
@@ -118,7 +118,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 		// (mesmos bytes do documento assinado), para todos os fluxos por token. Só
 		// quando ela não existe (legado / falha na preparação) regeneramos abaixo.
 		{
-			const r2 = getR2(platform);
+			const r2 = tryGetR2(platform);
 			if (r2) {
 				const confObj = await r2.get(chaveConferencia(hash));
 				if (confObj) {
@@ -189,7 +189,7 @@ export const GET: RequestHandler = async ({ platform, params, url, cookies, getC
 
 	// Blob forense do R2 — somente privilegiado chega aqui com r2_key.
 	if (privilegiado && documento.r2_key) {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (r2) {
 			try {
 				const obj = await r2.get(documento.r2_key);

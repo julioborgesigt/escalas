@@ -21,11 +21,9 @@
 
 /**
  * Subset estrutural mínimo dos bindings R2 — só precisa `put` aceitando
- * bytes. Tipado com `unknown` no value porque os dois `R2Bucket` do
- * projeto (workers-types e o reduzido em `$lib/server/platform`) divergem
- * em variância e produzem erro mesmo num supertipo simples. O caller já
- * passa um `Buffer` (criado por `Buffer.from(b64, 'base64')`), ambos
- * bindings aceitam.
+ * bytes. Tipado com `unknown` no value para não depender da variância do
+ * `R2Bucket` de workers-types. O caller já passa um `Buffer` (criado por
+ * `Buffer.from(b64, 'base64')`), que o binding aceita.
  */
 interface R2Putable {
 	put(key: string, value: unknown, options?: Record<string, unknown>): Promise<unknown>;

@@ -154,22 +154,9 @@ export function ultimoDiaDoMes(ano: number, mes: number): string {
 	return new Date(ano, mes, 0).toISOString().split('T')[0];
 }
 
-/** Calcula data_saida de uma entrada dado hora de entrada e saída */
-export function calcularDataSaida(
-	dataPlantao: string,
-	horaEntrada: string,
-	horaSaida: string
-): string {
-	const he = Number((horaEntrada || '00').split(':')[0]);
-	const hs = Number((horaSaida || '00').split(':')[0]);
-	if (!horaEntrada && !horaSaida) {
-		return dataPlantao;
-	}
-	if (hs <= he) {
-		return addDias(dataPlantao, 1);
-	}
-	return dataPlantao;
-}
+// Implementação única em $lib/utils (achado D1 do ARQUIVOS.md); re-export
+// preserva os imports existentes `from '$lib/rotacao'`.
+export { calcularDataSaida } from './utils';
 
 /** Dias de plantão de um policial, agrupados para o cálculo de rotação. */
 interface DiasPorPolicial {

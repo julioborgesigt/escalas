@@ -192,7 +192,7 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 |--------|-----------|
 | `policiais` | Servidores (matrícula, CPF, cargo, lotação, senha PBKDF2, papel RBAC) |
 | `administradores` | Admins gerais do sistema |
-| `sessoes` | Sessões ativas (token, tipo, expiração em 12h) |
+| `sessoes` | Sessões ativas (token, tipo, expiração em 8h) |
 | `escalas` | Escalas de plantão, expediente e FDS |
 | `escala_policiais` | Associação policial ↔ escala (data, horário, equipe) |
 | `escala_documentos` | PDFs assinados com metadados CAdES-LT (OCSP, TST, selfie, GPS, IP) |
@@ -315,7 +315,6 @@ escalas/
 │   │   │   ├── useAssinaturaEscala.svelte.ts   # Estado de assinatura
 │   │   │   ├── useGiseEstado.svelte.ts         # Estados derivados GISE
 │   │   │   ├── useCharts.svelte.ts             # Integração Chart.js
-│   │   │   ├── useLocalStorageFilters.svelte.ts # Filtros persistidos
 │   │   │   └── ...
 │   │   ├── server/                 # Backend puro — nunca importar no cliente
 │   │   │   ├── schema.ts           # Schema Drizzle (fonte de verdade do banco)
@@ -423,7 +422,7 @@ A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa p
 1. Usuário informa matrícula + senha
 2. Servidor verifica com PBKDF2-HMAC-SHA256 (100k iterações — teto do runtime da Cloudflare —, salt 16 bytes, timing-safe). Em produção, a senha passa antes por HMAC com o `PASSWORD_PEPPER` (formato `pbkdf2v3`) — ver [`DEPLOY.md`](DEPLOY.md#hashing-de-senha-e-o-password_pepper)
 3. 2FA: gera código de 6 dígitos e envia por e-mail (fail-closed — conta sem e-mail cadastrado não recebe sessão)
-4. Sessão criada com token de 256 bits, expira em 12 horas
+4. Sessão criada com token de 256 bits, expira em 8 horas (`SESSION_TTL_MS` em `src/lib/auth.ts`)
 5. Sessão armazenada em cookie `session_token` (httpOnly, secure, SameSite=strict)
 
 Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail.

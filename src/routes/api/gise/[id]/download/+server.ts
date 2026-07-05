@@ -14,7 +14,7 @@ import {
 } from '$lib/server/copia-conferencia';
 import { carregarLogosGise } from '$lib/server/gise-logos';
 import { registrarAuditComContexto } from '$lib/db/audit';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { giseDownloadSchema, giseIdParamSchema } from '$lib/schemas';
 import {
 	contentDisposition,
@@ -80,7 +80,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		if (!secAutorizada) return badRequest('Seccional inválida para esta GISE.');
 
 		const { esq: logoEsq, dir: logoDir } = await carregarLogosGise(platform);
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 
 		const reportSignature = await buscarAssinaturaRelatorioGise(
 			db,
@@ -259,7 +259,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 
 		// Admin ou DPC-assinante com ?manifesto=true: blob forense íntegro do R2.
 		if (docGise?.r2_key && manifesto && podeBaixarComManifesto(u, docGise.assinante_id)) {
-			const r2 = getR2(platform);
+			const r2 = tryGetR2(platform);
 			if (r2) {
 				try {
 					const r2Object = await r2.get(docGise.r2_key);
@@ -288,7 +288,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		// R2 na assinatura (mesmos bytes do documento assinado). Serve direto, sem
 		// regenerar rascunho. Só quando ela não existe caímos na regeneração legada.
 		if (docGise?.r2_key && docGise.verificacao_hash) {
-			const r2Conf = getR2(platform);
+			const r2Conf = tryGetR2(platform);
 			if (r2Conf) {
 				const confObj = await r2Conf.get(chaveConferencia(docGise.verificacao_hash));
 				if (confObj) {
@@ -306,7 +306,7 @@ export const GET: RequestHandler = async ({ locals, params, platform, url }) => 
 		// Rascunho sem manifesto — base para a cópia de conferência (documento
 		// assinado, usuário não privilegiado) e para a GISE ainda não assinada.
 		const { gerarPdfGise } = await import('$lib/server/export');
-		const r2Logo = getR2(platform);
+		const r2Logo = tryGetR2(platform);
 		let logoBytes: Uint8Array | undefined;
 		let logoCearaBytes: Uint8Array | undefined;
 		if (r2Logo) {

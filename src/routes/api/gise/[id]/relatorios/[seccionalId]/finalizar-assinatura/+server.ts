@@ -17,7 +17,7 @@ import {
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import {
 	apiError,
 	ErrorCode,
@@ -102,9 +102,9 @@ export const POST: RequestHandler = async (event) => {
 		const r2Key = `${folder}/gise_rel_${id}_sec_${secIdNum}_${verificationHash}_assinada.pdf`;
 		const filename = `relatorio_extraordinario_gise_${id}_sec_${secIdNum}.pdf`;
 
-		const r2 = getR2(p);
+		const r2 = tryGetR2(p);
 		if (r2) {
-			await r2.put(r2Key, result.pdfFinal, { contentType: 'application/pdf' });
+			await r2.put(r2Key, result.pdfFinal, { httpMetadata: { contentType: 'application/pdf' } });
 		}
 
 		await salvarAssinaturaRelatorioGise(

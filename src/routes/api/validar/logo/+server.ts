@@ -6,7 +6,7 @@
  * Rota pública (sob `/api/validar`, já liberada no hooks).
  */
 
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { notFound, serverError } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
@@ -14,7 +14,7 @@ const R2_KEY = 'assets/logo_ceara.jpg';
 
 export const GET: RequestHandler = async ({ platform }) => {
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (!r2) return notFound('Logo');
 		const obj = await r2.get(R2_KEY);
 		if (!obj) return notFound('Logo');
