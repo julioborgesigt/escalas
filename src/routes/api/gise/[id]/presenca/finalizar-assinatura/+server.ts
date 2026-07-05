@@ -23,7 +23,7 @@ import {
 import { policiais } from '$lib/server/schema';
 import { finalizarPresencaSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import {
 	apiError,
 	ErrorCode,
@@ -103,9 +103,9 @@ export const POST: RequestHandler = async (event) => {
 		const r2Key = `${folder}/termo_${tipo}_pol_${u.id}_${verificationHash}.pdf`;
 		const filename = `termo_presenca_${tipo}_gise_${giseId}.pdf`;
 
-		const r2 = getR2(p);
+		const r2 = tryGetR2(p);
 		if (r2) {
-			await r2.put(r2Key, result.pdfFinal, { contentType: 'application/pdf' });
+			await r2.put(r2Key, result.pdfFinal, { httpMetadata: { contentType: 'application/pdf' } });
 		}
 
 		// Persiste a presença com a rubrica cadastrada (sem selfie/GPS obrigatórios:

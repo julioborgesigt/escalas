@@ -11,7 +11,7 @@ import { decifrarCpfDoDB } from '$lib/crypto/cpf-cripto';
 import { listarPoliciaisSupervisaoExtra } from '$lib/gise/gise-supervisao-extra';
 import { secIdEhSupervisaoExtra } from '$lib/server/gise-supervisao-extra';
 import { logger } from '$lib/server/logger';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { mascararNome } from '$lib/utils';
 import { validarSessao } from '$lib/auth';
@@ -177,7 +177,7 @@ export const load: PageServerLoad = async ({ params, platform, setHeaders, cooki
 	let hashConfere: boolean | null = null;
 	let selo: ResultadoVerificacaoSelo | null = null;
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (r2 && documento.r2_key) {
 			const obj = await r2.get(documento.r2_key);
 			if (obj) {

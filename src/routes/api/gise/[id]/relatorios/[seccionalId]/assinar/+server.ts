@@ -24,7 +24,7 @@ import {
 } from '$lib/server/gise-supervisao-extra';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 import { giseSignatureSchema } from '$lib/schemas';
 import { validarEvidenciasAvancada } from '$lib/server/signature-service';
@@ -216,7 +216,7 @@ export const POST: RequestHandler = async (event) => {
 		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
 		const p = platform as Record<string, unknown> | undefined;
-		const r2 = getR2(p);
+		const r2 = tryGetR2(p);
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/relatorios_extra`;
@@ -225,7 +225,9 @@ export const POST: RequestHandler = async (event) => {
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(`${prefixBase}_assinada.pdf`, pdfParaSalvar, { contentType: 'application/pdf' });
+			await r2.put(`${prefixBase}_assinada.pdf`, pdfParaSalvar, {
+				httpMetadata: { contentType: 'application/pdf' }
+			});
 			if (selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB, chave UUID.
 				const r = await uploadSelfieDataUri(r2, `${folder}/selfies`, selfieBase64);

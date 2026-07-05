@@ -30,6 +30,21 @@ export function getR2(platform: any): _R2Bucket {
 }
 
 /**
+ * Variante de `getR2` que devolve `undefined` em vez de lançar quando o
+ * binding está ausente — para fluxos best-effort (logos, cópia de conferência)
+ * e handlers que preferem responder 500/503 graciosamente.
+ *
+ * Única fonte dessas duas semânticas (achado D2 do ARQUIVOS.md): `getR2` lança,
+ * `tryGetR2` retorna `undefined` — o nome diz o comportamento, não o caminho
+ * do import.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function tryGetR2(platform: any): _R2Bucket | undefined {
+	const env = platform?.env || platform;
+	return env?.escalas_docs as _R2Bucket | undefined;
+}
+
+/**
  * Verifica se o bucket R2 está configurado (sem lançar erro).
  * Útil para retornar 500 gracefully quando o binding está ausente.
  */

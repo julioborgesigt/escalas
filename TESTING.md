@@ -29,7 +29,7 @@ Roteiro de regressão manual dos fluxos de negócio. Use antes de releases impor
 ### 1.4 Logout
 - [ ] Clicar em logout → sessão encerrada, cookie removido
 - [ ] Tentar acessar página protegida após logout → redirecionar para `/login`
-- [ ] Sessão expirada (após 12h) → redirecionar para `/login` ao tentar qualquer ação
+- [ ] Sessão expirada (após 8h) → redirecionar para `/login` ao tentar qualquer ação
 
 ---
 

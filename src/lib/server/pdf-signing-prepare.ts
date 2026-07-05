@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage, type PDFFont } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, degrees, type PDFPage } from 'pdf-lib';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
 import { removeTrailingNewLine } from '@signpdf/utils';
 import forge from 'node-forge';
@@ -579,7 +579,7 @@ async function desenharCampoRubricaLimpo(
  * cópia de conferência (`estamparRubricaLimpa`) — assim o campo cai exatamente no
  * MESMO lugar nos dois artefatos, por construção, sem drift.
  */
-export function calcularCaixaRubrica(
+function calcularCaixaRubrica(
 	width: number,
 	alignment: 'center' | 'right',
 	customBoxY?: number

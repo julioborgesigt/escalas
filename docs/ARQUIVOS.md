@@ -47,23 +47,21 @@ No final há uma seção de **[achados de código morto e duplicado](#11-achados
 | `eslint.config.js` | ESLint flat config (JS + typescript-eslint + eslint-plugin-svelte + prettier). |
 | `.prettierrc` / `.prettierignore` | Formatação (tabs, single quotes, plugin Svelte) e pastas ignoradas (migrations, static, builds). |
 | `knip.json` | Config do **knip** (detector de código/exports mortos): entry points `src/lib/db.ts`, `src/lib/db/gise/index.ts` e `scripts/`. Rode com `npm run knip`. |
-| `.fallowrc.json` | Config da ferramenta **fallow** (análise de duplicação/deps não usadas), com `minOccurrences: 3` para clones. Ferramenta ad hoc — não está nas devDependencies. |
+| `.fallowrc.json` | Config da ferramenta **fallow** (análise de duplicação/deps não usadas), com `minOccurrences: 3` para clones e entry points espelhando o uso real do SvelteKit. Ferramenta ad hoc — não está nas devDependencies. |
 | `.npmrc` | `engine-strict=true` — falha `npm install` se o Node não satisfizer `engines`. |
 | `.gitattributes` | Marca `*.ps1` como binário para preservar BOM UTF-8 (o PowerShell 5.1 corrompe acentos sem BOM). |
-| `.gitignore` | Ignora builds, `.wrangler/`, `.dev.vars`, dumps e a **chave privada** do selo (`selo-institucional.key.pem`); o cert público é versionado. |
+| `.gitignore` | Ignora builds, `.wrangler/`, `.dev.vars`, dumps, config local do Claude Code e a **chave privada** do selo (`selo-institucional.key.pem`); o cert público é versionado. |
 | `.env.example` | **Fonte autoritativa** de todas as variáveis de ambiente (~38 variáveis comentadas): tokens de webhook, pepper de senha, chaves de cifra de CPF, e-mail, Sentry, selo institucional, TSA etc. |
 | `_headers` | Headers do Cloudflare Pages para estáticos: cache imutável de 1 ano para `/face-api/*`, 1h para `/init.js`, 1 dia para `robots.txt`. |
-| `selo-institucional.cert.pem` | Certificado **público** (PEM) do selo institucional — versionado de propósito para conferência por terceiros. A chave privada vai só em secret (`SELO_INSTITUCIONAL_PEM`). |
-| `Código.gs` | ⚠️ Google Apps Script **legado** (928 linhas) de um formulário externo de produtividade (tokens por e-mail, rascunhos, dashboard em planilha). **Nenhuma referência no repositório** — ver [seção 11](#11-achados-código-morto-e-duplicado). |
+| `selo-institucional.cert.pem` | Certificado **público** (PEM) do selo institucional — versionado de propósito para conferência por terceiros. A chave privada vai só em secret (`SELO_INSTITUCIONAL_PEM`); o par é gerado por `scripts/gerar-selo-institucional.mjs`. |
 | `.vscode/settings.json` | Silencia o lint de at-rules desconhecidas do CSS (diretivas do Tailwind 4). |
 | `.vscode/extensions.json` | Recomenda a extensão oficial do Svelte. |
-| `.claude/settings.local.json` | Permissões locais de sessões antigas do Claude Code (caminhos Windows, scripts que já não existem). Ver [seção 11](#11-achados-código-morto-e-duplicado). |
 
 ## 2. `.github/` — CI/CD e automações
 
 | Arquivo | O que faz |
 |---------|-----------|
-| `workflows/deploy.yml` | Pipeline principal (PR/push em `main`/`staging`): lint (ratchet), format check, svelte-check, vitest, build, guards de padrão (erros de API, permissão de documento), migrações locais + Playwright E2E e por fim `wrangler pages deploy` (staging → preview com D1/R2 dedicados). |
+| `workflows/deploy.yml` | Pipeline principal (PR/push em `main`/`staging`): lint (zero warnings), format check e knip (advisory), svelte-check, vitest, build, guards de padrão (erros de API, permissão de documento), migrações locais + Playwright E2E e por fim `wrangler pages deploy` (staging → preview com D1/R2 dedicados). |
 | `workflows/cleanup-retencao.yml` | Cron diário (04:17 UTC) que chama `/api/webhook/limpeza-retencao` com o `SYNC_TOKEN` — o Pages não tem cron nativo, então a limpeza LGPD (sessões/tokens/nonces expirados, audit_log vencido) é disparada daqui. |
 | `workflows/backup-d1.yml` | Backup lógico diário do D1: `wrangler d1 export` → sanity check → gzip → **cifra com `age`** antes de sair do runner → upload no bucket R2 privado `escalas-backups`. Retenção/imutabilidade ficam no bucket. |
 | `workflows/update-icp-brasil-trust-store.yml` | Cron mensal que baixa a cadeia oficial da ITI e, se raízes/intermediárias mudaram, abre um PR com o diff dos PEMs de `src/lib/server/icp-brasil/`. |
@@ -80,6 +78,7 @@ No final há uma seção de **[achados de código morto e duplicado](#11-achados
 | `set-default-password-all-users.ts` | Define uma senha (via env `SET_PASSWORD`) para **todos** os usuários, marcando `primeiro_acesso=1` para forçar troca. Usa o mesmo `password-hash.ts` do app. |
 | `clear-passwords-non-admins.ts` | Zera a senha de todos os policiais **preservando administradores** (via `wrangler d1 execute`). |
 | `GoogleAppsScript_Sync.gs` | Apps Script **vigente** da planilha Google: menu "🚀 Sincronização D1" que envia policiais (`DB_SERVIDORES`) e unidades (`DB_UNIDADES`) aos webhooks (`SYNC_TOKEN` no `PropertiesService`), reset destrutivo com confirmação dupla e Web App que recebe a aba `Base_Equipe` do portal ao finalizar GISE. |
+| `gerar-selo-institucional.mjs` | Gera o par de chaves do selo institucional (RSA 2048, autoassinado, 10 anos): grava `selo-institucional.key.pem` (privada, gitignored) e `.cert.pem` (pública, versionada) e imprime o bundle base64 para `wrangler secret put SELO_INSTITUCIONAL_PEM`. Aborta se os PEMs já existirem (`--force` para trocar identidade). |
 | `purgar-dump-historico.sh` | Script **destrutivo** (git-filter-repo) para expurgar o antigo `dump.sql` (PII real) de todo o histórico Git; exige força-push e re-clone geral. Só rodar seguindo o checklist do próprio arquivo. |
 | `calc-policy-hash.ps1` | Baixa o PDF oficial da Política de Assinatura ICP-Brasil (PA-AD-RB), calcula o SHA-256 e imprime o valor para configurar `PA_AD_RB_HASH_HEX` em produção (sem ele o Validador ITI rejeita o `signaturePolicyId`). |
 
@@ -192,7 +191,7 @@ SQL gerado pelo Drizzle (nunca editar à mão — altere `src/lib/server/schema.
 | `liveness-challenge.ts` | Liveness **ativa** (challenge-response) com face-api: sorteia um desafio (`head_turn`, `smile`) e detecta seu cumprimento em janela curta — barra foto/vídeo pré-gravado na selfie da assinatura. |
 | `loading.svelte.ts` | Estado global de loading (overlay) em runes — `loading.show()/hide()`. |
 | `logger.ts` | Logger estruturado JSON (browser e worker), compatível com Cloudflare Logs. |
-| `rotacao.ts` | Cálculo de rotação de plantão 1x3 e 2x6: detecta o padrão dos dias, projeta o mês seguinte, helpers de mês/dia. ⚠️ contém `calcularDataSaida` duplicada de `utils.ts` (ver seção 11). |
+| `rotacao.ts` | Cálculo de rotação de plantão 1x3 e 2x6: detecta o padrão dos dias, projeta o mês seguinte, helpers de mês/dia. Re-exporta `calcularDataSaida` de `utils.ts` (fonte única). |
 | `serpro.ts` | Cliente WebSocket do **Assinador SERPRO Desktop**: descoberta de porta (65166/65156/65500), listagem de certificados, assinatura de hash e fluxo de login por certificado. |
 | `toast.ts` | Instância única do toaster do Skeleton. |
 | `types.ts` | Tipos de domínio compartilhados entre páginas (linhas de listagem res-gise, `EscalaListagem`, config de perguntas GISE…). |
@@ -269,7 +268,7 @@ SQL gerado pelo Drizzle (nunca editar à mão — altere `src/lib/server/schema.
 
 | Arquivo | O que faz |
 |---------|-----------|
-| `core.ts` | `getDB()` (Drizzle sobre D1), `getR2()`, `hasR2()` — entry points dos bindings. |
+| `core.ts` | Entry points dos bindings: `getDB()` (Drizzle sobre D1), `getR2()` (lança se ausente), `tryGetR2()` (retorna `undefined` — fluxos best-effort) e `hasR2()`. |
 | `policiais.ts` | Queries de policiais: listagem/busca (com escopo), criar/atualizar/upsert/excluir, promoção de papel, rubrica do assinante. |
 | `unidades.ts` | CRUD de unidades e consultas da hierarquia (seccionais). |
 | `escalas.ts` | Escalas e `escala_policiais`: listar/criar/excluir, marcar visto, finalizar/desfinalizar FDS, adicionar múltiplas datas/todos os policiais, solicitações de assinatura. |
@@ -318,7 +317,6 @@ SQL gerado pelo Drizzle (nunca editar à mão — altere `src/lib/server/schema.
 | `logger.ts` | Re-export do logger estruturado para uso em código server-only. |
 | `request-context.ts` | `AsyncLocalStorage` com o contexto da requisição (request_id etc.) acessível em qualquer camada. |
 | `sentry.ts` | Integração Sentry Cloudflare: `withSentryRequest` e `beforeSend` que **sanitiza PII** de URLs/tags. |
-| `platform.ts` | Cast tipado dos bindings Cloudflare (`getR2` tolerante que retorna `undefined`). ⚠️ duplica semântica de `db/core.getR2` (ver seção 11). |
 | `app-origin.ts` | Origem canônica para links de e-mail (`APP_ORIGIN` > `url.origin`) — defesa contra host-header injection. |
 | `schema.ts` | **Fonte de verdade do banco**: todas as tabelas Drizzle (policiais, escalas, sessões, unidades, documentos, GISE completo, aceites, LGPD, auditoria) e seus tipos inferidos. |
 | `session-cache.ts` | Cache edge (Cache API, TTL 60s) da sessão validada + aceite do termo — poupa 2 idas ao D1 por request autenticado; logout invalida explicitamente. |
@@ -625,22 +623,24 @@ APIs de administração:
 
 Levantado em 2026-07-04 com `npm run knip`, `jscpd` (`--min-tokens 70`) e inspeção manual. O projeto está **bem enxuto** — o knip encontrou um único export morto — mas há oportunidades reais de consolidação.
 
+> **Status (2026-07-05):** M1–M5, D1, D2, os itens acionáveis de 11.4 e o clone `respostas.ts × res-gise` de 11.3 foram **resolvidos**. Os demais itens de 11.3 seguem em aberto, como candidatos a refatoração incremental.
+
 ### 11.1 Código morto / arquivos órfãos
 
-| # | Achado | Recomendação |
-|---|--------|--------------|
-| M1 | **`Código.gs` (raiz, 928 linhas)** — Apps Script de um sistema *anterior* (formulário externo de produtividade: `doPost`/`doGet`, tokens de acesso por e-mail, rascunhos, dashboard em planilha). Nenhuma referência em código ou docs; o script vigente é `scripts/GoogleAppsScript_Sync.gs`. | Remover do repositório (o histórico Git preserva). Se ainda estiver em produção em alguma planilha antiga, mover para `docs/` como registro histórico com um banner. |
-| M2 | **`calcularCaixaRubrica`** (`src/lib/server/pdf-signing-prepare.ts:582`) — único export sem importadores apontado pelo knip; é usada apenas dentro do próprio arquivo. | Remover a palavra-chave `export` (a função em si é viva). |
-| M3 | **`.claude/settings.local.json`** — permissões de sessões antigas do Claude Code, com caminhos Windows (`/c/Users/Pc/...`) e scripts que não existem mais (`scripts/update-api.js`, `update-proximo-mes.cjs`, `update-export.cjs`, `update-page.cjs`). Por convenção esse arquivo é *local* (o próprio nome diz) e não costuma ser versionado. | Adicionar `.claude/settings.local.json` ao `.gitignore` e removê-lo do repo. |
-| M4 | **`scripts/gerar-selo-institucional.mjs` não existe**, mas é citado como a origem do par de chaves do selo em `src/lib/server/server-seal.ts:24`. | Ou versionar o script gerador, ou ajustar o comentário/DEPLOY.md para documentar o comando `openssl` equivalente. |
-| M5 | **Drift de docs no `README.md`**: (a) a árvore de pastas cita `useLocalStorageFilters.svelte.ts`, mas o arquivo real é `src/lib/utils/localStorage.ts` (função `getSavedFilters`); (b) o fluxo de login fala em sessão de **12 horas**, mas `src/lib/auth.ts` define `SESSION_TTL_MS = 8h`. | Corrigir as duas referências no README. |
+| # | Achado | Status |
+|---|--------|--------|
+| M1 | **`Código.gs` (raiz, 928 linhas)** — Apps Script de um sistema *anterior* (formulário externo de produtividade: `doPost`/`doGet`, tokens de acesso por e-mail, rascunhos, dashboard em planilha). Nenhuma referência em código ou docs; o script vigente é `scripts/GoogleAppsScript_Sync.gs`. | ✅ **Resolvido** — removido do repositório (o histórico Git preserva; se alguma planilha antiga ainda o usar, o conteúdo pode ser recuperado de lá). |
+| M2 | **`calcularCaixaRubrica`** (`src/lib/server/pdf-signing-prepare.ts`) — único export sem importadores apontado pelo knip; usada apenas dentro do próprio arquivo. | ✅ **Resolvido** — `export` removido; `npm run knip` zerado. |
+| M3 | **`.claude/settings.local.json`** — permissões de sessões antigas do Claude Code, com caminhos Windows e scripts que não existem mais. Por convenção esse arquivo é *local* e não costuma ser versionado. | ✅ **Resolvido** — removido do repo e adicionado ao `.gitignore`. |
+| M4 | **`scripts/gerar-selo-institucional.mjs` não existia**, mas era citado como a origem do par de chaves do selo em `server-seal.ts` e no `.env.example`. | ✅ **Resolvido** — script criado (node-forge; espelha os parâmetros do cert em produção; aborta se os PEMs já existirem) e documentado em `scripts/README.md`. |
+| M5 | **Drift de docs no `README.md`**: (a) a árvore de pastas citava `useLocalStorageFilters.svelte.ts` (arquivo real: `src/lib/utils/localStorage.ts`); (b) sessão dita de **12 horas**, mas `src/lib/auth.ts` define `SESSION_TTL_MS = 8h`. | ✅ **Resolvido** — README (2 pontos) e TESTING.md corrigidos para 8h. |
 
 ### 11.2 Funções duplicadas (mesmo nome, implementações paralelas)
 
-| # | Achado | Recomendação |
-|---|--------|--------------|
-| D1 | **`calcularDataSaida` existe em dois módulos**: `src/lib/utils.ts:30` e `src/lib/rotacao.ts:158`. Mesma assinatura e mesma regra ("se hora de saída ≤ entrada, avança um dia"); a versão de `rotacao.ts` só acrescenta o caso de strings vazias. Ambas têm consumidores (`utils` → exports/PDF/planilha; `rotacao` → páginas de escala). | Manter **uma** (em `utils.ts`, absorvendo o guard de string vazia) e re-exportar/importar dela em `rotacao.ts`. Risco baixo, ganho de manutenção. |
-| D2 | **`getR2` existe em dois módulos com semântica diferente**: `src/lib/db/core.ts` (lança erro se o binding faltar) e `src/lib/server/platform.ts` (retorna `undefined`). Os dois são usados em ~10 endpoints cada. | Consolidar em um módulo com dois nomes explícitos (ex.: `getR2()` que lança e `tryGetR2()` que retorna `undefined`), para o leitor não depender do caminho do import para saber o comportamento. |
+| # | Achado | Status |
+|---|--------|--------|
+| D1 | **`calcularDataSaida` existia em dois módulos** (`src/lib/utils.ts` e `src/lib/rotacao.ts`) — mesma regra, com divergência num caso de borda (hora de saída vazia com entrada preenchida). | ✅ **Resolvido** — implementação única em `utils.ts`, absorvendo o guard de hora vazia (semântica coberta pelos testes de `api-helpers.test.ts`); `rotacao.ts` re-exporta. Nenhum call site exercitava o caso de borda divergente (todos passam horas com default não-vazio). |
+| D2 | **`getR2` existia em dois módulos com semântica diferente**: `db/core.ts` (lança erro se o binding faltar) e `server/platform.ts` (retorna `undefined`). | ✅ **Resolvido** — `platform.ts` removido; `db/core.ts` expõe `getR2()` (lança) e `tryGetR2()` (retorna `undefined`), com 16 importadores atualizados. **Bônus:** a tipagem estrita revelou que 7 endpoints GISE passavam `{ contentType }` direto no `put()` do R2 — opção que **não existe** na API (o Content-Type nunca era gravado no objeto); corrigidos para `httpMetadata: { contentType }`, forma que os endpoints de escalas já usavam. |
 
 ### 11.3 Duplicação estrutural (jscpd: 276 clones exatos, ~4% das linhas)
 
@@ -651,7 +651,7 @@ Pares com mais linhas clonadas — candidatos a extração de componente/helper,
 | ~164 | `escalas/nova/+page.svelte` × `escalas/_components/ModalNovaEscala.svelte` (+72 nos respectivos `+page.server.ts`) | O formulário de criação de escala existe **duas vezes** (página completa e modal). É a maior duplicação funcional do projeto: extrair um `FormNovaEscala.svelte` compartilhado (e um helper comum para a action). |
 | ~133 | `escalas/_components/DialogSolicitarAssinatura.svelte` × `lib/components/PainelAssinaturaDigital.svelte` | Bloco de UI de solicitação/status de assinatura repetido. |
 | ~141 | `ModalEditarDias.svelte` × `ModalEditarPlantao.svelte` | Par de modais quase gêmeos (validação de datas/horas + markup). |
-| ~122 | `lib/db/gise/respostas.ts` × `routes/res-gise/+page.server.ts` | Um clone único de 122 linhas — bloco de agregação de respostas repetido fora da camada db. Mover para `respostas.ts` e importar. |
+| ~122 | `lib/db/gise/respostas.ts` × `routes/res-gise/+page.server.ts` | ✅ **Resolvido** — o clone era o modelo padrão SEINT (`DEFAULT_SEINT_QUESTIONS`, 122 linhas idênticas); agora exportado de `respostas.ts` e importado pela página. ⚠️ **Atenção (aberto):** o modelo padrão *operacional* também existe nos dois arquivos, mas as cópias **divergiram** nos textos (`DEFAULT_QUESTIONS` em `respostas.ts`, caixa alta, ex.: "1. VTR E PLACA" × `defaultGiseQuestions` na página, ex.: "1. DIGITE A VTR E A PLACA"). Unificar exige decidir o texto canônico — decisão de produto, não só refactor. |
 | ~131 | `FormAdicionarServidores.svelte` × `FormInlineAdicionarOip.svelte` (+46 com `ListaFds`) | Lógica TS de busca/validação de servidor repetida. |
 | ~115 | `ListaFds.svelte` × `TabelaServidores.svelte` | Linhas de tabela/ações repetidas. |
 | ~93 | `alterar-senha/+page.svelte` × `redefinir-senha/+page.svelte` | Formulário de nova senha (força, confirmação) duplicado — extrair `FormNovaSenha.svelte`. |
@@ -666,7 +666,8 @@ Relatório completo: rode `npx jscpd src --min-tokens 70 --reporters consoleFull
 
 ### 11.4 Observações menores
 
-- **Migrações com prefixo duplicado** (`0010_*` ×2 e `0011_*` ×2): inofensivo (o runner controla por nome de arquivo), mas evite repetir numeração em migrações novas.
-- **`/api/gise/[id]/assinar`** está formalmente deprecado (redireciona para `assinar-simples`). Quando não houver mais clientes antigos, pode ser removido junto com a rota.
-- O `knip` existe como script (`npm run knip`) mas **não roda no CI** — considerar adicioná-lo ao `deploy.yml` (ou como job não-bloqueante) para impedir regressão de código morto.
-- `.fallowrc.json` referencia entry points `src/index.*`/`src/main.*` que não existem neste projeto SvelteKit — se a ferramenta `fallow` for mesmo usada, os entries deveriam espelhar os do `knip.json`; senão, o arquivo pode ser removido.
+- **Migrações com prefixo duplicado** (`0010_*` ×2 e `0011_*` ×2): inofensivo (o runner controla por nome de arquivo), mas evite repetir numeração em migrações novas. *(Sem ação — não se renumera migração já aplicada.)*
+- **`/api/gise/[id]/assinar`** está formalmente deprecado (redireciona para `assinar-simples`). Quando não houver mais clientes antigos, pode ser removido junto com a rota. *(Em aberto de propósito.)*
+- ✅ **Resolvido** — `npm run knip` agora roda no CI (`deploy.yml`) como step *advisory* (`continue-on-error`); quando a saída se mantiver estável em zero, remova o `continue-on-error` para virar gate.
+- ✅ **Resolvido** — os entry points do `.fallowrc.json` foram alinhados ao uso real do SvelteKit (mesma família do `knip.json`).
+- ✅ **Resolvido (extra)** — a última dívida de lint (import de tipo não usado em `pdf-signing-prepare.ts`) foi paga e o teto do ratchet (`lint:ci`) baixou de 409 para **0 warnings**, conforme o plano documentado no próprio `deploy.yml`.

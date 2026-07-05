@@ -15,7 +15,7 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 import {
@@ -68,7 +68,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 		if (querPdfAssinavel && docAssinado?.r2_key) {
 			if (comManifesto) {
 				// Admin com ?manifesto=true: blob forense íntegro (com manifesto) do R2.
-				const r2 = getR2(platform);
+				const r2 = tryGetR2(platform);
 				if (r2) {
 					try {
 						const r2Obj = await r2.get(docAssinado.r2_key);
@@ -95,7 +95,7 @@ export const GET: RequestHandler = async ({ params, platform, url, locals }) => 
 			// Padrão (sem manifesto): cópia de conferência para todos os usuários.
 			// Preferimos a cópia IDÊNTICA já gravada no R2 na assinatura (mesmos bytes
 			// do documento assinado); só regeneramos (legado) quando ela não existe.
-			const r2Conf = getR2(platform);
+			const r2Conf = tryGetR2(platform);
 			if (r2Conf && docAssinado.verificacao_hash) {
 				const confObj = await r2Conf.get(chaveConferencia(docAssinado.verificacao_hash));
 				if (confObj) {

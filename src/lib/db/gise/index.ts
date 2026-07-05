@@ -51,7 +51,8 @@ export {
 	salvarGiseModeloFormulario,
 	buscarRespostaGise,
 	salvarRespostaGise,
-	listarTodasRespostasGise
+	listarTodasRespostasGise,
+	DEFAULT_SEINT_QUESTIONS
 } from './respostas';
 
 export { salvarGiseDocumento, buscarGiseDocumento } from './documentos';

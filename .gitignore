@@ -26,6 +26,9 @@ vite.config.ts.timestamp-*
 # Variaveis de ambiente locais (NUNCA comitar)
 .dev.vars
 
+# Config local do Claude Code (permissões por máquina — não versionar)
+.claude/settings.local.json
+
 # Gerados automaticamente
 worker-configuration.d.ts
 tsconfig.tsbuildinfo

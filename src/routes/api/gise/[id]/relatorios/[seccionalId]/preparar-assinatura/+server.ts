@@ -39,7 +39,7 @@ import {
 import { chaveConferencia } from '$lib/server/copia-conferencia';
 import { PDFDocument } from 'pdf-lib';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { calcularHashBuffer } from '$lib/server/document-utils';
 import { logger } from '$lib/server/logger';
 import { json } from '@sveltejs/kit';
@@ -167,7 +167,7 @@ export const POST: RequestHandler = async ({
 	const idsMembros = new Set(membrosSec.map((m) => m.policial_id));
 	const presencasFiltradas = presencas.filter((p) => idsMembros.has(p.policial_id));
 
-	const r2 = getR2(platform as App.Platform | undefined);
+	const r2 = tryGetR2(platform as App.Platform | undefined);
 
 	// Buscar selfies em paralelo
 	const selfieKeys: Array<{ key: string; type: 'entrada' | 'saida'; prId: number }> = [];

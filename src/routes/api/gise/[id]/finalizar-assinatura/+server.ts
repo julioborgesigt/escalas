@@ -17,7 +17,7 @@ import {
 } from '$lib/db';
 import { finalizarAssinaturaGiseSchema } from '$lib/schemas';
 import { finalizarAssinaturaQualificada } from '$lib/server/signature-service';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import {
 	apiError,
 	ErrorCode,
@@ -96,10 +96,10 @@ export const POST: RequestHandler = async (event) => {
 		const folder = `gise/${mesAno}/${dd_escala}/${id}/escala`;
 
 		const documentKey = `${folder}/gise_${id}_${verificationHash}_assinada.pdf`;
-		const r2 = getR2(p);
+		const r2 = tryGetR2(p);
 		if (r2) {
 			await r2.put(documentKey, result.pdfFinal, {
-				contentType: 'application/pdf'
+				httpMetadata: { contentType: 'application/pdf' }
 			});
 		}
 

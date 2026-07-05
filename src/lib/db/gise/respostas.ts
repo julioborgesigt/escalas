@@ -126,7 +126,13 @@ const DEFAULT_QUESTIONS = [
 	{ id: 19, texto: '19. RESUMO DILIGÊNCIAS', tipo: 'textarea', key: 'descricao', filhos: [] }
 ];
 
-const DEFAULT_SEINT_QUESTIONS = [
+/**
+ * Modelo padrão do formulário SEINT — fonte ÚNICA, usada como fallback tanto
+ * aqui (agregação/relatórios) quanto no load de `/res-gise` (UI do formulário
+ * e botão "restaurar padrão"). Antes existia uma cópia idêntica de 122 linhas
+ * na página (achado 11.3 do docs/ARQUIVOS.md).
+ */
+export const DEFAULT_SEINT_QUESTIONS = [
 	{
 		id: 1,
 		texto: '1. Houve EXTRAÇÃO DE DADOS DE APARELHOS CELULARES?',

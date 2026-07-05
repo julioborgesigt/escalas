@@ -7,14 +7,14 @@
  * caminhos de assinatura, download e cópia de conferência.
  */
 
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 
 async function carregar(
 	platform: App.Platform | undefined,
 	key: string
 ): Promise<Uint8Array | undefined> {
 	try {
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		if (!r2) return undefined;
 		const obj = await r2.get(key);
 		if (!obj) return undefined;

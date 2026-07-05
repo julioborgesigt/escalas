@@ -12,7 +12,7 @@
  *  - gise.ts      — operações de GISE (escalas diárias de serviço)
  */
 
-export { getDB, getR2, hasR2 } from './db/core';
+export { getDB, getR2, tryGetR2, hasR2 } from './db/core';
 export type { Database } from './db/core';
 
 export {
@@ -161,5 +161,6 @@ export {
 	atualizarGiseSeccionalUnidade,
 	removerGiseSeccionalUnidade,
 	buscarVagasPadraoEquipesGise,
-	salvarVagasPadraoEquipesGise
+	salvarVagasPadraoEquipesGise,
+	DEFAULT_SEINT_QUESTIONS
 } from './db/gise';

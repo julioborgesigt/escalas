@@ -26,14 +26,19 @@ export function normalizarTexto(texto: string): string {
 		.toLowerCase();
 }
 
-/** Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia. */
+/**
+ * Retorna a data de saída efetiva: se horaSaida ≤ horaEntrada, avança um dia.
+ * Hora vazia conta como meia-noite ('00'); com ambas vazias, mantém a data.
+ * Implementação ÚNICA — `$lib/rotacao` re-exporta daqui (achado D1 do ARQUIVOS.md).
+ */
 export function calcularDataSaida(
 	dataInicio: string,
 	horaEntrada: string,
 	horaSaida: string
 ): string {
-	const he = parseInt(horaEntrada.split(':')[0] ?? '0', 10);
-	const hs = parseInt(horaSaida.split(':')[0] ?? '0', 10);
+	if (!horaEntrada && !horaSaida) return dataInicio;
+	const he = parseInt(horaEntrada.split(':')[0] || '0', 10);
+	const hs = parseInt(horaSaida.split(':')[0] || '0', 10);
 	return hs <= he ? proximoDia(dataInicio) : dataInicio;
 }
 

@@ -39,7 +39,7 @@ import { getBreveRelatorioEnvMergido } from '$lib/server/breve-relatorio-env';
 import { adicionarRodapeSimples, adicionarPaginaAuditoria } from '$lib/server/pdf-signing';
 import { selarPdfInstitucional, tipoCarimboPrevisto } from '$lib/server/server-seal';
 import { gerarCodigoValidacao } from '$lib/utils';
-import { getR2 } from '$lib/server/platform';
+import { tryGetR2 } from '$lib/db';
 import { uploadSelfieDataUri } from '$lib/server/selfie-upload';
 
 export const POST: RequestHandler = async (event) => {
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		const r2Logo = getR2(platform);
+		const r2Logo = tryGetR2(platform);
 		let logoJpgBytes: Uint8Array | undefined;
 		let logoCearaBytes: Uint8Array | undefined;
 		if (r2Logo) {
@@ -181,7 +181,7 @@ export const POST: RequestHandler = async (event) => {
 		const hashBuffer = await crypto.subtle.digest('SHA-256', pdfParaSalvar.slice());
 		const arquivo_hash = bytesToHex(new Uint8Array(hashBuffer));
 
-		const r2 = getR2(platform);
+		const r2 = tryGetR2(platform);
 		const [yyyy, mm, dd] = gise.data_inicio.split('-');
 		const mesAno = `${yyyy}-${mm}`;
 		const folder = `gise/${mesAno}/${dd}/${id}/escala`;
@@ -191,7 +191,9 @@ export const POST: RequestHandler = async (event) => {
 		let selfieKey: string | undefined = undefined;
 
 		if (r2) {
-			await r2.put(documentKey, pdfParaSalvar, { contentType: 'application/pdf' });
+			await r2.put(documentKey, pdfParaSalvar, {
+				httpMetadata: { contentType: 'application/pdf' }
+			});
 
 			if (validatedEv.selfieBase64) {
 				// Helper compartilhado: valida magic bytes, limita 5 MB e gera
