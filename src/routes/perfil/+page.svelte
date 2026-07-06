@@ -4,6 +4,7 @@
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
+	import ModalAlterarEmailPessoal from './ModalAlterarEmailPessoal.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -59,6 +60,11 @@
 			}
 		};
 	}
+
+	// --- E-mail pessoal (cadastro/troca com OTP; espelho local pós-sucesso) ---
+	let alterandoEmail = $state(false);
+	let emailPessoal = $state(untrack(() => data.perfil.email_pessoal ?? null));
+	let emailPessoalVerificado = $state(untrack(() => !!data.perfil.email_pessoal_verificado));
 
 	// --- Rubrica ---
 	let cadastrandoRubrica = $state(false);
@@ -138,18 +144,32 @@
 			</div>
 			<div>
 				<span class="label-text text-xs text-surface-400 block">E-mail pessoal</span>
-				<p class="font-semibold">
-					{perfil.email_pessoal || '—'}
-					{#if perfil.email_pessoal}
-						<span
-							class="ml-1 text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded {perfil.email_pessoal_verificado
-								? 'bg-success-500/15 text-success-700 dark:text-success-400'
-								: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
-						>
-							{perfil.email_pessoal_verificado ? 'Verificado' : 'Não verificado'}
-						</span>
-					{/if}
-				</p>
+				<div class="flex items-center gap-2 flex-wrap">
+					<p class="font-semibold">
+						{emailPessoal || '—'}
+						{#if emailPessoal}
+							<span
+								class="ml-1 text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
+									? 'bg-success-500/15 text-success-700 dark:text-success-400'
+									: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
+							>
+								{emailPessoalVerificado ? 'Verificado' : 'Não verificado'}
+							</span>
+						{/if}
+					</p>
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-primary-500 text-xs"
+						onclick={() => (alterandoEmail = true)}
+					>
+						{emailPessoal ? 'Alterar' : 'Cadastrar'}
+					</button>
+				</div>
+				{#if emailPessoal}
+					<p class="text-[0.68rem] text-surface-400 mt-1">
+						A troca exige sua senha e um código enviado ao novo endereço.
+					</p>
+				{/if}
 			</div>
 		</div>
 	</section>
@@ -311,4 +331,13 @@
 	bind:open={cadastrandoRubrica}
 	rubricaAtual={minhaRubrica}
 	onSaved={(nova) => (minhaRubrica = nova)}
+/>
+
+<ModalAlterarEmailPessoal
+	bind:open={alterandoEmail}
+	emailAtual={emailPessoal}
+	onConfirmado={(novo) => {
+		emailPessoal = novo;
+		emailPessoalVerificado = true;
+	}}
 />

@@ -11,6 +11,8 @@ import { json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { verificarDesafio2FA } from '$lib/auth';
+import { enviarAvisoTrocaEmailPessoal } from '$lib/server/email';
+import { logger } from '$lib/server/logger';
 import { administradores, policiais } from '$lib/server/schema';
 import { requireAuth, badRequest, forbidden, rateLimited, validateBody } from '$lib/server/api';
 import { confirmarVerificacaoEmailSchema } from '$lib/schemas';
@@ -57,22 +59,51 @@ export const POST: RequestHandler = async (event) => {
 	// Garante que o token pertence ao usuário logado
 	if (resultado.usuarioId !== u.id) return forbidden('Token inválido');
 
-	// Persiste o e-mail pessoal verificado (normalizado).
+	// Persiste o e-mail pessoal verificado (normalizado), guardando o valor
+	// anterior para distinguir 1º cadastro de TROCA (que gera aviso).
+	let emailAnterior: string | null;
 	if (u.tipo === 'admin') {
+		const row = await db
+			.select({ email_pessoal: administradores.email_pessoal })
+			.from(administradores)
+			.where(eq(administradores.id, u.id))
+			.get();
+		emailAnterior = row?.email_pessoal ?? null;
 		await db
 			.update(administradores)
 			.set({ email_pessoal: emailNormalizado, email_pessoal_verificado: 1 })
 			.where(eq(administradores.id, u.id));
 	} else {
+		const row = await db
+			.select({ email_pessoal: policiais.email_pessoal })
+			.from(policiais)
+			.where(eq(policiais.id, u.id))
+			.get();
+		emailAnterior = row?.email_pessoal ?? null;
 		await db
 			.update(policiais)
 			.set({ email_pessoal: emailNormalizado, email_pessoal_verificado: 1 })
 			.where(eq(policiais.id, u.id));
 	}
 
+	const foiTroca = !!emailAnterior && emailAnterior.toLowerCase() !== emailNormalizado;
+
 	// E-mail mascarado por privacidade (LGPD): só a 1ª letra + domínio.
 	const [parteLocal, dominio] = emailNormalizado.split('@');
 	const emailMascarado = `${parteLocal.slice(0, 1)}***@${dominio ?? ''}`;
+
+	// TROCA: aviso de segurança ao e-mail FUNCIONAL (rastro visível ao titular).
+	// Best-effort: falha de envio não desfaz a troca já confirmada por OTP.
+	if (foiTroca && u.email) {
+		try {
+			await enviarAvisoTrocaEmailPessoal(u.email, u.nome, emailMascarado, platform);
+		} catch (err) {
+			logger.warn('[verificacao-email-pessoal] Falha ao enviar aviso ao e-mail funcional', {
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
+	}
+
 	const { contexto, env } = contextoDeEvento(event);
 	await auditar(
 		db,
@@ -84,7 +115,10 @@ export const POST: RequestHandler = async (event) => {
 			alvo_tipo: u.tipo,
 			alvo_id: u.id,
 			alvo_nome: u.nome,
-			detalhes: `E-mail pessoal verificado e cadastrado (${emailMascarado})`,
+			detalhes: foiTroca
+				? `E-mail pessoal TROCADO e verificado (${emailMascarado}); aviso enviado ao e-mail funcional`
+				: `E-mail pessoal verificado e cadastrado (${emailMascarado})`,
+			metadados: { troca: foiTroca },
 			...contexto
 		},
 		{ env }

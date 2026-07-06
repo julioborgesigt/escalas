@@ -283,6 +283,14 @@ Verificar cada transição de status:
 - [ ] Policial vê o status (Pendente/Aprovada/Rejeitada) no histórico do perfil
 - [ ] Valores inválidos (classe de outro cargo, lotação inexistente, telefone malformado) → erro de validação
 
+### 8.6 E-mail pessoal pelo perfil (cadastro/troca)
+
+- [ ] Sem e-mail pessoal: "Cadastrar" abre o modal SEM campo de senha; código chega no novo endereço; confirmar persiste verificado
+- [ ] Com e-mail pessoal: "Alterar" exige a senha de acesso; senha errada → "Senha incorreta."; sem senha o envio fica bloqueado
+- [ ] Código correto → e-mail trocado, selo "Verificado" e **aviso de segurança no e-mail funcional**
+- [ ] Código errado/expirado → erro; reenvio disponível após o timer
+- [ ] Troca também registrada na auditoria (detalhe indica TROCA + aviso)
+
 ---
 
 ## 9. Gestão de Unidades (`/unidades`)
