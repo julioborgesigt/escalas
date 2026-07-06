@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { getDB } from '$lib/db';
 import { lerFlagsAssinatura } from '$lib/server/cfg-ass-cache';
 import { lerPapelGise } from '$lib/server/gise-papel-cache';
+import { temAssinaturaEscalaPendente } from '$lib/server/rubrica-pendente';
 import { logger } from '$lib/server/logger';
 
 export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
@@ -14,6 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 	let exigirGpsAssinatura = true;
 	let exigirCodigoEmailAssinatura = false;
 	let restringirSmartphone = false;
+	let precisaCadastrarRubrica = false;
 
 	if (u) {
 		try {
@@ -42,6 +44,16 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 				isMembroGise = papel.isMembro;
 				isSupervisaoGise = papel.isSupervisao;
 			}
+
+			// Aviso "cadastre sua rubrica": só para policial SEM rubrica com
+			// pendência concreta de assinatura — vínculo com GISE ativa (presenças/
+			// relatórios a assinar) ou solicitação de assinatura de escala dirigida
+			// a ele (DPC admin). A checagem extra de solicitação só roda nesse caso
+			// raro (1 EXISTS); `temRubrica` vem da própria sessão.
+			if (db && u.tipo === 'policial' && u.temRubrica === false) {
+				const papelGiseAtivo = isSupervisorGise || isMembroGise || isSupervisaoGise;
+				precisaCadastrarRubrica = papelGiseAtivo || (await temAssinaturaEscalaPendente(db, u));
+			}
 		} catch (err) {
 			// DB/edge cache indisponível — mantém defaults seguros (exige tudo)
 			logger.warn('[layout] falha ao carregar flags/papel GISE', {
@@ -64,6 +76,7 @@ export const load: LayoutServerLoad = async ({ locals, platform, cookies }) => {
 		exigirGpsAssinatura,
 		exigirCodigoEmailAssinatura,
 		restringirSmartphone,
+		precisaCadastrarRubrica,
 		adminModulo
 	};
 };

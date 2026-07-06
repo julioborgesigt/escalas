@@ -209,6 +209,15 @@ Verificar cada transição de status:
 - [ ] Policial registra entrada com rubrica e selfie
 - [ ] Policial registra saída com rubrica e selfie
 - [ ] Timestamps de entrada e saída salvos corretamente
+- [ ] No desktop (com restrição de smartphone), a tela de confirmação mostra APENAS o botão "Confirmar … com Certificado Digital" (sem quadro de rubrica/gerenciar); sem rubrica cadastrada, mostra o aviso com botão de cadastro
+
+### 6.2.1 Aviso "Cadastre sua rubrica" (pós-login)
+
+- [ ] Policial SEM rubrica vinculado a GISE ativa (membro/supervisor/supervisão) vê o aviso ao logar
+- [ ] DPC admin SEM rubrica com solicitação de assinatura pendente vê o aviso ao logar
+- [ ] "Deixar para depois" fecha e não reaparece na mesma sessão do navegador; reaparece no próximo login
+- [ ] "Cadastrar rubrica" abre o modal de cadastro; após salvar, o aviso não volta
+- [ ] Policial sem pendência de assinatura NÃO vê o aviso
 
 ### 6.3 Formulários de Produtividade
 
