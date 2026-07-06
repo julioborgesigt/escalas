@@ -185,6 +185,21 @@ export const CATALOGO_ACOES = {
 		categoria: 'policial',
 		severidade: 'aviso'
 	},
+	solicitar_alteracao_cadastro: {
+		label: 'Solicitação de alteração cadastral (Meu perfil)',
+		categoria: 'policial',
+		severidade: 'info'
+	},
+	aprovar_alteracao_cadastro: {
+		label: 'Aprovação de alteração cadastral',
+		categoria: 'policial',
+		severidade: 'aviso'
+	},
+	rejeitar_alteracao_cadastro: {
+		label: 'Rejeição de alteração cadastral',
+		categoria: 'policial',
+		severidade: 'info'
+	},
 	exportar_gise: { label: 'Exportação de GISE', categoria: 'gise', severidade: 'info' },
 	salvar_config_gise: {
 		label: 'Alteração de configuração do GISE',

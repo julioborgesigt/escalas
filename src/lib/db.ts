@@ -74,6 +74,17 @@ export {
 } from './db/policiais';
 
 export {
+	criarSolicitacoesCadastro,
+	listarMinhasSolicitacoesCadastro,
+	listarSolicitacoesCadastroPendentes,
+	decidirSolicitacaoCadastro
+} from './db/cadastro-solicitacoes';
+export type {
+	CampoSolicitacao,
+	SolicitacaoPendenteComPolicial
+} from './db/cadastro-solicitacoes';
+
+export {
 	listarUnidades,
 	criarUnidade,
 	atualizarUnidade,

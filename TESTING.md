@@ -272,6 +272,17 @@ Verificar cada transição de status:
 - [ ] CSV com linhas inválidas → relatório de erros por linha
 - [ ] CSV vazio → mensagem de erro
 
+### 8.5 Meu Perfil (`/perfil`) e Solicitações (`/solicitacoes`)
+
+- [ ] Policial acessa "Meu perfil": identificação somente leitura (nome, matrícula, cargo, e-mails)
+- [ ] Cadastrar/atualizar/excluir rubrica pelo perfil
+- [ ] Alterar telefone/classe/regime/lotação → botão só habilita com mudança real → cria solicitação PENDENTE (cadastro NÃO muda ainda)
+- [ ] Nova solicitação do mesmo campo substitui a pendente anterior
+- [ ] Admin Geral vê a pendência em "Solicitações" com dados do servidor e de/para
+- [ ] Aprovar (✓) → valor aplicado no cadastro imediatamente; Rejeitar (✗) → cadastro intacto; ambos auditados
+- [ ] Policial vê o status (Pendente/Aprovada/Rejeitada) no histórico do perfil
+- [ ] Valores inválidos (classe de outro cargo, lotação inexistente, telefone malformado) → erro de validação
+
 ---
 
 ## 9. Gestão de Unidades (`/unidades`)

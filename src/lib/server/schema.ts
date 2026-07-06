@@ -889,9 +889,38 @@ export const lgpdSolicitacoes = sqliteTable(
 	]
 );
 
+// ---- Solicitações de alteração cadastral (página "Meu perfil") ----
+
+// Uma linha por campo alterado (telefone/classe/regime/lotacao); aprovação do
+// Admin Geral aplica o valor no cadastro. E-mail pessoal tem fluxo próprio
+// (OTP) e não passa por esta tabela.
+export const cadastroSolicitacoes = sqliteTable(
+	'cadastro_solicitacoes',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		policial_id: integer('policial_id').notNull(),
+		campo: text('campo', { enum: ['telefone', 'classe', 'regime', 'lotacao'] }).notNull(),
+		valor_atual: text('valor_atual'),
+		valor_novo: text('valor_novo').notNull(),
+		status: text('status', { enum: ['pendente', 'aprovada', 'rejeitada'] })
+			.notNull()
+			.default('pendente'),
+		decidido_por: integer('decidido_por'),
+		decidido_em: text('decidido_em'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now', '-3 hours'))`)
+	},
+	(table) => [
+		index('idx_cadsol_status').on(table.status),
+		index('idx_cadsol_policial').on(table.policial_id, table.status)
+	]
+);
+
 // ---- Tipos inferidos ----
 
 export type Policial = typeof policiais.$inferSelect;
+export type CadastroSolicitacao = typeof cadastroSolicitacoes.$inferSelect;
 export type Escala = typeof escalas.$inferSelect;
 export type NovaEscala = typeof escalas.$inferInsert;
 export type EscalaPolicial = typeof escalaPoliciais.$inferSelect;
