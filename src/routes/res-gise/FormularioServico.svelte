@@ -118,11 +118,8 @@
 			</div>
 
 			{#if minhaRubrica}
-				<div
-					class="bg-white rounded-lg border border-surface-200 p-2 flex items-center justify-center"
-				>
-					<img src={minhaRubrica} alt="Sua rubrica cadastrada" class="h-12 object-contain" />
-				</div>
+				<!-- Padronizado com as demais telas de assinatura: só o botão de
+				     confirmação. A rubrica é gerida no cadastro (aviso pós-login). -->
 				<button
 					type="button"
 					class="btn preset-filled-tertiary-500 rounded-xl text-sm font-bold uppercase w-full shadow-sm active:scale-95 transition-all"
@@ -130,13 +127,6 @@
 					onclick={() => confirmarPresencaA3(tipo)}
 				>
 					Confirmar {rotulo} com Certificado Digital
-				</button>
-				<button
-					type="button"
-					class="btn btn-sm preset-outlined-surface-500 rounded-xl text-xs font-bold uppercase w-full"
-					onclick={abrirCadastroRubrica}
-				>
-					Gerenciar rubrica
 				</button>
 			{:else}
 				<div

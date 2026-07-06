@@ -15,6 +15,7 @@
 	import { csrfHeaders } from '$lib/csrf';
 	import { loading } from '$lib/loading.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock } from '$lib/composables';
 
 	const { children } = $props();
@@ -259,6 +260,11 @@
 	message={loading.message}
 	offsetSidebar={showSidebar && !!usuario}
 />
+
+<!-- Aviso pós-login: policial com assinatura pendente e sem rubrica cadastrada -->
+{#if page.data.precisaCadastrarRubrica}
+	<AvisoCadastroRubrica />
+{/if}
 
 <!-- Global Toast Provider -->
 <Toast.Group
