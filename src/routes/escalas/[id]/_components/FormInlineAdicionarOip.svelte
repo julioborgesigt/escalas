@@ -1,9 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { toaster } from '$lib/toast';
-	import { proximoDia } from '$lib/utils';
+	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import { SvelteDate, SvelteURLSearchParams } from 'svelte/reactivity';
+	import {
+		ultimoDiaMes,
+		mesAnoFormatado,
+		primeiroPlantaoDoDia,
+		calcularDatasPlantao,
+		datasPlantaoParaJson,
+		tratarResultadoAdicionarPlantao
+	} from './plantao-datas';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { Escala } from '$lib/server/schema';
 	import type { EscalaPolicialComDados } from '$lib/types';
@@ -19,89 +25,18 @@
 
 	let policialId = $state('');
 	let addTipoEscala = $state<'1x3' | '2x6'>('1x3');
-	let addPrimeiroPlantao = $state('');
 	let addPrimeiroDia = $state('');
-
-	$effect(() => {
-		if (addPrimeiroDia && escala.data_inicio) {
-			const [ano, mes] = escala.data_inicio.split('-');
-			addPrimeiroPlantao = `${ano}-${mes}-${addPrimeiroDia.toString().padStart(2, '0')}`;
-		} else {
-			addPrimeiroPlantao = '';
-		}
-	});
-
-	function ultimoDiaMes(dataStr: string) {
-		if (!dataStr) return 31;
-		const [ano, mes] = dataStr.split('-');
-		return new Date(Number(ano), Number(mes), 0).getDate();
-	}
-
-	function mesAnoFormatado(dataStr: string) {
-		if (!dataStr) return '';
-		const [ano, mes] = dataStr.split('-');
-		return `${mes}/${ano}`;
-	}
-
-	function calcularDataSaidaInicial(de: string, he: string, hs: string): string {
-		const hEnt = Number(he.split(':')[0]);
-		const hSai = Number(hs.split(':')[0]);
-		if (hSai <= hEnt) return proximoDia(de);
-		return de;
-	}
-
-	function calcularDatasPlantao(primeiroPlantao: string, tipo: '1x3' | '2x6'): string[] {
-		if (!primeiroPlantao) return [];
-		const datas: string[] = [];
-		const inicio = new Date(escala.data_inicio + 'T00:00:00');
-		const fim = new Date(escala.data_fim + 'T00:00:00');
-		const d = new SvelteDate(primeiroPlantao + 'T00:00:00');
-		if (tipo === '1x3') {
-			while (d <= fim) {
-				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-				d.setDate(d.getDate() + 4);
-			}
-		} else {
-			while (d <= fim) {
-				if (d >= inicio) datas.push(d.toISOString().split('T')[0]);
-				const d2 = new SvelteDate(d);
-				d2.setDate(d2.getDate() + 1);
-				if (d2 <= fim && d2 >= inicio) datas.push(d2.toISOString().split('T')[0]);
-				d.setDate(d.getDate() + 8);
-			}
-		}
-		return datas;
-	}
-
-	const datasCalc = $derived(calcularDatasPlantao(addPrimeiroPlantao, addTipoEscala));
-
-	const datasPlantaoJson = $derived(
-		JSON.stringify(
-			datasCalc.map((d) => ({
-				data_plantao: d,
-				data_saida: calcularDataSaidaInicial(d, '08:00', '08:00')
-			}))
-		)
+	const addPrimeiroPlantao = $derived(
+		primeiroPlantaoDoDia(escala.data_inicio ?? '', addPrimeiroDia)
 	);
+
+	const datasCalc = $derived(calcularDatasPlantao(escala, addPrimeiroPlantao, addTipoEscala));
+
+	const datasPlantaoJson = $derived(datasPlantaoParaJson(datasCalc, '08:00', '08:00'));
 
 	let pendingPlantao = $state(false);
 
-	async function buscarPoliciaisAsync(q: string, sig: AbortSignal) {
-		const params = new SvelteURLSearchParams({ cargo: 'OIP', limit: '50' });
-		if (q) params.set('q', q);
-		const res = await fetch(`/api/policiais/search?${params}`, { signal: sig });
-		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
-			throw new Error(err.error ?? 'Erro na busca');
-		}
-		const json = (await res.json()) as {
-			policiais: { id: number; nome: string; lotacao: string }[];
-		};
-		return json.policiais.map((p) => ({
-			value: String(p.id),
-			label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}`
-		}));
-	}
+	const buscarPoliciaisAsync = buscarPoliciaisOptions({ cargo: 'OIP' });
 
 	function handlePlantao({ cancel }: { cancel: () => void }) {
 		if (!policialId || datasCalc.length === 0) {
@@ -111,30 +46,7 @@
 		pendingPlantao = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingPlantao = false;
-			if (result.type === 'success') {
-				onSuccess(result.data?.policiais);
-				const conflitantes =
-					(result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
-				if (conflitantes.length > 0) {
-					const datas = conflitantes.map((c) => c.data).join(', ');
-					toaster.create({
-						title: `Adicionado — ${conflitantes.length} dia(s) com choque ignorado(s)`,
-						description: `Dias ignorados: ${datas}`,
-						type: 'warning'
-					});
-				} else {
-					toaster.create({ title: 'Servidor adicionado à escala de plantão', type: 'success' });
-				}
-				onCancel();
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
-			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao adicionar'), type: 'error' });
-			}
+			tratarResultadoAdicionarPlantao(result, onSuccess, onCancel);
 		};
 	}
 </script>

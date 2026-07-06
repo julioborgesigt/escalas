@@ -18,7 +18,7 @@ import { toaster } from '$lib/toast';
 import { csrfHeaders } from '$lib/csrf';
 import { makeEnhanceHandler } from '$lib/enhance-handler';
 import { validarHora } from '$lib/gise/gise-horarios';
-import { SvelteURLSearchParams } from 'svelte/reactivity';
+import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 
 interface UseGiseSeccionalActionsParams {
 	/** Callbacks de reset chamados pelo composable após cada sucesso de CRUD. */
@@ -236,27 +236,9 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		}
 	}
 
-	/**
-	 * Factory de `loadOptions` para `<SearchableSelect>`. Filtra por cargo
-	 * (DPC/OIP) e somente admins para a busca de membro adicional.
-	 */
+	/** Factory de `loadOptions` para `<SearchableSelect>`, filtrado por cargo (DPC/OIP). */
 	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
-		return async (query: string, signal: AbortSignal) => {
-			const params = new SvelteURLSearchParams({ cargo, limit: '50' });
-			if (query) params.set('q', query);
-			const res = await fetch(`/api/policiais/search?${params}`, { signal });
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
-				throw new Error(err.error ?? 'Erro na busca');
-			}
-			const data = (await res.json()) as {
-				policiais: { id: number; nome: string; matricula: string }[];
-			};
-			return data.policiais.map((p) => ({
-				value: p.id,
-				label: `${p.nome} (${p.matricula})`
-			}));
-		};
+		return buscarPoliciaisOptions({ cargo, rotulo: 'matricula', valorNumerico: true });
 	}
 
 	return {
