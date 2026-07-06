@@ -6,43 +6,43 @@
 		modelo: GiseModeloPerguntaConfig[];
 	}>();
 
+	/**
+	 * Chaves de resposta e item vazio da listagem detalhada de cada tipo
+	 * sistêmico. Substituem as cadeias de ternários/`if` repetidas por tipo
+	 * que existiam no snippet e no `handleSimNao`.
+	 */
+	const CHAVES_TIPO: Record<string, { qtd: string; lista: string }> = {
+		mandados_maiores: { qtd: 'mandados_qtd', lista: 'mandados_lista' },
+		prisoes_maiores: { qtd: 'prisoes_qtd', lista: 'prisoes_lista' },
+		apreensoes_menores: { qtd: 'apreensoes_qtd', lista: 'apreensoes_lista' },
+		celulares_complex: { qtd: 'celulares_qtd', lista: 'celulares_lista' },
+		analise_complex: { qtd: 'analise_qtd', lista: 'analise_lista' },
+		relatorios_seint_complex: { qtd: 'relatorios_seint_qtd', lista: 'relatorios_seint_lista' },
+		foragidos_complex: { qtd: 'foragidos_qtd', lista: 'foragidos_lista' },
+		operacoes_seint_complex: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' },
+		operacoes_seint_pura: { qtd: 'operacoes_seint_qtd', lista: 'operacoes_seint_lista' }
+	};
+
+	const ITEM_PADRAO: Record<string, Record<string, string>> = {
+		mandados_maiores: { nome: '', mandado: '' },
+		prisoes_maiores: { nome: '', mandado: '' },
+		apreensoes_menores: { nome: '', mandado: '' },
+		celulares_complex: { modelo: '', n_proc: '', delegacia: '', situacao: '' },
+		analise_complex: { tamanho: '', modelo: '', n_proc: '', delegacia: '' },
+		relatorios_seint_complex: { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' },
+		foragidos_complex: { nome: '', proc_vinc: '', delegacia: '', resultado: '' },
+		operacoes_seint_complex: { nome: '', delegacia: '' },
+		operacoes_seint_pura: { nome: '', delegacia: '' }
+	};
+
 	function handleSimNao(key: string, val: string, q: GiseModeloPerguntaConfig) {
 		respostas[key] = val;
 		// Inicializações automáticas para tipos sistêmicos
 		if (val === 'Sim') {
-			if (q.tipo === 'mandados_maiores' && !respostas.mandados_qtd) {
-				respostas.mandados_qtd = 1;
-				respostas.mandados_lista = [{ nome: '', mandado: '' }];
-			}
-			if (q.tipo === 'prisoes_maiores' && !respostas.prisoes_qtd) {
-				respostas.prisoes_qtd = 1;
-				respostas.prisoes_lista = [{ nome: '', mandado: '' }];
-			}
-			if (q.tipo === 'apreensoes_menores' && !respostas.apreensoes_qtd) {
-				respostas.apreensoes_qtd = 1;
-				respostas.apreensoes_lista = [{ nome: '', mandado: '' }];
-			}
-			if (q.tipo === 'celulares_complex' && !respostas.celulares_qtd) {
-				respostas.celulares_qtd = 1;
-				respostas.celulares_lista = [{ modelo: '', n_proc: '', delegacia: '', situacao: '' }];
-			}
-			if (q.tipo === 'analise_complex' && !respostas.analise_qtd) {
-				respostas.analise_qtd = 1;
-				respostas.analise_lista = [{ tamanho: '', modelo: '', n_proc: '', delegacia: '' }];
-			}
-			if (q.tipo === 'relatorios_seint_complex' && !respostas.relatorios_seint_qtd) {
-				respostas.relatorios_seint_qtd = 1;
-				respostas.relatorios_seint_lista = [
-					{ n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' }
-				];
-			}
-			if (q.tipo === 'foragidos_complex' && !respostas.foragidos_qtd) {
-				respostas.foragidos_qtd = 1;
-				respostas.foragidos_lista = [{ nome: '', proc_vinc: '', delegacia: '', resultado: '' }];
-			}
-			if (q.tipo === 'operacoes_seint_complex' && !respostas.operacoes_seint_qtd) {
-				respostas.operacoes_seint_qtd = 1;
-				respostas.operacoes_seint_lista = [{ nome: '', delegacia: '' }];
+			const chaves = CHAVES_TIPO[q.tipo];
+			if (chaves && !respostas[chaves.qtd]) {
+				respostas[chaves.qtd] = 1;
+				respostas[chaves.lista] = [{ ...ITEM_PADRAO[q.tipo] }];
 			}
 			if (
 				q.tipo === 'armas_complex' &&
@@ -80,43 +80,49 @@
 </script>
 
 <div class="space-y-6">
+	<!-- Par de botões Sim/Não — repetia-se em 4 tipos de pergunta -->
+	{#snippet botoesSimNao(q: GiseModeloPerguntaConfig)}
+		<div class="flex gap-2 sm:gap-4 w-full">
+			{#each ['Sim', 'Não'] as opt (opt)}
+				<button
+					type="button"
+					class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
+						q.key
+					] === opt
+						? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
+						: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
+					onclick={() => handleSimNao(q.key, opt, q)}
+				>
+					{opt}
+				</button>
+			{/each}
+		</div>
+	{/snippet}
+
+	<!-- Célula "label + input texto" das listagens detalhadas (~18 ocorrências) -->
+	{#snippet campoTexto(
+		id: string,
+		rotulo: string,
+		placeholder: string,
+		item: Record<string, string>,
+		campo: string
+	)}
+		<div class="space-y-1">
+			<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for={id}>{rotulo}</label>
+			<input
+				{id}
+				type="text"
+				{placeholder}
+				class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+				bind:value={item[campo]}
+			/>
+		</div>
+	{/snippet}
+
 	{#snippet renderCampo(q: GiseModeloPerguntaConfig, level = 0)}
-		{@const resKey =
-			q.tipo === 'mandados_maiores'
-				? 'mandados_lista'
-				: q.tipo === 'prisoes_maiores'
-					? 'prisoes_lista'
-					: q.tipo === 'apreensoes_menores'
-						? 'apreensoes_lista'
-						: q.tipo === 'celulares_complex'
-							? 'celulares_lista'
-							: q.tipo === 'analise_complex'
-								? 'analise_lista'
-								: q.tipo === 'relatorios_seint_complex'
-									? 'relatorios_seint_lista'
-									: q.tipo === 'foragidos_complex'
-										? 'foragidos_lista'
-										: q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'
-											? 'operacoes_seint_lista'
-											: 'operacoes_seint_lista'}
-		{@const resQtdKey =
-			q.tipo === 'mandados_maiores'
-				? 'mandados_qtd'
-				: q.tipo === 'prisoes_maiores'
-					? 'prisoes_qtd'
-					: q.tipo === 'apreensoes_menores'
-						? 'apreensoes_qtd'
-						: q.tipo === 'celulares_complex'
-							? 'celulares_qtd'
-							: q.tipo === 'analise_complex'
-								? 'analise_qtd'
-								: q.tipo === 'relatorios_seint_complex'
-									? 'relatorios_seint_qtd'
-									: q.tipo === 'foragidos_complex'
-										? 'foragidos_qtd'
-										: q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'
-											? 'operacoes_seint_qtd'
-											: 'operacoes_seint_qtd'}
+		{@const chavesTipo = CHAVES_TIPO[q.tipo] ?? CHAVES_TIPO.operacoes_seint_pura}
+		{@const resKey = chavesTipo.lista}
+		{@const resQtdKey = chavesTipo.qtd}
 
 		<div
 			class="nested-card card p-3 sm:p-4 md:p-6 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-3xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-4 duration-500"
@@ -160,48 +166,19 @@
 						{/each}
 					</select>
 				{:else if q.tipo === 'sim_nao'}
-					<div class="flex gap-2 sm:gap-4 w-full">
-						{#each ['Sim', 'Não'] as opt (opt)}
-							<button
-								type="button"
-								class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
-									q.key
-								] === opt
-									? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
-									: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
-								onclick={() => handleSimNao(q.key, opt, q)}
-							>
-								{opt}
-							</button>
-						{/each}
-					</div>
+					{@render botoesSimNao(q)}
 				{:else if q.tipo === 'textarea'}
 					<textarea
 						id="q-{q.id}"
 						rows="4"
 						placeholder="Descreva detalhadamente..."
 						class="w-full px-4 py-3 rounded-2xl border border-surface-300 dark:border-surface-600 bg-surface-50 dark:bg-surface-800 text-sm font-medium focus:ring-2 focus:ring-primary-500 transition-all shadow-inner"
-						bind:value={respostas[q.key]}
-					></textarea>
+						bind:value={respostas[q.key]}></textarea>
 				{:else if q.tipo === 'mandados_maiores' || q.tipo === 'prisoes_maiores' || q.tipo === 'apreensoes_menores' || q.tipo === 'celulares_complex' || q.tipo === 'analise_complex' || q.tipo === 'relatorios_seint_complex' || q.tipo === 'foragidos_complex' || q.tipo === 'operacoes_seint_complex' || q.tipo === 'operacoes_seint_pura'}
 					{@const isPura = q.tipo === 'operacoes_seint_pura'}
 					<div class="space-y-4">
 						{#if !isPura}
-							<div class="flex gap-2 sm:gap-4 w-full">
-								{#each ['Sim', 'Não'] as opt (opt)}
-									<button
-										type="button"
-										class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
-											q.key
-										] === opt
-											? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
-											: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
-										onclick={() => handleSimNao(q.key, opt, q)}
-									>
-										{opt}
-									</button>
-								{/each}
-							</div>
+							{@render botoesSimNao(q)}
 						{/if}
 
 						{#if respostas[q.key] === 'Sim' || (isPura && (respostas[resQtdKey] !== undefined || true))}
@@ -220,21 +197,7 @@
 											onchange={(e) => {
 												const n = Number((e.currentTarget as HTMLSelectElement).value);
 												if (!respostas[resKey]) respostas[resKey] = [];
-												let defaultItem: Record<string, string> = { nome: '', mandado: '' };
-												if (q.tipo === 'celulares_complex')
-													defaultItem = { modelo: '', n_proc: '', delegacia: '', situacao: '' };
-												else if (q.tipo === 'analise_complex')
-													defaultItem = { tamanho: '', modelo: '', n_proc: '', delegacia: '' };
-												else if (q.tipo === 'relatorios_seint_complex')
-													defaultItem = { n_relat: '', q_alvos: '', proc_vinc: '', delegacia: '' };
-												else if (q.tipo === 'foragidos_complex')
-													defaultItem = { nome: '', proc_vinc: '', delegacia: '', resultado: '' };
-												else if (
-													q.tipo === 'operacoes_seint_complex' ||
-													q.tipo === 'operacoes_seint_pura'
-												)
-													defaultItem = { nome: '', delegacia: '' };
-
+												const defaultItem = ITEM_PADRAO[q.tipo] ?? { nome: '', mandado: '' };
 												respostas[resKey] = Array(n)
 													.fill(0)
 													.map((_, idx) => (respostas[resKey] || [])[idx] || { ...defaultItem });
@@ -259,133 +222,79 @@
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-3 md:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="mod-{q.id}-{i}">Modelo</label
-													>
-													<input
-														id="mod-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: iPhone 13"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.modelo}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="proc-{q.id}-{i}">Nº proc</label
-													>
-													<input
-														id="proc-{q.id}-{i}"
-														type="text"
-														placeholder="Número"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.n_proc}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="del-{q.id}-{i}">Delegacia</label
-													>
-													<input
-														id="del-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 2ª DP"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.delegacia}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="sit-{q.id}-{i}">Situação</label
-													>
-													<input
-														id="sit-{q.id}-{i}"
-														type="text"
-														placeholder="Pendente/Ok"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.situacao}
-													/>
-												</div>
+												{@render campoTexto(
+													`mod-${q.id}-${i}`,
+													'Modelo',
+													'Ex: iPhone 13',
+													item,
+													'modelo'
+												)}
+												{@render campoTexto(
+													`proc-${q.id}-${i}`,
+													'Nº proc',
+													'Número',
+													item,
+													'n_proc'
+												)}
+												{@render campoTexto(
+													`del-${q.id}-${i}`,
+													'Delegacia',
+													'Ex: 2ª DP',
+													item,
+													'delegacia'
+												)}
+												{@render campoTexto(
+													`sit-${q.id}-${i}`,
+													'Situação',
+													'Pendente/Ok',
+													item,
+													'situacao'
+												)}
 											</div>
 										{:else if q.tipo === 'analise_complex'}
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="tam-{q.id}-{i}">Tam. Arquivo</label
-													>
-													<input
-														id="tam-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 256GB"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.tamanho}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="mod-{q.id}-{i}">Modelo</label
-													>
-													<input
-														id="mod-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: iPhone 13"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.modelo}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="proc-{q.id}-{i}">Nº proc</label
-													>
-													<input
-														id="proc-{q.id}-{i}"
-														type="text"
-														placeholder="Número"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.n_proc}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="del-{q.id}-{i}">Delegacia</label
-													>
-													<input
-														id="del-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 2ª DP"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.delegacia}
-													/>
-												</div>
+												{@render campoTexto(
+													`tam-${q.id}-${i}`,
+													'Tam. Arquivo',
+													'Ex: 256GB',
+													item,
+													'tamanho'
+												)}
+												{@render campoTexto(
+													`mod-${q.id}-${i}`,
+													'Modelo',
+													'Ex: iPhone 13',
+													item,
+													'modelo'
+												)}
+												{@render campoTexto(
+													`proc-${q.id}-${i}`,
+													'Nº proc',
+													'Número',
+													item,
+													'n_proc'
+												)}
+												{@render campoTexto(
+													`del-${q.id}-${i}`,
+													'Delegacia',
+													'Ex: 2ª DP',
+													item,
+													'delegacia'
+												)}
 											</div>
 										{:else if q.tipo === 'relatorios_seint_complex'}
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="nrel-{q.id}-{i}">Nº Relatório</label
-													>
-													<input
-														id="nrel-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 001/2026"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.n_relat}
-													/>
-												</div>
+												{@render campoTexto(
+													`nrel-${q.id}-${i}`,
+													'Nº Relatório',
+													'Ex: 001/2026',
+													item,
+													'n_relat'
+												)}
 												<div class="space-y-1">
 													<label
 														class="text-[0.6rem] font-bold text-surface-400 uppercase"
@@ -399,76 +308,46 @@
 														bind:value={item.q_alvos}
 													/>
 												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="proc-{q.id}-{i}">Procedimento</label
-													>
-													<input
-														id="proc-{q.id}-{i}"
-														type="text"
-														placeholder="Número"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.proc_vinc}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="del-{q.id}-{i}">Delegacia</label
-													>
-													<input
-														id="del-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 2ª DP"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.delegacia}
-													/>
-												</div>
+												{@render campoTexto(
+													`proc-${q.id}-${i}`,
+													'Procedimento',
+													'Número',
+													item,
+													'proc_vinc'
+												)}
+												{@render campoTexto(
+													`del-${q.id}-${i}`,
+													'Delegacia',
+													'Ex: 2ª DP',
+													item,
+													'delegacia'
+												)}
 											</div>
 										{:else if q.tipo === 'foragidos_complex'}
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="nom-{q.id}-{i}">Nome do Alvo</label
-													>
-													<input
-														id="nom-{q.id}-{i}"
-														type="text"
-														placeholder="Nome Completo"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.nome}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="proc-{q.id}-{i}">Procedimento</label
-													>
-													<input
-														id="proc-{q.id}-{i}"
-														type="text"
-														placeholder="Número"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.proc_vinc}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="del-{q.id}-{i}">Delegacia</label
-													>
-													<input
-														id="del-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 2ª DP"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.delegacia}
-													/>
-												</div>
+												{@render campoTexto(
+													`nom-${q.id}-${i}`,
+													'Nome do Alvo',
+													'Nome Completo',
+													item,
+													'nome'
+												)}
+												{@render campoTexto(
+													`proc-${q.id}-${i}`,
+													'Procedimento',
+													'Número',
+													item,
+													'proc_vinc'
+												)}
+												{@render campoTexto(
+													`del-${q.id}-${i}`,
+													'Delegacia',
+													'Ex: 2ª DP',
+													item,
+													'delegacia'
+												)}
 												<div class="space-y-1">
 													<label
 														class="text-[0.6rem] font-bold text-surface-400 uppercase"
@@ -489,66 +368,39 @@
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="nom-{q.id}-{i}">Nome da Operação</label
-													>
-													<input
-														id="nom-{q.id}-{i}"
-														type="text"
-														placeholder="Nome"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.nome}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="del-{q.id}-{i}">Delegacia</label
-													>
-													<input
-														id="del-{q.id}-{i}"
-														type="text"
-														placeholder="Ex: 2ª DP"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.delegacia}
-													/>
-												</div>
+												{@render campoTexto(
+													`nom-${q.id}-${i}`,
+													'Nome da Operação',
+													'Nome',
+													item,
+													'nome'
+												)}
+												{@render campoTexto(
+													`del-${q.id}-${i}`,
+													'Delegacia',
+													'Ex: 2ª DP',
+													item,
+													'delegacia'
+												)}
 											</div>
 										{:else}
 											<div
 												class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white dark:bg-surface-900 rounded-2xl border border-surface-100 dark:border-surface-800 shadow-sm transition-all hover:border-primary-500/30"
 											>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="n-{q.id}-{i}">Nome</label
-													>
-													<input
-														id="n-{q.id}-{i}"
-														type="text"
-														placeholder="Nome Completo"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.nome}
-													/>
-												</div>
-												<div class="space-y-1">
-													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
-														for="m-{q.id}-{i}"
-														>{q.tipo === 'prisoes_maiores'
-															? 'Procedimento'
-															: 'Mandado/Processo'}</label
-													>
-													<input
-														id="m-{q.id}-{i}"
-														type="text"
-														placeholder="Número"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
-														bind:value={item.mandado}
-													/>
-												</div>
+												{@render campoTexto(
+													`n-${q.id}-${i}`,
+													'Nome',
+													'Nome Completo',
+													item,
+													'nome'
+												)}
+												{@render campoTexto(
+													`m-${q.id}-${i}`,
+													q.tipo === 'prisoes_maiores' ? 'Procedimento' : 'Mandado/Processo',
+													'Número',
+													item,
+													'mandado'
+												)}
 											</div>
 										{/if}
 									{/each}
@@ -558,21 +410,7 @@
 					</div>
 				{:else if q.tipo === 'drogas_complex'}
 					<div class="space-y-4">
-						<div class="flex gap-2 sm:gap-4 w-full">
-							{#each ['Sim', 'Não'] as opt (opt)}
-								<button
-									type="button"
-									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
-										q.key
-									] === opt
-										? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
-										: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
-									onclick={() => handleSimNao(q.key, opt, q)}
-								>
-									{opt}
-								</button>
-							{/each}
-						</div>
+						{@render botoesSimNao(q)}
 
 						{#if respostas[q.key] === 'Sim'}
 							<div
@@ -662,21 +500,7 @@
 					</div>
 				{:else if q.tipo === 'armas_complex'}
 					<div class="space-y-4">
-						<div class="flex gap-2 sm:gap-4 w-full">
-							{#each ['Sim', 'Não'] as opt (opt)}
-								<button
-									type="button"
-									class="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase border-2 transition-all {respostas[
-										q.key
-									] === opt
-										? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/30'
-										: 'bg-surface-50 dark:bg-surface-800 border-surface-200 dark:border-surface-700 text-surface-400 hover:border-primary-500/50 hover:text-surface-600'}"
-									onclick={() => handleSimNao(q.key, opt, q)}
-								>
-									{opt}
-								</button>
-							{/each}
-						</div>
+						{@render botoesSimNao(q)}
 
 						{#if respostas[q.key] === 'Sim'}
 							<div
