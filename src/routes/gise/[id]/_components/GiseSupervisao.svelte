@@ -246,8 +246,51 @@
 	let expandirExtra = $state(false);
 	let formEl = $state<HTMLFormElement | null>(null);
 
-	let editandoPapel = $state<'supervisor' | 'assessor' | 'seint1' | 'seint2' | null>(null);
-	let removendoPapel = $state<'supervisor' | 'assessor' | 'seint1' | 'seint2' | null>(null);
+	type Papel = 'supervisor' | 'assessor' | 'seint1' | 'seint2';
+
+	let editandoPapel = $state<Papel | null>(null);
+	let removendoPapel = $state<Papel | null>(null);
+
+	/**
+	 * Visão-objeto dos quatro binds de papel. Snippets não aceitam props
+	 * `$bindable`, mas `bind:value={idsPapel[papel]}` em propriedade de objeto
+	 * funciona — os accessors fazem proxy para as props bindables, mantendo a
+	 * API do componente (e o pai) intacta.
+	 */
+	const idsPapel = {
+		get supervisor() {
+			return supervisorId;
+		},
+		set supervisor(v: number | null) {
+			supervisorId = v;
+		},
+		get assessor() {
+			return assessorId;
+		},
+		set assessor(v: number | null) {
+			assessorId = v;
+		},
+		get seint1() {
+			return seint1Id;
+		},
+		set seint1(v: number | null) {
+			seint1Id = v;
+		},
+		get seint2() {
+			return seint2Id;
+		},
+		set seint2(v: number | null) {
+			seint2Id = v;
+		}
+	};
+
+	/** Valor persistido (do `gise`) de cada papel, para cancelamento de edição. */
+	const idPersistido: Record<Papel, () => number | null> = {
+		supervisor: () => gise.supervisor_id ?? null,
+		assessor: () => gise.assessor_id ?? null,
+		seint1: () => gise.seint1_id ?? null,
+		seint2: () => gise.seint2_id ?? null
+	};
 
 	$effect(() => {
 		if (!pendingCrud) {
@@ -255,40 +298,29 @@
 		}
 	});
 
-	function iniciarEdicao(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
+	function iniciarEdicao(papel: Papel) {
 		editandoPapel = papel;
 		onEditar();
 	}
 
 	function cancelarEdicao() {
-		if (editandoPapel === 'supervisor') {
-			supervisorId = gise.supervisor_id ?? null;
-		} else if (editandoPapel === 'assessor') {
-			assessorId = gise.assessor_id ?? null;
-			assessorEmailNotificacao = gise.assessor_email_notificacao ?? '';
-		} else if (editandoPapel === 'seint1') {
-			seint1Id = gise.seint1_id ?? null;
-		} else if (editandoPapel === 'seint2') {
-			seint2Id = gise.seint2_id ?? null;
+		if (editandoPapel) {
+			idsPapel[editandoPapel] = idPersistido[editandoPapel]();
+			if (editandoPapel === 'assessor') {
+				assessorEmailNotificacao = gise.assessor_email_notificacao ?? '';
+			}
 		}
 		editandoPapel = null;
 		onCancelar();
 	}
 
-	function excluirMembro(papel: 'supervisor' | 'assessor' | 'seint1' | 'seint2') {
+	function excluirMembro(papel: Papel) {
 		if (!confirm('Deseja realmente remover esta designação?')) return;
 
 		removendoPapel = papel;
-
-		if (papel === 'supervisor') {
-			supervisorId = null;
-		} else if (papel === 'assessor') {
-			assessorId = null;
+		idsPapel[papel] = null;
+		if (papel === 'assessor') {
 			assessorEmailNotificacao = '';
-		} else if (papel === 'seint1') {
-			seint1Id = null;
-		} else if (papel === 'seint2') {
-			seint2Id = null;
 		}
 
 		// Garante que o estado seja atualizado nos inputs hidden antes de submeter
@@ -310,6 +342,141 @@
 		}
 	});
 </script>
+
+<!-- Badge de rodagem (✓ / Entrada / Relatório) — repetia-se nos 4 slots de papel -->
+{#snippet badgeMarcador(st: string | null, tituloOk: string)}
+	{#if st === 'ok'}
+		<span
+			class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
+			title={tituloOk}>✓</span
+		>
+	{:else if st === 'falta_relatorio'}
+		<span
+			class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+			title="Falta enviar o relatório SEINT (entrada e saída já confirmadas)">Relatório</span
+		>
+	{:else if st === 'entrada'}
+		<span
+			class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
+			title="Aguardando confirmação de saída">Entrada</span
+		>
+	{/if}
+{/snippet}
+
+<!-- Par Salvar/Cancelar da edição inline — repetia-se nos 4 slots -->
+{#snippet botoesSalvarCancelar(papel: Papel, classe: string = '')}
+	<div class="flex items-center gap-0.5 shrink-0 {classe}">
+		<button
+			type="submit"
+			class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
+			disabled={pendingCrud}
+			title="Salvar"
+		>
+			{#if pendingCrud && editandoPapel === papel}
+				<Loader2 size={18} class="animate-spin" />
+			{:else}
+				<Check size={18} />
+			{/if}
+		</button>
+		<button
+			type="button"
+			class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
+			onclick={cancelarEdicao}
+			title="Cancelar"
+			disabled={pendingCrud}
+		>
+			<X size={18} />
+		</button>
+	</div>
+{/snippet}
+
+<!-- Par Editar/Remover (Admin Geral em modo edição) — repetia-se nos 4 slots.
+     `compacto` cobre a variação do slot de supervisor (ícones 14px, padding maior). -->
+{#snippet botoesEdicao(papel: Papel, temId: boolean, compacto: boolean = true)}
+	{#if isAdminGeral && podeEditar && modoEdicaoGeral}
+		<div class="flex items-center gap-1 shrink-0">
+			<button
+				type="button"
+				class={compacto
+					? 'p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors'
+					: 'p-1 rounded-lg text-surface-450 hover:text-primary-500 hover:bg-surface-200/50 dark:hover:bg-surface-800 transition-colors'}
+				title="Editar"
+				onclick={() => iniciarEdicao(papel)}
+			>
+				<PenLine size={compacto ? 12 : 14} />
+			</button>
+			{#if temId}
+				<button
+					type="button"
+					class={compacto
+						? 'p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors'
+						: 'p-1 rounded-lg text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors'}
+					title="Remover"
+					onclick={() => excluirMembro(papel)}
+					disabled={pendingCrud}
+				>
+					{#if pendingCrud && removendoPapel === papel}
+						<Loader2 size={compacto ? 12 : 14} class="animate-spin" />
+					{:else}
+						<Trash2 size={compacto ? 12 : 14} />
+					{/if}
+				</button>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+<!-- Card NUIP OIP — os dois slots SEINT eram cópias idênticas (~115 linhas cada);
+     `id` é o valor persistido (nome/marcador), o bind vai em idsPapel[papel]. -->
+{#snippet slotSeint(papel: 'seint1' | 'seint2', id: number | null)}
+	<div
+		class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
+	>
+		<div class="flex items-center gap-2.5 min-w-0 flex-1">
+			<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
+				<Users size={14} />
+			</div>
+			<div class="overflow-hidden min-w-0 flex-1">
+				<span
+					class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
+					>NUIP OIP</span
+				>
+				{#if editandoPapel === papel}
+					<div class="flex items-center gap-1.5 mt-1 w-full">
+						<div class="flex-1 min-w-0">
+							<SearchableSelect
+								id="{papel}Id"
+								bind:value={idsPapel[papel]}
+								loadOptions={buscarOips}
+								selectedOption={selectedFromPoliciais(idsPapel[papel])}
+								placeholder="Pesquisar NUIP OIP..."
+								minSearchChars={2}
+								showTrigger={false}
+								class="w-full"
+							/>
+						</div>
+						{@render botoesSalvarCancelar(papel)}
+					</div>
+				{:else}
+					<div class="flex items-center gap-2">
+						<p class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate">
+							{id ? (policiais.find((p) => p.id === id)?.nome ?? 'Carregando...') : 'Não definido'}
+						</p>
+						{@render botoesEdicao(papel, !!id)}
+					</div>
+				{/if}
+			</div>
+		</div>
+		{#if editandoPapel !== papel}
+			<div class="shrink-0 flex flex-col items-end gap-0.5">
+				{@render badgeMarcador(
+					id ? marcador('seint', id) : null,
+					'Entrada, relatório SEINT e saída concluídos'
+				)}
+			</div>
+		{/if}
+	</div>
+{/snippet}
 
 <div
 	class="relative overflow-visible rounded-2xl border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 shadow-sm transition-all duration-300 hover:shadow-md"
@@ -376,29 +543,7 @@
 											class="w-full"
 										/>
 									</div>
-									<div class="flex items-center gap-0.5 shrink-0">
-										<button
-											type="submit"
-											class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
-											disabled={pendingCrud}
-											title="Salvar"
-										>
-											{#if pendingCrud && editandoPapel === 'supervisor'}
-												<Loader2 size={18} class="animate-spin" />
-											{:else}
-												<Check size={18} />
-											{/if}
-										</button>
-										<button
-											type="button"
-											class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
-											onclick={cancelarEdicao}
-											title="Cancelar"
-											disabled={pendingCrud}
-										>
-											<X size={18} />
-										</button>
-									</div>
+									{@render botoesSalvarCancelar('supervisor')}
 								</div>
 							{:else}
 								<div class="flex min-w-0 items-center gap-3">
@@ -409,47 +554,11 @@
 											{gise.supervisor_nome ?? 'Não definido'}
 										</p>
 										<div class="flex shrink-0 items-center">
-											{#if stSupervisor === 'ok'}
-												<span
-													class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-													title="Entrada e saída confirmadas">✓</span
-												>
-											{:else if stSupervisor === 'entrada'}
-												<span
-													class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-													title="Aguardando confirmação de saída">Entrada</span
-												>
-											{/if}
+											{@render badgeMarcador(stSupervisor, 'Entrada e saída confirmadas')}
 										</div>
 									</div>
 
-									{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-										<div class="flex items-center gap-1 shrink-0">
-											<button
-												type="button"
-												class="p-1 rounded-lg text-surface-450 hover:text-primary-500 hover:bg-surface-200/50 dark:hover:bg-surface-800 transition-colors"
-												title="Editar"
-												onclick={() => iniciarEdicao('supervisor')}
-											>
-												<PenLine size={14} />
-											</button>
-											{#if gise.supervisor_id}
-												<button
-													type="button"
-													class="p-1 rounded-lg text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
-													title="Remover"
-													onclick={() => excluirMembro('supervisor')}
-													disabled={pendingCrud}
-												>
-													{#if pendingCrud && removendoPapel === 'supervisor'}
-														<Loader2 size={14} class="animate-spin" />
-													{:else}
-														<Trash2 size={14} />
-													{/if}
-												</button>
-											{/if}
-										</div>
-									{/if}
+									{@render botoesEdicao('supervisor', !!gise.supervisor_id, false)}
 								</div>
 							{/if}
 						</div>
@@ -531,29 +640,7 @@
 											</div>
 										{/if}
 
-										<div class="flex items-center gap-0.5 shrink-0 h-[38px]">
-											<button
-												type="submit"
-												class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
-												disabled={pendingCrud}
-												title="Salvar"
-											>
-												{#if pendingCrud && editandoPapel === 'assessor'}
-													<Loader2 size={18} class="animate-spin" />
-												{:else}
-													<Check size={18} />
-												{/if}
-											</button>
-											<button
-												type="button"
-												class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
-												onclick={cancelarEdicao}
-												title="Cancelar"
-												disabled={pendingCrud}
-											>
-												<X size={18} />
-											</button>
-										</div>
+										{@render botoesSalvarCancelar('assessor', 'h-[38px]')}
 									</div>
 								</div>
 							{:else}
@@ -576,33 +663,7 @@
 															'Carregando...')
 														: 'Não definido'}
 												</p>
-												{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-													<div class="flex items-center gap-1 shrink-0">
-														<button
-															type="button"
-															class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-															title="Editar"
-															onclick={() => iniciarEdicao('assessor')}
-														>
-															<PenLine size={12} />
-														</button>
-														{#if gise.assessor_id}
-															<button
-																type="button"
-																class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
-																title="Remover"
-																onclick={() => excluirMembro('assessor')}
-																disabled={pendingCrud}
-															>
-																{#if pendingCrud && removendoPapel === 'assessor'}
-																	<Loader2 size={12} class="animate-spin" />
-																{:else}
-																	<Trash2 size={12} />
-																{/if}
-															</button>
-														{/if}
-													</div>
-												{/if}
+												{@render botoesEdicao('assessor', !!gise.assessor_id)}
 											</div>
 											{#if gise.assessor_email_notificacao}
 												<p
@@ -615,253 +676,18 @@
 										</div>
 									</div>
 									<div class="shrink-0 flex items-center">
-										{#if gise.assessor_id && marcador('assessor', gise.assessor_id) === 'ok'}
-											<span
-												class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-												title="Entrada e saída confirmadas">✓</span
-											>
-										{:else if gise.assessor_id && marcador('assessor', gise.assessor_id) === 'entrada'}
-											<span
-												class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-												title="Aguardando confirmação de saída">Entrada</span
-											>
-										{/if}
+										{@render badgeMarcador(
+											gise.assessor_id ? marcador('assessor', gise.assessor_id) : null,
+											'Entrada e saída confirmadas'
+										)}
 									</div>
 								</div>
 							{/if}
 						</div>
 
-						<!-- NUIP OIP 1 -->
-						<div
-							class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
-						>
-							<div class="flex items-center gap-2.5 min-w-0 flex-1">
-								<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
-									<Users size={14} />
-								</div>
-								<div class="overflow-hidden min-w-0 flex-1">
-									<span
-										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
-										>NUIP OIP</span
-									>
-									{#if editandoPapel === 'seint1'}
-										<div class="flex items-center gap-1.5 mt-1 w-full">
-											<div class="flex-1 min-w-0">
-												<SearchableSelect
-													id="seint1Id"
-													bind:value={seint1Id}
-													loadOptions={buscarOips}
-													selectedOption={selectedFromPoliciais(seint1Id)}
-													placeholder="Pesquisar NUIP OIP..."
-													minSearchChars={2}
-													showTrigger={false}
-													class="w-full"
-												/>
-											</div>
-											<div class="flex items-center gap-0.5 shrink-0">
-												<button
-													type="submit"
-													class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
-													disabled={pendingCrud}
-													title="Salvar"
-												>
-													{#if pendingCrud && editandoPapel === 'seint1'}
-														<Loader2 size={18} class="animate-spin" />
-													{:else}
-														<Check size={18} />
-													{/if}
-												</button>
-												<button
-													type="button"
-													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
-													onclick={cancelarEdicao}
-													title="Cancelar"
-													disabled={pendingCrud}
-												>
-													<X size={18} />
-												</button>
-											</div>
-										</div>
-									{:else}
-										<div class="flex items-center gap-2">
-											<p
-												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-											>
-												{gise.seint1_id
-													? (policiais.find((p) => p.id === gise.seint1_id)?.nome ??
-														'Carregando...')
-													: 'Não definido'}
-											</p>
-											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-												<div class="flex items-center gap-1 shrink-0">
-													<button
-														type="button"
-														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-														title="Editar"
-														onclick={() => iniciarEdicao('seint1')}
-													>
-														<PenLine size={12} />
-													</button>
-													{#if gise.seint1_id}
-														<button
-															type="button"
-															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
-															title="Remover"
-															onclick={() => excluirMembro('seint1')}
-															disabled={pendingCrud}
-														>
-															{#if pendingCrud && removendoPapel === 'seint1'}
-																<Loader2 size={12} class="animate-spin" />
-															{:else}
-																<Trash2 size={12} />
-															{/if}
-														</button>
-													{/if}
-												</div>
-											{/if}
-										</div>
-									{/if}
-								</div>
-							</div>
-							{#if editandoPapel !== 'seint1'}
-								{@const stS1 = gise.seint1_id ? marcador('seint', gise.seint1_id) : null}
-								<div class="shrink-0 flex flex-col items-end gap-0.5">
-									{#if stS1 === 'ok'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-											title="Entrada, relatório SEINT e saída concluídos">✓</span
-										>
-									{:else if stS1 === 'falta_relatorio'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Falta enviar o relatório SEINT (entrada e saída já confirmadas)"
-											>Relatório</span
-										>
-									{:else if stS1 === 'entrada'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Aguardando confirmação de saída">Entrada</span
-										>
-									{/if}
-								</div>
-							{/if}
-						</div>
-
-						<!-- NUIP OIP 2 -->
-						<div
-							class="flex items-center justify-between gap-2 p-2.5 px-3 rounded-xl bg-white dark:bg-surface-900 border border-secondary-500/20 dark:border-secondary-500/35 shadow-sm hover:shadow transition-all duration-200"
-						>
-							<div class="flex items-center gap-2.5 min-w-0 flex-1">
-								<div class="text-secondary-600/70 dark:text-secondary-400/70 shrink-0">
-									<Users size={14} />
-								</div>
-								<div class="overflow-hidden min-w-0 flex-1">
-									<span
-										class="block text-[0.6rem] uppercase font-bold text-secondary-500/80 dark:text-secondary-400/80"
-										>NUIP OIP</span
-									>
-									{#if editandoPapel === 'seint2'}
-										<div class="flex items-center gap-1.5 mt-1 w-full">
-											<div class="flex-1 min-w-0">
-												<SearchableSelect
-													id="seint2Id"
-													bind:value={seint2Id}
-													loadOptions={buscarOips}
-													selectedOption={selectedFromPoliciais(seint2Id)}
-													placeholder="Pesquisar NUIP OIP..."
-													minSearchChars={2}
-													showTrigger={false}
-													class="w-full"
-												/>
-											</div>
-											<div class="flex items-center gap-0.5 shrink-0">
-												<button
-													type="submit"
-													class="p-2 rounded-xl text-success-600 dark:text-success-400 hover:bg-success-500/10 active:scale-95 transition-all"
-													disabled={pendingCrud}
-													title="Salvar"
-												>
-													{#if pendingCrud && editandoPapel === 'seint2'}
-														<Loader2 size={18} class="animate-spin" />
-													{:else}
-														<Check size={18} />
-													{/if}
-												</button>
-												<button
-													type="button"
-													class="p-2 rounded-xl text-error-600 dark:text-error-400 hover:bg-error-500/10 active:scale-95 transition-all"
-													onclick={cancelarEdicao}
-													title="Cancelar"
-													disabled={pendingCrud}
-												>
-													<X size={18} />
-												</button>
-											</div>
-										</div>
-									{:else}
-										<div class="flex items-center gap-2">
-											<p
-												class="text-sm font-semibold text-surface-700 dark:text-surface-200 truncate"
-											>
-												{gise.seint2_id
-													? (policiais.find((p) => p.id === gise.seint2_id)?.nome ??
-														'Carregando...')
-													: 'Não definido'}
-											</p>
-											{#if isAdminGeral && podeEditar && modoEdicaoGeral}
-												<div class="flex items-center gap-1 shrink-0">
-													<button
-														type="button"
-														class="p-0.5 rounded text-surface-400 hover:text-primary-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-														title="Editar"
-														onclick={() => iniciarEdicao('seint2')}
-													>
-														<PenLine size={12} />
-													</button>
-													{#if gise.seint2_id}
-														<button
-															type="button"
-															class="p-0.5 rounded text-error-500 hover:text-error-600 hover:bg-error-500/10 transition-colors"
-															title="Remover"
-															onclick={() => excluirMembro('seint2')}
-															disabled={pendingCrud}
-														>
-															{#if pendingCrud && removendoPapel === 'seint2'}
-																<Loader2 size={12} class="animate-spin" />
-															{:else}
-																<Trash2 size={12} />
-															{/if}
-														</button>
-													{/if}
-												</div>
-											{/if}
-										</div>
-									{/if}
-								</div>
-							</div>
-							{#if editandoPapel !== 'seint2'}
-								{@const stS2 = gise.seint2_id ? marcador('seint', gise.seint2_id) : null}
-								<div class="shrink-0 flex flex-col items-end gap-0.5">
-									{#if stS2 === 'ok'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-success-500/20 text-success-700 dark:text-success-400"
-											title="Entrada, relatório SEINT e saída concluídos">✓</span
-										>
-									{:else if stS2 === 'falta_relatorio'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Falta enviar o relatório SEINT (entrada e saída já confirmadas)"
-											>Relatório</span
-										>
-									{:else if stS2 === 'entrada'}
-										<span
-											class="text-xs px-1 py-0.5 rounded bg-warning-500/20 text-warning-700 dark:text-warning-400"
-											title="Aguardando confirmação de saída">Entrada</span
-										>
-									{/if}
-								</div>
-							{/if}
-						</div>
+						<!-- NUIP OIP 1 e 2 — mesmo card, parametrizado pelo papel -->
+						{@render slotSeint('seint1', gise.seint1_id)}
+						{@render slotSeint('seint2', gise.seint2_id)}
 					</div>
 				</div>
 			</div>
