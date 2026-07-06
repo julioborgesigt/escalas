@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { toaster } from '$lib/toast';
-	import { formatarData, calcularDataSaida } from '$lib/utils';
+	import { formatarData } from '$lib/utils';
 	import type { Escala } from '$lib/server/schema';
-	import type { ActionResult } from '@sveltejs/kit';
 	import type { EscalaPolicialComDados } from '$lib/types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
+	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
 
 	interface Props {
 		policiaisEscalaLocal: EscalaPolicialComDados[];
@@ -39,17 +39,6 @@
 		onToggleSelecionar
 	}: Props = $props();
 
-	// === Edição inline ===
-	let editingId = $state<number | null>(null);
-	let editDataEntrada = $state('');
-	let editDataSaida = $state('');
-	let editHoraEntrada = $state('');
-	let editMinutoEntrada = $state('');
-	let editHoraSaida = $state('');
-	let editMinutoSaida = $state('');
-	let editObservacoes = $state('');
-	let pendingEditar = $state(false);
-
 	// === Paginação ===
 	const SERV_POR_PAG = 50;
 	let paginaServidor = $state(1);
@@ -64,19 +53,9 @@
 		paginaServidor = 1;
 	});
 
-	// === Helpers de horário ===
-	function getHoraEntrada(p: EscalaPolicialComDados): string {
-		return p.hora_entrada || escala?.hora_entrada || '08';
-	}
-
-	function getHoraSaida(p: EscalaPolicialComDados): string {
-		return p.hora_saida || escala?.hora_saida || '08';
-	}
-
-	function getDataSaida(p: EscalaPolicialComDados): string {
-		if (p.data_saida) return p.data_saida;
-		return calcularDataSaida(p.data_plantao, getHoraEntrada(p), getHoraSaida(p));
-	}
+	// === Helpers de horário (compartilhados com ListaFds) ===
+	const { getHoraEntrada, getHoraSaida, getDataSaida, formatarHorario, formatarDataPlantao } =
+		criarHelpersHorario(() => escala);
 
 	// === Agrupamento ===
 	function agruparPorData(items: EscalaPolicialComDados[]): Map<string, EscalaPolicialComDados[]> {
@@ -91,55 +70,11 @@
 		return new Map([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
 	}
 
-	// === Formatação ===
-	function formatarDataPlantao(p: EscalaPolicialComDados): string {
-		const de = formatarData(p.data_plantao);
-		const ds = getDataSaida(p);
-		if (ds !== p.data_plantao) return `${de} à ${formatarData(ds)}`;
-		return de;
-	}
-
-	function formatarHorario(p: EscalaPolicialComDados): string {
-		return `${getHoraEntrada(p)}H A ${getHoraSaida(p)}H`;
-	}
-
-	function diaSemanaLabel(iso: string): string {
-		return ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][new Date(iso + 'T12:00:00').getDay()];
-	}
-
-	// === Edição ===
-	function startEdit(p: EscalaPolicialComDados) {
-		editingId = p.id;
-		editDataEntrada = p.data_plantao;
-		editDataSaida = getDataSaida(p);
-		const [he, me = '00'] = getHoraEntrada(p).split(':');
-		editHoraEntrada = he;
-		editMinutoEntrada = me;
-		const [hs, ms = '00'] = getHoraSaida(p).split(':');
-		editHoraSaida = hs;
-		editMinutoSaida = ms;
-		editObservacoes = p.observacoes || '';
-	}
-
-	function handleEditar() {
-		pendingEditar = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingEditar = false;
-			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data?.policiais;
-				editingId = null;
-				toaster.create({ title: 'Dados salvos', type: 'success' });
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
-			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
-			}
-		};
-	}
+	// === Edição inline (compartilhada com ListaFds) ===
+	const edicao = useEdicaoInlineServidor({
+		helpers: { getDataSaida, getHoraEntrada, getHoraSaida },
+		aplicarPoliciais: (p) => (policiaisEscalaLocal = p)
+	});
 </script>
 
 {#if policiaisEscalaLocal.length === 0}
@@ -168,7 +103,7 @@
 				<!-- Cards mobile (ocultos em sm+) -->
 				<div class="sm:hidden divide-y divide-surface-100 dark:divide-white/5">
 					{#each items as p (p.id)}
-						{#if editingId === p.id}
+						{#if edicao.editingId === p.id}
 							<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
 								<p
 									class="text-[0.7rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
@@ -178,22 +113,22 @@
 								<form
 									method="POST"
 									action="?/editar"
-									use:enhance={handleEditar}
+									use:enhance={edicao.handleEditar}
 									class="flex flex-wrap items-end gap-2"
 								>
-									<input type="hidden" name="item_id" value={editingId} />
+									<input type="hidden" name="item_id" value={edicao.editingId} />
 									{#if isExpediente}
 										<input type="hidden" name="hora_entrada" value="00:00" />
 										<input type="hidden" name="hora_saida" value="23:59" />
-										<input type="hidden" name="data_plantao" value={editDataEntrada} />
-										<input type="hidden" name="data_saida" value={editDataSaida} />
+										<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
+										<input type="hidden" name="data_saida" value={edicao.dataSaida} />
 										<div class="basis-full min-w-0">
 											<span class="label-text text-[0.7rem] block mb-0.5">Observações</span>
 											<input
 												type="text"
 												name="observacoes"
 												class="input text-xs h-8 px-2 rounded-lg w-full"
-												bind:value={editObservacoes}
+												bind:value={edicao.observacoes}
 												maxlength="500"
 												placeholder="Informações complementares"
 											/>
@@ -204,7 +139,7 @@
 											<input
 												type="date"
 												class="input text-xs h-8 px-2 rounded-lg w-full"
-												bind:value={editDataEntrada}
+												bind:value={edicao.dataEntrada}
 											/>
 										</div>
 										<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
@@ -212,7 +147,7 @@
 											<input
 												type="date"
 												class="input text-xs h-8 px-2 rounded-lg w-full"
-												bind:value={editDataSaida}
+												bind:value={edicao.dataSaida}
 											/>
 										</div>
 										<div class="flex gap-2 w-full">
@@ -221,12 +156,12 @@
 												<div class="flex gap-1">
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-														bind:value={editHoraEntrada}
+														bind:value={edicao.horaEntrada}
 														>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 													>
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-														bind:value={editMinutoEntrada}
+														bind:value={edicao.minutoEntrada}
 														>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 													>
 												</div>
@@ -236,12 +171,12 @@
 												<div class="flex gap-1">
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-														bind:value={editHoraSaida}
+														bind:value={edicao.horaSaida}
 														>{#each horas as h (h)}<option value={h}>{h}h</option>{/each}</select
 													>
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-														bind:value={editMinutoSaida}
+														bind:value={edicao.minutoSaida}
 														>{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}</select
 													>
 												</div>
@@ -250,27 +185,27 @@
 										<input
 											type="hidden"
 											name="hora_entrada"
-											value="{editHoraEntrada}:{editMinutoEntrada}"
+											value="{edicao.horaEntrada}:{edicao.minutoEntrada}"
 										/>
 										<input
 											type="hidden"
 											name="hora_saida"
-											value="{editHoraSaida}:{editMinutoSaida}"
+											value="{edicao.horaSaida}:{edicao.minutoSaida}"
 										/>
-										<input type="hidden" name="data_plantao" value={editDataEntrada} />
-										<input type="hidden" name="data_saida" value={editDataSaida} />
-										<input type="hidden" name="observacoes" value={editObservacoes} />
+										<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
+										<input type="hidden" name="data_saida" value={edicao.dataSaida} />
+										<input type="hidden" name="observacoes" value={edicao.observacoes} />
 									{/if}
 									<div class="flex gap-2 w-full mt-1">
 										<button
 											type="submit"
 											class="btn btn-sm h-9 preset-filled-primary-500 rounded-lg px-4 font-bold flex-1"
-											disabled={pendingEditar}>{pendingEditar ? 'Salvando...' : 'Salvar'}</button
+											disabled={edicao.pending}>{edicao.pending ? 'Salvando...' : 'Salvar'}</button
 										>
 										<button
 											type="button"
 											class="h-9 px-4 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
-											onclick={() => (editingId = null)}>Cancelar</button
+											onclick={() => (edicao.editingId = null)}>Cancelar</button
 										>
 									</div>
 								</form>
@@ -347,7 +282,7 @@
 												type="button"
 												aria-label="Editar"
 												class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
-												onclick={() => startEdit(p)}
+												onclick={() => edicao.startEdit(p)}
 											>
 												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 													><path
@@ -441,22 +376,22 @@
 						</thead>
 						<tbody class="divide-y divide-surface-100 dark:divide-white/5">
 							{#each items as p (p.id)}
-								{#if editingId === p.id}
+								{#if edicao.editingId === p.id}
 									<tr class="!bg-primary-500/5">
 										<td colspan={modoSelecao ? 9 : 8} class="!py-4 !px-4">
 											<form
 												method="POST"
 												action="?/editar"
-												use:enhance={handleEditar}
+												use:enhance={edicao.handleEditar}
 												class="flex flex-wrap items-end gap-3"
 											>
-												<input type="hidden" name="item_id" value={editingId} />
+												<input type="hidden" name="item_id" value={edicao.editingId} />
 												{#if isExpediente}
 													<!-- Expediente: editar apenas observações -->
 													<input type="hidden" name="hora_entrada" value="00:00" />
 													<input type="hidden" name="hora_saida" value="23:59" />
-													<input type="hidden" name="data_plantao" value={editDataEntrada} />
-													<input type="hidden" name="data_saida" value={editDataSaida} />
+													<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
+													<input type="hidden" name="data_saida" value={edicao.dataSaida} />
 													<div class="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
 														<label class="label mb-1">
 															<span class="label-text text-[0.7rem]">Observações</span>
@@ -464,7 +399,7 @@
 																type="text"
 																name="observacoes"
 																class="input text-xs h-8 px-2 rounded-lg w-full"
-																bind:value={editObservacoes}
+																bind:value={edicao.observacoes}
 																maxlength="500"
 																placeholder="Informações complementares"
 															/>
@@ -478,7 +413,7 @@
 															<input
 																type="date"
 																class="input text-xs h-8 px-2 rounded-lg w-full"
-																bind:value={editDataEntrada}
+																bind:value={edicao.dataEntrada}
 															/>
 														</label>
 													</div>
@@ -488,7 +423,7 @@
 															<input
 																type="date"
 																class="input text-xs h-8 px-2 rounded-lg w-full"
-																bind:value={editDataSaida}
+																bind:value={edicao.dataSaida}
 															/>
 														</label>
 													</div>
@@ -498,14 +433,14 @@
 															<div class="flex gap-1">
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editHoraEntrada}
+																	bind:value={edicao.horaEntrada}
 																	aria-label="Hora de Entrada"
 																>
 																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																</select>
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editMinutoEntrada}
+																	bind:value={edicao.minutoEntrada}
 																	aria-label="Minuto de Entrada"
 																>
 																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
@@ -519,14 +454,14 @@
 															<div class="flex gap-1">
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editHoraSaida}
+																	bind:value={edicao.horaSaida}
 																	aria-label="Hora de Saída"
 																>
 																	{#each horas as h (h)}<option value={h}>{h}</option>{/each}
 																</select>
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
-																	bind:value={editMinutoSaida}
+																	bind:value={edicao.minutoSaida}
 																	aria-label="Minuto de Saída"
 																>
 																	{#each minutos as m (m)}<option value={m}>{m}</option>{/each}
@@ -537,29 +472,29 @@
 													<input
 														type="hidden"
 														name="hora_entrada"
-														value="{editHoraEntrada}:{editMinutoEntrada}"
+														value="{edicao.horaEntrada}:{edicao.minutoEntrada}"
 													/>
 													<input
 														type="hidden"
 														name="hora_saida"
-														value="{editHoraSaida}:{editMinutoSaida}"
+														value="{edicao.horaSaida}:{edicao.minutoSaida}"
 													/>
-													<input type="hidden" name="data_plantao" value={editDataEntrada} />
-													<input type="hidden" name="data_saida" value={editDataSaida} />
-													<input type="hidden" name="observacoes" value={editObservacoes} />
+													<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
+													<input type="hidden" name="data_saida" value={edicao.dataSaida} />
+													<input type="hidden" name="observacoes" value={edicao.observacoes} />
 												{/if}
 												<div class="flex gap-1 mt-1">
 													<button
 														type="submit"
 														class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
-														disabled={pendingEditar}
+														disabled={edicao.pending}
 													>
-														{pendingEditar ? 'Salvando...' : 'Salvar'}
+														{edicao.pending ? 'Salvando...' : 'Salvar'}
 													</button>
 													<button
 														type="button"
 														class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
-														onclick={() => (editingId = null)}>×</button
+														onclick={() => (edicao.editingId = null)}>×</button
 													>
 												</div>
 											</form>
@@ -659,7 +594,7 @@
 																type="button"
 																aria-label="Editar"
 																class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
-																onclick={() => startEdit(p)}
+																onclick={() => edicao.startEdit(p)}
 															>
 																<svg
 																	class="w-3.5 h-3.5"

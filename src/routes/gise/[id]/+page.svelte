@@ -15,6 +15,7 @@
 		supervisaoExtraRubricasCompletas
 	} from '$lib/gise/gise-supervisao-extra';
 	import { makeEnhanceHandler } from '$lib/enhance-handler';
+	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
 	import GiseCabecalho from './_components/GiseCabecalho.svelte';
 	import GiseSupervisao from './_components/GiseSupervisao.svelte';
 	import GiseLoteAssinaturas from './_components/GiseLoteAssinaturas.svelte';
@@ -251,28 +252,16 @@
 		return p ? { value: p.id, label: `${p.nome} (${p.matricula})` } : null;
 	}
 
-	/** Factory de `loadOptions` parametrizado por cargo. Usa AbortSignal para cancelar. */
-	function buscarPorCargo(cargo: 'DPC' | 'OIP') {
-		return async (query: string, signal: AbortSignal) => {
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			const params = new URLSearchParams({ cargo, limit: '50' });
-			if (query) params.set('q', query);
-			const res = await fetch(`/api/policiais/search?${params}`, { signal });
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
-				throw new Error(err.error ?? 'Erro na busca');
-			}
-			const data = (await res.json()) as {
-				policiais: { id: number; nome: string; matricula: string }[];
-			};
-			return data.policiais.map((p) => ({
-				value: p.id,
-				label: `${p.nome} (${p.matricula})`
-			}));
-		};
-	}
-	const buscarDpcs = buscarPorCargo('DPC');
-	const buscarOips = buscarPorCargo('OIP');
+	const buscarDpcs = buscarPoliciaisOptions({
+		cargo: 'DPC',
+		rotulo: 'matricula',
+		valorNumerico: true
+	});
+	const buscarOips = buscarPoliciaisOptions({
+		cargo: 'OIP',
+		rotulo: 'matricula',
+		valorNumerico: true
+	});
 	const setPending = (p: boolean) => (pendingCrud = p);
 
 	const handleSalvarSupervisores = makeEnhanceHandler({
