@@ -24,7 +24,7 @@
 	import TabelaEscalas from './_components/TabelaEscalas.svelte';
 	import SecaoAssinaturas from './_components/SecaoAssinaturas.svelte';
 	import ModalCadastrarRubrica from '$lib/components/ModalCadastrarRubrica.svelte';
-	import DialogSolicitarAssinatura from './_components/DialogSolicitarAssinatura.svelte';
+	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
 	const { data, form } = $props();
@@ -898,8 +898,11 @@
 <DialogSolicitarAssinatura
 	bind:open={dialogSolicitar}
 	escalaId={escalaSolicitandoId}
-	onConfirmado={() => {
+	onConfirmado={async () => {
 		escalaSolicitandoId = null;
+		// Invalidação segmentada: refaz só o load da listagem (depends em
+		// /escalas/+page.server.ts), não o layout inteiro.
+		await invalidate('app:escalas');
 	}}
 />
 
