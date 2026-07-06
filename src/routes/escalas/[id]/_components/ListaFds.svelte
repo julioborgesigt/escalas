@@ -3,6 +3,10 @@
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { formatarData, calcularDataSaida } from '$lib/utils';
+	import { buscarPoliciaisOptions } from '$lib/busca-policiais';
+	import { criarHelpersHorario, diaSemanaLabel } from './escala-horarios';
+	import { tratarResultadoAdicionarPlantao } from './plantao-datas';
+	import { useEdicaoInlineServidor } from './useEdicaoInlineServidor.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import IconTooltip from '$lib/components/IconTooltip.svelte';
@@ -56,77 +60,15 @@
 		return days;
 	}
 
-	function getHoraEntrada(p: EscalaPolicialComDados): string {
-		return p.hora_entrada || escala?.hora_entrada || '08';
-	}
+	// Helpers de horário/data compartilhados com TabelaServidores
+	const { getHoraEntrada, getHoraSaida, getDataSaida, formatarHorario, formatarDataPlantao } =
+		criarHelpersHorario(() => escala);
 
-	function getHoraSaida(p: EscalaPolicialComDados): string {
-		return p.hora_saida || escala?.hora_saida || '08';
-	}
-
-	function getDataSaida(p: EscalaPolicialComDados): string {
-		if (p.data_saida) return p.data_saida;
-		return calcularDataSaida(p.data_plantao, getHoraEntrada(p), getHoraSaida(p));
-	}
-
-	function formatarHorario(p: EscalaPolicialComDados): string {
-		return `${getHoraEntrada(p)}H A ${getHoraSaida(p)}H`;
-	}
-
-	function formatarDataPlantao(p: EscalaPolicialComDados): string {
-		const de = formatarData(p.data_plantao);
-		const ds = getDataSaida(p);
-		if (ds !== p.data_plantao) return `${de} à ${formatarData(ds)}`;
-		return de;
-	}
-
-	function diaSemanaLabel(iso: string): string {
-		return ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][new Date(iso + 'T12:00:00').getDay()];
-	}
-
-	// === Estado local de edição inline ===
-	let editingId = $state<number | null>(null);
-	let editDataEntrada = $state('');
-	let editDataSaida = $state('');
-	let editHoraEntrada = $state('');
-	let editMinutoEntrada = $state('');
-	let editHoraSaida = $state('');
-	let editMinutoSaida = $state('');
-	let editObservacoes = $state('');
-	let pendingEditar = $state(false);
-
-	function startEdit(p: EscalaPolicialComDados) {
-		editingId = p.id;
-		editDataEntrada = p.data_plantao;
-		editDataSaida = getDataSaida(p);
-		const [he, me = '00'] = getHoraEntrada(p).split(':');
-		editHoraEntrada = he;
-		editMinutoEntrada = me;
-		const [hs, ms = '00'] = getHoraSaida(p).split(':');
-		editHoraSaida = hs;
-		editMinutoSaida = ms;
-		editObservacoes = p.observacoes || '';
-	}
-
-	function handleEditar() {
-		pendingEditar = true;
-		return async ({ result }: { result: ActionResult }) => {
-			pendingEditar = false;
-			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data?.policiais;
-				editingId = null;
-				toaster.create({ title: 'Dados salvos', type: 'success' });
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
-			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao salvar'), type: 'error' });
-			}
-		};
-	}
+	// === Edição inline (compartilhada com TabelaServidores) ===
+	const edicao = useEdicaoInlineServidor({
+		helpers: { getDataSaida, getHoraEntrada, getHoraSaida },
+		aplicarPoliciais: (p) => (policiaisEscalaLocal = p)
+	});
 
 	// === FDS: add per-day ===
 	let fdsAddingDia = $state<string | null>(null);
@@ -138,27 +80,7 @@
 	let fdsAddMinutoSaida = $state('00');
 	let pendingAdd = $state(false);
 
-	async function buscarPoliciais(cargo: string, query: string, signal: AbortSignal) {
-		if (!cargo) return [];
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams({ cargo, limit: '50' });
-		if (query) params.set('q', query);
-		const res = await fetch(`/api/policiais/search?${params}`, { signal });
-		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: 'Erro na busca' }));
-			throw new Error(err.error ?? 'Erro na busca');
-		}
-		const json = (await res.json()) as {
-			policiais: { id: number; nome: string; lotacao: string }[];
-		};
-		return json.policiais.map((p) => ({
-			value: String(p.id),
-			label: `${p.nome}${p.lotacao ? ' — ' + p.lotacao : ''}`
-		}));
-	}
-
-	const buscarPoliciaisFds = (q: string, sig: AbortSignal) =>
-		buscarPoliciais(fdsAddingCargo ?? '', q, sig);
+	const buscarPoliciaisFds = buscarPoliciaisOptions({ cargo: () => fdsAddingCargo ?? '' });
 
 	async function openFdsAdd(dia: string, cargo: 'DPC' | 'OIP') {
 		if (fdsAddingDia === dia && fdsAddingCargo === cargo) {
@@ -265,7 +187,7 @@
 			repeticaoDatas = [];
 			return;
 		}
-		editingId = null;
+		edicao.editingId = null;
 		repetindoId = p.id;
 		repeticaoDatas = [];
 	}
@@ -294,34 +216,18 @@
 		pendingRepetir = true;
 		return async ({ result }: { result: ActionResult }) => {
 			pendingRepetir = false;
-			if (result.type === 'success') {
-				policiaisEscalaLocal = result.data?.policiais;
-				const conflitantes =
-					(result.data?.conflitantes as { data: string; motivo: string }[] | undefined) ?? [];
-				if (conflitantes.length > 0) {
-					const datas = conflitantes.map((c) => c.data).join(', ');
-					toaster.create({
-						title: `Adicionado — ${conflitantes.length} dia(s) com choque ignorado(s)`,
-						description: `Dias ignorados: ${datas}`,
-						type: 'warning'
-					});
-				} else {
-					toaster.create({
-						title: `Servidor adicionado em ${repeticaoDatas.length} dia(s)`,
-						type: 'success'
-					});
+			tratarResultadoAdicionarPlantao(
+				result,
+				(p) => (policiaisEscalaLocal = p),
+				() => {
+					repetindoId = null;
+					repeticaoDatas = [];
+				},
+				{
+					sucesso: `Servidor adicionado em ${repeticaoDatas.length} dia(s)`,
+					erroPadrao: 'Erro ao repetir'
 				}
-				repetindoId = null;
-				repeticaoDatas = [];
-			} else if (result.type === 'error') {
-				toaster.create({ title: 'Erro de conexão. Tente novamente.', type: 'error' });
-			} else {
-				const d =
-					result.type === 'failure'
-						? (result.data as Record<string, unknown> | undefined)
-						: undefined;
-				toaster.create({ title: String(d?.error || 'Erro ao repetir'), type: 'error' });
-			}
+			);
 		};
 	}
 </script>
@@ -436,7 +342,7 @@
 			{#if diaItems.length > 0}
 				<div class="divide-y divide-surface-100 dark:divide-white/5">
 					{#each diaItems as p (p.id)}
-						{#if editingId === p.id}
+						{#if edicao.editingId === p.id}
 							<!-- Formulário de edição inline -->
 							<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
 								<p
@@ -447,16 +353,16 @@
 								<form
 									method="POST"
 									action="?/editar"
-									use:enhance={handleEditar}
+									use:enhance={edicao.handleEditar}
 									class="flex items-end gap-1.5 flex-wrap"
 								>
-									<input type="hidden" name="item_id" value={editingId} />
+									<input type="hidden" name="item_id" value={edicao.editingId} />
 									<div class="shrink-0">
 										<span class="label-text text-[0.55rem] block mb-0.5">Início</span>
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
-											bind:value={editDataEntrada}
+											bind:value={edicao.dataEntrada}
 										/>
 									</div>
 									<div class="shrink-0">
@@ -464,7 +370,7 @@
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
-											bind:value={editDataSaida}
+											bind:value={edicao.dataSaida}
 										/>
 									</div>
 									<div class="shrink-0">
@@ -472,13 +378,13 @@
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={editHoraEntrada}
+												bind:value={edicao.horaEntrada}
 											>
 												{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 											</select>
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={editMinutoEntrada}
+												bind:value={edicao.minutoEntrada}
 											>
 												{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
 											</select>
@@ -489,13 +395,13 @@
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={editHoraSaida}
+												bind:value={edicao.horaSaida}
 											>
 												{#each horas as h (h)}<option value={h}>{h}h</option>{/each}
 											</select>
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
-												bind:value={editMinutoSaida}
+												bind:value={edicao.minutoSaida}
 											>
 												{#each minutos as m (m)}<option value={m}>{m}m</option>{/each}
 											</select>
@@ -505,29 +411,29 @@
 										<button
 											type="submit"
 											class="btn btn-sm h-8 preset-filled-primary-500 rounded-lg px-3 font-bold"
-											disabled={pendingEditar}
+											disabled={edicao.pending}
 										>
-											{pendingEditar ? '...' : 'Salvar'}
+											{edicao.pending ? '...' : 'Salvar'}
 										</button>
 										<button
 											type="button"
 											class="w-8 h-8 flex items-center justify-center rounded-lg border border-surface-300 dark:border-surface-600 text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors text-sm font-bold"
-											onclick={() => (editingId = null)}>×</button
+											onclick={() => (edicao.editingId = null)}>×</button
 										>
 									</div>
 									<input
 										type="hidden"
 										name="hora_entrada"
-										value="{editHoraEntrada}:{editMinutoEntrada}"
+										value="{edicao.horaEntrada}:{edicao.minutoEntrada}"
 									/>
 									<input
 										type="hidden"
 										name="hora_saida"
-										value="{editHoraSaida}:{editMinutoSaida}"
+										value="{edicao.horaSaida}:{edicao.minutoSaida}"
 									/>
-									<input type="hidden" name="data_plantao" value={editDataEntrada} />
-									<input type="hidden" name="data_saida" value={editDataSaida} />
-									<input type="hidden" name="observacoes" value={editObservacoes} />
+									<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
+									<input type="hidden" name="data_saida" value={edicao.dataSaida} />
+									<input type="hidden" name="observacoes" value={edicao.observacoes} />
 								</form>
 							</div>
 						{:else}
@@ -595,8 +501,8 @@
 												aria-label="Editar"
 												class="p-1.5 rounded transition-colors text-surface-400 hover:text-primary-500 hover:bg-primary-500/10"
 												onclick={() => {
-													editingId = null;
-													startEdit(p);
+													edicao.editingId = null;
+													edicao.startEdit(p);
 													repetindoId = null;
 													repeticaoDatas = [];
 												}}
@@ -624,7 +530,7 @@
 													? 'text-success-600 dark:text-success-400 bg-success-500/10'
 													: 'text-surface-400 hover:text-success-600 hover:bg-success-500/10'}"
 												onclick={() => {
-													editingId = null;
+													edicao.editingId = null;
 													openRepetir(p);
 												}}
 											>
