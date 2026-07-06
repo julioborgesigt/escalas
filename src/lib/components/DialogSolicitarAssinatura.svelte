@@ -1,18 +1,26 @@
 <script lang="ts">
 	import { Dialog } from '@skeletonlabs/skeleton-svelte';
 	import { csrfHeaders } from '$lib/csrf';
-	import { invalidate } from '$app/navigation';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
 
+	/**
+	 * Diálogo de solicitação de assinatura de escala a um DPC (unidade titular
+	 * ou respondência com busca). Compartilhado pela lista `/escalas` e pelo
+	 * `PainelAssinaturaDigital` (detalhe) — cada caller trata o sucesso no
+	 * `onConfirmado` (invalidação segmentada, atualização de estado local etc.).
+	 */
 	let {
 		open = $bindable(false),
 		escalaId,
 		onConfirmado
 	}: {
 		open: boolean;
-		escalaId: number | null;
-		onConfirmado: () => void;
+		escalaId: number | string | null;
+		onConfirmado: (solicitacao: {
+			tipo: 'unidade' | 'respondencia';
+			destinatario_id?: number;
+		}) => void | Promise<void>;
 	} = $props();
 
 	let opcaoSolicitacao = $state<'unidade' | 'respondencia'>('unidade');
@@ -101,10 +109,10 @@
 			if (res.ok) {
 				open = false;
 				toaster.create({ title: 'Solicitação de assinatura enviada', type: 'success' });
-				// Invalidação segmentada: refaz só o load da listagem (depends em
-				// /escalas/+page.server.ts), não o layout inteiro.
-				await invalidate('app:escalas');
-				onConfirmado();
+				await onConfirmado({
+					tipo: opcaoSolicitacao,
+					destinatario_id: destinatarioSelecionado?.id
+				});
 			} else {
 				const json = await res.json().catch(() => ({}));
 				toaster.create({
