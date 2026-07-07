@@ -33,7 +33,12 @@ export const confirmarRedefinicaoSchema = z.object({
 	codigo: codigoField
 });
 
-export const solicitarVerificacaoEmailSchema = z.object({ email: emailField });
+export const solicitarVerificacaoEmailSchema = z.object({
+	email: emailField,
+	// Exigida quando o usuário JÁ tem e-mail pessoal cadastrado (troca): prova
+	// de posse da conta além da sessão aberta. Opcional no 1º cadastro.
+	senha: z.string().max(200).optional()
+});
 
 export const confirmarVerificacaoEmailSchema = z.object({
 	desafioId: desafioIdField,

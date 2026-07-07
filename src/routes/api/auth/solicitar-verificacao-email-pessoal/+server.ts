@@ -10,11 +10,18 @@
 import { json } from '@sveltejs/kit';
 import { eq, and, gt, count } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
+import { gerarCodigo2FA, criarDesafio2FA, verificarSenha } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
 import { mascararEmail } from '$lib/server/auth-flow';
-import { doisFatoresTokens } from '$lib/server/schema';
-import { requireAuth, badRequest, rateLimited, serverError, validateBody } from '$lib/server/api';
+import { doisFatoresTokens, policiais } from '$lib/server/schema';
+import {
+	requireAuth,
+	badRequest,
+	forbidden,
+	rateLimited,
+	serverError,
+	validateBody
+} from '$lib/server/api';
 import { solicitarVerificacaoEmailSchema } from '$lib/schemas';
 import type { RequestHandler } from './$types';
 
@@ -27,6 +34,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const v = await validateBody(request, solicitarVerificacaoEmailSchema);
 	if (!v.ok) return v.response;
 	const email = v.data.email;
+	const senha = v.data.senha;
 
 	if (!EMAIL_REGEX.test(email)) return badRequest('E-mail inválido');
 
@@ -36,6 +44,26 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	const db = getDB(platform);
+
+	// TROCA de e-mail pessoal (policial que já tem um cadastrado): exige a
+	// reinserção da senha — uma sessão esquecida aberta não basta para
+	// redirecionar o canal de recuperação de senha. O 1º cadastro (sem e-mail
+	// anterior) segue sem senha, como no onboarding do /alterar-senha.
+	if (u.tipo === 'policial') {
+		const atual = await db
+			.select({ email_pessoal: policiais.email_pessoal, senha: policiais.senha })
+			.from(policiais)
+			.where(eq(policiais.id, u.id))
+			.get();
+		if (atual?.email_pessoal) {
+			if (!senha) {
+				return badRequest('Informe sua senha de acesso para trocar o e-mail pessoal.');
+			}
+			const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+			const senhaOk = await verificarSenha(senha, atual.senha, pepper);
+			if (!senhaOk) return forbidden('Senha incorreta.');
+		}
+	}
 
 	// Normaliza para baixo o e-mail antes de bindar — verificação faz lookup
 	// case-insensitive, então armazenar normalizado evita falso-mismatch

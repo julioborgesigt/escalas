@@ -365,6 +365,77 @@ export async function enviarCodigoEmailPessoal(
 	}
 }
 
+/**
+ * Aviso informativo ao E-MAIL FUNCIONAL quando o e-mail pessoal (canal de
+ * recuperação de senha) é TROCADO pelo perfil. Deixa rastro visível ao
+ * titular: se ele não reconhecer a troca, procura o administrador.
+ */
+export async function enviarAvisoTrocaEmailPessoal(
+	destinatarioFuncional: string,
+	nomeUsuario: string,
+	novoEmailMascarado: string,
+	platform: App.Platform | undefined
+): Promise<void> {
+	const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#1a3a6e;padding:24px 32px;">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">Polícia Civil do Ceará</p>
+            <p style="margin:4px 0 0;color:#a0b4d6;font-size:13px;">Sistema de Escalas de Plantão</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 8px;color:#333;font-size:15px;">Olá, <strong>${escapeHtml(nomeUsuario)}</strong>!</p>
+            <p style="margin:0 0 16px;color:#555;font-size:14px;">
+              O <strong>e-mail pessoal</strong> cadastrado na sua conta (usado para recuperação de senha)
+              acaba de ser <strong>alterado</strong> para <strong>${escapeHtml(novoEmailMascarado)}</strong>.
+            </p>
+            <p style="margin:0 0 8px;color:#666;font-size:13px;">
+              ✅ Se foi você, nenhuma ação é necessária.
+            </p>
+            <p style="margin:0;color:#666;font-size:13px;">
+              🔒 Se você <strong>não reconhece</strong> esta alteração, troque sua senha imediatamente e
+              comunique o administrador do sistema.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f9fc;padding:16px 32px;border-top:1px solid #eee;">
+            <p style="margin:0;color:#999;font-size:11px;">Sistema de Escalas de Plantão — Polícia Civil do Ceará</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+	try {
+		const info = await dispararEmail(platform, {
+			to: destinatarioFuncional,
+			subject: 'Aviso de segurança: e-mail pessoal alterado — Sistema de Escalas',
+			html
+		});
+		logger.info('[email/aviso-troca-email-pessoal] Aviso enviado', {
+			destinatario: mascararEmail(destinatarioFuncional),
+			messageId: info.messageId
+		});
+	} catch (err) {
+		logger.error('[email/aviso-troca-email-pessoal] Erro ao enviar', {
+			destinatario: mascararEmail(destinatarioFuncional),
+			error: err instanceof Error ? err.message : String(err)
+		});
+		throw err;
+	}
+}
+
 export async function enviarCodigoRedefinicaoSenha(
 	destinatario: string,
 	codigo: string,
