@@ -114,6 +114,18 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # Migra o D1 de STAGING antes do deploy. O script é INCREMENTAL: controla
+      # o que já foi aplicado em `_migrations_aplicadas` e só executa as
+      # pendentes. Migration antes do deploy = código antigo convive por
+      # instantes com o schema novo — seguro porque as migrations do projeto
+      # são retrocompatíveis (expand-contract). Se a migration falhar, o
+      # deploy nem roda.
+      - name: Apply D1 migrations (staging)
+        run: npm run db:migrate:staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -135,6 +147,15 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+
+      # Migra o D1 de PRODUÇÃO antes do deploy (incremental — só as pendentes
+      # de `_migrations_aplicadas`; `--yes` é a confirmação exigida pelo
+      # script para produção). Falhou a migration → o deploy não acontece.
+      - name: Apply D1 migrations (produção)
+        run: npm run db:migrate:prod -- --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - uses: cloudflare/wrangler-action@v4
         with:

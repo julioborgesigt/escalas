@@ -132,8 +132,9 @@ Há quatro níveis. O **Super Admin é um Admin Geral com poderes extras** (é `
 - Configuração de binding: [`wrangler.toml`](wrangler.toml) (`escalas_db`, diretório `migrations/`).
 - **Migrações locais:** `npm run db:migrate`
 - **Produção / remoto:** `npm run db:migrate:prod -- --yes` (usa `--remote`; o flag `--yes` é obrigatório para evitar mutação acidental de produção enquanto staging/prod compartilham D1 — ver seção de [Separação staging vs produção](#-separação-staging-vs-produção-pendente))
+- **Automático no CI:** os jobs de deploy do [`deploy.yml`](.github/workflows/deploy.yml) rodam a migração do ambiente alvo (staging/produção) **antes** do `pages deploy`. O script é incremental (tabela de controle `_migrations_aplicadas` — só as pendentes executam), então rodá-lo em todo push é barato e idempotente. O comando manual acima permanece como fallback/execução avulsa. ⚠️ O `CLOUDFLARE_API_TOKEN` dos secrets precisa da permissão **D1:Edit** além de Pages.
 
-Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório e aplicar no ambiente alvo antes ou logo após o deploy compatível.
+Após mudanças de schema, gerar migrações com Drizzle conforme o fluxo já usado no repositório; o CI as aplica no deploy seguinte (migrations devem ser retrocompatíveis com o código anterior — expand/contract).
 
 ## Armazenamento (R2)
 
