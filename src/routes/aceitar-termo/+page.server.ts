@@ -29,19 +29,17 @@ export const actions: Actions = {
 		const u = locals.usuario;
 		if (!u) throw error(401, 'Não autorizado');
 
+		// Aceite ÚNICO e implícito (v1.3): o próprio envio deliberado do formulário
+		// (clique em "Li e aceito", com o campo `confirmado`) É a manifestação de
+		// vontade. As antigas caixas separadas (termo/LGPD/assinatura/e-mail/GPS)
+		// foram unificadas: o tratamento de dados não depende mais de consentimento
+		// (base legal = obrigação legal/competências, cláusula 3.1 do termo), e a
+		// única exigência de manifestação expressa — a aceitação da assinatura
+		// avançada — está coberta pelo aceite único (cláusula 7).
 		const form = await request.formData();
-		const aceitouTermo = form.get('aceitou_termo') === 'on' || form.get('aceitou_termo') === 'true';
-		const aceitouLgpd = form.get('aceitou_lgpd') === 'on' || form.get('aceitou_lgpd') === 'true';
-		const aceitouAssinatura =
-			form.get('aceitou_assinatura_avancada') === 'on' ||
-			form.get('aceitou_assinatura_avancada') === 'true';
-		const aceitouEmail =
-			form.get('aceitou_uso_email') === 'on' || form.get('aceitou_uso_email') === 'true';
-		const aceitouLocalizacao =
-			form.get('aceitou_uso_localizacao') === 'on' ||
-			form.get('aceitou_uso_localizacao') === 'true';
-		if (!aceitouTermo || !aceitouLgpd || !aceitouAssinatura) {
-			return fail(400, { erro: 'É necessário marcar as três caixas obrigatórias de aceite.' });
+		const confirmado = form.get('confirmado') === 'true' || form.get('confirmado') === 'on';
+		if (!confirmado) {
+			return fail(400, { erro: 'Não foi possível registrar o aceite. Tente novamente.' });
 		}
 
 		const db = getDB(platform);
@@ -54,10 +52,13 @@ export const actions: Actions = {
 			usuario_id: u.id,
 			versao_termo: VERSAO,
 			hash_termo: hash,
-			aceitou_lgpd: aceitouLgpd,
-			aceitou_uso_email: aceitouEmail,
-			aceitou_uso_localizacao: aceitouLocalizacao,
-			aceitou_assinatura_avancada: aceitouAssinatura,
+			// Aceite único: todas as condições do termo vigente ficam cobertas por
+			// esta manifestação. Mantemos os flags históricos em `true` por
+			// compatibilidade com a tabela/relatórios de aceite.
+			aceitou_lgpd: true,
+			aceitou_uso_email: true,
+			aceitou_uso_localizacao: true,
+			aceitou_assinatura_avancada: true,
 			ip,
 			user_agent: ua,
 			// Snapshot do HTML servido. Em juizo, reproduzimos o texto exato
