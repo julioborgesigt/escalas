@@ -207,6 +207,8 @@ O projeto usa **Cloudflare D1** (SQLite serverless) via **Drizzle ORM**. O schem
 | `gise_respostas_formulario` | Respostas de formulários (JSON) por policial/equipe |
 | `gise_assinaturas_relatorios` | Assinaturas de relatórios de extra/produtividade |
 | `aceites_termos` | Histórico de aceite de termos de uso (versão, hash, IP, user-agent) |
+| `audit_log` | Trilha de auditoria forense (eventos de negócio, cadeia de hash tamper-evident) |
+| `app_log` | Logs técnicos do servidor (warn/error do logger, correlacionados por `request_id`) |
 
 ### Comandos de migração
 
@@ -412,6 +414,19 @@ O enquadramento jurídico de cada modalidade (Lei 14.063/2020, MP 2.200-2) está
 ### Validação Pública
 
 A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa pode verificar a autenticidade de um documento assinado informando o hash SHA-256 exibido no PDF.
+
+### Observabilidade e Auditoria
+
+Dois registros complementares, ambos restritos ao **Super Admin**:
+
+| Console | Fonte | Conteúdo |
+|---------|-------|----------|
+| `/auditoria` | `audit_log` ([`src/lib/db/audit.ts`](src/lib/db/audit.ts)) | Trilha forense de eventos de negócio: catálogo de ações, ator × alvo, severidade, cadeia de hash verificável, exportação CSV/PDF |
+| `/auditoria/logs` | `app_log` ([`src/lib/db/app-logs.ts`](src/lib/db/app-logs.ts)) | Logs técnicos: todo `logger.warn`/`logger.error` do servidor, persistido por request após a resposta (`waitUntil`, sem custo no caminho crítico) |
+
+Os dois se correlacionam pelo `request_id` (gerado em `hooks.server.ts` e propagado por AsyncLocalStorage) — que é também o `errorId` exibido ao usuário em erros 5xx e a tag enviada ao Sentry. No detalhe de um evento da auditoria, o Request ID é um link para os logs técnicos daquela mesma request.
+
+O logger estruturado ([`src/lib/logger.ts`](src/lib/logger.ts)) continua emitindo JSON para Cloudflare Logs/Logpush; a persistência em `app_log` é um espelho consultável de dentro do app (níveis `debug`/`info` não são persistidos). Retenção: purga automática junto à limpeza LGPD (`lgpd.retencao.app_log_dias`, default 90 dias).
 
 ---
 

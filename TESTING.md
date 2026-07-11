@@ -326,6 +326,17 @@ Verificar cada transição de status:
 - [ ] Filtrar por usuário, ação ou entidade
 - [ ] Endpoint `/api/admin/audit` retorna dados no formato esperado
 
+### 10.4 Logs técnicos (`/auditoria/logs`)
+
+> Acesso exclusivo do **Super Admin** (mesma política de `/auditoria`). Grava apenas `warn`/`error` do servidor; a persistência acontece após a resposta (waitUntil), então o registro pode levar alguns segundos para aparecer.
+
+- [ ] Botão "Logs técnicos" no cabeçalho de `/auditoria` abre a página
+- [ ] Provocar um aviso (ex.: chamar um webhook com token errado) → registro aparece com nível "Aviso", rota e Request ID
+- [ ] Filtrar por nível, busca livre e período
+- [ ] Filtrar por Request ID (usar o link no detalhe de um evento da auditoria) → mostra os logs daquela request
+- [ ] Expandir um registro → contexto JSON formatado
+- [ ] Usuário não Super Admin acessando `/auditoria/logs` → redirecionado
+
 ---
 
 ## 11. Produtividade (`/produtividade`)

@@ -10,6 +10,7 @@ export const LGPD_RETENCAO_RESET_TOKENS_DIAS = 'lgpd.retencao.reset_tokens_dias'
 export const LGPD_RETENCAO_AUDIT_LOG_ANOS = 'lgpd.retencao.audit_log_anos';
 export const LGPD_RETENCAO_RECOVERY_ATTEMPTS_DIAS = 'lgpd.retencao.recovery_attempts_dias';
 export const LGPD_RETENCAO_WEBHOOK_NONCES_DIAS = 'lgpd.retencao.webhook_nonces_dias';
+export const LGPD_RETENCAO_APP_LOG_DIAS = 'lgpd.retencao.app_log_dias';
 
 /** Provedor de e-mail padrão (o outro assume por fallback quando este falha/extrapola cota). */
 export const EMAIL_PROVEDOR_PADRAO = 'email.provedor_padrao';

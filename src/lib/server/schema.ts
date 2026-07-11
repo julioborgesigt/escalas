@@ -800,6 +800,35 @@ export const auditLog = sqliteTable(
 	]
 );
 
+// ---- Logs técnicos da aplicação (warn/error do logger estruturado) ----
+//
+// Complementa a trilha forense `audit_log` (eventos de negócio) com os sinais
+// operacionais que antes só existiam em Cloudflare Logs/Sentry: cada `logger.warn`
+// / `logger.error` emitido durante uma request é persistido aqui pelo flush em
+// hooks.server.ts, correlacionável com a auditoria via `request_id`.
+export const appLog = sqliteTable(
+	'app_log',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		level: text('level', { enum: ['warn', 'error'] }).notNull(),
+		message: text('message').notNull(),
+		/** JSON com o contexto passado ao logger (truncado — ver request-context.ts). */
+		contexto: text('contexto'),
+		request_id: text('request_id'),
+		/** Id do usuário autenticado na request (texto; null = anônimo/sistema). */
+		usuario_id: text('usuario_id'),
+		rota: text('rota'),
+		created_at: text('created_at')
+			.notNull()
+			.default(sql`(datetime('now'))`)
+	},
+	(table) => [
+		index('idx_applog_created').on(table.created_at),
+		index('idx_applog_level').on(table.level, table.created_at),
+		index('idx_applog_request').on(table.request_id)
+	]
+);
+
 // ---- LGPD: Registro de Incidentes (art. 48) ----
 
 export const lgpdIncidentes = sqliteTable(
@@ -935,5 +964,6 @@ export type GisePresenca = typeof gisePresencas.$inferSelect;
 export type GiseAssinaturaRelatorio = typeof giseAssinaturasRelatorios.$inferSelect;
 export type AceiteTermo = typeof aceitesTermos.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;
+export type AppLog = typeof appLog.$inferSelect;
 export type LgpdIncidente = typeof lgpdIncidentes.$inferSelect;
 export type LgpdSolicitacao = typeof lgpdSolicitacoes.$inferSelect;

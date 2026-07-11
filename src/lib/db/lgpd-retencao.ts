@@ -6,7 +6,8 @@ import {
 	resetSenhaTokens,
 	recoveryAttempts,
 	webhookNonces,
-	auditLog
+	auditLog,
+	appLog
 } from '../server/schema';
 import type { Database } from './core';
 import {
@@ -17,7 +18,8 @@ import {
 	LGPD_RETENCAO_RESET_TOKENS_DIAS,
 	LGPD_RETENCAO_RECOVERY_ATTEMPTS_DIAS,
 	LGPD_RETENCAO_WEBHOOK_NONCES_DIAS,
-	LGPD_RETENCAO_AUDIT_LOG_ANOS
+	LGPD_RETENCAO_AUDIT_LOG_ANOS,
+	LGPD_RETENCAO_APP_LOG_DIAS
 } from './configuracoes';
 
 interface RetencaoConfig {
@@ -29,6 +31,8 @@ interface RetencaoConfig {
 	webhookNoncesDias: number;
 	/** Audit log fica em ANOS — default 5, prazo mínimo de Registros Públicos. */
 	auditLogAnos: number;
+	/** Logs técnicos (`app_log`) — diagnóstico operacional, TTL curto. */
+	appLogDias: number;
 }
 
 interface ResultadoLimpeza {
@@ -39,6 +43,7 @@ interface ResultadoLimpeza {
 	recoveryAttempts: number;
 	webhookNonces: number;
 	auditLog: number;
+	appLog: number;
 }
 
 function cutoffISO(dias: number): string {
@@ -53,7 +58,8 @@ export async function carregarConfigRetencao(db: Database): Promise<RetencaoConf
 		resetDiasStr,
 		recoveryDiasStr,
 		noncesDiasStr,
-		auditAnosStr
+		auditAnosStr,
+		appLogDiasStr
 	] = await Promise.all([
 		buscarConfiguracao(db, LGPD_RETENCAO_SESSOES_DIAS),
 		buscarConfiguracao(db, LGPD_RETENCAO_LOGIN_ATTEMPTS_DIAS),
@@ -61,7 +67,8 @@ export async function carregarConfigRetencao(db: Database): Promise<RetencaoConf
 		buscarConfiguracao(db, LGPD_RETENCAO_RESET_TOKENS_DIAS),
 		buscarConfiguracao(db, LGPD_RETENCAO_RECOVERY_ATTEMPTS_DIAS),
 		buscarConfiguracao(db, LGPD_RETENCAO_WEBHOOK_NONCES_DIAS),
-		buscarConfiguracao(db, LGPD_RETENCAO_AUDIT_LOG_ANOS)
+		buscarConfiguracao(db, LGPD_RETENCAO_AUDIT_LOG_ANOS),
+		buscarConfiguracao(db, LGPD_RETENCAO_APP_LOG_DIAS)
 	]);
 	return {
 		sessoesDias: Number(sessoesDiasStr) || 30,
@@ -75,7 +82,10 @@ export async function carregarConfigRetencao(db: Database): Promise<RetencaoConf
 		// 5 anos é o piso da Lei de Registros Públicos para evidências
 		// administrativas. Pode subir via configuração se a regulação
 		// específica do contratante exigir mais.
-		auditLogAnos: Number(auditAnosStr) || 5
+		auditLogAnos: Number(auditAnosStr) || 5,
+		// Logs técnicos são diagnóstico, não prova: 90 dias cobrem a investigação
+		// de incidentes recentes sem acumular dado pessoal além do necessário.
+		appLogDias: Number(appLogDiasStr) || 90
 	};
 }
 
@@ -94,7 +104,7 @@ export async function executarLimpezaRetencao(
 	config: RetencaoConfig
 ): Promise<ResultadoLimpeza> {
 	const auditLogDias = config.auditLogAnos * 365;
-	const [resSessoes, resLogin, res2FA, resReset, resRecovery, resNonces, resAudit] =
+	const [resSessoes, resLogin, res2FA, resReset, resRecovery, resNonces, resAudit, resAppLog] =
 		await Promise.all([
 			db.delete(sessoes).where(lt(sessoes.expires_at, cutoffISO(config.sessoesDias))),
 			db
@@ -112,7 +122,8 @@ export async function executarLimpezaRetencao(
 			db
 				.delete(webhookNonces)
 				.where(lt(webhookNonces.received_at, cutoffISO(config.webhookNoncesDias))),
-			db.delete(auditLog).where(lt(auditLog.created_at, cutoffISO(auditLogDias)))
+			db.delete(auditLog).where(lt(auditLog.created_at, cutoffISO(auditLogDias))),
+			db.delete(appLog).where(lt(appLog.created_at, cutoffISO(config.appLogDias)))
 		]);
 
 	return {
@@ -122,7 +133,8 @@ export async function executarLimpezaRetencao(
 		resetTokens: resReset.rowsAffected ?? 0,
 		recoveryAttempts: resRecovery.rowsAffected ?? 0,
 		webhookNonces: resNonces.rowsAffected ?? 0,
-		auditLog: resAudit.rowsAffected ?? 0
+		auditLog: resAudit.rowsAffected ?? 0,
+		appLog: resAppLog.rowsAffected ?? 0
 	};
 }
 

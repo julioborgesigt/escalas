@@ -164,6 +164,12 @@
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+			<a
+				href="/auditoria/logs"
+				class="btn preset-outlined-surface-500 text-sm flex-1 sm:flex-none justify-center"
+			>
+				Logs técnicos
+			</a>
 			<button
 				type="button"
 				onclick={() => baixar('csv')}
@@ -455,7 +461,19 @@
 												<dt class="font-medium">Rota</dt>
 												<dd>{log.metodo ?? ''} {log.rota ?? '—'}</dd>
 												<dt class="font-medium">Request ID</dt>
-												<dd class="font-mono">{log.request_id ?? '—'}</dd>
+												<dd class="font-mono">
+													{#if log.request_id}
+														<a
+															href="/auditoria/logs?request_id={encodeURIComponent(log.request_id)}"
+															class="text-primary-600 dark:text-primary-400 hover:underline"
+															title="Ver logs técnicos desta request"
+														>
+															{log.request_id}
+														</a>
+													{:else}
+														—
+													{/if}
+												</dd>
 												<dt class="font-medium">Seq / Hash</dt>
 												<dd class="font-mono break-all">
 													{log.seq ?? '—'} · {log.hash_registro?.slice(0, 18) ?? '—'}…
@@ -638,7 +656,16 @@
 
 										<dt class="font-semibold text-surface-400">Request ID</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
-											{log.request_id ?? '—'}
+											{#if log.request_id}
+												<a
+													href="/auditoria/logs?request_id={encodeURIComponent(log.request_id)}"
+													class="text-primary-600 dark:text-primary-400 hover:underline"
+												>
+													{log.request_id}
+												</a>
+											{:else}
+												—
+											{/if}
 										</dd>
 
 										<dt class="font-semibold text-surface-400">Seq / Hash</dt>

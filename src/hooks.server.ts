@@ -12,7 +12,8 @@ import {
 } from '$lib/server/session-cache';
 import { VERSAO as TERMO_VERSAO, calcularHashTermo } from '$lib/server/termo/termo-vigente';
 import { logger } from '$lib/server/logger';
-import { requestStore, getRequestCtx } from '$lib/server/request-context';
+import { requestStore, getRequestCtx, type RequestCtx } from '$lib/server/request-context';
+import { registrarAppLogs } from '$lib/db/app-logs';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, generateCsrfToken } from '$lib/server/csrf';
 import { buildCSP } from '$lib/server/csp';
 import { withSentryRequest } from '$lib/server/sentry';
@@ -296,12 +297,56 @@ const handleSentry: Handle = async ({ event, resolve }) => {
 	return withSentryRequest(event.platform, event.request, () => resolve(event));
 };
 
+/**
+ * Persiste em `app_log` os warn/error acumulados no buffer da request (ver
+ * request-context.ts). Roda DEPOIS da resposta, via `waitUntil` — custo zero no
+ * caminho crítico — e nunca lança: perder um log técnico não pode derrubar nada.
+ */
+function flushAppLogs(event: Parameters<Handle>[0]['event'], ctx: RequestCtx): void {
+	if (ctx.logsPendentes.length === 0) return;
+	// Sem D1 (ex.: vite dev sem wrangler) os logs seguem existindo só no console.
+	if (!event.platform?.env?.escalas_db) return;
+
+	const gravar = async () => {
+		try {
+			await registrarAppLogs(
+				getDB(event.platform),
+				ctx.logsPendentes.map((l) => ({
+					...l,
+					request_id: ctx.requestId,
+					usuario_id: ctx.userId === 'anon' ? null : ctx.userId,
+					rota: ctx.path
+				}))
+			);
+		} catch (err) {
+			// console direto (não `logger`): o buffer desta request já foi drenado e
+			// um erro aqui realimentaria a própria persistência que falhou.
+			console.error('[app-log] falha ao persistir logs técnicos', err);
+		}
+	};
+
+	const execCtx = event.platform.ctx;
+	if (execCtx?.waitUntil) execCtx.waitUntil(gravar());
+	else void gravar();
+}
+
 /** 0. Request Context: injeta requestId no AsyncLocalStorage para correlação de logs */
 const handleRequestContext: Handle = async ({ event, resolve }) => {
 	const requestId = crypto.randomUUID().slice(0, 8);
 	event.locals.requestId = requestId;
-	const ctx = { requestId, path: event.url.pathname, userId: 'anon' };
-	return requestStore.run(ctx, () => resolve(event));
+	const ctx: RequestCtx = {
+		requestId,
+		path: event.url.pathname,
+		userId: 'anon',
+		logsPendentes: []
+	};
+	try {
+		return await requestStore.run(ctx, () => resolve(event));
+	} finally {
+		// `finally`: redirects/erros dos handles internos viajam como exceção por
+		// este `await` — o flush precisa acontecer mesmo nesses caminhos.
+		flushAppLogs(event, ctx);
+	}
 };
 
 /** Main Export with sequence middleware */
