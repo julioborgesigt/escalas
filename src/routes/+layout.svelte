@@ -67,9 +67,12 @@
 	);
 	const showGrupo2Separator = $derived(usuario?.tipo === 'admin' && showGrupo1 && showGrupo2);
 
-	const showSidebar = $derived(
-		page.url.pathname !== '/login' && page.url.pathname !== '/alterar-senha'
-	);
+	// Telas de "portão" (pré-entrada no sistema) são exibidas isoladas, sem a
+	// navegação lateral: login, troca de senha obrigatória e aceite do termo.
+	// O /aceitar-termo é autenticado (tem `usuario`), então precisa ser listado
+	// aqui explicitamente — senão a sidebar apareceria atrás do card de aceite.
+	const ROTAS_SEM_SIDEBAR = ['/login', '/alterar-senha', '/aceitar-termo'];
+	const showSidebar = $derived(!ROTAS_SEM_SIDEBAR.includes(page.url.pathname));
 
 	let sidebarOpen = $state(false);
 	let isDark = $state(
@@ -254,7 +257,7 @@
 <div
 	class="nav-progress-wrap"
 	class:nav-progress-visible={navigating?.to &&
-		!['/login', '/alterar-senha'].includes(navigating.to.url.pathname)}
+		!ROTAS_SEM_SIDEBAR.includes(navigating.to.url.pathname)}
 	aria-hidden="true"
 >
 	<div class="nav-progress-bar"></div>

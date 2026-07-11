@@ -56,7 +56,7 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <p><strong>3.1.</strong> O tratamento de dados pelo Sistema tem por base o <strong>cumprimento de obrigação legal e o exercício regular de competências da PCCE</strong> (art. 7º, II e III, e art. 23 da Lei nº 13.709/2018 — LGPD), e não depende de consentimento, por se tratar de atividade funcional obrigatória.</p>
 <p><strong>3.2.</strong> Para gerir as escalas e comprovar as assinaturas, o Sistema trata: nome, matrícula e CPF; e-mail (funcional e, se informado, pessoal, usado apenas para acesso e recuperação de senha); endereço IP; dispositivo/navegador; rubrica e, quando exigidas, fotografia com prova de vida e geolocalização; além dos dados técnicos da assinatura (hash SHA-256, estrutura criptográfica, data/hora e carimbo de tempo).</p>
 <p><strong>3.3.</strong> A finalidade é exclusivamente administrativa e de auditoria. Os dados são retidos pelo prazo mínimo de 5 (cinco) anos a contar da assinatura (Decreto nº 10.278/2020 e art. 16 da LGPD) e não são compartilhados com terceiros nem usados para fins comerciais.</p>
-<p><strong>3.4.</strong> O Usuário pode exercer os direitos do art. 18 da LGPD junto ao <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>lgpd@pc.ce.gov.br</strong>. Detalhes em <a href="/termo/dpo">/termo/dpo</a>.</p>
+<p><strong>3.4.</strong> O Usuário pode exercer os direitos do art. 18 da LGPD junto ao <strong>Encarregado de Dados (DPO)</strong> da PCCE pelo e-mail <strong>dpis@pc.ce.gov.br</strong>. Detalhes em <a href="/termo/dpo">/termo/dpo</a>.</p>
 
 <h3>4. Deveres do Usuário</h3>
 <ul>
@@ -68,9 +68,8 @@ Versão ${VERSAO} — vigente desde ${VIGENTE_DESDE}</p>
 <h3>5. Acesso por órgãos de controle</h3>
 <p><strong>5.1.</strong> Os registros e dados de auditoria (IP, geolocalização, dispositivo, data/hora e hash) podem ser acessados, mediante requisição formal, pela Corregedoria-Geral da PCCE e pelos órgãos de controle interno e externo (Ministério Público, Poder Judiciário e Tribunal de Contas do Estado do Ceará), nos termos da lei.</p>
 
-<h3>6. Atualizações e foro</h3>
+<h3>6. Atualizações deste termo</h3>
 <p><strong>6.1.</strong> Este termo pode ser atualizado por alteração legal, técnica ou operacional; a nova versão exigirá novo aceite no próximo acesso. A versão vigente fica sempre acessível em <code>/termo/${VERSAO}</code> e as anteriores são preservadas para auditoria.</p>
-<p><strong>6.2.</strong> Fica eleito o foro da Comarca de Fortaleza/CE para dirimir questões oriundas deste termo.</p>
 
 <h3>7. Aceite</h3>
 <p>Ao clicar em <strong>“Li e aceito”</strong>, o Usuário declara ciência e concordância com este termo e <strong>aceita expressamente a assinatura eletrônica avançada do Sistema como equivalente à sua assinatura manuscrita</strong>, nos termos da cláusula 2.3. O aceite registra a data/hora, o endereço IP e o dispositivo utilizados.</p>
