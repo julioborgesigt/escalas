@@ -41,6 +41,9 @@ export type {
 	ResumoAuditoria
 } from './db/audit';
 
+export { registrarAppLogs, listarAppLogs, resumoAppLogs } from './db/app-logs';
+export type { NovoAppLog, AppLogLevel, ListarAppLogsOpts, ResumoAppLogs } from './db/app-logs';
+
 export { registrarAceite } from './db/termos';
 
 export {
@@ -79,10 +82,7 @@ export {
 	listarSolicitacoesCadastroPendentes,
 	decidirSolicitacaoCadastro
 } from './db/cadastro-solicitacoes';
-export type {
-	CampoSolicitacao,
-	SolicitacaoPendenteComPolicial
-} from './db/cadastro-solicitacoes';
+export type { CampoSolicitacao, SolicitacaoPendenteComPolicial } from './db/cadastro-solicitacoes';
 
 export {
 	listarUnidades,
