@@ -426,7 +426,7 @@
 							</button>
 						</div>
 						<div
-							class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+							class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 						>
 							{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
 						</div>
@@ -525,7 +525,9 @@
 
 					{#if fdsTituloAuto}
 						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-[0.6rem] text-surface-400 mb-0.5">Título gerado</p>
+							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 mb-0.5">
+								Título gerado
+							</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{fdsTituloAuto}
 							</p>
@@ -637,7 +639,9 @@
 
 					{#if titulo}
 						<div class="rounded-lg bg-surface-100 dark:bg-surface-800/50 px-3 py-2">
-							<p class="text-[0.6rem] text-surface-400 mb-0.5">Título gerado</p>
+							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 mb-0.5">
+								Título gerado
+							</p>
 							<p class="text-xs text-surface-700 dark:text-surface-200 font-medium leading-snug">
 								{titulo}
 							</p>

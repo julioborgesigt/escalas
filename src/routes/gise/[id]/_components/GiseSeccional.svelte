@@ -963,7 +963,9 @@
 								{/if}
 							</div>
 						{:else}
-							<span class="text-sm text-surface-400 italic">Unidade não definida</span>
+							<span class="text-sm text-surface-500 dark:text-surface-400 italic"
+								>Unidade não definida</span
+							>
 						{/if}
 					</div>
 
@@ -1157,7 +1159,7 @@
 										{:else}
 											<div class="flex flex-wrap items-center gap-2 min-w-0">
 												<div
-													class="flex flex-wrap items-center gap-1.5 text-sm text-surface-400 font-medium min-w-0"
+													class="flex flex-wrap items-center gap-1.5 text-sm text-surface-500 dark:text-surface-400 font-medium min-w-0"
 												>
 													<span
 														>{equipe.hora_entrada ??
@@ -1265,7 +1267,9 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-sm text-surface-400 italic mb-3">Nenhum membro alocado</p>
+									<p class="text-sm text-surface-500 dark:text-surface-400 italic mb-3">
+										Nenhum membro alocado
+									</p>
 								{/if}
 
 								<!-- Adicionar membro -->

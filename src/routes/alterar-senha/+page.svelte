@@ -249,7 +249,7 @@
 						</div>
 						<button
 							type="button"
-							class="text-xs text-surface-400 hover:text-surface-600 underline underline-offset-2"
+							class="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 underline underline-offset-2"
 							onclick={() => {
 								etapaEmailPessoal = 'idle';
 								codigoEmailPessoal = '';
@@ -264,7 +264,7 @@
 					{/if}
 
 					{#if etapaEmailPessoal !== 'verificado'}
-						<p class="text-[0.65rem] text-surface-400 italic">
+						<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 italic">
 							A alteração da senha ficará disponível após a confirmação do e-mail pessoal.
 						</p>
 					{/if}

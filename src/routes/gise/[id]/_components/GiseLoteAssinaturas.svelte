@@ -16,8 +16,7 @@
 		podeAssinar?: boolean;
 		// Novas props para exibir assinaturas concluídas
 		assinaturasRelatorios?:
-			| { tipo: string; seccional_id: number; assinante_nome?: string }[]
-			| null;
+			{ tipo: string; seccional_id: number; assinante_nome?: string }[] | null;
 		seccionais?:
 			| {
 					seccional_id?: number;
@@ -273,7 +272,7 @@
 										style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
 									></div>
 								</div>
-								<p class="text-[0.6rem] text-surface-400 text-center">
+								<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 text-center">
 									{progressoLote.atual} de {progressoLote.total}
 								</p>
 							</div>
@@ -330,7 +329,7 @@
 					{#if concluidosExtra.length > 0}
 						<div class="mt-1 pt-2.5 border-t border-surface-200/50 dark:border-surface-700/50">
 							<p
-								class="text-[0.55rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
+								class="text-[0.6rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
 							>
 								Relatórios Assinados
 							</p>
@@ -461,7 +460,7 @@
 									style="width: {(progressoLote.atual / progressoLote.total) * 100}%"
 								></div>
 							</div>
-							<p class="text-[0.6rem] text-surface-400 text-center">
+							<p class="text-[0.6rem] text-surface-500 dark:text-surface-400 text-center">
 								{progressoLote.atual} de {progressoLote.total}
 							</p>
 						</div>
@@ -471,7 +470,7 @@
 					{#if concluidosExtra.length > 0}
 						<div class="mt-2 pt-2 border-t border-surface-200/40 dark:border-surface-800/80">
 							<p
-								class="text-[0.55rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
+								class="text-[0.6rem] font-bold uppercase tracking-widest text-surface-400 dark:text-surface-500 mb-1.5 px-0.5"
 							>
 								Relatórios Assinados
 							</p>

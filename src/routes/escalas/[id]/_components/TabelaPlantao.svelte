@@ -137,7 +137,7 @@
 					<span class="font-bold text-sm text-surface-800 dark:text-surface-100 uppercase">
 						{equipe ? `EQUIPE ${equipe}` : 'SEM EQUIPE'}
 					</span>
-					<span class="text-xs text-surface-400"
+					<span class="text-xs text-surface-500 dark:text-surface-400"
 						>{items.length} servidor{items.length !== 1 ? 'es' : ''}</span
 					>
 				</div>
@@ -233,7 +233,9 @@
 									</td>
 									<td class="!py-4 align-middle italic text-surface-500">
 										{p.observacoes}
-										<div class="text-[0.65rem] not-italic text-surface-400 mt-1 font-mono">
+										<div
+											class="text-[0.65rem] not-italic text-surface-500 dark:text-surface-400 mt-1 font-mono"
+										>
 											{p.hora_entrada} - {p.hora_saida}
 										</div>
 									</td>

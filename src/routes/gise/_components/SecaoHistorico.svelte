@@ -572,7 +572,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-[0.6rem] font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Produtividade por seccional
 												</p>
@@ -628,7 +628,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-[0.6rem] font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Extra por seccional
 												</p>

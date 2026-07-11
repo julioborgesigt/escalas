@@ -297,14 +297,14 @@
 						<div class="flex gap-1.5">
 							{#if dpcs > 0}
 								<span
-									class="badge text-[0.55rem] font-bold px-1.5 py-0.5 bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/20 rounded"
+									class="badge text-[0.6rem] font-bold px-1.5 py-0.5 bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/20 rounded"
 								>
 									{dpcs} DPC
 								</span>
 							{/if}
 							{#if oips > 0}
 								<span
-									class="badge text-[0.55rem] font-bold px-1.5 py-0.5 bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/20 rounded"
+									class="badge text-[0.6rem] font-bold px-1.5 py-0.5 bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/20 rounded"
 								>
 									{oips} OIP
 								</span>
@@ -358,7 +358,7 @@
 								>
 									<input type="hidden" name="item_id" value={edicao.editingId} />
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Início</span>
+										<span class="label-text text-[0.6rem] block mb-0.5">Início</span>
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
@@ -366,7 +366,7 @@
 										/>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Saída</span>
+										<span class="label-text text-[0.6rem] block mb-0.5">Saída</span>
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
@@ -374,7 +374,7 @@
 										/>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Entrada</span>
+										<span class="label-text text-[0.6rem] block mb-0.5">Entrada</span>
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
@@ -391,7 +391,7 @@
 										</div>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Saída hr</span>
+										<span class="label-text text-[0.6rem] block mb-0.5">Saída hr</span>
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
@@ -475,7 +475,7 @@
 											{p.nome}
 										</span>
 										<span
-											class="badge px-1.5 py-0.5 rounded text-[0.55rem] font-bold uppercase shrink-0
+											class="badge px-1.5 py-0.5 rounded text-[0.6rem] font-bold uppercase shrink-0
 											{p.cargo === 'DPC'
 												? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 												: 'bg-warning-500/15 text-warning-700 dark:text-warning-400 border border-warning-500/20'}"

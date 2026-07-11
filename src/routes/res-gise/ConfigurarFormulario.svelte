@@ -135,17 +135,17 @@
 						<div class="flex items-center justify-between pl-1 gap-2 flex-wrap mb-1">
 							<label
 								for="qtxt-{p.id}"
-								class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+								class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 								>Texto da Pergunta</label
 							>
 							{#if p.key?.startsWith('extra_')}
 								<span
-									class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase whitespace-nowrap"
+									class="badge preset-filled-secondary-500 text-[0.6rem] font-black uppercase whitespace-nowrap"
 									>CAMPO ADICIONAL</span
 								>
 							{:else}
 								<span
-									class="bg-surface-100 dark:bg-surface-800 text-[0.5rem] font-black px-2 py-0.5 rounded-full text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
+									class="bg-surface-100 dark:bg-surface-800 text-[0.6rem] font-black px-2 py-0.5 rounded-full text-surface-500 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
 									>Campo Sistema</span
 								>
 							{/if}
@@ -161,7 +161,7 @@
 					<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
 						<label
 							for="p-tp-{p.id}"
-							class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
+							class="text-[0.65rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 							>Tipo do Campo</label
 						>
 						<select
@@ -258,7 +258,8 @@
 								<div class="space-y-1">
 									<label
 										for="subqtd-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase">Quantidade:</label
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase"
+										>Quantidade:</label
 									>
 									<input
 										id="subqtd-{p.id}"
@@ -271,7 +272,7 @@
 								<div class="space-y-1 md:col-span-2">
 									<label
 										for="sublst-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-wider"
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-wider"
 										>Legenda Lista (ex: 5.2)</label
 									>
 									<input
@@ -286,7 +287,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -300,7 +301,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Detalhamento Pesos:</label
 									>
 									<input
@@ -315,7 +316,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -329,7 +330,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Legenda Quantidade:</label
 									>
 									<input

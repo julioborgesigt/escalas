@@ -118,7 +118,7 @@
 
 			<div class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[50vh]">
 				{#if items.length === 0}
-					<div class="text-center py-6 text-sm text-surface-400">
+					<div class="text-center py-6 text-sm text-surface-500 dark:text-surface-400">
 						Nenhum relatório de extra configurado para esta escala.
 					</div>
 				{:else}

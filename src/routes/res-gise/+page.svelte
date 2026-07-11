@@ -166,7 +166,8 @@
 								class="space-y-2 pt-3 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
 							>
 								<div class="flex items-center justify-between">
-									<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+									<span
+										class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 										>Busca Detalhada</span
 									>
 									{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
@@ -460,7 +461,7 @@
 					/>
 				{/if}
 
-				<p class="text-sm text-surface-400 text-center italic">
+				<p class="text-sm text-surface-500 dark:text-surface-400 text-center italic">
 					Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca ===
 					'entrada'
 						? 'entrada'

@@ -116,12 +116,10 @@
 
 	// Parse respostas UMA VEZ — evita JSON.parse duplicado em stats, rankings e charts
 	const parsedData = $derived(
-		filteredData.map(
-			(item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
-				...item,
-				respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
-			})
-		)
+		filteredData.map((item: ProdutividadeListaItem): ProdutividadeParsedRow => ({
+			...item,
+			respostasParsed: JSON.parse(item.respostas || '{}') as Record<string, unknown>
+		}))
 	);
 
 	// Stats via utilitário
@@ -354,7 +352,9 @@
 						>#{idx + 1}</span
 					>
 					<div class="flex-1">
-						<p class="text-[0.6rem] font-black uppercase text-surface-400 leading-none mb-1">
+						<p
+							class="text-[0.6rem] font-black uppercase text-surface-500 dark:text-surface-400 leading-none mb-1"
+						>
 							Seccional
 						</p>
 						<p class="text-xs font-bold leading-tight line-clamp-1">
@@ -367,7 +367,7 @@
 								class="text-[0.6rem] ml-0.5 opacity-50">{labelUnit}</span
 							>
 						</p>
-						<p class="text-[0.5rem] font-bold uppercase opacity-50">Produção</p>
+						<p class="text-[0.6rem] font-bold uppercase opacity-50">Produção</p>
 					</div>
 				</div>
 			{/each}
@@ -464,7 +464,9 @@
 					</div>
 				</div>
 			{:else}
-				<p class="text-center text-xs text-surface-400 italic py-8">Sem registros no período.</p>
+				<p class="text-center text-xs text-surface-500 dark:text-surface-400 italic py-8">
+					Sem registros no período.
+				</p>
 			{/each}
 		</div>
 	</div>
@@ -687,7 +689,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-ini"
-											class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>De</label
 										>
 										<input
@@ -701,7 +703,7 @@
 									<div class="space-y-0.5 flex-1 lg:flex-initial">
 										<label
 											for="f-fim"
-											class="text-[0.55rem] font-black text-surface-400 uppercase tracking-widest block pl-0.5"
+											class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block pl-0.5"
 											>Até</label
 										>
 										<input
@@ -844,7 +846,9 @@
 					{/if}
 				</button>
 				<div class="md:w-1/6 flex flex-col justify-center">
-					<p class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest mb-1">
+					<p
+						class="text-[0.6rem] font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-1"
+					>
 						{q.label}
 					</p>
 					<h3 class="text-5xl font-black" style="color: {q.color}">
@@ -862,7 +866,7 @@
 					</h3>
 					<div class="mt-4 flex gap-2">
 						<span
-							class="text-[0.5rem] font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
+							class="text-[0.6rem] font-bold px-2 py-1 rounded uppercase bg-surface-100 dark:bg-surface-800 text-surface-500"
 						>
 							{filterSeccional ? 'Tendência' : 'Comparação Seccional'}
 						</span>

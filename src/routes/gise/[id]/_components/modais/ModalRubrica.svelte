@@ -70,7 +70,7 @@
 				/>
 			{/if}
 
-			<p class="text-sm text-surface-400 text-center italic">
+			<p class="text-sm text-surface-500 dark:text-surface-400 text-center italic">
 				Esta rubrica será anexada permanentemente ao documento PDF desta escala.
 			</p>
 		</div>

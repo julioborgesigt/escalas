@@ -128,7 +128,7 @@
 						<span class="text-success-600 font-black">✓</span>
 						{r.descricao}
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
@@ -147,7 +147,7 @@
 						<span class="text-primary-600 font-black">🔒</span>
 						{r.descricao}
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
@@ -170,7 +170,7 @@
 							valor {r.valorProbatorio}
 						</span>
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.notas}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.notas}</span>
 					</li>
 				{/each}
 			</ul>
@@ -195,7 +195,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar exigência de foto na assinatura"
 				aria-checked={exigirFoto}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{exigirFoto ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (exigirFoto = !exigirFoto)}
 			>
@@ -222,7 +222,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar exigência de GPS na assinatura"
 				aria-checked={exigirGps}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{exigirGps ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (exigirGps = !exigirGps)}
 			>
@@ -241,7 +241,7 @@
 				<p class="font-semibold text-sm mb-0.5 flex items-center gap-1.5">
 					Exigir código via E-mail
 					<span
-						class="text-[8px] uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
+						class="text-[0.6rem] uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
 						title="Requisito legal — Lei 14.063/2020 art. 4º II"
 					>
 						🔒 Obrigatório
@@ -294,7 +294,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar restrição de smartphone"
 				aria-checked={restringirSmartphone}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{restringirSmartphone ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (restringirSmartphone = !restringirSmartphone)}
 			>
@@ -319,7 +319,7 @@
 							>{reforcoNivel} ({reforcoScore}/3)</span
 						>
 					</div>
-					<span class="text-[10px] text-surface-400 italic">
+					<span class="text-[10px] text-surface-500 dark:text-surface-400 italic">
 						Não alteram a classificação legal (sempre AVANÇADA), apenas o valor probatório em juízo.
 					</span>
 				</div>

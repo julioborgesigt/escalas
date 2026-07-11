@@ -159,7 +159,7 @@
 					Entendi — cadastrar rubrica
 				</button>
 			{/if}
-			<p class="text-[0.65rem] text-surface-400 italic leading-snug">
+			<p class="text-[0.65rem] text-surface-500 dark:text-surface-400 italic leading-snug">
 				Pelo celular, a confirmação continua disponível com foto (prova de vida) e GPS.
 			</p>
 		</div>

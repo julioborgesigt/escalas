@@ -57,7 +57,7 @@
 			<div class="space-y-2">
 				<label
 					for="hash"
-					class="block text-[10px] font-bold text-surface-400 uppercase tracking-widest ml-1"
+					class="block text-[10px] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest ml-1"
 					>Código de Verificação (Hash)</label
 				>
 				<div class="relative group">
@@ -101,7 +101,9 @@
 
 		<!-- Info / Helper -->
 		<div class="mt-12 pt-8 border-t border-surface-100 dark:border-white/5 text-center">
-			<div class="flex items-center justify-center gap-2 text-surface-400 text-[11px] mb-4">
+			<div
+				class="flex items-center justify-center gap-2 text-surface-500 dark:text-surface-400 text-[11px] mb-4"
+			>
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
 						stroke-linecap="round"
@@ -112,7 +114,9 @@
 				</svg>
 				<span>Onde encontrar o código?</span>
 			</div>
-			<p class="text-[10px] text-surface-400 leading-relaxed max-w-[320px] mx-auto italic">
+			<p
+				class="text-[10px] text-surface-500 dark:text-surface-400 leading-relaxed max-w-[320px] mx-auto italic"
+			>
 				O código alfanumérico está localizado no rodapé do documento impresso, logo abaixo do QR
 				Code de validação.
 			</p>

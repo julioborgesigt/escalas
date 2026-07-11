@@ -95,7 +95,7 @@
 							? 'Expediente do Mês'
 							: `${diaSemanaLabel(dataGrupo)}, ${formatarData(dataGrupo)}`}
 					</span>
-					<span class="text-xs text-surface-400"
+					<span class="text-xs text-surface-500 dark:text-surface-400"
 						>{items.length} servidor{items.length !== 1 ? 'es' : ''}</span
 					>
 				</div>

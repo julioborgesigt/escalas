@@ -335,7 +335,9 @@
 								>
 									Rubrica na Tela
 								</p>
-								<p class="text-[10px] text-surface-400 mt-0.5">Ideal para tablets e smartphones</p>
+								<p class="text-[10px] text-surface-500 dark:text-surface-400 mt-0.5">
+									Ideal para tablets e smartphones
+								</p>
 							</div>
 						</div>
 						{#if isMobile}
@@ -346,7 +348,8 @@
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
 						{:else}
-							<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0"
+							<span
+								class="text-[10px] font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
 								>Mobile only</span
 							>
 						{/if}
@@ -378,7 +381,9 @@
 										class="text-[9px] font-black text-tertiary-500 uppercase">ICP-Brasil</span
 									>
 								</p>
-								<p class="text-[10px] text-surface-400 mt-0.5">Via Assinador SERPRO (desktop)</p>
+								<p class="text-[10px] text-surface-500 dark:text-surface-400 mt-0.5">
+									Via Assinador SERPRO (desktop)
+								</p>
 							</div>
 						</div>
 						{#if !isMobile}
@@ -396,7 +401,8 @@
 								}}>Assinar</button
 							>
 						{:else}
-							<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0"
+							<span
+								class="text-[10px] font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
 								>Desktop only</span
 							>
 						{/if}
@@ -503,7 +509,8 @@
 
 	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
 	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
-		<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
+		<span
+			class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-2 block"
 			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
 		>
 		<div class="flex gap-2 flex-wrap">

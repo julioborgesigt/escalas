@@ -231,7 +231,8 @@
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
 				<div class="flex flex-col">
-					<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter"
+					<span
+						class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 						>NOME</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200 uppercase truncate"
@@ -239,7 +240,8 @@
 					>
 				</div>
 				<div class="flex flex-col">
-					<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter"
+					<span
+						class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 						>CPF</span
 					>
 					<span class="font-bold text-sm text-surface-700 dark:text-surface-200">
@@ -250,7 +252,8 @@
 				</div>
 				{#if signerEmail}
 					<div class="flex flex-col sm:col-span-2 mt-1">
-						<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-tighter"
+						<span
+							class="text-[0.6rem] font-bold text-surface-500 dark:text-surface-400 uppercase tracking-tighter"
 							>E-MAIL INSTITUCIONAL</span
 						>
 						<span class="font-bold text-xs text-surface-600 dark:text-surface-400"
@@ -322,7 +325,7 @@
 	</p>
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl mt-2">
-		<p class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center">
+		<p class="text-[0.6rem] font-medium text-surface-500 leading-tight text-center">
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro da minha
 			<strong>localização geográfica</strong> e <strong>metadados técnicos</strong> para fins de validade
 			jurídica desta assinatura (Lei 14.063/20).

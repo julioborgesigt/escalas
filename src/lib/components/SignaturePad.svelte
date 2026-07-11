@@ -694,17 +694,16 @@
 					>
 						{#if capturingLocation}
 							<span class="w-2 h-2 rounded-full bg-warning-500 animate-pulse"></span>
-							<span class="text-[0.55rem] font-black uppercase text-warning-600"
+							<span class="text-[0.6rem] font-black uppercase text-warning-600"
 								>Capturando GPS...</span
 							>
 						{:else if coords}
 							<span class="w-2 h-2 rounded-full bg-success-500"></span>
-							<span class="text-[0.55rem] font-black uppercase text-success-600"
-								>GPS Localizado</span
+							<span class="text-[0.6rem] font-black uppercase text-success-600">GPS Localizado</span
 							>
 						{:else}
 							<span class="w-2 h-2 rounded-full bg-error-500"></span>
-							<span class="text-[0.55rem] font-black uppercase text-error-600">GPS Falhou</span>
+							<span class="text-[0.6rem] font-black uppercase text-error-600">GPS Falhou</span>
 						{/if}
 					</div>
 				{/if}
@@ -767,7 +766,7 @@
 									<button
 										type="button"
 										onclick={trocarChallenge}
-										class="text-[0.55rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+										class="text-[0.6rem] uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
 									>
 										Trocar
 									</button>
@@ -929,7 +928,7 @@
 	{/if}
 
 	<div class="p-3 bg-primary-500/5 border border-dashed border-primary-500/20 rounded-xl">
-		<p class="text-[0.55rem] font-medium text-surface-500 leading-tight text-center">
+		<p class="text-[0.6rem] font-medium text-surface-500 leading-tight text-center">
 			Ao assinar, declaro a veracidade destas informações e autorizo o registro de minha <strong
 				>localização geográfica</strong
 			>,

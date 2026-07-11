@@ -539,7 +539,7 @@
 			{#if tipo === 'policial'}
 				<div class="flex items-center gap-3 my-4">
 					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-					<span class="text-xs text-surface-400 shrink-0">ou</span>
+					<span class="text-xs text-surface-500 dark:text-surface-400 shrink-0">ou</span>
 					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
 				</div>
 				<button

@@ -397,7 +397,8 @@
 					</h2>
 					<div class="grid grid-cols-1 gap-3 sm:gap-6">
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400"
+							<span
+								class="block text-[10px] uppercase font-bold text-surface-500 dark:text-surface-400"
 								>Título / Tipo</span
 							>
 							<span
@@ -406,7 +407,8 @@
 							>
 						</div>
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400"
+							<span
+								class="block text-[10px] uppercase font-bold text-surface-500 dark:text-surface-400"
 								>Unidade / Cidade</span
 							>
 							<span
@@ -415,7 +417,10 @@
 							>
 						</div>
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400">Período</span>
+							<span
+								class="block text-[10px] uppercase font-bold text-surface-500 dark:text-surface-400"
+								>Período</span
+							>
 							<span class="text-base sm:text-lg font-bold text-surface-800 dark:text-white">
 								{formatarData(data.escala.data_inicio)} a {formatarData(data.escala.data_fim ?? '')}
 							</span>
@@ -452,7 +457,8 @@
 								</svg>
 							</div>
 							<div class="min-w-0">
-								<span class="block text-[10px] uppercase font-bold text-surface-400"
+								<span
+									class="block text-[10px] uppercase font-bold text-surface-500 dark:text-surface-400"
 									>Assinado Digitalmente por</span
 								>
 								<span
@@ -497,7 +503,7 @@
 								<strong class="text-surface-900 dark:text-white">{data.equipeResumo.total}</strong>
 								integrantes confirmaram presença.
 							</p>
-							<p class="text-[10px] text-surface-400 mt-1.5">
+							<p class="text-[10px] text-surface-500 dark:text-surface-400 mt-1.5">
 								Nomes e horários individuais são restritos e não exibidos na validação pública.
 							</p>
 						</div>
@@ -636,10 +642,14 @@
 			<footer
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
-				<p class="text-[10px] text-surface-400 uppercase font-black tracking-widest">
+				<p
+					class="text-[10px] text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
-				<p class="text-[9px] text-surface-400 mt-2 max-w-md mx-auto leading-relaxed">
+				<p
+					class="text-[9px] text-surface-500 dark:text-surface-400 mt-2 max-w-md mx-auto leading-relaxed"
+				>
 					Esta conferência confirma que o arquivo digital carregado corresponde integralmente ao
 					teor da escala gerenciada pelo sistema oficial em {formatarDataHora(
 						data.documento.created_at
@@ -732,7 +742,9 @@
 			<footer
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
-				<p class="text-[10px] text-surface-400 uppercase font-black tracking-widest">
+				<p
+					class="text-[10px] text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
 			</footer>

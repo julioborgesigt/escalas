@@ -218,7 +218,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEM_CAL as ds (ds)}<span>{ds}</span>{/each}
 				</div>
@@ -317,7 +317,9 @@
 						/>
 					</div>
 				</div>
-				<p class="text-[0.6rem] text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
+				<p class="text-[0.6rem] text-surface-500 dark:text-surface-400">
+					Formato: HH:MM · ex: 08:00 · 14:30
+				</p>
 			</div>
 
 			<div class="flex justify-end gap-2 pt-1">

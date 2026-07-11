@@ -150,7 +150,7 @@
 								autocomplete="current-password"
 								maxlength="128"
 							/>
-							<span class="text-[0.68rem] text-surface-400 mt-1 block">
+							<span class="text-[0.68rem] text-surface-500 dark:text-surface-400 mt-1 block">
 								Por segurança, a troca do canal de recuperação exige sua senha. Um aviso será
 								enviado ao seu e-mail funcional.
 							</span>

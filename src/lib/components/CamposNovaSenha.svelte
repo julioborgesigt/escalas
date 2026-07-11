@@ -58,7 +58,7 @@
 		<div
 			class="flex items-center gap-1.5 {ok
 				? 'text-success-600 dark:text-success-400'
-				: 'text-surface-400'}"
+				: 'text-surface-500 dark:text-surface-400'}"
 		>
 			{#if ok}
 				<svg

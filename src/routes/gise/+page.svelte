@@ -636,7 +636,7 @@
 			{#if ativas.length > 0}
 				<div class="mt-2 space-y-1">
 					{#each ativas as ativa (ativa.id)}
-						<p class="text-xs text-surface-400">
+						<p class="text-xs text-surface-500 dark:text-surface-400">
 							Escala vigente: <span class="font-medium"
 								>{diaSemana(ativa.data_inicio)}
 								{fmtDate(ativa.data_inicio)}</span

@@ -123,7 +123,7 @@
 		>
 	</div>
 	<div
-		class="grid grid-cols-7 gap-px text-center text-[0.55rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+		class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 	>
 		{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
 	</div>

@@ -275,7 +275,9 @@
 									{/each}
 								</div>
 							{:else if erroBuscaDestinatario}
-								<p class="text-xs text-surface-400 px-1">{erroBuscaDestinatario}</p>
+								<p class="text-xs text-surface-500 dark:text-surface-400 px-1">
+									{erroBuscaDestinatario}
+								</p>
 							{/if}
 						{/if}
 					</div>

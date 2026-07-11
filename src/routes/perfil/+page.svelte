@@ -127,23 +127,29 @@
 		</h2>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Nome</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Nome</span>
 				<p class="font-semibold">{perfil.nome}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Matrícula</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>Matrícula</span
+				>
 				<p class="font-semibold">{perfil.matricula}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Cargo</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Cargo</span>
 				<p class="font-semibold">{perfil.cargo}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">E-mail funcional</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>E-mail funcional</span
+				>
 				<p class="font-semibold">{perfil.email || '—'}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">E-mail pessoal</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>E-mail pessoal</span
+				>
 				<div class="flex items-center gap-2 flex-wrap">
 					<p class="font-semibold">
 						{emailPessoal || '—'}
@@ -166,7 +172,7 @@
 					</button>
 				</div>
 				{#if emailPessoal}
-					<p class="text-[0.68rem] text-surface-400 mt-1">
+					<p class="text-[0.68rem] text-surface-500 dark:text-surface-400 mt-1">
 						A troca exige sua senha e um código enviado ao novo endereço.
 					</p>
 				{/if}
@@ -226,7 +232,7 @@
 		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-1">
 			Dados cadastrais
 		</h2>
-		<p class="text-xs text-surface-400 mb-4">
+		<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
 			As alterações abaixo são enviadas como <strong>solicitação</strong> e só entram em vigor após a
 			aprovação do administrador.
 		</p>
@@ -299,7 +305,7 @@
 			<div class="overflow-x-auto">
 				<table class="table w-full text-sm">
 					<thead>
-						<tr class="text-left text-xs uppercase text-surface-400">
+						<tr class="text-left text-xs uppercase text-surface-500 dark:text-surface-400">
 							<th class="py-2">Campo</th>
 							<th class="py-2">De</th>
 							<th class="py-2">Para</th>

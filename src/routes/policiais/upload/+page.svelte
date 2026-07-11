@@ -155,7 +155,7 @@
 							</Accordion.ItemIndicator>
 						</Accordion.ItemTrigger>
 						<Accordion.ItemContent>
-							<div class="max-h-[300px] overflow-y-auto">
+							<div class="table-wrap max-h-[300px] overflow-y-auto">
 								<table class="table">
 									<thead>
 										<tr>

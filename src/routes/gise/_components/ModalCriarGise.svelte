@@ -239,7 +239,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-[0.6rem] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEM_CAL as ds (ds)}
 						<span>{ds}</span>
@@ -301,7 +301,7 @@
 							>
 								{fmtDate(iso)}
 								{#if feriado}<span
-										class="text-[0.55rem] font-bold text-error-600 dark:text-error-400">F</span
+										class="text-[0.6rem] font-bold text-error-600 dark:text-error-400">F</span
 									>{/if}
 								<button
 									type="button"
@@ -380,7 +380,7 @@
 						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
 							>Completa</span
 						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
 							>Seccionais</span
 						>
 					</button>
@@ -395,7 +395,7 @@
 						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center"
 							>Em branco</span
 						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
 							>Sem equipes</span
 						>
 					</button>
@@ -410,7 +410,7 @@
 					>
 						<span class="font-bold text-[0.65rem] sm:text-xs leading-tight text-center">Copiar</span
 						>
-						<span class="text-[0.55rem] opacity-70 leading-tight text-center hidden sm:block"
+						<span class="text-[0.6rem] opacity-70 leading-tight text-center hidden sm:block"
 							>De outra</span
 						>
 					</button>
