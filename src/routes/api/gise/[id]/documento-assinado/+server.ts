@@ -32,6 +32,7 @@ import {
 	chaveConferencia
 } from '$lib/server/copia-conferencia';
 import { gerarRascunhoGisePdf } from '$lib/server/conferencia-pdf';
+import { limparR2DaGise } from '$lib/server/r2-cleanup';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
 	const u = requireAuth(locals);
@@ -120,13 +121,13 @@ export const DELETE: RequestHandler = async (event) => {
 	const documento = await buscarGiseDocumento(db, id);
 	if (!documento) return notFound('Assinatura');
 
-	// Deletar do R2 (blob assinado + cópia de conferência)
+	// Deletar do R2 TODOS os objetos da GISE (blobs + conferências + selfies de
+	// presença) ANTES de reabrir. R2-2/R2-3: reabrirGiseEscala apaga as linhas de
+	// documentos/presenças/relatórios — se limpássemos só o blob deste documento,
+	// selfies biométricas e cópias de conferência ficariam órfãs e irrastreáveis.
 	if (hasR2(platform)) {
-		const bucket = getR2(platform);
-		await bucket.delete(documento.r2_key);
-		if (documento.verificacao_hash) {
-			await bucket.delete(chaveConferencia(documento.verificacao_hash));
-		}
+		const gise = await buscarGiseEscala(db, id);
+		if (gise) await limparR2DaGise(db, getR2(platform), gise);
 	}
 
 	// Reabrir escala (deleta documento, reseta seccionais, volta status)

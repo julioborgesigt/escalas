@@ -13,12 +13,15 @@ import {
 	getR2,
 	hasR2,
 	buscarEscala,
+	buscarDocumentoEscala,
 	salvarDocumentoEscala,
 	registrarAuditComContexto
 } from '$lib/db';
 import { finalizarAssinaturaEscalasSchema } from '$lib/schemas';
 import { finalizarQualificadaDoPayload } from '$lib/server/signature-service';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
+import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
 
 export const POST: RequestHandler = async ({
 	platform,
@@ -78,6 +81,10 @@ export const POST: RequestHandler = async ({
 		}
 
 		const bucket = getR2(platform);
+		// R2-4: se esta escala já tinha um documento assinado (re-assinatura), o
+		// onConflict de salvarDocumentoEscala sobrescreve a linha. Capturamos o
+		// documento anterior ANTES de gravar para apagar seus objetos R2 obsoletos.
+		const docAntigo = await buscarDocumentoEscala(db, id);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
 		await bucket.put(r2Key, result.pdfFinal, {
 			httpMetadata: { contentType: 'application/pdf' }
@@ -101,6 +108,10 @@ export const POST: RequestHandler = async ({
 			result.metadata,
 			platform?.env
 		);
+
+		// R2-4: remove os objetos do documento anterior que a re-assinatura tornou
+		// obsoletos (blob/conferência/selfie de hash antigo). No-op se era 1ª assinatura.
+		await limparR2ObsoletoEscala(bucket, docAntigo, [r2Key, chaveConferencia(verificationHash)]);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

@@ -17,14 +17,8 @@ import {
 	executarSyncBaseEquipeGiseComResultado,
 	type BaseEquipeEnv
 } from '$lib/server/gise-base-equipe-sync';
-import { logger } from '$lib/server/logger';
-import {
-	policiais,
-	giseDocumentos,
-	gisePresencas,
-	giseAssinaturasRelatorios,
-	giseEscalas
-} from '$lib/server/schema';
+import { policiais, giseDocumentos, giseEscalas } from '$lib/server/schema';
+import { limparR2DaGise } from '$lib/server/r2-cleanup';
 import { eq } from 'drizzle-orm';
 
 type Event = RequestEvent<{ id: string }>;
@@ -379,66 +373,15 @@ export const actionsEscala = {
 
 		const afetados = await coletarAfetadosGise(db, giseId);
 
-		const fileKeys = new Set<string>();
-
-		const [docs, presencas, assRelat] = await Promise.all([
-			db
-				.select({ r2: giseDocumentos.r2_key, selfie: giseDocumentos.selfie_key })
-				.from(giseDocumentos)
-				.where(eq(giseDocumentos.gise_id, giseId))
-				.all(),
-			db
-				.select({
-					entrada: gisePresencas.entrada_selfie_key,
-					saida: gisePresencas.saida_selfie_key
-				})
-				.from(gisePresencas)
-				.where(eq(gisePresencas.gise_id, giseId))
-				.all(),
-			db
-				.select({ selfie: giseAssinaturasRelatorios.selfie_key })
-				.from(giseAssinaturasRelatorios)
-				.where(eq(giseAssinaturasRelatorios.gise_id, giseId))
-				.all()
-		]);
-
-		docs.forEach((d) => {
-			if (d.r2) fileKeys.add(d.r2);
-			if (d.selfie) fileKeys.add(d.selfie);
-		});
-		presencas.forEach((p) => {
-			if (p.entrada) fileKeys.add(p.entrada);
-			if (p.saida) fileKeys.add(p.saida);
-		});
-		assRelat.forEach((a) => {
-			if (a.selfie) fileKeys.add(a.selfie);
-		});
-
+		// Limpeza unificada do R2 (blobs + conferências + selfies) — mesmo helper
+		// usado por reabrir/revogar. Além de remover a duplicação, corrige o furo
+		// em que as cópias de conferência (`conferencia/<hash>.pdf`, prefixo PLANO)
+		// escapavam da varredura por prefixo `gise/...` e ficavam órfãs.
 		const r2 = getR2(platform);
-		if (r2) {
-			try {
-				const [yyyy, mm, dd] = gise.data_inicio.split('-');
-				const prefix = `gise/${yyyy}-${mm}/${dd}/${giseId}/`;
-				let listed = await r2.list({ prefix });
-				listed.objects.forEach((obj: { key: string }) => fileKeys.add(obj.key));
-				while (listed.truncated) {
-					listed = await r2.list({ prefix, cursor: listed.cursor });
-					listed.objects.forEach((obj: { key: string }) => fileKeys.add(obj.key));
-				}
-			} catch (e) {
-				logger.warn('[gise/excluir] Erro ao listar prefixo R2', {
-					gise_id: giseId,
-					error: e instanceof Error ? e.message : String(e)
-				});
-			}
-
-			if (fileKeys.size > 0) {
-				await Promise.allSettled(Array.from(fileKeys).map((key) => r2.delete(key)));
-			}
-		}
+		const filesDeleted = r2 ? await limparR2DaGise(db, r2, gise) : 0;
 
 		await db.delete(giseEscalas).where(eq(giseEscalas.id, giseId));
 		await invalidarPapelGiseMultiplos(afetados);
-		return { success: true, files_deleted: fileKeys.size };
+		return { success: true, files_deleted: filesDeleted };
 	}
 };

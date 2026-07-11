@@ -11,7 +11,8 @@ import {
 	listarSolicitacoesEscalas
 } from '$lib/db';
 import { escalaSchema } from '$lib/schemas';
-import { registrarAuditComContexto, contextoDeEvento } from '$lib/db';
+import { registrarAuditComContexto, contextoDeEvento, getR2, hasR2 } from '$lib/db';
+import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
 import { logger } from '$lib/server/logger';
 import { eq, or, and, inArray, sql, desc, type SQL } from 'drizzle-orm';
 import {
@@ -412,6 +413,13 @@ export const actions: Actions = {
 			} else if (escala.lotacao !== u.lotacao) {
 				return fail(403, { error: 'Sem permissão' });
 			}
+		}
+
+		// R2-1: apaga blob assinado + conferência + selfie ANTES do DELETE. A FK
+		// escala_documentos → escalas é ON DELETE CASCADE: sem isto, a linha some
+		// e o objeto no R2 (com PII forense) fica órfão e irrastreável.
+		if (hasR2(platform)) {
+			await limparR2DocumentoEscala(db, getR2(platform), escalaId);
 		}
 
 		await excluirEscala(db, escalaId);

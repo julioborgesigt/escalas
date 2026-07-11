@@ -27,15 +27,28 @@ objetos — que contêm PII forense (CPF/IP/GPS/selfie) — podem persistir
 **indefinidamente**, o que conflita com a minimização/retenção da LGPD (arts. 15–16)
 e infla custo de armazenamento.
 
-| Severidade | Achado | Área |
-|---|---|---|
-| 🟠 Alta | **R2-1** Exclusão de escala não apaga nada do R2 (órfão irrastreável) | R2 / LGPD |
-| 🟠 Alta | **R2-2** Reabrir GISE apaga linhas mas não os objetos R2 | R2 / LGPD |
-| 🟡 Média | **R2-3** Revogação/exclusão nunca apaga a **selfie** (dado biométrico) | R2 / LGPD art. 11 |
-| 🟡 Média | **R2-4** Re-assinatura deixa o PDF/selfie/conferência anteriores órfãos | R2 |
-| 🔵 Baixa | **R2-5** Preparar-assinatura abandonado deixa cópia de conferência órfã | R2 |
-| 🔵 Baixa | **R2-6** Sem GC de órfãos; retenção LGPD não cobre o R2 | R2 / LGPD art. 16 |
-| ⚪ Info | **J-1..J-3** Pendências jurídicas operacionais (TSA/ selo / termo) | Jurídico |
+| Severidade | Achado | Área | Status |
+|---|---|---|---|
+| 🟠 Alta | **R2-1** Exclusão de escala não apaga nada do R2 (órfão irrastreável) | R2 / LGPD | ✅ Corrigido |
+| 🟠 Alta | **R2-2** Reabrir GISE apaga linhas mas não os objetos R2 | R2 / LGPD | ✅ Corrigido |
+| 🟡 Média | **R2-3** Revogação/exclusão nunca apaga a **selfie** (dado biométrico) | R2 / LGPD art. 11 | ✅ Corrigido |
+| 🟡 Média | **R2-4** Re-assinatura deixa o PDF/selfie/conferência anteriores órfãos | R2 | ✅ Corrigido |
+| 🔵 Baixa | **R2-5** Preparar-assinatura abandonado deixa cópia de conferência órfã | R2 | ⏳ Coberto por GC (R2-6) |
+| 🔵 Baixa | **R2-6** Sem GC de órfãos; retenção LGPD não cobre o R2 | R2 / LGPD art. 16 | ⏳ Follow-up |
+| ⚪ Info | **J-1..J-3** Pendências jurídicas operacionais (TSA/ selo / termo) | Jurídico | ⏳ Operacional |
+
+> **Remediação (branch `claude/code-security-audit-q92jrp`).** R2-1..R2-4 foram
+> **corrigidos** com um helper unificado `src/lib/server/r2-cleanup.ts`
+> (`limparR2DocumentoEscala`, `limparR2ObsoletoEscala`, `limparR2DaGise`,
+> `coletarChavesR2DaGise`), aplicado em **todos** os caminhos: excluir escala
+> (`escalas` e `recebidos`), revogar documento (escala e GISE), **reabrir GISE**,
+> exclusão total da GISE (agora sem duplicação) e o ramo de re-assinatura dos dois
+> endpoints de escala. Descoberta adicional já corrigida: as cópias de conferência
+> vivem no prefixo **plano** `conferencia/<hash>.pdf` e escapavam da varredura por
+> prefixo `gise/...` mesmo na exclusão total — o helper as coleta pelo hash.
+> Cobertura: `__tests__/r2-cleanup.test.ts` (9 casos). **R2-5/R2-6** (garbage
+> collector de órfãos legados no ciclo de retenção) ficam como follow-up, por serem
+> destrutivos e merecerem um passo *dry-run* dedicado.
 
 ---
 
