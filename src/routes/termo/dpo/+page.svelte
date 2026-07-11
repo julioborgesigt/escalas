@@ -1,5 +1,6 @@
 <script lang="ts">
-	import icon from '$lib/assets/logo.png';
+	// Sem import de logo: o brasão do Estado do Ceará é servido do R2
+	// (assets/logo_ceara.jpg) pela rota pública /api/validar/logo.
 </script>
 
 <svelte:head>
@@ -16,11 +17,9 @@
 			class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5"
 		>
 			<img
-				src={icon}
-				alt="Logo PC-CE"
-				width="640"
-				height="640"
-				class="w-14 sm:w-20 mb-2 drop-shadow-md"
+				src="/api/validar/logo"
+				alt="Brasão do Estado do Ceará"
+				class="h-16 sm:h-24 w-auto mb-2 drop-shadow-md"
 			/>
 			<h1
 				class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center"

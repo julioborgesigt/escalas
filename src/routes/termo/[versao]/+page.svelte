@@ -1,5 +1,4 @@
 <script lang="ts">
-	import icon from '$lib/assets/logo.png';
 	import type { PageData } from './$types';
 	const { data }: { data: PageData } = $props();
 </script>
@@ -17,12 +16,11 @@
 		<header
 			class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5"
 		>
+			<!-- Brasão do Estado do Ceará (R2 assets/logo_ceara.jpg via /api/validar/logo). -->
 			<img
-				src={icon}
-				alt="Logo PC-CE"
-				width="640"
-				height="640"
-				class="w-14 sm:w-20 mb-2 drop-shadow-md"
+				src="/api/validar/logo"
+				alt="Brasão do Estado do Ceará"
+				class="h-16 sm:h-24 w-auto mb-2 drop-shadow-md"
 			/>
 			<h1
 				class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center"
@@ -61,6 +59,8 @@
 	}
 	.termo-conteudo :global(p) {
 		margin-bottom: 0.5rem;
+		text-align: justify;
+		hyphens: auto;
 	}
 	.termo-conteudo :global(.subtitulo) {
 		font-size: 0.78rem;

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import icon from '$lib/assets/logo.png';
 	import { enhance } from '$app/forms';
 
 	const { data, form } = $props();
@@ -20,12 +19,12 @@
 		class="w-full max-w-md bg-white dark:bg-surface-800 shadow-xl border border-primary-500/20 rounded-2xl overflow-hidden"
 	>
 		<header class="flex flex-col items-center px-6 pt-6 pb-4">
+			<!-- Brasão do Estado do Ceará, servido do R2 (assets/logo_ceara.jpg) pela
+			     rota pública /api/validar/logo. -->
 			<img
-				src={icon}
-				alt="Logo PC-CE"
-				width="640"
-				height="640"
-				class="w-14 mb-3 drop-shadow-md"
+				src="/api/validar/logo"
+				alt="Brasão do Estado do Ceará"
+				class="h-16 w-auto mb-3 drop-shadow-md"
 			/>
 			<h1
 				class="text-base font-black uppercase tracking-tight text-surface-900 dark:text-white text-center"
@@ -38,7 +37,7 @@
 		</header>
 
 		<div class="px-6 pb-2 text-sm leading-relaxed text-surface-700 dark:text-surface-200">
-			<p>
+			<p class="text-justify hyphens-auto">
 				Para usar o Sistema, você precisa aceitar os Termos de Uso e a Política de Privacidade.
 				Ao clicar em <strong>“Li e aceito”</strong>, você declara ciência e concordância — inclusive
 				com o uso da <strong>assinatura eletrônica do Sistema como equivalente à sua assinatura de
