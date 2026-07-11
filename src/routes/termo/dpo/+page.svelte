@@ -58,10 +58,10 @@
 						</dt>
 						<dd>
 							<a
-								href="mailto:lgpd@pc.ce.gov.br?subject=Direitos%20do%20Titular%20%E2%80%93%20LGPD"
+								href="mailto:dpis@pc.ce.gov.br?subject=Direitos%20do%20Titular%20%E2%80%93%20LGPD"
 								class="text-primary-700 dark:text-primary-400 underline underline-offset-2 hover:text-primary-900 dark:hover:text-primary-200 font-medium"
 							>
-								lgpd@pc.ce.gov.br
+								dpis@pc.ce.gov.br
 							</a>
 						</dd>
 					</div>
@@ -130,7 +130,7 @@
 				</h2>
 				<ol class="list-decimal list-inside space-y-1 leading-relaxed">
 					<li>
-						Envie e-mail para <strong>lgpd@pc.ce.gov.br</strong> com o assunto “Direitos do Titular –
+						Envie e-mail para <strong>dpis@pc.ce.gov.br</strong> com o assunto “Direitos do Titular –
 						LGPD”;
 					</li>
 					<li>Identifique-se com nome completo, matrícula funcional e CPF;</li>

@@ -4,43 +4,7 @@
 
 	const { data, form } = $props();
 
-	let aceitouTermo = $state(false);
-	let aceitouLgpd = $state(false);
-	let aceitouAssinatura = $state(false);
-	let aceitouEmail = $state(false);
-	let aceitouLocalizacao = $state(false);
-	let scrollouAteFim = $state(false);
 	let enviando = $state(false);
-	let termoContainer = $state<HTMLElement>();
-
-	const podeAceitar = $derived(aceitouTermo && aceitouLgpd && aceitouAssinatura && scrollouAteFim);
-
-	function onScroll(e: Event) {
-		const el = e.currentTarget as HTMLElement;
-		const fim = el.scrollHeight - el.clientHeight;
-		if (fim <= 0 || el.scrollTop >= fim - 8) {
-			scrollouAteFim = true;
-		}
-	}
-
-	$effect(() => {
-		const el = termoContainer;
-		if (el) {
-			const checkScroll = () => {
-				const fim = el.scrollHeight - el.clientHeight;
-				if (fim <= 0 || el.scrollTop >= fim - 8) {
-					scrollouAteFim = true;
-				}
-			};
-
-			checkScroll();
-
-			const observer = new ResizeObserver(checkScroll);
-			observer.observe(el);
-
-			return () => observer.disconnect();
-		}
-	});
 </script>
 
 <svelte:head>
@@ -48,39 +12,48 @@
 </svelte:head>
 
 <div
-	class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-start p-3 sm:p-6"
+	class="min-h-screen bg-surface-50 dark:bg-surface-900 flex flex-col items-center justify-center p-4"
 >
+	<!-- Card compacto (modal): aceite único e implícito. O termo completo abre em
+	     nova aba pelo link, sem exigir rolagem nem múltiplas caixas. -->
 	<div
-		class="w-full max-w-3xl bg-white dark:bg-surface-800 shadow-xl border border-primary-500/20 rounded-2xl sm:rounded-3xl overflow-hidden"
+		class="w-full max-w-md bg-white dark:bg-surface-800 shadow-xl border border-primary-500/20 rounded-2xl overflow-hidden"
 	>
-		<header
-			class="flex flex-col items-center p-4 sm:p-6 border-b border-surface-200 dark:border-white/5"
-		>
+		<header class="flex flex-col items-center px-6 pt-6 pb-4">
 			<img
 				src={icon}
 				alt="Logo PC-CE"
 				width="640"
 				height="640"
-				class="w-14 sm:w-20 mb-2 drop-shadow-md"
+				class="w-14 mb-3 drop-shadow-md"
 			/>
 			<h1
-				class="text-lg sm:text-xl font-black uppercase tracking-tighter text-surface-900 dark:text-white text-center"
+				class="text-base font-black uppercase tracking-tight text-surface-900 dark:text-white text-center"
 			>
 				Termo de Uso e Política de Privacidade
 			</h1>
-			<p class="text-xs text-surface-500 mt-1">
+			<p class="text-[11px] text-surface-500 mt-1">
 				Versão {data.versao} · vigente desde {data.vigenteDesde}
 			</p>
 		</header>
 
-		<div
-			bind:this={termoContainer}
-			class="termo-conteudo p-4 sm:p-6 max-h-[55vh] overflow-y-auto text-sm leading-relaxed text-surface-700 dark:text-surface-200"
-			onscroll={onScroll}
-		>
-			<!-- sanitizado em +page.server.ts via sanitizeTermoHtml() -->
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html data.conteudoHtml}
+		<div class="px-6 pb-2 text-sm leading-relaxed text-surface-700 dark:text-surface-200">
+			<p>
+				Para usar o Sistema, você precisa aceitar os Termos de Uso e a Política de Privacidade.
+				Ao clicar em <strong>“Li e aceito”</strong>, você declara ciência e concordância — inclusive
+				com o uso da <strong>assinatura eletrônica do Sistema como equivalente à sua assinatura de
+				próprio punho</strong>.
+			</p>
+			<p class="mt-3">
+				<a
+					href="/termo/{data.versao}"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-primary-600 dark:text-primary-400 font-semibold underline underline-offset-2 hover:text-primary-700"
+				>
+					Ler o termo completo (abre em nova aba) ↗
+				</a>
+			</p>
 		</div>
 
 		<form
@@ -93,119 +66,17 @@
 					enviando = false;
 				};
 			}}
-			class="p-4 sm:p-6 border-t border-surface-200 dark:border-white/5 space-y-3"
+			class="px-6 pt-3 pb-5"
 		>
-			{#if !scrollouAteFim}
-				<p class="text-[11px] text-warning-700 dark:text-warning-400 italic">
-					⬆ Role o termo até o final para habilitar o aceite.
-				</p>
-			{/if}
-
-			<label
-				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
-					? 'opacity-60 cursor-not-allowed'
-					: ''}"
-			>
-				<input
-					type="checkbox"
-					name="aceitou_termo"
-					bind:checked={aceitouTermo}
-					disabled={!scrollouAteFim}
-					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
-				/>
-				<span
-					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
-				>
-					Li e concordo integralmente com este Termo de Uso e Política de Privacidade.
-				</span>
-			</label>
-
-			<label
-				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
-					? 'opacity-60 cursor-not-allowed'
-					: ''}"
-			>
-				<input
-					type="checkbox"
-					name="aceitou_lgpd"
-					bind:checked={aceitouLgpd}
-					disabled={!scrollouAteFim}
-					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
-				/>
-				<span
-					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
-				>
-					Compreendo que meus dados funcionais (matrícula, lotação, escalas) são processados pela
-					PC-CE para cumprimento de obrigação legal (art. 7º, II, LGPD) e consinto com a coleta de
-					IP e dispositivo para fins de segurança e auditoria (art. 7º, IX).
-				</span>
-			</label>
-
-			<label
-				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200 {!scrollouAteFim
-					? 'opacity-60 cursor-not-allowed'
-					: ''}"
-			>
-				<input
-					type="checkbox"
-					name="aceitou_assinatura_avancada"
-					bind:checked={aceitouAssinatura}
-					disabled={!scrollouAteFim}
-					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03] disabled:opacity-50 disabled:cursor-not-allowed"
-				/>
-				<span
-					class="text-sm text-surface-800 dark:text-surface-200 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
-				>
-					<strong>Aceito a assinatura eletrônica avançada</strong> gerada pelo Sistema (login + 2FA por
-					e-mail + rubrica/biometria + selo institucional) como meio válido e suficiente de comprovação
-					de autoria e integridade, equivalente à minha assinatura manuscrita, conforme a cláusula 2.3
-					do Termo, e não a impugnarei apenas por ser eletrônica ou não-ICP (art. 4º, II, da Lei nº 14.063/2020).
-				</span>
-			</label>
-
-			<p class="text-[11px] text-surface-500 mt-1">
-				Consentimentos opcionais (você pode recusar sem prejuízo ao acesso):
-			</p>
-
-			<label
-				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200"
-			>
-				<input
-					type="checkbox"
-					name="aceitou_uso_email"
-					bind:checked={aceitouEmail}
-					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
-				/>
-				<span
-					class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
-				>
-					<strong>E-mail pessoal</strong> — Autorizo o envio de notificações e códigos de verificação
-					ao meu e-mail pessoal, quando cadastrado (art. 7º, I, LGPD).
-				</span>
-			</label>
-
-			<label
-				class="flex items-start gap-3 cursor-pointer group p-1.5 rounded-xl hover:bg-surface-100/50 dark:hover:bg-white/5 transition-colors duration-200"
-			>
-				<input
-					type="checkbox"
-					name="aceitou_uso_localizacao"
-					bind:checked={aceitouLocalizacao}
-					class="checkbox mt-1 shrink-0 transition-all group-hover:scale-[1.03]"
-				/>
-				<span
-					class="text-sm text-surface-700 dark:text-surface-300 leading-snug select-none group-hover:text-surface-900 dark:group-hover:text-white transition-colors duration-200"
-				>
-					<strong>Geolocalização</strong> — Autorizo a captura de coordenadas GPS ao assinar documentos
-					digitalmente, para fins de evidência jurídica (art. 7º, I, LGPD). Precisão reduzida (~1 km).
-				</span>
-			</label>
+			<!-- Manifestação deliberada: o POST com este campo É o aceite (implícito
+			     no clique do botão, conforme a cláusula 7 do termo). -->
+			<input type="hidden" name="confirmado" value="true" />
 
 			{#if form?.erro}
-				<p class="text-sm text-error-600 font-bold">{form.erro}</p>
+				<p class="text-sm text-error-600 font-bold mb-3">{form.erro}</p>
 			{/if}
 
-			<div class="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-end pt-2">
+			<div class="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
 				<a
 					href="/api/auth/logout"
 					class="px-4 py-2 text-center bg-surface-200 hover:bg-surface-300 dark:bg-surface-700 dark:hover:bg-surface-600 text-surface-800 dark:text-surface-200 font-bold rounded-xl text-sm transition-colors"
@@ -214,52 +85,17 @@
 				</a>
 				<button
 					type="submit"
-					disabled={!podeAceitar || enviando}
+					disabled={enviando}
 					class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 disabled:bg-surface-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-colors"
 				>
-					{enviando ? 'Registrando aceite…' : 'Aceitar e seguir'}
+					{enviando ? 'Registrando aceite…' : 'Li e aceito'}
 				</button>
 			</div>
 
-			<p class="text-[10px] text-surface-400 mt-2 text-center">
-				Hash criptográfico do termo aceito: <code class="font-mono">{data.hash.slice(0, 16)}…</code>
-				· O aceite registrará seu IP, dispositivo e data/hora no sistema.
+			<p class="text-[10px] text-surface-400 mt-4 text-center">
+				O aceite registra data/hora, IP e dispositivo · Hash do termo:
+				<code class="font-mono">{data.hash.slice(0, 16)}…</code>
 			</p>
 		</form>
 	</div>
 </div>
-
-<style>
-	.termo-conteudo :global(h2) {
-		font-size: 1.05rem;
-		font-weight: 800;
-		margin-bottom: 0.25rem;
-	}
-	.termo-conteudo :global(h3) {
-		font-size: 0.92rem;
-		font-weight: 700;
-		margin-top: 1rem;
-		margin-bottom: 0.4rem;
-	}
-	.termo-conteudo :global(p) {
-		margin-bottom: 0.5rem;
-	}
-	.termo-conteudo :global(.subtitulo) {
-		font-size: 0.78rem;
-		opacity: 0.7;
-		margin-bottom: 0.75rem;
-	}
-	.termo-conteudo :global(ul) {
-		list-style: disc;
-		padding-left: 1.25rem;
-		margin-bottom: 0.6rem;
-	}
-	.termo-conteudo :global(li) {
-		margin-bottom: 0.2rem;
-	}
-	.termo-conteudo :global(code) {
-		background: rgba(0, 0, 0, 0.05);
-		padding: 0 0.25rem;
-		border-radius: 4px;
-	}
-</style>

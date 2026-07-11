@@ -425,7 +425,7 @@ A rota `/validar/[hash]` é **pública e sem autenticação**. Qualquer pessoa p
 4. Sessão criada com token de 256 bits, expira em 8 horas (`SESSION_TTL_MS` em `src/lib/auth.ts`)
 5. Sessão armazenada em cookie `session_token` (httpOnly, secure, SameSite=strict)
 
-Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail.
+Alternativa: **login por certificado digital A3** (e-CPF ICP-Brasil) via `/api/auth/certificado/*`, dispensa senha e 2FA por e-mail. Além da assinatura do desafio e da cadeia ICP-Brasil, o login consulta a **revogação (OCSP)** do certificado: um e-CPF revogado é recusado; se o responder da AC estiver indisponível, o login prossegue e registra `metadados.ocsp = 'unknown'` na auditoria (soft-fail).
 
 ### Primeiro acesso
 

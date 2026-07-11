@@ -19,7 +19,6 @@ import {
 	forbidden,
 	serverError
 } from '$lib/server/api';
-import { logger } from '$lib/server/logger';
 import { verificarPermissaoEscala } from '$lib/server/escala-permissao';
 import {
 	podeBaixarComManifesto,
@@ -27,6 +26,7 @@ import {
 	chaveConferencia
 } from '$lib/server/copia-conferencia';
 import { gerarRascunhoEscalaPdf } from '$lib/server/conferencia-pdf';
+import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
 
 export const GET: RequestHandler = async ({ platform, params, locals, url }) => {
 	const u = requireAuth(locals);
@@ -129,21 +129,10 @@ export const DELETE: RequestHandler = async ({ platform, params, locals }) => {
 	const documento = await buscarDocumentoEscala(db, id);
 	if (!documento) return notFound('Assinatura');
 
-	// Deletar do R2 (blob assinado + cópia de conferência)
+	// Deletar do R2 (blob assinado + cópia de conferência + selfie biométrica).
+	// R2-3: a selfie (`selfie_key`) antes não era apagada na revogação.
 	if (hasR2(platform)) {
-		const bucket = getR2(platform);
-		try {
-			await bucket.delete(documento.r2_key);
-			if (documento.verificacao_hash) {
-				await bucket.delete(chaveConferencia(documento.verificacao_hash));
-			}
-		} catch (e) {
-			logger.error('[escalas/revogar] Erro ao deletar do R2', {
-				escala_id: id,
-				r2_key: documento.r2_key,
-				error: e instanceof Error ? e.message : String(e)
-			});
-		}
+		await limparR2DocumentoEscala(db, getR2(platform), id);
 	}
 
 	// Deletar do banco

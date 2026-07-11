@@ -8,12 +8,16 @@
  */
 
 import { json } from '@sveltejs/kit';
-import { eq, and, gt, count } from 'drizzle-orm';
+import { and, gt, count, eq } from 'drizzle-orm';
 import { getDB } from '$lib/db';
-import { gerarCodigo2FA, criarDesafio2FA, verificarSenha } from '$lib/auth';
+import { gerarCodigo2FA, criarDesafio2FA } from '$lib/auth';
 import { enviarCodigoEmailPessoal } from '$lib/server/email';
 import { mascararEmail } from '$lib/server/auth-flow';
-import { doisFatoresTokens, policiais } from '$lib/server/schema';
+import { doisFatoresTokens } from '$lib/server/schema';
+import {
+	exigirSenhaParaTrocaEmailPessoal,
+	SENHA_ATUAL_JANELA_MIN
+} from '$lib/server/email-pessoal-guard';
 import {
 	requireAuth,
 	badRequest,
@@ -45,24 +49,27 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 
 	const db = getDB(platform);
 
-	// TROCA de e-mail pessoal (policial que já tem um cadastrado): exige a
-	// reinserção da senha — uma sessão esquecida aberta não basta para
+	// TROCA de e-mail pessoal (usuário que já tem um cadastrado): exige a
+	// reinserção da senha — uma sessão esquecida/roubada não basta para
 	// redirecionar o canal de recuperação de senha. O 1º cadastro (sem e-mail
 	// anterior) segue sem senha, como no onboarding do /alterar-senha.
-	if (u.tipo === 'policial') {
-		const atual = await db
-			.select({ email_pessoal: policiais.email_pessoal, senha: policiais.senha })
-			.from(policiais)
-			.where(eq(policiais.id, u.id))
-			.get();
-		if (atual?.email_pessoal) {
-			if (!senha) {
-				return badRequest('Informe sua senha de acesso para trocar o e-mail pessoal.');
-			}
-			const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
-			const senhaOk = await verificarSenha(senha, atual.senha, pepper);
-			if (!senhaOk) return forbidden('Senha incorreta.');
+	//
+	// L-1 da auditoria 2026-07-10: a regra vale para TODAS as sessões (antes,
+	// só policiais — admins trocavam sem senha) e a verificação é throttled por
+	// usuário (mesmo orçamento do /alterar-senha), fechando o brute-force
+	// online da senha por este endpoint com sessão roubada.
+	const pepper = (platform?.env as Env | undefined)?.PASSWORD_PEPPER?.trim() || undefined;
+	const guarda = await exigirSenhaParaTrocaEmailPessoal(db, u, senha, pepper);
+	if (!guarda.ok) {
+		if (guarda.erro === 'senha_ausente') {
+			return badRequest('Informe sua senha de acesso para trocar o e-mail pessoal.');
 		}
+		if (guarda.erro === 'bloqueado') {
+			return rateLimited(
+				`Muitas tentativas de senha incorretas. Tente novamente em ${SENHA_ATUAL_JANELA_MIN} minutos.`
+			);
+		}
+		return forbidden('Senha incorreta.');
 	}
 
 	// Normaliza para baixo o e-mail antes de bindar — verificação faz lookup

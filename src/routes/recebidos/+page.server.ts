@@ -7,7 +7,6 @@ import {
 	listarUnidades,
 	marcarVisto,
 	excluirEscala,
-	buscarDocumentoEscala,
 	excluirDocumentoEscala,
 	getR2,
 	hasR2,
@@ -15,6 +14,7 @@ import {
 	contextoDeEvento
 } from '$lib/db';
 import { unidades as unidadesTable } from '$lib/server/schema';
+import { limparR2DocumentoEscala } from '$lib/server/r2-cleanup';
 
 /** Itens por página da caixa de entrada (mesmo tamanho da paginação antiga client-side). */
 const ITENS_POR_PAGINA = 10;
@@ -106,11 +106,11 @@ export const actions: Actions = {
 
 		const db = getDB(platform);
 
-		// Deleta documento do R2 e banco
+		// Deleta documento do R2 (blob + conferência + selfie) e do banco.
+		// R2-1/R2-3: antes apagava só o blob principal, deixando a cópia de
+		// conferência e a selfie biométrica órfãs. O helper cobre todos.
 		if (hasR2(platform)) {
-			const bucket = getR2(platform);
-			const documento = await buscarDocumentoEscala(db, escalaId);
-			if (documento) await bucket.delete(documento.r2_key);
+			await limparR2DocumentoEscala(db, getR2(platform), escalaId);
 		}
 		await excluirDocumentoEscala(db, escalaId);
 		await excluirEscala(db, escalaId);

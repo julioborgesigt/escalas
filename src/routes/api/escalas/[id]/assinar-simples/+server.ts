@@ -3,12 +3,15 @@ import type { RequestHandler } from './$types';
 import {
 	getDB,
 	buscarEscala,
+	buscarDocumentoEscala,
 	listarPoliciaisEscala,
 	salvarDocumentoEscala,
 	registrarAuditComContexto,
 	getR2,
 	hasR2
 } from '$lib/db';
+import { limparR2ObsoletoEscala } from '$lib/server/r2-cleanup';
+import { chaveConferencia } from '$lib/server/copia-conferencia';
 import { assinarSimplesSchema } from '$lib/schemas';
 import {
 	requireAuth,
@@ -163,6 +166,9 @@ export const POST: RequestHandler = async ({
 		}
 
 		const bucket = getR2(platform);
+		// R2-4: captura o documento anterior (re-assinatura) para apagar seus
+		// objetos R2 obsoletos após a nova gravação (onConflict sobrescreve a linha).
+		const docAntigo = await buscarDocumentoEscala(db, id);
 		const r2Key = `escalas/${new Date().getFullYear()}/${id}_${verificationHash}.pdf`;
 		await bucket.put(r2Key, pdfParaSalvar, {
 			httpMetadata: { contentType: 'application/pdf' }
@@ -198,6 +204,14 @@ export const POST: RequestHandler = async ({
 			undefined, // cadesMeta
 			platform?.env
 		);
+
+		// R2-4: apaga os objetos R2 obsoletos do documento anterior (re-assinatura).
+		// Novas chaves referenciadas: blob + conferência (hash atual) + selfie atual.
+		await limparR2ObsoletoEscala(bucket, docAntigo, [
+			r2Key,
+			chaveConferencia(verificationHash),
+			...(selfieKey ? [selfieKey] : [])
+		]);
 
 		await registrarAuditComContexto(db, {
 			usuario: u,

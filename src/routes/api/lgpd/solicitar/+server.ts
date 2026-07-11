@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ platform, locals, request }) => {
 		{
 			ok: true,
 			solicitacao,
-			mensagem: `Solicitação registrada. Prazo de resposta: ${solicitacao.prazo_resposta} (15 dias úteis). Dúvidas: lgpd@pc.ce.gov.br`
+			mensagem: `Solicitação registrada. Prazo de resposta: ${solicitacao.prazo_resposta} (15 dias úteis). Dúvidas: dpis@pc.ce.gov.br`
 		},
 		{ status: 201 }
 	);
