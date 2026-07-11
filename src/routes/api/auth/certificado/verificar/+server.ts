@@ -13,7 +13,10 @@ import {
 } from '$lib/server/api';
 import { certificadoVerificarSchema } from '$lib/schemas';
 import { checkRateLimit, recordAttempt, cookieOptions } from '$lib/server/auth-flow';
-import { verificarRespostaDesafioCertificado } from '$lib/server/cert-login';
+import {
+	verificarRespostaDesafioCertificado,
+	verificarRevogacaoParaLogin
+} from '$lib/server/cert-login';
 import { loadTrustStore } from '$lib/server/icp-brasil/trust-store';
 import { limparCPF } from '$lib/utils';
 import { cpfKeys, indiceCPF } from '$lib/crypto/cpf-cripto';
@@ -123,6 +126,34 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 
+	// Revogação (OCSP) — M-1 da auditoria de segurança 2026-07-10: cadeia válida
+	// não cobre e-CPF REVOGADO (token perdido/roubado reportado à AC) dentro da
+	// validade. Política em `verificarRevogacaoParaLogin`: nega 'revoked' e
+	// resposta não confiável; indisponibilidade do responder degrada para
+	// 'unknown' e NÃO bloqueia (soft-fail auditado abaixo, em `metadados.ocsp`).
+	const revogacao = await verificarRevogacaoParaLogin(verif.certificado);
+	if (!revogacao.permitido) {
+		await recordAttempt(db, ip, false);
+		logger.warn('[cert-login] Certificado bloqueado pela checagem de revogação', {
+			cpf: cpfLimpo.slice(0, 3) + '***',
+			motivo: revogacao.motivo,
+			revokedAt: revogacao.motivo === 'revogado' ? revogacao.revokedAt : undefined
+		});
+		return apiError(
+			revogacao.motivo === 'revogado'
+				? 'Certificado digital revogado junto à Autoridade Certificadora. Use matrícula e senha ou contate o administrador.'
+				: 'Não foi possível confirmar o status de revogação do certificado (resposta OCSP não confiável). Tente novamente.',
+			422,
+			ErrorCode.VALIDATION
+		);
+	}
+	if (revogacao.ocsp === 'unknown') {
+		logger.warn('[cert-login] OCSP indisponível — login segue sem confirmação de revogação', {
+			cpf: cpfLimpo.slice(0, 3) + '***',
+			aviso: revogacao.aviso
+		});
+	}
+
 	// Buscar policial pelo CPF. Como o `cpf` é cifrado em repouso (LGPD, GCM
 	// não-determinístico), a busca usa o índice cego `cpf_index` quando a chave
 	// está configurada; sem chave (fail-open), cai no `cpf` em texto.
@@ -164,7 +195,9 @@ export const POST: RequestHandler = async (event) => {
 			alvo_id: policial.id,
 			alvo_nome: policial.nome,
 			detalhes: 'Login por certificado digital (ICP-Brasil)',
-			metadados: { via: 'certificado_a3' },
+			// `ocsp: 'unknown'` sinaliza login SEM confirmação de revogação
+			// (responder indisponível) — rastreável na trilha para forense.
+			metadados: { via: 'certificado_a3', ocsp: revogacao.ocsp },
 			...contexto
 		},
 		{ env }

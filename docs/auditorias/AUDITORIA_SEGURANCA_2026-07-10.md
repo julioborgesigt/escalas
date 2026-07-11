@@ -13,6 +13,10 @@
 > na data acima. Achados anteriores (A1–A8, I-1…I-4, M-3/M-4) são citados quando
 > a mitigação já existente cobre o tópico.
 
+> **Status de remediação (mesma branch):** **M-1** e **L-1** foram **corrigidos**
+> nesta branch (ver seções marcadas ✅ RESOLVIDO). L-2, L-3 e o checklist
+> operacional permanecem para acompanhamento.
+
 ---
 
 ## 📊 Resumo executivo
@@ -27,13 +31,13 @@ um atacante não autenticado. Os achados abaixo são **1 médio** (revogação d
 certificado no login) e alguns **baixos / defesa-em-profundidade / operacionais**
 para revisar antes e depois do go-live.
 
-| Severidade | Qtd | Bloqueia produção? |
+| Severidade | Qtd | Status |
 |---|---|---|
 | 🔴 Crítica | 0 | — |
 | 🟠 Alta | 0 | — |
-| 🟡 Média | 1 | Não, mas recomenda-se tratar |
-| 🔵 Baixa / Defesa-em-profundidade | 3 | Não |
-| ⚪ Operacional / Verificar em produção | 1 (checklist) | **Sim — validar antes do go-live** |
+| 🟡 Média | 1 | ✅ **Corrigido** (M-1) |
+| 🔵 Baixa / Defesa-em-profundidade | 3 | ✅ L-1 corrigido · L-2/L-3 acompanhar |
+| ⚪ Operacional / Verificar em produção | 1 (checklist) | **Validar antes do go-live** |
 
 `npm audit --omit=dev`: **0 vulnerabilidades** nas dependências de produção.
 
@@ -88,7 +92,17 @@ enfraquecê-los em mudanças futuras:
 
 ---
 
-## 🟡 Achado M-1 (Médio) — Login por certificado não verifica revogação (OCSP/CRL)
+## 🟡 Achado M-1 (Médio) — Login por certificado não verifica revogação (OCSP/CRL) — ✅ RESOLVIDO
+
+> **Correção (branch `claude/code-security-audit-q92jrp`).** Adicionadas
+> `verificarRevogacaoParaLogin` + `avaliarSnapshotOcspLogin` em
+> `src/lib/server/cert-login.ts`, chamadas em `certificado/verificar` **após** a
+> validação da cadeia. Política igual à do fluxo de assinatura: `revoked` e
+> resposta OCSP com assinatura inválida **negam** o login (422); indisponibilidade
+> do responder degrada para `unknown` e **permite** (soft-fail auditado —
+> `metadados.ocsp` na trilha registra logins sem confirmação de revogação).
+> Timeout curto (5 s) para não travar o formulário. Cobertura:
+> `__tests__/cert-login-revogacao.test.ts` (9 casos).
 
 **Arquivos:** `src/routes/api/auth/certificado/verificar/+server.ts`,
 `src/lib/server/cert-login.ts`
@@ -126,7 +140,16 @@ mas **não** o caso de token comprometido de servidor que continua ativo.
 
 ---
 
-## 🔵 Achado L-1 (Baixo) — Troca de e-mail pessoal do admin não re-exige senha
+## 🔵 Achado L-1 (Baixo) — Troca de e-mail pessoal do admin não re-exige senha — ✅ RESOLVIDO
+
+> **Correção (branch `claude/code-security-audit-q92jrp`).** Extraída a guarda
+> `exigirSenhaParaTrocaEmailPessoal` (`src/lib/server/email-pessoal-guard.ts`),
+> agora aplicada a **todas** as sessões (não só policiais). Troca de e-mail já
+> existente exige a senha da conta — com throttle por usuário (5/15min,
+> compartilhando o orçamento do `/alterar-senha`, fechando o brute-force online).
+> Admin vinculado verifica contra a credencial do policial vinculado; admin
+> standalone, contra a própria linha. Cobertura:
+> `__tests__/email-pessoal-guard.test.ts` (6 casos, incluindo o caso admin).
 
 **Arquivo:** `src/routes/api/auth/solicitar-verificacao-email-pessoal/+server.ts`
 
