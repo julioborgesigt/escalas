@@ -267,14 +267,14 @@
 						name="ids"
 						value={JSON.stringify(confirmDialog.currentItem?.itemId)}
 					/>
-					<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
+					<button type="submit" class="btn preset-filled-error-500 transition-all">
 						Remover
 					</button>
 				</form>
 			{:else}
 				<form method="POST" action="?/remover" use:enhance={handleRemover} class="contents">
 					<input type="hidden" name="item_id" value={confirmDialog.currentItem?.itemId} />
-					<button type="submit" class="btn preset-filled-error-500 active:scale-95 transition-all">
+					<button type="submit" class="btn preset-filled-error-500 transition-all">
 						Remover
 					</button>
 				</form>
@@ -293,7 +293,7 @@
 			<form method="POST" action="?/removerTodos" use:enhance={handleRemoverTodos} class="contents">
 				<button
 					type="submit"
-					class="btn preset-filled-error-500 active:scale-95 transition-all"
+					class="btn preset-filled-error-500 transition-all"
 					disabled={pendingRemoverTodos}
 				>
 					{pendingRemoverTodos ? 'Removendo...' : 'Remover Todos'}
@@ -319,7 +319,7 @@
 				<input type="hidden" name="ids" value={selecionadosJson} />
 				<button
 					type="submit"
-					class="btn preset-filled-error-500 active:scale-95 transition-all"
+					class="btn preset-filled-error-500 transition-all"
 					disabled={pendingRemoverSelecionados}
 				>
 					{pendingRemoverSelecionados ? 'Removendo...' : `Remover (${totalSelecionados})`}
@@ -340,7 +340,7 @@
 		{#snippet actions()}
 			<button
 				type="button"
-				class="btn preset-filled-primary-500 active:scale-95 transition-all"
+				class="btn preset-filled-primary-500 transition-all"
 				onclick={handleConfirmarFinalizacao}
 				disabled={enviandoSolicitacao}
 			>

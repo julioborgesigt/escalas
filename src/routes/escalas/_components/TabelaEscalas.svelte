@@ -83,7 +83,7 @@
 		<p class="mb-4">Nenhuma escala criada para os filtros selecionados.</p>
 		<button
 			type="button"
-			class="btn preset-filled-primary-500 active:scale-95 transition-all"
+			class="btn preset-filled-primary-500 transition-all"
 			onclick={onNovaEscala}>Criar Escala</button
 		>
 	</div>
@@ -291,14 +291,14 @@
 										{:else}
 											<button
 												type="button"
-												class="btn btn-sm preset-filled-success-500 active:scale-95 transition-all"
+												class="btn btn-sm preset-filled-success-500 transition-all"
 												onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Ass.</button
 											>
 										{/if}
 									{/if}
 									<button
 										type="button"
-										class="btn btn-sm preset-filled-error-500 flex-1 active:scale-95 transition-all"
+										class="btn btn-sm preset-filled-error-500 flex-1 transition-all"
 										onclick={() => onSolicitarExclusao(esc.id, esc.titulo)}>Excluir</button
 									>
 								</div>
@@ -326,17 +326,17 @@
 						<div class="min-w-0 flex-1">
 							{#if esc.tipo === 'expediente'}
 								<span
-									class="badge preset-outlined-secondary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									class="badge preset-outlined-secondary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
 									>Expediente</span
 								>
 							{:else if esc.tipo === 'fds'}
 								<span
-									class="badge preset-outlined-tertiary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									class="badge preset-outlined-tertiary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
 									>FDS</span
 								>
 							{:else}
 								<span
-									class="badge preset-outlined-primary-500 font-bold text-[0.65rem] px-2 py-0.5 mb-0.5 inline-block"
+									class="badge preset-outlined-primary-500 font-bold text-3xs px-2 py-0.5 mb-0.5 inline-block"
 									>Plantão</span
 								>
 							{/if}
@@ -352,7 +352,7 @@
 						</div>
 						{#if esc.is_assinada}
 							<span
-								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
 								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 									><path
@@ -366,7 +366,7 @@
 							</span>
 						{:else if esc.tipo === 'fds' && esc.finalizada_em}
 							<span
-								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+								class="badge preset-filled-success-500 font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
 								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 									><path
@@ -380,7 +380,7 @@
 							</span>
 						{:else if (esc.tipo === 'plantao' || esc.tipo === 'expediente') && solicitacoesMap[esc.id]}
 							<span
-								class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+								class="badge preset-tonal-warning font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
 								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 									><path
@@ -394,7 +394,7 @@
 							</span>
 						{:else}
 							<span
-								class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-[0.65rem] rounded-full flex items-center gap-1 shadow-sm"
+								class="badge preset-tonal-surface font-bold px-1.5 py-0.5 text-3xs rounded-full flex items-center gap-1 shadow-sm"
 							>
 								<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 									><path
@@ -453,29 +453,29 @@
 							<div class="flex flex-row gap-2 w-full" transition:slide={{ duration: 200 }}>
 								{#if esc.is_assinada}
 									<a
-										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+										class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-success-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 										href={`/api/escalas/${esc.id}/documento-assinado`}
 										target="_blank">PDF Oficial</a
 									>
 								{/if}
 								<a
-									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=pdf`}
 									target="_blank">PDF</a
 								>
 								<a
-									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=docx`}
 									target="_blank">Word</a
 								>
 								<a
-									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 									href={`/api/escalas/${esc.id}/download?format=excel`}
 									target="_blank">Excel</a
 								>
 								<button
 									type="button"
-									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
+									class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-error-500/40 hover:preset-filled-error-500 hover:text-white transition-all font-bold uppercase tracking-tight whitespace-nowrap shadow-sm text-error-600 dark:text-error-400"
 									onclick={() => {
 										menuExpandidoId = null;
 										onSolicitarExclusao(esc.id, esc.titulo);
@@ -493,7 +493,7 @@
 							{:else}
 								<button
 									type="button"
-									class="btn btn-sm preset-filled-success-500 w-full active:scale-95 transition-all"
+									class="btn btn-sm preset-filled-success-500 w-full transition-all"
 									onclick={() => onAbrirDialogSolicitar(esc.id)}>Solicitar Assinatura</button
 								>
 							{/if}

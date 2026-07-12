@@ -123,7 +123,7 @@
 		>
 	</div>
 	<div
-		class="grid grid-cols-7 gap-px text-center text-[0.55rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+		class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 	>
 		{#each DIAS_SEM as ds (ds)}<span>{ds}</span>{/each}
 	</div>
@@ -155,7 +155,7 @@
 <!-- Dias selecionados -->
 {#if mostrarChips && ordenados.length > 0}
 	<div class="space-y-0.5">
-		<span class="text-[0.65rem] font-semibold text-surface-500">
+		<span class="text-3xs font-semibold text-surface-500">
 			Dias selecionados ({ordenados.length}){modo === 'intervalo'
 				? ' — todos os dias entre o primeiro e o último são incluídos'
 				: ''}
@@ -163,7 +163,7 @@
 		<div class="flex flex-wrap gap-1.5">
 			{#each ordenados as iso (iso)}
 				<span
-					class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-[0.65rem] font-medium border shrink-0 {cor ===
+					class="inline-flex items-center gap-0.5 pl-1.5 pr-0.5 py-0.5 rounded-md text-3xs font-medium border shrink-0 {cor ===
 					'warning'
 						? 'border-warning-400/80 bg-warning-500/10 text-warning-900 dark:text-warning-100'
 						: 'border-primary-400/80 bg-primary-500/10 text-primary-900 dark:text-primary-100'}"

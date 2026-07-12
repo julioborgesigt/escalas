@@ -127,29 +127,35 @@
 		</h2>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Nome</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Nome</span>
 				<p class="font-semibold">{perfil.nome}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Matrícula</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>Matrícula</span
+				>
 				<p class="font-semibold">{perfil.matricula}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">Cargo</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block">Cargo</span>
 				<p class="font-semibold">{perfil.cargo}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">E-mail funcional</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>E-mail funcional</span
+				>
 				<p class="font-semibold">{perfil.email || '—'}</p>
 			</div>
 			<div>
-				<span class="label-text text-xs text-surface-400 block">E-mail pessoal</span>
+				<span class="label-text text-xs text-surface-500 dark:text-surface-400 block"
+					>E-mail pessoal</span
+				>
 				<div class="flex items-center gap-2 flex-wrap">
 					<p class="font-semibold">
 						{emailPessoal || '—'}
 						{#if emailPessoal}
 							<span
-								class="ml-1 text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
+								class="ml-1 text-3xs font-bold uppercase px-1.5 py-0.5 rounded {emailPessoalVerificado
 									? 'bg-success-500/15 text-success-700 dark:text-success-400'
 									: 'bg-warning-500/15 text-warning-700 dark:text-warning-400'}"
 							>
@@ -166,7 +172,7 @@
 					</button>
 				</div>
 				{#if emailPessoal}
-					<p class="text-[0.68rem] text-surface-400 mt-1">
+					<p class="text-2xs text-surface-500 dark:text-surface-400 mt-1">
 						A troca exige sua senha e um código enviado ao novo endereço.
 					</p>
 				{/if}
@@ -226,7 +232,7 @@
 		<h2 class="font-semibold text-sm uppercase tracking-wider text-surface-500 mb-1">
 			Dados cadastrais
 		</h2>
-		<p class="text-xs text-surface-400 mb-4">
+		<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
 			As alterações abaixo são enviadas como <strong>solicitação</strong> e só entram em vigor após a
 			aprovação do administrador.
 		</p>
@@ -290,7 +296,7 @@
 				Minhas solicitações
 				{#if pendentes.length > 0}
 					<span
-						class="ml-2 text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
+						class="ml-2 text-3xs font-bold px-2 py-0.5 rounded-full bg-warning-500/15 text-warning-700 dark:text-warning-400"
 					>
 						{pendentes.length} pendente{pendentes.length > 1 ? 's' : ''}
 					</span>
@@ -299,7 +305,7 @@
 			<div class="overflow-x-auto">
 				<table class="table w-full text-sm">
 					<thead>
-						<tr class="text-left text-xs uppercase text-surface-400">
+						<tr class="text-left text-xs uppercase text-surface-500 dark:text-surface-400">
 							<th class="py-2">Campo</th>
 							<th class="py-2">De</th>
 							<th class="py-2">Para</th>
@@ -314,7 +320,7 @@
 								<td class="py-2 text-surface-500">{s.valor_atual || '—'}</td>
 								<td class="py-2 font-semibold">{s.valor_novo}</td>
 								<td class="py-2">
-									<span class="text-[0.65rem] font-bold uppercase px-2 py-0.5 rounded {b.classe}">
+									<span class="text-3xs font-bold uppercase px-2 py-0.5 rounded {b.classe}">
 										{b.rotulo}
 									</span>
 								</td>

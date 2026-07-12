@@ -30,7 +30,7 @@
 			<p class="text-xs text-surface-500 mt-1">
 				Versão {data.versao} · vigente desde {data.vigenteDesde}
 			</p>
-			<p class="text-[10px] text-surface-400 mt-1 font-mono">
+			<p class="text-3xs text-surface-500 dark:text-surface-400 mt-1 font-mono">
 				Hash SHA-256: {data.hash}
 			</p>
 		</header>

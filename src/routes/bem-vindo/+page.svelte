@@ -36,7 +36,7 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full"
 				>
 					Portal de Escalas
 				</span>
@@ -61,7 +61,7 @@
 				{#if isSupervisorGise}
 					<button
 						type="button"
-						class="btn preset-filled-secondary-500 hover:brightness-110 px-6 py-3 text-sm font-bold rounded-xl transition-all shadow-lg active:scale-95 text-white"
+						class="btn preset-filled-secondary-500 hover:brightness-110 px-6 py-3 text-sm font-bold rounded-xl transition-all shadow-lg text-white"
 						onclick={() => goto('/gise')}
 					>
 						Supervisionar GISE
@@ -71,7 +71,7 @@
 				{#if isMembroGise || isSupervisaoGise}
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 hover:brightness-110 px-6 py-3 text-sm font-bold rounded-xl transition-all shadow-lg active:scale-95"
+						class="btn preset-filled-primary-500 hover:brightness-110 px-6 py-3 text-sm font-bold rounded-xl transition-all shadow-lg"
 						onclick={() => goto('/res-gise')}
 					>
 						Registrar Presença GISE

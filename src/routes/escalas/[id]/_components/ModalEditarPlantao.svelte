@@ -106,7 +106,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-primary-500/20 p-4 sm:p-5 space-y-4"
+			class="card w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl border border-primary-500/20 p-4 sm:p-5 space-y-4"
 		>
 			<div>
 				<Dialog.Title class="font-bold text-base">Editar Escala de Plantão</Dialog.Title>
@@ -121,7 +121,7 @@
 			<div class="space-y-3">
 				<div class="flex gap-4">
 					<label class="flex-1 min-w-0">
-						<span class="label-text text-[0.7rem] mb-1 block">Entrada</span>
+						<span class="label-text text-2xs mb-1 block">Entrada</span>
 						<div class="flex gap-1">
 							<select
 								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
@@ -138,7 +138,7 @@
 						</div>
 					</label>
 					<label class="flex-1 min-w-0">
-						<span class="label-text text-[0.7rem] mb-1 block">Saída</span>
+						<span class="label-text text-2xs mb-1 block">Saída</span>
 						<div class="flex gap-1">
 							<select
 								class="select text-xs h-8 py-0 rounded-lg px-1 flex-1"
@@ -156,7 +156,7 @@
 					</label>
 				</div>
 				<label class="block">
-					<span class="label-text text-[0.7rem] mb-1 block">Observações</span>
+					<span class="label-text text-2xs mb-1 block">Observações</span>
 					<input
 						type="text"
 						class="input text-xs h-8 px-2 rounded-lg w-full"

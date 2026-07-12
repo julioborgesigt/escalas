@@ -261,7 +261,7 @@
 						type="button"
 						class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 max-w-full inline-flex items-center justify-center gap-1.5 select-none border-surface-300/80 bg-surface-100/90 text-surface-600 shadow-sm cursor-not-allowed dark:border-surface-600 dark:bg-surface-800/50 dark:text-surface-400 {compact
 							? 'w-full'
-							: 'w-full min-[400px]:w-auto sm:w-auto'}"
+							: 'w-full xs:w-auto sm:w-auto'}"
 						disabled
 						title="Aguardando preenchimento do formulário de produtividade desta seccional"
 					>
@@ -278,7 +278,7 @@
 							/></svg
 						>
 						<span class="shrink-0">{rótuloProd}</span>
-						<span class="text-[0.6rem] font-medium italic">(aguardando)</span>
+						<span class="text-3xs font-medium italic">(aguardando)</span>
 					</button>
 				{/if}
 			{/each}
@@ -286,10 +286,10 @@
 			<div
 				class={compact
 					? 'flex w-full flex-col gap-2'
-					: 'flex w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2'}
+					: 'flex w-full xs:w-auto xs:max-w-full xs:shrink-0 flex-col xs:flex-row xs:flex-wrap xs:items-center gap-2'}
 			>
 				{#if assRel}
-					<div class="flex gap-2 {compact ? 'w-full' : 'w-full min-[400px]:w-auto'}">
+					<div class="flex gap-2 {compact ? 'w-full' : 'w-full xs:w-auto'}">
 						<a
 							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
 							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
@@ -334,7 +334,7 @@
 							? 'pointer-events-none opacity-60 border-primary-500/30'
 							: 'no-underline'} preset-tonal-primary border-primary-500/30 hover:border-primary-500 {compact
 							? 'w-full'
-							: 'w-full min-[400px]:w-auto'}"
+							: 'w-full xs:w-auto'}"
 						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 						target="_blank"
 						rel="noopener noreferrer"
@@ -351,7 +351,7 @@
 							/></svg
 						>
 						<span class="whitespace-nowrap">Relat. Extra</span>
-						<span class="text-[0.6rem] opacity-100 dark:opacity-80 font-normal italic ml-1"
+						<span class="text-3xs opacity-100 dark:opacity-80 font-normal italic ml-1"
 							>({!checkAllSigned(sec) ? 'não concluído' : 'conferência'})</span
 						>
 					</a>
@@ -360,7 +360,7 @@
 					<div
 						class={compact
 							? 'flex w-full flex-col gap-2'
-							: 'flex w-full min-[400px]:w-auto flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2'}
+							: 'flex w-full xs:w-auto flex-col xs:flex-row items-stretch xs:items-center gap-2'}
 					>
 						{#if isMobile || !restringirSmartphone}
 							{@render actionButton(
@@ -373,8 +373,8 @@
 								false,
 								false,
 								compact
-									? 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-warning-600/30 hover:border-warning-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									? 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+									: 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full xs:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
@@ -392,8 +392,8 @@
 								false,
 								false,
 								compact
-									? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-[0.65rem] py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
+									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full xs:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
@@ -484,7 +484,7 @@
 							<input type="hidden" name="hora_saida" value={normalizarHora(editSecHoraSai) ?? ''} />
 							<button
 								type="submit"
-								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 								disabled={pendingCrud}
 								title="Confirmar">{pendingSalvarHorariosSec ? '…' : '✓'}</button
 							>
@@ -503,7 +503,7 @@
 					<span>{sec.hora_entrada ?? gise.hora_entrada}h-{sec.hora_saida ?? gise.hora_saida}h</span>
 					{#if (sec.hora_entrada || sec.hora_saida) && !recolhida}
 						<span
-							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-[0.65rem]"
+							class="hidden sm:inline-block ml-1 px-1 rounded bg-warning-500/10 text-warning-600 dark:text-warning-400 font-bold border border-warning-500/20 text-3xs"
 							>H. Personalizado</span
 						>
 					{/if}
@@ -794,7 +794,7 @@
 								<div class="w-full flex-1">
 									<select
 										bind:value={slotUnidadeId}
-										class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
+										class="w-full px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm font-medium"
 									>
 										<option value=""
 											>{slot.nome ? 'Selecionar outra unidade...' : 'Selecionar unidade...'}</option
@@ -815,7 +815,7 @@
 										<input type="hidden" name="unidadeId" value={slotUnidadeId} />
 										<button
 											type="submit"
-											class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 active:scale-95 transition-all font-semibold"
+											class="btn preset-filled-primary-500 text-sm px-4 py-1.5 rounded-xl w-full sm:w-auto sm:px-6 transition-all font-semibold"
 											disabled={!slotUnidadeId || pendingCrud}
 										>
 											{pendingSelecionarUnidade ? 'Salvando...' : 'Confirmar'}
@@ -963,7 +963,9 @@
 								{/if}
 							</div>
 						{:else}
-							<span class="text-sm text-surface-400 italic">Unidade não definida</span>
+							<span class="text-sm text-surface-500 dark:text-surface-400 italic"
+								>Unidade não definida</span
+							>
 						{/if}
 					</div>
 
@@ -1028,7 +1030,7 @@
 													min="0"
 													max="20"
 													bind:value={editSlotsDpc}
-													class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+													class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 												/>
 												<label for="edit-oip-{equipe.id}" class="text-sm text-surface-500"
 													>OIP:</label
@@ -1039,7 +1041,7 @@
 													min="0"
 													max="20"
 													bind:value={editSlotsOip}
-													class="w-14 px-2 py-1 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+													class="w-14 px-2 py-1 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 												/>
 												<div class="flex items-center gap-2 shrink-0">
 													<form
@@ -1053,7 +1055,7 @@
 														<input type="hidden" name="slots_oip" value={editSlotsOip} />
 														<button
 															type="submit"
-															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 															disabled={pendingCrud}
 															aria-label="Salvar vagas"
 															title="Confirmar">{pendingSalvarSlotsEquipe ? '…' : '✓'}</button
@@ -1142,7 +1144,7 @@
 														/>
 														<button
 															type="submit"
-															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded active:scale-95 transition-all"
+															class="btn btn-sm preset-filled-primary-500 text-sm py-1 px-2 rounded transition-all"
 															disabled={pendingCrud}
 															title="Confirmar">{pendingSalvarHorariosEquipe ? '…' : '✓'}</button
 														>
@@ -1157,7 +1159,7 @@
 										{:else}
 											<div class="flex flex-wrap items-center gap-2 min-w-0">
 												<div
-													class="flex flex-wrap items-center gap-1.5 text-sm text-surface-400 font-medium min-w-0"
+													class="flex flex-wrap items-center gap-1.5 text-sm text-surface-500 dark:text-surface-400 font-medium min-w-0"
 												>
 													<span
 														>{equipe.hora_entrada ??
@@ -1265,7 +1267,9 @@
 										{/each}
 									</div>
 								{:else}
-									<p class="text-sm text-surface-400 italic mb-3">Nenhum membro alocado</p>
+									<p class="text-sm text-surface-500 dark:text-surface-400 italic mb-3">
+										Nenhum membro alocado
+									</p>
 								{/if}
 
 								<!-- Adicionar membro -->
@@ -1293,7 +1297,7 @@
 												<div class="w-full sm:w-auto flex gap-2">
 													<button
 														type="submit"
-														class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none active:scale-95 transition-all"
+														class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg flex-1 sm:flex-none transition-all"
 														disabled={!policialParaAdicionar || pendingCrud}
 														>{pendingAdicionarMembro ? 'Adicionando...' : 'Adicionar'}</button
 													>
@@ -1391,7 +1395,7 @@
 													novaEquipeOip = 2;
 												}
 											}}
-											class="px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+											class="px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 										>
 											<option value="operacional">Operacional</option>
 											<option value="seint">SEINT</option>
@@ -1409,7 +1413,7 @@
 											min="0"
 											max="20"
 											bind:value={novaEquipeDpc}
-											class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+											class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 										/>
 									</div>
 									<div>
@@ -1424,7 +1428,7 @@
 											min="0"
 											max="20"
 											bind:value={novaEquipeOip}
-											class="w-14 px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
+											class="w-14 px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm text-center"
 										/>
 									</div>
 									<form
@@ -1440,7 +1444,7 @@
 										<input type="hidden" name="slots_oip" value={novaEquipeOip} />
 										<button
 											type="submit"
-											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+											class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-lg transition-all"
 											disabled={pendingCrud}
 											>{pendingAdicionarEquipe ? 'Adicionando...' : 'Adicionar'}</button
 										>
@@ -1497,7 +1501,7 @@
 							<select
 								id="novo-slot-unidade-{sec.id}"
 								bind:value={novoSlotUnidadeId}
-								class="w-full px-2 py-1.5 rounded-lg border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
+								class="w-full px-2 py-1.5 rounded-xl border border-surface-300 dark:border-surface-700 bg-white dark:bg-surface-800 text-sm"
 							>
 								<option value="">Slot em branco (Adm Seccional preenche depois)</option>
 								{#each todasUnidades.filter((d: Unidade) => d.tipo === 'delegacia' && d.seccional_id === sec.seccional_id && !(sec.unidades ?? []).some((s: GiseUnidadeSlot) => s.unidade_id === d.id)) as d (d.id)}
@@ -1515,7 +1519,7 @@
 							<input type="hidden" name="unidadeId" value={novoSlotUnidadeId} />
 							<button
 								type="submit"
-								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl active:scale-95 transition-all"
+								class="btn preset-filled-primary-500 text-sm px-3 py-1.5 rounded-xl transition-all"
 								disabled={pendingCrud}
 								>{pendingAdicionarUnidade ? 'Adicionando...' : 'Confirmar'}</button
 							>

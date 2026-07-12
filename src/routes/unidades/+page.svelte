@@ -191,15 +191,15 @@
 
 {#snippet badges(u: Unidade)}
 	{#if u.tem_plantao}<span
-			class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-[10px] px-1.5 py-0 font-bold"
+			class="badge preset-filled-tertiary-500/20 text-tertiary-900 dark:text-tertiary-200 border border-tertiary-500/30 text-3xs px-1.5 py-0 font-bold"
 			>Plantão</span
 		>{/if}
 	{#if u.tem_expediente}<span
-			class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-[10px] px-1.5 py-0 font-bold"
+			class="badge preset-filled-primary-500/20 text-primary-900 dark:text-primary-200 border border-primary-500/30 text-3xs px-1.5 py-0 font-bold"
 			>Expediente</span
 		>{/if}
 	{#if u.tem_fds}<span
-			class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-[10px] px-1.5 py-0 font-bold"
+			class="badge preset-filled-warning-500/20 text-warning-900 dark:text-warning-200 border border-warning-500/30 text-3xs px-1.5 py-0 font-bold"
 			>FDS</span
 		>{/if}
 {/snippet}
@@ -268,7 +268,7 @@
 		{#if isAdmin}
 			<button
 				type="button"
-				class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all"
+				class="btn btn-sm preset-filled-primary-500 transition-all"
 				onclick={() => (cadastroOpen = true)}
 			>
 				<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -402,7 +402,7 @@
 										<div>
 											<span class="font-medium block">{u.nome}</span>
 											<span
-												class="inline-block mt-1 text-[0.6rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
+												class="inline-block mt-1 text-3xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-surface-200/80 dark:bg-surface-700/80 text-surface-600 dark:text-surface-300"
 												>{tipoLabel(u.tipo)}</span
 											>
 											<div class="flex gap-1.5 mt-1.5 items-center">
@@ -436,7 +436,7 @@
 												{@render editInputs()}
 												<button
 													type="submit"
-													class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5 active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-primary-500 flex items-center gap-1.5 transition-all"
 													disabled={pendingEditar || !editNome.trim()}
 												>
 													{pendingEditar ? 'Salvando...' : 'Salvar'}
@@ -456,7 +456,7 @@
 												>
 												<button
 													type="button"
-													class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+													class="btn btn-sm preset-filled-error-500 transition-all"
 													onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 												>
 											</div>
@@ -490,7 +490,7 @@
 									{@render editInputs()}
 									<button
 										type="submit"
-										class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+										class="btn btn-sm preset-filled-primary-500 flex-1 flex items-center justify-center gap-1.5 transition-all"
 										disabled={pendingEditar || !editNome.trim()}
 									>
 										{pendingEditar ? 'Salvando...' : 'Salvar'}
@@ -506,11 +506,11 @@
 							<div class="flex items-center justify-between gap-3">
 								<div class="min-w-0">
 									<p class="font-semibold text-sm">{u.nome}</p>
-									<p class="text-[0.65rem] font-bold uppercase text-surface-500 mt-0.5">
+									<p class="text-3xs font-bold uppercase text-surface-500 mt-0.5">
 										{tipoLabel(u.tipo)}
 									</p>
 									{#if u.seccional_id}
-										<p class="text-[0.65rem] text-surface-500 mt-0.5 truncate">
+										<p class="text-3xs text-surface-500 mt-0.5 truncate">
 											Subordinada a: {unidades.find((x) => x.id === u.seccional_id)?.nome ??
 												u.seccional_id}
 										</p>
@@ -519,7 +519,7 @@
 										{@render badges(u)}
 									</div>
 									<p
-										class="text-[11px] text-surface-600 dark:text-surface-300 font-medium italic mt-1"
+										class="text-2xs text-surface-600 dark:text-surface-300 font-medium italic mt-1"
 									>
 										{u.cidade || 'Sem cidade'}
 									</p>
@@ -533,7 +533,7 @@
 										>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 active:scale-95 transition-all"
+											class="btn btn-sm preset-filled-error-500 transition-all"
 											onclick={() => solicitarExclusao(u.id, u.nome)}>Excluir</button
 										>
 									</div>

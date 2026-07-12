@@ -59,7 +59,7 @@
 			{#if !modoEdicao}
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 active:scale-95 transition-all"
+					class="btn preset-filled-primary-500 transition-all"
 					onclick={() => (modoEdicao = true)}
 				>
 					Editar escala
@@ -67,7 +67,7 @@
 			{:else if !isFDS && (isExpediente || escala.tipo === 'plantao')}
 				<button
 					type="button"
-					class="btn preset-filled-success-500 active:scale-95 transition-all"
+					class="btn preset-filled-success-500 transition-all"
 					onclick={onFinalizarEdicao}
 				>
 					Finalizar edição

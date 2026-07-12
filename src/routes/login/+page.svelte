@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Calendar, Shield, Lock } from 'lucide-svelte';
 	import { browser } from '$app/environment';
 	import { goto, replaceState } from '$app/navigation';
 	import { applyAction, enhance } from '$app/forms';
@@ -450,7 +451,7 @@
 							>Módulo de Acesso</span
 						>
 						<div class="flex gap-2 mt-1">
-							{#each [{ value: 'escalas', label: 'Escalas', icon: '📅' }, { value: 'gise', label: 'GISE', icon: '🛡️' }] as opt (opt.value)}
+							{#each [{ value: 'escalas', label: 'Escalas' }, { value: 'gise', label: 'GISE' }] as opt (opt.value)}
 								<button
 									type="button"
 									class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium transition-all
@@ -459,7 +460,10 @@
 										: 'border-surface-200 dark:border-surface-700 text-surface-500 hover:border-surface-400 dark:hover:border-surface-500'}"
 									onclick={() => (adminModulo = opt.value as typeof adminModulo)}
 								>
-									<span class="text-base">{opt.icon}</span>
+									{#if opt.value === 'escalas'}<Calendar
+											class="w-5 h-5"
+											aria-hidden="true"
+										/>{:else}<Shield class="w-5 h-5" aria-hidden="true" />{/if}
 									<span>{opt.label}</span>
 								</button>
 							{/each}
@@ -539,7 +543,7 @@
 			{#if tipo === 'policial'}
 				<div class="flex items-center gap-3 my-4">
 					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
-					<span class="text-xs text-surface-400 shrink-0">ou</span>
+					<span class="text-xs text-surface-500 dark:text-surface-400 shrink-0">ou</span>
 					<div class="flex-1 h-px bg-surface-200 dark:bg-surface-700"></div>
 				</div>
 				<button
@@ -610,7 +614,7 @@
 								class="flex items-center gap-2 text-xs font-semibold data-[current]:text-primary-500 data-[complete]:text-success-500 text-surface-400 pointer-events-none"
 							>
 								<Steps.Indicator
-									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px]"
+									class="w-6 h-6 rounded-full border-2 flex items-center justify-center text-3xs"
 									>{i + 1}</Steps.Indicator
 								>
 								<span class="hidden sm:inline">{label}</span>
@@ -624,7 +628,10 @@
 			</Steps>
 			{#if recuperacaoEtapa === 'identificador'}
 				<div class="text-center mb-6">
-					<div class="text-5xl mb-3">🔒</div>
+					<Lock
+						class="w-12 h-12 mx-auto mb-3 text-surface-500 dark:text-surface-400"
+						aria-hidden="true"
+					/>
 					<p class="font-semibold mb-1">Recuperar senha</p>
 					<p class="text-sm text-surface-600 dark:text-surface-400">
 						Informe {tipo === 'policial' ? 'sua matrícula' : 'seu login'} para receber um código de validação

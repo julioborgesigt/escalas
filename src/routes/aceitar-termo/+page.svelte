@@ -31,17 +31,19 @@
 			>
 				Termo de Uso e Política de Privacidade
 			</h1>
-			<p class="text-[11px] text-surface-500 mt-1">
+			<p class="text-2xs text-surface-500 mt-1">
 				Versão {data.versao} · vigente desde {data.vigenteDesde}
 			</p>
 		</header>
 
 		<div class="px-6 pb-2 text-sm leading-relaxed text-surface-700 dark:text-surface-200">
 			<p class="text-justify hyphens-auto">
-				Para usar o Sistema, você precisa aceitar os Termos de Uso e a Política de Privacidade.
-				Ao clicar em <strong>“Li e aceito”</strong>, você declara ciência e concordância — inclusive
-				com o uso da <strong>assinatura eletrônica do Sistema como equivalente à sua assinatura de
-				próprio punho</strong>.
+				Para usar o Sistema, você precisa aceitar os Termos de Uso e a Política de Privacidade. Ao
+				clicar em <strong>“Li e aceito”</strong>, você declara ciência e concordância — inclusive
+				com o uso da
+				<strong
+					>assinatura eletrônica do Sistema como equivalente à sua assinatura de próprio punho</strong
+				>.
 			</p>
 			<p class="mt-3">
 				<a
@@ -91,7 +93,7 @@
 				</button>
 			</div>
 
-			<p class="text-[10px] text-surface-400 mt-4 text-center">
+			<p class="text-3xs text-surface-500 dark:text-surface-400 mt-4 text-center">
 				O aceite registra data/hora, IP e dispositivo · Hash do termo:
 				<code class="font-mono">{data.hash.slice(0, 16)}…</code>
 			</p>

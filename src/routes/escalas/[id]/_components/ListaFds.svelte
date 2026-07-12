@@ -297,14 +297,14 @@
 						<div class="flex gap-1.5">
 							{#if dpcs > 0}
 								<span
-									class="badge text-[0.55rem] font-bold px-1.5 py-0.5 bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/20 rounded"
+									class="badge text-3xs font-bold px-1.5 py-0.5 bg-primary-500/15 text-primary-700 dark:text-primary-300 border border-primary-500/20 rounded"
 								>
 									{dpcs} DPC
 								</span>
 							{/if}
 							{#if oips > 0}
 								<span
-									class="badge text-[0.55rem] font-bold px-1.5 py-0.5 bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/20 rounded"
+									class="badge text-3xs font-bold px-1.5 py-0.5 bg-warning-500/15 text-warning-700 dark:text-warning-300 border border-warning-500/20 rounded"
 								>
 									{oips} OIP
 								</span>
@@ -346,7 +346,7 @@
 							<!-- Formulário de edição inline -->
 							<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
 								<p
-									class="text-[0.6rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
+									class="text-3xs font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
 								>
 									Editando: {p.nome}
 								</p>
@@ -358,7 +358,7 @@
 								>
 									<input type="hidden" name="item_id" value={edicao.editingId} />
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Início</span>
+										<span class="label-text text-3xs block mb-0.5">Início</span>
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
@@ -366,7 +366,7 @@
 										/>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Saída</span>
+										<span class="label-text text-3xs block mb-0.5">Saída</span>
 										<input
 											type="date"
 											class="input text-xs h-8 px-1 rounded-lg w-[7.5rem]"
@@ -374,7 +374,7 @@
 										/>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Entrada</span>
+										<span class="label-text text-3xs block mb-0.5">Entrada</span>
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
@@ -391,7 +391,7 @@
 										</div>
 									</div>
 									<div class="shrink-0">
-										<span class="label-text text-[0.55rem] block mb-0.5">Saída hr</span>
+										<span class="label-text text-3xs block mb-0.5">Saída hr</span>
 										<div class="flex gap-1">
 											<select
 												class="select text-xs h-8 py-0 rounded-lg px-1 w-12"
@@ -475,7 +475,7 @@
 											{p.nome}
 										</span>
 										<span
-											class="badge px-1.5 py-0.5 rounded text-[0.55rem] font-bold uppercase shrink-0
+											class="badge px-1.5 py-0.5 rounded text-3xs font-bold uppercase shrink-0
 											{p.cargo === 'DPC'
 												? 'bg-primary-500/15 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 												: 'bg-warning-500/15 text-warning-700 dark:text-warning-400 border border-warning-500/20'}"
@@ -551,7 +551,7 @@
 										</IconTooltip>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
+											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 											onclick={() => onSolicitarRemocao(p.id, p.nome)}
 										>
 											Rem.
@@ -565,7 +565,7 @@
 							<div
 								class="border-t border-success-200 dark:border-success-500/15 px-4 py-3 bg-success-500/5 dark:bg-success-500/8"
 							>
-								<p class="text-[0.65rem] font-semibold text-success-700 dark:text-success-400 mb-2">
+								<p class="text-3xs font-semibold text-success-700 dark:text-success-400 mb-2">
 									Adicionar <span class="uppercase">{p.nome}</span> em outros dias:
 								</p>
 								<form method="POST" action="?/repetir" use:enhance={handleRepetir}>
@@ -580,7 +580,7 @@
 											<button
 												type="button"
 												disabled={jaAdicionado}
-												class="px-2 py-1 text-[0.65rem] font-bold rounded-md border transition-all {jaAdicionado
+												class="px-2 py-1 text-3xs font-bold rounded-md border transition-all {jaAdicionado
 													? 'bg-surface-100 dark:bg-surface-800 text-surface-300 dark:text-surface-600 border-surface-200 dark:border-white/5 cursor-not-allowed line-through'
 													: repeticaoDatas.includes(d)
 														? 'bg-success-500 text-white border-success-500'
@@ -633,7 +633,7 @@
 						: 'bg-warning-500/5 dark:bg-warning-500/8'}"
 				>
 					<p
-						class="text-[0.65rem] font-semibold mb-2
+						class="text-3xs font-semibold mb-2
 						{fdsAddingCargo === 'DPC'
 							? 'text-primary-600 dark:text-primary-400'
 							: 'text-warning-600 dark:text-warning-400'}"
@@ -656,7 +656,7 @@
 								{/key}
 							</div>
 							<div class="shrink-0">
-								<span class="label-text text-[0.65rem] block mb-0.5">Entrada</span>
+								<span class="label-text text-3xs block mb-0.5">Entrada</span>
 								<div class="flex gap-1">
 									<select
 										class="select text-xs h-9 py-0 px-2"
@@ -675,7 +675,7 @@
 								</div>
 							</div>
 							<div class="shrink-0">
-								<span class="label-text text-[0.65rem] block mb-0.5">Saída</span>
+								<span class="label-text text-3xs block mb-0.5">Saída</span>
 								<div class="flex gap-1">
 									<select
 										class="select text-xs h-9 py-0 px-2"

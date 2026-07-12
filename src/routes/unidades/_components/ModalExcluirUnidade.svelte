@@ -42,7 +42,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Excluir Unidade?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -57,7 +57,7 @@
 					<input type="hidden" name="unidade_id" value={unidade?.id} />
 					<button
 						type="submit"
-						class="btn preset-filled-error-500 flex items-center gap-2 active:scale-95 transition-all"
+						class="btn preset-filled-error-500 flex items-center gap-2 transition-all"
 						disabled={pending}
 					>
 						{pending ? 'Excluindo...' : 'Excluir'}

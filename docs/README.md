@@ -31,6 +31,7 @@ Estes documentos **não devem ser lidos como estado atual do sistema** — cada 
 | [`auditorias/ANALISE_JURIDICA_ASSINATURAS.md`](auditorias/ANALISE_JURIDICA_ASSINATURAS.md) | mai/2026 | Parecer técnico-jurídico das assinaturas avançada × qualificada (não vinculante) |
 | [`auditorias/AUDITORIA_PERFORMANCE_UX.md`](auditorias/AUDITORIA_PERFORMANCE_UX.md) | jun/2026 | Auditoria de performance/UX — 3 fases **implementadas** (resultados medidos no topo do documento) |
 | [`auditorias/AUDITORIA_VISUAL.md`](auditorias/AUDITORIA_VISUAL.md) | jun/2026 | Auditoria de consistência visual (tipografia, ícones, tokens de tema) |
+| [`auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md`](auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md) | 11/jul/2026 | Auditoria visual & UX (re-mede V-1…V-11 e adiciona UX-1…UX-10) — rodadas 1 e 2 do plano **implementadas**; regras resultantes documentadas no README §10 |
 | [`auditorias/skeleton_audit_final.md`](auditorias/skeleton_audit_final.md) | jun/2026 | **Consolidação final** das 3 auditorias de aproveitamento do Skeleton UI v4 |
 | [`auditorias/SKELETON_AUDIT.md`](auditorias/SKELETON_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |
 | [`auditorias/SKELETON_DEEP_AUDIT.md`](auditorias/SKELETON_DEEP_AUDIT.md) | jun/2026 | ⚠️ Supersedida — consolidada em `skeleton_audit_final.md` |

@@ -50,7 +50,7 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-primary-700 dark:text-primary-400 bg-primary-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-primary-700 dark:text-primary-400 bg-primary-500/10 px-3 py-1 rounded-full"
 				>
 					Módulo de Escalas
 				</span>
@@ -91,7 +91,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 							onclick={() => goto('/painel')}
 						>
 							Acessar Painel
@@ -117,7 +117,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+							class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 							onclick={() => goto('/recebidos')}
 						>
 							Acessar Cx. de Entrada
@@ -159,7 +159,7 @@
 							</div>
 							<button
 								type="button"
-								class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+								class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 								onclick={() => goto('/escalas')}
 							>
 								Acessar Escalas
@@ -185,7 +185,7 @@
 							</div>
 							<button
 								type="button"
-								class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+								class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 								onclick={() => goto('/gise')}
 							>
 								Acessar Escalas GISE
@@ -212,7 +212,7 @@
 								</div>
 								<button
 									type="button"
-									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 									onclick={() => goto('/res-gise')}
 								>
 									Confirmar Presença
@@ -252,7 +252,7 @@
 								</div>
 								<button
 									type="button"
-									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 									onclick={() => goto('/escalas')}
 								>
 									Acessar Escalas
@@ -278,7 +278,7 @@
 								</div>
 								<button
 									type="button"
-									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-primary-500/25"
+									class="btn w-full preset-filled-primary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-primary-500/25"
 									onclick={() => goto('/res-gise')}
 								>
 									Acessar Presença GISE
@@ -301,7 +301,7 @@
 						<div class="pt-4">
 							<button
 								type="button"
-								class="btn w-full sm:w-auto preset-filled-primary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
+								class="btn w-full sm:w-auto preset-filled-primary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 text-white mx-auto"
 								onclick={() => goto('/escalas')}
 							>
 								Entrar no Painel de Escalas
@@ -322,7 +322,7 @@
 				<div class="pt-4">
 					<button
 						type="button"
-						class="btn w-full sm:w-auto preset-filled-primary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
+						class="btn w-full sm:w-auto preset-filled-primary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 text-white mx-auto"
 						onclick={() => goto('/escalas')}
 					>
 						Entrar no Painel de Escalas

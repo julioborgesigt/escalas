@@ -126,7 +126,7 @@
 			>
 				<div class="flex flex-col md:flex-row gap-3 sm:gap-5 items-start">
 					<div
-						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-[0.6rem] font-black text-surface-500 shrink-0"
+						class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-200 dark:bg-surface-800 text-3xs font-black text-surface-500 shrink-0"
 					>
 						{#if level > 0}↳{:else}{resGise.perguntasConfig.indexOf(p) + 1}{/if}
 					</div>
@@ -135,17 +135,17 @@
 						<div class="flex items-center justify-between pl-1 gap-2 flex-wrap mb-1">
 							<label
 								for="qtxt-{p.id}"
-								class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+								class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 								>Texto da Pergunta</label
 							>
 							{#if p.key?.startsWith('extra_')}
 								<span
-									class="badge preset-filled-secondary-500 text-[0.55rem] font-black uppercase whitespace-nowrap"
+									class="badge preset-filled-secondary-500 text-3xs font-black uppercase whitespace-nowrap"
 									>CAMPO ADICIONAL</span
 								>
 							{:else}
 								<span
-									class="bg-surface-100 dark:bg-surface-800 text-[0.5rem] font-black px-2 py-0.5 rounded-full text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
+									class="bg-surface-100 dark:bg-surface-800 text-3xs font-black px-2 py-0.5 rounded-full text-surface-500 dark:text-surface-400 uppercase border border-surface-200 dark:border-surface-700 whitespace-nowrap"
 									>Campo Sistema</span
 								>
 							{/if}
@@ -161,7 +161,7 @@
 					<div class="w-full md:w-56 space-y-1.5 md:shrink-0">
 						<label
 							for="p-tp-{p.id}"
-							class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest"
+							class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 							>Tipo do Campo</label
 						>
 						<select
@@ -248,7 +248,7 @@
 								/></svg
 							>
 							<span
-								class="text-[0.65rem] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest"
+								class="text-3xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest"
 								>Personalizar Rótulos do Campo Inteligente</span
 							>
 						</div>
@@ -258,7 +258,8 @@
 								<div class="space-y-1">
 									<label
 										for="subqtd-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase">Quantidade:</label
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
+										>Quantidade:</label
 									>
 									<input
 										id="subqtd-{p.id}"
@@ -271,7 +272,7 @@
 								<div class="space-y-1 md:col-span-2">
 									<label
 										for="sublst-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-wider"
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-wider"
 										>Legenda Lista (ex: 5.2)</label
 									>
 									<input
@@ -286,7 +287,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -300,7 +301,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Detalhamento Pesos:</label
 									>
 									<input
@@ -315,7 +316,7 @@
 								<div class="space-y-1">
 									<label
 										for="subtp-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Lista de Tipos:</label
 									>
 									<input
@@ -329,7 +330,7 @@
 								<div class="space-y-1">
 									<label
 										for="subdet-{p.id}"
-										class="text-[0.6rem] font-bold text-surface-400 uppercase"
+										class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 										>Legenda Quantidade:</label
 									>
 									<input
@@ -386,7 +387,7 @@
 							? 'bg-warning-500 animate-pulse'
 							: 'bg-success-500'}"
 					></div>
-					<p class="text-[0.65rem] font-bold text-surface-900 dark:text-surface-100">
+					<p class="text-3xs font-bold text-surface-900 dark:text-surface-100">
 						{loading.active ? 'Salvando alterações...' : 'Pronto para salvar'}
 					</p>
 				</div>
@@ -414,7 +415,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="text-lg font-bold mb-2">Restaurar modelo padrão?</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-600 dark:text-surface-300 mb-6">

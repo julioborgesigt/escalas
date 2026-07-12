@@ -40,7 +40,7 @@
 			<!-- Title / Greeting -->
 			<div class="space-y-2">
 				<span
-					class="inline-block text-[0.65rem] font-black uppercase tracking-widest text-secondary-600 dark:text-secondary-400 bg-secondary-500/10 px-3 py-1 rounded-full"
+					class="inline-block text-3xs font-black uppercase tracking-widest text-secondary-600 dark:text-secondary-400 bg-secondary-500/10 px-3 py-1 rounded-full"
 				>
 					Módulo GISE
 				</span>
@@ -81,7 +81,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 							onclick={() => goto('/gise')}
 						>
 							Acessar Escalas GISE
@@ -107,7 +107,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 							onclick={() => goto('/produtividade')}
 						>
 							Acessar Produtividade
@@ -133,7 +133,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 							onclick={() => goto('/gise/config')}
 						>
 							Acessar Conf. Gise
@@ -159,7 +159,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+							class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 							onclick={() => goto('/res-gise')}
 						>
 							Acessar Conf. Form.
@@ -210,7 +210,7 @@
 								</div>
 								<button
 									type="button"
-									class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+									class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 									onclick={() => goto('/gise')}
 								>
 									Acessar Escalas GISE
@@ -236,7 +236,7 @@
 								</div>
 								<button
 									type="button"
-									class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white active:scale-95 shadow-md shadow-secondary-500/25"
+									class="btn w-full preset-filled-secondary-500 hover:brightness-110 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-white shadow-md shadow-secondary-500/25"
 									onclick={() => goto('/res-gise')}
 								>
 									Acessar Presença GISE
@@ -265,7 +265,7 @@
 						<div class="pt-4">
 							<button
 								type="button"
-								class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
+								class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto"
 								onclick={() => goto('/gise')}
 							>
 								Entrar no Painel GISE
@@ -287,7 +287,7 @@
 					<div class="pt-4">
 						<button
 							type="button"
-							class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto active:scale-95"
+							class="btn w-full sm:w-auto preset-filled-secondary-500 hover:brightness-110 px-8 py-3.5 text-sm font-bold rounded-xl transition-all shadow-lg shadow-secondary-500/25 flex items-center justify-center gap-2 text-white mx-auto"
 							onclick={() => goto('/gise')}
 						>
 							Entrar no Painel GISE

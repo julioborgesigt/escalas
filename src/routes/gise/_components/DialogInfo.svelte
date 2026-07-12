@@ -26,12 +26,10 @@
 	}}
 >
 	<Dialog.Content
-		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/60 p-4 backdrop-blur-sm"
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-surface-950/80 p-4 backdrop-blur-sm"
 	>
 		{#if dialogInfo}
-			<div
-				class="w-full max-w-sm rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-6 shadow-xl space-y-4"
-			>
+			<div class="w-full max-w-sm rounded-2xl card-elevated p-6 shadow-xl space-y-4">
 				<div class="flex items-start gap-3">
 					<div
 						class="mt-0.5 shrink-0 rounded-lg p-2 {dialogInfo.acao

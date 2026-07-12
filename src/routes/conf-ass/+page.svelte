@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, Lock } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { toaster } from '$lib/toast';
 	import { csrfHeaders } from '$lib/csrf';
@@ -95,18 +96,18 @@
 	>
 		<div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
 			<div>
-				<p class="text-[10px] font-black uppercase tracking-widest text-surface-500">
+				<p class="text-3xs font-black uppercase tracking-widest text-surface-500">
 					Nível Legal das Assinaturas em Tela
 				</p>
 				<p class="text-xl font-black text-surface-900 dark:text-white mt-1">
 					{nivelEfetivo === 'avancada' ? 'AVANÇADA' : 'SIMPLES'}
 				</p>
-				<p class="text-[11px] text-surface-500 italic mt-0.5">
+				<p class="text-2xs text-surface-500 italic mt-0.5">
 					Base legal: {baseLegalAtual}
 				</p>
 			</div>
 			<span
-				class="badge font-black px-3 py-1.5 rounded-full text-[0.7rem] uppercase whitespace-nowrap
+				class="badge font-black px-3 py-1.5 rounded-full text-2xs uppercase whitespace-nowrap
 				{nivelEfetivo === 'avancada'
 					? 'text-success-600 dark:text-success-400 bg-success-500/10'
 					: 'text-warning-600 dark:text-warning-400 bg-warning-500/10'}"
@@ -116,7 +117,7 @@
 		</div>
 
 		<!-- Sempre ativos -->
-		<details class="text-[11px] mt-3">
+		<details class="text-2xs mt-3">
 			<summary
 				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
 			>
@@ -125,17 +126,17 @@
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosSempreAtivos as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-success-600 font-black">✓</span>
+						<Check class="inline w-3.5 h-3.5 -mt-0.5 text-success-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
 		</details>
 
 		<!-- Obrigatórios para Avançada -->
-		<details class="text-[11px] mt-2" open>
+		<details class="text-2xs mt-2" open>
 			<summary
 				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
 			>
@@ -144,17 +145,17 @@
 			<ul class="mt-2 space-y-1 pl-4">
 				{#each requisitosObrigatorios as r (r.id)}
 					<li class="text-surface-700 dark:text-surface-300">
-						<span class="text-primary-600 font-black">🔒</span>
+						<Lock class="inline w-3.5 h-3.5 -mt-0.5 text-primary-600" aria-hidden="true" />
 						{r.descricao}
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.baseLegal}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.baseLegal}</span>
 					</li>
 				{/each}
 			</ul>
 		</details>
 
 		<!-- Reforços opcionais -->
-		<details class="text-[11px] mt-2">
+		<details class="text-2xs mt-2">
 			<summary
 				class="cursor-pointer font-bold text-surface-600 dark:text-surface-400 hover:text-primary-500"
 			>
@@ -165,12 +166,12 @@
 					<li class="text-surface-700 dark:text-surface-300">
 						{r.descricao}
 						<span
-							class="text-[9px] uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700"
+							class="text-3xs uppercase font-black ml-1 px-1 rounded bg-surface-200 dark:bg-surface-700"
 						>
 							valor {r.valorProbatorio}
 						</span>
 						<br />
-						<span class="text-surface-400 italic ml-3">{r.notas}</span>
+						<span class="text-surface-500 dark:text-surface-400 italic ml-3">{r.notas}</span>
 					</li>
 				{/each}
 			</ul>
@@ -195,7 +196,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar exigência de foto na assinatura"
 				aria-checked={exigirFoto}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{exigirFoto ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (exigirFoto = !exigirFoto)}
 			>
@@ -222,7 +223,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar exigência de GPS na assinatura"
 				aria-checked={exigirGps}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{exigirGps ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (exigirGps = !exigirGps)}
 			>
@@ -241,10 +242,10 @@
 				<p class="font-semibold text-sm mb-0.5 flex items-center gap-1.5">
 					Exigir código via E-mail
 					<span
-						class="text-[8px] uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
+						class="text-3xs uppercase font-black px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-700 dark:text-primary-300 tracking-widest"
 						title="Requisito legal — Lei 14.063/2020 art. 4º II"
 					>
-						🔒 Obrigatório
+						<Lock class="inline w-3 h-3 -mt-0.5" aria-hidden="true" /> Obrigatório
 					</span>
 				</p>
 				<p class="text-xs text-surface-500">
@@ -294,7 +295,7 @@
 				role="switch"
 				aria-label="Ativar ou desativar restrição de smartphone"
 				aria-checked={restringirSmartphone}
-				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none
+				class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50 dark:focus-visible:ring-offset-surface-900
 					{restringirSmartphone ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}"
 				onclick={() => (restringirSmartphone = !restringirSmartphone)}
 			>
@@ -311,21 +312,20 @@
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex flex-col gap-0.5">
 					<div class="flex items-center gap-2">
-						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500"
+						<span class="text-3xs font-bold uppercase tracking-wider text-surface-500"
 							>Reforços ativos:</span
 						>
-						<span
-							class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-[0.65rem] uppercase"
+						<span class="badge {reforcoCor} font-black px-3 py-1 rounded-full text-3xs uppercase"
 							>{reforcoNivel} ({reforcoScore}/3)</span
 						>
 					</div>
-					<span class="text-[10px] text-surface-400 italic">
+					<span class="text-3xs text-surface-500 dark:text-surface-400 italic">
 						Não alteram a classificação legal (sempre AVANÇADA), apenas o valor probatório em juízo.
 					</span>
 				</div>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] active:scale-95 transition-all font-bold"
+					class="btn preset-filled-primary-500 text-sm px-6 py-2.5 flex items-center gap-2 shadow-lg shadow-primary-500/20 hover:scale-[1.02] transition-all font-bold"
 					onclick={salvar}
 					disabled={loading.active}
 				>
@@ -350,7 +350,7 @@
 								d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
 							/></svg
 						>
-						<p class="text-[0.65rem] text-surface-600 dark:text-surface-400 leading-tight">
+						<p class="text-3xs text-surface-600 dark:text-surface-400 leading-tight">
 							<strong>Antifraude Físico:</strong> Garante que a assinatura ocorra em um dispositivo móvel
 							pessoal.
 						</p>
@@ -371,7 +371,7 @@
 								d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
 							/></svg
 						>
-						<p class="text-[0.65rem] text-surface-600 dark:text-surface-400 leading-tight">
+						<p class="text-3xs text-surface-600 dark:text-surface-400 leading-tight">
 							<strong>Modo Conveniência:</strong> Assinatura permitida em computadores compartilhados
 							ou desktops.
 						</p>
@@ -399,7 +399,7 @@
 								d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
 							/></svg
 						>
-						<p class="text-[0.65rem] text-surface-600 dark:text-surface-400 leading-tight">
+						<p class="text-3xs text-surface-600 dark:text-surface-400 leading-tight">
 							<strong>Prova de Vida:</strong> Uma selfie com reconhecimento facial será capturada no memento
 							da assinatura.
 						</p>
@@ -427,7 +427,7 @@
 								d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
 							/></svg
 						>
-						<p class="text-[0.65rem] text-surface-600 dark:text-surface-400 leading-tight">
+						<p class="text-3xs text-surface-600 dark:text-surface-400 leading-tight">
 							<strong>Geolocalização:</strong> As coordenadas geográficas serão registradas para auditoria
 							de local.
 						</p>

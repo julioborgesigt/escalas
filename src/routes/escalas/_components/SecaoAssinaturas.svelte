@@ -129,12 +129,12 @@
 					<div class="flex flex-col gap-3 p-4 sm:p-5 flex-1">
 						<div class="flex items-center gap-2 flex-wrap">
 							<span
-								class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide {tipoBadgeClass}"
+								class="inline-flex items-center rounded-full px-2 py-0.5 text-3xs font-bold uppercase tracking-wide {tipoBadgeClass}"
 							>
 								{tipoLabel}
 							</span>
 							<span
-								class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400"
+								class="inline-flex items-center gap-1 rounded-full bg-warning-500/15 px-2 py-0.5 text-3xs font-bold uppercase tracking-wide text-warning-700 dark:text-warning-400"
 							>
 								<svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
@@ -170,7 +170,7 @@
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
-										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all flex items-center justify-center gap-1.5"
+										: 'preset-filled-warning-500'} font-bold text-xs px-3 py-2 w-full disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
 									disabled={assinaturaTelaBloqueada || esc.is_assinada}
 									title={esc.is_assinada
 										? 'Já assinado'
@@ -209,7 +209,7 @@
 									type="button"
 									class="btn btn-sm {esc.is_assinada
 										? 'preset-filled-success-500 text-white'
-										: 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full active:scale-95 transition-all flex items-center justify-center gap-1.5"
+										: 'preset-filled-tertiary-500'} font-bold text-xs px-3 py-2 w-full transition-all flex items-center justify-center gap-1.5"
 									disabled={esc.is_assinada}
 									onclick={() => onIniciarAssinaturaToken(esc.id)}
 								>
@@ -255,7 +255,7 @@
 									{#if esc.is_assinada}
 										<div class="flex flex-row gap-2 w-full">
 											<a
-												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 												href="/api/escalas/{esc.id}/documento-assinado"
 												target="_blank"
 												title="PDF para impressão e distribuição (sem folha de auditoria)"
@@ -263,7 +263,7 @@
 												Sem manifesto
 											</a>
 											<a
-												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+												class="btn flex-1 justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-tertiary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 												href="/api/escalas/{esc.id}/documento-assinado?manifesto=true"
 												target="_blank"
 												title="PDF com folha de auditoria (evidências da assinatura)"
@@ -273,7 +273,7 @@
 										</div>
 									{:else}
 										<a
-											class="btn w-full justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-[0.65rem] sm:text-[0.7rem] py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
+											class="btn w-full justify-center preset-filled-surface-100 dark:preset-filled-surface-800 text-3xs sm:text-2xs py-2 px-1 border border-surface-200 dark:border-surface-700 hover:preset-filled-primary-500 hover:text-white transition-all no-underline font-bold uppercase tracking-tight whitespace-nowrap shadow-sm"
 											href="/api/escalas/{esc.id}/download?format=pdf"
 											target="_blank"
 										>

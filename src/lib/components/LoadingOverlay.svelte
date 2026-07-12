@@ -56,7 +56,7 @@
 						{message}
 					</p>
 					<p
-						class="text-surface-500 dark:text-surface-400 text-[0.65rem] uppercase font-medium tracking-widest opacity-60"
+						class="text-surface-500 dark:text-surface-400 text-3xs uppercase font-medium tracking-widest opacity-60"
 					>
 						Aguarde um instante
 					</p>

@@ -568,6 +568,38 @@ manualChunks(id) {
 }
 ```
 
+### Padrões visuais (UI)
+
+Regras estabelecidas na [auditoria visual de jul/2026](docs/auditorias/AUDITORIA_VISUAL_UX_2026-07-11.md). Os tokens vivem em [`src/theme.css`](src/theme.css) (paleta oklch de 7 canais) e [`src/app.css`](src/app.css) (`@theme` + `@utility`).
+
+**Cores** — sempre pelos canais do tema (`primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `surface`). Nunca cores cruas da paleta Tailwind (`text-red-500`, `bg-indigo-600`…).
+
+**Texto pequeno** — dois degraus abaixo de `text-xs`, e só eles: `text-2xs` (0,7rem — labels, badges) e `text-3xs` (0,625rem — metadados densos, piso absoluto). Não criar `text-[...]` arbitrários.
+
+**Contraste** — texto informativo usa no mínimo `text-surface-500 dark:text-surface-400`; `text-surface-400` puro só em ícones decorativos, placeholders e estados `disabled`/inativos.
+
+**Foco de teclado** — nunca `outline-none`/`focus:outline-none` sem substituto visível (`focus-visible:ring-2 focus-visible:ring-primary-500 …` ou `focus-within:ring` no container).
+
+**Superfícies elevadas** — `card-elevated` (fundo canônico de modal/card sobre a página) e `card-elevated-2` (sub-card aninhado); translúcidas: `card-glass` / `card-glass-auth`. Não montar pares `bg-* dark:bg-*` à mão.
+
+**Modais** — sempre `Dialog` do Skeleton (foco/ESC/ARIA de graça). Backdrop canônico: `bg-surface-950/80 backdrop-blur-sm`; modal empilhado sobre modal usa `backdrop-blur-md` + `z-[60]`/`z-[70]`. Card do modal: `card-elevated rounded-2xl shadow-2xl`. Rodapé: `flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3` (Cancelar = `preset-outlined-surface-500`).
+
+**Botões (semântica dos presets)** — CTA `preset-filled-primary-500` · destrutivo `preset-filled-error-500` · cancelar/neutro `preset-outlined-surface-500`. O feedback tátil de clique (afundar 5% pressionado) é **global e automático** para `.btn`/`.btn-icon` (regra em `app.css`) — não adicionar `active:scale-95` inline; use-o apenas em elementos interativos custom fora dessas classes.
+
+**Border-radius** — o tema define `--radius-base` (= `rounded-xl`, botões/inputs) e `--radius-container` (= `rounded-2xl`, cards/modais); pills/chips usam `rounded-full`. Em código novo, não usar `rounded`/`rounded-md`; reservar `rounded-lg` para elementos ≤ 32 px de altura.
+
+**Z-index (escala)** — `z-10` elementos locais · `z-40` topbar mobile + backdrop da sidebar · `z-50` sidebar e modais · `z-[60]`/`z-[70]` modal sobre modal · `z-[100]` diálogos globais (logout, avisos) · `9999` toasts · `10000` LoadingOverlay e barra de progresso de navegação. Não inventar valores fora da escala.
+
+**Breakpoints** — `xs:` (400 px, definido no `@theme`) para telefones estreitos; demais são os padrões do Tailwind. Exceção documentada: o corte da sidebar no `+layout.svelte` é `min-[900px]` (deliberado — não migrar para `lg:`).
+
+**Ícones** — código novo usa [`lucide-svelte`](https://lucide.dev) (já é dependência; herda `currentColor`). **Nunca emoji como ícone** (✍️ ✅ 🔒…): renderizam diferente por SO e ignoram a cor do tema. O SVG inline legado migra oportunisticamente ao tocar no arquivo.
+
+**Transições** — em código novo, prefira a propriedade específica (`transition-colors`, `transition-transform`, `transition-opacity`) a `transition-all`, que anima layout sem querer e custa mais. O legado migra oportunisticamente.
+
+**Loading** — usar `$lib/components/Spinner.svelte` (acessível, herda `currentColor`); não desenhar SVG `animate-spin` à mão. Carregamento de página: skeletons (`SkeletonCard`) + barra de progresso do layout; operações de API: `loading.show()`/`hide()`.
+
+**Tabelas** — padrão duplo: `<div class="hidden md:block table-wrap"><table class="table">…` no desktop + lista de cards `md:hidden` no mobile. Nunca `<table>` sem `table-wrap`.
+
 ---
 
 ## 11. Testes

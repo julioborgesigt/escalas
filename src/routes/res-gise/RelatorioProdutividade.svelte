@@ -108,12 +108,14 @@
 		campo: string
 	)}
 		<div class="space-y-1">
-			<label class="text-[0.6rem] font-bold text-surface-400 uppercase" for={id}>{rotulo}</label>
+			<label class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase" for={id}
+				>{rotulo}</label
+			>
 			<input
 				{id}
 				type="text"
 				{placeholder}
-				class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+				class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
 				bind:value={item[campo]}
 			/>
 		</div>
@@ -188,7 +190,7 @@
 								<div class="flex items-center gap-4">
 									<label class="block">
 										<span
-											class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_qtd || 'Quantidade:'}</span
 										>
 										<select
@@ -214,7 +216,7 @@
 
 								<div class="space-y-3">
 									<span
-										class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_lista || 'Listagem Detalhada:'}</span
 									>
 									{#each respostas[resKey] || [] as item, i (i)}
@@ -297,14 +299,14 @@
 												)}
 												<div class="space-y-1">
 													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
+														class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 														for="qal-{q.id}-{i}">Qtd Alvos</label
 													>
 													<input
 														id="qal-{q.id}-{i}"
 														type="number"
 														placeholder="0"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
+														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-medium"
 														bind:value={item.q_alvos}
 													/>
 												</div>
@@ -350,12 +352,12 @@
 												)}
 												<div class="space-y-1">
 													<label
-														class="text-[0.6rem] font-bold text-surface-400 uppercase"
+														class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase"
 														for="res-{q.id}-{i}">Resultado</label
 													>
 													<select
 														id="res-{q.id}-{i}"
-														class="w-full px-3 py-2 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
+														class="w-full px-3 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-950 text-xs font-bold"
 														bind:value={item.resultado}
 													>
 														<option value="">Selecione</option>
@@ -418,14 +420,14 @@
 							>
 								<div class="space-y-3">
 									<span
-										class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_tipo || 'Tipos de Droga Apreendidos:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 										{#each ['Maconha', 'Cocaína', 'Crack', 'Extase', 'LSD', 'Haxixe', 'Skunk', 'Outros'] as d (d)}
 											<button
 												type="button"
-												class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(
+												class="px-3 py-2 rounded-xl text-3xs font-black uppercase border-2 transition-all {(
 													respostas.drogas_selecionadas || []
 												).includes(d)
 													? 'bg-primary-500 text-white border-primary-500 shadow-md'
@@ -448,7 +450,7 @@
 										class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all"
 									>
 										<span
-											class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique o Peso Aproximado e a Unidade:'}</span
 										>
 										{#each respostas.drogas_selecionadas as d (d)}
@@ -477,7 +479,7 @@
 														{#each ['g', 'kg'] as u (u)}
 															<button
 																type="button"
-																class="px-3 py-1.5 rounded-lg text-[0.6rem] font-black uppercase transition-all {(respostas.drogas_unidade &&
+																class="px-3 py-1.5 rounded-lg text-3xs font-black uppercase transition-all {(respostas.drogas_unidade &&
 																	respostas.drogas_unidade[d] === u) ||
 																(!respostas.drogas_unidade?.[d] && u === 'g')
 																	? 'bg-white dark:bg-surface-700 text-primary-600 shadow-sm'
@@ -508,14 +510,14 @@
 							>
 								<div class="space-y-3">
 									<span
-										class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 										>{q.subtexto_tipo || 'Tipos de Armas/Munições:'}</span
 									>
 									<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
 										{#each ['Revolver', 'Pistola', 'Arma Longa', 'Arma Branca', 'Munição', 'Outros'] as a (a)}
 											<button
 												type="button"
-												class="px-3 py-2 rounded-xl text-[0.6rem] font-black uppercase border-2 transition-all {(
+												class="px-3 py-2 rounded-xl text-3xs font-black uppercase border-2 transition-all {(
 													respostas.armas_selecionadas || []
 												).includes(a)
 													? 'bg-primary-500 text-white border-primary-500 shadow-md'
@@ -540,7 +542,7 @@
 										class="space-y-4 pt-2 border-t border-surface-100 dark:border-surface-800 transition-all"
 									>
 										<span
-											class="text-[0.65rem] font-black text-surface-400 uppercase tracking-widest block"
+											class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest block"
 											>{q.subtexto_detalhe || 'Indique a Quantidade:'}</span
 										>
 										{#each respostas.armas_selecionadas as a (a)}

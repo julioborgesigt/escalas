@@ -95,7 +95,7 @@
 							? 'Expediente do Mês'
 							: `${diaSemanaLabel(dataGrupo)}, ${formatarData(dataGrupo)}`}
 					</span>
-					<span class="text-xs text-surface-400"
+					<span class="text-xs text-surface-500 dark:text-surface-400"
 						>{items.length} servidor{items.length !== 1 ? 'es' : ''}</span
 					>
 				</div>
@@ -106,7 +106,7 @@
 						{#if edicao.editingId === p.id}
 							<div class="px-4 py-3 bg-primary-500/5 dark:bg-primary-500/8">
 								<p
-									class="text-[0.7rem] font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
+									class="text-2xs font-semibold text-primary-600 dark:text-primary-400 mb-2 uppercase tracking-wide"
 								>
 									Editando: {p.nome}
 								</p>
@@ -123,7 +123,7 @@
 										<input type="hidden" name="data_plantao" value={edicao.dataEntrada} />
 										<input type="hidden" name="data_saida" value={edicao.dataSaida} />
 										<div class="basis-full min-w-0">
-											<span class="label-text text-[0.7rem] block mb-0.5">Observações</span>
+											<span class="label-text text-2xs block mb-0.5">Observações</span>
 											<input
 												type="text"
 												name="observacoes"
@@ -135,7 +135,7 @@
 										</div>
 									{:else}
 										<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
-											<span class="label-text text-[0.7rem] block mb-0.5">Data Início</span>
+											<span class="label-text text-2xs block mb-0.5">Data Início</span>
 											<input
 												type="date"
 												class="input text-xs h-8 px-2 rounded-lg w-full"
@@ -143,7 +143,7 @@
 											/>
 										</div>
 										<div class="basis-[calc(50%-0.25rem)] min-w-0 flex-grow">
-											<span class="label-text text-[0.7rem] block mb-0.5">Data Saída</span>
+											<span class="label-text text-2xs block mb-0.5">Data Saída</span>
 											<input
 												type="date"
 												class="input text-xs h-8 px-2 rounded-lg w-full"
@@ -152,7 +152,7 @@
 										</div>
 										<div class="flex gap-2 w-full">
 											<div class="flex-1">
-												<span class="label-text text-[0.7rem] block mb-0.5">Entrada</span>
+												<span class="label-text text-2xs block mb-0.5">Entrada</span>
 												<div class="flex gap-1">
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
@@ -167,7 +167,7 @@
 												</div>
 											</div>
 											<div class="flex-1">
-												<span class="label-text text-[0.7rem] block mb-0.5">Saída</span>
+												<span class="label-text text-2xs block mb-0.5">Saída</span>
 												<div class="flex gap-1">
 													<select
 														class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
@@ -247,7 +247,7 @@
 											>{p.nome}</span
 										>
 										<span
-											class="badge px-1.5 py-0.5 rounded font-bold text-[0.65rem] uppercase {p.cargo ===
+											class="badge px-1.5 py-0.5 rounded font-bold text-3xs uppercase {p.cargo ===
 											'DPC'
 												? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 												: 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}"
@@ -255,7 +255,7 @@
 										>
 										{#if p.equipe && !isExpediente}
 											<span
-												class="text-[0.7rem] text-primary-600 dark:text-primary-400 font-bold uppercase"
+												class="text-2xs text-primary-600 dark:text-primary-400 font-bold uppercase"
 												>Eq.{p.equipe}</span
 											>
 										{/if}
@@ -296,7 +296,7 @@
 										</IconTooltip>
 										<button
 											type="button"
-											class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
+											class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 											onclick={() => onSolicitarRemocao(p.id, p.nome)}>Rem.</button
 										>
 									</div>
@@ -394,7 +394,7 @@
 													<input type="hidden" name="data_saida" value={edicao.dataSaida} />
 													<div class="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px]">
 														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Observações</span>
+															<span class="label-text text-2xs">Observações</span>
 															<input
 																type="text"
 																name="observacoes"
@@ -409,7 +409,7 @@
 													<!-- Plantão: editar datas, horas e observações -->
 													<div class="flex-1 min-w-0 sm:min-w-[120px]">
 														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Data Início</span>
+															<span class="label-text text-2xs">Data Início</span>
 															<input
 																type="date"
 																class="input text-xs h-8 px-2 rounded-lg w-full"
@@ -419,7 +419,7 @@
 													</div>
 													<div class="flex-1 min-w-0 sm:min-w-[120px]">
 														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Data Saída</span>
+															<span class="label-text text-2xs">Data Saída</span>
 															<input
 																type="date"
 																class="input text-xs h-8 px-2 rounded-lg w-full"
@@ -429,7 +429,7 @@
 													</div>
 													<div class="w-28">
 														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Entrada</span>
+															<span class="label-text text-2xs">Entrada</span>
 															<div class="flex gap-1">
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
@@ -450,7 +450,7 @@
 													</div>
 													<div class="w-28">
 														<label class="label mb-1">
-															<span class="label-text text-[0.7rem]">Saída</span>
+															<span class="label-text text-2xs">Saída</span>
 															<div class="flex gap-1">
 																<select
 																	class="select text-xs h-8 py-0 rounded-lg flex-1 px-1"
@@ -528,7 +528,7 @@
 											</span>
 											{#if p.equipe && !isFDS && !isExpediente}
 												<span
-													class="text-[0.7rem] text-primary-600 dark:text-primary-400 font-bold uppercase"
+													class="text-2xs text-primary-600 dark:text-primary-400 font-bold uppercase"
 												>
 													Equipe {p.equipe}
 												</span>
@@ -539,7 +539,7 @@
 										>
 										<td class="!py-4 text-center align-middle">
 											<span
-												class="badge px-1.5 py-0.5 rounded font-bold text-[0.65rem] uppercase {p.cargo ===
+												class="badge px-1.5 py-0.5 rounded font-bold text-3xs uppercase {p.cargo ===
 												'DPC'
 													? 'bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-500/20'
 													: 'bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/20'}"
@@ -566,7 +566,7 @@
 										{#if !isExpediente}
 											<td class="!py-4 text-center align-middle">
 												<div
-													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.7rem] whitespace-nowrap font-mono tabular-nums"
+													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-2xs whitespace-nowrap font-mono tabular-nums"
 												>
 													{formatarDataPlantao(p)}
 												</div>
@@ -574,12 +574,12 @@
 										{/if}
 										<td class="!py-4 text-center align-middle max-w-[200px]">
 											{#if isExpediente}
-												<span class="text-[0.65rem] text-surface-600 dark:text-surface-400 italic">
+												<span class="text-3xs text-surface-600 dark:text-surface-400 italic">
 													{p.observacoes || '—'}
 												</span>
 											{:else}
 												<div
-													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-[0.7rem] font-bold uppercase whitespace-nowrap font-mono tabular-nums"
+													class="inline-block px-2 py-1 rounded border border-dashed border-surface-200 dark:border-surface-700 bg-surface-50/50 dark:bg-surface-800/30 text-2xs font-bold uppercase whitespace-nowrap font-mono tabular-nums"
 												>
 													{formatarHorario(p)}
 												</div>
@@ -613,7 +613,7 @@
 														</IconTooltip>
 														<button
 															type="button"
-															class="btn btn-sm preset-filled-error-500 rounded font-bold text-[0.65rem] uppercase px-2 py-0.5 active:scale-95 transition-all"
+															class="btn btn-sm preset-filled-error-500 rounded font-bold text-3xs uppercase px-2 py-0.5 transition-all"
 															onclick={() => onSolicitarRemocao(p.id, p.nome)}
 														>
 															Remover

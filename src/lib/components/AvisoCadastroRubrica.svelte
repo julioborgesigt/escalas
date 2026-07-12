@@ -48,7 +48,7 @@
 			class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 		>
 			<div
-				class="card p-5 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+				class="card p-5 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 			>
 				<div class="flex items-start gap-3 mb-4">
 					<div
@@ -89,7 +89,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 font-bold active:scale-95 transition-all"
+						class="btn preset-filled-primary-500 font-bold transition-all"
 						onclick={cadastrarAgora}
 					>
 						Cadastrar rubrica

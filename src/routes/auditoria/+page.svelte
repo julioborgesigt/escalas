@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	const { data, form } = $props();
@@ -217,7 +217,8 @@
 		>
 			{#if integridade.ok}
 				<p>
-					✓ Cadeia íntegra — {integridade.verificados} registro(s) encadeado(s) verificado(s) sem adulteração.
+					<CheckCircle2 class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Cadeia íntegra — {integridade.verificados}
+					registro(s) encadeado(s) verificado(s) sem adulteração.
 				</p>
 				{#if integridade.ultimoHash}
 					<p class="mt-1 text-xs font-mono break-all opacity-80">
@@ -229,7 +230,7 @@
 					</p>
 				{/if}
 			{:else}
-				⚠ Inconsistência detectada{integridade.primeiroProblemaSeq
+				<AlertTriangle class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Inconsistência detectada{integridade.primeiroProblemaSeq
 					? ` (seq ${integridade.primeiroProblemaSeq})`
 					: ''}: {integridade.problema}
 			{/if}
@@ -272,7 +273,9 @@
 			<ul class="space-y-1 text-sm">
 				{#each data.criticosRecentes as ev (ev.id)}
 					<li class="flex flex-wrap items-baseline gap-x-2">
-						<span class="text-surface-400 text-xs whitespace-nowrap">{fmtData(ev.created_at)}</span>
+						<span class="text-surface-500 dark:text-surface-400 text-xs whitespace-nowrap"
+							>{fmtData(ev.created_at)}</span
+						>
 						<span class="font-medium text-surface-900 dark:text-white">{rotuloAcao(ev.acao)}</span>
 						<span class="text-surface-600 dark:text-surface-300">— {ev.usuario_nome || '—'}</span>
 						{#if ev.detalhes}
@@ -434,7 +437,7 @@
 							</td>
 							<td class="px-3 py-2 text-surface-700 dark:text-surface-200">
 								{log.usuario_nome || '—'}
-								<span class="text-xs text-surface-400">
+								<span class="text-xs text-surface-500 dark:text-surface-400">
 									{log.actor_tipo ? `· ${ACTOR[log.actor_tipo] ?? log.actor_tipo}` : ''}
 								</span>
 							</td>
@@ -588,18 +591,18 @@
 
 					<div class="grid grid-cols-2 gap-2 text-xs text-surface-600 dark:text-surface-300">
 						<div>
-							<span class="text-surface-400 block mb-0.5">Ator</span>
+							<span class="text-surface-500 dark:text-surface-400 block mb-0.5">Ator</span>
 							<span class="font-medium text-surface-700 dark:text-surface-200">
 								{log.usuario_nome || '—'}
 								{#if log.actor_tipo}
-									<span class="text-[10px] text-surface-400 block">
+									<span class="text-3xs text-surface-500 dark:text-surface-400 block">
 										({ACTOR[log.actor_tipo] ?? log.actor_tipo})
 									</span>
 								{/if}
 							</span>
 						</div>
 						<div>
-							<span class="text-surface-400 block mb-0.5">Alvo</span>
+							<span class="text-surface-500 dark:text-surface-400 block mb-0.5">Alvo</span>
 							<span class="font-medium text-surface-700 dark:text-surface-200">
 								{log.alvo_nome ?? (log.alvo_id ? `#${log.alvo_id}` : '—')}
 							</span>
@@ -607,7 +610,7 @@
 					</div>
 
 					<div
-						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-400"
+						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-500 dark:text-surface-400"
 					>
 						<span>{fmtData(log.created_at)}</span>
 						<span class="flex items-center gap-0.5 text-primary-500 font-medium">
@@ -638,23 +641,23 @@
 									<dl
 										class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300"
 									>
-										<dt class="font-semibold text-surface-400">Entidade</dt>
+										<dt class="font-semibold text-surface-500 dark:text-surface-400">Entidade</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.entidade}{log.entidade_id ? ` #${log.entidade_id}` : ''}
 										</dd>
 
-										<dt class="font-semibold text-surface-400">IP</dt>
+										<dt class="font-semibold text-surface-500 dark:text-surface-400">IP</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.ip ?? '—'}{log.ip_cifrado ? ' (completo cifrado)' : ''}
 										</dd>
 
-										<dt class="font-semibold text-surface-400">Rota</dt>
+										<dt class="font-semibold text-surface-500 dark:text-surface-400">Rota</dt>
 										<dd class="text-surface-800 dark:text-surface-200">
 											{log.metodo ?? ''}
 											{log.rota ?? '—'}
 										</dd>
 
-										<dt class="font-semibold text-surface-400">Request ID</dt>
+										<dt class="font-semibold text-surface-500 dark:text-surface-400">Request ID</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
 											{#if log.request_id}
 												<a
@@ -668,13 +671,15 @@
 											{/if}
 										</dd>
 
-										<dt class="font-semibold text-surface-400">Seq / Hash</dt>
+										<dt class="font-semibold text-surface-500 dark:text-surface-400">Seq / Hash</dt>
 										<dd class="font-mono text-surface-700 dark:text-surface-300 break-all">
 											{log.seq ?? '—'} · {log.hash_registro?.slice(0, 18) ?? '—'}…
 										</dd>
 
 										{#if log.user_agent}
-											<dt class="font-semibold text-surface-400">User-Agent</dt>
+											<dt class="font-semibold text-surface-500 dark:text-surface-400">
+												User-Agent
+											</dt>
 											<dd class="break-all text-surface-700 dark:text-surface-300">
 												{log.user_agent}
 											</dd>

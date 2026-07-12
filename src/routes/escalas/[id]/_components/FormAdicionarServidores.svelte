@@ -198,7 +198,7 @@
 			>
 				<button
 					type="submit"
-					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2 active:scale-95 transition-all"
+					class="btn preset-filled-primary-500 shrink-0 font-semibold flex items-center gap-2 transition-all"
 					disabled={pendingAdicionarTodos}
 				>
 					{pendingAdicionarTodos ? 'Adicionando...' : '+ Adicionar Todos'}
@@ -285,7 +285,7 @@
 								<div class="sm:col-span-2 flex gap-2 h-9 items-center">
 									<button
 										type="submit"
-										class="btn btn-sm preset-filled-primary-500 active:scale-95 transition-all flex-1"
+										class="btn btn-sm preset-filled-primary-500 transition-all flex-1"
 										disabled={pendingPlantao || !policialId || !addPrimeiroPlantao}
 									>
 										{pendingPlantao ? 'Criando...' : 'Criar'}
@@ -356,7 +356,7 @@
 					<div class="sm:col-span-2">
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 w-full active:scale-95 transition-all"
+							class="btn preset-filled-primary-500 w-full transition-all"
 							disabled={pendingAdd || !policialId}
 						>
 							{pendingAdd ? 'Adicionando...' : '+ Adicionar'}
@@ -447,7 +447,7 @@
 					<div class="sm:col-span-2">
 						<button
 							type="submit"
-							class="btn preset-filled-primary-500 w-full active:scale-95 transition-all"
+							class="btn preset-filled-primary-500 w-full transition-all"
 							disabled={pendingAdd || !policialId || !dataPlantao}
 						>
 							{pendingAdd ? 'Adicionando...' : '+ Adicionar'}

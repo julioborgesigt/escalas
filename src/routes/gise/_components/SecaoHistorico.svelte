@@ -419,7 +419,7 @@
 												onclick={() => baixarHistoricoArquivo('xlsx')}
 											>
 												<span
-													class="rounded bg-success-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-success-700 dark:text-success-400"
+													class="rounded bg-success-500/15 px-1.5 py-0.5 text-3xs font-black text-success-700 dark:text-success-400"
 													>XLSX</span
 												>
 												Planilha
@@ -430,7 +430,7 @@
 												onclick={() => baixarHistoricoArquivo('pdf')}
 											>
 												<span
-													class="rounded bg-error-500/15 px-1.5 py-0.5 text-[0.6rem] font-black text-error-700 dark:text-error-400"
+													class="rounded bg-error-500/15 px-1.5 py-0.5 text-3xs font-black text-error-700 dark:text-error-400"
 													>PDF</span
 												>
 												Documento
@@ -504,9 +504,7 @@
 					<div
 						class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all"
 					>
-						<div
-							class="flex flex-col gap-2 px-3 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-2 sm:px-4"
-						>
+						<div class="flex flex-col gap-2 px-3 py-3 xs:flex-row xs:items-center xs:gap-2 sm:px-4">
 							<button
 								type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
@@ -522,7 +520,7 @@
 									</p>
 								</div>
 								<span
-									class="text-[0.65rem] sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(
+									class="text-3xs sm:text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 text-center leading-tight {statusColor(
 										escala.status
 									)}"
 								>
@@ -531,7 +529,7 @@
 							</button>
 
 							<div
-								class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[400px]:border-t-0 min-[400px]:border-l min-[400px]:pt-0 min-[400px]:pl-2 min-[400px]:ml-1 justify-end"
+								class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 xs:border-t-0 xs:border-l xs:pt-0 xs:pl-2 xs:ml-1 justify-end"
 							>
 								<a
 									href="/api/gise/{escala.id}/download?format=pdf"
@@ -572,7 +570,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Produtividade por seccional
 												</p>
@@ -628,7 +626,7 @@
 												class="z-30 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl shadow-xl p-1.5 w-56 max-w-[calc(100vw-1.5rem)] sm:min-w-[200px] sm:w-auto"
 											>
 												<p
-													class="text-[0.6rem] font-bold uppercase text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
+													class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 px-2 pt-1 pb-1.5 tracking-wider"
 												>
 													Extra por seccional
 												</p>

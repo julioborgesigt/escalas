@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AlertTriangle } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toaster } from '$lib/toast';
@@ -139,7 +140,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-3 max-h-[calc(100dvh-1rem)] overflow-y-auto border border-surface-200 dark:border-white/10"
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-lg p-3 sm:p-4 space-y-3 max-h-[calc(100dvh-1rem)] overflow-y-auto"
 		>
 			<div class="flex items-center justify-between">
 				<Dialog.Title class="text-base sm:text-lg font-bold text-surface-900 dark:text-surface-50">
@@ -164,11 +165,12 @@
 				<div
 					class="rounded-xl bg-warning-500/10 border border-warning-500/30 px-3 py-2 text-xs text-warning-700 dark:text-warning-400"
 				>
-					⚠️ A assinatura digital será <strong>revogada</strong> ao salvar.
+					<AlertTriangle class="inline w-3.5 h-3.5 -mt-0.5" aria-hidden="true" /> A assinatura digital
+					será <strong>revogada</strong> ao salvar.
 				</div>
 			{/if}
 
-			<p class="text-[0.65rem] sm:text-xs text-surface-500 leading-snug">
+			<p class="text-3xs sm:text-xs text-surface-500 leading-snug">
 				No calendário: <span class="text-primary-600 dark:text-primary-400 font-medium"
 					>1º clique</span
 				>
@@ -218,7 +220,7 @@
 					</button>
 				</div>
 				<div
-					class="grid grid-cols-7 gap-px text-center text-[0.55rem] sm:text-[0.6rem] font-semibold uppercase tracking-wide text-surface-400 py-0.5"
+					class="grid grid-cols-7 gap-px text-center text-3xs font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400 py-0.5"
 				>
 					{#each DIAS_SEM_CAL as ds (ds)}<span>{ds}</span>{/each}
 				</div>
@@ -268,7 +270,7 @@
 					>
 				</div>
 				<div class="min-w-0 flex-1">
-					<p class="text-[0.6rem] font-bold uppercase text-primary-600/60 leading-none mb-0.5">
+					<p class="text-3xs font-bold uppercase text-primary-600/60 leading-none mb-0.5">
 						Data Selecionada
 					</p>
 					<p class="text-sm font-bold text-primary-700 dark:text-primary-400">
@@ -282,12 +284,12 @@
 			<div
 				class="rounded-xl border border-surface-200 dark:border-surface-700 p-2.5 space-y-1.5 bg-white dark:bg-surface-800/40"
 			>
-				<p class="text-[0.65rem] sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
+				<p class="text-3xs sm:text-xs font-semibold text-surface-600 dark:text-surface-400">
 					Horários da Escala
 				</p>
 				<div class="grid grid-cols-2 gap-2">
 					<div>
-						<label for="editHoraEntrada" class="text-[0.65rem] text-surface-500 block mb-0.5"
+						<label for="editHoraEntrada" class="text-3xs text-surface-500 block mb-0.5"
 							>Entrada</label
 						>
 						<input
@@ -302,9 +304,7 @@
 						/>
 					</div>
 					<div>
-						<label for="editHoraSaida" class="text-[0.65rem] text-surface-500 block mb-0.5"
-							>Saída</label
-						>
+						<label for="editHoraSaida" class="text-3xs text-surface-500 block mb-0.5">Saída</label>
 						<input
 							id="editHoraSaida"
 							type="text"
@@ -317,7 +317,9 @@
 						/>
 					</div>
 				</div>
-				<p class="text-[0.6rem] text-surface-400">Formato: HH:MM · ex: 08:00 · 14:30</p>
+				<p class="text-3xs text-surface-500 dark:text-surface-400">
+					Formato: HH:MM · ex: 08:00 · 14:30
+				</p>
 			</div>
 
 			<div class="flex justify-end gap-2 pt-1">
@@ -338,7 +340,7 @@
 					<input type="hidden" name="feriado" value={feriado ? 'true' : 'false'} />
 					<button
 						type="submit"
-						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all active:scale-95"
+						class="btn preset-filled-primary-500 text-xs sm:text-sm px-6 py-2 rounded-xl font-bold transition-all"
 						disabled={pendingCrud}
 					>
 						{pendingCrud ? 'Salvando...' : 'Salvar Alterações'}

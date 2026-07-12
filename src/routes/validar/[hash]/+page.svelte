@@ -150,24 +150,24 @@
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
 					<div class="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2">
-						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest">
+						<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest">
 							Status Criptográfico
 						</h2>
 						<div class="flex gap-2 flex-wrap">
 							{#if ehQualificada}
 								<span
-									class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-primary tracking-wider"
+									class="text-3xs font-black uppercase px-2 py-0.5 rounded-full preset-tonal-primary tracking-wider"
 									>ICP-Brasil</span
 								>
 							{:else}
 								<span
-									class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-warning tracking-wider"
+									class="text-3xs font-black uppercase px-2 py-0.5 rounded-full preset-tonal-warning tracking-wider"
 									>Avançada (Lei 14.063/2020)</span
 								>
 							{/if}
 							{#if v?.padesLt?.presente}
 								<span
-									class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full preset-tonal-success tracking-wider"
+									class="text-3xs font-black uppercase px-2 py-0.5 rounded-full preset-tonal-success tracking-wider"
 									title="DSS Dictionary embarcado: certificados e OCSP dentro do próprio PDF (ETSI EN 319 142-1)"
 									>PAdES-LT</span
 								>
@@ -298,7 +298,7 @@
 							</div>
 							{#if v.certificado}
 								<div
-									class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-surface-500"
+									class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-2xs text-surface-500"
 								>
 									<div><strong>Emissor:</strong> {v.certificado.issuer || '—'}</div>
 									<div>
@@ -314,12 +314,12 @@
 							{/if}
 							{#if v.assinaturasAdicionais && v.assinaturasAdicionais.length > 0}
 								<div class="pt-2 mt-2 border-t border-surface-200 dark:border-white/5">
-									<p class="text-[11px] font-bold text-surface-500 uppercase tracking-wider mb-1">
+									<p class="text-2xs font-bold text-surface-500 uppercase tracking-wider mb-1">
 										Assinaturas anteriores ({v.assinaturasAdicionais.length})
 									</p>
 									<ul class="space-y-0.5">
 										{#each v.assinaturasAdicionais as ass (ass.ordem)}
-											<li class="flex items-center gap-2 text-[11px]">
+											<li class="flex items-center gap-2 text-2xs">
 												<span
 													class="font-black {ass.integridade && ass.assinaturaRsa
 														? 'text-success-600'
@@ -338,7 +338,7 @@
 							{/if}
 							{#if !v.valid && v.erros.length > 0}
 								<div
-									class="mt-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-700/30 rounded text-[11px] text-error-700 dark:text-error-300"
+									class="mt-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-700/30 rounded text-2xs text-error-700 dark:text-error-300"
 								>
 									<strong>Falhas detectadas:</strong>
 									<ul class="list-disc pl-4 mt-1">
@@ -374,12 +374,12 @@
 										>
 									</div>
 								{/if}
-								<p class="text-[11px] text-surface-500 italic pt-1">
+								<p class="text-2xs text-surface-500 italic pt-1">
 									Avançada (Lei 14.063/2020 art. 4º, II) com selo criptográfico da instituição. Não
 									é ICP-Brasil — sem a presunção do art. 10 §1º da MP 2.200-2/2001.
 								</p>
 							{:else}
-								<p class="text-[11px] text-surface-500 italic pt-1">
+								<p class="text-2xs text-surface-500 italic pt-1">
 									Assinatura avançada (rubrica + selfie + GPS + IP). Validade jurídica conforme Lei
 									14.063/2020 art. 4º, II.
 								</p>
@@ -392,12 +392,13 @@
 				<section
 					class="p-4 sm:p-6 bg-surface-100 dark:bg-surface-700/50 rounded-xl sm:rounded-2xl border border-surface-200 dark:border-white/5"
 				>
-					<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">
+					<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest mb-3 sm:mb-4">
 						Informações do Documento
 					</h2>
 					<div class="grid grid-cols-1 gap-3 sm:gap-6">
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400"
+							<span
+								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
 								>Título / Tipo</span
 							>
 							<span
@@ -406,7 +407,8 @@
 							>
 						</div>
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400"
+							<span
+								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
 								>Unidade / Cidade</span
 							>
 							<span
@@ -415,7 +417,10 @@
 							>
 						</div>
 						<div>
-							<span class="block text-[10px] uppercase font-bold text-surface-400">Período</span>
+							<span
+								class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
+								>Período</span
+							>
 							<span class="text-base sm:text-lg font-bold text-surface-800 dark:text-white">
 								{formatarData(data.escala.data_inicio)} a {formatarData(data.escala.data_fim ?? '')}
 							</span>
@@ -428,7 +433,7 @@
 					class="p-4 sm:p-6 border-l-4 border-primary-500 bg-primary-50/30 dark:bg-primary-500/10 rounded-r-xl sm:rounded-r-2xl"
 				>
 					<h2
-						class="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-3 sm:mb-4"
+						class="text-3xs font-bold text-primary-600 dark:text-primary-400 uppercase tracking-widest mb-3 sm:mb-4"
 					>
 						Assinatura Certificadora (Supervisor)
 					</h2>
@@ -452,7 +457,8 @@
 								</svg>
 							</div>
 							<div class="min-w-0">
-								<span class="block text-[10px] uppercase font-bold text-surface-400"
+								<span
+									class="block text-3xs uppercase font-bold text-surface-500 dark:text-surface-400"
 									>Assinado Digitalmente por</span
 								>
 								<span
@@ -483,7 +489,7 @@
 				<!-- Confirmações de Presença (Equipe) — agregado (LGPD: sem roster nominal) -->
 				{#if data.equipeResumo && data.equipeResumo.total > 0}
 					<section class="space-y-3">
-						<h2 class="text-[10px] font-bold text-surface-500 uppercase tracking-widest px-1">
+						<h2 class="text-3xs font-bold text-surface-500 uppercase tracking-widest px-1">
 							Confirmações de Presença (Equipe)
 						</h2>
 						<div
@@ -497,7 +503,7 @@
 								<strong class="text-surface-900 dark:text-white">{data.equipeResumo.total}</strong>
 								integrantes confirmaram presença.
 							</p>
-							<p class="text-[10px] text-surface-400 mt-1.5">
+							<p class="text-3xs text-surface-500 dark:text-surface-400 mt-1.5">
 								Nomes e horários individuais são restritos e não exibidos na validação pública.
 							</p>
 						</div>
@@ -509,7 +515,7 @@
 					class="p-4 sm:p-6 preset-tonal-primary border border-primary-500/20 rounded-xl sm:rounded-2xl"
 				>
 					<h2
-						class="text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest mb-2 sm:mb-3"
+						class="text-3xs font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest mb-2 sm:mb-3"
 					>
 						Documento Original
 					</h2>
@@ -625,7 +631,7 @@
 									/>
 								</svg>
 							</a>
-							<p class="text-[10px] text-surface-500 mt-1">
+							<p class="text-3xs text-surface-500 mt-1">
 								Faça upload do PDF baixado acima para conferir independentemente.
 							</p>
 						</div>
@@ -636,10 +642,14 @@
 			<footer
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
-				<p class="text-[10px] text-surface-400 uppercase font-black tracking-widest">
+				<p
+					class="text-3xs text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
-				<p class="text-[9px] text-surface-400 mt-2 max-w-md mx-auto leading-relaxed">
+				<p
+					class="text-3xs text-surface-500 dark:text-surface-400 mt-2 max-w-md mx-auto leading-relaxed"
+				>
 					Esta conferência confirma que o arquivo digital carregado corresponde integralmente ao
 					teor da escala gerenciada pelo sistema oficial em {formatarDataHora(
 						data.documento.created_at
@@ -732,7 +742,9 @@
 			<footer
 				class="mt-6 sm:mt-10 pt-4 sm:pt-6 border-t border-surface-200 dark:border-white/5 text-center"
 			>
-				<p class="text-[10px] text-surface-400 uppercase font-black tracking-widest">
+				<p
+					class="text-3xs text-surface-500 dark:text-surface-400 uppercase font-black tracking-widest"
+				>
 					Ponto de Preservação Digital - PC-CE
 				</p>
 			</footer>

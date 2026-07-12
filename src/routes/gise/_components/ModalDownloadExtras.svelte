@@ -94,7 +94,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm"
 	>
 		<div
-			class="bg-surface-50 dark:bg-surface-900 rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[85vh] overflow-y-auto border border-surface-200 dark:border-white/10 flex flex-col"
+			class="card-elevated rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4 max-h-[85vh] overflow-y-auto flex flex-col"
 		>
 			<div
 				class="flex items-center justify-between border-b border-surface-200 dark:border-surface-800 pb-3"
@@ -118,7 +118,7 @@
 
 			<div class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[50vh]">
 				{#if items.length === 0}
-					<div class="text-center py-6 text-sm text-surface-400">
+					<div class="text-center py-6 text-sm text-surface-500 dark:text-surface-400">
 						Nenhum relatório de extra configurado para esta escala.
 					</div>
 				{:else}
@@ -150,14 +150,12 @@
 												size={12}
 												class="text-success-600 dark:text-success-400 shrink-0"
 											/>
-											<span
-												class="text-[0.65rem] text-success-700 dark:text-success-400 font-medium"
+											<span class="text-3xs text-success-700 dark:text-success-400 font-medium"
 												>Assinado (Disponível)</span
 											>
 										{:else}
 											<Clock size={12} class="text-warning-600 dark:text-warning-500 shrink-0" />
-											<span
-												class="text-[0.65rem] text-warning-700 dark:text-warning-500 font-medium"
+											<span class="text-3xs text-warning-700 dark:text-warning-500 font-medium"
 												>Pendente (Não assinado)</span
 											>
 										{/if}
@@ -169,7 +167,7 @@
 								<div class="flex gap-1 shrink-0">
 									<button
 										type="button"
-										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-[0.6rem] font-bold leading-tight"
+										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-primary-500/10 hover:bg-primary-500 text-primary-600 hover:text-white dark:text-primary-400 text-3xs font-bold leading-tight"
 										onclick={() => baixarItem(item.id, false)}
 										title="Baixar sem manifesto (para impressão)"
 									>
@@ -177,7 +175,7 @@
 									</button>
 									<button
 										type="button"
-										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-[0.6rem] font-bold leading-tight"
+										class="btn btn-sm rounded-lg px-2 py-1.5 transition-all bg-tertiary-500/10 hover:bg-tertiary-500 text-tertiary-600 hover:text-white dark:text-tertiary-400 text-3xs font-bold leading-tight"
 										onclick={() => baixarItem(item.id, true)}
 										title="Baixar com manifesto (folha de auditoria)"
 									>
@@ -203,7 +201,7 @@
 			<div
 				class="border-t border-surface-200 dark:border-surface-800 pt-3 flex flex-col sm:flex-row items-center gap-3"
 			>
-				<div class="text-[0.7rem] text-surface-500 font-medium text-center sm:text-left flex-1">
+				<div class="text-2xs text-surface-500 font-medium text-center sm:text-left flex-1">
 					{disponiveis.length} de {items.length} relatórios disponíveis
 				</div>
 				<div class="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
@@ -216,7 +214,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						class="btn preset-filled-primary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
 						onclick={() => baixarTodos(false)}
 						title="Baixar todos sem manifesto (para impressão)"
@@ -226,7 +224,7 @@
 					</button>
 					<button
 						type="button"
-						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
+						class="btn preset-filled-tertiary-500 text-xs px-3 py-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all disabled:preset-filled-surface-200 disabled:dark:preset-filled-surface-800 disabled:text-surface-400 disabled:cursor-not-allowed"
 						disabled={disponiveis.length === 0}
 						onclick={() => baixarTodos(true)}
 						title="Baixar todos com manifesto (folha de auditoria)"

@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { useAutorizacao, useMobile } from '$lib/composables';
 	import { Dialog, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
@@ -166,13 +167,14 @@
 								class="space-y-2 pt-3 border-t border-surface-200 dark:border-surface-800 animate-in fade-in slide-in-from-top-2 duration-300"
 							>
 								<div class="flex items-center justify-between">
-									<span class="text-[0.6rem] font-black text-surface-400 uppercase tracking-widest"
+									<span
+										class="text-3xs font-black text-surface-500 dark:text-surface-400 uppercase tracking-widest"
 										>Busca Detalhada</span
 									>
 									{#if resGise.mesFilterUrl || resGise.dataFilterUrl}
 										<button
 											type="button"
-											class="text-[0.6rem] font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
+											class="text-3xs font-bold text-error-500 hover:underline px-2 py-0.5 bg-error-500/10 rounded-md transition-all"
 											onclick={resGise.limparFiltros}>Limpar</button
 										>
 									{/if}
@@ -183,7 +185,7 @@
 								>
 									<div class="space-y-1">
 										<label
-											class="text-[0.58rem] font-black text-surface-500 uppercase tracking-wider ml-0.5"
+											class="text-3xs font-black text-surface-500 uppercase tracking-wider ml-0.5"
 											for="mesMember">Mês/Ano</label
 										>
 										<input
@@ -196,7 +198,7 @@
 									</div>
 									<div class="space-y-1">
 										<label
-											class="text-[0.58rem] font-black text-surface-500 uppercase tracking-wider ml-0.5"
+											class="text-3xs font-black text-surface-500 uppercase tracking-wider ml-0.5"
 											for="dataMember">Data Específica</label
 										>
 										<input
@@ -253,8 +255,7 @@
 												<div class="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce"></div>
 											</div>
 										{:else}
-											<span
-												class="badge preset-filled-primary-500 text-[0.6rem] uppercase font-bold"
+											<span class="badge preset-filled-primary-500 text-3xs uppercase font-bold"
 												>{escala.equipe_tipo}</span
 											>
 										{/if}
@@ -284,7 +285,7 @@
 														},
 														false,
 														resGise.baixandoProdutividade === escala.id,
-														'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5',
+														'flex-1 sm:flex-none w-full sm:w-auto text-3xs px-3 py-1.5',
 														'button',
 														'sm'
 													)}
@@ -301,7 +302,7 @@
 														},
 														false,
 														resGise.baixandoExtra === escala.id,
-														'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5',
+														'flex-1 sm:flex-none w-full sm:w-auto text-3xs px-3 py-1.5',
 														'button',
 														'sm'
 													)}
@@ -321,7 +322,7 @@
 														},
 														false,
 														false,
-														'flex-1 sm:flex-none w-full sm:w-auto text-[0.6rem] px-3 py-1.5 opacity-60 cursor-pointer',
+														'flex-1 sm:flex-none w-full sm:w-auto text-3xs px-3 py-1.5 opacity-60 cursor-pointer',
 														'button',
 														'sm'
 													)}
@@ -430,21 +431,7 @@
 
 				{#if loading.active}
 					<div class="flex flex-col items-center gap-4 py-10">
-						<svg class="w-10 h-10 text-primary-500 animate-spin" fill="none" viewBox="0 0 24 24">
-							<circle
-								class="opacity-25"
-								cx="12"
-								cy="12"
-								r="10"
-								stroke="currentColor"
-								stroke-width="4"
-							></circle>
-							<path
-								class="opacity-75"
-								fill="currentColor"
-								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-							></path>
-						</svg>
+						<Spinner size="lg" class="text-primary-500" />
 						<p class="text-sm font-semibold text-surface-500 uppercase tracking-wider">
 							{tipoPresenca === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...'}
 						</p>
@@ -460,7 +447,7 @@
 					/>
 				{/if}
 
-				<p class="text-sm text-surface-400 text-center italic">
+				<p class="text-sm text-surface-500 dark:text-surface-400 text-center italic">
 					Esta rubrica será registrada permanentemente como comprovante de {tipoPresenca ===
 					'entrada'
 						? 'entrada'

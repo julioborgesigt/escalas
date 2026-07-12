@@ -138,7 +138,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-1">Solicitar Assinatura</Dialog.Title>
 			<Dialog.Description class="text-sm text-surface-500 dark:text-surface-400 mb-5">
@@ -275,7 +275,9 @@
 									{/each}
 								</div>
 							{:else if erroBuscaDestinatario}
-								<p class="text-xs text-surface-400 px-1">{erroBuscaDestinatario}</p>
+								<p class="text-xs text-surface-500 dark:text-surface-400 px-1">
+									{erroBuscaDestinatario}
+								</p>
 							{/if}
 						{/if}
 					</div>
@@ -288,7 +290,7 @@
 				>
 				<button
 					type="button"
-					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all"
+					class="btn preset-filled-primary-500 font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
 					disabled={enviandoSolicitacao ||
 						(opcaoSolicitacao === 'respondencia' && !destinatarioSelecionado)}
 					onclick={confirmarSolicitacao}

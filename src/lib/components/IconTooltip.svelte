@@ -20,7 +20,7 @@
 	<Portal>
 		<Tooltip.Positioner>
 			<Tooltip.Content
-				class="z-50 bg-surface-900 dark:bg-surface-50 text-surface-50 dark:text-surface-900 px-2 py-1 rounded-md text-[0.7rem] font-semibold shadow-lg max-w-xs"
+				class="z-50 bg-surface-900 dark:bg-surface-50 text-surface-50 dark:text-surface-900 px-2 py-1 rounded-md text-2xs font-semibold shadow-lg max-w-xs"
 			>
 				{label}
 			</Tooltip.Content>

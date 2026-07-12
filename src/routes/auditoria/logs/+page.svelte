@@ -314,7 +314,9 @@
 						<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {niv.cls}">
 							{niv.label}
 						</span>
-						<span class="text-xs text-surface-400">{fmtData(log.created_at)}</span>
+						<span class="text-xs text-surface-500 dark:text-surface-400"
+							>{fmtData(log.created_at)}</span
+						>
 					</div>
 
 					<h3 class="text-sm font-semibold text-surface-900 dark:text-white break-words">
@@ -322,7 +324,7 @@
 					</h3>
 
 					<div
-						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-400"
+						class="flex items-center justify-between border-t border-surface-200/50 dark:border-white/5 pt-2 text-xs text-surface-500 dark:text-surface-400"
 					>
 						<span class="font-mono truncate max-w-[60%]">{log.rota ?? '—'}</span>
 						<span class="flex items-center gap-0.5 text-primary-500 font-medium">
@@ -346,15 +348,15 @@
 								<dl
 									class="grid grid-cols-[90px_1fr] gap-x-2 gap-y-1.5 text-surface-600 dark:text-surface-300"
 								>
-									<dt class="font-semibold text-surface-400">Rota</dt>
+									<dt class="font-semibold text-surface-500 dark:text-surface-400">Rota</dt>
 									<dd class="font-mono break-all text-surface-800 dark:text-surface-200">
 										{log.rota ?? '—'}
 									</dd>
-									<dt class="font-semibold text-surface-400">Request ID</dt>
+									<dt class="font-semibold text-surface-500 dark:text-surface-400">Request ID</dt>
 									<dd class="font-mono text-surface-800 dark:text-surface-200">
 										{log.request_id ?? '—'}
 									</dd>
-									<dt class="font-semibold text-surface-400">Usuário (id)</dt>
+									<dt class="font-semibold text-surface-500 dark:text-surface-400">Usuário (id)</dt>
 									<dd class="text-surface-800 dark:text-surface-200">
 										{log.usuario_id ?? 'anônimo'}
 									</dd>

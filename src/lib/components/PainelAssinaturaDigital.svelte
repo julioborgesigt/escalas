@@ -174,7 +174,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">Revogar assinatura?</Dialog.Title>
 			<Dialog.Description class="text-surface-600 dark:text-surface-400 mb-6">
@@ -300,7 +300,7 @@
 
 		{#if painelAberto}
 			<div transition:slide={{ duration: 220 }} class="mt-3 space-y-3">
-				<p class="text-[10px] text-surface-400 dark:text-surface-500 italic px-1">
+				<p class="text-3xs text-surface-400 dark:text-surface-500 italic px-1">
 					Ao confirmar, você atesta valor jurídico equivalente à assinatura manuscrita, conforme o
 					<a
 						href="/termo/1.0"
@@ -335,18 +335,21 @@
 								>
 									Rubrica na Tela
 								</p>
-								<p class="text-[10px] text-surface-400 mt-0.5">Ideal para tablets e smartphones</p>
+								<p class="text-3xs text-surface-500 dark:text-surface-400 mt-0.5">
+									Ideal para tablets e smartphones
+								</p>
 							</div>
 						</div>
 						{#if isMobile}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-warning-500 font-bold text-xs px-3 shrink-0 transition-all"
 								disabled={loading.active}
 								onclick={abrirModalAssinatura}>Assinar</button
 							>
 						{:else}
-							<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0"
+							<span
+								class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
 								>Mobile only</span
 							>
 						{/if}
@@ -374,17 +377,19 @@
 								<p
 									class="text-xs font-semibold text-surface-700 dark:text-surface-200 leading-none"
 								>
-									Certificado Digital <span
-										class="text-[9px] font-black text-tertiary-500 uppercase">ICP-Brasil</span
+									Certificado Digital <span class="text-3xs font-black text-tertiary-500 uppercase"
+										>ICP-Brasil</span
 									>
 								</p>
-								<p class="text-[10px] text-surface-400 mt-0.5">Via Assinador SERPRO (desktop)</p>
+								<p class="text-3xs text-surface-500 dark:text-surface-400 mt-0.5">
+									Via Assinador SERPRO (desktop)
+								</p>
 							</div>
 						</div>
 						{#if !isMobile}
 							<button
 								type="button"
-								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 active:scale-95 transition-all"
+								class="btn btn-sm preset-filled-tertiary-500 font-bold text-xs px-3 shrink-0 transition-all"
 								disabled={assinando}
 								onclick={() => {
 									if (painelTokenControl) painelTokenControl.assinarComSerpro();
@@ -396,7 +401,8 @@
 								}}>Assinar</button
 							>
 						{:else}
-							<span class="text-[10px] font-bold uppercase text-surface-400 shrink-0"
+							<span
+								class="text-3xs font-bold uppercase text-surface-500 dark:text-surface-400 shrink-0"
 								>Desktop only</span
 							>
 						{/if}
@@ -491,7 +497,7 @@
 					</div>
 					<button
 						type="button"
-						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 active:scale-95 transition-all"
+						class="btn btn-sm preset-filled-success-500 font-bold shrink-0 text-xs px-3 transition-all"
 						onclick={() => (dialogSolicitarAberto = true)}
 					>
 						Solicitar
@@ -503,13 +509,14 @@
 
 	<!-- Downloads auxiliares — sempre visíveis para escalas não-FDS -->
 	<div class="py-3 border-t border-surface-200 dark:border-white/5 mb-4">
-		<span class="text-[0.6rem] font-bold text-surface-400 uppercase tracking-widest mb-2 block"
+		<span
+			class="text-3xs font-bold text-surface-500 dark:text-surface-400 uppercase tracking-widest mb-2 block"
 			>Você pode conferir a escala antes de assinar ou solicitar uma assinatura</span
 		>
 		<div class="flex gap-2 flex-wrap">
 			{#each ['DOCX', 'XLSX', 'PDF'] as format (format)}
 				<a
-					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-[0.65rem] font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
+					class="btn btn-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 border border-surface-200 dark:border-white/5 text-3xs font-bold uppercase px-3 py-1.5 no-underline transition-all rounded-lg"
 					href={`/api/escalas/${escalaId}/download?format=${format.toLowerCase()}`}
 					target="_blank">{format}</a
 				>
@@ -538,7 +545,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-surface-950/80 backdrop-blur-sm overflow-y-auto"
 	>
 		<div
-			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface-100 dark:bg-surface-900 shadow-2xl rounded-2xl border border-surface-200 dark:border-white/10"
+			class="card p-4 sm:p-6 max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto card-elevated shadow-2xl rounded-2xl"
 		>
 			<Dialog.Title class="h3 font-bold mb-2">{signatureTitulo}</Dialog.Title>
 			<Dialog.Description class="text-xs text-surface-600 dark:text-surface-400 mb-4">

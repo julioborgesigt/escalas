@@ -15,7 +15,7 @@
 	type="button"
 	onclick={handleRefresh}
 	disabled={refreshing}
-	class="btn-icon preset-filled-primary-500 min-[900px]:hidden fixed bottom-6 right-4 z-30 w-12 h-12 rounded-full shadow-lg shadow-primary-500/30 active:scale-95 transition-all disabled:opacity-60"
+	class="btn-icon preset-filled-primary-500 min-[900px]:hidden fixed bottom-6 right-4 z-30 w-12 h-12 rounded-full shadow-lg shadow-primary-500/30 transition-all disabled:opacity-60"
 	aria-label="Atualizar dados"
 >
 	<svg
