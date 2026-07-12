@@ -504,9 +504,7 @@
 					<div
 						class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900 hover:border-primary-500/30 transition-all"
 					>
-						<div
-							class="flex flex-col gap-2 px-3 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-2 sm:px-4"
-						>
+						<div class="flex flex-col gap-2 px-3 py-3 xs:flex-row xs:items-center xs:gap-2 sm:px-4">
 							<button
 								type="button"
 								class="flex-1 min-w-0 flex items-center justify-between gap-2 sm:gap-3 text-left"
@@ -531,7 +529,7 @@
 							</button>
 
 							<div
-								class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 min-[400px]:border-t-0 min-[400px]:border-l min-[400px]:pt-0 min-[400px]:pl-2 min-[400px]:ml-1 justify-end"
+								class="flex items-center gap-1 shrink-0 border-t pt-2 border-surface-200 dark:border-surface-700 xs:border-t-0 xs:border-l xs:pt-0 xs:pl-2 xs:ml-1 justify-end"
 							>
 								<a
 									href="/api/gise/{escala.id}/download?format=pdf"

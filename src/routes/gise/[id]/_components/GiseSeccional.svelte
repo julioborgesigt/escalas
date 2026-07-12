@@ -261,7 +261,7 @@
 						type="button"
 						class="btn text-xs font-bold px-3 py-2 rounded-xl border-2 max-w-full inline-flex items-center justify-center gap-1.5 select-none border-surface-300/80 bg-surface-100/90 text-surface-600 shadow-sm cursor-not-allowed dark:border-surface-600 dark:bg-surface-800/50 dark:text-surface-400 {compact
 							? 'w-full'
-							: 'w-full min-[400px]:w-auto sm:w-auto'}"
+							: 'w-full xs:w-auto sm:w-auto'}"
 						disabled
 						title="Aguardando preenchimento do formulário de produtividade desta seccional"
 					>
@@ -286,10 +286,10 @@
 			<div
 				class={compact
 					? 'flex w-full flex-col gap-2'
-					: 'flex w-full min-[400px]:w-auto min-[400px]:max-w-full min-[400px]:shrink-0 flex-col min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center gap-2'}
+					: 'flex w-full xs:w-auto xs:max-w-full xs:shrink-0 flex-col xs:flex-row xs:flex-wrap xs:items-center gap-2'}
 			>
 				{#if assRel}
-					<div class="flex gap-2 {compact ? 'w-full' : 'w-full min-[400px]:w-auto'}">
+					<div class="flex gap-2 {compact ? 'w-full' : 'w-full xs:w-auto'}">
 						<a
 							class="btn flex-1 text-xs font-bold px-2 py-2 rounded-xl border-2 no-underline flex items-center justify-center gap-1.5 transition-all preset-filled-primary-500 border-primary-600/30 hover:border-primary-600"
 							href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
@@ -334,7 +334,7 @@
 							? 'pointer-events-none opacity-60 border-primary-500/30'
 							: 'no-underline'} preset-tonal-primary border-primary-500/30 hover:border-primary-500 {compact
 							? 'w-full'
-							: 'w-full min-[400px]:w-auto'}"
+							: 'w-full xs:w-auto'}"
 						href={`/api/gise/${gise.id}/download?format=extraordinario&seccionalId=${sec.seccional_id}`}
 						target="_blank"
 						rel="noopener noreferrer"
@@ -360,7 +360,7 @@
 					<div
 						class={compact
 							? 'flex w-full flex-col gap-2'
-							: 'flex w-full min-[400px]:w-auto flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2'}
+							: 'flex w-full xs:w-auto flex-col xs:flex-row items-stretch xs:items-center gap-2'}
 					>
 						{#if isMobile || !restringirSmartphone}
 							{@render actionButton(
@@ -374,7 +374,7 @@
 								false,
 								compact
 									? 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									: 'border-2 border-warning-600/30 hover:border-warning-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full xs:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
@@ -393,7 +393,7 @@
 								false,
 								compact
 									? 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-2 shadow-sm font-bold uppercase w-full min-h-11 touch-manipulation shrink-0'
-									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full min-[400px]:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
+									: 'border-2 border-tertiary-600/30 hover:border-tertiary-600 text-3xs py-1.5 sm:py-1 shadow-sm font-bold uppercase w-full xs:w-auto min-h-11 sm:min-h-0 touch-manipulation shrink-0',
 								'button',
 								'xs'
 							)}
