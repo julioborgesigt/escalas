@@ -9,14 +9,8 @@
 	import Spinner from './Spinner.svelte';
 	import IconTooltip from './IconTooltip.svelte';
 	import CodigoTimer from './CodigoTimer.svelte';
-	import {
-		sortearChallenge,
-		HeadTurnDetector,
-		SmileDetector,
-		type ChallengeDefinicao,
-		type ChallengeProgresso
-	} from '$lib/liveness-challenge';
-	let faceapi: typeof import('@vladmandic/face-api') | null = $state(null);
+	import { useRubricaCanvas } from '$lib/composables/useRubricaCanvas.svelte';
+	import { useFaceLiveness } from '$lib/composables/useFaceLiveness.svelte';
 
 	let {
 		onConfirm,
@@ -36,46 +30,14 @@
 		step?: 'signature' | 'camera' | 'email_code';
 	} = $props();
 
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D;
-	let drawing = false;
+	// Máquinas de captura, extraídas para composables: desenho da rubrica
+	// (canvas + mouse/touch) e prova de vida (câmera + face-api + challenge).
+	const rubrica = useRubricaCanvas();
+	const liveness = useFaceLiveness({ exigirFoto: () => exigirFoto });
+
 	let capturingLocation = $state(false);
 	let coords = $state<{ lat: number; lng: number } | null>(null);
 	let locationError = $state<string | null>(null);
-
-	// Selfie states
-	let videoElement = $state<HTMLVideoElement | null>(null);
-	let stream = $state<MediaStream | null>(null);
-	let cameraError = $state<string | null>(null);
-	let capturingImage = $state(false);
-
-	// Face Liveness states
-	let faceDetected = $state(false);
-	let isFaceModelLoaded = $state(false);
-	let faceDetectionInterval: ReturnType<typeof setInterval> | null = null;
-	let countdownTimer: ReturnType<typeof setInterval> | null = null;
-	let faceStatusMessage = $state('Inicializando IA...');
-	let faceLoadError = $state<string | null>(null);
-
-	// Novos estados para estabilidade e contagem
-	let countdown = $state(0);
-	let isMoving = $state(false);
-	let lastBox = $state<{ x: number; y: number } | null>(null);
-	let isFlashActive = $state(false);
-	let stableFrames = $state(0); // Frames consecutivos abaixo do limiar (histerese p/ entrar em "estável")
-	let movingFrames = $state(0); // Frames consecutivos acima do limiar (histerese p/ entrar em "movendo")
-	let lastErrorCode = $state<string | null>(null); // Erros de captura final
-
-	// Liveness ATIVA (challenge-response) — barra foto/vídeo pré-gravado.
-	// Sorteia 1 challenge (head_turn ou smile) por sessão. O usuário precisa
-	// cumprir antes do botão "tirar foto" ser liberado.
-	let challengeAtual = $state<ChallengeDefinicao | null>(null);
-	let challengeProgresso = $state<ChallengeProgresso | null>(null);
-	let challengeIniciadoEm = $state<string | null>(null);
-	let challengeConcluidoEm = $state<string | null>(null);
-	let challengeTentativas = $state(0);
-	const headTurnDetector = new HeadTurnDetector();
-	const smileDetector = new SmileDetector();
 
 	// Estados do Email Code
 	let solicitandoCodigo = $state(false);
@@ -83,10 +45,11 @@
 	let codigoError = $state<string | null>(null);
 	let emailMascarado = $state('');
 	let desafioId = $state<string | null>(null);
-	// IMPORTANTE: `liveness` precisa ser capturado AQUI (no momento da foto) e não
-	// recalculado em confirmarCodigo. Quando step muda para 'email_code', o
-	// $effect reseta challengeAtual=null — se chamássemos montarLivenessResultado()
-	// depois, devolveria null e o servidor rejeitaria com "liveness ausente".
+	// IMPORTANTE: o resultado do liveness precisa ser capturado AQUI (no momento
+	// da foto) e não recalculado em confirmarCodigo. Quando step muda para
+	// 'email_code', o $effect abaixo chama aoVoltarDaCamera() (challenge zerado)
+	// — se chamássemos montarLivenessResultado() depois, devolveria null e o
+	// servidor rejeitaria com "liveness ausente".
 	let pendingSignature = $state<{
 		dataUrl: string;
 		lat: number | undefined;
@@ -97,245 +60,16 @@
 
 	$effect(() => {
 		if (step === 'camera') {
-			if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-				navigator.mediaDevices
-					.getUserMedia({
-						video: {
-							facingMode: 'user',
-							width: { ideal: 1280 },
-							height: { ideal: 720 }
-						}
-					})
-					.then((s) => {
-						stream = s;
-						if (videoElement) {
-							videoElement.srcObject = s;
-							videoElement.onloadedmetadata = () => {
-								videoElement?.play().catch(() => {});
-								initFaceDetection();
-							};
-						}
-					})
-					.catch((err) => {
-						console.warn('Camera error:', err);
-						cameraError = 'Por favor, autorize a câmera. A Prova de Vida é obrigatória.';
-					});
-			} else {
-				cameraError = 'Navegador não suporta acesso à câmera.';
-			}
+			liveness.entrarNaCamera();
 		} else {
 			// se voltar para a tela de assinatura
-			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
-			// Reset do challenge para que próxima entrada na câmera sorteie novo
-			challengeAtual = null;
-			challengeProgresso = null;
-			challengeIniciadoEm = null;
-			challengeConcluidoEm = null;
-			challengeTentativas = 0;
-			headTurnDetector.reset();
-			smileDetector.reset();
+			liveness.aoVoltarDaCamera();
 		}
-
-		return () => {
-			if (stream) {
-				stream.getTracks().forEach((track) => track.stop());
-			}
-			if (faceDetectionInterval) clearInterval(faceDetectionInterval);
-			if (countdownTimer) clearInterval(countdownTimer);
-		};
+		return () => liveness.limparRecursos();
 	});
 
-	async function initFaceDetection() {
-		try {
-			if (!faceapi && typeof window !== 'undefined') {
-				faceapi = await import('@vladmandic/face-api');
-			}
-			if (faceapi && !isFaceModelLoaded) {
-				// Self-hostado em `static/face-api/` — servido pela CDN do Cloudflare
-				// Pages. Removemos a dependência de `cdn.jsdelivr.net`.
-				//
-				// Carrega 3 modelos:
-				//  - tinyFaceDetector: presença e localização do rosto
-				//  - faceLandmark68Net: 68 pontos faciais (mandíbula+nariz p/ head_turn)
-				//  - faceExpressionNet: probabilidades de happy/sad/etc (smile challenge)
-				await Promise.all([
-					faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/'),
-					faceapi.nets.faceLandmark68Net.loadFromUri('/face-api/'),
-					faceapi.nets.faceExpressionNet.loadFromUri('/face-api/')
-				]);
-				isFaceModelLoaded = true;
-			}
-
-			// Sortear challenge da sessão (cada vez que entra na step camera).
-			if (!challengeAtual) {
-				challengeAtual = sortearChallenge();
-				challengeIniciadoEm = new Date().toISOString();
-				challengeTentativas = 1;
-				headTurnDetector.reset();
-				smileDetector.reset();
-			}
-
-			startDetectionLoop();
-		} catch (e: unknown) {
-			console.error('Erro ao carregar face-api:', e);
-			faceLoadError = 'Falha ao baixar modelo facial. Verifique internet.';
-		}
-	}
-
-	/**
-	 * Re-sorteia um novo challenge (chamado pelo botão "trocar desafio").
-	 * Útil quando o usuário tem dificuldade em executar o sorteado (ex.: smile
-	 * com máscara).
-	 */
-	function trocarChallenge() {
-		const anterior = challengeAtual?.tipo;
-		// Re-sorteia até pegar um diferente do anterior.
-		let novo = sortearChallenge();
-		let tentativas = 0;
-		while (novo.tipo === anterior && tentativas < 5) {
-			novo = sortearChallenge();
-			tentativas++;
-		}
-		challengeAtual = novo;
-		challengeProgresso = null;
-		challengeIniciadoEm = new Date().toISOString();
-		challengeConcluidoEm = null;
-		challengeTentativas += 1;
-		headTurnDetector.reset();
-		smileDetector.reset();
-	}
-
-	function startDetectionLoop() {
-		if (faceDetectionInterval) clearInterval(faceDetectionInterval);
-		// Guarda de reentrância: com amostragem rápida (150ms) uma detecção lenta
-		// em aparelho modesto poderia empilhar chamadas. Se ainda há uma rodando,
-		// o tick atual é ignorado (a cadência cai naturalmente, sem pile-up).
-		let emAndamento = false;
-		faceDetectionInterval = setInterval(async () => {
-			if (!videoElement || videoElement.paused || !isFaceModelLoaded || !faceapi) return;
-			if (emAndamento) return;
-			emAndamento = true;
-			try {
-				// Pipeline MÍNIMA por desafio: head_turn só precisa dos 68 landmarks
-				// (mandíbula + nariz); o smile só das expressões. Rodar apenas a rede
-				// necessária mantém a cadência alta. inputSize 224 basta para ambos —
-				// head_turn usa geometria grosseira de pose, não detalhe fino (era o
-				// blink, aposentado, que pedia 320 p/ olhos nítidos).
-				const tipo = challengeAtual?.tipo;
-				const opts = new faceapi.TinyFaceDetectorOptions({
-					inputSize: 224,
-					scoreThreshold: 0.5
-				});
-
-				let box: { x: number; y: number; width: number } | null = null;
-				let jaw: { x: number; y: number }[] | null = null;
-				let nose: { x: number; y: number }[] | null = null;
-				let happy: number | null = null;
-
-				if (tipo === 'smile') {
-					const det = await faceapi.detectSingleFace(videoElement, opts).withFaceExpressions();
-					if (det) {
-						box = det.detection.box;
-						happy = det.expressions.happy ?? 0;
-					}
-				} else {
-					// head_turn (e fallback enquanto o challenge ainda não sorteou): landmarks.
-					const det = await faceapi.detectSingleFace(videoElement, opts).withFaceLandmarks();
-					if (det) {
-						box = det.detection.box;
-						jaw = det.landmarks.getJawOutline();
-						nose = det.landmarks.getNose();
-					}
-				}
-
-				if (!box) {
-					faceDetected = false;
-					stableFrames = 0;
-					movingFrames = 0;
-					faceStatusMessage = 'Posicione seu rosto na frente da câmera.';
-					isMoving = false;
-					return;
-				}
-
-				faceDetected = true;
-
-				// Durante o head_turn ATIVO o rosto SE MOVE de propósito — não faz
-				// sentido alertar "segure firme" nem marcar isMoving (que bloquearia o
-				// feedback visual de pronto). Após o desafio concluir, a checagem de
-				// estabilidade volta a valer para a foto final (+ countdown de 3s).
-				const headTurnAtivo =
-					challengeAtual?.tipo === 'head_turn' && !challengeProgresso?.concluido;
-
-				if (lastBox) {
-					const dx = box.x - lastBox.x;
-					const dy = box.y - lastBox.y;
-					const dist = Math.sqrt(dx * dx + dy * dy);
-					// Limiar RELATIVO ao tamanho do rosto: ~9% da largura do box.
-					// Absoluto em pixels falha quando o usuário se aproxima/afasta
-					// (face grande tolera mais ruído; face pequena, menos).
-					// Floor de 14px evita que rostos muito pequenos disparem com qualquer jitter.
-					const threshold = Math.max(14, box.width * 0.09);
-					const movedValue = dist > threshold;
-
-					if (movedValue && !headTurnAtivo) {
-						movingFrames++;
-						stableFrames = 0;
-						// Histerese: só declara "movendo" após 2 frames consecutivos
-						// acima do limiar. Um único frame ruidoso (comum no face-api)
-						// não basta para piscar o alerta.
-						if (movingFrames >= 2) {
-							isMoving = true;
-							faceStatusMessage = 'Mantenha o celular firme! ✋';
-						}
-					} else {
-						movingFrames = 0;
-						stableFrames++;
-						if (stableFrames >= 2) {
-							isMoving = false;
-							faceStatusMessage = headTurnAtivo
-								? 'Vire a cabeça conforme o desafio'
-								: 'Rosto detectado';
-						}
-					}
-				} else {
-					faceStatusMessage = headTurnAtivo
-						? 'Vire a cabeça conforme o desafio'
-						: 'Rosto detectado';
-				}
-				lastBox = box;
-
-				// Alimentar o challenge ativo com os dados desta frame.
-				if (challengeAtual && !challengeProgresso?.concluido) {
-					if (challengeAtual.tipo === 'head_turn' && jaw && nose) {
-						challengeProgresso = headTurnDetector.feed(jaw, nose);
-					} else if (challengeAtual.tipo === 'smile' && happy !== null) {
-						challengeProgresso = smileDetector.feed(happy);
-					}
-					if (challengeProgresso?.concluido && !challengeConcluidoEm) {
-						challengeConcluidoEm = new Date().toISOString();
-					}
-				}
-			} catch (e) {
-				// Ignora erros ocasionais (pipeline pesado pode falhar em frames específicos)
-			} finally {
-				emAndamento = false;
-			}
-			// ~150ms: cadência alta para acompanhar com fluidez o giro da cabeça e o
-			// sorriso. Os desafios sobreviventes são sustentados (≥ 1s), então não
-			// dependem de pegar um frame instantâneo — só de amostrar o movimento.
-		}, 150);
-	}
-
+	// Iniciar captura de localização ao abrir (somente se exigido)
 	$effect(() => {
-		if (canvas) {
-			ctx = canvas.getContext('2d')!;
-			ctx.strokeStyle = '#000';
-			ctx.lineWidth = 2.5;
-			ctx.lineCap = 'round';
-			ctx.lineJoin = 'round';
-		}
-
-		// Iniciar captura de localização ao abrir (somente se exigido)
 		if (exigirGps) {
 			if ('geolocation' in navigator) {
 				capturingLocation = true;
@@ -361,183 +95,16 @@
 		}
 	});
 
-	function startDrawing(e: MouseEvent | TouchEvent) {
-		drawing = true;
-		const { x, y } = getCoord(e);
-		ctx.beginPath();
-		ctx.moveTo(x, y);
-	}
-
-	function draw(e: MouseEvent | TouchEvent) {
-		if (!drawing) return;
-		e.preventDefault();
-		const { x, y } = getCoord(e);
-		ctx.lineTo(x, y);
-		ctx.stroke();
-	}
-
-	function stopDrawing() {
-		drawing = false;
-	}
-
-	function getCoord(e: MouseEvent | TouchEvent) {
-		const rect = canvas.getBoundingClientRect();
-		if ('touches' in e) {
-			return {
-				x: e.touches[0].clientX - rect.left,
-				y: e.touches[0].clientY - rect.top
-			};
-		}
-		return {
-			x: (e as MouseEvent).clientX - rect.left,
-			y: (e as MouseEvent).clientY - rect.top
-		};
-	}
-
-	function clear() {
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-	}
-
-	function comprimirRubrica(src: HTMLCanvasElement, maxKb = 100): string {
-		const maxBytes = maxKb * 1024;
-
-		function flatCanvas(
-			source: HTMLCanvasElement,
-			w = source.width,
-			h = source.height
-		): HTMLCanvasElement {
-			const c = document.createElement('canvas');
-			c.width = w;
-			c.height = h;
-			const c2d = c.getContext('2d')!;
-			c2d.fillStyle = '#ffffff';
-			c2d.fillRect(0, 0, w, h);
-			c2d.drawImage(source, 0, 0, w, h);
-			return c;
-		}
-
-		function base64Size(dataUrl: string): number {
-			const b64 = dataUrl.split(',')[1] ?? '';
-			return Math.ceil((b64.length * 3) / 4);
-		}
-
-		const flat = flatCanvas(src);
-		for (const q of [0.92, 0.88, 0.84, 0.8, 0.76, 0.72, 0.68]) {
-			const jpg = flat.toDataURL('image/jpeg', q);
-			if (base64Size(jpg) <= maxBytes) return jpg;
-		}
-
-		const scale = 0.85;
-		const small = flatCanvas(src, Math.round(src.width * scale), Math.round(src.height * scale));
-		for (const q of [0.92, 0.88, 0.84, 0.8, 0.76]) {
-			const jpg = small.toDataURL('image/jpeg', q);
-			if (base64Size(jpg) <= maxBytes) return jpg;
-		}
-
-		return small.toDataURL('image/jpeg', 0.75);
-	}
-
 	function confirmarSemFoto() {
-		const thumbCanvas = document.createElement('canvas');
-		thumbCanvas.width = 150;
-		thumbCanvas.height = 60;
-		const thumbCtx = thumbCanvas.getContext('2d')!;
-		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
-		const dataUrl = comprimirRubrica(canvas, 100);
-		processarAssinatura(dataUrl, coords?.lat, coords?.lng, null);
+		processarAssinatura(rubrica.exportar(100), coords?.lat, coords?.lng, null);
 	}
 
 	async function confirm() {
-		capturingImage = true;
-		lastErrorCode = null;
-		let selfieBase64: string | null = null;
-
-		if (videoElement && stream && faceapi) {
-			// VERIFICAÇÃO DE ÚLTIMO MILISSEGUNDO: O rosto ainda está lá?
-			// Isso evita que o usuário "fuja" da câmera no final do countdown
-			const finalDetection = await faceapi.detectAllFaces(
-				videoElement,
-				new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-			);
-
-			if (finalDetection.length !== 1) {
-				lastErrorCode =
-					finalDetection.length === 0
-						? 'Rosto não detectado no momento da foto!'
-						: 'Múltiplos rostos detectados no momento da foto!';
-				capturingImage = false;
-				countdown = 0; // Reseta tentativa
-				return;
-			}
-
-			const sc = document.createElement('canvas');
-			// Força a proporção 3:4 (retrato) para garantir padronização perfeita entre entrada e saída
-			const uiRatio = 0.75;
-
-			// Resolução aumentada para 600x800 para maior nitidez
-			const ch = 800;
-			const cw = 600;
-			sc.width = cw;
-			sc.height = ch;
-
-			const sctx = sc.getContext('2d');
-			if (sctx) {
-				// Object Cover: desenha o vídeo cobrindo perfeitamente o canvas da UI
-				const videoRatio = videoElement.videoWidth / videoElement.videoHeight;
-				let drawWidth = cw;
-				let drawHeight = ch;
-				let offsetX = 0;
-				let offsetY = 0;
-
-				if (videoRatio > uiRatio) {
-					// Vídeo da câmera é mais "esticado" (widescreen) que o canvas da tela
-					drawWidth = ch * videoRatio;
-					offsetX = (cw - drawWidth) / 2;
-				} else {
-					// Vídeo da câmera é mais alto/quadrado que o canvas da tela
-					drawHeight = cw / videoRatio;
-					offsetY = (ch - drawHeight) / 2;
-				}
-
-				sctx.drawImage(videoElement, offsetX, offsetY, drawWidth, drawHeight);
-
-				// Efeito visual de flash
-				isFlashActive = true;
-				setTimeout(() => (isFlashActive = false), 150);
-
-				// Qualidade aumentada de 0.82 para 0.88 para maior clareza
-				selfieBase64 = sc.toDataURL('image/jpeg', 0.88);
-			}
-		}
-
-		// Redimensiona a rúbrica para 150x60 antes de exportar como PNG.
-		// Isso reduz o peso de ~500KB para ~15KB sem gerar quadros pretos no PDF,
-		// problema conhecido quando jsPDF recebe JPEG de formato canvas.
-		const thumbCanvas = document.createElement('canvas');
-		thumbCanvas.width = 150;
-		thumbCanvas.height = 60;
-		const thumbCtx = thumbCanvas.getContext('2d')!;
-		thumbCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 150, 60);
-		const dataUrl = comprimirRubrica(canvas, 100);
-		processarAssinatura(dataUrl, coords?.lat, coords?.lng, selfieBase64);
-	}
-
-	/**
-	 * Resultado consolidado do challenge ativo (liveness), pronto para
-	 * persistência no manifesto. Quando exigirFoto=false, fica `null`.
-	 */
-	function montarLivenessResultado() {
-		if (!exigirFoto || !challengeAtual) return null;
-		const inicio = challengeIniciadoEm ? new Date(challengeIniciadoEm).getTime() : Date.now();
-		const fim = challengeConcluidoEm ? new Date(challengeConcluidoEm).getTime() : Date.now();
-		return {
-			tipo: challengeAtual.tipo,
-			cumprido: !!challengeProgresso?.concluido,
-			tentativas: challengeTentativas,
-			iniciadoEm: challengeIniciadoEm,
-			concluidoEm: challengeConcluidoEm,
-			duracaoMs: Math.max(0, fim - inicio)
-		};
+		const selfieBase64 = await liveness.capturarSelfie();
+		// undefined = captura ABORTADA (rosto sumiu/múltiplos no último
+		// milissegundo) — o overlay de erro já foi exibido pelo composable.
+		if (selfieBase64 === undefined) return;
+		processarAssinatura(rubrica.exportar(100), coords?.lat, coords?.lng, selfieBase64);
 	}
 
 	async function processarAssinatura(
@@ -547,15 +114,15 @@
 		selfieBase64: string | null
 	) {
 		// Snapshot do liveness ANTES de qualquer mudança de step. A transição
-		// para 'email_code' dispara o $effect que zera challengeAtual, então
+		// para 'email_code' dispara o $effect que zera o challenge, então
 		// recalcular depois devolve null.
-		const liveness = montarLivenessResultado();
+		const livenessResultado = liveness.montarLivenessResultado();
 		if (exigirCodigoEmail) {
-			pendingSignature = { dataUrl, lat, lng, selfieBase64, liveness };
+			pendingSignature = { dataUrl, lat, lng, selfieBase64, liveness: livenessResultado };
 			const ok = await enviarOuReenviarCodigo();
 			if (ok) step = 'email_code';
 		} else {
-			onConfirm({ rubrica: dataUrl, lat, lng, selfie: selfieBase64, liveness });
+			onConfirm({ rubrica: dataUrl, lat, lng, selfie: selfieBase64, liveness: livenessResultado });
 		}
 	}
 
@@ -607,25 +174,7 @@
 	}
 
 	function startCaptureSequence() {
-		if (countdown > 0) return;
-		// Liveness ativa: bloqueia captura enquanto o challenge sorteado não
-		// foi cumprido. Sem isso, o face-api só atestou "tem rosto na frente"
-		// — o que passa em foto/vídeo pré-gravado.
-		if (exigirFoto && challengeAtual && !challengeProgresso?.concluido) {
-			lastErrorCode = `Cumpra o desafio antes de tirar a foto: ${challengeAtual.instrucao}`;
-			return;
-		}
-
-		// Inicia contagem de 3 segundos para dar tempo ao usuário de estabilizar o celular
-		countdown = 3;
-		countdownTimer = setInterval(() => {
-			countdown--;
-			if (countdown === 0) {
-				if (countdownTimer) clearInterval(countdownTimer);
-				countdownTimer = null;
-				confirm();
-			}
-		}, 1000);
+		liveness.iniciarContagem(confirm);
 	}
 </script>
 
@@ -673,18 +222,18 @@
 				class="bg-white border-2 border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden touch-none relative min-h-[280px]"
 			>
 				<canvas
-					bind:this={canvas}
+					bind:this={rubrica.canvas}
 					width="500"
 					height="280"
 					aria-label="Área de desenho da assinatura manuscrita — desenhe sua assinatura com o dedo ou mouse"
 					class="w-full h-[280px] cursor-crosshair touch-none"
-					onmousedown={startDrawing}
-					onmousemove={draw}
-					onmouseup={stopDrawing}
-					onmouseleave={stopDrawing}
-					ontouchstart={startDrawing}
-					ontouchmove={draw}
-					ontouchend={stopDrawing}
+					onmousedown={rubrica.startDrawing}
+					onmousemove={rubrica.draw}
+					onmouseup={rubrica.stopDrawing}
+					onmouseleave={rubrica.stopDrawing}
+					ontouchstart={rubrica.startDrawing}
+					ontouchmove={rubrica.draw}
+					ontouchend={rubrica.stopDrawing}
 				></canvas>
 
 				<!-- Indicador de GPS -->
@@ -716,27 +265,27 @@
 					class="text-3xs font-bold text-surface-500 uppercase tracking-wider items-center mb-3 px-2 flex gap-1.5"
 				>
 					<span
-						class="w-2.5 h-2.5 rounded-full {stream
+						class="w-2.5 h-2.5 rounded-full {liveness.stream
 							? 'bg-error-500 animate-pulse'
 							: 'bg-surface-300'}"
 					></span>
 					Prova de Vida
 				</span>
 				<video
-					bind:this={videoElement}
+					bind:this={liveness.videoElement}
 					autoplay
 					playsinline
 					muted
-					class="w-full h-[90%] object-cover bg-surface-200 dark:bg-surface-900 {faceDetected
-						? isMoving
+					class="w-full h-[90%] object-cover bg-surface-200 dark:bg-surface-900 {liveness.faceDetected
+						? liveness.isMoving
 							? 'ring-4 ring-warning-500/50'
 							: 'ring-4 ring-success-500/50'
 						: 'ring-2 ring-warning-500/30'}"
 				></video>
 
 				<!-- Banner do challenge ativo (liveness) — barra foto/vídeo pré-gravado -->
-				{#if challengeAtual && faceDetected}
-					{@const ok = challengeProgresso?.concluido ?? false}
+				{#if liveness.challengeAtual && liveness.faceDetected}
+					{@const ok = liveness.challengeProgresso?.concluido ?? false}
 					<div
 						class="absolute top-12 left-4 right-4 z-30 px-3 py-2 rounded-xl backdrop-blur-md border-2 transition-all duration-200 pointer-events-auto shadow-lg {ok
 							? 'bg-success-500/20 border-success-400/60 text-success-50'
@@ -748,21 +297,22 @@
 									Desafio de presença
 								</p>
 								<p class="text-sm font-bold leading-tight truncate">
-									{#if ok}<Check class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desafio concluído{:else}{challengeAtual.instrucao}{/if}
+									{#if ok}<Check class="inline w-4 h-4 -mt-0.5" aria-hidden="true" /> Desafio concluído{:else}{liveness
+											.challengeAtual.instrucao}{/if}
 								</p>
-								{#if !ok && challengeProgresso}
+								{#if !ok && liveness.challengeProgresso}
 									<p class="text-3xs opacity-90 mt-0.5">
-										{challengeProgresso.mensagem}
+										{liveness.challengeProgresso.mensagem}
 									</p>
 								{:else if !ok}
-									<p class="text-3xs opacity-70 mt-0.5">{challengeAtual.hint}</p>
+									<p class="text-3xs opacity-70 mt-0.5">{liveness.challengeAtual.hint}</p>
 								{/if}
 							</div>
 							{#if !ok}
 								<IconTooltip label="Trocar para outro desafio">
 									<button
 										type="button"
-										onclick={trocarChallenge}
+										onclick={liveness.trocarChallenge}
 										class="text-3xs uppercase font-bold px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
 									>
 										Trocar
@@ -770,12 +320,12 @@
 								</IconTooltip>
 							{/if}
 						</div>
-						{#if challengeProgresso && !ok}
+						{#if liveness.challengeProgresso && !ok}
 							<!-- Barra de progresso -->
 							<div class="mt-1.5 h-1 bg-white/15 rounded-full overflow-hidden">
 								<div
 									class="h-full bg-primary-300 transition-all duration-200"
-									style="width: {challengeProgresso.progresso * 100}%"
+									style="width: {liveness.challengeProgresso.progresso * 100}%"
 								></div>
 							</div>
 						{/if}
@@ -783,31 +333,31 @@
 				{/if}
 
 				<!-- Efeito de Flash -->
-				{#if isFlashActive}
+				{#if liveness.isFlashActive}
 					<div
 						class="absolute inset-0 bg-white z-50 animate-flash opacity-0 pointer-events-none"
 					></div>
 				{/if}
 
 				<!-- Overlay de Contagem Regressiva -->
-				{#if countdown > 0}
+				{#if liveness.countdown > 0}
 					<div
 						class="absolute inset-0 flex items-center justify-center bg-black/30 z-40 backdrop-blur-[2px]"
 					>
 						<span
 							class="text-8xl font-black text-white drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] animate-ping-once"
 						>
-							{countdown}
+							{liveness.countdown}
 						</span>
 					</div>
 				{/if}
 
-				{#if lastErrorCode}
+				{#if liveness.lastErrorCode}
 					<div
 						class="absolute inset-x-4 top-2 bg-error-600/95 text-white backdrop-blur-md px-4 py-3 rounded-2xl text-center shadow-xl z-50 animate-bounce"
 					>
 						<p class="text-3xs font-black uppercase tracking-widest">
-							{lastErrorCode}
+							{liveness.lastErrorCode}
 						</p>
 					</div>
 				{/if}
@@ -816,21 +366,21 @@
 				<div
 					class="absolute bottom-4 left-0 right-0 max-w-xs mx-auto px-4 z-20 pointer-events-none"
 				>
-					{#if faceLoadError}
+					{#if liveness.faceLoadError}
 						<div
 							class="bg-error-500/90 text-white backdrop-blur-md px-4 py-2 rounded-xl text-center shadow-[0_0_15px_rgba(0,0,0,0.3)]"
 						>
 							<p class="text-3xs font-bold uppercase tracking-wide">
-								{faceLoadError}
+								{liveness.faceLoadError}
 							</p>
 						</div>
 					{:else}
 						<div
-							class="{faceDetected
+							class="{liveness.faceDetected
 								? 'bg-success-600/90'
 								: 'bg-surface-900/90'} text-white backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all duration-300"
 						>
-							{#if faceDetected}
+							{#if liveness.faceDetected}
 								<svg
 									class="w-4 h-4 text-white"
 									fill="none"
@@ -847,21 +397,21 @@
 								<Spinner size="xs" />
 							{/if}
 							<p
-								class="text-2xs font-black uppercase tracking-widest {isMoving
+								class="text-2xs font-black uppercase tracking-widest {liveness.isMoving
 									? 'text-warning-300'
 									: 'text-white'}"
 							>
-								{faceStatusMessage}
+								{liveness.faceStatusMessage}
 							</p>
 						</div>
 					{/if}
 				</div>
-				{#if cameraError}
+				{#if liveness.cameraError}
 					<div
 						class="absolute inset-0 bg-surface-900/80 flex items-center justify-center p-4 text-center z-10 backdrop-blur-sm"
 					>
 						<p class="text-sm font-bold text-error-400 uppercase">
-							{cameraError}
+							{liveness.cameraError}
 						</p>
 					</div>
 				{/if}
@@ -939,7 +489,7 @@
 			<button
 				type="button"
 				class="btn preset-tonal-surface rounded-xl text-xs font-bold uppercase px-4 py-2 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-				onclick={clear}
+				onclick={rubrica.clear}
 			>
 				Limpar
 			</button>
@@ -977,27 +527,27 @@
 				Voltar
 			</button>
 
-			{@const challengeOk = !challengeAtual || challengeProgresso?.concluido}
+			{@const challengeOk = !liveness.challengeAtual || liveness.challengeProgresso?.concluido}
 			<button
 				type="button"
-				class="btn {faceDetected && !isMoving && challengeOk
+				class="btn {liveness.faceDetected && !liveness.isMoving && challengeOk
 					? 'preset-filled-primary-500'
 					: 'bg-surface-300 dark:bg-surface-700 text-surface-500 opacity-60'} rounded-2xl text-sm font-bold uppercase px-6 py-3 shadow-lg shadow-primary-500/20 transition-all ml-auto"
 				onclick={startCaptureSequence}
 				disabled={capturingLocation ||
-					capturingImage ||
-					!!cameraError ||
-					!stream ||
-					!faceDetected ||
+					liveness.capturingImage ||
+					!!liveness.cameraError ||
+					!liveness.stream ||
+					!liveness.faceDetected ||
 					!challengeOk}
 			>
-				{#if !faceDetected}
+				{#if !liveness.faceDetected}
 					Aguardando Rosto...
 				{:else if !challengeOk}
 					Cumpra o desafio…
-				{:else if countdown > 0}
-					Prepare-se ({countdown})
-				{:else if capturingImage}
+				{:else if liveness.countdown > 0}
+					Prepare-se ({liveness.countdown})
+				{:else if liveness.capturingImage}
 					Fotografando...
 				{:else}
 					Tirar Foto e Assinar
