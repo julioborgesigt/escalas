@@ -15,7 +15,8 @@
 		useAutorizacao,
 		getSavedFilters,
 		useAssinaturaEscala,
-		useMobile
+		useMobile,
+		useFiltrosPaginados
 	} from '$lib/composables';
 	import SignaturePad from '$lib/components/SignaturePad.svelte';
 	import type { SignaturePadConfirmPayload } from '$lib/components/SignaturePadTypes';
@@ -61,20 +62,39 @@
 	);
 	let filtroBusca = $state(untrack(() => data.filtros.busca || savedFilters.busca));
 
-	$effect(() => {
-		if (browser) {
-			localStorage.setItem(
-				'filtros_escalas',
-				JSON.stringify({
-					lotacao: filtroLotacao,
-					mes: filtroMes,
-					ano: filtroAno,
-					tipo: filtroTipo,
-					seccional: filtroSeccional,
-					busca: filtroBusca
-				})
-			);
+	// Persistência (localStorage) + navegação server-side + auto-nav ao mudar
+	// qualquer filtro exceto a busca (que navega via seu próprio handler).
+	// `seccional` entra na assinatura (reseta a página) mas não vai à query —
+	// só afeta o dropdown de delegacias no cliente.
+	const filtros = useFiltrosPaginados({
+		chave: 'filtros_escalas',
+		snapshot: () => ({
+			lotacao: filtroLotacao,
+			mes: filtroMes,
+			ano: filtroAno,
+			tipo: filtroTipo,
+			seccional: filtroSeccional,
+			busca: filtroBusca
+		}),
+		query: buildQueryParamsComFiltros,
+		auto: {
+			assinatura: () => [
+				filtroSeccional ?? 'todas',
+				filtroLotacao ?? '',
+				filtroTipo ?? 'todos',
+				filtroMes ?? 0,
+				filtroAno ?? 0
+			]
 		}
+	});
+
+	// Normaliza null vindo do clear do SearchableSelect (mantém o default no select).
+	$effect(() => {
+		if (filtroSeccional === null) filtroSeccional = 'todas';
+		if (filtroLotacao === null) filtroLotacao = '';
+		if (filtroTipo === null) filtroTipo = 'todos';
+		if (filtroMes === null) filtroMes = 0;
+		if (filtroAno === null) filtroAno = 0;
 	});
 
 	const seccionais = $derived(unidades.filter((u: Unidade) => u.tipo === 'seccional'));
@@ -149,65 +169,6 @@
 		anos.map((ano) => ({ value: ano, label: ano === 0 ? 'Todos' : String(ano) }))
 	);
 
-	let mounted = false;
-	// svelte-ignore state_referenced_locally
-	let prevSeccional = $state(filtroSeccional);
-	// svelte-ignore state_referenced_locally
-	let prevLotacao = $state(filtroLotacao);
-	// svelte-ignore state_referenced_locally
-	let prevTipo = $state(filtroTipo);
-	// svelte-ignore state_referenced_locally
-	let prevMes = $state(filtroMes);
-	// svelte-ignore state_referenced_locally
-	let prevAno = $state(filtroAno);
-
-	$effect(() => {
-		// Normalize null values from SearchableSelect clear triggers
-		if (filtroSeccional === null) {
-			filtroSeccional = 'todas';
-		}
-		if (filtroLotacao === null) {
-			filtroLotacao = '';
-		}
-		if (filtroTipo === null) {
-			filtroTipo = 'todos';
-		}
-		if (filtroMes === null) {
-			filtroMes = 0;
-		}
-		if (filtroAno === null) {
-			filtroAno = 0;
-		}
-
-		if (!mounted) {
-			prevSeccional = filtroSeccional;
-			prevLotacao = filtroLotacao;
-			prevTipo = filtroTipo;
-			prevMes = filtroMes;
-			prevAno = filtroAno;
-			mounted = true;
-			return;
-		}
-
-		if (
-			filtroSeccional !== prevSeccional ||
-			filtroLotacao !== prevLotacao ||
-			filtroTipo !== prevTipo ||
-			filtroMes !== prevMes ||
-			filtroAno !== prevAno
-		) {
-			prevSeccional = filtroSeccional;
-			prevLotacao = filtroLotacao;
-			prevTipo = filtroTipo;
-			prevMes = filtroMes;
-			prevAno = filtroAno;
-
-			untrack(() => {
-				navegarComFiltros();
-			});
-		}
-	});
-
 	function buildQueryParamsComFiltros(p: number) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams();
@@ -217,15 +178,7 @@
 		if (filtroTipo && filtroTipo !== 'todos') params.set('tipo', filtroTipo);
 		if (filtroBusca) params.set('busca', filtroBusca);
 		params.set('page', String(p));
-		return params.toString();
-	}
-
-	function navegarComFiltros() {
-		goto(`?${buildQueryParamsComFiltros(1)}`, { keepFocus: true, noScroll: true });
-	}
-
-	function irParaPaginaListagem(p: number) {
-		goto(`?${buildQueryParamsComFiltros(p)}`, { keepFocus: true, noScroll: true });
+		return params;
 	}
 
 	function limparFiltros() {
@@ -236,13 +189,7 @@
 		filtroTipo = 'todos';
 		filtroBusca = '';
 
-		prevSeccional = 'todas';
-		prevLotacao = 'todas';
-		prevMes = new Date().getMonth() + 1;
-		prevAno = new Date().getFullYear();
-		prevTipo = 'todos';
-
-		navegarComFiltros();
+		filtros.navegar(1);
 	}
 
 	function solicitarExclusao(id: number, titulo: string) {
@@ -789,7 +736,7 @@
 			onAbrirDialogSolicitar={abrirDialogSolicitar}
 			onCancelarSolicitacao={cancelarSolicitacao}
 			onNovaEscala={() => (dialogNovaEscalaAberto = true)}
-			onPageChange={irParaPaginaListagem}
+			onPageChange={filtros.irParaPagina}
 		/>
 	</div>
 {:else if visao === 'assinaturas'}
