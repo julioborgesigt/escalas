@@ -303,3 +303,6 @@ export function useGiseSeccionalActions(params: UseGiseSeccionalActionsParams) {
 		buscarPorCargo
 	};
 }
+
+/** Tipo do objeto devolvido — para props de componentes filhos (slot/equipe). */
+export type GiseSeccionalActions = ReturnType<typeof useGiseSeccionalActions>;
