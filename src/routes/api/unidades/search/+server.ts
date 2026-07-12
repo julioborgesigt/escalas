@@ -1,4 +1,5 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { asc, eq, like, and, inArray } from 'drizzle-orm';
 import { getDB } from '$lib/db';
 import { unidades } from '$lib/server/schema';
