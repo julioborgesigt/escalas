@@ -12,7 +12,8 @@
  * remove apenas registros já expirados, então reexecuções são inofensivas
  * (não precisa de replay-protection).
  */
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, registrarAuditComContexto } from '$lib/db';
 import { carregarConfigRetencao, executarLimpezaRetencao } from '$lib/db/lgpd-retencao';
 import {

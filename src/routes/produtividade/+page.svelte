@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { tick } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
@@ -43,7 +44,7 @@
 		}
 	}
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	// Filters
 	let filterTipo = $state('operacional');

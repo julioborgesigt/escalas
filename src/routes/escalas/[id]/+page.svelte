@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -18,7 +19,7 @@
 	import TabelaServidores from './_components/TabelaServidores.svelte';
 	import TabelaPlantao from './_components/TabelaPlantao.svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const horas = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutos = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));

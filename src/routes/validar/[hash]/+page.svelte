@@ -2,7 +2,7 @@
 	import { formatarData } from '$lib/utils';
 	import { toaster } from '$lib/toast';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 
 	interface DocumentoComAuditoria {
 		assinante_nome: string;
@@ -11,7 +11,7 @@
 		tipo: string;
 	}
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 	const documento = $derived(data.documento as DocumentoComAuditoria);
 
 	function formatarDataHora(dateStr: string | null) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { toaster } from '$lib/toast';
@@ -9,7 +10,7 @@
 	import { ROTULO_CAMPO } from '$lib/perfil-campos';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const perfil = $derived(data.perfil);
 

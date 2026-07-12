@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { PenLine, CheckCircle2, ClipboardList } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -28,7 +29,7 @@
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
@@ -344,19 +345,8 @@
 
 	let abriuDoHome = $state(false);
 
-	const podeAssinar = $derived(data.podeAssinar as boolean);
-	const escalasParaAssinar = $derived(
-		(data.escalasParaAssinar ?? []) as Array<{
-			id: number;
-			titulo: string;
-			cidade: string;
-			data_inicio: string;
-			data_fim: string;
-			tipo: string;
-			lotacao: string;
-			is_assinada: boolean;
-		}>
-	);
+	const podeAssinar = $derived(data.podeAssinar);
+	const escalasParaAssinar = $derived(data.escalasParaAssinar);
 
 	// --- Rubrica reutilizável (cadastro para assinatura por token) ---
 	// Só consideramos "tem rubrica" quando é um dataURL de imagem real.

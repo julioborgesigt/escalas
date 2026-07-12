@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page, navigating } from '$app/state';
@@ -16,7 +17,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	function handleSalvarPolicial({ formData }: { formData: FormData }) {
 		pendingCadastro = true;

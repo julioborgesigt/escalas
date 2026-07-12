@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { Lock } from 'lucide-svelte';
 	import { untrack } from 'svelte';
 	import { page, navigating } from '$app/state';
@@ -16,7 +17,7 @@
 	import { loading as loadingService } from '$lib/loading.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

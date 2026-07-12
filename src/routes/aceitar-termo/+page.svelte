@@ -1,7 +1,8 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	let enviando = $state(false);
 </script>

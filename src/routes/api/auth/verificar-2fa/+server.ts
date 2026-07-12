@@ -5,7 +5,7 @@
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { getDB, auditar, contextoDeEvento } from '$lib/db';
 import { criarSessao, verificarDesafio2FA } from '$lib/auth';
 import { policiais, administradores } from '$lib/server/schema';
@@ -30,7 +30,7 @@ import { logger } from '$lib/server/logger';
 const VERIFICAR_2FA_MAX = 10;
 const VERIFICAR_2FA_WINDOW_MIN = 15;
 
-export const POST = async (event: RequestEvent) => {
+export const POST: RequestHandler = async (event) => {
 	const { platform, request, cookies, url, getClientAddress } = event;
 	const db = getDB(platform);
 	const ip = getClientAddress();

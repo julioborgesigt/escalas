@@ -16,7 +16,10 @@
 			cidade: string;
 			data_inicio: string;
 			data_fim: string;
-			tipo: string;
+			// União do schema (a query filtra para plantao/expediente, mas o tipo
+			// da coluna é nullable) — mais preciso que `string` para os {@const}
+			// que comparam com literais.
+			tipo: 'plantao' | 'expediente' | 'fds' | null;
 			lotacao: string;
 			is_assinada: boolean;
 		}>;

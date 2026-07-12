@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page, navigating } from '$app/state';
@@ -14,7 +15,7 @@
 	import FormularioServico from './FormularioServico.svelte';
 	import { toaster } from '$lib/toast';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 	const auth = useAutorizacao();
 	const isAdminGeral = $derived(auth.isAdmin);
 	const resGise = useResGise(() => data);
