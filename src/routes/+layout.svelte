@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { LayoutProps } from './$types';
 	import '../app.css';
 	// Preload das duas fontes críticas acima da dobra (corpo + títulos): sem
 	// isto o browser só descobre os woff2 após baixar e parsear o CSS, e o
@@ -19,7 +20,7 @@
 	import AvisoCadastroRubrica from '$lib/components/AvisoCadastroRubrica.svelte';
 	import { useScrollLock } from '$lib/composables';
 
-	const { children } = $props();
+	const { children }: LayoutProps = $props();
 
 	const usuario = $derived(page.data.usuario);
 	const iniciaisUsuario = $derived(

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { PenLine } from 'lucide-svelte';
 	import { goto, invalidate, invalidateAll, replaceState } from '$app/navigation';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
@@ -32,7 +32,7 @@
 	import ModalBreveRelatorio from './_components/modais/ModalBreveRelatorio.svelte';
 	import ModalDownloadExtras from '../_components/ModalDownloadExtras.svelte';
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 
 	// Hook de estados derivados e permissões
 	const giseEstado = useGiseEstado({ getData: () => data });

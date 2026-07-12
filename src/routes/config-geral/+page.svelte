@@ -1,9 +1,10 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { AlertTriangle } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	// Captura intencional do valor inicial — `provedor` é editável pelos radios e
 	// é re-sincronizado pelo $effect abaixo quando o servidor confirma o salvar.

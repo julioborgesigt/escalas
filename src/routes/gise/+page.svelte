@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -38,7 +38,7 @@
 		seccionais?: { id: number; tipos?: string[]; nome?: string }[];
 	};
 
-	const { data }: { data: PageData } = $props();
+	const { data }: PageProps = $props();
 
 	const escalas = $derived((data.escalas as GiseEscala[]) ?? []);
 	const isAdminGeral = $derived(!!data.isGeral);

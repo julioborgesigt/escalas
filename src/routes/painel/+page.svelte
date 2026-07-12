@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { Lock, CheckCircle2 } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -15,7 +16,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { Unidade } from '$lib/types';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

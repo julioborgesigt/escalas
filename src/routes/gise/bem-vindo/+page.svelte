@@ -1,8 +1,9 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
 	import { Shield, Calendar, TrendingUp, Sliders, FileText, ArrowRight } from 'lucide-svelte';
 
-	const { data } = $props();
+	const { data }: PageProps = $props();
 	const usuario = $derived(data.usuario);
 	const isSubAdmin = $derived(
 		usuario?.papel === 'admin_unidade' || usuario?.papel === 'admin_seccional'

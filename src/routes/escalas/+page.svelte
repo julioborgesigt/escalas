@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { PenLine, CheckCircle2, ClipboardList } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { untrack } from 'svelte';
@@ -28,7 +29,7 @@
 	import DialogSolicitarAssinatura from '$lib/components/DialogSolicitarAssinatura.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);

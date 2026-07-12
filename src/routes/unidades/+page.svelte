@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { page, navigating } from '$app/state';
 	import SkeletonCard from '$lib/components/SkeletonCard.svelte';
 	import FloatingRefresh from '$lib/components/FloatingRefresh.svelte';
@@ -13,7 +14,7 @@
 	import ModalCadastrarUnidade from './_components/ModalCadastrarUnidade.svelte';
 	import ModalExcluirUnidade from './_components/ModalExcluirUnidade.svelte';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	const auth = useAutorizacao();
 	const isAdmin = $derived(auth.isAdmin);
