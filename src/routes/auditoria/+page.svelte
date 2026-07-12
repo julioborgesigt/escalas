@@ -1,10 +1,10 @@
 <script lang="ts">
+	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { toaster } from '$lib/toast';
 	import { ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
-	const { data, form } = $props();
+	const { data, form }: PageProps = $props();
 
 	// ---- Rótulos e cores ----
 	const SEVERIDADE: Record<string, { label: string; cls: string }> = {
@@ -144,13 +144,11 @@
 		].filter(Boolean).length
 	);
 
-	let filtrosExpandidos = $state(false);
-
-	onMount(() => {
-		if (filtrosAtivos > 0) {
-			filtrosExpandidos = true;
-		}
-	});
+	// Captura única e intencional: nasce expandido quando a URL já traz filtros
+	// (SSR renderiza igual ao cliente — sem flash pós-hidratação). Depois disso,
+	// só o usuário controla via toggle.
+	// svelte-ignore state_referenced_locally
+	let filtrosExpandidos = $state(filtrosAtivos > 0);
 </script>
 
 <svelte:head><title>Auditoria — Escalas PC</title></svelte:head>

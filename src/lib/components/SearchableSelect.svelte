@@ -43,13 +43,10 @@
 		return v === null || v === undefined || v === '';
 	}
 
-	// Sync mode items (filtered)
-	// svelte-ignore state_referenced_locally
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let syncItems = $state<Option[]>(options);
-	$effect(() => {
-		syncItems = options;
-	});
+	// Sync mode items (filtered): $derived gravável — reseta para a lista
+	// completa quando a prop `options` muda; os handlers abaixo reatribuem
+	// localmente para aplicar o filtro digitado.
+	let syncItems = $derived(options);
 
 	// Async mode items
 	let asyncItems = $state<Option[]>([]);
